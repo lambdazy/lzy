@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-task.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-channel.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
+
+package yandex.cloud.priv.datasphere.v2;
+
+option go_package = "datasphere";
+option java_outer_classname = "Lzy";
+option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+
+service LzyServer {
+  rpc Publish (PublishRequest) returns (RegisteredZygote);
+  rpc Zygotes (Auth) returns (ZygoteList);
+
+  rpc Start (TaskSpec) returns (TaskStatus);
+  rpc Signal (SignalRequest) returns (TaskStatus);
+  rpc ProcessStatus (Auth) returns (TasksList);
+
+  rpc CreateChannel (ChannelRequest) returns (Channel);
+  rpc ChannelStatus (Auth) returns (ChannelStatusList);
+
+  rpc RegisterServant (AttachServant) returns (AttachStatus);
+}
+
+message PublishRequest {
+  UserCredentials auth = 1;
+  VisibilityScope scope = 2;
+
+  string name = 3;
+  Zygote operation = 4;
+
+  enum VisibilityScope {
+    USER = 0;
+    GROUP = 1;
+    ALL = 2;
+  }
+}
+
+message AttachServant {
+  Auth auth = 1;
+  string servantURI = 2;
+}
+
+message AttachStatus {
+}

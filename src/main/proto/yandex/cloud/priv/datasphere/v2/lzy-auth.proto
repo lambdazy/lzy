@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package yandex.cloud.priv.datasphere.v2;
+
+option go_package = "datasphere";
+option java_outer_classname = "IAM";
+option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+
+message UserCredentials {
+    string userId = 1;
+    string token = 2;
+}
+
+message TaskCredentials {
+    string taskId = 1;
+    string token = 2;
+}
+
+message Auth {
+    oneof credentials {
+        UserCredentials user = 1;
+        TaskCredentials task = 2;
+    }
+}
+

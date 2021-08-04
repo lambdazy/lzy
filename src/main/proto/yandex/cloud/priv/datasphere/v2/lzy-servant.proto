@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package yandex.cloud.priv.datasphere.v2;
+
+import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-task.proto";
+
+option go_package = "datasphere";
+option java_outer_classname = "Servant";
+option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+
+service LzyServant {
+    /** Only one execution at a time */
+    rpc Execute (ExecutionSpec) returns (stream ExecutionProgress);
+    rpc OpenOutputSlot (SlotRequest) returns (stream Message);
+    rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
+    rpc Signal (SignalRequest) returns (ExecutionStarted);
+}
+
+message SlotCommand {
+    string slot = 1;
+    oneof command {
+        CreateSlotCommand create = 2;
+        ConnectSlotCommand connect = 3;
+        DisconnectCommand disconnect = 4;
+        StatusCommand status = 5;
+        CloseCommand close = 6;
+    }
+}
+
+message CreateSlotCommand {
+    Slot slot = 1;
+    string channelId = 2;
+}
+
+message ConnectSlotCommand {
+    string servant = 1;
+    string slot = 2;
+}
+
+message DisconnectCommand {
+}
+
+message CloseCommand {
+}
+
+message StatusCommand {
+}
+
+message SlotCommandStatus {
+    oneof payload {
+        RC rc = 1;
+        SlotStatus status = 2;
+    }
+
+    enum RC {
+        SUCCESS = 0;
+        ERROR = 1;
+    }
+}
+
+message SlotRequest {
+    string slot = 1;
+    int64 offset = 2;
+}
+
+message Message {
+    enum Controls {
+        EOS = 0;
+    }
+
+    oneof message {
+        Controls control = 1;
+        bytes chunk = 2;
+    }
+}
+
+message SlotSpec {
+    string name = 1;
+    string channelId = 2;
+}
+
+message ExecutionSpec {
+    string taskId = 1;
+    string token = 2;
+
+    Zygote definition = 3;
+    repeated SlotSpec slots = 4;
+}
+
+message ExecutionProgress {
+    oneof status {
+        ExecutionStarted started = 1;
+        AttachSlot attached = 2;
+        ExecutionConcluded exit = 3;
+    }
+}
+
+message ExecutionStarted {
+}
+
+message AttachSlot {
+    Slot slot = 1;
+    string channel = 2;
+}
+
+message ExecutionConcluded {
+    int32 rc = 1;
+}
