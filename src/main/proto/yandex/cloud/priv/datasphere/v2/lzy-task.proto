@@ -9,10 +9,32 @@ option go_package = "datasphere";
 option java_outer_classname = "Tasks";
 option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
-message TaskSpec {
+message TaskCommand {
   Auth auth = 1;
+  string tid = 2;
+  oneof command {
+    TaskCreate create = 3;
+    TaskSignal signal = 4;
+    TaskState state = 5;
+  }
+}
+
+message TaskCreate {
   string zygote = 2;
   repeated SlotAssignment assignments = 3;
+}
+
+message TaskSignal {
+  SIGType sig = 1;
+
+  enum SIGType {
+    NONE = 0;
+    reserved 1 to 8;
+    KILL = 9;
+  }
+}
+
+message TaskState {
 }
 
 message SlotAssignment {
@@ -43,16 +65,4 @@ message TaskStatus {
 
 message TasksList {
   repeated TaskStatus tasks = 1;
-}
-
-message SignalRequest {
-  Auth auth = 1;
-  string tid = 2;
-  SIGType sig = 3;
-
-  enum SIGType {
-    NONE = 0;
-    reserved 1 to 8;
-    KILL = 9;
-  }
 }

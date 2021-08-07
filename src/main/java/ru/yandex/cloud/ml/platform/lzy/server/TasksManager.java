@@ -1,9 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.task.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
@@ -15,18 +15,21 @@ import java.util.stream.Stream;
 public interface TasksManager {
     Task task(UUID tid);
 
-    Task start(String uid, Task parent, Zygote workload, Map<String, Channel> assignments, Authenticator token) throws TaskException;
+    Task start(String uid, Task parent, Zygote workload, Map<Slot, Channel> assignments, Authenticator token) throws TaskException;
 
     Stream<Task> ps();
     Stream<Channel> cs();
 
-    Channel channel(UUID chid);
-    Channel createChannel(String uid, Task parent, DataSchema contentTypeFrom);
-    void bind(Task task, String slotName, Channel channel) throws ChannelException;
+    Channel channel(String chName);
+    Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom);
 
     SlotStatus[] connected(Channel channel);
 
     String owner(UUID tid);
+
+    Map<Slot, Channel> slots(String user);
+    void setSlot(String user, Slot slot, Channel channel);
+    boolean removeSlot(String user, Slot slot);
 
     enum Signal {
         TOUCH(0),

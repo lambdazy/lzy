@@ -3,7 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
@@ -16,7 +17,7 @@ import java.net.URI;
 import java.util.Iterator;
 
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {
-    private static final Logger LOG = Logger.getLogger(LzyInputSlotBase.class);
+    private static final Logger LOG = LogManager.getLogger(LzyInputSlotBase.class);
 
     private final String tid;
     private long offset = 0;
@@ -29,16 +30,16 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     }
 
     @Override
-    public void connect(URI servant, String slot) {
-        connected = servant;
+    public void connect(URI slotUri) {
+        connected = slotUri;
         servantSlotCh = ManagedChannelBuilder.forAddress(
-            servant.getHost(),
-            servant.getPort()
+            slotUri.getHost(),
+            slotUri.getPort()
         ).build();
         final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(servantSlotCh);
 
         final Iterator<Servant.Message> msgIter = stub.openOutputSlot(Servant.SlotRequest.newBuilder()
-            .setSlot(slot)
+            .setSlot(slotUri.getPath())
             .setOffset(offset)
             .build());
         state(Operations.SlotStatus.State.OPEN);

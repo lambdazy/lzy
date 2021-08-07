@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package yandex.cloud.priv.datasphere.v2;
 
+import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-task.proto";
 
@@ -14,7 +15,8 @@ service LzyServant {
     rpc Execute (ExecutionSpec) returns (stream ExecutionProgress);
     rpc OpenOutputSlot (SlotRequest) returns (stream Message);
     rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
-    rpc Signal (SignalRequest) returns (ExecutionStarted);
+    rpc Signal (TaskSignal) returns (ExecutionStarted);
+    rpc Update (Auth) returns (ExecutionStarted);
 }
 
 message SlotCommand {
@@ -34,8 +36,7 @@ message CreateSlotCommand {
 }
 
 message ConnectSlotCommand {
-    string servant = 1;
-    string slot = 2;
+    string slotUri = 1;
 }
 
 message DisconnectCommand {
@@ -76,7 +77,7 @@ message Message {
 }
 
 message SlotSpec {
-    string name = 1;
+    Slot slot = 1;
     string channelId = 2;
 }
 

@@ -1,8 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsRepository;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Channel;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelController;
@@ -11,45 +13,54 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.DirectChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.EmptyController;
 import ru.yandex.cloud.ml.platform.lzy.server.task.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import javax.annotation.Nullable;
+import java.net.URI;
 import java.text.MessageFormat;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LocalChannelsRepository implements ChannelsRepository {
-    private static final Logger LOG = Logger.getLogger(LocalTasksManager.class);
-    private final Map<UUID, ChannelEx> channels = new HashMap<>();
-    private final Map<Binding, ChannelEx> ibindings = new HashMap<>();
+    private static final Logger LOG = LogManager.getLogger(LocalTasksManager.class);
+    private final Map<String, ChannelEx> channels = new HashMap<>();
+    private final Map<URI, ChannelEx> ibindings = new HashMap<>();
+    private final Map<URI, Binding> bindings = new HashMap<>();
 
     @Override
-    public Channel get(UUID cid) {
+    public Channel get(String cid) {
         return channels.get(cid);
     }
 
     @Override
-    public Channel create(DataSchema contentTypeFrom) {
-        final ChannelEx channel = new ChannelImpl(UUID.randomUUID(), contentTypeFrom);
-        channels.put(channel.id(), channel);
+    public Channel create(String name, DataSchema contentTypeFrom) {
+        if (channels.containsKey(name)) {
+            return null;
+        }
+        final ChannelEx channel = new ChannelImpl(name == null ? UUID.randomUUID().toString() : name, contentTypeFrom);
+        channels.put(channel.name(), channel);
         return channel;
     }
 
     @Override
-    public void bind(Channel ch, Task task, Slot slot) throws ChannelException {
-        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.id());
+    public void bind(Channel ch, Binding binding) throws ChannelException {
+        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
         if (channel == null) {
-            throw new ChannelException("Channel " + ch.id() + " is not registered");
+            throw new ChannelException("Channel " + ch.name() + " is not registered");
         }
-        final Binding binding = new Binding(task, slot);
-        if (ibindings.containsKey(binding)) {
-            if (channel.equals(ibindings.get(binding))) // already bound to this channel
+        if (ibindings.containsKey(binding.uri())) {
+            if (channel.equals(ibindings.get(binding.uri()))) // already bound to this channel
                 return;
-            throw new ChannelException("Bound to another channel: " + channel.id());
+            throw new ChannelException("Bound to another channel: " + channel.name());
         }
+        final Slot slot = binding.slot();
         switch (slot.direction()) { // type checking
             case INPUT:
                 if (!slot.contentType().isAssignableFrom(channel.contentType())) {
@@ -67,34 +78,56 @@ public class LocalChannelsRepository implements ChannelsRepository {
                 break;
         }
 
-        ibindings.put(binding, channel);
-        channel.bind(task, slot);
+        ibindings.put(binding.uri(), channel);
+        bindings.put(binding.uri(), binding);
+        channel.bind(binding);
     }
 
     @Override
-    public void unbind(Channel ch, Task servant, Slot slot) throws ChannelException {
-        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.id());
-        if (channel != null) channel.unbind(servant, slot);
+    public void unbind(Channel ch, Binding binding) throws ChannelException {
+        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
+        if (channel != null) channel.unbind(binding);
+        ibindings.remove(binding.uri());
+        bindings.remove(binding.uri());
     }
 
     @Override
     public void destroy(Channel ch) {
-        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.id());
+        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
         if (channel != null) channel.close();
     }
 
     @Nullable
     @Override
-    public Channel bound(Task servant, Slot slot) {
-        return ibindings.get(new Binding(servant, slot));
+    public Channel bound(URI slot) {
+        return ibindings.get(slot);
+    }
+
+    @Override
+    public void unbindAll(URI servantUri) {
+        final String prefix = servantUri.toString();
+        final Set<URI> unbind = ibindings.keySet()
+            .stream()
+            .filter(uri -> uri.toString().startsWith(prefix))
+            .collect(Collectors.toSet());
+        unbind.forEach(ub -> unbind(ibindings.get(ub), bindings.get(ub)));
     }
 
     @Override
     public SlotStatus[] connected(Channel ch) {
-        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.id());
+        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
         if (channel == null)
             return new SlotStatus[0];
-        return channel.bound().map(s -> s.task().slotStatus(s.slot().name())).toArray(SlotStatus[]::new);
+        return channel.bound().map(s -> {
+            final Servant.SlotCommandStatus slotCommandStatus = LzyServantGrpc.newBlockingStub(s.control())
+                .configureSlot(
+                    Servant.SlotCommand.newBuilder()
+                        .setSlot(s.slot().name())
+                        .setStatus(Servant.StatusCommand.newBuilder().build())
+                        .build()
+                );
+            return gRPCConverter.from(slotCommandStatus.getStatus());
+        }).toArray(SlotStatus[]::new);
     }
 
     @Override
@@ -103,19 +136,19 @@ public class LocalChannelsRepository implements ChannelsRepository {
     }
 
     public static class ChannelImpl implements ChannelEx {
-        private final UUID id;
+        private final String id;
         private final DataSchema contentType;
         private ChannelController logic; // pluggable channel logic
-        private Map<Task, Slot> bound = new HashMap<>();
+        private Set<Binding> bound = new HashSet<>();
 
-        ChannelImpl(UUID id, DataSchema contentType) {
+        ChannelImpl(String id, DataSchema contentType) {
             this.id = id;
             this.contentType = contentType;
             this.logic = new DirectChannelController(this);
         }
 
         @Override
-        public UUID id() {
+        public String name() {
             return id;
         }
 
@@ -130,25 +163,26 @@ public class LocalChannelsRepository implements ChannelsRepository {
                 logic.executeDestroy();
             }
             catch (ChannelException e) {
-                LOG.warn("Exception during channel " + id() + " destruction", e);
+                LOG.warn("Exception during channel " + name() + " destruction", e);
             }
             logic = new EmptyController();
         }
 
         @Override
-        public void bind(Task task, Slot slot) throws ChannelException {
-            logic = logic.executeBind(new Binding(task, slot));
-            bound.put(task, slot);
+        public void bind(Binding binding) throws ChannelException {
+            logic = logic.executeBind(binding);
+            bound.add(binding);
         }
 
         @Override
-        public void unbind(Task task, Slot slot) throws ChannelException {
-            if (bound.remove(task) == null) {
+        public void unbind(Binding binding) throws ChannelException {
+            if (!bound.remove(binding)) {
                 throw new ChannelException(MessageFormat.format(
                     "Slot {0}:{1} is not bound to the channel {2}",
-                    task.tid(), slot.name(), this.id()));
+                    binding.uri(), this.name())
+                );
             }
-            logic = logic.executeUnBind(new Binding(task, slot));
+            logic = logic.executeUnBind(binding);
         }
 
         @Override
@@ -158,7 +192,7 @@ public class LocalChannelsRepository implements ChannelsRepository {
 
         @Override
         public Stream<Binding> bound() {
-            return bound.entrySet().stream().map(e -> new Binding(e.getKey(), e.getValue()));
+            return bound.stream();
         }
 
         @Override

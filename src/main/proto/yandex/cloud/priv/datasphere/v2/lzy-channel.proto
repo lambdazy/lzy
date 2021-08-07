@@ -14,9 +14,24 @@ message Channel {
     string contentType = 2;
 }
 
-message ChannelRequest {
+message ChannelCommand {
     Auth auth = 1;
-    string contentType = 2;
+    string channelName = 2;
+    oneof command {
+        ChannelCreate create = 3;
+        ChannelDestroy destroy = 4;
+        ChannelState state = 5;
+    }
+}
+
+message ChannelCreate {
+    string contentType = 1;
+}
+
+message ChannelDestroy {
+}
+
+message ChannelState {
 }
 
 message BindRequest {
@@ -38,8 +53,8 @@ message Binding {
 }
 
 message ChannelStatus {
-    Channel channel = 2;
-    repeated SlotStatus connected = 3;
+    Channel channel = 1;
+    repeated SlotStatus connected = 2;
 }
 
 message ChannelStatusList {

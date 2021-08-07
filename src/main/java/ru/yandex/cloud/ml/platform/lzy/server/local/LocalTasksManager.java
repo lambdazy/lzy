@@ -1,13 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
-import org.apache.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsRepository;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Channel;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.task.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 
@@ -19,9 +18,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 public class LocalTasksManager implements TasksManager {
-    private static final Logger LOG = Logger.getLogger(LocalTasksManager.class);
-
-    private final ChannelsRepository channels = new LocalChannelsRepository();
+    private final ChannelsRepository channels;
     private final Map<UUID, LocalTask> tasks = new HashMap<>();
 
     private final Map<String, List<Task>> userTasks = new HashMap<>();
@@ -32,19 +29,22 @@ public class LocalTasksManager implements TasksManager {
     private final Map<Task, List<Channel>> taskChannels = new HashMap<>();
     private final Map<String, List<Channel>> userChannels = new HashMap<>();
 
+    private final Map<String, Map<Slot, Channel>> userSlots = new HashMap<>();
+
+    public LocalTasksManager(ChannelsRepository channels) {
+        this.channels = channels;
+    }
+
     @Override
-    public Channel createChannel(String uid, Task parent, DataSchema contentTypeFrom) {
-        final Channel channel = channels.create(contentTypeFrom);
+    public Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom) {
+        final Channel channel = channels.create(name, contentTypeFrom);
+        if (channel == null)
+            return null;
         if (parent != null)
             taskChannels.computeIfAbsent(parent, task -> new ArrayList<>()).add(channel);
         else
             userChannels.computeIfAbsent(uid, user -> new ArrayList<>()).add(channel);
         return channel;
-    }
-
-    @Override
-    public void bind(Task task, String slotName, Channel channel) throws ChannelException {
-        channels.bind(channel, task, task.slot(slotName));
     }
 
     @Override
@@ -58,12 +58,27 @@ public class LocalTasksManager implements TasksManager {
     }
 
     @Override
+    public Map<Slot, Channel> slots(String user) {
+        return userSlots.getOrDefault(user, Map.of());
+    }
+
+    @Override
+    public void setSlot(String user, Slot slot, Channel channel) {
+        userSlots.computeIfAbsent(user, u -> new HashMap<>()).put(slot, channel);
+    }
+
+    @Override
+    public boolean removeSlot(String user, Slot slot) {
+        return userSlots.getOrDefault(user, Map.of()).remove(slot) != null;
+    }
+
+    @Override
     public Stream<Channel> cs() {
         return channels.channels();
     }
 
     @Override
-    public Task start(String uid, Task parent, Zygote workload, Map<String, Channel> assignments, Authenticator auth) {
+    public Task start(String uid, Task parent, Zygote workload, Map<Slot, Channel> assignments, Authenticator auth) {
         final LocalTask task = new LocalTask(UUID.randomUUID(), workload, assignments, channels);
         tasks.put(task.tid(), task);
         if (parent != null)
@@ -80,14 +95,7 @@ public class LocalTasksManager implements TasksManager {
             children.remove(task);
             children.getOrDefault(parents.remove(task), List.of()).remove(task);
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
-            task.slots().forEach(slot -> {
-                try {
-                    channels.unbind(channels.bound(task, slot), task, slot);
-                }
-                catch (ChannelException ce) {
-                    LOG.warn("Failed to unbind channel", ce);
-                }
-            });
+            channels.unbindAll(task.servant());
             taskChannels.remove(task);
             userTasks.getOrDefault(owners.remove(task), List.of()).remove(task);
         });
@@ -106,7 +114,7 @@ public class LocalTasksManager implements TasksManager {
     }
 
     @Override
-    public Channel channel(UUID chid) {
-        return channels.channels().filter(ch -> ch.id().equals(chid)).findFirst().orElse(null);
+    public Channel channel(String chName) {
+        return channels.channels().filter(ch -> ch.name().equals(chName)).findFirst().orElse(null);
     }
 }

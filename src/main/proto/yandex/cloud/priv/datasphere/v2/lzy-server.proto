@@ -15,12 +15,11 @@ service LzyServer {
   rpc Publish (PublishRequest) returns (RegisteredZygote);
   rpc Zygotes (Auth) returns (ZygoteList);
 
-  rpc Start (TaskSpec) returns (TaskStatus);
-  rpc Signal (SignalRequest) returns (TaskStatus);
-  rpc ProcessStatus (Auth) returns (TasksList);
+  rpc Task (TaskCommand) returns (TaskStatus);
+  rpc Channel (ChannelCommand) returns (ChannelStatus);
 
-  rpc CreateChannel (ChannelRequest) returns (Channel);
-  rpc ChannelStatus (Auth) returns (ChannelStatusList);
+  rpc TasksStatus (Auth) returns (TasksList);
+  rpc ChannelsStatus (Auth) returns (ChannelStatusList);
 
   rpc RegisterServant (AttachServant) returns (AttachStatus);
 }

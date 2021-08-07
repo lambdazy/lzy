@@ -1,10 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
-    private static final Logger LOG = Logger.getLogger(LineReaderSlot.class);
+    private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);
 
     private final String tid;
     private LineNumberReader reader;

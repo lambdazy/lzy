@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelEx;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
@@ -11,7 +12,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import java.text.MessageFormat;
 
 public class DirectChannelController implements ChannelController {
-    private static final Logger LOG = Logger.getLogger(DirectChannelController.class);
+    private static final Logger LOG = LogManager.getLogger(DirectChannelController.class);
 
     private final ChannelEx channel;
     private Binding input;
@@ -31,8 +32,8 @@ public class DirectChannelController implements ChannelController {
                     final int rc = connect(s, slot);
                     if (rc != 0)
                         LOG.warn(MessageFormat.format(
-                            "Failure {4} while connecting {0}:{1} to {2}:{3}",
-                            s.task().tid(), s.slot().name(), input.task().tid(), input.slot().name(), rc
+                            "Failure {2} while connecting {0} to {1}",
+                            s.uri(), input.uri(), rc
                         ));
                     return rc;
                 }).sum() > 0) {
@@ -68,13 +69,12 @@ public class DirectChannelController implements ChannelController {
     }
 
     private int connect(Binding from, Binding to) {
-        final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.task().servantChannel())
+        final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
             .configureSlot(
                 Servant.SlotCommand.newBuilder()
                     .setSlot(from.slot().name())
                     .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                        .setServant(to.task().servant().toString())
-                        .setSlot(to.slot().name())
+                        .setSlotUri(to.uri().toString())
                         .build()
                     )
                     .build()
@@ -83,7 +83,7 @@ public class DirectChannelController implements ChannelController {
     }
 
     private int disconnect(Binding from) {
-        final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.task().servantChannel())
+        final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
             .configureSlot(
                 Servant.SlotCommand.newBuilder()
                     .setSlot(from.slot().name())
@@ -94,7 +94,7 @@ public class DirectChannelController implements ChannelController {
     }
 
     private int close(Binding from) {
-        final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.task().servantChannel())
+        final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
             .configureSlot(
                 Servant.SlotCommand.newBuilder()
                     .setSlot(from.slot().name())

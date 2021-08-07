@@ -4,7 +4,8 @@ import jnr.ffi.Pointer;
 import jnr.ffi.types.mode_t;
 import jnr.ffi.types.off_t;
 import jnr.ffi.types.size_t;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.ErrorCodes;
 import ru.serce.jnrfuse.FuseFillDir;
 import ru.serce.jnrfuse.FuseStubFS;
@@ -17,8 +18,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.channels.ClosedChannelException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryNotEmptyException;
@@ -34,43 +33,43 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class LzyFS extends FuseStubFS {
-    private static final Logger LOG = Logger.getLogger(LzyFS.class);
+    private static final Logger LOG = LogManager.getLogger(LzyFS.class);
 
     private static final int BLOCK_SIZE = 4096;
     private Map<Path, Set<String>> children = new HashMap<>();
     private Set<String> roots = new HashSet<>();
-    private Map<Path, LzyExecutable> executables = new HashMap<>();
+    private Map<Path, LzyScript> executables = new HashMap<>();
     private Map<Path, LzyFileSlot> slots = new HashMap<>();
     private Map<Long, FileContents> openFiles = new HashMap<>();
     private Map<Path, Set<Long>> filesOpen = new HashMap<>();
 
     private AtomicLong lastFh = new AtomicLong(3);
-    private static int userId;
+    private static long userId;
     private static long groupId;
     private static long startTime;
 
     static { // startup black magic
         try {
             startTime = System.currentTimeMillis();
-            final Class privateJvmClass = Class.forName("sun.nio.fs.UnixUserPrincipals");
-            //noinspection unchecked
-            Method lookupName = privateJvmClass.getDeclaredMethod("lookupName", String.class, boolean.class);
-            lookupName.setAccessible(true);
-            userId = (Integer) lookupName.invoke(null, System.getenv("USER"), false);
-            final Process p = Runtime.getRuntime().exec("id -g");
-            p.waitFor();
-            try (LineNumberReader rd = new LineNumberReader(new InputStreamReader(p.getInputStream()))) {
-                groupId = Long.parseLong(rd.readLine());
-            }
-        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException | InterruptedException | IOException e) {
-            throw new RuntimeException(e);
+            userId = Long.parseLong(lineCmd("id -u"));
+            groupId = Long.parseLong(lineCmd("id -g"));
+        } catch (IOException | InterruptedException e) {
+            LOG.warn("Unable to get group and user id on startup");
         }
     }
 
-    public synchronized void addExecutable(LzyExecutable exec) {
-        Path execPath = Paths.get("/bin").resolve(exec.location().normalize());
-        executables.put(execPath, exec);
-        addPath(execPath);
+    public LzyFS() {
+        children.put(Path.of("/"), roots);
+        roots.addAll(Set.of("sbin", "bin", "slots"));
+        for (String root : roots) {
+            children.put(Paths.get("/", root), new HashSet<>());
+        }
+    }
+
+    public synchronized void addScript(LzyScript exec, boolean isSystem) {
+        Path execPath = Paths.get(isSystem ? "/sbin" : "/bin").resolve(exec.location());
+        if (executables.put(execPath, exec) == null)
+            addPath(execPath);
     }
 
     public synchronized void addSlot(LzyFileSlot slot) {
@@ -85,13 +84,16 @@ public class LzyFS extends FuseStubFS {
         if (children.getOrDefault(parent, Set.of()).contains(name))
             return false;
 
-        while ((parent = parent.getParent()) != null) {
+        while (parent != null) {
             final Set<String> children = this.children.computeIfAbsent(parent, p -> new HashSet<>());
+            if (children.contains(name))
+                break;
             children.add(name);
+            if (parent.getFileName() == null) // at root
+                break;
             name = parent.getFileName().toString();
             parent = parent.getParent();
         }
-        roots.add(name);
         return true;
     }
 
@@ -171,15 +173,16 @@ public class LzyFS extends FuseStubFS {
     @SuppressWarnings("OctalInteger")
     @Override
     public int getattr(String pathStr, FileStat stat) {
-        final Path path = Path.of(pathStr);
+        final Path path = Path.of(pathStr).toAbsolutePath();
         long time = startTime;
-        if (children.containsKey(path)) { // directory
-            stat.st_mode.set(0750);
-            stat.st_size.set(children.get(path).stream().mapToLong(String::length).sum());
+        if (children.containsKey(path) || path.equals(Path.of("/"))) { // directory
+            stat.st_mode.set(0750 | FileStat.S_IFDIR);
+            final long size = children.getOrDefault(path, Set.of()).stream().mapToLong(String::length).sum() + 64;
+            stat.st_size.set(size);
         }
         else if (executables.containsKey(path)) { // declared operation
-            final LzyExecutable executable = executables.get(path);
-            stat.st_mode.set(0750);
+            final LzyScript executable = executables.get(path);
+            stat.st_mode.set(0750 | FileStat.S_IFREG);
             stat.st_size.set(executable.scriptText().length());
         }
         else if (slots.containsKey(path)) {
@@ -200,7 +203,7 @@ public class LzyFS extends FuseStubFS {
                 stat.st_ctim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(ctime));
                 stat.st_ctim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(ctime));
             }
-            stat.st_mode.set(0640);
+            stat.st_mode.set(0640 | FileStat.S_IFREG);
             stat.st_size.set(slot.size());
         }
         else return -ErrorCodes.ENOENT();
@@ -222,12 +225,14 @@ public class LzyFS extends FuseStubFS {
     @Override
     public int readdir(String pathStr, Pointer buf, FuseFillDir filter, @off_t long offset, FuseFileInfo fi) {
         final Path path = Paths.get(pathStr);
-        final Set<String> children = pathStr.length() > 0 ? this.children.get(path) : roots;
+        final Set<String> children = this.children.getOrDefault(path, Set.of());
         if (children == null)
             return this.executables.containsKey(path) || this.slots.containsKey(path) ? -ErrorCodes.ENOTDIR() : -ErrorCodes.ENOENT();
         children.stream().sorted().forEach(child -> {
             final FileStat lstat = new FileStat(buf.getRuntime());
-            getattr(path.resolve(child).toString(), lstat);
+            if (getattr(path.resolve(child).toString(), lstat) == 0) {
+                filter.apply(buf, child, lstat, 0);
+            }
         });
         return 0;
     }
@@ -247,11 +252,11 @@ public class LzyFS extends FuseStubFS {
         return -ErrorCodes.EACCES();
     }
 
+
     // TODO: implement for default version of executable
     //@Override
     //public int readlink(String path, Pointer buf, long size) {
     //}
-
     @Override
     public int statfs(String path, Statvfs stbuf) {
         stbuf.f_bsize.set(BLOCK_SIZE);
@@ -307,19 +312,20 @@ public class LzyFS extends FuseStubFS {
     }
 
     public interface UnsafeIOOperation {
+
         void execute() throws IOException;
     }
-
     public interface UnsafeIntIOOperation {
+
         int execute() throws IOException;
     }
-
     public static int executeUnsafe(UnsafeIOOperation op) {
         return executeUnsafeInt(() -> {
             op.execute();
             return 0;
         });
     }
+
     public static int executeUnsafeInt(UnsafeIntIOOperation op) {
         try {
             try {
@@ -353,6 +359,14 @@ public class LzyFS extends FuseStubFS {
         catch (IOException e) {
             LOG.warn("Unexoected exception during I/O operation", e);
             return -ErrorCodes.EIO();
+        }
+    }
+
+    public static String lineCmd(String cmd) throws IOException, InterruptedException {
+        final Process p = Runtime.getRuntime().exec(cmd);
+        p.waitFor();
+        try (LineNumberReader rd = new LineNumberReader(new InputStreamReader(p.getInputStream()))) {
+            return rd.readLine();
         }
     }
 }

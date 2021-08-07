@@ -2,7 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
 import jnr.ffi.Pointer;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
@@ -17,7 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
-    private static final Logger LOG = Logger.getLogger(InFileSlot.class);
+    private static final Logger LOG = LogManager.getLogger(InFileSlot.class);
 
     private final Path storage;
     private final OutputStream outputStream;

@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
@@ -27,7 +28,7 @@ import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
 public class Execution {
-    private static final Logger LOG = Logger.getLogger(Execution.class);
+    private static final Logger LOG = LogManager.getLogger(Execution.class);
 
     @SuppressWarnings("FieldCanBeLocal")
     private final String taskId;
@@ -42,14 +43,16 @@ public class Execution {
     public Execution(String taskId, AtomicZygote zygote) {
         this.taskId = taskId;
         this.zygote = zygote;
-        zygote.slots().forEach(spec -> configureSlot(spec, null));
-        stdinSlot = new WriterSlot(taskId, new TextLinesOutSlot(zygote, "<STDIN>"));
-        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "<STDOUT>"));
-        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "<STDERR>"));
+        stdinSlot = new WriterSlot(taskId, new TextLinesOutSlot(zygote, "stdin"));
+        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "stdout"));
+        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "stderr"));
+        if (zygote != null) {
+            zygote.slots().forEach(spec -> configureSlot(spec, null));
 
-        slots.put("<STDIN>", stdinSlot);
-        slots.put("<STDOUT>", stdoutSlot);
-        slots.put("<STDERR>", stderrSlot);
+            slots.put("stdin", stdinSlot);
+            slots.put("stdout", stdoutSlot);
+            slots.put("stderr", stderrSlot);
+        }
     }
 
     public LzySlot configureSlot(Slot spec, String channelId) {
@@ -96,8 +99,14 @@ public class Execution {
                     .build()
                 ));
             stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
-            stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(exec.getInputStream(), StandardCharsets.UTF_8)));
-            stderrSlot.setStream(new LineNumberReader(new InputStreamReader(exec.getErrorStream(), StandardCharsets.UTF_8)));
+            stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
+                exec.getInputStream(),
+                StandardCharsets.UTF_8
+            )));
+            stderrSlot.setStream(new LineNumberReader(new InputStreamReader(
+                exec.getErrorStream(),
+                StandardCharsets.UTF_8
+            )));
         }
         catch (IOException e) {
             LOG.warn("Exception during task execution", e);

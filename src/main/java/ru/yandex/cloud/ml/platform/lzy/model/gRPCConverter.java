@@ -68,7 +68,7 @@ public abstract class gRPCConverter {
 
     public static Channels.Channel to(Channel channel) {
         final Channels.Channel.Builder builder = Channels.Channel.newBuilder();
-        builder.setChannelId(channel.id().toString());
+        builder.setChannelId(channel.name().toString());
         builder.setContentType(to(channel.contentType()));
         return builder.build();
     }
@@ -159,8 +159,8 @@ public abstract class gRPCConverter {
 
         @Nullable
         @Override
-        public UUID channelId() {
-            return slotStatus.getConnectedTo().isEmpty() ? null : UUID.fromString(slotStatus.getConnectedTo());
+        public String channelId() {
+            return slotStatus.getConnectedTo();
         }
 
         @Override

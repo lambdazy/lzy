@@ -9,6 +9,7 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 message UserCredentials {
     string userId = 1;
     string token = 2;
+    string tokenSign = 3;
 }
 
 message TaskCredentials {

@@ -1,27 +1,25 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.Channel;
 
 import javax.annotation.Nullable;
 import java.net.URI;
-import java.util.UUID;
 
 public class PreparingSlotStatus implements SlotStatus {
-    private final UUID channel;
+    private final String channelName;
     private final Task task;
     private final Slot definition;
 
-    public PreparingSlotStatus(Task task, Slot definition, UUID channel) {
-        this.channel = channel;
+    public PreparingSlotStatus(Task task, Slot definition, String chName) {
+        this.channelName = chName;
         this.task = task;
         this.definition = definition;
     }
 
     @Nullable
     @Override
-    public UUID channelId() {
-        return channel;
+    public String channelId() {
+        return channelName;
     }
 
     @Override

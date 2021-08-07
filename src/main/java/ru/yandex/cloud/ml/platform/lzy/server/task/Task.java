@@ -19,7 +19,7 @@ public interface Task {
     void onStateChange(Consumer<State> listener);
 
     Slot slot(String slotName);
-    SlotStatus slotStatus(String slotName) throws TaskException;
+    SlotStatus slotStatus(Slot slot) throws TaskException;
     void signal(TasksManager.Signal signal) throws TaskException;
 
     URI servant();

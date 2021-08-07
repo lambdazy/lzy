@@ -1,7 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
@@ -22,7 +23,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSlot {
-    private static final Logger LOG = Logger.getLogger(OutFileSlot.class);
+    private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);
     private final Path storage;
     private final String tid;
     private boolean ready = false;

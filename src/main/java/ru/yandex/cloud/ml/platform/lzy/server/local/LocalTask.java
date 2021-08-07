@@ -2,7 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
@@ -23,7 +24,6 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -37,12 +37,12 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public class LocalTask implements Task {
-    private static final Logger LOG = Logger.getLogger(LocalTask.class);
+    private static final Logger LOG = LogManager.getLogger(LocalTask.class);
 
     private static ExecutorService pool = ForkJoinPool.commonPool();
     public final UUID tid;
     private final Zygote workload;
-    private final Map<String, Channel> assignments;
+    private final Map<Slot, Channel> assignments;
     private final ChannelsRepository channels;
 
     private State state = State.PREPARING;
@@ -52,7 +52,7 @@ public class LocalTask implements Task {
     private URI servantURI;
     private LzyServantGrpc.LzyServantBlockingStub servant;
 
-    public LocalTask(UUID tid, Zygote workload, Map<String, Channel> assignments, ChannelsRepository channels) {
+    LocalTask(UUID tid, Zygote workload, Map<Slot, Channel> assignments, ChannelsRepository channels) {
         this.tid = tid;
         this.workload = workload;
         this.assignments = assignments;
@@ -87,6 +87,7 @@ public class LocalTask implements Task {
             .orElse(workload.slot(slotName));
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
     public void start(String token) {
         try {
@@ -118,37 +119,39 @@ public class LocalTask implements Task {
             .setDefinition(gRPCConverter.to(workload));
         assignments.forEach((slot, channel) ->
             builder.addSlotsBuilder()
-                .setName(slot)
-                .setChannelId(channel.id().toString())
+                .setSlot(gRPCConverter.to(slot))
+                .setChannelId(channel.name())
                 .build()
         );
         final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
         state(State.CONNECTED);
         pool.execute(() -> {
-            progressIt.forEachRemaining(progress -> {
-                switch (progress.getStatusCase()) {
-                    case STARTED:
-                        state(State.RUNNING);
-                        break;
-                    case ATTACHED:
-                        final Servant.AttachSlot attached = progress.getAttached();
-                        final Slot slot = gRPCConverter.from(attached.getSlot());
-                        final UUID channelId = attached.getChannel().isEmpty() ? UUID.randomUUID() : UUID.fromString(attached.getChannel());
-                        final Channel channel = assignments.getOrDefault(
-                            slot.name(),
-                            channels.get(channelId)
-                        );
-                        if (channel != null) {
-                            channels.bind(channel, this, slot);
-                            attachedSlots.put(slot, channel);
-                        }
-                        else LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
-                        break;
-                    case EXIT:
-                        state(State.FINISHED);
-                        break;
-                }
-            });
+            try {
+                progressIt.forEachRemaining(progress -> {
+                    switch (progress.getStatusCase()) {
+                        case STARTED:
+                            state(State.RUNNING);
+                            break;
+                        case ATTACHED:
+                            final Servant.AttachSlot attached = progress.getAttached();
+                            final Slot slot = gRPCConverter.from(attached.getSlot());
+                            final String channelName = attached.getChannel().isEmpty() ? null : attached.getChannel();
+                            final Channel channel =
+                                channelName != null ? channels.get(channelName) : assignments.get(slot);
+                            if (channel != null) {
+                                channels.bind(channel, new Binding(this, slot));
+                                attachedSlots.put(slot, channel);
+                            } else LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
+                            break;
+                        case EXIT:
+                            state(State.FINISHED);
+                            break;
+                    }
+                });
+            }
+            finally {
+                state(State.FINISHED);
+            }
         });
     }
 
@@ -168,15 +171,15 @@ public class LocalTask implements Task {
     }
 
     @Override
-    public SlotStatus slotStatus(String slotName) throws TaskException {
-        final Slot definedSlot = workload.slot(slotName);
+    public SlotStatus slotStatus(Slot slot) throws TaskException {
+        final Slot definedSlot = workload.slot(slot.name());
         if (servant == null) {
             if (definedSlot != null)
-                return new PreparingSlotStatus(this, definedSlot, assignments.get(slotName).id());
-            throw new TaskException("No such slot: " + tid + ":" + slotName);
+                return new PreparingSlotStatus(this, definedSlot, assignments.get(slot).name());
+            throw new TaskException("No such slot: " + tid + ":" + slot);
         }
         final Servant.SlotCommandStatus slotStatus = servant.configureSlot(Servant.SlotCommand.newBuilder()
-            .setSlot(slotName)
+            .setSlot(slot.name())
             .setStatus(Servant.StatusCommand.newBuilder().build())
             .build()
         );
@@ -188,9 +191,10 @@ public class LocalTask implements Task {
         if (servant == null)
             throw new TaskException("Illegal task state: " + state());
         //noinspection ResultOfMethodCallIgnored
-        servant.signal(Tasks.SignalRequest.newBuilder().setSigValue(signal.sig()).build());
+        servant.signal(Tasks.TaskSignal.newBuilder().setSigValue(signal.sig()).build());
     }
 
+    @SuppressWarnings({"SameParameterValue", "UnusedReturnValue"})
     private static Process runJvm(final Class<?> mainClass, File wd, final String... args) {
         try {
             final Method main = mainClass.getMethod("main", String[].class);
