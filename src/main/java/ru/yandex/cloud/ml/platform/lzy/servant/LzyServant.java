@@ -99,13 +99,14 @@ public class LzyServant {
         public LzyServant build() throws URISyntaxException {
             final IAM.Auth.Builder authBuilder = IAM.Auth.newBuilder();
             if (user != null) {
-                authBuilder.setUser(IAM.UserCredentials.newBuilder()
+                final IAM.UserCredentials.Builder credBuilder = IAM.UserCredentials.newBuilder()
                     .setUserId(user)
-                    .setToken(token)
-                    .setTokenSign(tokenSign)
-                    .build());
-            }
-            else {
+                    .setToken(token);
+                if (tokenSign != null) {
+                    credBuilder.setTokenSign(tokenSign);
+                }
+                authBuilder.setUser(credBuilder.build());
+            } else {
                 authBuilder.setTask(IAM.TaskCredentials.newBuilder()
                     .setTaskId(task)
                     .setToken(token)
