@@ -30,8 +30,6 @@ public class Channel implements ServantCommand {
     @Override
     public int execute(CommandLine command) throws Exception {
         if (command.getArgs().length < 2)
-            throw new IllegalArgumentException("Please specify the name of the channel");
-        if (command.getArgs().length < 3)
             throw new IllegalArgumentException("Please specify channel command");
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
@@ -40,25 +38,57 @@ public class Channel implements ServantCommand {
             .usePlaintext()
             .build();
         final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
-        switch (command.getArgs()[2]) {
-            case "create":
+        switch (command.getArgs()[1]) {
+            case "create": {
                 String channelName;
-                if (command.getArgs().length < 4)
+                if (command.getArgs().length < 3)
                     channelName = UUID.randomUUID().toString();
                 else
-                    channelName = command.getArgs()[3];
+                    channelName = command.getArgs()[2];
+                final Channels.ChannelCreate.Builder createCommandBuilder = Channels.ChannelCreate.newBuilder();
+                if (command.hasOption('c')) {
+                    createCommandBuilder.setContentType(command.getOptionValue('c'));
+                }
                 final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
                     .setAuth(auth)
                     .setChannelName(channelName)
-                    .setCreate(Channels.ChannelCreate.newBuilder().setContentType(command.getOptionValue('c')).build())
+                    .setCreate(createCommandBuilder)
                     .build();
                 final Channels.ChannelStatus channel = server.channel(channelReq);
                 System.out.println(channel.getChannel().getChannelId());
                 break;
-            case "status":
+            }
+            case "status": {
+                String channelName;
+                if (command.getArgs().length < 3) {
+                    throw new IllegalArgumentException("Specify a channel name");
+                }
+                channelName = command.getArgs()[2];
+                final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
+                    .setAuth(auth)
+                    .setChannelName(channelName)
+                    .setState(Channels.ChannelState.newBuilder().build())
+                    .build();
+                final Channels.ChannelStatus channelStatus = server.channel(channelReq);
+                System.out.println(JsonFormat.printer().print(channelStatus));
                 break;
-            case "destroy":
+            }
+            case "destroy": {
+                String channelName;
+                if (command.getArgs().length < 3) {
+                    throw new IllegalArgumentException("Specify a channel name");
+                }
+                channelName = command.getArgs()[2];
+                final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
+                    .setAuth(auth)
+                    .setChannelName(channelName)
+                    .setDestroy(Channels.ChannelDestroy.newBuilder().build())
+                    .build();
+                final Channels.ChannelStatus channelStatus = server.channel(channelReq);
+                System.out.println(JsonFormat.printer().print(channelStatus));
+                System.out.println("Channel destroyed");
                 break;
+            }
         }
         return 0;
     }

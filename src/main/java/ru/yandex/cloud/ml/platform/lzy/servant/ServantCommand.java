@@ -1,6 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.servant;
 
 import org.apache.commons.cli.CommandLine;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.Channel;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.ChannelsStatus;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Publish;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Run;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Terminal;
@@ -13,7 +15,9 @@ public interface ServantCommand {
         publish(new Publish()),
         terminal(new Terminal()),
         update(new Update()),
-        run(new Run());
+        run(new Run()),
+        channel(new Channel()),
+        cs(new ChannelsStatus());
 
         private final ServantCommand command;
         Commands(ServantCommand command) {

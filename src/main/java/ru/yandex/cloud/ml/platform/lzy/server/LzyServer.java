@@ -212,7 +212,14 @@ public class LzyServer {
                     break;
                 }
                 case DESTROY: {
-                    break;
+                    channel = channels.get(request.getChannelName());
+                    if (channel != null) {
+                        final Channels.ChannelStatus status = channelStatus(channel);
+                        channels.destroy(channel);
+                        responseObserver.onNext(status);
+                        responseObserver.onCompleted();
+                        return;
+                    }
                 }
                 case STATE: {
                     channel = channels.get(request.getChannelName());
@@ -223,7 +230,7 @@ public class LzyServer {
                 responseObserver.onNext(channelStatus(channel));
                 responseObserver.onCompleted();
             }
-            else responseObserver.onError(new IllegalArgumentException());
+            else responseObserver.onError(Status.NOT_FOUND.asException());
         }
 
         @Override
@@ -233,6 +240,8 @@ public class LzyServer {
 
             final Channels.ChannelStatusList.Builder builder = Channels.ChannelStatusList.newBuilder();
             tasks.cs().forEach(channel -> builder.addStatuses(channelStatus(channel)));
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
         }
 
         @Override
