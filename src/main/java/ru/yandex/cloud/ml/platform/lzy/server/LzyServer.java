@@ -7,6 +7,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -251,13 +252,14 @@ public class LzyServer {
                 return;
             responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
             responseObserver.onCompleted();
-            new Thread(() -> {
-                final URI servantUri = URI.create(request.getServantURI());
-                if (auth.hasTask()) {
-                    final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
-                    task.attachServant(servantUri);
-                } else if (auth.hasUser()) {
-                    final String user = auth.getUser().getUserId();
+            final URI servantUri = URI.create(request.getServantURI());
+            if (auth.hasTask()) {
+                final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
+                task.attachServant(servantUri);
+            }
+            else if (auth.hasUser()) {
+                final String user = auth.getUser().getUserId();
+                new Thread(() -> {
                     final ManagedChannel servantChannel = ManagedChannelBuilder
                         .forAddress(servantUri.getHost(), servantUri.getPort())
                         .usePlaintext()
@@ -271,34 +273,35 @@ public class LzyServer {
                     final Iterator<Servant.ExecutionProgress> execute = LzyServantGrpc
                         .newBlockingStub(servantChannel)
                         .execute(executionSpec.build());
-                    new Thread(() -> {
-                        try {
-                            execute.forEachRemaining(progress -> {
-                                if (progress.hasAttached()) {
-                                    final Servant.AttachSlot attached = progress.getAttached();
-                                    final Slot slot = gRPCConverter.from(attached.getSlot());
-                                    tasks.setSlot(user, slot, channels.get(attached.getChannel()));
-                                    final Binding binding = new Binding(
-                                        slot,
-                                        servantUri.resolve(slot.name()),
-                                        servantChannel
-                                    );
-                                    this.channels.bind(channels.get(attached.getChannel()), binding);
-                                }
-                                try {
-                                    LOG.info(JsonFormat.printer().print(progress));
-                                } catch (InvalidProtocolBufferException ignore) {
-                                }
-                            });
-                        }
-                        catch (Exception ignore) {}
-                        finally {
-                            channels.unbindAll(servantUri);
-                            LOG.info("Terminal for " + user + " disconnected");
-                        }
-                    }, "Lzy terminal " + user).start();
-                }
-            }).start();
+                    try {
+                        execute.forEachRemaining(progress -> {
+                            try {
+                                LOG.info(JsonFormat.printer().print(progress));
+                            } catch (InvalidProtocolBufferException e) {
+                                LOG.error("Unable to parse progress", e);
+                            }
+                            if (progress.hasAttached()) {
+                                final Servant.AttachSlot attached = progress.getAttached();
+                                final Slot slot = gRPCConverter.from(attached.getSlot());
+                                tasks.setSlot(user, slot, channels.get(attached.getChannel()));
+                                final Binding binding = new Binding(
+                                    slot,
+                                    servantUri.resolve(slot.name()),
+                                    servantChannel
+                                );
+                                this.channels.bind(channels.get(attached.getChannel()), binding);
+                            }
+                        });
+                        LOG.info("Terminal for " + user + " disconnected");
+                    }
+                    catch (StatusRuntimeException th) {
+                        LOG.error("Terminal execution terminated " + th.getMessage());
+                    }
+                    finally {
+                        channels.unbindAll(servantUri);
+                    }
+                }, "Lzy terminal " + user).start();
+            }
         }
 
         private Tasks.TaskStatus taskStatus(Task task) {
@@ -332,12 +335,19 @@ public class LzyServer {
             final Channels.ChannelStatus.Builder slotStatus = Channels.ChannelStatus.newBuilder();
             slotStatus.setChannel(gRPCConverter.to(channel));
             for (SlotStatus state : tasks.connected(channel)) {
-                slotStatus.addConnectedBuilder()
-                    .setTaskId(state.task().tid().toString())
-                    .setConnectedTo(channel.name())
+                final Operations.SlotStatus.Builder builder = slotStatus.addConnectedBuilder();
+                if (state.tid() != null) {
+                    builder.setTaskId(state.tid().toString());
+                    builder.setUser(tasks.owner(state.tid()));
+                }
+                else builder.setUser(state.user());
+
+
+                builder.setConnectedTo(channel.name())
                     .setDeclaration(gRPCConverter.to(state.slot()))
                     .setPointer(state.pointer())
-                    .setState(Operations.SlotStatus.State.valueOf(state.state().toString()));
+                    .setState(Operations.SlotStatus.State.valueOf(state.state().toString()))
+                    .build();
             }
             return slotStatus.build();
         }

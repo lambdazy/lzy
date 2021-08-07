@@ -15,7 +15,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
 import java.util.Iterator;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -52,7 +55,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     @Override
     public long ctime() {
         try {
-            return (Long)Files.getAttribute(storage, "unix:creationTime");
+            return ((FileTime)Files.getAttribute(storage, "unix:creationTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -62,7 +65,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     @Override
     public long mtime() {
         try {
-            return (Long)Files.getAttribute(storage, "unix:lastModifiedTime");
+            return ((FileTime)Files.getAttribute(storage, "unix:lastModifiedTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -72,7 +75,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     @Override
     public long atime() {
         try {
-            return (Long)Files.getAttribute(storage, "unix:lastAccessTime");
+            return ((FileTime)Files.getAttribute(storage, "unix:lastAccessTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -86,13 +89,16 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
 
     @Override
     public FileContents open(FuseFileInfo fi) throws IOException {
-        final LocalFileContents localFileContents = new LocalFileContents(storage);
+        final LocalFileContents localFileContents = new LocalFileContents(storage,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.TRUNCATE_EXISTING
+        );
         localFileContents.onClose(() -> {
             synchronized (OutFileSlot.this) {
                 ready = true;
                 OutFileSlot.this.notifyAll();
             }
-
         });
         return localFileContents;
     }
@@ -122,7 +128,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             public boolean hasNext() {
                 try {
                     bb.clear();
-                    return channel.read(bb) < 0;
+                    return channel.read(bb) >= 0;
                 } catch (IOException e) {
                     LOG.warn("Unable to read line from reader", e);
                     return false;
@@ -131,6 +137,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
 
             @Override
             public ByteString next() {
+                bb.flip();
                 return ByteString.copyFrom(bb);
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);

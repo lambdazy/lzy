@@ -23,6 +23,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private long offset = 0;
     private URI connected;
     private ManagedChannel servantSlotCh;
+    private LzyServantGrpc.LzyServantBlockingStub connectedSlotController;
 
     public LzyInputSlotBase(String tid, Slot definition) {
         super(definition);
@@ -32,39 +33,11 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     @Override
     public void connect(URI slotUri) {
         connected = slotUri;
-        servantSlotCh = ManagedChannelBuilder.forAddress(
-            slotUri.getHost(),
-            slotUri.getPort()
-        ).build();
-        final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(servantSlotCh);
-
-        final Iterator<Servant.Message> msgIter = stub.openOutputSlot(Servant.SlotRequest.newBuilder()
-            .setSlot(slotUri.getPath())
-            .setOffset(offset)
-            .build());
-        state(Operations.SlotStatus.State.OPEN);
-        fjPool.execute(() -> {
-            while(msgIter.hasNext()) {
-                final Servant.Message next = msgIter.next();
-                if (next.hasChunk()) {
-                    final ByteString chunk = next.getChunk();
-                    try {
-                        onChunk(chunk);
-                    }
-                    catch (IOException ioe) {
-                        LOG.warn("Unable write chunk of data of size " + chunk.size() + " to input slot " + name(), ioe);
-                    }
-                    finally {
-                        offset += chunk.size();
-                    }
-                }
-                else if (next.getControl() == Servant.Message.Controls.EOS) {
-                    close();
-                    return;
-                }
-            }
-            disconnect();
-        });
+        servantSlotCh = ManagedChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
+            .usePlaintext()
+            .build();
+        connectedSlotController = LzyServantGrpc.newBlockingStub(servantSlotCh);
+        state(Operations.SlotStatus.State.SUSPENDED);
     }
 
     @Override
@@ -75,9 +48,40 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         state(Operations.SlotStatus.State.SUSPENDED);
     }
 
+    public void readAll() {
+        final Iterator<Servant.Message> msgIter = connectedSlotController.openOutputSlot(Servant.SlotRequest.newBuilder()
+            .setSlot(connected.getPath())
+            .setOffset(offset)
+            .build());
+        state(Operations.SlotStatus.State.OPEN);
+        try {
+            while (msgIter.hasNext()) {
+                final Servant.Message next = msgIter.next();
+                if (next.hasChunk()) {
+                    final ByteString chunk = next.getChunk();
+                    try {
+                        onChunk(chunk);
+                    } catch (IOException ioe) {
+                        LOG.warn(
+                            "Unable write chunk of data of size " + chunk.size() + " to input slot " + name(),
+                            ioe
+                        );
+                    } finally {
+                        offset += chunk.size();
+                    }
+                } else if (next.getControl() == Servant.Message.Controls.EOS) {
+                    close();
+                    return;
+                }
+            }
+        }
+        finally {
+            state(Operations.SlotStatus.State.CLOSED);
+        }
+    }
+
     @Override
     public void close() {
-        disconnect();
         state(Operations.SlotStatus.State.CLOSED);
     }
 

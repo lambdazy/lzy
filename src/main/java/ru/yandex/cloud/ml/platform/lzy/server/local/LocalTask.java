@@ -40,6 +40,7 @@ public class LocalTask implements Task {
     private static final Logger LOG = LogManager.getLogger(LocalTask.class);
 
     private static ExecutorService pool = ForkJoinPool.commonPool();
+    private final String owner;
     public final UUID tid;
     private final Zygote workload;
     private final Map<Slot, Channel> assignments;
@@ -52,7 +53,8 @@ public class LocalTask implements Task {
     private URI servantURI;
     private LzyServantGrpc.LzyServantBlockingStub servant;
 
-    LocalTask(UUID tid, Zygote workload, Map<Slot, Channel> assignments, ChannelsRepository channels) {
+    LocalTask(String owner, UUID tid, Zygote workload, Map<Slot, Channel> assignments, ChannelsRepository channels) {
+        this.owner = owner;
         this.tid = tid;
         this.workload = workload;
         this.assignments = assignments;
@@ -110,22 +112,22 @@ public class LocalTask implements Task {
 
     @Override
     public void attachServant(URI uri) {
-        servantChannel = ManagedChannelBuilder
-            .forAddress(uri.getHost(), uri.getPort())
-            .build();
-        servantURI = uri;
-        servant = LzyServantGrpc.newBlockingStub(servantChannel);
-        final Servant.ExecutionSpec.Builder builder = Servant.ExecutionSpec.newBuilder()
-            .setDefinition(gRPCConverter.to(workload));
-        assignments.forEach((slot, channel) ->
-            builder.addSlotsBuilder()
-                .setSlot(gRPCConverter.to(slot))
-                .setChannelId(channel.name())
-                .build()
-        );
-        final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
-        state(State.CONNECTED);
         pool.execute(() -> {
+            servantChannel = ManagedChannelBuilder
+                .forAddress(uri.getHost(), uri.getPort())
+                .build();
+            servantURI = uri;
+            servant = LzyServantGrpc.newBlockingStub(servantChannel);
+            final Servant.ExecutionSpec.Builder builder = Servant.ExecutionSpec.newBuilder()
+                .setDefinition(gRPCConverter.to(workload));
+            assignments.forEach((slot, channel) ->
+                builder.addSlotsBuilder()
+                    .setSlot(gRPCConverter.to(slot))
+                    .setChannelId(channel.name())
+                    .build()
+            );
+            final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
+            state(State.CONNECTED);
             try {
                 progressIt.forEachRemaining(progress -> {
                     switch (progress.getStatusCase()) {
@@ -175,7 +177,7 @@ public class LocalTask implements Task {
         final Slot definedSlot = workload.slot(slot.name());
         if (servant == null) {
             if (definedSlot != null)
-                return new PreparingSlotStatus(this, definedSlot, assignments.get(slot).name());
+                return new PreparingSlotStatus(owner, this, definedSlot, assignments.get(slot).name());
             throw new TaskException("No such slot: " + tid + ":" + slot);
         }
         final Servant.SlotCommandStatus slotStatus = servant.configureSlot(Servant.SlotCommand.newBuilder()

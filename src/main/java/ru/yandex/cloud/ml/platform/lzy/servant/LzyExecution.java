@@ -23,12 +23,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
-public class Execution {
-    private static final Logger LOG = LogManager.getLogger(Execution.class);
+public class LzyExecution {
+    private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
 
     @SuppressWarnings("FieldCanBeLocal")
     private final String taskId;
@@ -40,18 +41,17 @@ public class Execution {
     private final Map<String, LzySlot> slots = new HashMap<>();
     private List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
 
-    public Execution(String taskId, AtomicZygote zygote) {
+    public LzyExecution(String taskId, AtomicZygote zygote) {
         this.taskId = taskId;
         this.zygote = zygote;
-        stdinSlot = new WriterSlot(taskId, new TextLinesOutSlot(zygote, "stdin"));
-        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "stdout"));
-        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "stderr"));
+        stdinSlot = new WriterSlot(taskId, new TextLinesOutSlot(zygote, "/dev/stdin"));
+        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "/dev/stdout"));
+        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "/dev/stderr"));
         if (zygote != null) {
             zygote.slots().forEach(spec -> configureSlot(spec, null));
-
-            slots.put("stdin", stdinSlot);
-            slots.put("stdout", stdoutSlot);
-            slots.put("stderr", stderrSlot);
+            slots.put("/dev/stdin", stdinSlot);
+            slots.put("/dev/stdout", stdoutSlot);
+            slots.put("/dev/stderr", stderrSlot);
         }
     }
 
@@ -73,6 +73,9 @@ public class Execution {
                 }
                 default:
                     throw new UnsupportedOperationException("Not implemented yet");
+            }
+            if (slots.containsKey(spec.name())) {
+                return null;
             }
             slots.put(spec.name(), slot);
             final Servant.AttachSlot.Builder attachBuilder = Servant.AttachSlot.newBuilder()

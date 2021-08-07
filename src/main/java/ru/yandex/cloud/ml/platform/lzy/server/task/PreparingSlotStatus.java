@@ -4,13 +4,16 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 
 import javax.annotation.Nullable;
 import java.net.URI;
+import java.util.UUID;
 
 public class PreparingSlotStatus implements SlotStatus {
     private final String channelName;
     private final Task task;
     private final Slot definition;
+    private final String user;
 
-    public PreparingSlotStatus(Task task, Slot definition, String chName) {
+    public PreparingSlotStatus(String user, Task task, Slot definition, String chName) {
+        this.user = user;
         this.channelName = chName;
         this.task = task;
         this.definition = definition;
@@ -23,8 +26,13 @@ public class PreparingSlotStatus implements SlotStatus {
     }
 
     @Override
-    public Task task() {
-        return task;
+    public String user() {
+        return user;
+    }
+
+    @Override
+    public UUID tid() {
+        return task.tid();
     }
 
     @Override

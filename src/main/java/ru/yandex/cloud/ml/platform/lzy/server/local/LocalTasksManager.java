@@ -79,7 +79,7 @@ public class LocalTasksManager implements TasksManager {
 
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, Channel> assignments, Authenticator auth) {
-        final LocalTask task = new LocalTask(UUID.randomUUID(), workload, assignments, channels);
+        final LocalTask task = new LocalTask(uid, UUID.randomUUID(), workload, assignments, channels);
         tasks.put(task.tid(), task);
         if (parent != null)
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);

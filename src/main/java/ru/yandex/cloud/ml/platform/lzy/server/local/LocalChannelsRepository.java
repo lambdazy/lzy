@@ -63,18 +63,18 @@ public class LocalChannelsRepository implements ChannelsRepository {
         final Slot slot = binding.slot();
         switch (slot.direction()) { // type checking
             case INPUT:
-                if (!slot.contentType().isAssignableFrom(channel.contentType())) {
-                    throw new ChannelException(
-                        "Channel content type " + channel.contentType() + " does not fit slot type " + slot
-                            .contentType());
-                }
+                //if (!slot.contentType().isAssignableFrom(channel.contentType())) {
+                //    throw new ChannelException(
+                //        "Channel content type " + channel.contentType() + " does not fit slot type " + slot
+                //            .contentType());
+                //}
                 break;
             case OUTPUT:
-                if (!channel.contentType().isAssignableFrom(slot.contentType())) {
-                    throw new ChannelException(
-                        "Channel content type " + channel.contentType() + " does not fit slot type " + slot
-                            .contentType());
-                }
+                //if (!channel.contentType().isAssignableFrom(slot.contentType())) {
+                //    throw new ChannelException(
+                //        "Channel content type " + channel.contentType() + " does not fit slot type " + slot
+                //            .contentType());
+                //}
                 break;
         }
 
@@ -109,6 +109,7 @@ public class LocalChannelsRepository implements ChannelsRepository {
         final Set<URI> unbind = ibindings.keySet()
             .stream()
             .filter(uri -> uri.toString().startsWith(prefix))
+            .peek(uri -> bindings.get(uri).invalidate())
             .collect(Collectors.toSet());
         unbind.forEach(ub -> unbind(ibindings.get(ub), bindings.get(ub)));
     }
@@ -170,15 +171,15 @@ public class LocalChannelsRepository implements ChannelsRepository {
 
         @Override
         public void bind(Binding binding) throws ChannelException {
-            logic = logic.executeBind(binding);
             bound.add(binding);
+            logic = logic.executeBind(binding);
         }
 
         @Override
         public void unbind(Binding binding) throws ChannelException {
             if (!bound.remove(binding)) {
                 throw new ChannelException(MessageFormat.format(
-                    "Slot {0}:{1} is not bound to the channel {2}",
+                    "Slot {0} is not bound to the channel {1}",
                     binding.uri(), this.name())
                 );
             }

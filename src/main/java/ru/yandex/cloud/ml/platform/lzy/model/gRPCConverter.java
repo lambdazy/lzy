@@ -6,7 +6,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.Container;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Channel;
 import ru.yandex.cloud.ml.platform.lzy.server.task.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
@@ -150,6 +149,16 @@ public abstract class gRPCConverter {
         DataSchema contentType() {
             return contentTypeFrom(s.getContentType());
         }
+
+        @Override
+        public int hashCode() {
+            return s.getName().hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof Slot && ((Slot)obj).name().equals(s.getName());
+        }
     }
 
     private static class SlotStatusAdapter implements SlotStatus {
@@ -164,8 +173,13 @@ public abstract class gRPCConverter {
         }
 
         @Override
-        public Task task() {
-            return null;
+        public String user() {
+            return slotStatus.getUser();
+        }
+
+        @Override
+        public UUID tid() {
+            return slotStatus.getTaskId() != null && !slotStatus.getTaskId().isEmpty() ? UUID.fromString(slotStatus.getTaskId()) : null;
         }
 
         @Override

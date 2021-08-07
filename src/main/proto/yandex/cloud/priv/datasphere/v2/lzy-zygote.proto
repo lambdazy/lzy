@@ -43,14 +43,15 @@ message Slot {
 }
 
 message SlotStatus {
-    string taskId = 1;
-    Slot declaration = 2;
+    string user = 1;
+    string taskId = 2;
+    Slot declaration = 3;
 
-    string connectedTo = 3;
+    string connectedTo = 4;
 
-    uint64 pointer = 4;
+    uint64 pointer = 5;
 
-    State state = 5;
+    State state = 6;
 
     enum State {
         UNBOUND = 0;

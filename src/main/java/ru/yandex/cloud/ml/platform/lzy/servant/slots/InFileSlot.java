@@ -12,10 +12,13 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.util.concurrent.ForkJoinPool;
 
 public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private static final Logger LOG = LogManager.getLogger(InFileSlot.class);
@@ -27,6 +30,14 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
         super(tid, definition);
         storage = Files.createTempFile("lzy", "file-slot");
         outputStream = Files.newOutputStream(storage);
+    }
+
+    @Override
+    public void connect(URI slotUri) {
+        ForkJoinPool.commonPool().execute(() -> {
+            super.connect(slotUri);
+            readAll();
+        });
     }
 
     @Override
@@ -52,7 +63,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     @Override
     public long ctime() {
         try {
-            return (Long)Files.getAttribute(storage, "unix:creationTime");
+            return ((FileTime)Files.getAttribute(storage, "unix:creationTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -62,7 +73,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     @Override
     public long mtime() {
         try {
-            return (Long)Files.getAttribute(storage, "unix:lastModifiedTime");
+            return ((FileTime)Files.getAttribute(storage, "unix:lastModifiedTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -72,7 +83,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     @Override
     public long atime() {
         try {
-            return (Long)Files.getAttribute(storage, "unix:lastAccessTime");
+            return ((FileTime)Files.getAttribute(storage, "unix:lastAccessTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;

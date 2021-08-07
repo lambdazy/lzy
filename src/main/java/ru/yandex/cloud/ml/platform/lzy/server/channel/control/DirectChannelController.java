@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelEx;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
@@ -28,7 +29,7 @@ public class DirectChannelController implements ChannelController {
                 if (this.input != null && !this.input.equals(slot))
                     throw new ChannelException("Direct channel can not have two inputs");
                 this.input = slot;
-                if (channel.bound().mapToInt(s -> {
+                if (channel.bound().filter(s -> s.slot().direction() == Slot.Direction.INPUT).mapToInt(s -> {
                     final int rc = connect(s, slot);
                     if (rc != 0)
                         LOG.warn(MessageFormat.format(
@@ -53,6 +54,7 @@ public class DirectChannelController implements ChannelController {
     @Override
     public ChannelController executeUnBind(Binding slot) throws ChannelException {
         if (slot == input) {
+            input = null;
             if (channel.bound().mapToInt(this::disconnect).sum() > 0)
                 throw new ChannelException("Unable to reconfigure channel");
         }
@@ -83,6 +85,9 @@ public class DirectChannelController implements ChannelController {
     }
 
     private int disconnect(Binding from) {
+        if (from.isInvalid()) { // skip invalid connections
+            return 0;
+        }
         final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
             .configureSlot(
                 Servant.SlotCommand.newBuilder()

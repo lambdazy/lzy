@@ -6,6 +6,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.commands.ChannelsStatus;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Publish;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Run;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Terminal;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.Touch;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Update;
 
 public interface ServantCommand {
@@ -17,7 +18,8 @@ public interface ServantCommand {
         update(new Update()),
         run(new Run()),
         channel(new Channel()),
-        cs(new ChannelsStatus());
+        cs(new ChannelsStatus()),
+        touch(new Touch());
 
         private final ServantCommand command;
         Commands(ServantCommand command) {

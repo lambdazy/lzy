@@ -60,10 +60,14 @@ public class LzyFS extends FuseStubFS {
 
     public LzyFS() {
         children.put(Path.of("/"), roots);
-        roots.addAll(Set.of("sbin", "bin", "slots"));
+        roots.addAll(roots());
         for (String root : roots) {
             children.put(Paths.get("/", root), new HashSet<>());
         }
+    }
+
+    public static Set<String> roots() {
+        return Set.of("sbin", "bin", "dev");
     }
 
     public synchronized void addScript(LzyScript exec, boolean isSystem) {
@@ -73,9 +77,8 @@ public class LzyFS extends FuseStubFS {
     }
 
     public synchronized void addSlot(LzyFileSlot slot) {
-        Path slotPath = Paths.get("/").resolve(slot.location().normalize());
-        slots.put(slotPath, slot);
-        addPath(slotPath);
+        addPath(slot.location());
+        slots.put(slot.location(), slot);
     }
 
     private boolean addPath(Path path) {
@@ -123,7 +126,7 @@ public class LzyFS extends FuseStubFS {
             return 0;
         }
         else if (slots.containsKey(path)) {
-            executeUnsafe(() -> {
+            return executeUnsafe(() -> {
                 final FileContents open = slots.get(path).open(fi);
                 openFiles.put(fh, open);
                 filesOpen.computeIfAbsent(path, p -> new HashSet<>()).add(fh);
@@ -280,7 +283,11 @@ public class LzyFS extends FuseStubFS {
     }
 
     @Override
-    public int truncate(String path, long offset) {
+    public int truncate(String pathStr, long offset) {
+        final Path path = Paths.get(pathStr);
+        if (slots.containsKey(path)) {
+            return 0;
+        }
         return -ErrorCodes.EACCES();
     }
 
@@ -332,7 +339,7 @@ public class LzyFS extends FuseStubFS {
                 return op.execute();
             }
             catch (IOException ioe) {
-                //LOGGER.info("IOE", ioe);
+                LOG.info("IOE", ioe);
                 throw ioe;
             }
         }
@@ -357,7 +364,7 @@ public class LzyFS extends FuseStubFS {
             return -ErrorCodes.EBADF();
         }
         catch (IOException e) {
-            LOG.warn("Unexoected exception during I/O operation", e);
+            LOG.warn("Unexpected exception during I/O operation", e);
             return -ErrorCodes.EIO();
         }
     }

@@ -18,11 +18,13 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Channel;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Start;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.Touch;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
@@ -59,6 +61,7 @@ public class LzyServant {
         options.addOption(new Option("h", "host", true, "Servant host name"));
         options.addOption(new Option("k", "private-key", true, "Path to private key for user auth"));
         Channel.populateOptions(options);
+        Touch.populateOptions(options);
     }
 
     public static void main(String[] args) throws Exception {
@@ -176,17 +179,19 @@ public class LzyServant {
     private static class Impl extends LzyServantGrpc.LzyServantImplBase implements AutoCloseable {
         private final LzyServerGrpc.LzyServerBlockingStub server;
         private final URI serverAddress;
+        private final Path mount;
         private final IAM.Auth auth;
-        private Execution currentExecution;
+        private LzyExecution currentExecution;
         private final LzyFS lzyFS;
         private final URI servantAddress;
 
         private Impl(Path mount, URI servantAddress, URI serverAddress, IAM.Auth auth) {
+            this.mount = mount;
             this.auth = auth;
             this.servantAddress = servantAddress;
             this.serverAddress = serverAddress;
             this.lzyFS = new LzyFS();
-            this.lzyFS.mount(mount);
+            this.lzyFS.mount(mount, false, true);
             final ManagedChannel channel = ManagedChannelBuilder
                 .forAddress(serverAddress.getHost(), serverAddress.getPort())
                 .usePlaintext()
@@ -228,6 +233,7 @@ public class LzyServant {
             commandParts.addAll(Arrays.asList(servantArgs));
             commandParts.addAll(List.of("--port", Integer.toString(servantAddress.getPort())));
             commandParts.addAll(List.of("--lzy-address", serverAddress.toString()));
+            commandParts.addAll(List.of("--lzy-mount", mount.toAbsolutePath().toString()));
             commandParts.addAll(List.of("--auth", new String(Base64.getEncoder().encode(auth.toByteString().toByteArray()))));
             commandParts.add("$@");
 
@@ -262,7 +268,7 @@ public class LzyServant {
             }
             final String tid = request.getTaskId();
             final AtomicZygote from = request.hasDefinition() ? (AtomicZygote) gRPCConverter.from(request.getDefinition()): null;
-            this.currentExecution = new Execution(tid, from);
+            this.currentExecution = new LzyExecution(tid, from);
             this.currentExecution.onProgress(progress -> {
                 responseObserver.onNext(progress);
                 if (progress.hasExit()) {
@@ -274,13 +280,24 @@ public class LzyServant {
                 LOG.info("Execution terminated from server ");
                 System.exit(1);
             }, Runnable::run);
+
+            for (Servant.SlotSpec spec : request.getSlotsList()) {
+                final LzySlot lzySlot = currentExecution.configureSlot(
+                    gRPCConverter.from(spec.getSlot()),
+                    spec.getChannelId()
+                );
+                if (lzySlot instanceof LzyFileSlot) {
+                    lzyFS.addSlot((LzyFileSlot) lzySlot);
+                }
+            }
+
             if (request.hasDefinition())
                 this.currentExecution.start();
         }
 
         @Override
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
-            if (currentExecution == null || currentExecution.slot(request.getSlot()) != null) {
+            if (currentExecution == null || currentExecution.slot(request.getSlot()) == null) {
                 responseObserver.onError(Status.NOT_FOUND.asException());
                 return;
             }
@@ -289,7 +306,9 @@ public class LzyServant {
             slot.state(Operations.SlotStatus.State.OPEN);
             try {
                 slot.readFromPosition(request.getOffset())
-                    .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
+                    .forEach(chunk ->
+                        responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build())
+                    );
                 responseObserver.onCompleted();
             }
             catch (IOException iae) {
@@ -299,7 +318,7 @@ public class LzyServant {
 
         @Override
         public void configureSlot(Servant.SlotCommand request, StreamObserver<Servant.SlotCommandStatus> responseObserver) {
-            if (currentExecution == null || currentExecution.slot(request.getSlot()) != null) {
+            if (currentExecution == null) {
                 responseObserver.onError(Status.NOT_FOUND.asException());
                 return;
             }
@@ -311,10 +330,14 @@ public class LzyServant {
             switch (request.getCommandCase()) {
                 case CREATE:
                     final Servant.CreateSlotCommand create = request.getCreate();
+                    final Slot slotSpec = gRPCConverter.from(create.getSlot());
                     final LzySlot lzySlot = currentExecution.configureSlot(
-                        gRPCConverter.from(create.getSlot()),
+                        slotSpec,
                         create.getChannelId()
                     );
+                    if (lzySlot == null) {
+                        responseObserver.onError(Status.ALREADY_EXISTS.asException());
+                    }
                     if (lzySlot instanceof LzyFileSlot)
                         lzyFS.addSlot((LzyFileSlot)lzySlot);
                     break;
@@ -326,7 +349,11 @@ public class LzyServant {
                     ((LzyInputSlot) slot).disconnect();
                     break;
                 case STATUS:
-                    responseObserver.onNext(Servant.SlotCommandStatus.newBuilder().setStatus(slot.status()).build());
+                    final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());
+                    if (auth.hasUser()) {
+                        status.setUser(auth.getUser().getUserId());
+                    }
+                    responseObserver.onNext(Servant.SlotCommandStatus.newBuilder().setStatus(status.build()).build());
                     responseObserver.onCompleted();
                     return;
                 case CLOSE:
