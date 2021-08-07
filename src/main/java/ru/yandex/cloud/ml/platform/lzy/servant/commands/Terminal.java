@@ -39,16 +39,19 @@ public class Terminal implements ServantCommand {
             'k',
             System.getenv("HOME") + "/.ssh/id_rsa"
         ));
-        tokenSignature = signToken(terminalToken, privateKeyPath);
 
-        final LzyServant servant = LzyServant.Builder.forLzyServer(URI.create(serverAddress))
+        final LzyServant.Builder builder = LzyServant.Builder.forLzyServer(URI.create(serverAddress))
             .user(System.getenv("USER"))
             .token(terminalToken.toString())
-            .tokenSign(tokenSignature)
             .servantName(parse.getOptionValue('a', LzyFS.lineCmd("hostname")))
             .servantPort(port)
-            .root(Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy")))
-            .build();
+            .root(Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy")));
+
+        if (Files.exists(privateKeyPath)) {
+            tokenSignature = signToken(terminalToken, privateKeyPath);
+            builder.tokenSign(tokenSignature);
+        }
+        final LzyServant servant = builder.build();
 
         servant.start();
         servant.awaitTermination();
