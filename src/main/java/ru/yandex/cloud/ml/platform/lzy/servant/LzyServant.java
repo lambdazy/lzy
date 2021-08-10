@@ -205,7 +205,7 @@ public class LzyServant {
         }
 
         void register() {
-            final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
+            final Servant.AttachServant.Builder commandBuilder = Servant.AttachServant.newBuilder();
             commandBuilder.setAuth(auth);
             commandBuilder.setServantURI(servantAddress.toString());
             //noinspection ResultOfMethodCallIgnored

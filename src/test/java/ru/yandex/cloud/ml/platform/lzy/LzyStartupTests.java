@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class LzyStartupTests extends LzyBaseTest {
-    private static final int DEFAULT_FUSE_TIMEOUT_SEC = 10;
+    private static final int DEFAULT_SERVANT_TIMEOUT_SEC = 30;
 
     @Test
     public void testFuseWorks() throws Exception {
@@ -25,7 +25,7 @@ public class LzyStartupTests extends LzyBaseTest {
         startTerminalAtPath(lzyPath);
 
         //Assert
-        Assert.assertTrue(waitForFuse(lzyPath, DEFAULT_FUSE_TIMEOUT_SEC, TimeUnit.SECONDS));
+        Assert.assertTrue(waitForServants(DEFAULT_SERVANT_TIMEOUT_SEC, TimeUnit.SECONDS, 9999));
         Assert.assertTrue(Files.exists(Paths.get(lzyPath + "/bin")));
         Assert.assertTrue(Files.exists(Paths.get(lzyPath + "/sbin")));
         Assert.assertTrue(Files.exists(Paths.get(lzyPath + "/dev")));
@@ -46,7 +46,7 @@ public class LzyStartupTests extends LzyBaseTest {
         startTerminalAtPath(lzyPath);
 
         //Assert
-        Assert.assertTrue(waitForFuse(lzyPath + "/bin", DEFAULT_FUSE_TIMEOUT_SEC, TimeUnit.SECONDS));
+        Assert.assertTrue(waitForServants(DEFAULT_SERVANT_TIMEOUT_SEC, TimeUnit.SECONDS, 9999));
         zygotes.forEach(registeredZygote -> Assert.assertTrue(Files.exists(Paths.get(
             lzyPath + "/bin/" + registeredZygote.getName()))));
     }
@@ -69,32 +69,32 @@ public class LzyStartupTests extends LzyBaseTest {
             .build()));
     }
 
-    //@Test
-    //public void testServantDoesNotSeeNewZygotes() throws Exception {
-    //    //Arrange
-    //    final String lzyPath = "/tmp/lzy";
-    //    final List<Operations.RegisteredZygote> zygotesBeforeStart = IntStream.range(0, 1000)
-    //        .mapToObj(value -> lzyServerClient.publish(Lzy.PublishRequest.newBuilder()
-    //            .setOperation(Operations.Zygote.newBuilder().build())
-    //            .setName("test_op_" + value)
-    //            .build()))
-    //        .collect(Collectors.toList());
-    //
-    //    //Act
-    //    startTerminalAtPath(lzyPath);
-    //    final List<Operations.RegisteredZygote> zygotesAfterStart = IntStream.range(1000, 2000)
-    //        .mapToObj(value -> lzyServerClient.publish(Lzy.PublishRequest.newBuilder()
-    //            .setOperation(Operations.Zygote.newBuilder().build())
-    //            .setName("test_op_" + value)
-    //            .build()))
-    //        .collect(Collectors.toList());
-    //
-    //
-    //    //Assert
-    //    Assert.assertTrue(waitForFuse(lzyPath + "/bin", DEFAULT_FUSE_TIMEOUT_SEC, TimeUnit.SECONDS));
-    //    zygotesBeforeStart.forEach(registeredZygote -> Assert.assertTrue(Files.exists(Paths.get(
-    //        lzyPath + "/bin/" + registeredZygote.getName()))));
-    //    zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(Files.exists(Paths.get(
-    //        lzyPath + "/bin/" + registeredZygote.getName()))));
-    //}
+    @Test
+    public void testServantDoesNotSeeNewZygotes() throws Exception {
+        //Arrange
+        final String lzyPath = "/tmp/lzy";
+        final List<Operations.RegisteredZygote> zygotesBeforeStart = IntStream.range(0, 1000)
+            .mapToObj(value -> lzyServerClient.publish(Lzy.PublishRequest.newBuilder()
+                .setOperation(Operations.Zygote.newBuilder().build())
+                .setName("test_op_" + value)
+                .build()))
+            .collect(Collectors.toList());
+
+        //Act
+        startTerminalAtPath(lzyPath);
+        waitForServants(DEFAULT_SERVANT_TIMEOUT_SEC, TimeUnit.SECONDS, 9999);
+        final List<Operations.RegisteredZygote> zygotesAfterStart = IntStream.range(1000, 2000)
+            .mapToObj(value -> lzyServerClient.publish(Lzy.PublishRequest.newBuilder()
+                .setOperation(Operations.Zygote.newBuilder().build())
+                .setName("test_op_" + value)
+                .build()))
+            .collect(Collectors.toList());
+
+
+        //Assert
+        zygotesBeforeStart.forEach(registeredZygote -> Assert.assertTrue(Files.exists(Paths.get(
+            lzyPath + "/bin/" + registeredZygote.getName()))));
+        zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(Files.exists(Paths.get(
+            lzyPath + "/bin/" + registeredZygote.getName()))));
+    }
 }

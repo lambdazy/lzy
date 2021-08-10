@@ -26,6 +26,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.local.Binding;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsRepository;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalTask;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalTasksManager;
+import ru.yandex.cloud.ml.platform.lzy.server.mem.ServantRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.SimpleInMemAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.SlotStatus;
@@ -46,6 +47,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LzyServer {
@@ -81,6 +83,7 @@ public class LzyServer {
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
+        private final ServantRepository servants = new ServantRepositoryImpl();
         private final ChannelsRepository channels = new LocalChannelsRepository();
         private final TasksManager tasks = new LocalTasksManager(channels);
         private final Authenticator auth = new SimpleInMemAuthenticator();
@@ -114,8 +117,10 @@ public class LzyServer {
 
         @Override
         public void zygotes(IAM.Auth auth, StreamObserver<Operations.ZygoteList> responseObserver) {
-            if (!checkAuth(auth, responseObserver))
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
+            }
 
             final String user = resolveUser(auth);
             final Operations.ZygoteList.Builder builder = Operations.ZygoteList.newBuilder();
@@ -131,8 +136,10 @@ public class LzyServer {
 
         @Override
         public void task(Tasks.TaskCommand request, StreamObserver<Tasks.TaskStatus> responseObserver) {
-            if (!checkAuth(request.getAuth(), responseObserver))
+            if (!checkAuth(request.getAuth(), responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
+            }
 
             Task task = null;
             switch (request.getCommandCase()) {
@@ -178,8 +185,10 @@ public class LzyServer {
 
         @Override
         public void tasksStatus(IAM.Auth auth, StreamObserver<Tasks.TasksList> responseObserver) {
-            if (!checkAuth(auth, responseObserver))
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
+            }
 
             final String user = resolveUser(auth);
             final Tasks.TasksList.Builder builder = Tasks.TasksList.newBuilder();
@@ -193,8 +202,10 @@ public class LzyServer {
         @Override
         public void channel(Channels.ChannelCommand request, StreamObserver<Channels.ChannelStatus> responseObserver) {
             final IAM.Auth auth = request.getAuth();
-            if (!checkAuth(auth, responseObserver))
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
+            }
 
             Channel channel = null;
             switch (request.getCommandCase()) {
@@ -236,8 +247,10 @@ public class LzyServer {
 
         @Override
         public void channelsStatus(IAM.Auth auth, StreamObserver<Channels.ChannelStatusList> responseObserver) {
-            if (!checkAuth(auth, responseObserver))
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
+            }
 
             final Channels.ChannelStatusList.Builder builder = Channels.ChannelStatusList.newBuilder();
             tasks.cs().forEach(channel -> builder.addStatuses(channelStatus(channel)));
@@ -246,13 +259,19 @@ public class LzyServer {
         }
 
         @Override
-        public void registerServant(Lzy.AttachServant request, StreamObserver<Lzy.AttachStatus> responseObserver) {
+        public void registerServant(Servant.AttachServant request, StreamObserver<Servant.AttachStatus> responseObserver) {
             final IAM.Auth auth = request.getAuth();
-            if (!checkAuth(auth, responseObserver))
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
-            responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
-            responseObserver.onCompleted();
+            }
+
             final URI servantUri = URI.create(request.getServantURI());
+            if (!servants.register(servantUri)) {
+                responseObserver.onError(Status.ALREADY_EXISTS.asException());
+                return;
+            }
+
             if (auth.hasTask()) {
                 final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
                 task.attachServant(servantUri);
@@ -302,6 +321,25 @@ public class LzyServer {
                     }
                 }, "Lzy terminal " + user).start();
             }
+            responseObserver.onNext(Servant.AttachStatus.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void servantsStatus(IAM.Auth auth, StreamObserver<Servant.ServantStatusList> responseObserver) {
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                return;
+            }
+            responseObserver.onNext(Servant.ServantStatusList.newBuilder()
+                .addAllStatuses(servants.list()
+                    .map(uri -> Servant.ServantStatus.newBuilder()
+                        .setServantURI(uri.toString())
+                        .setStatus(Servant.ServantStatus.Status.ACTIVE)
+                        .build())
+                    .collect(Collectors.toList()))
+                .build());
+            responseObserver.onCompleted();
         }
 
         private Tasks.TaskStatus taskStatus(Task task) {

@@ -8,18 +8,21 @@ import org.junit.After;
 import org.junit.Before;
 import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class LzyBaseTest {
     private static final int LZY_SERVER_PORT = 7777;
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final List<Process> servantProcesses = new ArrayList<>();
 
     private Server lzyServer;
     protected LzyServerGrpc.LzyServerBlockingStub lzyServerClient;
@@ -41,10 +44,10 @@ public class LzyBaseTest {
     public void tearDown() throws InterruptedException {
         lzyServer.shutdown();
         lzyServer.awaitTermination();
-        executorService.shutdown();
+        servantProcesses.forEach(Process::destroy);
     }
 
-    protected void startTerminalAtPath(String path) {
+    protected void startTerminalAtPath(String path) throws IOException {
         final String[] lzyArgs = {
             "terminal",
             "--lzy-address",
@@ -56,27 +59,37 @@ public class LzyBaseTest {
             "--private-key",
             "/tmp/nonexistent-key"
         };
-        executorService.submit(() -> {
-            try {
-                LzyServant.main(lzyArgs);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        final List<String> command = new ArrayList<>();
+        command.add(System.getProperty("java.home") + "/bin" + "/java");
+        command.add("-cp");
+        command.add(System.getProperty("java.class.path"));
+        command.add(LzyServant.class.getCanonicalName());
+        command.addAll(Arrays.asList(lzyArgs));
+
+        final ProcessBuilder builder = new ProcessBuilder(command);
+        final Process process = builder.inheritIO().start();
+        servantProcesses.add(process);
     }
 
-    protected boolean waitForFuse(String path, long timeout, TimeUnit unit) throws InterruptedException {
+    protected boolean waitForServants(long timeout, TimeUnit unit, int... ports) throws InterruptedException {
         final long finish = System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(timeout, unit);
+        final Set<Integer> expected = Arrays.stream(ports).boxed().collect(Collectors.toSet());
         while (System.currentTimeMillis() < finish) {
-            final Path lzyPath = Path.of(path);
-            if (Files.isDirectory(lzyPath)) {
-                final File lzyDir = new File(String.valueOf(lzyPath));
-                if (lzyDir.list().length > 0) {
-                    return true;
-                }
+            final Set<Integer> actual = lzyServerClient.servantsStatus(IAM.Auth.newBuilder()
+                .setUser(IAM.UserCredentials.newBuilder()
+                    .setUserId("uid")
+                    .setToken("token")
+                    .build()
+                ).build()).getStatusesList()
+                .stream()
+                .map(value -> URI.create(value.getServantURI()).getPort())
+                .collect(Collectors.toSet());
+            if (expected.equals(actual)) {
+                return true;
+            } else {
+                //noinspection BusyWait
+                Thread.sleep(1000);
             }
-            //noinspection BusyWait
-            Thread.sleep(1000);
         }
         return false;
     }
