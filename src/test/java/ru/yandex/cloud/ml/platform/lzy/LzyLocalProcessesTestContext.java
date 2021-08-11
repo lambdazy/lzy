@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class LzyLocalProcessesTestContext implements LzyTestContext {
+    private static final int DEFAULT_SERVANT_TIMEOUT_SEC = 30;
     private static final int LZY_SERVER_PORT = 7777;
     private final List<Process> servantProcesses = new ArrayList<>();
 
@@ -60,7 +61,7 @@ public class LzyLocalProcessesTestContext implements LzyTestContext {
         return lzyServerClient;
     }
 
-    public void startTerminalAtPathAndPort(String path, int port) {
+    public boolean startTerminalAtPathAndPort(String path, int port) {
         final String[] lzyArgs = {
             "terminal",
             "--lzy-address",
@@ -89,6 +90,7 @@ public class LzyLocalProcessesTestContext implements LzyTestContext {
             throw new RuntimeException(e);
         }
         servantProcesses.add(process);
+        return waitForServants(DEFAULT_SERVANT_TIMEOUT_SEC, TimeUnit.SECONDS, port);
     }
 
     public boolean waitForServants(long timeout, TimeUnit unit, int... ports) {

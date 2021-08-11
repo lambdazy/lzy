@@ -10,12 +10,10 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class LzyStartupTests {
-    private static final int DEFAULT_SERVANT_TIMEOUT_SEC = 30;
     private static final int DEFAULT_SERVANT_PORT = 9889;
     private LzyTestContext context;
 
@@ -36,10 +34,10 @@ public class LzyStartupTests {
         final String lzyPath = "/tmp/lzy";
 
         //Act
-        context.startTerminalAtPathAndPort(lzyPath, DEFAULT_SERVANT_PORT);
+        final boolean started = context.startTerminalAtPathAndPort(lzyPath, DEFAULT_SERVANT_PORT);
 
         //Assert
-        Assert.assertTrue(context.waitForServants(DEFAULT_SERVANT_TIMEOUT_SEC, TimeUnit.SECONDS, DEFAULT_SERVANT_PORT));
+        Assert.assertTrue(started);
         Assert.assertTrue(context.pathExists(Paths.get(lzyPath + "/bin")));
         Assert.assertTrue(context.pathExists(Paths.get(lzyPath + "/sbin")));
         Assert.assertTrue(context.pathExists(Paths.get(lzyPath + "/dev")));
@@ -57,10 +55,10 @@ public class LzyStartupTests {
             .collect(Collectors.toList());
 
         //Act
-        context.startTerminalAtPathAndPort(lzyPath, DEFAULT_SERVANT_PORT);
+        final boolean started = context.startTerminalAtPathAndPort(lzyPath, DEFAULT_SERVANT_PORT);
 
         //Assert
-        Assert.assertTrue(context.waitForServants(DEFAULT_SERVANT_TIMEOUT_SEC, TimeUnit.SECONDS, DEFAULT_SERVANT_PORT));
+        Assert.assertTrue(started);
         zygotes.forEach(registeredZygote -> Assert.assertTrue(context.pathExists(Paths.get(
             lzyPath + "/bin/" + registeredZygote.getName()))));
     }
@@ -98,8 +96,7 @@ public class LzyStartupTests {
             .collect(Collectors.toList());
 
         //Act
-        context.startTerminalAtPathAndPort(lzyPath, DEFAULT_SERVANT_PORT);
-        context.waitForServants(DEFAULT_SERVANT_TIMEOUT_SEC, TimeUnit.SECONDS, DEFAULT_SERVANT_PORT);
+        final boolean started = context.startTerminalAtPathAndPort(lzyPath, DEFAULT_SERVANT_PORT);
         final List<Operations.RegisteredZygote> zygotesAfterStart = IntStream.range(1000, 2000)
             .mapToObj(value -> context.server().publish(Lzy.PublishRequest.newBuilder()
                 .setOperation(Operations.Zygote.newBuilder().build())
@@ -109,6 +106,7 @@ public class LzyStartupTests {
 
 
         //Assert
+        Assert.assertTrue(started);
         zygotesBeforeStart.forEach(registeredZygote -> Assert.assertTrue(context.pathExists(Paths.get(
             lzyPath + "/bin/" + registeredZygote.getName()))));
         zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(context.pathExists(Paths.get(
