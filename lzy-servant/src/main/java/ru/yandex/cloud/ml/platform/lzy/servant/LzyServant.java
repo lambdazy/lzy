@@ -41,6 +41,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -114,6 +115,11 @@ public class LzyServant {
                     .setToken(token)
                     .build()
                 );
+            }
+            try {
+                Files.createDirectories(root);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
             final URI servantAddress = new URI(null, null, servantName, servantPort, null, null, null);
             final Impl impl = new Impl(root, servantAddress, serverAddr, authBuilder.build());
