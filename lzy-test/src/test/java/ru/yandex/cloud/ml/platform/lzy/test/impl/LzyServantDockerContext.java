@@ -2,11 +2,13 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.Container;
 import org.testcontainers.containers.FixedHostPortGenericContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,12 +36,37 @@ public class LzyServantDockerContext implements LzyServantTestContext {
         return new Servant() {
             @Override
             public boolean pathExists(Path path) {
-                return false;
+                try {
+                    final Container.ExecResult ls = servantContainer.execInContainer("ls", path.toString());
+                    return ls.getExitCode() == 0;
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             @Override
-            public String execute(String... command) {
-                return null;
+            public ExecutionResult execute(String... command) {
+                try {
+                    final Container.ExecResult execResult = servantContainer.execInContainer(command);
+                    return new ExecutionResult() {
+                        @Override
+                        public String stdout() {
+                            return execResult.getStdout();
+                        }
+
+                        @Override
+                        public String stderr() {
+                            return execResult.getStderr();
+                        }
+
+                        @Override
+                        public int exitCode() {
+                            return execResult.getExitCode();
+                        }
+                    };
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
         };
     }

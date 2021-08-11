@@ -50,7 +50,7 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             }
 
             @Override
-            public String execute(String... command) {
+            public ExecutionResult execute(String... command) {
                 return null;
             }
         };

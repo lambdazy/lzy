@@ -10,6 +10,12 @@ public interface LzyServantTestContext extends AutoCloseable {
 
     interface Servant {
         boolean pathExists(Path path);
-        String execute(String... command);
+        ExecutionResult execute(String... command);
+
+        interface ExecutionResult {
+            String stdout();
+            String stderr();
+            int exitCode();
+        }
     }
 }

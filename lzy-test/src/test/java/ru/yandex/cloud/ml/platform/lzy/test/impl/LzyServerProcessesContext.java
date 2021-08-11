@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 public class LzyServerProcessesContext implements LzyServerTestContext {
     private static final int LZY_SERVER_PORT = 7777;
     private Server lzyServer;
+    private ManagedChannel channel;
     protected LzyServerGrpc.LzyServerBlockingStub lzyServerClient;
 
     @Override
@@ -48,8 +49,10 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
     @Override
     public synchronized void close() {
         if (lzyServer != null) {
-            lzyServer.shutdown();
             try {
+                channel.shutdown();
+                channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+                lzyServer.shutdown();
                 lzyServer.awaitTermination();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
@@ -66,7 +69,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                 throw new RuntimeException(e);
             }
 
-            final ManagedChannel channel = ManagedChannelBuilder
+            channel = ManagedChannelBuilder
                 .forAddress("localhost", LZY_SERVER_PORT)
                 .usePlaintext()
                 .build();

@@ -5,7 +5,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantProcessesContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -25,7 +25,7 @@ public class LzyStartupTests {
 
     @Before
     public void setUp() {
-        servantContext = new LzyServantProcessesContext();
+        servantContext = new LzyServantDockerContext();
         serverContext = new LzyServerProcessesContext();
     }
 
@@ -55,8 +55,8 @@ public class LzyStartupTests {
 
         //Assert
         Assert.assertTrue(started);
-        Assert.assertTrue(servant.pathExists(Paths.get(lzyPath + "/bin")));
         Assert.assertTrue(servant.pathExists(Paths.get(lzyPath + "/sbin")));
+        Assert.assertTrue(servant.pathExists(Paths.get(lzyPath + "/bin")));
         Assert.assertTrue(servant.pathExists(Paths.get(lzyPath + "/dev")));
     }
 
@@ -66,7 +66,7 @@ public class LzyStartupTests {
         final String lzyPath = "/tmp/lzy";
 
         //Act
-        final List<Operations.RegisteredZygote> zygotes = IntStream.range(0, 1000)
+        final List<Operations.RegisteredZygote> zygotes = IntStream.range(0, 10)
             .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
                 .setOperation(Operations.Zygote.newBuilder().build())
                 .setName("test_op_" + value)
@@ -115,7 +115,7 @@ public class LzyStartupTests {
     public void testServantDoesNotSeeNewZygotes() {
         //Arrange
         final String lzyPath = "/tmp/lzy";
-        final List<Operations.RegisteredZygote> zygotesBeforeStart = IntStream.range(0, 1000)
+        final List<Operations.RegisteredZygote> zygotesBeforeStart = IntStream.range(0, 10)
             .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
                 .setOperation(Operations.Zygote.newBuilder().build())
                 .setName("test_op_" + value)
@@ -134,7 +134,7 @@ public class LzyStartupTests {
             TimeUnit.SECONDS,
             DEFAULT_SERVANT_PORT
         );
-        final List<Operations.RegisteredZygote> zygotesAfterStart = IntStream.range(1000, 2000)
+        final List<Operations.RegisteredZygote> zygotesAfterStart = IntStream.range(10, 20)
             .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
                 .setOperation(Operations.Zygote.newBuilder().build())
                 .setName("test_op_" + value)

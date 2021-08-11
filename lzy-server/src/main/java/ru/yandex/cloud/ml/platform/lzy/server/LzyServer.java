@@ -317,6 +317,7 @@ public class LzyServer {
                         LOG.error("Terminal execution terminated " + th.getMessage());
                     }
                     finally {
+                        servantChannel.shutdown();
                         channels.unbindAll(servantUri);
                     }
                 }, "Lzy terminal " + user).start();
