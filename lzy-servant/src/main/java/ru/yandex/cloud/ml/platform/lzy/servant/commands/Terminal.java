@@ -43,7 +43,7 @@ public class Terminal implements ServantCommand {
         final LzyServant.Builder builder = LzyServant.Builder.forLzyServer(URI.create(serverAddress))
             .user(System.getenv("USER"))
             .token(terminalToken.toString())
-            .servantName(parse.getOptionValue('a', LzyFS.lineCmd("hostname")))
+            .servantName(parse.getOptionValue('h', LzyFS.lineCmd("hostname")))
             .servantPort(port)
             .root(Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy")));
 
