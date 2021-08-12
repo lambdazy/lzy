@@ -44,16 +44,22 @@ import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
+
 public class LzyServer {
-    private static final Logger LOG = LogManager.getLogger(LocalTask.class);
+    private static final Logger LOG = LogManager.getLogger(LzyServer.class);
 
     private static final Options options = new Options();
     static {
@@ -182,18 +188,26 @@ public class LzyServer {
 
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
+            final AtomicBoolean concluded = new AtomicBoolean(false);
             Task task = tasks.start(uid, parent, workload, assignments, auth, progress -> {
+                if (concluded.get())
+                    return;
                 try {
                     LOG.info(JsonFormat.printer().print(progress));
                     responseObserver.onNext(progress);
-                    if (progress.hasExit() || progress.hasChanged() && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
+                    if (progress.hasChanged() && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
+                        concluded.set(true);
                         responseObserver.onCompleted();
                         if (parent != null)
                             parent.signal(TasksManager.Signal.CHLD);
                     }
                 } catch (InvalidProtocolBufferException ignore) {}
             });
-            Context.current().addListener(ctxt -> task.signal(TasksManager.Signal.TERM), Runnable::run);
+            Context.current().addListener(ctxt -> {
+                concluded.set(true);
+                if (!EnumSet.of(FINISHED, DESTROYED).contains(task.state()))
+                    task.signal(TasksManager.Signal.TERM);
+            }, Runnable::run);
         }
 
         @Override
@@ -290,52 +304,54 @@ public class LzyServer {
                     final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
                     task.attachServant(servantUri);
                 }
-                else if (auth.hasUser()) {
-                    final String user = auth.getUser().getUserId();
-                    final ManagedChannel servantChannel = ManagedChannelBuilder
-                        .forAddress(servantUri.getHost(), servantUri.getPort())
-                        .usePlaintext()
-                        .build();
-                    final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
-                    tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()
-                        .setSlot(gRPCConverter.to(slot))
-                        .setBinding("channel:" + channel.name())
-                        .build()
-                    );
-                    final Iterator<Servant.ExecutionProgress> execute = LzyServantGrpc
-                        .newBlockingStub(servantChannel)
-                        .execute(executionSpec.build());
-                    try {
-                        execute.forEachRemaining(progress -> {
-                            try {
-                                LOG.info(JsonFormat.printer().print(progress));
-                            } catch (InvalidProtocolBufferException e) {
-                                LOG.error("Unable to parse progress", e);
-                            }
-                            if (progress.hasAttached() && progress.getAttached().getChannel().startsWith("channel:")) {
-                                final Servant.AttachSlot attached = progress.getAttached();
-                                final Slot slot = gRPCConverter.from(attached.getSlot());
-                                final String channelName = attached.getChannel();
-                                tasks.setSlot(user, slot, channels.get(channelName.substring("channel:".length())));
-                                final Binding binding = new Binding(
-                                    slot,
-                                    servantUri.resolve(slot.name()),
-                                    servantChannel
-                                );
-                                this.channels.bind(channels.get(channelName), binding);
-                            }
-                        });
-                        LOG.info("Terminal for " + user + " disconnected");
-                    }
-                    catch (StatusRuntimeException th) {
-                        LOG.error("Terminal execution terminated " + th.getMessage());
-                    }
-                    finally {
-                        channels.unbindAll(servantUri);
-                        servantChannel.shutdown();
-                    }
-                }
+                else runTerminal(auth, servantUri);
             });
+        }
+
+        private void runTerminal(IAM.Auth auth, URI servantUri) {
+            final String user = auth.getUser().getUserId();
+            final ManagedChannel servantChannel = ManagedChannelBuilder
+                .forAddress(servantUri.getHost(), servantUri.getPort())
+                .usePlaintext()
+                .build();
+            final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
+            tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()
+                .setSlot(gRPCConverter.to(slot))
+                .setBinding("channel:" + channel.name())
+                .build()
+            );
+            final Iterator<Servant.ExecutionProgress> execute = LzyServantGrpc
+                .newBlockingStub(servantChannel)
+                .execute(executionSpec.build());
+            try {
+                execute.forEachRemaining(progress -> {
+                    try {
+                        LOG.info(JsonFormat.printer().print(progress));
+                    } catch (InvalidProtocolBufferException e) {
+                        LOG.error("Unable to parse progress", e);
+                    }
+                    if (progress.hasAttached() && progress.getAttached().getChannel().startsWith("channel:")) {
+                        final Servant.AttachSlot attached = progress.getAttached();
+                        final Slot slot = gRPCConverter.from(attached.getSlot());
+                        final String channelName = attached.getChannel();
+                        tasks.setSlot(user, slot, channels.get(channelName.substring("channel:".length())));
+                        final Binding binding = new Binding(
+                            slot,
+                            servantUri.resolve(slot.name()),
+                            servantChannel
+                        );
+                        this.channels.bind(channels.get(channelName), binding);
+                    }
+                });
+                LOG.info("Terminal for " + user + " disconnected");
+            }
+            catch (StatusRuntimeException th) {
+                LOG.error("Terminal execution terminated " + th.getMessage());
+            }
+            finally {
+                channels.unbindAll(servantUri);
+                servantChannel.shutdown();
+            }
         }
 
         @Override

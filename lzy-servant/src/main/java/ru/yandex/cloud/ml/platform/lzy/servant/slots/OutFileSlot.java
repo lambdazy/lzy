@@ -19,9 +19,12 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -30,6 +33,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     private final Path storage;
     private final String tid;
     private boolean ready = false;
+    private List<Runnable> closeActions = new ArrayList<>();
 
     public OutFileSlot(String tid, Slot definition) throws IOException {
         super(definition);
@@ -127,12 +131,19 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             private ByteBuffer bb = ByteBuffer.allocate(4096);
             @Override
             public boolean hasNext() {
+                int read = 0;
                 try {
                     bb.clear();
-                    return channel.read(bb) >= 0;
-                } catch (IOException e) {
+                    read = channel.read(bb);
+                    return read >= 0;
+                }
+                catch (IOException e) {
                     LOG.warn("Unable to read line from reader", e);
                     return false;
+                }
+                finally {
+                    if (read < 0)
+                        close();
                 }
             }
 
@@ -142,5 +153,17 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                 return ByteString.copyFrom(bb);
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);
+    }
+
+    public void close() {
+        ForkJoinPool.commonPool().execute(() -> {
+            Thread.yield();
+            closeActions.forEach(Runnable::run);
+        });
+    }
+
+    @Override
+    public void onClose(Runnable action) {
+        closeActions.add(action);
     }
 }

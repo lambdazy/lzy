@@ -123,7 +123,10 @@ public class LzyServant {
             final URI servantAddress = new URI(null, null, servantName, servantPort, null, null, null);
             final Impl impl = new Impl(root, servantAddress, serverAddr, authBuilder.build());
             final Server server = ServerBuilder.forPort(servantPort).addService(impl).build();
-            Runtime.getRuntime().addShutdownHook(new Thread(server::shutdown));
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                server.shutdown();
+                impl.close();
+            }));
             return new LzyServant(server, impl);
         }
 
@@ -180,7 +183,7 @@ public class LzyServant {
         server.awaitTermination();
     }
 
-    private static class Impl extends LzyServantGrpc.LzyServantImplBase implements AutoCloseable {
+    private static class Impl extends LzyServantGrpc.LzyServantImplBase {
         private final LzyServerGrpc.LzyServerBlockingStub server;
         private final URI serverAddress;
         private final Path mount;
@@ -204,7 +207,6 @@ public class LzyServant {
             this.server = LzyServerGrpc.newBlockingStub(channel);
         }
 
-        @Override
         public void close() {
             lzyFS.umount();
         }
@@ -305,8 +307,10 @@ public class LzyServant {
                 }
             });
             Context.current().addListener(context -> {
-                LOG.info("Execution terminated from server ");
-                System.exit(1);
+                if (currentExecution != null) {
+                    LOG.info("Execution terminated from server ");
+                    System.exit(1);
+                }
             }, Runnable::run);
 
             for (Tasks.SlotAssignment spec : request.getAssignmentsList()) {
@@ -409,6 +413,13 @@ public class LzyServant {
             }
             responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
             responseObserver.onCompleted();
+        }
+
+        @Override
+        public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
+            responseObserver.onNext(IAM.Empty.newBuilder().build());
+            responseObserver.onCompleted();
+            System.exit(0);
         }
     }
 }

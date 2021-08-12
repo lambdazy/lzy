@@ -4,17 +4,18 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsRepository;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
@@ -33,9 +34,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -43,9 +42,8 @@ import java.util.stream.Stream;
 public class LocalTask implements Task {
     private static final Logger LOG = LogManager.getLogger(LocalTask.class);
 
-    private static ExecutorService pool = ForkJoinPool.commonPool();
     private final String owner;
-    public final UUID tid;
+    private final UUID tid;
     private final Zygote workload;
     private final Map<Slot, String> assignments;
     private final ChannelsRepository channels;
@@ -116,10 +114,10 @@ public class LocalTask implements Task {
                     "-p", Integer.toString(10000 + (hashCode() % 1000)),
                     "-m", taskDir.toString() + "/lzy"
                 },
-                new String[]{
-                    "LZYTASK=" + tid,
-                    "LZYTOKEN=" + token
-                }
+                Map.of(
+                    "LZYTASK", tid.toString(),
+                    "LZYTOKEN", token
+                )
             );
             process.getOutputStream().close();
             ForkJoinPool.commonPool().execute(() -> {
@@ -149,6 +147,7 @@ public class LocalTask implements Task {
         }
     }
 
+    @SuppressWarnings("WeakerAccess")
     protected void state(State newState) {
         if (newState != state) {
             state = newState;
@@ -209,6 +208,8 @@ public class LocalTask implements Task {
         }
         finally {
             state(State.FINISHED);
+            //noinspection ResultOfMethodCallIgnored
+            servant.stop(IAM.Empty.newBuilder().build());
         }
     }
 
@@ -255,32 +256,31 @@ public class LocalTask implements Task {
         servant.signal(Tasks.TaskSignal.newBuilder().setSigValue(signal.sig()).build());
     }
 
-    private static Process runJvm(final Class<?> mainClass, File wd, final String[] args, final String[] env) {
+    @SuppressWarnings("SameParameterValue")
+    private static Process runJvm(final Class<?> mainClass, File wd, final String[] args, final Map<String, String> env) {
         try {
             final Method main = mainClass.getMethod("main", String[].class);
             if (main.getReturnType().equals(void.class)
                 && Modifier.isStatic(main.getModifiers())
                 && Modifier.isPublic(main.getModifiers())) {
                 try {
-                    final List<String> parameters = new ArrayList<>();
+                    ProcessBuilder pb = new ProcessBuilder();
+                    pb.directory(wd);
+                    final List<String> parameters = pb.command();
                     parameters.add(System.getProperty("java.home") + "/bin/java");
                     parameters.add("-Xmx1g");
                     parameters.add("-classpath");
                     parameters.add(System.getProperty("java.class.path"));
                     parameters.add(mainClass.getName());
                     parameters.addAll(Arrays.asList(args));
-                    return Runtime.getRuntime().exec(
-                        parameters.toArray(new String[parameters.size()]),
-                        env,
-                        wd
-                    );
+                    pb.environment().putAll(env);
+                    return pb.start();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             }
-
         }
-        catch (NoSuchMethodException ignore) { }
+        catch (NoSuchMethodException ignore) {}
         throw new IllegalArgumentException("Main class must contain main method :)");
     }
 

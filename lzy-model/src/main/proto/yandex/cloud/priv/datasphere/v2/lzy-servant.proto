@@ -17,6 +17,7 @@ service LzyServant {
     rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
     rpc Signal (TaskSignal) returns (ExecutionStarted);
     rpc Update (Auth) returns (ExecutionStarted);
+    rpc Stop (Empty) returns (Empty);
 }
 
 message SlotCommand {

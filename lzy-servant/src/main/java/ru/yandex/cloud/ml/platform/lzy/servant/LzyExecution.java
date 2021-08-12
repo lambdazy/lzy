@@ -6,7 +6,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.InFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.LineReaderSlot;
@@ -21,8 +23,10 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -39,12 +43,13 @@ public class LzyExecution {
     private Process exec;
     private String arguments = "";
     private final Map<String, LzySlot> slots = new HashMap<>();
+    private final Set<String> closedSlots = new HashSet<>();
     private List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
 
     public LzyExecution(String taskId, AtomicZygote zygote) {
         this.taskId = taskId;
         this.zygote = zygote;
-        stdinSlot = new WriterSlot(taskId, new TextLinesOutSlot("/dev/stdin"));
+        stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"));
         stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"));
         stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"));
         if (zygote != null) {
@@ -83,6 +88,15 @@ public class LzyExecution {
                 return null;
             }
             slots.put(spec.name(), slot);
+            if (slot instanceof LzyOutputSlot) {
+                final String slotName = slot.name();
+                ((OutFileSlot) slot).onClose(() -> {
+                    synchronized (closedSlots) {
+                        closedSlots.add(slotName);
+                        closedSlots.notifyAll();
+                    }
+                });
+            }
             if (binding == null)
                 binding = "";
             else if (binding.startsWith("channel:"))
@@ -109,11 +123,7 @@ public class LzyExecution {
                 .build()
             );
             exec = Runtime.getRuntime().exec(zygote.fuze() + " " + arguments);
-            exec.onExit().thenAcceptAsync(p ->
-                progress(Servant.ExecutionProgress.newBuilder()
-                    .setExit(Servant.ExecutionConcluded.newBuilder().setRc(p.exitValue()).build())
-                    .build()
-                ));
+
             stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
             stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
                 exec.getInputStream(),
@@ -123,8 +133,19 @@ public class LzyExecution {
                 exec.getErrorStream(),
                 StandardCharsets.UTF_8
             )));
+            final int rc = exec.waitFor();
+
+            while (slots().map(LzySlot::name).allMatch(closedSlots::contains)) {
+                synchronized (closedSlots) {
+                    closedSlots.wait();
+                }
+            }
+            progress(Servant.ExecutionProgress.newBuilder()
+                .setExit(Servant.ExecutionConcluded.newBuilder().setRc(rc).build())
+                .build()
+            );
         }
-        catch (IOException e) {
+        catch (IOException | InterruptedException e) {
             LOG.warn("Exception during task execution", e);
             progress(Servant.ExecutionProgress.newBuilder()
                 .setExit(Servant.ExecutionConcluded.newBuilder().setRc(-1).build())

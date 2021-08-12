@@ -11,10 +11,13 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.LineNumberReader;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -24,6 +27,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private final String tid;
     private LineNumberReader reader;
     private long offset = 0;
+    private List<Runnable> closeActions = new ArrayList<>();
 
     public LineReaderSlot(String tid, TextLinesOutSlot definition) {
         super(definition);
@@ -55,11 +59,18 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
             @Override
             public boolean hasNext() {
                 try {
-                    return (line = reader.readLine()) != null;
-                } catch (IOException e) {
+                    line = reader.readLine();
+                    return line != null;
+                }
+                catch (IOException e) {
                     LOG.warn("Unable to read line from reader", e);
                     line = null;
                     return false;
+                }
+                finally {
+                    if (line == null) {
+                        close();
+                    }
                 }
             }
 
@@ -74,5 +85,18 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                 return bytes;
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);
+    }
+
+    public void close() {
+        ForkJoinPool.commonPool().execute(() -> {
+            Thread.yield();
+            closeActions.forEach(Runnable::run);
+        });
+    }
+
+
+    @Override
+    public void onClose(Runnable action) {
+        closeActions.add(action);
     }
 }
