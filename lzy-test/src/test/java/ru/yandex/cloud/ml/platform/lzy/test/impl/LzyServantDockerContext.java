@@ -1,10 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.FixedHostPortGenericContainer;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
@@ -20,16 +22,22 @@ public class LzyServantDockerContext implements LzyServantTestContext {
     @Override
     public Servant startTerminalAtPathAndPort(String path, int port, String serverHost, int serverPort) {
         //noinspection deprecation
-        final GenericContainer<?> servantContainer = new FixedHostPortGenericContainer<>("lzy-servant")
-            .withFixedExposedPort(port, port)
+        final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
             .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but is is easier for testing
             .withEnv("USER", "terminal-test")
             .withCommand("--lzy-address " + serverHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--port " + port + " "
                 + "--lzy-mount " + path + " "
-                + "terminal")
-            .withExposedPorts(port);
+                + "terminal");
+
+        final GenericContainer<?> servantContainer;
+        if (SystemUtils.IS_OS_LINUX) {
+            servantContainer = base.withNetworkMode("host");
+        } else {
+            servantContainer = base.withFixedExposedPort(port, port).withExposedPorts(port);
+        }
+
         servantContainer.start();
         servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
         startedContainers.add(servantContainer);

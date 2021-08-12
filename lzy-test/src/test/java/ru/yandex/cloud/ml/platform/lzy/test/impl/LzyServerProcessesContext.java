@@ -4,6 +4,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import org.apache.commons.lang3.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -24,11 +25,8 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
 
     @Override
     public String host(boolean fromDocker) {
-        final boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
-        if (fromDocker && isMac) {
+        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
             return "host.docker.internal";
-        } else if (fromDocker) {
-            return "172.17.0.1"; //hack, because it is not documented
         } else {
             return "localhost";
         }
