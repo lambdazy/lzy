@@ -49,7 +49,7 @@ public abstract class gRPCConverter {
         return new SlotStatusAdapter(slotStatus);
     }
 
-    private static String to(DataSchema contentType) {
+    public static String to(DataSchema contentType) {
         return "not implemented yet";
     }
 

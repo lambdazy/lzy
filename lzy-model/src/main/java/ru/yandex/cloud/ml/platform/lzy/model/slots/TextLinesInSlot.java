@@ -6,11 +6,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 
 public class TextLinesInSlot implements Slot {
-    private final AtomicZygote zygote;
     private final String name;
 
-    public TextLinesInSlot(AtomicZygote zygote, String name) {
-        this.zygote = zygote;
+    public TextLinesInSlot(String name) {
         this.name = name;
     }
 

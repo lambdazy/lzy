@@ -15,7 +15,11 @@ public interface Zygote extends Runnable {
   }
 
   default Stream<Slot> slots() {
-    return Stream.concat(Stream.of(input()), Stream.of(output()));
+    return Stream.of(
+        Stream.of(Slot.STDIN, Slot.STDOUT, Slot.STDERR),
+        Stream.of(input()),
+        Stream.of(output())
+    ).flatMap(s -> s);
   }
 
   @SuppressWarnings("unchecked")

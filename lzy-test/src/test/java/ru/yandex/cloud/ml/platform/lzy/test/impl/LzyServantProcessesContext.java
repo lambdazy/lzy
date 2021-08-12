@@ -16,7 +16,6 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
     @Override
     public Servant startTerminalAtPathAndPort(String path, int port, String serverHost, int serverPort) {
         final String[] lzyArgs = {
-            "terminal",
             "--lzy-address",
             serverHost + ":" + serverPort,
             "--host",
@@ -26,8 +25,9 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             "--lzy-mount",
             path,
             "--private-key",
-            "/tmp/nonexistent-key"
-        };
+            "/tmp/nonexistent-key",
+            "terminal"
+            };
         final List<String> command = new ArrayList<>();
         command.add(System.getProperty("java.home") + "/bin" + "/java");
         command.add("-cp");

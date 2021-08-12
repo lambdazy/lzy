@@ -22,9 +22,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.Channel;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Start;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.Touch;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
@@ -60,27 +58,28 @@ public class LzyServant {
         options.addOption(new Option("m", "lzy-mount", true, "Lzy FS mount point"));
         options.addOption(new Option("h", "host", true, "Servant host name"));
         options.addOption(new Option("k", "private-key", true, "Path to private key for user auth"));
-        Channel.populateOptions(options);
-        Touch.populateOptions(options);
     }
 
     public static void main(String[] args) throws Exception {
         final CommandLineParser cliParser = new DefaultParser();
         final HelpFormatter cliHelp = new HelpFormatter();
+        String commandStr = "lzy-servant";
         try {
-            final CommandLine parse = cliParser.parse(options, args);
+            final CommandLine parse = cliParser.parse(options, args, true);
             if (parse.getArgs().length > 0) {
-                final ServantCommand.Commands command = ServantCommand.Commands.valueOf(parse.getArgs()[0]);
+                commandStr = parse.getArgs()[0];
+                final ServantCommand.Commands command = ServantCommand.Commands.valueOf(commandStr);
                 System.exit(command.execute(parse));
             }
             else new Start().execute(parse);
         } catch (ParseException e) {
             System.out.println(e.getMessage());
-            cliHelp.printHelp("lzy-servant", options);
+            cliHelp.printHelp(commandStr, options);
             System.exit(-1);
         }
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public static class Builder {
         private URI serverAddr;
         private String servantName;
@@ -167,7 +166,7 @@ public class LzyServant {
     private final Server server;
     private final Impl impl;
 
-    public LzyServant(Server server, Impl impl) {
+    private LzyServant(Server server, Impl impl) {
         this.server = server;
         this.impl = impl;
     }
@@ -196,7 +195,8 @@ public class LzyServant {
             this.servantAddress = servantAddress;
             this.serverAddress = serverAddress;
             this.lzyFS = new LzyFS();
-            this.lzyFS.mount(mount, false, true);
+            this.lzyFS.mount(mount, false, false);
+            //this.lzyFS.mount(mount, false, true);
             final ManagedChannel channel = ManagedChannelBuilder
                 .forAddress(serverAddress.getHost(), serverAddress.getPort())
                 .usePlaintext()
@@ -210,59 +210,78 @@ public class LzyServant {
         }
 
         void register() {
-            final Servant.AttachServant.Builder commandBuilder = Servant.AttachServant.newBuilder();
-            commandBuilder.setAuth(auth);
-            commandBuilder.setServantURI(servantAddress.toString());
-            //noinspection ResultOfMethodCallIgnored
-            server.registerServant(commandBuilder.build());
             for (ServantCommand.Commands command : ServantCommand.Commands.values()) {
                 publishTool(null, Paths.get(command.name()), command.name());
             }
             final Operations.ZygoteList zygotes = server.zygotes(auth);
             for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
                 publishTool(
-                    gRPCConverter.from(zygote.getWorkload()),
+                    zygote.getWorkload(),
                     Paths.get(zygote.getName()),
-                    "run", zygote.getName()
+                    "run"
                 );
+            }
+            LOG.info("Registering servant " + servantAddress + " at " + serverAddress);
+            final Servant.AttachServant.Builder commandBuilder = Servant.AttachServant.newBuilder();
+            commandBuilder.setAuth(auth);
+            commandBuilder.setServantURI(servantAddress.toString());
+            //noinspection ResultOfMethodCallIgnored
+            server.registerServant(commandBuilder.build());
+        }
+
+        private void publishTool(Operations.Zygote z, Path to, String... servantArgs) {
+            try {
+                final String zygoteJson = z != null ? JsonFormat.printer().print(z) : null;
+                final List<String> commandParts = new ArrayList<>();
+                commandParts.add(System.getProperty("java.home") + "/bin/java");
+                commandParts.add("-Xmx1g");
+                commandParts.add("-classpath");
+                commandParts.add('"' + System.getProperty("java.class.path") + '"');
+                commandParts.add(LzyServant.class.getCanonicalName());
+                commandParts.addAll(List.of("--port", Integer.toString(servantAddress.getPort())));
+                commandParts.addAll(List.of("--lzy-address", serverAddress.toString()));
+                commandParts.addAll(List.of("--lzy-mount", mount.toAbsolutePath().toString()));
+                commandParts.addAll(List.of("--auth", new String(Base64.getEncoder().encode(auth.toByteString().toByteArray()))));
+                commandParts.addAll(Arrays.asList(servantArgs));
+                commandParts.add("$@");
+
+                final StringBuilder scriptBuilder = new StringBuilder();
+                if (zygoteJson != null) {
+                    scriptBuilder.append("export ZYGOTE=")
+                        .append('"')
+                        .append(zygoteJson
+                            .replaceAll("\"", "\\\\\"")
+                            .replaceAll("\\R", "\\\\\n")
+                        )
+                        .append('"')
+                        .append("\n\n");
+                }
+                scriptBuilder.append(String.join(" ", commandParts)).append("\n");
+                final String script = scriptBuilder.toString();
+                lzyFS.addScript(new LzyScript() {
+                    @Override
+                    public Zygote operation() {
+                        return gRPCConverter.from(z);
+                    }
+
+                    @Override
+                    public Path location() {
+                        return to;
+                    }
+
+                    @Override
+                    public CharSequence scriptText() {
+                        return script;
+                    }
+                }, z == null);
+
+            }
+            catch (InvalidProtocolBufferException ignore) {
             }
         }
 
-        private void publishTool(Zygote z, Path to, String... servantArgs) {
-            final List<String> commandParts = new ArrayList<>();
-            commandParts.add(System.getProperty("java.home") + "/bin/java");
-            commandParts.add("-Xmx1g");
-            commandParts.add("-classpath");
-            commandParts.add('"' + System.getProperty("java.class.path") + '"');
-            commandParts.add(LzyServant.class.getCanonicalName());
-            commandParts.addAll(Arrays.asList(servantArgs));
-            commandParts.addAll(List.of("--port", Integer.toString(servantAddress.getPort())));
-            commandParts.addAll(List.of("--lzy-address", serverAddress.toString()));
-            commandParts.addAll(List.of("--lzy-mount", mount.toAbsolutePath().toString()));
-            commandParts.addAll(List.of("--auth", new String(Base64.getEncoder().encode(auth.toByteString().toByteArray()))));
-            commandParts.add("$@");
-
-            final String script = String.join(" ", commandParts) + "\n";
-            lzyFS.addScript(new LzyScript() {
-                @Override
-                public Zygote operation() {
-                    return z;
-                }
-
-                @Override
-                public Path location() {
-                    return to;
-                }
-
-                @Override
-                public CharSequence scriptText() {
-                    return script;
-                }
-            }, z == null);
-        }
-
         @Override
-        public void execute(Servant.ExecutionSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+        public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
             try {
                 LOG.info("Starting execution " + JsonFormat.printer().print(request));
             }
@@ -271,9 +290,13 @@ public class LzyServant {
                 responseObserver.onError(Status.RESOURCE_EXHAUSTED.asException());
                 return;
             }
-            final String tid = request.getTaskId();
-            final AtomicZygote from = request.hasDefinition() ? (AtomicZygote) gRPCConverter.from(request.getDefinition()): null;
-            this.currentExecution = new LzyExecution(tid, from);
+            if (request.hasZygote()) {
+                final String tid = request.getAuth().getTask().getTaskId();
+                this.currentExecution = new LzyExecution(tid, (AtomicZygote) gRPCConverter.from(request.getZygote()));
+            }
+            else { // terminal
+                this.currentExecution = new LzyExecution(null, null);
+            }
             this.currentExecution.onProgress(progress -> {
                 responseObserver.onNext(progress);
                 if (progress.hasExit()) {
@@ -286,17 +309,17 @@ public class LzyServant {
                 System.exit(1);
             }, Runnable::run);
 
-            for (Servant.SlotSpec spec : request.getSlotsList()) {
+            for (Tasks.SlotAssignment spec : request.getAssignmentsList()) {
                 final LzySlot lzySlot = currentExecution.configureSlot(
                     gRPCConverter.from(spec.getSlot()),
-                    spec.getChannelId()
+                    spec.getBinding()
                 );
                 if (lzySlot instanceof LzyFileSlot) {
                     lzyFS.addSlot((LzyFileSlot) lzySlot);
                 }
             }
 
-            if (request.hasDefinition())
+            if (request.hasZygote())
                 this.currentExecution.start();
         }
 
@@ -311,9 +334,7 @@ public class LzyServant {
             slot.state(Operations.SlotStatus.State.OPEN);
             try {
                 slot.readFromPosition(request.getOffset())
-                    .forEach(chunk ->
-                        responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build())
-                    );
+                    .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
                 responseObserver.onCompleted();
             }
             catch (IOException iae) {
@@ -340,9 +361,6 @@ public class LzyServant {
                         slotSpec,
                         create.getChannelId()
                     );
-                    if (lzySlot == null) {
-                        responseObserver.onError(Status.ALREADY_EXISTS.asException());
-                    }
                     if (lzySlot instanceof LzyFileSlot)
                         lzyFS.addSlot((LzyFileSlot)lzySlot);
                     break;
@@ -387,11 +405,7 @@ public class LzyServant {
         public void update(IAM.Auth request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             final Operations.ZygoteList zygotes = server.zygotes(auth);
             for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
-                publishTool(
-                    gRPCConverter.from(zygote.getWorkload()),
-                    Paths.get(zygote.getName()),
-                    "run", zygote.getName()
-                );
+                publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());
             }
             responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
             responseObserver.onCompleted();

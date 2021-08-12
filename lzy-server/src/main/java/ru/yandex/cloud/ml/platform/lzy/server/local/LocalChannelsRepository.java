@@ -36,7 +36,7 @@ public class LocalChannelsRepository implements ChannelsRepository {
 
     @Override
     public Channel get(String cid) {
-        return channels.get(cid);
+        return cid == null ? null : channels.get(cid);
     }
 
     @Override
@@ -93,7 +93,7 @@ public class LocalChannelsRepository implements ChannelsRepository {
 
     @Override
     public void destroy(Channel ch) {
-        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
+        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.remove(ch.name());
         if (channel != null) channel.close();
     }
 

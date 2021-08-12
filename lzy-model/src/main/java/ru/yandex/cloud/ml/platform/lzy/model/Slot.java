@@ -1,12 +1,18 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
+import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 
 public interface Slot {
   String name();
   Media media();
   Direction direction();
   DataSchema contentType();
+
+  Slot STDIN = new TextLinesInSlot("/dev/stdin");
+  Slot STDOUT = new TextLinesOutSlot("/dev/stdout");
+  Slot STDERR = new TextLinesOutSlot("/dev/stderr");
 
   enum Direction {
     INPUT,

@@ -49,6 +49,8 @@ public class SimpleInMemAuthenticator implements Authenticator {
     @Override
     public String registerTask(String uid, Task task) {
         owners.put(task.tid().toString(), uid);
-        return taskTokens.put(task.tid().toString(), UUID.randomUUID().toString());
+        final String token = UUID.randomUUID().toString();
+        taskTokens.put(task.tid().toString(), token);
+        return token;
     }
 }

@@ -4,8 +4,11 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
@@ -23,7 +26,8 @@ import java.nio.file.Paths;
 import java.util.Base64;
 
 public class Touch implements ServantCommand {
-    public static void populateOptions(Options options) {
+    private static final Options options = new Options();
+    static {
         options.addOption(new Option("s", "slot", true, "Slot definition"));
     }
 
@@ -33,6 +37,16 @@ public class Touch implements ServantCommand {
         if (command.getArgs().length < 3)
             throw new IllegalArgumentException("Please specify the name of channel to connect to");
         final String channelName = command.getArgs()[2];
+
+        final CommandLine localCmd;
+        final HelpFormatter cliHelp = new HelpFormatter();
+        try {
+            localCmd = new DefaultParser().parse(options, command.getArgs(), false);
+        } catch (ParseException e) {
+            cliHelp.printHelp("channel", options);
+            return -1;
+        }
+
         final ManagedChannel servantCh = ManagedChannelBuilder
             .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
             .usePlaintext()
@@ -54,7 +68,7 @@ public class Touch implements ServantCommand {
 
                 slotBuilder.setName("/" + relativePath.toString());
             }
-            final String slotDefinition = command.getOptionValue('s');
+            final String slotDefinition = localCmd.getOptionValue('s');
             if (slotDefinition.endsWith(".json")) { // treat as file
                 JsonFormat.parser().merge(Files.newBufferedReader(Paths.get(slotDefinition)), slotBuilder);
             }

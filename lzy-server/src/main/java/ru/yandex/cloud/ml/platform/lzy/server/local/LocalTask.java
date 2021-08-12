@@ -21,15 +21,19 @@ import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -43,22 +47,31 @@ public class LocalTask implements Task {
     private final String owner;
     public final UUID tid;
     private final Zygote workload;
-    private final Map<Slot, Channel> assignments;
+    private final Map<Slot, String> assignments;
     private final ChannelsRepository channels;
+    private final URI serverURI;
 
     private State state = State.PREPARING;
-    private List<Consumer<State>> listeners = new ArrayList<>();
+    private List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private Map<Slot, Channel> attachedSlots = new HashMap<>();
     private ManagedChannel servantChannel;
     private URI servantURI;
     private LzyServantGrpc.LzyServantBlockingStub servant;
 
-    LocalTask(String owner, UUID tid, Zygote workload, Map<Slot, Channel> assignments, ChannelsRepository channels) {
+    LocalTask(
+        String owner,
+        UUID tid,
+        Zygote workload,
+        Map<Slot, String> assignments,
+        ChannelsRepository channels,
+        URI serverURI
+    ) {
         this.owner = owner;
         this.tid = tid;
         this.workload = workload;
         this.assignments = assignments;
         this.channels = channels;
+        this.serverURI = serverURI;
     }
 
     @Override
@@ -77,7 +90,7 @@ public class LocalTask implements Task {
     }
 
     @Override
-    public void onStateChange(Consumer<State> listener) {
+    public void onProgress(Consumer<Servant.ExecutionProgress> listener) {
         listeners.add(listener);
     }
 
@@ -97,64 +110,110 @@ public class LocalTask implements Task {
             taskDir.delete();
             taskDir.mkdirs();
             taskDir.mkdir();
-            runJvm(LzyServant.class, taskDir, "-token", token);
-        } catch (IOException e) {
-            e.printStackTrace();
+            final Process process = runJvm(LzyServant.class, taskDir,
+                new String[]{
+                    "-z", serverURI.toString(),
+                    "-p", Integer.toString(10000 + (hashCode() % 1000)),
+                    "-m", taskDir.toString() + "/lzy"
+                },
+                new String[]{
+                    "LZYTASK=" + tid,
+                    "LZYTOKEN=" + token
+                }
+            );
+            process.getOutputStream().close();
+            ForkJoinPool.commonPool().execute(() -> {
+                try(LineNumberReader lnr = new LineNumberReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = lnr.readLine()) != null) {
+                        LOG.info(line);
+                    }
+                } catch (IOException e) {
+                    LOG.warn("Exception in local task", e);
+                }
+            });
+            ForkJoinPool.commonPool().execute(() -> {
+                try(LineNumberReader lnr = new LineNumberReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = lnr.readLine()) != null) {
+                        LOG.warn(line);
+                    }
+                } catch (IOException e) {
+                    LOG.warn("Exception in local task", e);
+                }
+            });
+            LOG.info("LocalTask servant exited with exit code: " + process.waitFor());
+            state(State.DESTROYED);
+        } catch (IOException | InterruptedException e) {
+            LOG.warn("Exception in local task", e);
         }
     }
 
     protected void state(State newState) {
         if (newState != state) {
             state = newState;
-            listeners.forEach(c -> c.accept(state));
+            progress(Servant.ExecutionProgress.newBuilder()
+                .setChanged(Servant.StateChanged.newBuilder().setNewState(Servant.StateChanged.State.valueOf(newState.name())).build())
+                .build());
         }
     }
 
     @Override
     public void attachServant(URI uri) {
-        pool.execute(() -> {
-            servantChannel = ManagedChannelBuilder
-                .forAddress(uri.getHost(), uri.getPort())
-                .build();
-            servantURI = uri;
-            servant = LzyServantGrpc.newBlockingStub(servantChannel);
-            final Servant.ExecutionSpec.Builder builder = Servant.ExecutionSpec.newBuilder()
-                .setDefinition(gRPCConverter.to(workload));
-            assignments.forEach((slot, channel) ->
-                builder.addSlotsBuilder()
-                    .setSlot(gRPCConverter.to(slot))
-                    .setChannelId(channel.name())
-                    .build()
-            );
-            final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
-            state(State.CONNECTED);
-            try {
-                progressIt.forEachRemaining(progress -> {
-                    switch (progress.getStatusCase()) {
-                        case STARTED:
-                            state(State.RUNNING);
-                            break;
-                        case ATTACHED:
-                            final Servant.AttachSlot attached = progress.getAttached();
-                            final Slot slot = gRPCConverter.from(attached.getSlot());
-                            final String channelName = attached.getChannel().isEmpty() ? null : attached.getChannel();
-                            final Channel channel =
-                                channelName != null ? channels.get(channelName) : assignments.get(slot);
-                            if (channel != null) {
-                                channels.bind(channel, new Binding(this, slot));
-                                attachedSlots.put(slot, channel);
-                            } else LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
-                            break;
-                        case EXIT:
-                            state(State.FINISHED);
-                            break;
-                    }
-                });
-            }
-            finally {
-                state(State.FINISHED);
-            }
-        });
+        servantChannel = ManagedChannelBuilder
+            .forAddress(uri.getHost(), uri.getPort())
+            .usePlaintext()
+            .build();
+        servantURI = uri;
+        servant = LzyServantGrpc.newBlockingStub(servantChannel);
+        final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
+            .setZygote(gRPCConverter.to(workload));
+        assignments.forEach((slot, binding) ->
+            builder.addAssignmentsBuilder()
+                .setSlot(gRPCConverter.to(slot))
+                .setBinding(binding)
+                .build()
+        );
+        final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
+        state(State.CONNECTED);
+        try {
+            progressIt.forEachRemaining(progress -> {
+                this.progress(progress);
+                switch (progress.getStatusCase()) {
+                    case STARTED:
+                        state(State.RUNNING);
+                        break;
+                    case ATTACHED:
+                        final Servant.AttachSlot attached = progress.getAttached();
+                        final Slot slot = gRPCConverter.from(attached.getSlot());
+                        final String channelName;
+                        if (attached.getChannel().isEmpty()) {
+                            final String binding = assignments.getOrDefault(slot, "");
+                            channelName = binding.startsWith("channel:") ?
+                                binding.substring("channel:".length()) :
+                                null;
+                        }
+                        else channelName = attached.getChannel();
+
+                        final Channel channel = channels.get(channelName);
+                        if (channel != null) {
+                            channels.bind(channel, new Binding(this, slot));
+                            attachedSlots.put(slot, channel);
+                        } else LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
+                        break;
+                    case EXIT:
+                        state(State.FINISHED);
+                        break;
+                }
+            });
+        }
+        finally {
+            state(State.FINISHED);
+        }
+    }
+
+    private void progress(Servant.ExecutionProgress progress) {
+        listeners.forEach(l -> l.accept(progress));
     }
 
     @Override
@@ -177,7 +236,7 @@ public class LocalTask implements Task {
         final Slot definedSlot = workload.slot(slot.name());
         if (servant == null) {
             if (definedSlot != null)
-                return new PreparingSlotStatus(owner, this, definedSlot, assignments.get(slot).name());
+                return new PreparingSlotStatus(owner, this, definedSlot, assignments.get(slot));
             throw new TaskException("No such slot: " + tid + ":" + slot);
         }
         final Servant.SlotCommandStatus slotStatus = servant.configureSlot(Servant.SlotCommand.newBuilder()
@@ -196,8 +255,7 @@ public class LocalTask implements Task {
         servant.signal(Tasks.TaskSignal.newBuilder().setSigValue(signal.sig()).build());
     }
 
-    @SuppressWarnings({"SameParameterValue", "UnusedReturnValue"})
-    private static Process runJvm(final Class<?> mainClass, File wd, final String... args) {
+    private static Process runJvm(final Class<?> mainClass, File wd, final String[] args, final String[] env) {
         try {
             final Method main = mainClass.getMethod("main", String[].class);
             if (main.getReturnType().equals(void.class)
@@ -213,7 +271,7 @@ public class LocalTask implements Task {
                     parameters.addAll(Arrays.asList(args));
                     return Runtime.getRuntime().exec(
                         parameters.toArray(new String[parameters.size()]),
-                        new String[0],
+                        env,
                         wd
                     );
                 } catch (IOException e) {

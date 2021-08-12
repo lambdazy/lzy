@@ -107,8 +107,9 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     public Operations.SlotStatus status() {
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
-            .setDeclaration(gRPCConverter.to(definition()))
-            .setTaskId(tid);
+            .setDeclaration(gRPCConverter.to(definition()));
+        if (tid != null)
+            builder.setTaskId(tid);
         return builder.build();
     }
 

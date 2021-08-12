@@ -13,14 +13,14 @@ message TaskCommand {
   Auth auth = 1;
   string tid = 2;
   oneof command {
-    TaskCreate create = 3;
     TaskSignal signal = 4;
     TaskState state = 5;
   }
 }
 
-message TaskCreate {
-  string zygote = 2;
+message TaskSpec {
+  Auth auth = 1;
+  Zygote zygote = 2;
   repeated SlotAssignment assignments = 3;
 }
 
@@ -38,8 +38,8 @@ message TaskState {
 }
 
 message SlotAssignment {
-  string slotName = 1;
-  string channelId = 2;
+  Slot slot = 1;
+  string binding = 2;
 }
 
 message TaskStatus {

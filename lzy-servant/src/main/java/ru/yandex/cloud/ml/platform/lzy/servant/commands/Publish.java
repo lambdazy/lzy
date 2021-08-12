@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;

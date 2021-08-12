@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -47,6 +48,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -57,6 +59,8 @@ public class LzyServer {
     static {
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
     }
+
+    private static int port;
 
     public static void main(String[] args) throws IOException, InterruptedException {
         final CommandLineParser cliParser = new DefaultParser();
@@ -69,7 +73,7 @@ public class LzyServer {
             cliHelp.printHelp("lzy-server", options);
             System.exit(-1);
         }
-        final int port = Integer.parseInt(parse.getOptionValue('p', "8888"));
+        port = Integer.parseInt(parse.getOptionValue('p', "8888"));
 
         final Server server = ServerBuilder.forPort(port).addService(new Impl()).build();
 
@@ -85,7 +89,7 @@ public class LzyServer {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
         private final ServantRepository servants = new ServantRepositoryImpl();
         private final ChannelsRepository channels = new LocalChannelsRepository();
-        private final TasksManager tasks = new LocalTasksManager(channels);
+        private final TasksManager tasks = new LocalTasksManager(URI.create("http://localhost:" + port), channels);
         private final Authenticator auth = new SimpleInMemAuthenticator();
 
         @Override
@@ -143,18 +147,6 @@ public class LzyServer {
 
             Task task = null;
             switch (request.getCommandCase()) {
-                case CREATE: {
-                    final Tasks.TaskCreate create = request.getCreate();
-                    final Zygote workload = operations.get(create.getZygote());
-                    final Map<Slot, Channel> assignments = new HashMap<>();
-                    create.getAssignmentsList().forEach(ass ->
-                        assignments.put(workload.slot(ass.getSlotName()), tasks.channel(ass.getChannelId()))
-                    );
-
-                    final String uid = resolveUser(request.getAuth());
-                    task = tasks.start(uid, resolveTask(request.getAuth()), workload, assignments, auth);
-                    break;
-                }
                 case STATE:
                 case SIGNAL: {
                     task = tasks.task(UUID.fromString(request.getTid()));
@@ -182,6 +174,27 @@ public class LzyServer {
             else responseObserver.onError(new IllegalArgumentException());
         }
 
+        @Override
+        public void start(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+            final Zygote workload = gRPCConverter.from(request.getZygote());
+            final Map<Slot, String> assignments = new HashMap<>();
+            request.getAssignmentsList().forEach(ass -> assignments.put(gRPCConverter.from(ass.getSlot()), ass.getBinding()));
+
+            final String uid = resolveUser(request.getAuth());
+            final Task parent = resolveTask(request.getAuth());
+            Task task = tasks.start(uid, parent, workload, assignments, auth, progress -> {
+                try {
+                    LOG.info(JsonFormat.printer().print(progress));
+                    responseObserver.onNext(progress);
+                    if (progress.hasExit() || progress.hasChanged() && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
+                        responseObserver.onCompleted();
+                        if (parent != null)
+                            parent.signal(TasksManager.Signal.CHLD);
+                    }
+                } catch (InvalidProtocolBufferException ignore) {}
+            });
+            Context.current().addListener(ctxt -> task.signal(TasksManager.Signal.TERM), Runnable::run);
+        }
 
         @Override
         public void tasksStatus(IAM.Auth auth, StreamObserver<Tasks.TasksList> responseObserver) {
@@ -217,10 +230,8 @@ public class LzyServer {
                         resolveTask(auth),
                         gRPCConverter.contentTypeFrom(create.getContentType())
                     );
-                    if (channel == null) {
-                        responseObserver.onError(Status.ALREADY_EXISTS.asException());
-                        return;
-                    }
+                    if (channel == null)
+                        channel = channels.get(request.getChannelName());
                     break;
                 }
                 case DESTROY: {
@@ -271,22 +282,24 @@ public class LzyServer {
                 responseObserver.onError(Status.ALREADY_EXISTS.asException());
                 return;
             }
+            responseObserver.onNext(Servant.AttachStatus.newBuilder().build());
+            responseObserver.onCompleted();
 
-            if (auth.hasTask()) {
-                final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
-                task.attachServant(servantUri);
-            }
-            else if (auth.hasUser()) {
-                final String user = auth.getUser().getUserId();
-                new Thread(() -> {
+            ForkJoinPool.commonPool().execute(() -> {
+                if (auth.hasTask()) {
+                    final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
+                    task.attachServant(servantUri);
+                }
+                else if (auth.hasUser()) {
+                    final String user = auth.getUser().getUserId();
                     final ManagedChannel servantChannel = ManagedChannelBuilder
                         .forAddress(servantUri.getHost(), servantUri.getPort())
                         .usePlaintext()
                         .build();
-                    final Servant.ExecutionSpec.Builder executionSpec = Servant.ExecutionSpec.newBuilder();
-                    tasks.slots(user).forEach((slot, channel) -> executionSpec.addSlotsBuilder()
+                    final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
+                    tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()
                         .setSlot(gRPCConverter.to(slot))
-                        .setChannelId(channel.name())
+                        .setBinding("channel:" + channel.name())
                         .build()
                     );
                     final Iterator<Servant.ExecutionProgress> execute = LzyServantGrpc
@@ -299,16 +312,17 @@ public class LzyServer {
                             } catch (InvalidProtocolBufferException e) {
                                 LOG.error("Unable to parse progress", e);
                             }
-                            if (progress.hasAttached()) {
+                            if (progress.hasAttached() && progress.getAttached().getChannel().startsWith("channel:")) {
                                 final Servant.AttachSlot attached = progress.getAttached();
                                 final Slot slot = gRPCConverter.from(attached.getSlot());
-                                tasks.setSlot(user, slot, channels.get(attached.getChannel()));
+                                final String channelName = attached.getChannel();
+                                tasks.setSlot(user, slot, channels.get(channelName.substring("channel:".length())));
                                 final Binding binding = new Binding(
                                     slot,
                                     servantUri.resolve(slot.name()),
                                     servantChannel
                                 );
-                                this.channels.bind(channels.get(attached.getChannel()), binding);
+                                this.channels.bind(channels.get(channelName), binding);
                             }
                         });
                         LOG.info("Terminal for " + user + " disconnected");
@@ -317,13 +331,11 @@ public class LzyServer {
                         LOG.error("Terminal execution terminated " + th.getMessage());
                     }
                     finally {
-                        servantChannel.shutdown();
                         channels.unbindAll(servantUri);
+                        servantChannel.shutdown();
                     }
-                }, "Lzy terminal " + user).start();
-            }
-            responseObserver.onNext(Servant.AttachStatus.newBuilder().build());
-            responseObserver.onCompleted();
+                }
+            });
         }
 
         @Override
@@ -349,7 +361,8 @@ public class LzyServer {
                 builder.setTaskId(task.tid().toString());
 
                 builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
-                builder.setServant(task.servant().toString());
+                if (task.servant() != null)
+                    builder.setServant(task.servant().toString());
                 builder.setOwner(tasks.owner(task.tid()));
                 Stream.concat(Stream.of(task.workload().input()), Stream.of(task.workload().output()))
                     .map(task::slotStatus)
@@ -380,7 +393,6 @@ public class LzyServer {
                     builder.setUser(tasks.owner(state.tid()));
                 }
                 else builder.setUser(state.user());
-
 
                 builder.setConnectedTo(channel.name())
                     .setDeclaration(gRPCConverter.to(state.slot()))

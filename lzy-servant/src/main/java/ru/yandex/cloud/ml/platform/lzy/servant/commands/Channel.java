@@ -4,8 +4,11 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -22,15 +25,24 @@ import java.util.Base64;
 import java.util.UUID;
 
 public class Channel implements ServantCommand {
-    public static void populateOptions(Options options) {
+    private static final Options options = new Options();
+    static  {
         options.addOption(new Option("c", "content-type", true, "Content type"));
-        options.addOption(new Option("n", "name", true, "Name of the entity (channel/zygote/etc.)"));
     }
 
     @Override
     public int execute(CommandLine command) throws Exception {
         if (command.getArgs().length < 2)
             throw new IllegalArgumentException("Please specify channel command");
+        final CommandLine localCmd;
+        final HelpFormatter cliHelp = new HelpFormatter();
+        try {
+            localCmd = new DefaultParser().parse(options, command.getArgs(), false);
+        } catch (ParseException e) {
+            cliHelp.printHelp("channel", options);
+            return -1;
+        }
+
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         final ManagedChannel serverCh = ManagedChannelBuilder
@@ -46,7 +58,7 @@ public class Channel implements ServantCommand {
                 else
                     channelName = command.getArgs()[2];
                 final Channels.ChannelCreate.Builder createCommandBuilder = Channels.ChannelCreate.newBuilder();
-                if (command.hasOption('c')) {
+                if (localCmd.hasOption('c')) {
                     createCommandBuilder.setContentType(command.getOptionValue('c'));
                 }
                 final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()

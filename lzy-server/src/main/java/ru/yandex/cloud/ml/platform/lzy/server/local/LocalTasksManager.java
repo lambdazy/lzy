@@ -9,15 +9,20 @@ import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public class LocalTasksManager implements TasksManager {
+    private final URI serverURI;
     private final ChannelsRepository channels;
     private final Map<UUID, LocalTask> tasks = new HashMap<>();
 
@@ -31,7 +36,8 @@ public class LocalTasksManager implements TasksManager {
 
     private final Map<String, Map<Slot, Channel>> userSlots = new HashMap<>();
 
-    public LocalTasksManager(ChannelsRepository channels) {
+    public LocalTasksManager(URI serverURI, ChannelsRepository channels) {
+        this.serverURI = serverURI;
         this.channels = channels;
     }
 
@@ -78,28 +84,32 @@ public class LocalTasksManager implements TasksManager {
     }
 
     @Override
-    public Task start(String uid, Task parent, Zygote workload, Map<Slot, Channel> assignments, Authenticator auth) {
-        final LocalTask task = new LocalTask(uid, UUID.randomUUID(), workload, assignments, channels);
+    public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
+        final LocalTask task = new LocalTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
         tasks.put(task.tid(), task);
         if (parent != null)
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);
         userTasks.computeIfAbsent(uid, user -> new ArrayList<>()).add(task);
         parents.put(task, parent);
         owners.put(task, uid);
-        task.onStateChange(state -> {
-            if (state != Task.State.FINISHED)
+        task.onProgress(state -> {
+            consumer.accept(state);
+            if (!state.hasChanged() ||
+                (state.getChanged().getNewState() != Servant.StateChanged.State.FINISHED &&
+                    state.getChanged().getNewState() != Servant.StateChanged.State.DESTROYED))
                 return;
-            if (tasks.remove(task.tid()) == null)
+            if (tasks.remove(task.tid()) == null) // idempotence support
                 return;
-            children.getOrDefault(task, List.of()).forEach(child -> child.signal(Signal.KILL));
+            children.getOrDefault(task, List.of()).forEach(child -> child.signal(Signal.TERM));
             children.remove(task);
-            children.getOrDefault(parents.remove(task), List.of()).remove(task);
+            children.getOrDefault(parents.remove(task), new ArrayList<>()).remove(task);
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
-            channels.unbindAll(task.servant());
+            if (task.servant() != null)
+                channels.unbindAll(task.servant());
             taskChannels.remove(task);
             userTasks.getOrDefault(owners.remove(task), List.of()).remove(task);
         });
-        task.start(auth.registerTask(uid, task));
+        ForkJoinPool.commonPool().execute(() -> task.start(auth.registerTask(uid, task)));
         return task;
     }
 

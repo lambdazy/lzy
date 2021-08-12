@@ -25,7 +25,7 @@ public class Terminal implements ServantCommand {
     @Override
     public int execute(CommandLine parse) throws Exception {
         if (!parse.hasOption('z')) {
-            throw new RuntimeException("Provide lzy server address with -a option to start a task.");
+            throw new IllegalArgumentException("Provide lzy server address with -z option to start a task.");
         }
 
         final UUID terminalToken = UUID.randomUUID();
@@ -40,12 +40,14 @@ public class Terminal implements ServantCommand {
             System.getenv("HOME") + "/.ssh/id_rsa"
         ));
 
+        final Path lzyRoot = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
+        Runtime.getRuntime().exec("umount " + lzyRoot);
         final LzyServant.Builder builder = LzyServant.Builder.forLzyServer(URI.create(serverAddress))
             .user(System.getenv("USER"))
             .token(terminalToken.toString())
             .servantName(parse.getOptionValue('h', LzyFS.lineCmd("hostname")))
             .servantPort(port)
-            .root(Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy")));
+            .root(lzyRoot);
 
         if (Files.exists(privateKeyPath)) {
             tokenSignature = signToken(terminalToken, privateKeyPath);

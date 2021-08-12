@@ -5,6 +5,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
 import java.util.UUID;
@@ -17,7 +18,7 @@ public interface Task {
     Zygote workload();
 
     State state();
-    void onStateChange(Consumer<State> listener);
+    void onProgress(Consumer<Servant.ExecutionProgress> listener);
 
     Slot slot(String slotName);
     SlotStatus slotStatus(Slot slot) throws TaskException;

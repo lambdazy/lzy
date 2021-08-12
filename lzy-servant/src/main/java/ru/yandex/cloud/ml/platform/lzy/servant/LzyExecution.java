@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -38,24 +37,27 @@ public class LzyExecution {
     private final LineReaderSlot stderrSlot;
     private final WriterSlot stdinSlot;
     private Process exec;
+    private String arguments = "";
     private final Map<String, LzySlot> slots = new HashMap<>();
     private List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
 
     public LzyExecution(String taskId, AtomicZygote zygote) {
         this.taskId = taskId;
         this.zygote = zygote;
-        stdinSlot = new WriterSlot(taskId, new TextLinesOutSlot(zygote, "/dev/stdin"));
-        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "/dev/stdout"));
-        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot(zygote, "/dev/stderr"));
+        stdinSlot = new WriterSlot(taskId, new TextLinesOutSlot("/dev/stdin"));
+        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"));
+        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"));
         if (zygote != null) {
-            zygote.slots().forEach(spec -> configureSlot(spec, null));
             slots.put("/dev/stdin", stdinSlot);
             slots.put("/dev/stdout", stdoutSlot);
             slots.put("/dev/stderr", stderrSlot);
+            zygote.slots()
+                .filter(s -> !slots.containsKey(s.name()))
+                .forEach(spec -> configureSlot(spec, null));
         }
     }
 
-    public LzySlot configureSlot(Slot spec, String channelId) {
+    public LzySlot configureSlot(Slot spec, String binding) {
         try {
             LzySlot slot = null;
             switch (spec.media()) {
@@ -71,6 +73,9 @@ public class LzyExecution {
                     }
                     break;
                 }
+                case ARG:
+                    arguments = binding;
+                    return null;
                 default:
                     throw new UnsupportedOperationException("Not implemented yet");
             }
@@ -78,10 +83,16 @@ public class LzyExecution {
                 return null;
             }
             slots.put(spec.name(), slot);
-            final Servant.AttachSlot.Builder attachBuilder = Servant.AttachSlot.newBuilder()
-                .setChannel(channelId != null ? channelId : "")
-                .setSlot(gRPCConverter.to(spec));
-            progress(Servant.ExecutionProgress.newBuilder().setAttached(attachBuilder.build()).build());
+            if (binding == null)
+                binding = "";
+            else if (binding.startsWith("channel:"))
+                binding = binding.substring("channel:".length());
+            progress(Servant.ExecutionProgress.newBuilder().setAttached(
+                Servant.AttachSlot.newBuilder()
+                    .setChannel(binding)
+                    .setSlot(gRPCConverter.to(spec)).build()
+            ).build());
+            LOG.info("Configured slot " + spec.name() + " " + slot);
             return slot;
         }
         catch (IOException ioe) {
@@ -90,12 +101,14 @@ public class LzyExecution {
     }
 
     public void start() {
+        if (zygote == null)
+            throw new IllegalStateException("Unable to start execution while in terminal mode");
         try {
             progress(Servant.ExecutionProgress.newBuilder()
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
                 .build()
             );
-            exec = Runtime.getRuntime().exec(zygote.fuze());
+            exec = Runtime.getRuntime().exec(zygote.fuze() + " " + arguments);
             exec.onExit().thenAcceptAsync(p ->
                 progress(Servant.ExecutionProgress.newBuilder()
                     .setExit(Servant.ExecutionConcluded.newBuilder().setRc(p.exitValue()).build())

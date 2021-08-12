@@ -7,15 +7,24 @@ import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public interface TasksManager {
     Task task(UUID tid);
 
-    Task start(String uid, Task parent, Zygote workload, Map<Slot, Channel> assignments, Authenticator token) throws TaskException;
+    Task start(
+        String uid,
+        Task parent,
+        Zygote workload,
+        Map<Slot, String> assignments,
+        Authenticator token,
+        Consumer<Servant.ExecutionProgress> progressTracker
+    ) throws TaskException;
 
     Stream<Task> ps();
     Stream<Channel> cs();
@@ -34,7 +43,8 @@ public interface TasksManager {
     enum Signal {
         TOUCH(0),
         KILL(9),
-        TERM(10);
+        TERM(10),
+        CHLD(20);
 
         int sig;
 

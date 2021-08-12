@@ -90,8 +90,10 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
             .setPointer(offset)
-            .setDeclaration(gRPCConverter.to(definition()))
-            .setTaskId(tid);
+            .setDeclaration(gRPCConverter.to(definition()));
+
+        if (tid != null)
+            builder.setTaskId(tid);
         if (connected != null)
             builder.setConnectedTo(connected.toString());
         return builder.build();

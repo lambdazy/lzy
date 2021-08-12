@@ -12,7 +12,7 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service LzyServant {
     /** Only one execution at a time */
-    rpc Execute (ExecutionSpec) returns (stream ExecutionProgress);
+    rpc Execute (TaskSpec) returns (stream ExecutionProgress);
     rpc OpenOutputSlot (SlotRequest) returns (stream Message);
     rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
     rpc Signal (TaskSignal) returns (ExecutionStarted);
@@ -33,6 +33,7 @@ message SlotCommand {
 message CreateSlotCommand {
     Slot slot = 1;
     string channelId = 2;
+    bool isPipe = 3;
 }
 
 message ConnectSlotCommand {
@@ -81,25 +82,29 @@ message SlotSpec {
     string channelId = 2;
 }
 
-message ExecutionSpec {
-    string taskId = 1;
-    string token = 2;
-
-    Zygote definition = 3;
-    repeated SlotSpec slots = 4;
-}
-
 message ExecutionProgress {
     oneof status {
         ExecutionStarted started = 1;
         AttachSlot attached = 2;
         ExecutionConcluded exit = 3;
+        StateChanged changed = 4;
     }
 }
 
 message ExecutionStarted {
 }
 
+message StateChanged {
+    State newState = 1;
+    enum State {
+        PREPARING = 0;
+        CONNECTED = 1;
+        RUNNING = 2;
+        SUSPENDED = 3;
+        FINISHED = 4;
+        DESTROYED = 5;
+    }
+}
 message AttachSlot {
     Slot slot = 1;
     string channel = 2;
