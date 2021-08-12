@@ -17,7 +17,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-@Ignore
 public class LzyStartupTest {
     private static final int DEFAULT_SERVANT_TIMEOUT_SEC = 30;
     private static final int DEFAULT_SERVANT_PORT = 9999;
