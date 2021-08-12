@@ -1,4 +1,4 @@
-FROM cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest
+FROM findepi/graalvm:java11-all
 
 COPY target/lzy-servant-1.0-SNAPSHOT-jar-with-dependencies.jar app/app.jar
 COPY src/main/resources/ app/resources

@@ -6,7 +6,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -17,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class LzyStartupTests {
+public class LzyStartupTest {
     private static final int DEFAULT_SERVANT_TIMEOUT_SEC = 30;
     private static final int DEFAULT_SERVANT_PORT = 9999;
 
@@ -26,7 +25,7 @@ public class LzyStartupTests {
 
     @Before
     public void setUp() {
-        servantContext = new LzyServantProcessesContext();
+        servantContext = new LzyServantDockerContext();
         serverContext = new LzyServerProcessesContext();
     }
 

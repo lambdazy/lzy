@@ -24,11 +24,11 @@ public class LzyServantDockerContext implements LzyServantTestContext {
             .withFixedExposedPort(port, port)
             .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but is is easier for testing
             .withEnv("USER", "terminal-test")
-            .withCommand("terminal "
-                + "--lzy-address " + serverHost + ":" + serverPort + " "
+            .withCommand("--lzy-address " + serverHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--port " + port + " "
-                + "--lzy-mount " + path)
+                + "--lzy-mount " + path + " "
+                + "terminal")
             .withExposedPorts(port);
         servantContainer.start();
         servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
