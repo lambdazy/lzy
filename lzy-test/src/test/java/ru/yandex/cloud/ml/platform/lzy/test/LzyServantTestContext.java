@@ -1,6 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.test;
 
+import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
+
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
 public interface LzyServantTestContext extends AutoCloseable {
     Servant startTerminalAtPathAndPort(String path, int port, String serverHost, int serverPort);
@@ -11,6 +14,9 @@ public interface LzyServantTestContext extends AutoCloseable {
     interface Servant {
         boolean pathExists(Path path);
         ExecutionResult execute(String... command);
+
+        boolean waitForStatus(ServantStatus status, long timeout, TimeUnit unit);
+        boolean isAlive();
 
         interface ExecutionResult {
             String stdout();

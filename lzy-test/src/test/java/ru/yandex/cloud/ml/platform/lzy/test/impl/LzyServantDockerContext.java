@@ -7,12 +7,14 @@ import org.testcontainers.containers.Container;
 import org.testcontainers.containers.FixedHostPortGenericContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
+import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class LzyServantDockerContext implements LzyServantTestContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(LzyServantDockerContext.class);
@@ -41,6 +43,11 @@ public class LzyServantDockerContext implements LzyServantTestContext {
         servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
         startedContainers.add(servantContainer);
         return new Servant() {
+            @Override
+            public boolean isAlive() {
+                return false;
+            }
+
             @Override
             public boolean pathExists(Path path) {
                 try {
@@ -74,6 +81,13 @@ public class LzyServantDockerContext implements LzyServantTestContext {
                 } catch (IOException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
+            }
+
+            @Override
+            public boolean waitForStatus(
+                ServantStatus status, long timeout, TimeUnit unit
+            ) {
+                return false;
             }
         };
     }

@@ -1,14 +1,18 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
-import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
+import org.apache.commons.io.IOUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
+import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class LzyServantProcessesContext implements LzyServantTestContext {
     private final List<Process> servantProcesses = new ArrayList<>();
@@ -27,23 +31,20 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             "--private-key",
             "/tmp/nonexistent-key",
             "terminal"
-            };
-        final List<String> command = new ArrayList<>();
-        command.add(System.getProperty("java.home") + "/bin" + "/java");
-        command.add("-cp");
-        command.add(System.getProperty("java.class.path"));
-        command.add(LzyServant.class.getCanonicalName());
-        command.addAll(Arrays.asList(lzyArgs));
-
-        final ProcessBuilder builder = new ProcessBuilder(command);
+        };
         final Process process;
         try {
-            process = builder.inheritIO().start();
+            process = Utils.javaProcess(LzyServant.class.getCanonicalName(), lzyArgs).inheritIO().start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         servantProcesses.add(process);
         return new Servant() {
+            @Override
+            public boolean isAlive() {
+                return process.isAlive();
+            }
+
             @Override
             public boolean pathExists(Path path) {
                 return Files.exists(path);
@@ -52,6 +53,24 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             @Override
             public ExecutionResult execute(String... command) {
                 return null;
+            }
+
+            @Override
+            public boolean waitForStatus(ServantStatus status, long timeout, TimeUnit unit) {
+                return Utils.waitFlagUp(() -> {
+                    if (pathExists(Paths.get(path + "/sbin/status"))) {
+                        try {
+                            final Process bash = new ProcessBuilder("bash", path + "/sbin/status").start();
+                            bash.waitFor();
+                            final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
+                            final String parsedStatus = stdout.split("\n")[0];
+                            return parsedStatus.toLowerCase().equals(status.name().toLowerCase());
+                        } catch (InterruptedException | IOException e) {
+                            return false;
+                        }
+                    }
+                    return false;
+                }, timeout, unit);
             }
         };
     }

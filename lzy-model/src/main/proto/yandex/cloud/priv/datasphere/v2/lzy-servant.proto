@@ -17,6 +17,7 @@ service LzyServant {
     rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
     rpc Signal (TaskSignal) returns (ExecutionStarted);
     rpc Update (Auth) returns (ExecutionStarted);
+    rpc Status(Empty) returns (ServantStatus);
     rpc Stop (Empty) returns (Empty);
 }
 
@@ -115,24 +116,15 @@ message ExecutionConcluded {
     int32 rc = 1;
 }
 
-message AttachServant {
-    Auth auth = 1;
-    string servantURI = 2;
-}
-
-message AttachStatus {
-}
-
 message ServantStatus {
-    string servantURI = 1;
-    Status status = 2;
+    Status status = 1;
+    repeated SlotStatus connections = 2;
 
     enum Status {
-        ACTIVE = 0;
-        UNAVAILABLE = 1;
+        STARTED = 0;
+        REGISTERING = 1;
+        REGISTERED = 2;
+        PREPARING_EXECUTION = 3;
+        EXECUTING = 4;
     }
-}
-
-message ServantStatusList {
-    repeated ServantStatus statuses = 1;
 }

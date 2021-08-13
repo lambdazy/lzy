@@ -19,18 +19,16 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.server.local.Binding;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsRepository;
-import ru.yandex.cloud.ml.platform.lzy.server.local.LocalTask;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalTasksManager;
-import ru.yandex.cloud.ml.platform.lzy.server.mem.ServantRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.SimpleInMemAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
@@ -48,11 +46,9 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
@@ -93,7 +89,6 @@ public class LzyServer {
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
-        private final ServantRepository servants = new ServantRepositoryImpl();
         private final ChannelsRepository channels = new LocalChannelsRepository();
         private final TasksManager tasks = new LocalTasksManager(URI.create("http://localhost:" + port), channels);
         private final Authenticator auth = new SimpleInMemAuthenticator();
@@ -284,7 +279,7 @@ public class LzyServer {
         }
 
         @Override
-        public void registerServant(Servant.AttachServant request, StreamObserver<Servant.AttachStatus> responseObserver) {
+        public void registerServant(Lzy.AttachServant request, StreamObserver<Lzy.AttachStatus> responseObserver) {
             final IAM.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -292,11 +287,7 @@ public class LzyServer {
             }
 
             final URI servantUri = URI.create(request.getServantURI());
-            if (!servants.register(servantUri)) {
-                responseObserver.onError(Status.ALREADY_EXISTS.asException());
-                return;
-            }
-            responseObserver.onNext(Servant.AttachStatus.newBuilder().build());
+            responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
             responseObserver.onCompleted();
 
             ForkJoinPool.commonPool().execute(() -> {
@@ -352,23 +343,6 @@ public class LzyServer {
                 channels.unbindAll(servantUri);
                 servantChannel.shutdown();
             }
-        }
-
-        @Override
-        public void servantsStatus(IAM.Auth auth, StreamObserver<Servant.ServantStatusList> responseObserver) {
-            if (!checkAuth(auth, responseObserver)) {
-                responseObserver.onError(Status.PERMISSION_DENIED.asException());
-                return;
-            }
-            responseObserver.onNext(Servant.ServantStatusList.newBuilder()
-                .addAllStatuses(servants.list()
-                    .map(uri -> Servant.ServantStatus.newBuilder()
-                        .setServantURI(uri.toString())
-                        .setStatus(Servant.ServantStatus.Status.ACTIVE)
-                        .build())
-                    .collect(Collectors.toList()))
-                .build());
-            responseObserver.onCompleted();
         }
 
         private Tasks.TaskStatus taskStatus(Task task) {

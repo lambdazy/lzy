@@ -23,7 +23,6 @@ service LzyServer {
 
   rpc TasksStatus (Auth) returns (TasksList);
   rpc ChannelsStatus (Auth) returns (ChannelStatusList);
-  rpc ServantsStatus (Auth) returns (ServantStatusList);
 
   rpc RegisterServant (AttachServant) returns (AttachStatus);
 }
@@ -40,4 +39,12 @@ message PublishRequest {
     GROUP = 1;
     ALL = 2;
   }
+}
+
+message AttachServant {
+  Auth auth = 1;
+  string servantURI = 2;
+}
+
+message AttachStatus {
 }

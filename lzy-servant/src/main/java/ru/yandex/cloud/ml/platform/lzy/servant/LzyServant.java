@@ -30,6 +30,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyScript;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -46,6 +47,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public class LzyServant {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
@@ -191,6 +194,7 @@ public class LzyServant {
         private LzyExecution currentExecution;
         private final LzyFS lzyFS;
         private final URI servantAddress;
+        private final AtomicReference<ServantStatus> status = new AtomicReference<>(ServantStatus.STARTED);
 
         private Impl(Path mount, URI servantAddress, URI serverAddress, IAM.Auth auth) {
             this.mount = mount;
@@ -212,6 +216,7 @@ public class LzyServant {
         }
 
         void register() {
+            status.set(ServantStatus.REGISTERING);
             for (ServantCommand.Commands command : ServantCommand.Commands.values()) {
                 publishTool(null, Paths.get(command.name()), command.name());
             }
@@ -224,11 +229,12 @@ public class LzyServant {
                 );
             }
             LOG.info("Registering servant " + servantAddress + " at " + serverAddress);
-            final Servant.AttachServant.Builder commandBuilder = Servant.AttachServant.newBuilder();
+            final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
             commandBuilder.setAuth(auth);
             commandBuilder.setServantURI(servantAddress.toString());
             //noinspection ResultOfMethodCallIgnored
             server.registerServant(commandBuilder.build());
+            status.set(ServantStatus.REGISTERED);
         }
 
         private void publishTool(Operations.Zygote z, Path to, String... servantArgs) {
@@ -284,6 +290,7 @@ public class LzyServant {
 
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+            status.set(ServantStatus.PREPARING_EXECUTION);
             try {
                 LOG.info("Starting execution " + JsonFormat.printer().print(request));
             }
@@ -325,6 +332,7 @@ public class LzyServant {
 
             if (request.hasZygote())
                 this.currentExecution.start();
+            status.set(ServantStatus.EXECUTING);
         }
 
         @Override
@@ -412,6 +420,23 @@ public class LzyServant {
                 publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());
             }
             responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
+            final Servant.ServantStatus.Builder builder = Servant.ServantStatus.newBuilder();
+            builder.setStatus(status.get().toGrpcServantStatus());
+            if (currentExecution != null) {
+                builder.addAllConnections(currentExecution.slots().map(slot -> {
+                    final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());
+                    if (auth.hasUser()) {
+                        status.setUser(auth.getUser().getUserId());
+                    }
+                    return status.build();
+                }).collect(Collectors.toList()));
+            }
+            responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
         }
 
