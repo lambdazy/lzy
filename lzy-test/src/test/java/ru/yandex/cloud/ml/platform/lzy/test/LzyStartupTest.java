@@ -144,4 +144,28 @@ public class LzyStartupTest {
         zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(servant.pathExists(Paths.get(
             lzyPath + "/bin/" + registeredZygote.getName()))));
     }
+
+    @Test
+    public void testServantDiesAfterServerDied() {
+        //Arrange
+        final String lzyPath = "/tmp/lzy";
+
+        //Act
+        final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
+            lzyPath,
+            DEFAULT_SERVANT_PORT,
+            serverContext.host(servantContext.inDocker()),
+            serverContext.port()
+        );
+        final boolean started = servant.waitForStatus(
+            ServantStatus.EXECUTING,
+            DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
+            TimeUnit.SECONDS
+        );
+        serverContext.close();
+
+        //Assert
+        Assert.assertTrue(started);
+        Assert.assertTrue(servant.waitForShutdown(10, TimeUnit.SECONDS));
+    }
 }

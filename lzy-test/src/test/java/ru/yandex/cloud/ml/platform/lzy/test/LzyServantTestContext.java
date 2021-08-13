@@ -16,7 +16,7 @@ public interface LzyServantTestContext extends AutoCloseable {
         ExecutionResult execute(String... command);
 
         boolean waitForStatus(ServantStatus status, long timeout, TimeUnit unit);
-        boolean isAlive();
+        boolean waitForShutdown(long timeout, TimeUnit unit);
 
         interface ExecutionResult {
             String stdout();

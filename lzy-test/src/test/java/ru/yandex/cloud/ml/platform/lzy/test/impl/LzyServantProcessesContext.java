@@ -41,11 +41,6 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
         servantProcesses.add(process);
         return new Servant() {
             @Override
-            public boolean isAlive() {
-                return process.isAlive();
-            }
-
-            @Override
             public boolean pathExists(Path path) {
                 return Files.exists(path);
             }
@@ -71,6 +66,11 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
                     }
                     return false;
                 }, timeout, unit);
+            }
+
+            @Override
+            public boolean waitForShutdown(long timeout, TimeUnit unit) {
+                return Utils.waitFlagUp(() -> !process.isAlive(), timeout, unit);
             }
         };
     }

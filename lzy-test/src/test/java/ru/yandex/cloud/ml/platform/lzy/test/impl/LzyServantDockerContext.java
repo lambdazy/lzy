@@ -44,11 +44,6 @@ public class LzyServantDockerContext implements LzyServantTestContext {
         startedContainers.add(servantContainer);
         return new Servant() {
             @Override
-            public boolean isAlive() {
-                return false;
-            }
-
-            @Override
             public boolean pathExists(Path path) {
                 try {
                     final Container.ExecResult ls = servantContainer.execInContainer("ls", path.toString());
@@ -87,6 +82,11 @@ public class LzyServantDockerContext implements LzyServantTestContext {
             public boolean waitForStatus(
                 ServantStatus status, long timeout, TimeUnit unit
             ) {
+                return false;
+            }
+
+            @Override
+            public boolean waitForShutdown(long timeout, TimeUnit unit) {
                 return false;
             }
         };
