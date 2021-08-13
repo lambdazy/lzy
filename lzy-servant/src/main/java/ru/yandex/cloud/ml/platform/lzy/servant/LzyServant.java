@@ -123,7 +123,7 @@ public class LzyServant {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            final URI servantAddress = new URI(null, null, servantName, servantPort, null, null, null);
+            final URI servantAddress = new URI("http", null, servantName, servantPort, null, null, null);
             final Impl impl = new Impl(root, servantAddress, serverAddr, authBuilder.build());
             final Server server = ServerBuilder.forPort(servantPort).addService(impl).build();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -301,13 +301,16 @@ public class LzyServant {
             }
             if (request.hasZygote()) {
                 final String tid = request.getAuth().getTask().getTaskId();
-                this.currentExecution = new LzyExecution(tid, (AtomicZygote) gRPCConverter.from(request.getZygote()));
+                this.currentExecution = new LzyExecution(tid, (AtomicZygote) gRPCConverter.from(request.getZygote()), servantAddress);
             }
             else { // terminal
-                this.currentExecution = new LzyExecution(null, null);
+                this.currentExecution = new LzyExecution(null, null, servantAddress);
             }
             this.currentExecution.onProgress(progress -> {
                 responseObserver.onNext(progress);
+                if (progress.hasDetach()) {
+                    lzyFS.removeSlot(progress.getDetach().getSlot().getName());
+                }
                 if (progress.hasExit()) {
                     this.currentExecution = null;
                     responseObserver.onCompleted();
@@ -338,16 +341,17 @@ public class LzyServant {
         @Override
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
             if (currentExecution == null || currentExecution.slot(request.getSlot()) == null) {
+                LOG.info("Not found slot: " + request.getSlot());
                 responseObserver.onError(Status.NOT_FOUND.asException());
                 return;
             }
             final LzyOutputSlot slot = (LzyOutputSlot)currentExecution.slot(request.getSlot());
-            Context.current().addListener(context -> slot.state(Operations.SlotStatus.State.SUSPENDED), Runnable::run);
-            slot.state(Operations.SlotStatus.State.OPEN);
             try {
                 slot.readFromPosition(request.getOffset())
                     .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
+                responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
                 responseObserver.onCompleted();
+                slot.close();
             }
             catch (IOException iae) {
                 responseObserver.onError(iae);
@@ -392,7 +396,8 @@ public class LzyServant {
                     responseObserver.onCompleted();
                     return;
                 case CLOSE:
-                    ((LzyInputSlot) slot).close();
+                    slot.close();
+                    LOG.info("Explicitly closing slot " + slot.name());
                     break;
                 default:
                     responseObserver.onError(Status.INVALID_ARGUMENT.asException());

@@ -10,6 +10,7 @@ public interface Slot {
   Direction direction();
   DataSchema contentType();
 
+  Slot ARGS = new TextLinesInSlot("/dev/args");
   Slot STDIN = new TextLinesInSlot("/dev/stdin");
   Slot STDOUT = new TextLinesOutSlot("/dev/stdout");
   Slot STDERR = new TextLinesOutSlot("/dev/stderr");

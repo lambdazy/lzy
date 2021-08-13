@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -11,6 +12,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.text.MessageFormat;
+import java.util.concurrent.ForkJoinPool;
 
 public class DirectChannelController implements ChannelController {
     private static final Logger LOG = LogManager.getLogger(DirectChannelController.class);
@@ -55,8 +57,9 @@ public class DirectChannelController implements ChannelController {
     public ChannelController executeUnBind(Binding slot) throws ChannelException {
         if (slot == input) {
             input = null;
-            if (channel.bound().mapToInt(this::disconnect).sum() > 0)
-                throw new ChannelException("Unable to reconfigure channel");
+            ForkJoinPool.commonPool().execute(() -> {
+                channel.bound().filter(b -> !b.isInvalid()).forEach(this::disconnect);
+            });
         }
         return this;
     }
@@ -71,41 +74,59 @@ public class DirectChannelController implements ChannelController {
     }
 
     private int connect(Binding from, Binding to) {
-        final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
-            .configureSlot(
-                Servant.SlotCommand.newBuilder()
-                    .setSlot(from.slot().name())
-                    .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                        .setSlotUri(to.uri().toString())
+        try {
+            final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
+                .configureSlot(
+                    Servant.SlotCommand.newBuilder()
+                        .setSlot(from.slot().name())
+                        .setConnect(Servant.ConnectSlotCommand.newBuilder()
+                            .setSlotUri(to.uri().toString())
+                            .build()
+                        )
                         .build()
-                    )
-                    .build()
-            );
-        return rc.hasRc() ? rc.getRc().getNumber() : 0;
+                );
+            return rc.hasRc() ? rc.getRc().getNumber() : 0;
+        }
+        catch (StatusRuntimeException sre) {
+            LOG.warn("Unable to connect " + from + " to " + to);
+            return 0;
+        }
     }
 
     private int disconnect(Binding from) {
         if (from.isInvalid()) { // skip invalid connections
             return 0;
         }
-        final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
-            .configureSlot(
-                Servant.SlotCommand.newBuilder()
-                    .setSlot(from.slot().name())
-                    .setDisconnect(Servant.DisconnectCommand.newBuilder().build())
-                    .build()
-            );
-        return rc.hasRc() ? rc.getRc().getNumber() : 0;
+        try {
+            final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
+                .configureSlot(
+                    Servant.SlotCommand.newBuilder()
+                        .setSlot(from.slot().name())
+                        .setDisconnect(Servant.DisconnectCommand.newBuilder().build())
+                        .build()
+                );
+            return rc.hasRc() ? rc.getRc().getNumber() : 0;
+        }
+        catch (StatusRuntimeException sre) {
+            LOG.warn("Unable to disconnect " + from);
+            return 0;
+        }
     }
 
     private int close(Binding from) {
-        final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
-            .configureSlot(
-                Servant.SlotCommand.newBuilder()
-                    .setSlot(from.slot().name())
-                    .setClose(Servant.CloseCommand.newBuilder().build())
-                    .build()
-            );
-        return rc.hasRc() ? rc.getRc().getNumber() : 0;
+        try {
+            final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(from.control())
+                .configureSlot(
+                    Servant.SlotCommand.newBuilder()
+                        .setSlot(from.slot().name())
+                        .setClose(Servant.CloseCommand.newBuilder().build())
+                        .build()
+                );
+            return rc.hasRc() ? rc.getRc().getNumber() : 0;
+        }
+        catch (StatusRuntimeException sre) {
+            LOG.warn("Unable to close binding: " + from.uri());
+            return 0;
+        }
     }
 }

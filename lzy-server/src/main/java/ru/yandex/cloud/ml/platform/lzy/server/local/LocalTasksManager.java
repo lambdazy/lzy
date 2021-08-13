@@ -69,12 +69,12 @@ public class LocalTasksManager implements TasksManager {
     }
 
     @Override
-    public void setSlot(String user, Slot slot, Channel channel) {
+    public void addUserSlot(String user, Slot slot, Channel channel) {
         userSlots.computeIfAbsent(user, u -> new HashMap<>()).put(slot, channel);
     }
 
     @Override
-    public boolean removeSlot(String user, Slot slot) {
+    public boolean removeUserSlot(String user, Slot slot) {
         return userSlots.getOrDefault(user, Map.of()).remove(slot) != null;
     }
 

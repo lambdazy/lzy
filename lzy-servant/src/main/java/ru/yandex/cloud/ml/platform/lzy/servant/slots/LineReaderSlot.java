@@ -27,10 +27,10 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private final String tid;
     private LineNumberReader reader;
     private long offset = 0;
-    private List<Runnable> closeActions = new ArrayList<>();
 
     public LineReaderSlot(String tid, TextLinesOutSlot definition) {
         super(definition);
+        state(Operations.SlotStatus.State.OPEN);
         this.tid = tid;
     }
 
@@ -50,6 +50,11 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
 
 
     @Override
+    public void suspend() {
+        state(Operations.SlotStatus.State.SUSPENDED);
+    }
+
+    @Override
     public Stream<ByteString> readFromPosition(long offset) throws IOException {
         if (offset != 0) {
             throw new EOFException();
@@ -67,36 +72,17 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                     line = null;
                     return false;
                 }
-                finally {
-                    if (line == null) {
-                        close();
-                    }
-                }
             }
 
             @Override
             public ByteString next() {
                 if (line == null && !hasNext())
                     throw new NoSuchElementException();
-                //noinspection ConstantConditions
-                final ByteString bytes = ByteString.copyFromUtf8(line);
+                final ByteString bytes = ByteString.copyFromUtf8(line + "\n");
                 LineReaderSlot.this.offset += bytes.size();
                 line = null;
                 return bytes;
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);
-    }
-
-    public void close() {
-        ForkJoinPool.commonPool().execute(() -> {
-            Thread.yield();
-            closeActions.forEach(Runnable::run);
-        });
-    }
-
-
-    @Override
-    public void onClose(Runnable action) {
-        closeActions.add(action);
     }
 }

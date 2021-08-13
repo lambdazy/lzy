@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
@@ -86,6 +87,10 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         }
     }
 
+    public int mtype() {
+        return FileStat.S_IFREG;
+    }
+
     @Override
     public void remove() throws IOException {
         Files.delete(storage);
@@ -118,6 +123,11 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     @Override
+    public void suspend() {
+        state(Operations.SlotStatus.State.SUSPENDED);
+    }
+
+    @Override
     public synchronized Stream<ByteString> readFromPosition(long offset) throws IOException {
         while (!ready) {
             try {
@@ -131,6 +141,9 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             private ByteBuffer bb = ByteBuffer.allocate(4096);
             @Override
             public boolean hasNext() {
+                if (state() != Operations.SlotStatus.State.OPEN) {
+                    return false;
+                }
                 int read = 0;
                 try {
                     bb.clear();
@@ -140,10 +153,6 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                 catch (IOException e) {
                     LOG.warn("Unable to read line from reader", e);
                     return false;
-                }
-                finally {
-                    if (read < 0)
-                        close();
                 }
             }
 
@@ -163,7 +172,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     @Override
-    public void onClose(Runnable action) {
-        closeActions.add(action);
+    public String toString() {
+        return "OutFileSlot:" + definition().name() + "->" + storage.toString();
     }
 }

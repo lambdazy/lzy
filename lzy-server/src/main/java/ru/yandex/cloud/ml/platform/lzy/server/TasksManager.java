@@ -37,8 +37,8 @@ public interface TasksManager {
     String owner(UUID tid);
 
     Map<Slot, Channel> slots(String user);
-    void setSlot(String user, Slot slot, Channel channel);
-    boolean removeSlot(String user, Slot slot);
+    void addUserSlot(String user, Slot slot, Channel channel);
+    boolean removeUserSlot(String user, Slot slot);
 
     enum Signal {
         TOUCH(0),

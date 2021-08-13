@@ -87,9 +87,10 @@ message SlotSpec {
 message ExecutionProgress {
     oneof status {
         ExecutionStarted started = 1;
-        AttachSlot attached = 2;
-        ExecutionConcluded exit = 3;
-        StateChanged changed = 4;
+        ExecutionConcluded exit = 2;
+        StateChanged changed = 3;
+        SlotAttach attach = 4;
+        SlotDetach detach = 5;
     }
 }
 
@@ -107,9 +108,15 @@ message StateChanged {
         DESTROYED = 5;
     }
 }
-message AttachSlot {
+message SlotAttach {
     Slot slot = 1;
-    string channel = 2;
+    string uri = 2;
+    string channel = 3;
+}
+
+message SlotDetach {
+    Slot slot = 1;
+    string uri = 2;
 }
 
 message ExecutionConcluded {

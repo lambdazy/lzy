@@ -37,7 +37,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ThreadPoolExecutor;
 
 public class Run implements ServantCommand {
     private static final Logger LOG = LogManager.getLogger(Run.class);
@@ -50,6 +52,8 @@ public class Run implements ServantCommand {
     private LzyServantGrpc.LzyServantBlockingStub servant;
     private long pid;
     private String lzyRoot;
+
+    private CountDownLatch communicationLatch = new CountDownLatch(3);
 
     @Override
     public int execute(CommandLine command) throws Exception {
@@ -97,10 +101,15 @@ public class Run implements ServantCommand {
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
+                if (progress.hasDetach() && "/dev/stdin".equals(progress.getDetach().getSlot().getName()))
+                    System.in.close();
             } catch (InvalidProtocolBufferException e) {
                 LOG.warn("Unable to parse execution progress", e);
+            } catch (IOException e) {
+                LOG.error("Failed to close stdin", e);
             }
         });
+        communicationLatch.await(); // waiting for slots to finish communication
         return 0;
     }
 
@@ -180,6 +189,7 @@ public class Run implements ServantCommand {
                         } catch (IOException e) {
                             LOG.warn("Unable to read from input stream", e);
                         }
+                        communicationLatch.countDown();
                     });
                     return channelName;
                 }
@@ -211,8 +221,9 @@ public class Run implements ServantCommand {
                                 ("stderr".equals(devSlot) ? System.err : System.out).write(buffer, 0, read);
                             }
                         } catch (IOException e) {
-                            LOG.warn("Unable to write to " + devSlot, e);
+                            LOG.warn("Unable to read from " + devSlot, e);
                         }
+                        communicationLatch.countDown();
                     });
                     return channelId;
                 }
@@ -271,18 +282,13 @@ public class Run implements ServantCommand {
 
     private void onShutdown() {
         tempChannels.forEach(channel -> {
-            try {
-                System.err.println(JsonFormat.printer().print(
-                    server.channel(Channels.ChannelCommand.newBuilder()
-                        .setAuth(auth)
-                        .setChannelName(channel)
-                        .setDestroy(Channels.ChannelDestroy.newBuilder().build())
-                        .build()
-                    )
-                ));
-            } catch (InvalidProtocolBufferException e) {
-                System.err.println(e.getMessage());
-            }
+            //noinspection ResultOfMethodCallIgnored
+            server.channel(Channels.ChannelCommand.newBuilder()
+                .setAuth(auth)
+                .setChannelName(channel)
+                .setDestroy(Channels.ChannelDestroy.newBuilder().build())
+                .build()
+            );
         });
     }
 }

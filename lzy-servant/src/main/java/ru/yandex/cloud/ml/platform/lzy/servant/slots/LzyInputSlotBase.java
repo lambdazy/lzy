@@ -25,7 +25,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private ManagedChannel servantSlotCh;
     private LzyServantGrpc.LzyServantBlockingStub connectedSlotController;
 
-    public LzyInputSlotBase(String tid, Slot definition) {
+    LzyInputSlotBase(String tid, Slot definition) {
         super(definition);
         this.tid = tid;
     }
@@ -48,7 +48,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         state(Operations.SlotStatus.State.SUSPENDED);
     }
 
-    public void readAll() {
+    protected void readAll() {
         final Iterator<Servant.Message> msgIter = connectedSlotController.openOutputSlot(Servant.SlotRequest.newBuilder()
             .setSlot(connected.getPath())
             .setOffset(offset)
@@ -70,13 +70,12 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                         offset += chunk.size();
                     }
                 } else if (next.getControl() == Servant.Message.Controls.EOS) {
-                    close();
-                    return;
+                    break;
                 }
             }
         }
         finally {
-            state(Operations.SlotStatus.State.CLOSED);
+            state(Operations.SlotStatus.State.SUSPENDED);
         }
     }
 

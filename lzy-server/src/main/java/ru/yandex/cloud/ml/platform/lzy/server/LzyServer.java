@@ -321,23 +321,31 @@ public class LzyServer {
                     } catch (InvalidProtocolBufferException e) {
                         LOG.error("Unable to parse progress", e);
                     }
-                    if (progress.hasAttached() && progress.getAttached().getChannel().startsWith("channel:")) {
-                        final Servant.AttachSlot attached = progress.getAttached();
-                        final Slot slot = gRPCConverter.from(attached.getSlot());
-                        final String channelName = attached.getChannel();
-                        tasks.setSlot(user, slot, channels.get(channelName.substring("channel:".length())));
-                        final Binding binding = new Binding(
-                            slot,
-                            servantUri.resolve(slot.name()),
-                            servantChannel
-                        );
-                        this.channels.bind(channels.get(channelName), binding);
+                    if (progress.hasAttach()) {
+                        final Servant.SlotAttach attach = progress.getAttach();
+                        final Slot slot = gRPCConverter.from(attach.getSlot());
+                        final URI slotUri = URI.create(attach.getUri());
+                        final String channelName = attach.getChannel();
+                        tasks.addUserSlot(user, slot, channels.get(channelName));
+                        this.channels.bind(channels.get(channelName), Binding.singleton(slot, slotUri, servantChannel));
+                    }
+                    else if (progress.hasDetach()) {
+                        final Servant.SlotDetach detach = progress.getDetach();
+                        final Slot slot = gRPCConverter.from(detach.getSlot());
+                        final URI slotUri = URI.create(detach.getUri());
+                        tasks.removeUserSlot(user, slot);
+                        final Channel bound = this.channels.bound(slotUri);
+                        if (bound != null) {
+                            final Binding binding = Binding.singleton(slot, slotUri, servantChannel);
+                            binding.invalidate();
+                            channels.unbind(bound, binding);
+                        }
                     }
                 });
                 LOG.info("Terminal for " + user + " disconnected");
             }
             catch (StatusRuntimeException th) {
-                LOG.error("Terminal execution terminated " + th.getMessage());
+                LOG.error("Terminal execution terminated ", th);
             }
             finally {
                 channels.unbindAll(servantUri);

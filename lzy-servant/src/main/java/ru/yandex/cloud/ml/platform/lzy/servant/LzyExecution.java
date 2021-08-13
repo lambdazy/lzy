@@ -8,22 +8,25 @@ import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.InFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.LineReaderSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.LzySlotBase;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.OutFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.WriterSlot;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.io.OutputStreamWriter;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,72 +42,53 @@ public class LzyExecution {
     private final AtomicZygote zygote;
     private final LineReaderSlot stdoutSlot;
     private final LineReaderSlot stderrSlot;
+    private final URI servantUri;
     private final WriterSlot stdinSlot;
     private Process exec;
     private String arguments = "";
     private final Map<String, LzySlot> slots = new HashMap<>();
-    private final Set<String> closedSlots = new HashSet<>();
     private List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
 
-    public LzyExecution(String taskId, AtomicZygote zygote) {
+    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri) {
         this.taskId = taskId;
         this.zygote = zygote;
         stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"));
         stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"));
         stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"));
-        if (zygote != null) {
-            slots.put("/dev/stdin", stdinSlot);
-            slots.put("/dev/stdout", stdoutSlot);
-            slots.put("/dev/stderr", stderrSlot);
-            zygote.slots()
-                .filter(s -> !slots.containsKey(s.name()))
-                .forEach(spec -> configureSlot(spec, null));
-        }
+        this.servantUri = servantUri;
     }
 
     public LzySlot configureSlot(Slot spec, String binding) {
+        if (slots.containsKey(spec.name()))
+            return slots.get(spec.name());
         try {
-            LzySlot slot = null;
-            switch (spec.media()) {
-                case PIPE:
-                case FILE: {
-                    switch (spec.direction()) {
-                        case INPUT:
-                            slot = new InFileSlot(taskId, spec);
-                            break;
-                        case OUTPUT:
-                            slot = new OutFileSlot(taskId, spec);
-                            break;
-                    }
-                    break;
+            final LzySlot slot = createSlot(spec, binding);
+            if (slot.state() != Operations.SlotStatus.State.CLOSED)
+                slots.put(spec.name(), slot);
+
+            slot.onState(Operations.SlotStatus.State.CLOSED, () -> {
+                progress(Servant.ExecutionProgress.newBuilder()
+                    .setDetach(Servant.SlotDetach.newBuilder()
+                        .setSlot(gRPCConverter.to(spec))
+                        .setUri(servantUri.toString() + spec.name())
+                        .build()
+                    ).build()
+                );
+                synchronized (slots) {
+                    slots.remove(slot.name());
+                    slots.notifyAll();
                 }
-                case ARG:
-                    arguments = binding;
-                    return null;
-                default:
-                    throw new UnsupportedOperationException("Not implemented yet");
-            }
-            if (slots.containsKey(spec.name())) {
-                return null;
-            }
-            slots.put(spec.name(), slot);
-            if (slot instanceof LzyOutputSlot) {
-                final String slotName = slot.name();
-                ((OutFileSlot) slot).onClose(() -> {
-                    synchronized (closedSlots) {
-                        closedSlots.add(slotName);
-                        closedSlots.notifyAll();
-                    }
-                });
-            }
+            });
             if (binding == null)
                 binding = "";
             else if (binding.startsWith("channel:"))
                 binding = binding.substring("channel:".length());
-            progress(Servant.ExecutionProgress.newBuilder().setAttached(
-                Servant.AttachSlot.newBuilder()
+            progress(Servant.ExecutionProgress.newBuilder().setAttach(
+                Servant.SlotAttach.newBuilder()
                     .setChannel(binding)
-                    .setSlot(gRPCConverter.to(spec)).build()
+                    .setSlot(gRPCConverter.to(spec))
+                    .setUri(servantUri.toString() + spec.name())
+                    .build()
             ).build());
             LOG.info("Configured slot " + spec.name() + " " + slot);
             return slot;
@@ -112,6 +96,32 @@ public class LzyExecution {
         catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
+    }
+
+    public LzySlot createSlot(Slot spec, String binding) throws IOException {
+        if (spec.equals(Slot.STDIN))
+            return stdinSlot;
+        else if (spec.equals(Slot.STDOUT))
+            return stdoutSlot;
+        else if (spec.equals(Slot.STDERR))
+            return stderrSlot;
+
+        switch (spec.media()) {
+            case PIPE:
+            case FILE: {
+                switch (spec.direction()) {
+                    case INPUT:
+                        return new InFileSlot(taskId, spec);
+                    case OUTPUT:
+                        return new OutFileSlot(taskId, spec);
+                }
+                break;
+            }
+            case ARG:
+                arguments = binding;
+                return new LzySlotBase(spec){};
+        }
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     public void start() {
@@ -134,10 +144,11 @@ public class LzyExecution {
                 StandardCharsets.UTF_8
             )));
             final int rc = exec.waitFor();
-
-            while (slots().map(LzySlot::name).allMatch(closedSlots::contains)) {
-                synchronized (closedSlots) {
-                    closedSlots.wait();
+            Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::close);
+            LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
+            synchronized (slots) {
+                while (!slots.isEmpty()) {
+                    slots.wait();
                 }
             }
             progress(Servant.ExecutionProgress.newBuilder()

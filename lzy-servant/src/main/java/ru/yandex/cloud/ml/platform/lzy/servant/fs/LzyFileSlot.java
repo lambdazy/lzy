@@ -14,6 +14,8 @@ public interface LzyFileSlot extends LzySlot {
     long mtime();
     long ctime();
 
+    int mtype();
+
     FileContents open(FuseFileInfo fi) throws IOException;
 
     void remove() throws IOException;

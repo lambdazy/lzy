@@ -25,6 +25,7 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -36,14 +37,14 @@ public class LzyFS extends FuseStubFS {
     private static final Logger LOG = LogManager.getLogger(LzyFS.class);
 
     private static final int BLOCK_SIZE = 4096;
-    private Map<Path, Set<String>> children = new HashMap<>();
-    private Set<String> roots = new HashSet<>();
-    private Map<Path, LzyScript> executables = new HashMap<>();
-    private Map<Path, LzyFileSlot> slots = new HashMap<>();
-    private Map<Long, FileContents> openFiles = new HashMap<>();
-    private Map<Path, Set<Long>> filesOpen = new HashMap<>();
+    private Map<Path, Set<String>> children = Collections.synchronizedMap(new HashMap<>());
+    private Set<String> roots = Collections.synchronizedSet(new HashSet<>());
+    private Map<Path, LzyScript> executables = Collections.synchronizedMap(new HashMap<>());
+    private Map<Path, LzyFileSlot> slots = Collections.synchronizedMap(new HashMap<>());
+    private Map<Long, FileContents> openFiles = Collections.synchronizedMap(new HashMap<>());
+    private Map<Path, Set<Long>> filesOpen = Collections.synchronizedMap(new HashMap<>());
 
-    private AtomicLong lastFh = new AtomicLong(3);
+    private AtomicLong lastFh = new AtomicLong(1000);
     private static long userId;
     private static long groupId;
     private static long startTime;
@@ -70,15 +71,39 @@ public class LzyFS extends FuseStubFS {
         return Set.of("sbin", "bin", "dev");
     }
 
-    public synchronized void addScript(LzyScript exec, boolean isSystem) {
+    public void addScript(LzyScript exec, boolean isSystem) {
         Path execPath = Paths.get(isSystem ? "/sbin" : "/bin").resolve(exec.location());
         if (executables.put(execPath, exec) == null)
             addPath(execPath);
     }
 
-    public synchronized void addSlot(LzyFileSlot slot) {
+    public void addSlot(LzyFileSlot slot) {
         addPath(slot.location());
         slots.put(slot.location(), slot);
+    }
+
+    public void removeSlot(String name) {
+        final Path path = Paths.get(name);
+        if (slots.remove(path) == null)
+            return;
+
+        Path parent = path.getParent();
+        name = path.getFileName().toString();
+        if (!children.getOrDefault(parent, new HashSet<>()).remove(name))
+            return;
+
+        while (parent != null) {
+            final Set<String> children = this.children.computeIfAbsent(parent, p -> new HashSet<>());
+            if (!children.remove(name))
+                break;
+            if (!children.isEmpty())
+                break;
+            this.children.remove(parent);
+            if (parent.getFileName() == null) // at root
+                break;
+            name = parent.getFileName().toString();
+            parent = parent.getParent();
+        }
     }
 
     private boolean addPath(Path path) {
@@ -138,7 +163,7 @@ public class LzyFS extends FuseStubFS {
     }
 
     @Override
-    public synchronized int release(String pathStr, FuseFileInfo fi) {
+    public int release(String pathStr, FuseFileInfo fi) {
         final FileContents contents = openFiles.remove(fi.fh.longValue());
         try {
             if (contents == null) {
@@ -159,7 +184,8 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int read(String path, Pointer buf, @size_t long size, @off_t long offset, FuseFileInfo fi) {
-        final FileContents contents = openFiles.get(fi.fh.longValue());
+        final FileContents contents;
+        contents = openFiles.get(fi.fh.longValue());
         if (contents == null)
             return -ErrorCodes.EBADFD();
         return executeUnsafeInt(() -> contents.read(buf, offset, size));
@@ -167,7 +193,8 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int write(String path, Pointer buf, @size_t long size, @off_t long offset, FuseFileInfo fi) {
-        final FileContents contents = openFiles.get(fi.fh.longValue());
+        final FileContents contents;
+        contents = openFiles.get(fi.fh.longValue());
         if (contents == null)
             return -ErrorCodes.EBADFD();
         return executeUnsafeInt(() -> contents.write(buf, offset, size));
@@ -206,7 +233,7 @@ public class LzyFS extends FuseStubFS {
                 stat.st_ctim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(ctime));
                 stat.st_ctim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(ctime));
             }
-            stat.st_mode.set(0640 | FileStat.S_IFREG);
+            stat.st_mode.set(0640 | slot.mtype());
             stat.st_size.set(slot.size());
         }
         else return -ErrorCodes.ENOENT();

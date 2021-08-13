@@ -86,15 +86,17 @@ public class LocalChannelsRepository implements ChannelsRepository {
     @Override
     public void unbind(Channel ch, Binding binding) throws ChannelException {
         final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
-        if (channel != null) channel.unbind(binding);
         ibindings.remove(binding.uri());
         bindings.remove(binding.uri());
+        if (channel != null)
+            channel.unbind(binding);
     }
 
     @Override
     public void destroy(Channel ch) {
-        final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.remove(ch.name());
-        if (channel != null) channel.close();
+        final ChannelEx channel = channels.remove(ch.name());
+        if (channel != null)
+            channel.close();
     }
 
     @Nullable
@@ -105,13 +107,19 @@ public class LocalChannelsRepository implements ChannelsRepository {
 
     @Override
     public void unbindAll(URI servantUri) {
+        Binding.clearAll(servantUri);
         final String prefix = servantUri.toString();
         final Set<URI> unbind = ibindings.keySet()
             .stream()
             .filter(uri -> uri.toString().startsWith(prefix))
             .peek(uri -> bindings.get(uri).invalidate())
             .collect(Collectors.toSet());
-        unbind.forEach(ub -> unbind(ibindings.get(ub), bindings.get(ub)));
+        unbind.forEach(ub -> {
+            try {
+                unbind(ibindings.get(ub), bindings.get(ub));
+            }
+            catch (ChannelException ignore) {}
+        });
     }
 
     @Override
@@ -162,6 +170,7 @@ public class LocalChannelsRepository implements ChannelsRepository {
         public void close() {
             try {
                 logic.executeDestroy();
+                bound.clear();
             }
             catch (ChannelException e) {
                 LOG.warn("Exception during channel " + name() + " destruction", e);
@@ -193,7 +202,7 @@ public class LocalChannelsRepository implements ChannelsRepository {
 
         @Override
         public Stream<Binding> bound() {
-            return bound.stream();
+            return Set.copyOf(bound).stream();
         }
 
         @Override

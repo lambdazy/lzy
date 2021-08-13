@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import jnr.ffi.Pointer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
@@ -52,8 +53,10 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
     @Override
     public long size() {
+        waitForState(Operations.SlotStatus.State.SUSPENDED);
         try {
-            return Files.size(storage);
+            final long size = Files.size(storage);
+            return size;
         } catch (IOException e) {
             LOG.warn("Unable to get a storage file size", e);
             return 0;
@@ -90,26 +93,30 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
         }
     }
 
+    public int mtype() {
+        return FileStat.S_IFREG;
+    }
+
     @Override
     public void remove() throws IOException {
         Files.delete(storage);
     }
 
-
     @Override
     public FileContents open(FuseFileInfo fi) throws IOException {
-        waitForState(Operations.SlotStatus.State.CLOSED);
-        SeekableByteChannel channel = Files.newByteChannel(storage);
+        waitForState(Operations.SlotStatus.State.SUSPENDED);
+        final SeekableByteChannel channel = Files.newByteChannel(storage);
         return new FileContents() {
             @Override
             public int read(Pointer buf, long offset, long size) throws IOException {
-                final byte[] bytes = new byte[(int)size];
+                final byte[] bytes = new byte[(int) size];
                 channel.position(offset);
                 final ByteBuffer bb = ByteBuffer.wrap(bytes);
-                channel.read(bb);
-                bb.flip();
-                buf.put(0, bytes, 0, bb.remaining());
-                return bb.remaining();
+                int read = channel.read(bb);
+                if (read < 0)
+                    return -1;
+                buf.put(0, bytes, 0, read);
+                return read;
             }
 
             @Override
@@ -119,8 +126,14 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
             @Override
             public void close() throws IOException {
+                InFileSlot.this.close();
                 channel.close();
             }
         };
+    }
+
+    @Override
+    public String toString() {
+        return "InFileSlot:" + definition().name() + "->" + storage.toString();
     }
 }

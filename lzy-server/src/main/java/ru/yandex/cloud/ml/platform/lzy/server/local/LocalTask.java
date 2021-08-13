@@ -182,24 +182,40 @@ public class LocalTask implements Task {
                     case STARTED:
                         state(State.RUNNING);
                         break;
-                    case ATTACHED:
-                        final Servant.AttachSlot attached = progress.getAttached();
-                        final Slot slot = gRPCConverter.from(attached.getSlot());
+                    case ATTACH: {
+                        final Servant.SlotAttach attach = progress.getAttach();
+                        final Slot slot = gRPCConverter.from(attach.getSlot());
+                        final URI slotUri = URI.create(attach.getUri());
                         final String channelName;
-                        if (attached.getChannel().isEmpty()) {
+                        if (attach.getChannel().isEmpty()) {
                             final String binding = assignments.getOrDefault(slot, "");
                             channelName = binding.startsWith("channel:") ?
                                 binding.substring("channel:".length()) :
                                 null;
                         }
-                        else channelName = attached.getChannel();
+                        else channelName = attach.getChannel();
 
                         final Channel channel = channels.get(channelName);
                         if (channel != null) {
-                            channels.bind(channel, new Binding(this, slot));
                             attachedSlots.put(slot, channel);
-                        } else LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
+                            channels.bind(channel, Binding.singleton(slot, slotUri, servantChannel));
+                        }
+                        else LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
                         break;
+                    }
+                    case DETACH: {
+                        final Servant.SlotDetach detach = progress.getDetach();
+                        final Slot slot = gRPCConverter.from(detach.getSlot());
+                        final URI slotUri = URI.create(detach.getUri());
+                        final Channel channel = channels.bound(slotUri);
+                        if (channel != null) {
+                            final Binding binding = Binding.singleton(slot, slotUri, servantChannel);
+                            binding.invalidate();
+                            attachedSlots.remove(slot);
+                            channels.unbind(channel, binding);
+                        }
+                        break;
+                    }
                     case EXIT:
                         state(State.FINISHED);
                         break;
