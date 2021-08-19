@@ -11,5 +11,6 @@ ENTRYPOINT ["java", \
             "-Dsun.jnu.encoding=UTF-8", \
             "-Dfile.encoding=UTF-8", \
             "-XX:+HeapDumpOnOutOfMemoryError", \
+            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005", \
             "-jar", \
             "app/app.jar"]

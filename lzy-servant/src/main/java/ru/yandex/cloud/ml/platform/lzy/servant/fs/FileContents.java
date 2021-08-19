@@ -23,8 +23,9 @@ public interface FileContents extends Closeable {
 
         @Override
         public int read(Pointer buf, long offset, long size) {
-            buf.put(0, bytes, (int)offset, (int)size);
-            return (int)size;
+            final int bytesToRead = (int) Math.min(bytes.length - offset, size);
+            buf.put(0, bytes, (int)offset, bytesToRead);
+            return bytesToRead;
         }
 
         @Override

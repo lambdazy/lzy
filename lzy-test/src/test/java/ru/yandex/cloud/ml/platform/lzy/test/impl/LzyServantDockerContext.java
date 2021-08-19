@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
+import com.github.dockerjava.api.exception.ConflictException;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +38,10 @@ public class LzyServantDockerContext implements LzyServantTestContext {
         if (SystemUtils.IS_OS_LINUX) {
             servantContainer = base.withNetworkMode("host");
         } else {
-            servantContainer = base.withFixedExposedPort(port, port).withExposedPorts(port);
+            servantContainer = base
+                .withFixedExposedPort(port, port)
+                .withFixedExposedPort(5005, 5005) //to attach debugger
+                .withExposedPorts(port, 5005);
         }
 
         servantContainer.start();
@@ -82,12 +87,37 @@ public class LzyServantDockerContext implements LzyServantTestContext {
             public boolean waitForStatus(
                 ServantStatus status, long timeout, TimeUnit unit
             ) {
-                return false;
+                return Utils.waitFlagUp(() -> {
+                    if (pathExists(Paths.get(path + "/sbin/status"))) {
+                        try {
+                            final Container.ExecResult bash = servantContainer.execInContainer(
+                                "bash",
+                                path + "/sbin/status"
+                            );
+                            final String parsedStatus = bash.getStdout().split("\n")[0];
+                            return parsedStatus.toLowerCase().equals(status.name().toLowerCase());
+                        } catch (InterruptedException | IOException e) {
+                            return false;
+                        }
+                    }
+                    return false;
+                }, timeout, unit);
             }
 
             @Override
             public boolean waitForShutdown(long timeout, TimeUnit unit) {
-                return false;
+                return Utils.waitFlagUp(() -> {
+                    try {
+                        servantContainer.execInContainer("bash");
+                    } catch (ConflictException ce) {
+                        if (ce.getHttpStatus() == 409) { //not running code
+                            return true;
+                        }
+                    } catch (InterruptedException | IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return false;
+                }, timeout, unit);
             }
         };
     }
