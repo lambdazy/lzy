@@ -16,7 +16,7 @@ public class Start implements ServantCommand {
     @Override
     public int execute(CommandLine parse) throws Exception {
         if (!parse.hasOption('z')) {
-            throw new RuntimeException("Provide lzy server address with -a option to start a task.");
+            throw new RuntimeException("Provide lzy server address with -z option to start a task.");
         }
         String serverAddress = parse.getOptionValue('z');
         if (!serverAddress.contains("//")) {
@@ -24,7 +24,7 @@ public class Start implements ServantCommand {
         }
         final int port = Integer.parseInt(parse.getOptionValue('p', "9999"));
         final Path path = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
-        final String host = parse.getOptionValue('a', LzyFS.lineCmd("hostname"));
+        final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
         final LzyServant servant = LzyServant.Builder.forLzyServer(URI.create(serverAddress))
             .task(System.getenv("LZYTASK"))
             .token(System.getenv("LZYTOKEN"))

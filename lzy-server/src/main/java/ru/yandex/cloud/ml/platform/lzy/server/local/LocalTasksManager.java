@@ -85,7 +85,7 @@ public class LocalTasksManager implements TasksManager {
 
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
-        final LocalTask task = new LocalTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
+        final LocalTask task = new LocalDockerTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
         tasks.put(task.tid(), task);
         if (parent != null)
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);

@@ -9,7 +9,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsRepository;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
@@ -20,26 +19,17 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public class LocalTask implements Task {
+public abstract class LocalTask implements Task {
     private static final Logger LOG = LogManager.getLogger(LocalTask.class);
 
     private final String owner;
@@ -49,9 +39,10 @@ public class LocalTask implements Task {
     private final ChannelsRepository channels;
     private final URI serverURI;
 
+    private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
+    private final Map<Slot, Channel> attachedSlots = new HashMap<>();
+
     private State state = State.PREPARING;
-    private List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
-    private Map<Slot, Channel> attachedSlots = new HashMap<>();
     private ManagedChannel servantChannel;
     private URI servantURI;
     private LzyServantGrpc.LzyServantBlockingStub servant;
@@ -100,51 +91,12 @@ public class LocalTask implements Task {
             .orElse(workload.slot(slotName));
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
     public void start(String token) {
-        try {
-            final File taskDir = File.createTempFile("lzy", "task");
-            taskDir.delete();
-            taskDir.mkdirs();
-            taskDir.mkdir();
-            final Process process = runJvm(LzyServant.class, taskDir,
-                new String[]{
-                    "-z", serverURI.toString(),
-                    "-p", Integer.toString(10000 + (hashCode() % 1000)),
-                    "-m", taskDir.toString() + "/lzy"
-                },
-                Map.of(
-                    "LZYTASK", tid.toString(),
-                    "LZYTOKEN", token
-                )
-            );
-            process.getOutputStream().close();
-            ForkJoinPool.commonPool().execute(() -> {
-                try(LineNumberReader lnr = new LineNumberReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                    String line;
-                    while ((line = lnr.readLine()) != null) {
-                        LOG.info(line);
-                    }
-                } catch (IOException e) {
-                    LOG.warn("Exception in local task", e);
-                }
-            });
-            ForkJoinPool.commonPool().execute(() -> {
-                try(LineNumberReader lnr = new LineNumberReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
-                    String line;
-                    while ((line = lnr.readLine()) != null) {
-                        LOG.warn(line);
-                    }
-                } catch (IOException e) {
-                    LOG.warn("Exception in local task", e);
-                }
-            });
-            LOG.info("LocalTask servant exited with exit code: " + process.waitFor());
-            state(State.DESTROYED);
-        } catch (IOException | InterruptedException e) {
-            LOG.warn("Exception in local task", e);
-        }
+        final int port = (10000 + (hashCode() % 1000));
+        runServantAndWaitFor(serverURI.getHost(), serverURI.getPort(), "localhost", port, tid, token);
+        LOG.info("LocalTask servant exited");
+        state(State.DESTROYED);
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -273,31 +225,5 @@ public class LocalTask implements Task {
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static Process runJvm(final Class<?> mainClass, File wd, final String[] args, final Map<String, String> env) {
-        try {
-            final Method main = mainClass.getMethod("main", String[].class);
-            if (main.getReturnType().equals(void.class)
-                && Modifier.isStatic(main.getModifiers())
-                && Modifier.isPublic(main.getModifiers())) {
-                try {
-                    ProcessBuilder pb = new ProcessBuilder();
-                    pb.directory(wd);
-                    final List<String> parameters = pb.command();
-                    parameters.add(System.getProperty("java.home") + "/bin/java");
-                    parameters.add("-Xmx1g");
-                    parameters.add("-classpath");
-                    parameters.add(System.getProperty("java.class.path"));
-                    parameters.add(mainClass.getName());
-                    parameters.addAll(Arrays.asList(args));
-                    pb.environment().putAll(env);
-                    return pb.start();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-        catch (NoSuchMethodException ignore) {}
-        throw new IllegalArgumentException("Main class must contain main method :)");
-    }
-
+    protected abstract void runServantAndWaitFor(String serverHost, int serverPort, String servantHost, int servantPort, UUID tid, String token);
 }
