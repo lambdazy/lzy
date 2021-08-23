@@ -351,7 +351,6 @@ public class LzyServant {
                     .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
                 responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
                 responseObserver.onCompleted();
-                slot.close();
             }
             catch (IOException iae) {
                 responseObserver.onError(iae);
