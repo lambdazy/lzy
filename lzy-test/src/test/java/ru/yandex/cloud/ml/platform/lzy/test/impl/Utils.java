@@ -36,4 +36,15 @@ public class Utils {
         command.addAll(Arrays.asList(args));
         return new ProcessBuilder(command);
     }
+
+    static String bashEscape(String command) {
+        command = command.replace("\\", "\\\\");
+        command = command.replace("\"", "\\\"");
+        command = command.replace("$", "\\$");
+        command = command.replace("&", "\\&");
+        command = command.replace("<", "\\<");
+        command = command.replace(">", "\\>");
+        command = command.replace(" ", "\\ ");
+        return command;
+    }
 }

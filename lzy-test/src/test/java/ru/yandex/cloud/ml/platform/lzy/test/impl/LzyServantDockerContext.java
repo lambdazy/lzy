@@ -1,22 +1,32 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.ExecCreateCmd;
+import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.exception.ConflictException;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.FixedHostPortGenericContainer;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.output.FrameConsumerResultCallback;
+import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.containers.output.ToStringConsumer;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class LzyServantDockerContext implements LzyServantTestContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(LzyServantDockerContext.class);
@@ -26,7 +36,7 @@ public class LzyServantDockerContext implements LzyServantTestContext {
     public Servant startTerminalAtPathAndPort(String path, int port, String serverHost, int serverPort) {
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
-            .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but is is easier for testing
+            .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
             .withEnv("USER", "terminal-test")
             .withCommand("--lzy-address " + serverHost + ":" + serverPort + " "
                 + "--host localhost "
@@ -59,23 +69,46 @@ public class LzyServantDockerContext implements LzyServantTestContext {
             }
 
             @Override
-            public ExecutionResult execute(String... command) {
+            public ExecutionResult execute(Map<String, String> env, String... command) {
                 try {
-                    final Container.ExecResult execResult = servantContainer.execInContainer(command);
+                    final String containerId = servantContainer.getContainerInfo().getId();
+                    final DockerClient dockerClient = DockerClientFactory.instance().client();
+
+                    final ExecCreateCmd execCreateCmd = dockerClient.execCreateCmd(containerId);
+                    final ExecCreateCmdResponse exec = execCreateCmd.withEnv(env.entrySet()
+                            .stream()
+                            .map(e -> e.getKey() + "=" + Utils.bashEscape(e.getValue()))
+                            .collect(Collectors.toList()))
+                        .withAttachStdout(true)
+                        .withAttachStderr(true)
+                        .withCmd(command)
+                        .exec();
+
+                    final ToStringConsumer stdoutConsumer = new ToStringConsumer();
+                    final ToStringConsumer stderrConsumer = new ToStringConsumer();
+
+                    try (FrameConsumerResultCallback callback = new FrameConsumerResultCallback()) {
+                        callback.addConsumer(OutputFrame.OutputType.STDOUT, stdoutConsumer);
+                        callback.addConsumer(OutputFrame.OutputType.STDERR, stderrConsumer);
+                        dockerClient.execStartCmd(exec.getId()).exec(callback).awaitCompletion();
+                    }
+                    //noinspection deprecation
+                    final int exitCode = dockerClient.inspectExecCmd(exec.getId()).exec().getExitCode();
+
                     return new ExecutionResult() {
                         @Override
                         public String stdout() {
-                            return execResult.getStdout();
+                            return stdoutConsumer.toString(StandardCharsets.UTF_8);
                         }
 
                         @Override
                         public String stderr() {
-                            return execResult.getStderr();
+                            return stderrConsumer.toString(StandardCharsets.UTF_8);
                         }
 
                         @Override
                         public int exitCode() {
-                            return execResult.getExitCode();
+                            return exitCode;
                         }
                     };
                 } catch (IOException | InterruptedException e) {
@@ -95,7 +128,7 @@ public class LzyServantDockerContext implements LzyServantTestContext {
                                 path + "/sbin/status"
                             );
                             final String parsedStatus = bash.getStdout().split("\n")[0];
-                            return parsedStatus.toLowerCase().equals(status.name().toLowerCase());
+                            return parsedStatus.equalsIgnoreCase(status.name());
                         } catch (InterruptedException | IOException e) {
                             return false;
                         }

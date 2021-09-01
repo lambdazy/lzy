@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class LzyServantProcessesContext implements LzyServantTestContext {
@@ -46,7 +47,7 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             }
 
             @Override
-            public ExecutionResult execute(String... command) {
+            public ExecutionResult execute(Map<String, String> env, String... command) {
                 return null;
             }
 

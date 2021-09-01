@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public interface LzyServantTestContext extends AutoCloseable {
@@ -13,7 +14,7 @@ public interface LzyServantTestContext extends AutoCloseable {
 
     interface Servant {
         boolean pathExists(Path path);
-        ExecutionResult execute(String... command);
+        ExecutionResult execute(Map<String, String> env, String... command);
 
         boolean waitForStatus(ServantStatus status, long timeout, TimeUnit unit);
         boolean waitForShutdown(long timeout, TimeUnit unit);
