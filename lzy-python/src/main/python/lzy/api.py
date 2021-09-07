@@ -1,14 +1,5 @@
 import inspect
-from dataclasses import dataclass
-from typing import Callable, Any, Iterable, _GenericAlias, get_type_hints
-
-
-@dataclass
-class DataPage:
-    typ: _GenericAlias
-    func: Callable
-    depends_on: Iterable  # Iterable[DataPage]
-    materialized: bool
+from typing import Callable, Any, get_type_hints
 
 
 class Wrapper:
@@ -37,9 +28,11 @@ class Wrapper:
             self._materialized = True
         return self._materialization
 
-    def data_page(self) -> DataPage:
-        return DataPage(get_type_hints(self._func)['return'], self._func,
-                        list(map(lambda x: x.data_page(), list(self._args))), self._materialized)
+    def is_materialized(self) -> bool:
+        return self._materialized
+
+    def func(self) -> Callable:
+        return self._func
 
 
 def op(func: Callable) -> Callable:
@@ -101,18 +94,19 @@ class LzyEnvironment:
         if not self._entered:
             raise ValueError('Print relations on a non-entered environment')
         for wrapper in self._wrappers:
-            data_page = wrapper.data_page()
-            inp = ""
-            depends_on = list(data_page.depends_on)
-            for i in range(len(depends_on)):
-                inp += str(depends_on[i].typ)
-                if i < len(depends_on) - 1:
+            inp = "("
+            ret = ""
+            hints = get_type_hints(wrapper.func())
+            keys = list(hints.keys())
+            for i in range(len(keys)):
+                if keys[i] != 'return':
+                    inp += str(hints[keys[i]])
                     inp += ","
                 else:
-                    inp += " -> "
-
-            print(inp + str(data_page.func) + " -> " + str(data_page.typ) + ", materialized=" + str(
-                data_page.materialized))
+                    ret += str(hints[keys[i]])
+            inp += ")"
+            print(
+                inp + " -> " + str(wrapper.func()) + " -> " + ret + ", materialized=" + str(wrapper.is_materialized()))
 
 
 class Bus:
