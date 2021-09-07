@@ -2,19 +2,29 @@ from typing import Callable, Any
 
 
 class Wrapper:
-    def __init__(self, func: Callable):
+    def __init__(self, func: Callable, *args):
         self._func = func
+        self._args = args
         self._unwrap = None
 
     def __getattr__(self, attr):
+        return self.materialize().__getattr__(attr)
+
+    def __str__(self):
+        return self.materialize().__str__()
+
+    def __iter__(self):
+        return self.materialize().__iter__()
+
+    def materialize(self):
         if self._unwrap is None:
-            self._unwrap = self._func()
-        return getattr(self._unwrap, attr)
+            self._unwrap = self._func(*self._args)
+        return self._unwrap
 
 
 def op(func: Callable) -> Callable:
     def lazy(*args):
-        return Wrapper(func)
+        return Wrapper(func, *args)
 
     return lazy
 
