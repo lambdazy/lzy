@@ -17,14 +17,14 @@ class Wrapper:
     def __iter__(self):
         return self.materialize().__iter__()
 
-    def materialize(self):
+    def materialize(self) -> Any:
         if self._unwrap is None:
             self._unwrap = self._func(*self._args)
         return self._unwrap
 
 
 def op(func: Callable) -> Callable:
-    def lazy(*args):
+    def lazy(*args) -> Any:
         env = None
         for stack in inspect.stack():
             lcls = stack.frame.f_locals
@@ -58,7 +58,7 @@ class LzyEnvironment:
         self.run()
         self._started = False
 
-    def entered(self):
+    def entered(self) -> bool:
         return self._started
 
     def register(self, wrapper: Wrapper) -> None:
@@ -66,7 +66,7 @@ class LzyEnvironment:
         if self._eager:
             wrapper.materialize()
 
-    def run(self):
+    def run(self) -> None:
         if not self._started:
             raise ValueError('Run operation on a non-entered environment')
         # noinspection PyTypeChecker
