@@ -57,11 +57,16 @@ def main():
     with env:
         texts = text_source()
         words = text2words(texts)
+        print("Before run:")
+        env.print_relations()
+        env.run()
+        print("After run:")
         env.print_relations()
         counters = words2count(words)
         counter_sink(counters)
-        print("After all calls")
+        print("After all calls:")
         env.print_relations()
+    print("After all runs:")
     env.print_relations()
 
 

@@ -91,7 +91,8 @@ class LzyEnvironment:
         # noinspection PyTypeChecker
         if len(self._wrappers) == 0:
             raise ValueError('No registered ops')
-        self._wrappers[len(self._wrappers) - 1].materialize()
+        for wrapper in self._wrappers:
+            wrapper.materialize()
 
     def print_relations(self):
         if not self._entered:
