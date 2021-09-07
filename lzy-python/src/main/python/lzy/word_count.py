@@ -57,9 +57,12 @@ def main():
     with env:
         texts = text_source()
         words = text2words(texts)
+        env.print_relations()
         counters = words2count(words)
         counter_sink(counters)
         print("After all calls")
+        env.print_relations()
+    env.print_relations()
 
 
 if __name__ == "__main__":
