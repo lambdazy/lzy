@@ -8,7 +8,6 @@ class LzyOp:
         self._args = args
         self._materialized = False
         self._materialization = None
-        self._data_page = None
 
     def __getattr__(self, attr):
         return self.materialize().__getattr__(attr)
