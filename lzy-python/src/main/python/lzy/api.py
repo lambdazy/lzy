@@ -1,6 +1,6 @@
 import inspect
 from dataclasses import dataclass
-from typing import Callable, Any, Dict, Type, Iterable, _GenericAlias, get_type_hints
+from typing import Callable, Any, Iterable, _GenericAlias, get_type_hints
 
 
 @dataclass
@@ -27,6 +27,9 @@ class Wrapper:
 
     def __iter__(self):
         return self.materialize().__iter__()
+
+    def __index__(self):
+        return self.materialize().__index__()
 
     def materialize(self) -> Any:
         if not self._materialized:
