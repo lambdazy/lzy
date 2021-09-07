@@ -18,5 +18,6 @@
         <module>lzy-server</module>
         <module>lzy-servant</module>
         <module>lzy-test</module>
+        <module>lzy-python</module>
     </modules>
 </project>
