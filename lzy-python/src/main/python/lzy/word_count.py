@@ -3,7 +3,7 @@ from typing import Iterator
 
 from _collections import defaultdict
 
-from lzy.api import op, LzyEnvironmentBuilder, KeyedIteratorBus
+from lzy.api import op, LzyEnvironmentBuilder, KeyedIteratorBus, LzyUtils
 
 
 @dataclass
@@ -58,16 +58,16 @@ def main():
         texts = text_source()
         words = text2words(texts)
         print("Before run:")
-        env.print_relations()
+        LzyUtils.print_lzy_ops(env.registered_ops())
         env.run()
         print("After run:")
-        env.print_relations()
+        LzyUtils.print_lzy_ops(env.registered_ops())
         counters = words2count(words)
         counter_sink(counters)
         print("After all calls:")
-        env.print_relations()
+        LzyUtils.print_lzy_ops(env.registered_ops())
     print("After all runs:")
-    env.print_relations()
+    LzyUtils.print_lzy_ops(env.registered_ops())
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-from lzy.api import LzyEnvironmentBuilder, op
+from lzy.api import LzyEnvironmentBuilder, op, LzyUtils
 
 
 @op
@@ -11,10 +11,10 @@ def main():
     env = leb.build()
     with env:
         num = get_num()
-        env.print_relations()
+        LzyUtils.print_lzy_ops(env.registered_ops())
         for i in range(num):
             print(i)
-        env.print_relations()
+        LzyUtils.print_lzy_ops(env.registered_ops())
 
 
 if __name__ == "__main__":

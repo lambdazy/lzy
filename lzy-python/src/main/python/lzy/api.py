@@ -1,8 +1,8 @@
 import inspect
-from typing import Callable, Any, get_type_hints
+from typing import Callable, Any, get_type_hints, Iterable
 
 
-class Wrapper:
+class LzyOp:
     def __init__(self, func: Callable, *args):
         self._func = func
         self._args = args
@@ -49,7 +49,7 @@ def op(func: Callable) -> Callable:
 
         if env is None:
             raise ValueError('Started lzy environment not found')
-        wrapper = Wrapper(func, *args)
+        wrapper = LzyOp(func, *args)
         env.register(wrapper)
         return wrapper
 
@@ -74,10 +74,15 @@ class LzyEnvironment:
     def active(self) -> bool:
         return self._entered and not self._exited
 
-    def register(self, wrapper: Wrapper) -> None:
+    def register(self, wrapper: LzyOp) -> None:
         self._wrappers.append(wrapper)
         if self._eager:
             wrapper.materialize()
+
+    def registered_ops(self) -> Iterable[LzyOp]:
+        if not self._entered:
+            raise ValueError('Fetching ops on a non-entered environment')
+        return list(self._wrappers)
 
     def run(self) -> None:
         if not self._entered:
@@ -90,13 +95,14 @@ class LzyEnvironment:
         for wrapper in self._wrappers:
             wrapper.materialize()
 
-    def print_relations(self):
-        if not self._entered:
-            raise ValueError('Print relations on a non-entered environment')
-        for wrapper in self._wrappers:
+
+class LzyUtils:
+    @staticmethod
+    def print_lzy_ops(ops: Iterable[LzyOp]) -> None:
+        for op in ops:
             inp = "("
             ret = ""
-            hints = get_type_hints(wrapper.func())
+            hints = get_type_hints(op.func())
             keys = list(hints.keys())
             for i in range(len(keys)):
                 if keys[i] != 'return':
@@ -106,7 +112,7 @@ class LzyEnvironment:
                     ret += str(hints[keys[i]])
             inp += ")"
             print(
-                inp + " -> " + str(wrapper.func()) + " -> " + ret + ", materialized=" + str(wrapper.is_materialized()))
+                inp + " -> " + str(op.func()) + " -> " + ret + ", materialized=" + str(op.is_materialized()))
 
 
 class Bus:
