@@ -53,12 +53,13 @@ def counter_sink(counters: Iterator[Counter]) -> None:
 def main():
     leb = LzyEnvironmentBuilder() \
         .bus(text2words, KeyedIteratorBus(key_extractor=lambda x: x.word))
-    with leb.build() as env:
+    env = leb.build()
+    with env:
         texts = text_source()
         words = text2words(texts)
         counters = words2count(words)
         counter_sink(counters)
-        env.run()
+        print("After all calls")
 
 
 if __name__ == "__main__":
