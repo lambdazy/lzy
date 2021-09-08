@@ -1,25 +1,31 @@
 import inspect
-from typing import Callable, Any, get_type_hints, Iterable
+from typing import Callable, Any, get_type_hints, Iterable, Union, _GenericAlias, Type
+
+NON_OVERLOADING_MEMBERS = ['__class__', '__getattribute__', '__setattr__', '__new__', '__init__',
+                           '__init_subclass__', '__abstractmethods__', '__dict__', '__weakref__']
 
 
 class LzyOp:
-    def __init__(self, func: Callable, *args):
+    def __init__(self, func: Callable, return_hint: Union[_GenericAlias, Type], *args):
         self._func = func
         self._args = args
         self._materialized = False
         self._materialization = None
 
-    def __getattr__(self, attr):
-        return self.materialize().__getattr__(attr)
+        return_type = None
+        if hasattr(return_hint, '__origin__'):
+            return_type = return_hint.__origin__
+        elif type(return_hint) == type:
+            return_type = return_hint
 
-    def __str__(self):
-        return self.materialize().__str__()
-
-    def __iter__(self):
-        return self.materialize().__iter__()
-
-    def __index__(self):
-        return self.materialize().__index__()
+        if return_type is not None:
+            members = inspect.getmembers(return_type)
+            for (k, v) in members:
+                if k not in NON_OVERLOADING_MEMBERS:
+                    # noinspection PyShadowingNames
+                    setattr(self, k, lambda *a, k=k: getattr(self.materialize(), k)(*a))
+                    # noinspection PyShadowingNames
+                    setattr(LzyOp, k, lambda obj, *a, k=k: getattr(obj, k)(*a))
 
     def materialize(self) -> Any:
         if not self._materialized:
@@ -35,6 +41,10 @@ class LzyOp:
 
 
 def op(func: Callable) -> Callable:
+    hints = get_type_hints(func)
+    if 'return' not in hints:
+        raise ValueError('Op should be annotated with return type')
+
     def lazy(*args) -> Any:
         env = None
         for stack in inspect.stack():
@@ -49,7 +59,7 @@ def op(func: Callable) -> Callable:
         if env is None:
             return func(*args)
         else:
-            wrapper = LzyOp(func, *args)
+            wrapper = LzyOp(func, hints['return'], *args)
             env.register(wrapper)
             return wrapper
 
@@ -99,10 +109,10 @@ class LzyEnvironment:
 class LzyUtils:
     @staticmethod
     def print_lzy_ops(ops: Iterable[LzyOp]) -> None:
-        for op in ops:
+        for lzy_op in ops:
             inp = "("
             ret = ""
-            hints = get_type_hints(op.func())
+            hints = get_type_hints(lzy_op.func())
             keys = list(hints.keys())
             for i in range(len(keys)):
                 if keys[i] != 'return':
@@ -112,7 +122,7 @@ class LzyUtils:
                     ret += str(hints[keys[i]])
             inp += ")"
             print(
-                inp + " -> " + str(op.func()) + " -> " + ret + ", materialized=" + str(op.is_materialized()))
+                inp + " -> " + str(lzy_op.func()) + " -> " + ret + ", materialized=" + str(lzy_op.is_materialized()))
 
 
 class Bus:
