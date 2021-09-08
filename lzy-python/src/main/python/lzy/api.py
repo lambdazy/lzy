@@ -47,10 +47,11 @@ def op(func: Callable) -> Callable:
                         raise ValueError('More than one started lzy environment found')
 
         if env is None:
-            raise ValueError('Started lzy environment not found')
-        wrapper = LzyOp(func, *args)
-        env.register(wrapper)
-        return wrapper
+            return func(*args)
+        else:
+            wrapper = LzyOp(func, *args)
+            env.register(wrapper)
+            return wrapper
 
     return lazy
 
