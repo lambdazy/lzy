@@ -37,9 +37,8 @@ class DataPage:
 
 
 class Object(abc.ABC):
-    @abc.abstractmethod
     def get_name(self) -> str:
-        pass
+        return type(self).__name__
 
 
 # Материализация объекта – процесс представления его в виде, подходящем для передачи в хранилище.
