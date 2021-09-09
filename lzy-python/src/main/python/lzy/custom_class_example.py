@@ -1,4 +1,4 @@
-from lzy.api import LzyEnvironmentBuilder, LzyUtils, op
+from lzy.api import op, LzyEnv
 
 
 class A:
@@ -29,9 +29,8 @@ def b(a: A) -> B:
 
 
 def main():
-    leb = LzyEnvironmentBuilder()
-    env = leb.build()
-    with env:
+    # noinspection PyUnusedLocal
+    with LzyEnv() as env:
         a_res = a()
         b_res = b(a_res)
         print(b_res.a())

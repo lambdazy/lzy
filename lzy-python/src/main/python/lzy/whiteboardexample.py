@@ -3,7 +3,7 @@ from typing import List, Iterator
 
 from _collections import defaultdict
 
-from lzy.api import LzyEnvironmentBuilder, op
+from lzy.api import op, LzyEnv
 
 
 @dataclass
@@ -52,8 +52,7 @@ class WhiteboardExample:
 
 def main():
     wb = WhiteboardExample()
-    leb = LzyEnvironmentBuilder()
-    env = leb.build(wb)
+    env = LzyEnv(whiteboard=wb)
     with env:
         texts = list(text_source())
         wb.texts = texts

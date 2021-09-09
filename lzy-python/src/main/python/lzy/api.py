@@ -1,6 +1,6 @@
 import dataclasses
 import inspect
-from typing import Callable, Any, get_type_hints, Iterable, Union, _GenericAlias, Type
+from typing import Callable, Any, get_type_hints, Iterable, Union, _GenericAlias, Type, List, Tuple
 
 NON_OVERLOADING_MEMBERS = ['__class__', '__getattribute__', '__setattr__', '__new__', '__init__',
                            '__init_subclass__', '__abstractmethods__', '__dict__', '__weakref__']
@@ -51,7 +51,7 @@ def op(func: Callable) -> Callable:
         for stack in inspect.stack():
             lcls = stack.frame.f_locals
             for k, v in lcls.items():
-                if type(v) == LzyEnvironment and v.active():
+                if type(v) == LzyEnv and v.active():
                     if env is None:
                         env = v
                     else:
@@ -93,12 +93,27 @@ class WhiteboardProxy:
         raise ValueError('Writes to a whiteboard are forbidden after run')
 
 
-class LzyEnvironment:
-    def __init__(self, eager: bool, whiteboard: Any):
+class Bus:
+    pass
+
+
+class KeyedIteratorBus(Bus):
+    def __init__(self, key_extractor: Callable[[Any], str]):
+        super().__init__()
+        self._key_extractor = key_extractor
+
+
+class LzyEnv:
+    # noinspection PyDefaultArgument
+    def __init__(self, eager: bool = False, whiteboard: Any = None, buses: List[Tuple[Callable, Bus]] = []):
         self._wrappers = []
         self._entered = False
         self._exited = False
         self._eager = eager
+        self._buses = list(buses)
+
+        if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
+            raise ValueError('Whiteboard should be a dataclass')
         self._whiteboard_proxy = WhiteboardProxy(whiteboard)
 
     def __enter__(self):
@@ -153,30 +168,3 @@ class LzyUtils:
             inp += ")"
             print(
                 inp + " -> " + str(lzy_op.func()) + " -> " + ret + ", materialized=" + str(lzy_op.is_materialized()))
-
-
-class Bus:
-    pass
-
-
-class KeyedIteratorBus(Bus):
-    def __init__(self, key_extractor: Callable[[Any], str]):
-        super().__init__()
-        self._key_extractor = key_extractor
-
-
-class LzyEnvironmentBuilder:
-    def __init__(self):
-        self._eager = False
-
-    def bus(self, func: Callable, bus: Bus):
-        return self
-
-    def eager(self):
-        self._eager = True
-        return self
-
-    def build(self, whiteboard: Any = None) -> LzyEnvironment:
-        if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
-            raise ValueError('Whiteboard should be a dataclass')
-        return LzyEnvironment(self._eager, whiteboard)

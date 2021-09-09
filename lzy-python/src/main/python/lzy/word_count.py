@@ -3,7 +3,7 @@ from typing import Iterator
 
 from _collections import defaultdict
 
-from lzy.api import op, LzyEnvironmentBuilder, KeyedIteratorBus, LzyUtils
+from lzy.api import op, KeyedIteratorBus, LzyUtils, LzyEnv
 
 
 @dataclass
@@ -51,9 +51,9 @@ def counter_sink(counters: Iterator[Counter]) -> None:
 
 
 def main():
-    leb = LzyEnvironmentBuilder() \
-        .bus(text2words, KeyedIteratorBus(key_extractor=lambda x: x.word))
-    env = leb.build()
+    env = LzyEnv(buses=[
+        [text2words, KeyedIteratorBus(key_extractor=lambda x: x.word)]
+    ])
     with env:
         texts = text_source()
         words = text2words(texts)
