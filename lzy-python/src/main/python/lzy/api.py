@@ -1,6 +1,7 @@
 import dataclasses
 import inspect
-from typing import Callable, Any, get_type_hints, Iterable, Union, _GenericAlias, Type, List, Tuple
+# noinspection PyProtectedMember
+from typing import Callable, Any, get_type_hints, Iterable, Union, _GenericAlias, Type, List, Tuple, TypeVar
 
 from _collections import defaultdict
 
@@ -120,6 +121,8 @@ class KeyedIteratorBus(Bus):
 
 
 class LzyEnv:
+    T = TypeVar('T')
+
     # noinspection PyDefaultArgument
     def __init__(self, eager: bool = False, whiteboard: Any = None, buses: List[Tuple[Callable, Bus]] = []):
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
@@ -156,8 +159,22 @@ class LzyEnv:
             raise ValueError('Fetching ops on a non-entered environment')
         return list(self._wrappers)
 
-    def pages(self, typ: Type) -> Iterable[Any]:
+    def whiteboards(self, typ: Type[T]) -> Iterable[T]:
         return self._wb_repo.whiteboards(typ)
+
+    def projections(self, typ: Type[T]) -> Iterable[T]:
+        wb_arg_name = None
+        wb_arg_type = None
+        for k, v in inspect.signature(typ).parameters.items():
+            if dataclasses.is_dataclass(v.annotation):
+                wb_arg_type = v.annotation
+                wb_arg_name = k
+
+        if wb_arg_type is None:
+            raise ValueError('Projection class should accept whiteboard dataclass as an init argument')
+
+        # noinspection PyArgumentList
+        return map(lambda x: typ(**{wb_arg_name: x}), self._wb_repo.whiteboards(wb_arg_type))
 
     def run(self) -> None:
         if not self._entered:

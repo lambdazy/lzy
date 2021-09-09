@@ -50,6 +50,14 @@ class WhiteboardExample:
     counters: List[Counter] = None
 
 
+class Result:
+    def __init__(self, wb: WhiteboardExample):
+        self._texts = wb.texts
+
+    def texts(self):
+        return self._texts
+
+
 def main():
     wb = WhiteboardExample()
     env = LzyEnv(whiteboard=wb)
@@ -62,9 +70,13 @@ def main():
     for counter in wb.counters:
         print(counter.word, counter.count)
 
-    for page in env.pages(WhiteboardExample):
+    for page in env.whiteboards(WhiteboardExample):
         for counter in page.counters:
             print(counter.word, counter.count)
+
+    for page in env.projections(Result):
+        for text in page.texts():
+            print(text)
 
 
 if __name__ == "__main__":
