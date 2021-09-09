@@ -1,3 +1,4 @@
+import dataclasses
 import inspect
 from typing import Callable, Any, get_type_hints, Iterable, Union, _GenericAlias, Type
 
@@ -66,19 +67,48 @@ def op(func: Callable) -> Callable:
     return lazy
 
 
+class WhiteboardProxy:
+    def __init__(self, whiteboard: Any):
+        self._whiteboard = whiteboard
+        self._already_set_fields = set()
+
+    def disallow_multiple_writes(self) -> None:
+        if self._whiteboard is not None:
+            set_attr = getattr(self._whiteboard, '__setattr__')
+            setattr(self._whiteboard, '__setattr__', lambda *a: self._fake_setattr(set_attr, *a))
+            setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
+
+    def disallow_writes(self) -> None:
+        if self._whiteboard is not None:
+            setattr(self._whiteboard, '__setattr__', lambda *a: self._raise_write_exception())
+            setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
+
+    def _fake_setattr(self, set_attr: Callable, name: str, value: Any) -> None:
+        if name in self._already_set_fields:
+            raise ValueError('Item has been already set to the whiteboard')
+        self._already_set_fields.add(name)
+        set_attr(name, value)
+
+    def _raise_write_exception(self):
+        raise ValueError('Writes to a whiteboard are forbidden after run')
+
+
 class LzyEnvironment:
-    def __init__(self, eager: bool):
+    def __init__(self, eager: bool, whiteboard: Any):
         self._wrappers = []
         self._entered = False
         self._exited = False
         self._eager = eager
+        self._whiteboard_proxy = WhiteboardProxy(whiteboard)
 
     def __enter__(self):
         self._entered = True
+        self._whiteboard_proxy.disallow_multiple_writes()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.run()
+        self._whiteboard_proxy.disallow_writes()
         self._exited = True
 
     def active(self) -> bool:
@@ -146,5 +176,7 @@ class LzyEnvironmentBuilder:
         self._eager = True
         return self
 
-    def build(self) -> LzyEnvironment:
-        return LzyEnvironment(self._eager)
+    def build(self, whiteboard: Any = None) -> LzyEnvironment:
+        if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
+            raise ValueError('Whiteboard should be a dataclass')
+        return LzyEnvironment(self._eager, whiteboard)
