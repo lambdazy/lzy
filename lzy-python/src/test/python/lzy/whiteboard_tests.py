@@ -58,9 +58,8 @@ class WhiteboardTests(TestCase):
         whiteboard = WhiteboardExample()
         env = LzyEnv(whiteboard=whiteboard)
         with env:
-            t = list(text_source())
-            whiteboard.texts = t
-            w = text2words(t)
+            whiteboard.texts = list(text_source())
+            w = text2words(whiteboard.texts)
             counters = words2count(w)
             whiteboard.counters = list(counters)
 
