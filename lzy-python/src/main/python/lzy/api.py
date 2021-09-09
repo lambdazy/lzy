@@ -2,6 +2,8 @@ import dataclasses
 import inspect
 from typing import Callable, Any, get_type_hints, Iterable, Union, _GenericAlias, Type, List, Tuple
 
+from _collections import defaultdict
+
 NON_OVERLOADING_MEMBERS = ['__class__', '__getattribute__', '__setattr__', '__new__', '__init__',
                            '__init_subclass__', '__abstractmethods__', '__dict__', '__weakref__']
 
@@ -67,6 +69,17 @@ def op(func: Callable) -> Callable:
     return lazy
 
 
+class WhiteboardsRepo:
+    def __init__(self):
+        self._whiteboards = defaultdict(list)
+
+    def add(self, wb: Any) -> None:
+        self._whiteboards[type(wb)].append(wb)
+
+    def whiteboards(self, typ: Type) -> Iterable[Any]:
+        return self._whiteboards[typ]
+
+
 class WhiteboardProxy:
     def __init__(self, whiteboard: Any):
         self._whiteboard = whiteboard
@@ -82,6 +95,9 @@ class WhiteboardProxy:
         if self._whiteboard is not None:
             setattr(self._whiteboard, '__setattr__', lambda *a: self._raise_write_exception())
             setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
+
+    def whiteboard(self) -> Any:
+        return self._whiteboard
 
     def _fake_setattr(self, set_attr: Callable, name: str, value: Any) -> None:
         if name in self._already_set_fields:
@@ -106,15 +122,15 @@ class KeyedIteratorBus(Bus):
 class LzyEnv:
     # noinspection PyDefaultArgument
     def __init__(self, eager: bool = False, whiteboard: Any = None, buses: List[Tuple[Callable, Bus]] = []):
+        if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
+            raise ValueError('Whiteboard should be a dataclass')
+        self._whiteboard_proxy = WhiteboardProxy(whiteboard)
         self._wrappers = []
         self._entered = False
         self._exited = False
         self._eager = eager
         self._buses = list(buses)
-
-        if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
-            raise ValueError('Whiteboard should be a dataclass')
-        self._whiteboard_proxy = WhiteboardProxy(whiteboard)
+        self._wb_repo = WhiteboardsRepo()
 
     def __enter__(self):
         self._entered = True
@@ -124,6 +140,7 @@ class LzyEnv:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.run()
         self._whiteboard_proxy.disallow_writes()
+        self._wb_repo.add(self._whiteboard_proxy.whiteboard())
         self._exited = True
 
     def active(self) -> bool:
@@ -138,6 +155,9 @@ class LzyEnv:
         if not self._entered:
             raise ValueError('Fetching ops on a non-entered environment')
         return list(self._wrappers)
+
+    def pages(self, typ: Type) -> Iterable[Any]:
+        return self._wb_repo.whiteboards(typ)
 
     def run(self) -> None:
         if not self._entered:

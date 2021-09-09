@@ -62,6 +62,10 @@ def main():
     for counter in wb.counters:
         print(counter.word, counter.count)
 
+    for page in env.pages(WhiteboardExample):
+        for counter in page.counters:
+            print(counter.word, counter.count)
+
 
 if __name__ == "__main__":
     main()
