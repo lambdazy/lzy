@@ -104,5 +104,5 @@ class BaseApiTests(TestCase):
             b_res = b(a_res)
 
         # Assert
-        self.assertEquals('a', a_res.a())
-        self.assertEquals('b', b_res.b())
+        self.assertEqual('a', a_res.a())
+        self.assertEqual('b', b_res.b())
