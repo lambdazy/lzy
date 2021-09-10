@@ -1,6 +1,8 @@
-from typing import Any, Iterable, Type, Callable
+from typing import Any, Iterable, Type, Callable, TypeVar, Generic
 
 from _collections import defaultdict
+
+T = TypeVar('T')
 
 
 class WhiteboardsRepo:
@@ -10,12 +12,13 @@ class WhiteboardsRepo:
     def register(self, wb: Any) -> None:
         self._whiteboards[type(wb)].append(wb)
 
-    def whiteboards(self, typ: Type) -> Iterable[Any]:
+    def whiteboards(self, typ: Type[T]) -> Iterable[T]:
         return self._whiteboards[typ]
 
 
-class WhiteboardProxy:
-    def __init__(self, whiteboard: Any):
+class WhiteboardProxy(Generic[T]):
+    def __init__(self, whiteboard: T):
+        super().__init__()
         self._whiteboard = whiteboard
         self._already_set_fields = set()
 
@@ -30,7 +33,7 @@ class WhiteboardProxy:
             setattr(self._whiteboard, '__setattr__', lambda *a: self._raise_write_exception())
             setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
 
-    def whiteboard(self) -> Any:
+    def whiteboard(self) -> T:
         return self._whiteboard
 
     def _fake_setattr(self, set_attr: Callable, name: str, value: Any) -> None:
