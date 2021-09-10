@@ -42,5 +42,5 @@ class WhiteboardProxy(Generic[T]):
         self._already_set_fields.add(name)
         set_attr(name, value)
 
-    def _raise_write_exception(self):
+    def _raise_write_exception(self) -> None:
         raise ValueError('Writes to a whiteboard are forbidden after run')

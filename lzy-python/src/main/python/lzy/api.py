@@ -95,12 +95,12 @@ class LzyEnv:
         self._buses = list(buses)
         self._wb_repo = WhiteboardsRepo()
 
-    def __enter__(self):
+    def __enter__(self):  # -> LzyEnv
         self._entered = True
         self._whiteboard_proxy.disallow_multiple_writes()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.run()
         self._whiteboard_proxy.disallow_writes()
         self._wb_repo.register(self._whiteboard_proxy.whiteboard())
