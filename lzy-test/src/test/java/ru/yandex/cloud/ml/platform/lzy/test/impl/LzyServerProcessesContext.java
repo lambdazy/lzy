@@ -12,7 +12,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 public class LzyServerProcessesContext implements LzyServerTestContext {
@@ -50,7 +52,8 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                 channel.shutdown();
                 channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
                 lzyServer.destroy();
-            } catch (InterruptedException e) {
+                lzyServer.onExit().get(Long.MAX_VALUE, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 throw new RuntimeException(e);
             }
         }
