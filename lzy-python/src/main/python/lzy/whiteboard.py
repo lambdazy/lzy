@@ -1,8 +1,24 @@
-from typing import Any, Iterable, Type, Callable, TypeVar, Generic
+from typing import Any, Iterable, Type, Callable, TypeVar, Generic, Optional, List, Set
 
 from _collections import defaultdict
 
+from lzy.op import LzyOp
+from lzy.proxy import Proxy
+
 T = TypeVar('T')
+
+
+class WbFieldProxy(Proxy):
+    def __init__(self, origin: Any, deps: Set[str]):
+        super().__init__(type(origin))
+        self._origin = origin
+        self._deps = set(deps)
+
+    def call(self, name: str, *args) -> Any:
+        return getattr(self._origin, name)(*args)
+
+    def deps(self):
+        return set(self._deps)
 
 
 class WhiteboardsRepo:
@@ -16,25 +32,49 @@ class WhiteboardsRepo:
         return self._whiteboards[typ]
 
 
-class WhiteboardProxy(Generic[T]):
+class WhiteboardController(Generic[T]):
     def __init__(self, whiteboard: T):
         super().__init__()
         self._whiteboard = whiteboard
         self._already_set_fields = set()
+        self._dependencies = defaultdict(set)
 
-    def disallow_multiple_writes(self) -> None:
-        if self._whiteboard is not None:
-            set_attr = getattr(self._whiteboard, '__setattr__')
-            setattr(self._whiteboard, '__setattr__', lambda *a: self._fake_setattr(set_attr, *a))
-            setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
+    def initialize(self) -> None:
+        set_attr = getattr(self._whiteboard, '__setattr__')
+        setattr(self._whiteboard, '__setattr__', lambda *a: self._fake_setattr(set_attr, *a))
+        setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
 
-    def disallow_writes(self) -> None:
-        if self._whiteboard is not None:
-            setattr(self._whiteboard, '__setattr__', lambda *a: self._raise_write_exception())
-            setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
+    def finalize(self) -> T:
+        self._already_set_fields.clear()
+        for k, v in self._whiteboard.__dict__.items():
+            if isinstance(v, LzyOp):
+                self._compute_dependencies([k], v)
+                setattr(self._whiteboard, k, WbFieldProxy(v.materialize(), self._dependencies[k]))
+        setattr(self._whiteboard, '__setattr__', lambda *a: self._raise_write_exception())
+        setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
 
-    def whiteboard(self) -> T:
         return self._whiteboard
+
+    def _compute_dependencies(self, roots: List[str], op: LzyOp) -> None:
+        for arg in op.args():
+            field = self._find_wb_field(arg)
+            roots_copy = list(roots)
+            if field is not None:
+                for root in roots:
+                    if field in self._dependencies[root]:
+                        continue
+                    else:
+                        self._dependencies[root].add(field)
+                roots_copy.append(field)
+            if isinstance(arg, LzyOp):
+                self._compute_dependencies(roots_copy, arg)
+
+    def _find_wb_field(self, o: Any) -> Optional[str]:
+        for k, v in self._whiteboard.__dict__.items():
+            # noinspection PyTypeChecker
+            if id(v) == id(o):
+                return k
+        return None
 
     def _fake_setattr(self, set_attr: Callable, name: str, value: Any) -> None:
         if name in self._already_set_fields:

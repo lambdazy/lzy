@@ -70,6 +70,7 @@ class BaseApiTests(TestCase):
                 s += add_float(i)
 
         # Assert
+        self.assertEqual(10, n)
         self.assertAlmostEqual(50, s)
 
     def test_custom_classes(self):

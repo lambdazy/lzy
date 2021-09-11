@@ -1,47 +1,10 @@
 import dataclasses
 import inspect
-# noinspection PyProtectedMember
-from typing import Callable, Any, get_type_hints, Iterable, Union, _GenericAlias, Type, List, Tuple, TypeVar
+from typing import get_type_hints, List, Tuple, Callable, Type, Any, TypeVar, Iterable
 
-from lzy.whiteboard import WhiteboardProxy, WhiteboardsRepo
-
-NON_OVERLOADING_MEMBERS = ['__class__', '__getattribute__', '__setattr__', '__new__', '__init__',
-                           '__init_subclass__', '__abstractmethods__', '__dict__', '__weakref__']
-
-
-class LzyOp:
-    def __init__(self, func: Callable, return_hint: Union[_GenericAlias, Type], *args):
-        self._func = func
-        self._args = args
-        self._materialized = False
-        self._materialization = None
-
-        return_type = None
-        if hasattr(return_hint, '__origin__'):
-            return_type = return_hint.__origin__
-        elif type(return_hint) == type:
-            return_type = return_hint
-
-        if return_type is not None:
-            members = inspect.getmembers(return_type)
-            for (k, v) in members:
-                if k not in NON_OVERLOADING_MEMBERS:
-                    # noinspection PyShadowingNames
-                    setattr(self, k, lambda *a, k=k: getattr(self.materialize(), k)(*a))
-                    # noinspection PyShadowingNames
-                    setattr(LzyOp, k, lambda obj, *a, k=k: getattr(obj, k)(*a))
-
-    def materialize(self) -> Any:
-        if not self._materialized:
-            self._materialization = self._func(*self._args)
-            self._materialized = True
-        return self._materialization
-
-    def is_materialized(self) -> bool:
-        return self._materialized
-
-    def func(self) -> Callable:
-        return self._func
+from lzy.op import LzyOp
+from lzy.proxy import Proxy
+from lzy.whiteboard import WhiteboardController, WhiteboardsRepo
 
 
 def op(func: Callable) -> Callable:
@@ -63,7 +26,15 @@ def op(func: Callable) -> Callable:
         if env is None:
             return func(*args)
         else:
-            wrapper = LzyOp(func, hints['return'], *args)
+            return_hint = hints['return']
+            if hasattr(return_hint, '__origin__'):
+                return_type = return_hint.__origin__
+            elif type(return_hint) == type:
+                return_type = return_hint
+            else:
+                raise ValueError('Cannot infer op return type')
+
+            wrapper = LzyOp(func, return_type, *args)
             env.register(wrapper)
             return wrapper
 
@@ -87,37 +58,43 @@ class LzyEnv:
     def __init__(self, eager: bool = False, whiteboard: Any = None, buses: List[Tuple[Callable, Bus]] = []):
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
             raise ValueError('Whiteboard should be a dataclass')
-        self._whiteboard_proxy = WhiteboardProxy(whiteboard)
-        self._wrappers = []
+        if whiteboard is not None:
+            self._wb_controller = WhiteboardController(whiteboard)
+        else:
+            self._wb_controller = None
+
+        self._wb_repo = WhiteboardsRepo()
+        self._ops = []
         self._entered = False
         self._exited = False
         self._eager = eager
         self._buses = list(buses)
-        self._wb_repo = WhiteboardsRepo()
 
     def __enter__(self):  # -> LzyEnv
         self._entered = True
-        self._whiteboard_proxy.disallow_multiple_writes()
+        Proxy.cleanup()
+        if self._wb_controller is not None:
+            self._wb_controller.initialize()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.run()
-        self._whiteboard_proxy.disallow_writes()
-        self._wb_repo.register(self._whiteboard_proxy.whiteboard())
+        if self._wb_controller is not None:
+            self._wb_repo.register(self._wb_controller.finalize())
         self._exited = True
 
     def active(self) -> bool:
         return self._entered and not self._exited
 
-    def register(self, wrapper: LzyOp) -> None:
-        self._wrappers.append(wrapper)
+    def register(self, lzy_op: LzyOp) -> None:
+        self._ops.append(lzy_op)
         if self._eager:
-            wrapper.materialize()
+            lzy_op.materialize()
 
     def registered_ops(self) -> Iterable[LzyOp]:
         if not self._entered:
             raise ValueError('Fetching ops on a non-entered environment')
-        return list(self._wrappers)
+        return list(self._ops)
 
     def whiteboards(self, typ: Type[T]) -> Iterable[T]:
         return self._wb_repo.whiteboards(typ)
@@ -142,9 +119,9 @@ class LzyEnv:
         if self._exited:
             raise ValueError('Run operation on an exited environment')
         # noinspection PyTypeChecker
-        if len(self._wrappers) == 0:
+        if len(self._ops) == 0:
             raise ValueError('No registered ops')
-        for wrapper in self._wrappers:
+        for wrapper in self._ops:
             wrapper.materialize()
 
 
