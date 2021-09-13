@@ -6,7 +6,7 @@ from typing import get_type_hints, List, Tuple, Callable, Type, Any, TypeVar, It
 
 import sys
 
-from lzy.op import LzyOp, ProcessLzyRunner, LzyRunner, LocalLzyRunner
+from lzy.op import LzyOp, LzyLocalOp, LzyRemoteOp
 from lzy.proxy import Proxy
 from lzy.whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
 
@@ -45,9 +45,12 @@ def op(func: Callable) -> Callable:
             else:
                 raise ValueError('Cannot infer op return type')
 
-            wrapper = LzyOp(env.runner(), func, return_type, *args)
-            env.register(wrapper)
-            return wrapper
+            if env.is_local():
+                lzy_op = LzyLocalOp(func, return_type, *args)
+            else:
+                lzy_op = LzyRemoteOp(func, return_type, *args)
+            env.register(lzy_op)
+            return lzy_op
 
     return lazy
 
@@ -71,6 +74,10 @@ class LzyEnvBase:
         pass
 
     @abstractmethod
+    def is_local(self) -> bool:
+        pass
+
+    @abstractmethod
     def register(self, lzy_op: LzyOp) -> None:
         pass
 
@@ -84,10 +91,6 @@ class LzyEnvBase:
 
     @abstractmethod
     def projections(self, typ: Type[T]) -> Iterable[T]:
-        pass
-
-    @abstractmethod
-    def runner(self) -> LzyRunner:
         pass
 
     @abstractmethod
@@ -107,16 +110,12 @@ class LzyEnv(LzyEnvBase):
         else:
             self._wb_controller = None
 
-        if local:
-            self._runner = LocalLzyRunner()
-        else:
-            self._runner = ProcessLzyRunner()
-
         self._wb_repo = WhiteboardsRepoInMem()
         self._ops = []
         self._entered = False
         self._exited = False
         self._eager = eager
+        self._local = local
         self._buses = list(buses)
         self._log = logging.getLogger(str(self.__class__))
 
@@ -135,6 +134,9 @@ class LzyEnv(LzyEnvBase):
 
     def is_active(self) -> bool:
         return self._entered and not self._exited
+
+    def is_local(self) -> bool:
+        return self._local
 
     def register(self, lzy_op: LzyOp) -> None:
         self._ops.append(lzy_op)
@@ -163,9 +165,6 @@ class LzyEnv(LzyEnvBase):
         # noinspection PyArgumentList
         return map(lambda x: typ(**{wb_arg_name: x}), self._wb_repo.whiteboards(wb_arg_type))
 
-    def runner(self) -> LzyRunner:
-        return self._runner
-
     def run(self) -> None:
         if not self._entered:
             raise ValueError('Run operation on a non-entered environment')
@@ -175,9 +174,7 @@ class LzyEnv(LzyEnvBase):
         if len(self._ops) == 0:
             raise ValueError('No registered ops')
         for wrapper in reversed(self._ops):
-            self._log.info("Materializing function %s", str(wrapper.func()))
             wrapper.materialize()
-            self._log.info("Materializing function %s done", str(wrapper.func()))
 
 
 class LzyUtils:

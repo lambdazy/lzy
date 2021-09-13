@@ -15,7 +15,7 @@ class WbFieldProxy(Proxy):
         self._origin = origin
         self._deps = set(deps)
 
-    def call(self, name: str, *args) -> Any:
+    def on_call(self, name: str, *args) -> Any:
         return getattr(self._origin, name)(*args)
 
     def deps(self):

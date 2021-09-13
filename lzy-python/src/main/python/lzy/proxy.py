@@ -15,12 +15,12 @@ class Proxy:
         for (k, v) in members:
             if k not in NON_OVERLOADING_MEMBERS:
                 # noinspection PyShadowingNames
-                setattr(self, k, lambda *a, k=k: self.call(k, *a))
+                setattr(self, k, lambda *a, k=k: self.on_call(k, *a))
                 # noinspection PyShadowingNames
                 setattr(Proxy, k, lambda obj, *a, k=k: getattr(obj, k)(*a))
 
     @abstractmethod
-    def call(self, name: str, *args) -> Any:
+    def on_call(self, name: str, *args) -> Any:
         pass
 
     @staticmethod

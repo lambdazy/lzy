@@ -9,7 +9,8 @@ def main():
 
     with open(in_file_path, 'rb') as in_handle:
         lzy_op = cloudpickle.load(in_handle)
-        result = lzy_op.materialize(delegate=False)
+        lzy_op.deploy()
+        result = lzy_op.materialize()
         with open(out_file_path, 'wb') as out_handle:
             cloudpickle.dump(result, out_handle)
 
