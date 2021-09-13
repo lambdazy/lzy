@@ -5,6 +5,7 @@ from typing import get_type_hints, List, Tuple, Callable, Type, Any, TypeVar, It
 
 from lzy.op import LzyOp
 from lzy.proxy import Proxy
+from lzy.runner import LzyRunner, LocalLzyRunner
 from lzy.whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
 
 
@@ -35,7 +36,7 @@ def op(func: Callable) -> Callable:
             else:
                 raise ValueError('Cannot infer op return type')
 
-            wrapper = LzyOp(func, return_type, *args)
+            wrapper = LzyOp(env.runner(), func, return_type, *args)
             env.register(wrapper)
             return wrapper
 
@@ -77,6 +78,10 @@ class LzyEnvBase:
         pass
 
     @abstractmethod
+    def runner(self) -> LzyRunner:
+        pass
+
+    @abstractmethod
     def run(self) -> None:
         pass
 
@@ -91,8 +96,9 @@ class LzyEnv(LzyEnvBase):
             self._wb_controller = WhiteboardControllerImpl(whiteboard)
         else:
             self._wb_controller = None
-
         self._wb_repo = WhiteboardsRepoInMem()
+        self._runner = LocalLzyRunner()
+
         self._ops = []
         self._entered = False
         self._exited = False
@@ -141,6 +147,9 @@ class LzyEnv(LzyEnvBase):
 
         # noinspection PyArgumentList
         return map(lambda x: typ(**{wb_arg_name: x}), self._wb_repo.whiteboards(wb_arg_type))
+
+    def runner(self) -> LzyRunner:
+        return self._runner
 
     def run(self) -> None:
         if not self._entered:
