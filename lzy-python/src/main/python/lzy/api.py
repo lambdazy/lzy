@@ -1,10 +1,11 @@
 import dataclasses
 import inspect
+from abc import abstractmethod
 from typing import get_type_hints, List, Tuple, Callable, Type, Any, TypeVar, Iterable
 
 from lzy.op import LzyOp
 from lzy.proxy import Proxy
-from lzy.whiteboard import WhiteboardController, WhiteboardsRepo
+from lzy.whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
 
 
 def op(func: Callable) -> Callable:
@@ -17,7 +18,7 @@ def op(func: Callable) -> Callable:
         for stack in inspect.stack():
             lcls = stack.frame.f_locals
             for k, v in lcls.items():
-                if type(v) == LzyEnv and v.active():
+                if type(v) == LzyEnv and v.is_active():
                     if env is None:
                         env = v
                     else:
@@ -51,19 +52,47 @@ class KeyedIteratorBus(Bus):
         self._key_extractor = key_extractor
 
 
-class LzyEnv:
-    T = TypeVar('T')
+T = TypeVar('T')
 
+
+class LzyEnvBase:
+    @abstractmethod
+    def is_active(self) -> bool:
+        pass
+
+    @abstractmethod
+    def register(self, lzy_op: LzyOp) -> None:
+        pass
+
+    @abstractmethod
+    def registered_ops(self) -> Iterable[LzyOp]:
+        pass
+
+    @abstractmethod
+    def whiteboards(self, typ: Type[T]) -> Iterable[T]:
+        pass
+
+    @abstractmethod
+    def projections(self, typ: Type[T]) -> Iterable[T]:
+        pass
+
+    @abstractmethod
+    def run(self) -> None:
+        pass
+
+
+class LzyEnv(LzyEnvBase):
     # noinspection PyDefaultArgument
     def __init__(self, eager: bool = False, whiteboard: Any = None, buses: List[Tuple[Callable, Bus]] = []):
+        super().__init__()
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
             raise ValueError('Whiteboard should be a dataclass')
         if whiteboard is not None:
-            self._wb_controller = WhiteboardController(whiteboard)
+            self._wb_controller = WhiteboardControllerImpl(whiteboard)
         else:
             self._wb_controller = None
 
-        self._wb_repo = WhiteboardsRepo()
+        self._wb_repo = WhiteboardsRepoInMem()
         self._ops = []
         self._entered = False
         self._exited = False
@@ -74,7 +103,7 @@ class LzyEnv:
         self._entered = True
         Proxy.cleanup()
         if self._wb_controller is not None:
-            self._wb_controller.initialize()
+            self._wb_controller.capture()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -83,7 +112,7 @@ class LzyEnv:
             self._wb_repo.register(self._wb_controller.finalize())
         self._exited = True
 
-    def active(self) -> bool:
+    def is_active(self) -> bool:
         return self._entered and not self._exited
 
     def register(self, lzy_op: LzyOp) -> None:

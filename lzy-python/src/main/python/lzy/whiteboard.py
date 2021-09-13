@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import Any, Iterable, Type, Callable, TypeVar, Generic, Optional, List, Set
 
 from _collections import defaultdict
@@ -22,7 +23,18 @@ class WbFieldProxy(Proxy):
 
 
 class WhiteboardsRepo:
+    @abstractmethod
+    def register(self, wb: Any) -> None:
+        pass
+
+    @abstractmethod
+    def whiteboards(self, typ: Type[T]) -> Iterable[T]:
+        pass
+
+
+class WhiteboardsRepoInMem(WhiteboardsRepo):
     def __init__(self):
+        super().__init__()
         self._whiteboards = defaultdict(list)
 
     def register(self, wb: Any) -> None:
@@ -33,13 +45,23 @@ class WhiteboardsRepo:
 
 
 class WhiteboardController(Generic[T]):
+    @abstractmethod
+    def capture(self) -> None:
+        pass
+
+    @abstractmethod
+    def finalize(self) -> T:
+        pass
+
+
+class WhiteboardControllerImpl(WhiteboardController):
     def __init__(self, whiteboard: T):
         super().__init__()
         self._whiteboard = whiteboard
         self._already_set_fields = set()
         self._dependencies = defaultdict(set)
 
-    def initialize(self) -> None:
+    def capture(self) -> None:
         set_attr = getattr(self._whiteboard, '__setattr__')
         setattr(self._whiteboard, '__setattr__', lambda *a: self._fake_setattr(set_attr, *a))
         setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
@@ -52,7 +74,6 @@ class WhiteboardController(Generic[T]):
                 setattr(self._whiteboard, k, WbFieldProxy(v.materialize(), self._dependencies[k]))
         setattr(self._whiteboard, '__setattr__', lambda *a: self._raise_write_exception())
         setattr(type(self._whiteboard), '__setattr__', lambda obj, *a: obj.__setattr__(*a))
-
         return self._whiteboard
 
     def _compute_dependencies(self, roots: List[str], op: LzyOp) -> None:
