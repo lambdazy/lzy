@@ -56,7 +56,7 @@ class WhiteboardTests(TestCase):
 
         # Act
         whiteboard = WhiteboardExample()
-        env = LzyEnv(whiteboard=whiteboard)
+        env = LzyEnv(whiteboard=whiteboard, local=True)
         with env:
             whiteboard.texts = list(text_source())
             w = text2words(whiteboard.texts)
@@ -91,6 +91,7 @@ class WhiteboardTests(TestCase):
         def e(p1: str, p2: str) -> str:
             return str(p1) + str(p2)
 
+        @op
         def g() -> str:
             return 'g'
 
@@ -102,7 +103,7 @@ class WhiteboardTests(TestCase):
             g: str = None
 
         wb = WB()
-        env = LzyEnv(whiteboard=wb)
+        env = LzyEnv(whiteboard=wb, local=True)
         with env:
             wb.g = g()
             wb.d = d()

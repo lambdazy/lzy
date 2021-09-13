@@ -27,7 +27,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv() as env:
+        with LzyEnv(local=True) as env:
             s = source()
             r = process(s)
             sink(r)
@@ -39,7 +39,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv(eager=True) as env:
+        with LzyEnv(eager=True, local=True) as env:
             s = source()
             r = process(s)
             sink(r)
@@ -63,7 +63,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv() as env:
+        with LzyEnv(local=True) as env:
             n = get_int()
             s = 0.0
             for i in range(n):
@@ -100,7 +100,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv() as env:
+        with LzyEnv(local=True) as env:
             a_res = a()
             b_res = b(a_res)
 

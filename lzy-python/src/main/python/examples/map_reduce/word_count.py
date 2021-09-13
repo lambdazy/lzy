@@ -51,7 +51,7 @@ def counter_sink(counters: Iterator[Counter]) -> None:
 
 
 def main():
-    env = LzyEnv(buses=[
+    env = LzyEnv(local=True, buses=[
         [text2words, KeyedIteratorBus(key_extractor=lambda x: x.word)]
     ])
     with env:

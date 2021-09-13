@@ -9,6 +9,8 @@ DEFAULT_MEMBERS = ['__init__', 'call', '__module__', '__dict__', '__weakref__', 
 
 class Proxy:
     def __init__(self, typ: Type):
+        self._type = typ
+        setattr(self, 'typ', lambda *a: self._type)
         members = inspect.getmembers(typ)
         for (k, v) in members:
             if k not in NON_OVERLOADING_MEMBERS:

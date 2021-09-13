@@ -1,12 +1,21 @@
 import dataclasses
 import inspect
+import logging
 from abc import abstractmethod
 from typing import get_type_hints, List, Tuple, Callable, Type, Any, TypeVar, Iterable
 
-from lzy.op import LzyOp
+import sys
+
+from lzy.op import LzyOp, ProcessLzyRunner, LzyRunner, LocalLzyRunner
 from lzy.proxy import Proxy
-from lzy.runner import LzyRunner, LocalLzyRunner
 from lzy.whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
+
+logging.root.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logging.root.addHandler(handler)
 
 
 def op(func: Callable) -> Callable:
@@ -88,7 +97,8 @@ class LzyEnvBase:
 
 class LzyEnv(LzyEnvBase):
     # noinspection PyDefaultArgument
-    def __init__(self, eager: bool = False, whiteboard: Any = None, buses: List[Tuple[Callable, Bus]] = []):
+    def __init__(self, eager: bool = False, whiteboard: Any = None, buses: List[Tuple[Callable, Bus]] = [],
+                 local: bool = False):
         super().__init__()
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
             raise ValueError('Whiteboard should be a dataclass')
@@ -96,14 +106,19 @@ class LzyEnv(LzyEnvBase):
             self._wb_controller = WhiteboardControllerImpl(whiteboard)
         else:
             self._wb_controller = None
-        self._wb_repo = WhiteboardsRepoInMem()
-        self._runner = LocalLzyRunner()
 
+        if local:
+            self._runner = LocalLzyRunner()
+        else:
+            self._runner = ProcessLzyRunner()
+
+        self._wb_repo = WhiteboardsRepoInMem()
         self._ops = []
         self._entered = False
         self._exited = False
         self._eager = eager
         self._buses = list(buses)
+        self._log = logging.getLogger(str(self.__class__))
 
     def __enter__(self):  # -> LzyEnv
         self._entered = True
@@ -159,8 +174,10 @@ class LzyEnv(LzyEnvBase):
         # noinspection PyTypeChecker
         if len(self._ops) == 0:
             raise ValueError('No registered ops')
-        for wrapper in self._ops:
+        for wrapper in reversed(self._ops):
+            self._log.info("Materializing function %s", str(wrapper.func()))
             wrapper.materialize()
+            self._log.info("Materializing function %s done", str(wrapper.func()))
 
 
 class LzyUtils:
