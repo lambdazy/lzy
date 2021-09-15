@@ -173,7 +173,7 @@ class LzyEnv(LzyEnvBase):
         # noinspection PyTypeChecker
         if len(self._ops) == 0:
             raise ValueError('No registered ops')
-        for wrapper in reversed(self._ops):
+        for wrapper in self._ops:
             wrapper.materialize()
 
 
