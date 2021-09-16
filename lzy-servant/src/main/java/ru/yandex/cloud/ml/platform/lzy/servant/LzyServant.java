@@ -60,6 +60,7 @@ public class LzyServant {
         options.addOption(new Option("z", "lzy-address", true, "Lzy server address [host:port]"));
         options.addOption(new Option("m", "lzy-mount", true, "Lzy FS mount point"));
         options.addOption(new Option("h", "host", true, "Servant host name"));
+        options.addOption(new Option("i", "internal-host", true, "Servant host name for connection from another servants"));
         options.addOption(new Option("k", "private-key", true, "Path to private key for user auth"));
     }
 
@@ -84,8 +85,9 @@ public class LzyServant {
 
     @SuppressWarnings("UnusedReturnValue")
     public static class Builder {
-        private URI serverAddr;
+        private final URI serverAddr;
         private String servantName;
+        private String servantInternalName;
         private String token;
         private Path root;
         private String tokenSign;
@@ -124,7 +126,8 @@ public class LzyServant {
                 throw new RuntimeException(e);
             }
             final URI servantAddress = new URI("http", null, servantName, servantPort, null, null, null);
-            final Impl impl = new Impl(root, servantAddress, serverAddr, authBuilder.build());
+            final URI servantInternalAddress = servantInternalName == null ? servantAddress : new URI("http", null, servantInternalName, servantPort, null, null, null);
+            final Impl impl = new Impl(root, servantAddress, servantInternalAddress, serverAddr, authBuilder.build());
             final Server server = ServerBuilder.forPort(servantPort).addService(impl).build();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 server.shutdown();
@@ -163,6 +166,11 @@ public class LzyServant {
             return this;
         }
 
+        public Builder servantInternalName(String servantInternalName) {
+            this.servantInternalName = servantInternalName;
+            return this;
+        }
+
         public Builder servantPort(int port) {
             this.servantPort = port;
             return this;
@@ -194,10 +202,12 @@ public class LzyServant {
         private LzyExecution currentExecution;
         private final LzyFS lzyFS;
         private final URI servantAddress;
+        private final URI servantInternalAddress;
         private final AtomicReference<ServantStatus> status = new AtomicReference<>(ServantStatus.STARTED);
 
-        private Impl(Path mount, URI servantAddress, URI serverAddress, IAM.Auth auth) {
+        private Impl(Path mount, URI servantAddress, URI servantInternalAddress, URI serverAddress, IAM.Auth auth) {
             this.mount = mount;
+            this.servantInternalAddress = servantInternalAddress;
             this.auth = auth;
             this.servantAddress = servantAddress;
             this.serverAddress = serverAddress;
@@ -301,10 +311,10 @@ public class LzyServant {
             }
             if (request.hasZygote()) {
                 final String tid = request.getAuth().getTask().getTaskId();
-                this.currentExecution = new LzyExecution(tid, (AtomicZygote) gRPCConverter.from(request.getZygote()), servantAddress);
+                this.currentExecution = new LzyExecution(tid, (AtomicZygote) gRPCConverter.from(request.getZygote()), servantInternalAddress);
             }
             else { // terminal
-                this.currentExecution = new LzyExecution(null, null, servantAddress);
+                this.currentExecution = new LzyExecution(null, null, servantInternalAddress);
             }
             this.currentExecution.onProgress(progress -> {
                 responseObserver.onNext(progress);

@@ -42,10 +42,12 @@ public class Terminal implements ServantCommand {
 
         final Path lzyRoot = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
         Runtime.getRuntime().exec("umount " + lzyRoot);
+        final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
         final LzyServant.Builder builder = LzyServant.Builder.forLzyServer(URI.create(serverAddress))
             .user(System.getenv("USER"))
             .token(terminalToken.toString())
-            .servantName(parse.getOptionValue('h', LzyFS.lineCmd("hostname")))
+            .servantName(host)
+            .servantInternalName(parse.getOptionValue('i', host))
             .servantPort(port)
             .root(lzyRoot);
 

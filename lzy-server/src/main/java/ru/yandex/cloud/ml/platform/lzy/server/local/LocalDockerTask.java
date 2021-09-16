@@ -32,6 +32,7 @@ public class LocalDockerTask extends LocalTask {
     @Override
     protected void runServantAndWaitFor(String serverHost, int serverPort, String servantHost, int servantPort, UUID tid, String token) {
         final String updatedServerHost = SystemUtils.IS_OS_LINUX ? serverHost : serverHost.replace("localhost", "host.docker.internal");
+        final String internalHost = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
             .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but is is easier for testing
@@ -39,6 +40,7 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("LZYTOKEN", token)
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
+                + "--internal-host " + internalHost + " "
                 + "--port " + servantPort + " "
                 + "--lzy-mount /tmp/lzy/task");
 
@@ -48,8 +50,8 @@ public class LocalDockerTask extends LocalTask {
         } else {
             servantContainer = base
                 .withFixedExposedPort(servantPort, servantPort)
-                .withFixedExposedPort(5005, 5005) //to attach debugger
-                .withExposedPorts(servantPort, 5005);
+                //.withFixedExposedPort(5005, 5005) //to attach debugger
+                .withExposedPorts(servantPort); // , 5005);
         }
         servantContainer.start();
 

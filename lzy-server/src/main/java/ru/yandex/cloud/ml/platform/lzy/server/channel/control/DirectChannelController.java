@@ -88,7 +88,7 @@ public class DirectChannelController implements ChannelController {
             return rc.hasRc() ? rc.getRc().getNumber() : 0;
         }
         catch (StatusRuntimeException sre) {
-            LOG.warn("Unable to connect " + from + " to " + to);
+            LOG.warn("Unable to connect " + from + " to " + to + "\nCause:\n " + sre);
             return 0;
         }
     }

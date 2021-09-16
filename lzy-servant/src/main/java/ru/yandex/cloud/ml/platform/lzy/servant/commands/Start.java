@@ -25,10 +25,12 @@ public class Start implements ServantCommand {
         final int port = Integer.parseInt(parse.getOptionValue('p', "9999"));
         final Path path = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
         final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
+        final String internalHost = parse.getOptionValue('i', host);
         final LzyServant servant = LzyServant.Builder.forLzyServer(URI.create(serverAddress))
             .task(System.getenv("LZYTASK"))
             .token(System.getenv("LZYTOKEN"))
             .servantName(host)
+            .servantInternalName(internalHost)
             .servantPort(port)
             .root(path)
             .build();

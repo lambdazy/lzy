@@ -19,7 +19,7 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
     private final List<Process> servantProcesses = new ArrayList<>();
 
     @Override
-    public Servant startTerminalAtPathAndPort(String path, int port, String serverHost, int serverPort) {
+    public Servant startTerminalAtPathAndPort(String mount, int port, String serverHost, int serverPort) {
         final String[] lzyArgs = {
             "--lzy-address",
             serverHost + ":" + serverPort,
@@ -28,7 +28,7 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             "--port",
             String.valueOf(port),
             "--lzy-mount",
-            path,
+            mount,
             "--private-key",
             "/tmp/nonexistent-key",
             "terminal"
@@ -42,6 +42,21 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
         servantProcesses.add(process);
         return new Servant() {
             @Override
+            public String mount() {
+                return mount;
+            }
+
+            @Override
+            public String serverHost() {
+                return serverHost;
+            }
+
+            @Override
+            public int port() {
+                return port;
+            }
+
+            @Override
             public boolean pathExists(Path path) {
                 return Files.exists(path);
             }
@@ -54,9 +69,9 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             @Override
             public boolean waitForStatus(ServantStatus status, long timeout, TimeUnit unit) {
                 return Utils.waitFlagUp(() -> {
-                    if (pathExists(Paths.get(path + "/sbin/status"))) {
+                    if (pathExists(Paths.get(mount + "/sbin/status"))) {
                         try {
-                            final Process bash = new ProcessBuilder("bash", path + "/sbin/status").start();
+                            final Process bash = new ProcessBuilder("bash", mount + "/sbin/status").start();
                             bash.waitFor();
                             final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
                             final String parsedStatus = stdout.split("\n")[0];

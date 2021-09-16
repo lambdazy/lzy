@@ -114,7 +114,6 @@ public class LzyServer {
             responseObserver.onNext(Operations.RegisteredZygote.newBuilder()
                 .setWorkload(operation)
                 .setName(request.getName())
-                .setWorkload(request.getOperation())
                 .build()
             );
             responseObserver.onCompleted();

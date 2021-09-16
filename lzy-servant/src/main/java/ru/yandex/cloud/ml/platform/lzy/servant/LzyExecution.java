@@ -144,8 +144,8 @@ public class LzyExecution {
                 StandardCharsets.UTF_8
             )));
             final int rc = exec.waitFor();
-            Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::close);
             LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
+            Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::close);
             synchronized (slots) {
                 while (!slots.isEmpty()) {
                     slots.wait();

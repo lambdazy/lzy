@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.test;
+package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
 import io.grpc.StatusRuntimeException;
 import org.junit.After;
@@ -6,6 +6,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;

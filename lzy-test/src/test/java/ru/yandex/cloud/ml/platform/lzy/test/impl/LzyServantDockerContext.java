@@ -33,7 +33,7 @@ public class LzyServantDockerContext implements LzyServantTestContext {
     private final List<GenericContainer<?>> startedContainers = new ArrayList<>();
 
     @Override
-    public Servant startTerminalAtPathAndPort(String path, int port, String serverHost, int serverPort) {
+    public Servant startTerminalAtPathAndPort(String mount, int port, String serverHost, int serverPort) {
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
             .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
@@ -41,7 +41,7 @@ public class LzyServantDockerContext implements LzyServantTestContext {
             .withCommand("--lzy-address " + serverHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--port " + port + " "
-                + "--lzy-mount " + path + " "
+                + "--lzy-mount " + mount + " "
                 + "terminal");
 
         final GenericContainer<?> servantContainer;
@@ -50,14 +50,30 @@ public class LzyServantDockerContext implements LzyServantTestContext {
         } else {
             servantContainer = base
                 .withFixedExposedPort(port, port)
-                .withFixedExposedPort(5005, 5005) //to attach debugger
-                .withExposedPorts(port, 5005);
+                //.withFixedExposedPort(5005, 5005) //to attach debugger
+                //.withExposedPorts(5005)
+                .withExposedPorts(port);
         }
 
         servantContainer.start();
         servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
         startedContainers.add(servantContainer);
         return new Servant() {
+            @Override
+            public String mount() {
+                return mount;
+            }
+
+            @Override
+            public String serverHost() {
+                return serverHost;
+            }
+
+            @Override
+            public int port() {
+                return port;
+            }
+
             @Override
             public boolean pathExists(Path path) {
                 try {
@@ -121,11 +137,11 @@ public class LzyServantDockerContext implements LzyServantTestContext {
                 ServantStatus status, long timeout, TimeUnit unit
             ) {
                 return Utils.waitFlagUp(() -> {
-                    if (pathExists(Paths.get(path + "/sbin/status"))) {
+                    if (pathExists(Paths.get(mount + "/sbin/status"))) {
                         try {
                             final Container.ExecResult bash = servantContainer.execInContainer(
                                 "bash",
-                                path + "/sbin/status"
+                                mount + "/sbin/status"
                             );
                             final String parsedStatus = bash.getStdout().split("\n")[0];
                             return parsedStatus.equalsIgnoreCase(status.name());
