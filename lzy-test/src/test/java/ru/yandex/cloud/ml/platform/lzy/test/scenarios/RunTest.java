@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
@@ -61,6 +62,7 @@ public class RunTest {
     }
 
     @Test
+    @Ignore
     public void testSingleOp() {
         //Arrange
         final FileIOOperation generator = new FileIOOperation(
