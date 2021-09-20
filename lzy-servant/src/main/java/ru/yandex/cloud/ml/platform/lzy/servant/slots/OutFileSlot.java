@@ -165,6 +165,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     public void close() {
+        super.close();
         ForkJoinPool.commonPool().execute(() -> {
             Thread.yield();
             closeActions.forEach(Runnable::run);
