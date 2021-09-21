@@ -62,6 +62,7 @@ public class RunTest {
     }
 
     @Test
+    @Ignore
     public void testSingleOp() {
         //Arrange
         final FileIOOperation generator = new FileIOOperation(
