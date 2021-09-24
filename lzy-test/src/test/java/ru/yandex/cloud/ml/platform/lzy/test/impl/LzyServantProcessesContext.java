@@ -31,7 +31,8 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             mount,
             "--private-key",
             "/tmp/nonexistent-key",
-            "terminal"
+            "terminal",
+            "-Dcustom.log.file=terminal.log"
         };
         final Process process;
         try {

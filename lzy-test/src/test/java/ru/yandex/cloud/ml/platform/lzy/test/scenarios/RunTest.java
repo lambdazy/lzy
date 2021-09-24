@@ -3,7 +3,6 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
@@ -11,14 +10,17 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext.Servant.Execut
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("CommentedOutCode")
 public class RunTest {
     private static final int DEFAULT_SERVANT_INIT_TIMEOUT_SEC = 30;
+    private static final String LZY_MOUNT = "/tmp/lzy";
 
     private LzyServerTestContext server;
     private LzyServantTestContext servantContext;
@@ -29,7 +31,7 @@ public class RunTest {
         server = new LzyServerProcessesContext();
         servantContext = new LzyServantDockerContext();
         servant = servantContext.startTerminalAtPathAndPort(
-            "/tmp/lzy",
+            LZY_MOUNT,
             9999,
             server.host(true),
             server.port()
@@ -62,20 +64,39 @@ public class RunTest {
     }
 
     @Test
-    @Ignore
-    public void testSingleOp() {
-        //Arrange
-        final FileIOOperation generator = new FileIOOperation(
+    public void testEcho42() {
+        final FileIOOperation echo42 = new FileIOOperation(
+            "echo42",
             Collections.emptyList(),
-            List.of(), // generated0, generated1),
-            "gen"
+            Collections.emptyList(),
+            "echo 42"
+        );
+        final ExecutionResult result = publishAndRun(echo42, "");
+        Assert.assertEquals("42\n", result.stdout());
+    }
+
+    @Test
+    public void testInputLocalFileReturnStdout() {
+        //Arrange
+        final String fileContent = "fileContent";
+        final String fileName = "/tmp/lzy/tmp/some_file.txt";
+        final String channelName = "channel1";
+        final FileIOOperation cat = new FileIOOperation(
+            "cat_lzy",
+            List.of(fileName.substring(LZY_MOUNT.length())),
+            Collections.emptyList(),
+            "cat " + fileName
         );
 
         //Act
-        final ExecutionResult run = publishAndRun(generator, "");
+        servant.createChannel(channelName);
+        servant.createSlot(fileName, channelName, Utils.outFileSot());
+        ForkJoinPool.commonPool()
+            .execute(() -> servant.execute("bash", "-c", "echo " + fileContent + " > " + fileName));
+        final ExecutionResult result = publishAndRun(cat, "");
 
         //Assert
-        Assert.assertEquals("42\n", run.stdout());
+        Assert.assertEquals(fileContent + "\n", result.stdout());
     }
 
     //@Test
@@ -87,6 +108,7 @@ public class RunTest {
     //    final String sum = "sum";
     //
     //    final FileIOOperation generator = new FileIOOperation(
+    //        "gen",
     //        Collections.emptyList(),
     //        List.of(), // generated0, generated1),
     //        "gen"

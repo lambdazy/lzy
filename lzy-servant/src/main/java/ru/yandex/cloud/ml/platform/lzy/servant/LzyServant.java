@@ -18,6 +18,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
@@ -250,9 +251,14 @@ public class LzyServant {
         private void publishTool(Operations.Zygote z, Path to, String... servantArgs) {
             try {
                 final String zygoteJson = z != null ? JsonFormat.printer().print(z) : null;
+                final String logConfFile = System.getProperty("log4j.configurationFile");
                 final List<String> commandParts = new ArrayList<>();
                 commandParts.add(System.getProperty("java.home") + "/bin/java");
                 commandParts.add("-Xmx1g");
+                commandParts.add("-Dcustom.log.file=" + to.getFileName() + "_$(($RANDOM % 10000))");
+                if (logConfFile != null) {
+                    commandParts.add("-Dlog4j.configurationFile=" + logConfFile);
+                }
                 commandParts.add("-classpath");
                 commandParts.add('"' + System.getProperty("java.class.path") + '"');
                 commandParts.add(LzyServant.class.getCanonicalName());
@@ -301,10 +307,7 @@ public class LzyServant {
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
             status.set(ServantStatus.PREPARING_EXECUTION);
-            try {
-                LOG.info("Starting execution " + JsonFormat.printer().print(request));
-            }
-            catch (InvalidProtocolBufferException ignore) {}
+            LOG.info("Servant::execute " + JsonUtils.printRequest(request));
             if (currentExecution != null) {
                 responseObserver.onError(Status.RESOURCE_EXHAUSTED.asException());
                 return;
@@ -350,6 +353,7 @@ public class LzyServant {
 
         @Override
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+            LOG.info("LzyServant::openOutputSlot " + JsonUtils.printRequest(request));
             if (currentExecution == null || currentExecution.slot(request.getSlot()) == null) {
                 LOG.info("Not found slot: " + request.getSlot());
                 responseObserver.onError(Status.NOT_FOUND.asException());
@@ -369,7 +373,9 @@ public class LzyServant {
 
         @Override
         public void configureSlot(Servant.SlotCommand request, StreamObserver<Servant.SlotCommandStatus> responseObserver) {
+            LOG.info("Servant::configureSlot " + JsonUtils.printRequest(request));
             if (currentExecution == null) {
+                LOG.error("Servant::configureSlot NOT_FOUND");
                 responseObserver.onError(Status.NOT_FOUND.asException());
                 return;
             }
@@ -456,6 +462,7 @@ public class LzyServant {
 
         @Override
         public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
+            LOG.info("Servant::stop");
             responseObserver.onNext(IAM.Empty.newBuilder().build());
             responseObserver.onCompleted();
             System.exit(0);

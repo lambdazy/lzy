@@ -1,17 +1,16 @@
 FROM findepi/graalvm:java11-all
 
-COPY target/lzy-servant-1.0-SNAPSHOT-jar-with-dependencies.jar app/app.jar
-COPY src/main/resources/ app/resources
+COPY lzy-servant/target/lzy-servant-1.0-SNAPSHOT-jar-with-dependencies.jar app/app.jar
+COPY lzy-servant/src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 
 RUN apt-get install -y fuse
-RUN apt-get install -y python3 lsof procps
+RUN apt-get install -y python3 python3-pip lsof procps
+RUN mkdir -p /var/log/servant
 
-ENTRYPOINT ["java", \
-            "-Xmx4G", \
-            "-Dsun.jnu.encoding=UTF-8", \
-            "-Dfile.encoding=UTF-8", \
-            "-XX:+HeapDumpOnOutOfMemoryError", \
-#            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005", \
-            "-jar", \
-            "app/app.jar"]
+COPY lzy-python/ lzy-python
+RUN pip3 install lzy-python/
+
+COPY lzy-servant/entrypoint.sh /
+RUN chmod a+rx /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

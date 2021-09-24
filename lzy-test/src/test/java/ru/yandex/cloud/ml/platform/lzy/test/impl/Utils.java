@@ -1,6 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
-import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,5 +48,29 @@ public class Utils {
         command = command.replace(">", "\\>");
         command = command.replace(" ", "\\ ");
         return command;
+    }
+
+    public static Slot outFileSot() {
+        return new Slot() {
+            @Override
+            public String name() {
+                return "";
+            }
+
+            @Override
+            public Media media() {
+                return Media.FILE;
+            }
+
+            @Override
+            public Direction direction() {
+                return Direction.OUTPUT;
+            }
+
+            @Override
+            public DataSchema contentType() {
+                return new PlainTextFileSchema();
+            }
+        };
     }
 }

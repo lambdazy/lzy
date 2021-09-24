@@ -25,14 +25,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LocalChannelsRepository implements ChannelsRepository {
     private static final Logger LOG = LogManager.getLogger(LocalTasksManager.class);
     private final Map<String, ChannelEx> channels = new HashMap<>();
-    private final Map<URI, ChannelEx> ibindings = new HashMap<>();
-    private final Map<URI, Binding> bindings = new HashMap<>();
+    private final Map<URI, ChannelEx> ibindings = new ConcurrentHashMap<>();
+    private final Map<URI, Binding> bindings = new ConcurrentHashMap<>();
 
     @Override
     public Channel get(String cid) {
@@ -94,6 +95,11 @@ public class LocalChannelsRepository implements ChannelsRepository {
 
     @Override
     public void destroy(Channel ch) {
+        ibindings.forEach((uri, channelEx) -> {
+            if (channelEx.name().equals(ch.name())) {
+                unbind(ch, bindings.get(uri));
+            }
+        });
         final ChannelEx channel = channels.remove(ch.name());
         if (channel != null)
             channel.close();
@@ -107,6 +113,7 @@ public class LocalChannelsRepository implements ChannelsRepository {
 
     @Override
     public void unbindAll(URI servantUri) {
+        LOG.info("LocalChannelsRepository::unbindAll " + servantUri);
         Binding.clearAll(servantUri);
         final String prefix = servantUri.toString();
         final Set<URI> unbind = ibindings.keySet()
@@ -144,11 +151,11 @@ public class LocalChannelsRepository implements ChannelsRepository {
         return channels.values().stream().map(s -> s);
     }
 
-    public static class ChannelImpl implements ChannelEx {
+    private static class ChannelImpl implements ChannelEx {
         private final String id;
         private final DataSchema contentType;
         private ChannelController logic; // pluggable channel logic
-        private Set<Binding> bound = new HashSet<>();
+        private final Set<Binding> bound = new HashSet<>();
 
         ChannelImpl(String id, DataSchema contentType) {
             this.id = id;

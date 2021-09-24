@@ -5,17 +5,12 @@ import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.lang3.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.Arrays;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 public class LzyServerProcessesContext implements LzyServerTestContext {
     private static final long SERVER_STARTUP_TIMEOUT_SEC = 60;
@@ -60,7 +55,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
     }
 
     private synchronized void init() {
-        if (lzyServer == null) {
+        if (lzyServerClient == null) {
             try {
                 lzyServer = Utils.javaProcess(
                     LzyServer.class.getCanonicalName(),
@@ -81,23 +76,5 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                 .withWaitForReady()
                 .withDeadlineAfter(SERVER_STARTUP_TIMEOUT_SEC, TimeUnit.SECONDS);
         }
-    }
-
-    public boolean waitForServants(long timeout, TimeUnit unit, int... ports) {
-        init();
-        final Set<Integer> expected = Arrays.stream(ports).boxed().collect(Collectors.toSet());
-        return true;
-        //return Utils.waitFlagUp(() -> {
-        //    final Set<Integer> actual = lzyServerClient.servantsStatus(IAM.Auth.newBuilder()
-        //        .setUser(IAM.UserCredentials.newBuilder()
-        //            .setUserId("uid")
-        //            .setToken("token")
-        //            .build()
-        //        ).build()).getStatusesList()
-        //        .stream()
-        //        .map(value -> URI.create(value.getServantURI()).getPort())
-        //        .collect(Collectors.toSet());
-        //    return expected.equals(actual);
-        //}, timeout, unit);
     }
 }

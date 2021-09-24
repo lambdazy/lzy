@@ -12,15 +12,9 @@ import org.apache.commons.cli.ParseException;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.UUID;
 

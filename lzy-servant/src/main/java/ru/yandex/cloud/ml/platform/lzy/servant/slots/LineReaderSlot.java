@@ -11,13 +11,12 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.LineNumberReader;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -25,7 +24,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);
 
     private final String tid;
-    private LineNumberReader reader;
+    private final CompletableFuture<LineNumberReader> reader = new CompletableFuture<>();
     private long offset = 0;
 
     public LineReaderSlot(String tid, TextLinesOutSlot definition) {
@@ -35,7 +34,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     }
 
     public void setStream(LineNumberReader lnr) {
-        this.reader = lnr;
+        this.reader.complete(lnr);
     }
 
     @Override
@@ -64,10 +63,10 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
             @Override
             public boolean hasNext() {
                 try {
-                    line = reader.readLine();
+                    line = reader.get().readLine();
                     return line != null;
                 }
-                catch (IOException e) {
+                catch (IOException | InterruptedException | ExecutionException e) {
                     LOG.warn("Unable to read line from reader", e);
                     line = null;
                     return false;
@@ -80,6 +79,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                     throw new NoSuchElementException();
                 final ByteString bytes = ByteString.copyFromUtf8(line + "\n");
                 LineReaderSlot.this.offset += bytes.size();
+                LOG.info("Send from slot {} data {}", name(), line);
                 line = null;
                 return bytes;
             }

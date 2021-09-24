@@ -1,7 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -20,6 +18,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
@@ -95,6 +94,7 @@ public class LzyServer {
 
         @Override
         public void publish(Lzy.PublishRequest request, StreamObserver<Operations.RegisteredZygote> responseObserver) {
+            LOG.info("Server::Publish " + JsonUtils.printRequest(request));
             final IAM.UserCredentials auth = request.getAuth();
             if (!this.auth.checkUser(auth.getUserId(), auth.getToken())) {
                 responseObserver.onError(Status.ABORTED.asException());
@@ -176,6 +176,7 @@ public class LzyServer {
 
         @Override
         public void start(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+            LOG.info("Server::start " + JsonUtils.printRequest(request));
             final Zygote workload = gRPCConverter.from(request.getZygote());
             final Map<Slot, String> assignments = new HashMap<>();
             request.getAssignmentsList().forEach(ass -> assignments.put(gRPCConverter.from(ass.getSlot()), ass.getBinding()));
@@ -186,16 +187,13 @@ public class LzyServer {
             Task task = tasks.start(uid, parent, workload, assignments, auth, progress -> {
                 if (concluded.get())
                     return;
-                try {
-                    LOG.info(JsonFormat.printer().print(progress));
-                    responseObserver.onNext(progress);
-                    if (progress.hasChanged() && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
-                        concluded.set(true);
-                        responseObserver.onCompleted();
-                        if (parent != null)
-                            parent.signal(TasksManager.Signal.CHLD);
-                    }
-                } catch (InvalidProtocolBufferException ignore) {}
+                responseObserver.onNext(progress);
+                if (progress.hasChanged() && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
+                    concluded.set(true);
+                    responseObserver.onCompleted();
+                    if (parent != null)
+                        parent.signal(TasksManager.Signal.CHLD);
+                }
             });
             Context.current().addListener(ctxt -> {
                 concluded.set(true);
@@ -222,6 +220,7 @@ public class LzyServer {
 
         @Override
         public void channel(Channels.ChannelCommand request, StreamObserver<Channels.ChannelStatus> responseObserver) {
+            LOG.info("Server::channel " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -245,8 +244,8 @@ public class LzyServer {
                 case DESTROY: {
                     channel = channels.get(request.getChannelName());
                     if (channel != null) {
-                        final Channels.ChannelStatus status = channelStatus(channel);
                         channels.destroy(channel);
+                        final Channels.ChannelStatus status = channelStatus(channel);
                         responseObserver.onNext(status);
                         responseObserver.onCompleted();
                         return;
@@ -279,6 +278,7 @@ public class LzyServer {
 
         @Override
         public void registerServant(Lzy.AttachServant request, StreamObserver<Lzy.AttachStatus> responseObserver) {
+            LOG.info("Server::registerServant " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -315,11 +315,7 @@ public class LzyServer {
                 .execute(executionSpec.build());
             try {
                 execute.forEachRemaining(progress -> {
-                    try {
-                        LOG.info(JsonFormat.printer().print(progress));
-                    } catch (InvalidProtocolBufferException e) {
-                        LOG.error("Unable to parse progress", e);
-                    }
+                    LOG.info("LzyServer::terminalProgress " + JsonUtils.printRequest(progress));
                     if (progress.hasAttach()) {
                         final Servant.SlotAttach attach = progress.getAttach();
                         final Slot slot = gRPCConverter.from(attach.getSlot());
@@ -347,6 +343,7 @@ public class LzyServer {
                 LOG.error("Terminal execution terminated ", th);
             }
             finally {
+                LOG.info("unbindAll from runTerminal");
                 channels.unbindAll(servantUri);
                 servantChannel.shutdown();
             }

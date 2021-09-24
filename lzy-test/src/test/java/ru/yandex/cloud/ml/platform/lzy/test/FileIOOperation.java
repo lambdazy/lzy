@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
+package ru.yandex.cloud.ml.platform.lzy.test;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
@@ -32,6 +32,18 @@ class FileIOOperation implements AtomicZygote {
     }
 
     public String getCommand() {
+        //final List<String> command = new ArrayList<>();
+        //command.add("/usr/bin/python3");
+        //command.add("src/test/py/zygote.py");
+        //for (Slot input: inputs) {
+        //    command.add("-i " + input.name());
+        //}
+        //for (Slot output: outputs) {
+        //    command.add("-o " + output.name());
+        //}
+        //command.add("-c " + pythonCommand);
+        //
+        //return String.join(" ", command);
         return command;
     }
 

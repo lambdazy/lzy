@@ -1,13 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsRepository;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -22,6 +24,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public class LocalTasksManager implements TasksManager {
+    private static final Logger LOG = LogManager.getLogger(LocalTasksManager.class);
     private final URI serverURI;
     private final ChannelsRepository channels;
     private final Map<UUID, LocalTask> tasks = new HashMap<>();
@@ -104,8 +107,10 @@ public class LocalTasksManager implements TasksManager {
             children.remove(task);
             children.getOrDefault(parents.remove(task), new ArrayList<>()).remove(task);
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
-            if (task.servant() != null)
+            if (task.servant() != null) {
+                LOG.info("LocalTaskManager::unbindAll");
                 channels.unbindAll(task.servant());
+            }
             taskChannels.remove(task);
             userTasks.getOrDefault(owners.remove(task), List.of()).remove(task);
         });

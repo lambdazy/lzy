@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
@@ -33,13 +32,21 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);
     private final Path storage;
     private final String tid;
-    private boolean ready = false;
-    private List<Runnable> closeActions = new ArrayList<>();
+    private boolean ready;
+    private final List<Runnable> closeActions = new ArrayList<>();
+
+    protected OutFileSlot(String tid, Slot definition, Path storage) {
+        super(definition);
+        this.tid = tid;
+        this.storage = storage;
+        ready = true;
+    }
 
     public OutFileSlot(String tid, Slot definition) throws IOException {
         super(definition);
         this.tid = tid;
-        storage = Files.createTempFile("lzy", "file-slot");
+        this.storage = Files.createTempFile("lzy", "file-slot");
+        ready = false;
     }
 
     @Override
@@ -106,6 +113,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         localFileContents.onClose(() -> {
             synchronized (OutFileSlot.this) {
                 ready = true;
+                state(Operations.SlotStatus.State.OPEN);
                 OutFileSlot.this.notifyAll();
             }
         });
@@ -129,25 +137,28 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
 
     @Override
     public synchronized Stream<ByteString> readFromPosition(long offset) throws IOException {
+        LOG.info("OutFileSlot.readFromPosition for slot " + this.definition().name());
         while (!ready) {
             try {
                 this.wait();
             }
             catch (InterruptedException ignore) {}
         }
+        LOG.info("Slot {} is ready", name());
         final FileChannel channel = FileChannel.open(storage);
         channel.position(offset);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<>() {
-            private ByteBuffer bb = ByteBuffer.allocate(4096);
+            private final ByteBuffer bb = ByteBuffer.allocate(4096);
             @Override
             public boolean hasNext() {
                 if (state() != Operations.SlotStatus.State.OPEN) {
+                    LOG.info("Slot {} hasNext is not open", name());
                     return false;
                 }
-                int read = 0;
                 try {
                     bb.clear();
-                    read = channel.read(bb);
+                    int read = channel.read(bb);
+                    LOG.info("Slot {} hasNext read {}", name(), read);
                     return read >= 0;
                 }
                 catch (IOException e) {
@@ -159,6 +170,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             @Override
             public ByteString next() {
                 bb.flip();
+                LOG.info("Send from slot {} data {}", name(), bb.toString());
                 return ByteString.copyFrom(bb);
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);

@@ -39,7 +39,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ThreadPoolExecutor;
 
 public class Run implements ServantCommand {
     private static final Logger LOG = LogManager.getLogger(Run.class);
@@ -49,11 +48,12 @@ public class Run implements ServantCommand {
     private LzyServerGrpc.LzyServerBlockingStub server;
     private IAM.Auth auth;
     private Map<String, Map<String, String>> pipesConfig;
+    private Map<String, String> existingBindings;
     private LzyServantGrpc.LzyServantBlockingStub servant;
     private long pid;
     private String lzyRoot;
 
-    private CountDownLatch communicationLatch = new CountDownLatch(3);
+    private final CountDownLatch communicationLatch = new CountDownLatch(3);
 
     @Override
     public int execute(CommandLine command) throws Exception {
@@ -77,6 +77,7 @@ public class Run implements ServantCommand {
                 .build();
             servant = LzyServantGrpc.newBlockingStub(servantCh);
         }
+        existingBindings = existingBindings();
 
         final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
         JsonFormat.parser().merge(System.getenv("ZYGOTE"), builder);
@@ -155,21 +156,31 @@ public class Run implements ServantCommand {
         return pipeMappings;
     }
 
+    private Map<String, String> existingBindings() {
+        final Map<String, String> existingBindings = new HashMap<>();
+        server.channelsStatus(auth).getStatusesList()
+            .forEach(channelStatus -> channelStatus.getConnectedList().forEach(slotStatus ->
+                existingBindings.put(slotStatus.getDeclaration().getName(), channelStatus.getChannel().getChannelId())
+            ));
+        return existingBindings;
+    }
+
     private String resolveChannel(Slot slot) {
+        LOG.info("Creating custom slot " + slot);
+        final String prefix = (auth.hasTask() ? auth.getTask().getTaskId() : auth.getUser().getUserId()) + ":" + pid;
         if (slot.name().startsWith("/dev/")) {
             final String devSlot = slot.name().substring("/dev/".length());
             final Map<String, String> pipeConfig = pipesConfig.get(devSlot);
-            final String prefix = (auth.hasTask() ? auth.getTask().getTaskId() : auth.getUser().getUserId()) + ":" + pid;
             switch (devSlot) {
                 case "stdin": {
                     final String channelName;
                     boolean pipe = false;
                     if (!pipeConfig.getOrDefault("node", "").isEmpty()) { // linux
-                        channelName = prefix + ":" + pipeConfig.get("node");
+                        channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("node");
                         pipe = true;
                     }
                     else if (!pipeConfig.getOrDefault("name", "").isEmpty()) { // macos
-                        channelName = prefix + ":" + pipeConfig.get("name");
+                        channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("name");
                         pipe = true;
                     }
                     else channelName = UUID.randomUUID().toString();
@@ -198,11 +209,11 @@ public class Run implements ServantCommand {
                     final String channelName;
                     boolean pipe = false;
                     if (!pipeConfig.getOrDefault("node", "").isEmpty()) { // linux
-                        channelName = prefix + ":" + pipeConfig.get("node");
+                        channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("node");
                         pipe = true;
                     }
                     else if (pipeConfig.getOrDefault("device", "").startsWith("0x")) { // macos
-                        channelName = prefix + ":" + pipeConfig.get("name");
+                        channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("name");
                         pipe = true;
                     }
                     else channelName = UUID.randomUUID().toString();
@@ -232,6 +243,8 @@ public class Run implements ServantCommand {
                         MessageFormat.format("Illegal slot found: {0}", slot.name())
                     );
             }
+        } else if (existingBindings.containsKey(slot.name())) {
+            return existingBindings.get(slot.name());
         } else {
             throw new IllegalArgumentException(
                 MessageFormat.format("Slot {0} assignment is not specified", slot.name())
@@ -282,6 +295,7 @@ public class Run implements ServantCommand {
 
     private void onShutdown() {
         tempChannels.forEach(channel -> {
+            LOG.info("Run::server.channel destroy");
             //noinspection ResultOfMethodCallIgnored
             server.channel(Channels.ChannelCommand.newBuilder()
                 .setAuth(auth)

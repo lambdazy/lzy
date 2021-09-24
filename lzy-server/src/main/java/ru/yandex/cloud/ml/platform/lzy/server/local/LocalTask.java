@@ -5,6 +5,7 @@ import io.grpc.ManagedChannelBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
@@ -129,6 +130,7 @@ public abstract class LocalTask implements Task {
         state(State.CONNECTED);
         try {
             progressIt.forEachRemaining(progress -> {
+                LOG.info("LocalTask::Progress " + JsonUtils.printRequest(progress));
                 this.progress(progress);
                 switch (progress.getStatusCase()) {
                     case STARTED:

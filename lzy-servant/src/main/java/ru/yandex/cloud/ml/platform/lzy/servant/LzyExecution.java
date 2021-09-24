@@ -12,6 +12,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.InFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.LineReaderSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.LocalOutFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.LzySlotBase;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.OutFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.WriterSlot;
@@ -24,6 +25,8 @@ import java.io.LineNumberReader;
 import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -63,8 +66,14 @@ public class LzyExecution {
             return slots.get(spec.name());
         try {
             final LzySlot slot = createSlot(spec, binding);
-            if (slot.state() != Operations.SlotStatus.State.CLOSED)
-                slots.put(spec.name(), slot);
+            if (slot.state() != Operations.SlotStatus.State.CLOSED) {
+                LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
+                if (spec.name().startsWith("local://")) { // No scheme in slot name
+                    slots.put(spec.name().substring("local://".length()), slot);
+                } else {
+                    slots.put(spec.name(), slot);
+                }
+            }
 
             slot.onState(Operations.SlotStatus.State.CLOSED, () -> {
                 progress(Servant.ExecutionProgress.newBuilder()
@@ -75,6 +84,7 @@ public class LzyExecution {
                     ).build()
                 );
                 synchronized (slots) {
+                    LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
                     slots.remove(slot.name());
                     slots.notifyAll();
                 }
@@ -83,11 +93,13 @@ public class LzyExecution {
                 binding = "";
             else if (binding.startsWith("channel:"))
                 binding = binding.substring("channel:".length());
+
+            final String slotPath = URI.create(spec.name()).getPath();
             progress(Servant.ExecutionProgress.newBuilder().setAttach(
                 Servant.SlotAttach.newBuilder()
                     .setChannel(binding)
                     .setSlot(gRPCConverter.to(spec))
-                    .setUri(servantUri.toString() + spec.name())
+                    .setUri(servantUri.toString() + slotPath)
                     .build()
             ).build());
             LOG.info("Configured slot " + spec.name() + " " + slot);
@@ -113,6 +125,8 @@ public class LzyExecution {
                     case INPUT:
                         return new InFileSlot(taskId, spec);
                     case OUTPUT:
+                        if (spec.name().startsWith("local://"))
+                            return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()));
                         return new OutFileSlot(taskId, spec);
                 }
                 break;
@@ -144,9 +158,9 @@ public class LzyExecution {
                 StandardCharsets.UTF_8
             )));
             final int rc = exec.waitFor();
-            LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::close);
             synchronized (slots) {
+                LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
                 while (!slots.isEmpty()) {
                     slots.wait();
                 }

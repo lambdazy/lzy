@@ -14,6 +14,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {
@@ -32,6 +33,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
 
     @Override
     public void connect(URI slotUri) {
+        LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri);
         connected = slotUri;
         servantSlotCh = ManagedChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
             .usePlaintext()
@@ -60,6 +62,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                 if (next.hasChunk()) {
                     final ByteString chunk = next.getChunk();
                     try {
+                        LOG.info("From {} chunk received {}", name(), chunk.toString(StandardCharsets.UTF_8));
                         onChunk(chunk);
                     } catch (IOException ioe) {
                         LOG.warn(

@@ -13,7 +13,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -53,20 +52,20 @@ public class Touch implements ServantCommand {
             .build();
         final LzyServantGrpc.LzyServantBlockingStub servant = LzyServantGrpc.newBlockingStub(servantCh);
         final Servant.CreateSlotCommand.Builder createCommandBuilder = Servant.CreateSlotCommand.newBuilder();
-        if (command.hasOption('s')) {
+        if (localCmd.hasOption('s')) {
             final Operations.Slot.Builder slotBuilder = Operations.Slot.newBuilder();
             {
                 final Path originalPath = Paths.get(command.getArgs()[1]).toAbsolutePath();
                 final Path lzyFsRoot = Paths.get(command.getOptionValue('m'));
                 if (!originalPath.startsWith(lzyFsRoot)) {
-                    throw new IllegalArgumentException("Slot path must be in lzy-fs: " + lzyFsRoot.toString());
+                    throw new IllegalArgumentException("Slot path must be in lzy-fs: " + lzyFsRoot);
                 }
                 final Path relativePath = lzyFsRoot.relativize(originalPath);
                 if (LzyFS.roots().stream().anyMatch(p -> relativePath.startsWith("/" + p))) {
                     throw new IllegalArgumentException("System paths: " + LzyFS.roots() + " are prohibited for slots declaration");
                 }
 
-                slotBuilder.setName("/" + relativePath.toString());
+                slotBuilder.setName("/" + relativePath);
             }
             final String slotDefinition = localCmd.getOptionValue('s');
             if (slotDefinition.endsWith(".json")) { // treat as file

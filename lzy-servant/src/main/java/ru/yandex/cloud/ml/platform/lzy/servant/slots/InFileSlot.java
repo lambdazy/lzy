@@ -28,8 +28,12 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private final OutputStream outputStream;
 
     public InFileSlot(String tid, Slot definition) throws IOException {
+        this(tid, definition, Files.createTempFile("lzy", "file-slot"));
+    }
+
+    public InFileSlot(String tid, Slot definition, Path storage) throws IOException {
         super(tid, definition);
-        storage = Files.createTempFile("lzy", "file-slot");
+        this.storage = storage;
         outputStream = Files.newOutputStream(storage);
     }
 
@@ -48,7 +52,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
     @Override
     public Path location() {
-        return Path.of(name());
+        return Path.of(URI.create(name()).getPath());
     }
 
     @Override
@@ -113,8 +117,9 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
                 channel.position(offset);
                 final ByteBuffer bb = ByteBuffer.wrap(bytes);
                 int read = channel.read(bb);
+                LOG.info("Read slot {} from file {}: {}", name(), storage.toString(), read);
                 if (read < 0)
-                    return -1;
+                    return 0;
                 buf.put(0, bytes, 0, read);
                 return read;
             }
