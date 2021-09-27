@@ -131,6 +131,7 @@ public class LzyServant {
             final Impl impl = new Impl(root, servantAddress, servantInternalAddress, serverAddr, authBuilder.build());
             final Server server = ServerBuilder.forPort(servantPort).addService(impl).build();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                LOG.info("Shutdown hook in servant {}", servantAddress);
                 server.shutdown();
                 impl.close();
             }));
@@ -320,11 +321,13 @@ public class LzyServant {
                 this.currentExecution = new LzyExecution(null, null, servantInternalAddress);
             }
             this.currentExecution.onProgress(progress -> {
+                LOG.info("Servant::progress {} {}", servantAddress, JsonUtils.printRequest(progress));
                 responseObserver.onNext(progress);
                 if (progress.hasDetach()) {
                     lzyFS.removeSlot(progress.getDetach().getSlot().getName());
                 }
                 if (progress.hasExit()) {
+                    LOG.info("Servant::exit {}", servantAddress);
                     this.currentExecution = null;
                     responseObserver.onCompleted();
                 }
@@ -462,7 +465,7 @@ public class LzyServant {
 
         @Override
         public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
-            LOG.info("Servant::stop");
+            LOG.info("Servant::stop {}", servantAddress);
             responseObserver.onNext(IAM.Empty.newBuilder().build());
             responseObserver.onCompleted();
             System.exit(0);

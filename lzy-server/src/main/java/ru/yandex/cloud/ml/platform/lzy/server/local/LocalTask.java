@@ -128,6 +128,7 @@ public abstract class LocalTask implements Task {
         );
         final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
         state(State.CONNECTED);
+        LOG.info("Server is attached to servant {}", servantURI);
         try {
             progressIt.forEachRemaining(progress -> {
                 LOG.info("LocalTask::Progress " + JsonUtils.printRequest(progress));
@@ -178,6 +179,7 @@ public abstract class LocalTask implements Task {
         }
         finally {
             state(State.FINISHED);
+            LOG.info("Stopping servant {}", servantURI);
             //noinspection ResultOfMethodCallIgnored
             servant.stop(IAM.Empty.newBuilder().build());
         }
