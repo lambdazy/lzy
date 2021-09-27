@@ -1,10 +1,16 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -19,6 +25,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -43,12 +50,17 @@ import java.util.concurrent.ForkJoinPool;
 public class Run implements ServantCommand {
     private static final Logger LOG = LogManager.getLogger(Run.class);
     private static final int BUFFER_SIZE = 4096;
+    private static final Options options = new Options();
+
+    static {
+        options.addOption(new Option("m", "mapping", true, "Slot-channel mapping"));
+    }
 
     private final Set<String> tempChannels = new HashSet<>();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private LzyServerGrpc.LzyServerBlockingStub server;
     private IAM.Auth auth;
     private Map<String, Map<String, String>> pipesConfig;
-    private Map<String, String> existingBindings;
     private LzyServantGrpc.LzyServantBlockingStub servant;
     private long pid;
     private String lzyRoot;
@@ -57,6 +69,21 @@ public class Run implements ServantCommand {
 
     @Override
     public int execute(CommandLine command) throws Exception {
+        final CommandLine localCmd;
+        final HelpFormatter cliHelp = new HelpFormatter();
+        try {
+            localCmd = new DefaultParser().parse(options, command.getArgs(), false);
+        } catch (ParseException e) {
+            cliHelp.printHelp("channel", options);
+            return -1;
+        }
+        final Map<String, String> bindings = new HashMap<>();
+        if (localCmd.hasOption('m')) {
+            //Slot name -> Channel ID
+            //noinspection unchecked
+            bindings.putAll(objectMapper.readValue(new File(localCmd.getOptionValue('m')), Map.class));
+        }
+
         lzyRoot = command.getOptionValue('m');
         pid = ProcessHandle.current().pid();
         pipesConfig = pipesConfig();
@@ -77,7 +104,6 @@ public class Run implements ServantCommand {
                 .build();
             servant = LzyServantGrpc.newBlockingStub(servantCh);
         }
-        existingBindings = existingBindings();
 
         final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
         JsonFormat.parser().merge(System.getenv("ZYGOTE"), builder);
@@ -88,9 +114,13 @@ public class Run implements ServantCommand {
         taskSpec.setZygote(grpcZygote);
         zygote.slots().forEach(slot -> {
             final String binding;
-            if (slot.media() == Slot.Media.ARG)
+            if (slot.media() == Slot.Media.ARG) {
                 binding = String.join(" ", command.getArgList().subList(1, command.getArgList().size()));
-            else binding = "channel:" + resolveChannel(slot);
+            } else if (bindings.containsKey(slot.name())) {
+                binding = "channel:" + bindings.get(slot.name());
+            } else {
+                binding = "channel:" + resolveChannel(slot);
+            }
             taskSpec.addAssignmentsBuilder()
                 .setSlot(gRPCConverter.to(slot))
                 .setBinding(binding)
@@ -102,8 +132,9 @@ public class Run implements ServantCommand {
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
-                if (progress.hasDetach() && "/dev/stdin".equals(progress.getDetach().getSlot().getName()))
+                if (progress.hasDetach() && "/dev/stdin".equals(progress.getDetach().getSlot().getName())) {
                     System.in.close();
+                }
             } catch (InvalidProtocolBufferException e) {
                 LOG.warn("Unable to parse execution progress", e);
             } catch (IOException e) {
@@ -131,8 +162,10 @@ public class Run implements ServantCommand {
                 'i', "node",
                 'n', "name"
             );
-            while((line = lineNumberReader.readLine()) != null) {
-                if (line.isEmpty()) continue;
+            while ((line = lineNumberReader.readLine()) != null) {
+                if (line.isEmpty()) {
+                    continue;
+                }
                 switch (line.charAt(0)) {
                     case 'p':
                         break;
@@ -156,15 +189,6 @@ public class Run implements ServantCommand {
         return pipeMappings;
     }
 
-    private Map<String, String> existingBindings() {
-        final Map<String, String> existingBindings = new HashMap<>();
-        server.channelsStatus(auth).getStatusesList()
-            .forEach(channelStatus -> channelStatus.getConnectedList().forEach(slotStatus ->
-                existingBindings.put(slotStatus.getDeclaration().getName(), channelStatus.getChannel().getChannelId())
-            ));
-        return existingBindings;
-    }
-
     private String resolveChannel(Slot slot) {
         LOG.info("Creating custom slot " + slot);
         final String prefix = (auth.hasTask() ? auth.getTask().getTaskId() : auth.getUser().getUserId()) + ":" + pid;
@@ -178,12 +202,12 @@ public class Run implements ServantCommand {
                     if (!pipeConfig.getOrDefault("node", "").isEmpty()) { // linux
                         channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("node");
                         pipe = true;
-                    }
-                    else if (!pipeConfig.getOrDefault("name", "").isEmpty()) { // macos
+                    } else if (!pipeConfig.getOrDefault("name", "").isEmpty()) { // macos
                         channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("name");
                         pipe = true;
+                    } else {
+                        channelName = UUID.randomUUID().toString();
                     }
-                    else channelName = UUID.randomUUID().toString();
 
                     final String slotName = String.join("/", "/tasks", prefix, devSlot);
                     createChannel(slot, channelName);
@@ -211,12 +235,12 @@ public class Run implements ServantCommand {
                     if (!pipeConfig.getOrDefault("node", "").isEmpty()) { // linux
                         channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("node");
                         pipe = true;
-                    }
-                    else if (pipeConfig.getOrDefault("device", "").startsWith("0x")) { // macos
+                    } else if (pipeConfig.getOrDefault("device", "").startsWith("0x")) { // macos
                         channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("name");
                         pipe = true;
+                    } else {
+                        channelName = UUID.randomUUID().toString();
                     }
-                    else channelName = UUID.randomUUID().toString();
 
                     final String slotName = String.join("/", "/tasks", prefix, devSlot);
                     final String channelId = createChannel(slot, channelName);
@@ -243,8 +267,6 @@ public class Run implements ServantCommand {
                         MessageFormat.format("Illegal slot found: {0}", slot.name())
                     );
             }
-        } else if (existingBindings.containsKey(slot.name())) {
-            return existingBindings.get(slot.name());
         } else {
             throw new IllegalArgumentException(
                 MessageFormat.format("Slot {0} assignment is not specified", slot.name())
@@ -274,8 +296,7 @@ public class Run implements ServantCommand {
                 )
                 .build()
             );
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOG.warn("Unable to create slot: " + slotName, e);
         }
     }

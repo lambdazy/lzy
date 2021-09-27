@@ -14,6 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -49,37 +50,30 @@ public class RunTest {
         server.close();
     }
 
-    @SuppressWarnings("SameParameterValue")
-    private ExecutionResult publishAndRun(FileIOOperation operation, String arguments) {
-        servant.publish(operation.getName(), operation);
-        final ExecutionResult result = servant.run(operation.getName(), arguments);
-
-        System.out.print("\u001B[31m");
-        System.out.println("EXECUTED COMMAND: " + operation.getName());
-        System.out.print("\u001B[30m");
-        System.out.println("Stdout:\n" + result.stdout());
-        System.out.println("Stderr:\n" + result.stderr());
-        System.out.println("ExitCode:\n" + result.exitCode());
-        return result;
-    }
-
     @Test
     public void testEcho42() {
+        //Arrange
         final FileIOOperation echo42 = new FileIOOperation(
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
             "echo 42"
         );
-        final ExecutionResult result = publishAndRun(echo42, "");
+
+        //Act
+        servant.publish(echo42.getName(), echo42);
+        final ExecutionResult result = servant.run(echo42.getName(), "", Map.of());
+
+        //Assert
         Assert.assertEquals("42\n", result.stdout());
     }
 
     @Test
-    public void testInputLocalFileReturnStdout() {
+    public void testReadSlotToStdout() {
         //Arrange
         final String fileContent = "fileContent";
-        final String fileName = "/tmp/lzy/tmp/some_file.txt";
+        final String fileName = "/tmp/lzy/kek/some_file.txt";
+        final String localFileName = "/tmp/lzy/lol/some_file.txt";
         final String channelName = "channel1";
         final FileIOOperation cat = new FileIOOperation(
             "cat_lzy",
@@ -90,10 +84,15 @@ public class RunTest {
 
         //Act
         servant.createChannel(channelName);
-        servant.createSlot(fileName, channelName, Utils.outFileSot());
+        servant.createSlot(localFileName, channelName, Utils.outFileSot());
         ForkJoinPool.commonPool()
-            .execute(() -> servant.execute("bash", "-c", "echo " + fileContent + " > " + fileName));
-        final ExecutionResult result = publishAndRun(cat, "");
+            .execute(() -> servant.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
+        servant.publish(cat.getName(), cat);
+        final ExecutionResult result = servant.run(
+            cat.getName(),
+            "",
+            Map.of(fileName.substring(LZY_MOUNT.length()), channelName)
+        );
 
         //Assert
         Assert.assertEquals(fileContent + "\n", result.stdout());

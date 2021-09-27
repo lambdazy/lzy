@@ -1,7 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
@@ -14,6 +18,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public interface LzyServantTestContext extends AutoCloseable {
+    ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    Logger LOGGER = LoggerFactory.getLogger(LzyServantTestContext.class);
     int DEFAULT_TIMEOUT_SEC = 30;
 
     Servant startTerminalAtPathAndPort(String path, int port, String serverHost, int serverPort);
@@ -35,17 +41,35 @@ public interface LzyServantTestContext extends AutoCloseable {
 
         ExecutionResult execute(Map<String, String> env, String... command);
 
-        default ExecutionResult run(String zygoteName, String arguments) {
-            return execute(
+        default ExecutionResult run(String zygoteName, String arguments, Map<String, String> bindings) {
+            try {
+                final ExecutionResult bash = execute(
+                    Collections.emptyMap(),
+                    "bash",
+                    "-c",
+                    "echo '" + OBJECT_MAPPER.writeValueAsString(bindings) + "' > bindings.json"
+                );
+                System.out.println(bash);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+            final ExecutionResult execute = execute(
                 Collections.emptyMap(),
                 "/bin/bash",
                 "-c",
                 String.join(
                     " ",
                     mount() + "/bin/" + zygoteName,
+                    "-m",
+                    "bindings.json",
                     arguments
                 )
             );
+            LOGGER.info("\u001B[31m\nEXECUTED COMMAND: {}\u001B[30m", zygoteName);
+            LOGGER.info("Stdout: {}", execute.stdout());
+            LOGGER.info("Stderr: {}", execute.stderr());
+            LOGGER.info("Exit code: {}", execute.exitCode());
+            return execute;
         }
 
         default void publish(String zygoteName, AtomicZygote zygote) {
