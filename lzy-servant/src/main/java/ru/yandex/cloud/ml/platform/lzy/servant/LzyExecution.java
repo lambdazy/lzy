@@ -16,6 +16,8 @@ import ru.yandex.cloud.ml.platform.lzy.servant.slots.LocalOutFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.LzySlotBase;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.OutFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.WriterSlot;
+import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
+import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -25,14 +27,13 @@ import java.io.LineNumberReader;
 import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -49,8 +50,9 @@ public class LzyExecution {
     private final WriterSlot stdinSlot;
     private Process exec;
     private String arguments = "";
-    private final Map<String, LzySlot> slots = new HashMap<>();
-    private List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
+    private final Map<String, LzySlot> slots = new ConcurrentHashMap<>();
+    private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
+    private final LockManager lockManager = new LocalLockManager();
 
     public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri) {
         this.taskId = taskId;
@@ -62,85 +64,98 @@ public class LzyExecution {
     }
 
     public LzySlot configureSlot(Slot spec, String binding) {
-        if (slots.containsKey(spec.name()))
-            return slots.get(spec.name());
+        final Lock lock = lockManager.getOrCreate(spec.name());
+        lock.lock();
         try {
-            final LzySlot slot = createSlot(spec, binding);
-            if (slot.state() != Operations.SlotStatus.State.CLOSED) {
-                LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
-                if (spec.name().startsWith("local://")) { // No scheme in slot name
-                    slots.put(spec.name().substring("local://".length()), slot);
-                } else {
-                    slots.put(spec.name(), slot);
+            if (slots.containsKey(spec.name()))
+                return slots.get(spec.name());
+            try {
+                final LzySlot slot = createSlot(spec, binding);
+                if (slot.state() != Operations.SlotStatus.State.CLOSED) {
+                    LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
+                    if (spec.name().startsWith("local://")) { // No scheme in slot name
+                        slots.put(spec.name().substring("local://".length()), slot);
+                    } else {
+                        slots.put(spec.name(), slot);
+                    }
                 }
-            }
 
-            slot.onState(Operations.SlotStatus.State.CLOSED, () -> {
-                progress(Servant.ExecutionProgress.newBuilder()
-                    .setDetach(Servant.SlotDetach.newBuilder()
+                slot.onState(Operations.SlotStatus.State.CLOSED, () -> {
+                    progress(Servant.ExecutionProgress.newBuilder()
+                        .setDetach(Servant.SlotDetach.newBuilder()
+                            .setSlot(gRPCConverter.to(spec))
+                            .setUri(servantUri.toString() + spec.name())
+                            .build()
+                        ).build()
+                    );
+                    synchronized (slots) {
+                        LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
+                        slots.remove(slot.name());
+                        slots.notifyAll();
+                    }
+                });
+                if (binding == null)
+                    binding = "";
+                else if (binding.startsWith("channel:"))
+                    binding = binding.substring("channel:".length());
+
+                final String slotPath = URI.create(spec.name()).getPath();
+                progress(Servant.ExecutionProgress.newBuilder().setAttach(
+                    Servant.SlotAttach.newBuilder()
+                        .setChannel(binding)
                         .setSlot(gRPCConverter.to(spec))
-                        .setUri(servantUri.toString() + spec.name())
+                        .setUri(servantUri.toString() + slotPath)
                         .build()
-                    ).build()
-                );
-                synchronized (slots) {
-                    LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
-                    slots.remove(slot.name());
-                    slots.notifyAll();
-                }
-            });
-            if (binding == null)
-                binding = "";
-            else if (binding.startsWith("channel:"))
-                binding = binding.substring("channel:".length());
-
-            final String slotPath = URI.create(spec.name()).getPath();
-            progress(Servant.ExecutionProgress.newBuilder().setAttach(
-                Servant.SlotAttach.newBuilder()
-                    .setChannel(binding)
-                    .setSlot(gRPCConverter.to(spec))
-                    .setUri(servantUri.toString() + slotPath)
-                    .build()
-            ).build());
-            LOG.info("Configured slot " + spec.name() + " " + slot);
-            return slot;
-        }
-        catch (IOException ioe) {
-            throw new RuntimeException(ioe);
+                ).build());
+                LOG.info("Configured slot " + spec.name() + " " + slot);
+                return slot;
+            } catch (IOException ioe) {
+                throw new RuntimeException(ioe);
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
     public LzySlot createSlot(Slot spec, String binding) throws IOException {
-        if (spec.equals(Slot.STDIN))
-            return stdinSlot;
-        else if (spec.equals(Slot.STDOUT))
-            return stdoutSlot;
-        else if (spec.equals(Slot.STDERR))
-            return stderrSlot;
+        final Lock lock = lockManager.getOrCreate(spec.name());
+        lock.lock();
+        try {
+            if (spec.equals(Slot.STDIN))
+                return stdinSlot;
+            else if (spec.equals(Slot.STDOUT))
+                return stdoutSlot;
+            else if (spec.equals(Slot.STDERR))
+                return stderrSlot;
 
-        switch (spec.media()) {
-            case PIPE:
-            case FILE: {
-                switch (spec.direction()) {
-                    case INPUT:
-                        return new InFileSlot(taskId, spec);
-                    case OUTPUT:
-                        if (spec.name().startsWith("local://"))
-                            return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()));
-                        return new OutFileSlot(taskId, spec);
+            switch (spec.media()) {
+                case PIPE:
+                case FILE: {
+                    switch (spec.direction()) {
+                        case INPUT:
+                            return new InFileSlot(taskId, spec);
+                        case OUTPUT:
+                            if (spec.name().startsWith("local://"))
+                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()));
+                            return new OutFileSlot(taskId, spec);
+                    }
+                    break;
                 }
-                break;
+                case ARG:
+                    arguments = binding;
+                    return new LzySlotBase(spec) {};
             }
-            case ARG:
-                arguments = binding;
-                return new LzySlotBase(spec){};
+            throw new UnsupportedOperationException("Not implemented yet");
+        } finally {
+            lock.unlock();
         }
-        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     public void start() {
         if (zygote == null)
             throw new IllegalStateException("Unable to start execution while in terminal mode");
+        else if (exec != null)
+            throw new IllegalStateException("LzyExecution has been already started");
         try {
             progress(Servant.ExecutionProgress.newBuilder()
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
@@ -183,11 +198,11 @@ public class LzyExecution {
         return slots.values().stream();
     }
 
-    public void progress(Servant.ExecutionProgress progress) {
+    public synchronized void progress(Servant.ExecutionProgress progress) {
         listeners.forEach(l -> l.accept(progress));
     }
 
-    public void onProgress(Consumer<Servant.ExecutionProgress> listener) {
+    public synchronized void onProgress(Consumer<Servant.ExecutionProgress> listener) {
         listeners.add(listener);
     }
 
@@ -203,6 +218,7 @@ public class LzyExecution {
         }
     }
 
+    @SuppressWarnings("unused")
     public Zygote zygote() {
         return zygote;
     }
