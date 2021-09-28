@@ -23,23 +23,23 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public class LocalTasksManager implements TasksManager {
-    private static final Logger LOG = LogManager.getLogger(LocalTasksManager.class);
+public class InMemTasksManager implements TasksManager {
+    private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     private final URI serverURI;
     private final ChannelsRepository channels;
-    private final Map<UUID, LocalTask> tasks = new HashMap<>();
+    private final Map<UUID, Task> tasks = new HashMap<>();
 
     private final Map<String, List<Task>> userTasks = new HashMap<>();
     private final Map<Task, Task> parents = new HashMap<>();
     private final Map<Task, String> owners = new HashMap<>();
-    private final Map<Task, List<LocalTask>> children = new HashMap<>();
+    private final Map<Task, List<Task>> children = new HashMap<>();
 
     private final Map<Task, List<Channel>> taskChannels = new HashMap<>();
     private final Map<String, List<Channel>> userChannels = new HashMap<>();
 
     private final Map<String, Map<Slot, Channel>> userSlots = new HashMap<>();
 
-    public LocalTasksManager(URI serverURI, ChannelsRepository channels) {
+    public InMemTasksManager(URI serverURI, ChannelsRepository channels) {
         this.serverURI = serverURI;
         this.channels = channels;
     }
@@ -88,7 +88,7 @@ public class LocalTasksManager implements TasksManager {
 
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
-        final LocalTask task = new LocalDockerTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
+        final Task task = new LocalDockerTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
         tasks.put(task.tid(), task);
         if (parent != null)
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);
@@ -125,7 +125,7 @@ public class LocalTasksManager implements TasksManager {
 
     @Override
     public Stream<Task> ps() {
-        return tasks.values().stream().map(t -> t);
+        return tasks.values().stream();
     }
 
     @Override

@@ -25,7 +25,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.server.local.Binding;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsRepository;
-import ru.yandex.cloud.ml.platform.lzy.server.local.LocalTasksManager;
+import ru.yandex.cloud.ml.platform.lzy.server.local.InMemTasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.SimpleInMemAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
@@ -89,7 +89,7 @@ public class LzyServer {
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
         private final ChannelsRepository channels = new LocalChannelsRepository();
-        private final TasksManager tasks = new LocalTasksManager(URI.create("http://localhost:" + port), channels);
+        private final TasksManager tasks = new InMemTasksManager(URI.create("http://localhost:" + port), channels);
         private final Authenticator auth = new SimpleInMemAuthenticator();
 
         @Override

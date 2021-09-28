@@ -30,8 +30,8 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public abstract class LocalTask implements Task {
-    private static final Logger LOG = LogManager.getLogger(LocalTask.class);
+public abstract class BaseTask implements Task {
+    private static final Logger LOG = LogManager.getLogger(BaseTask.class);
 
     private final String owner;
     private final UUID tid;
@@ -48,7 +48,7 @@ public abstract class LocalTask implements Task {
     private URI servantURI;
     private LzyServantGrpc.LzyServantBlockingStub servant;
 
-    LocalTask(
+    BaseTask(
         String owner,
         UUID tid,
         Zygote workload,

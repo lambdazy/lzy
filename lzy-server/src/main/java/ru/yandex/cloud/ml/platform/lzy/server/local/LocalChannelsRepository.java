@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LocalChannelsRepository implements ChannelsRepository {
-    private static final Logger LOG = LogManager.getLogger(LocalTasksManager.class);
+    private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     private final Map<String, ChannelEx> channels = new HashMap<>();
     private final Map<URI, ChannelEx> ibindings = new ConcurrentHashMap<>();
     private final Map<URI, Binding> bindings = new ConcurrentHashMap<>();
