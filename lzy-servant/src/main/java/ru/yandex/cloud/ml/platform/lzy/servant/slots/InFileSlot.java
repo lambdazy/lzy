@@ -57,10 +57,9 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
     @Override
     public long size() {
-        waitForState(Operations.SlotStatus.State.SUSPENDED);
+        waitForState(Operations.SlotStatus.State.OPEN);
         try {
-            final long size = Files.size(storage);
-            return size;
+            return Files.size(storage);
         } catch (IOException e) {
             LOG.warn("Unable to get a storage file size", e);
             return 0;
@@ -108,7 +107,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
     @Override
     public FileContents open(FuseFileInfo fi) throws IOException {
-        waitForState(Operations.SlotStatus.State.SUSPENDED);
+        waitForState(Operations.SlotStatus.State.OPEN);
         final SeekableByteChannel channel = Files.newByteChannel(storage);
         return new FileContents() {
             @Override
@@ -131,7 +130,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
             @Override
             public void close() throws IOException {
-                InFileSlot.this.close();
+                InFileSlot.this.suspend();
                 channel.close();
             }
         };

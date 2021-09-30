@@ -176,8 +176,8 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);
     }
 
-    public void close() {
-        super.close();
+    public void destroy() {
+        super.destroy();
         ForkJoinPool.commonPool().execute(() -> {
             Thread.yield();
             closeActions.forEach(Runnable::run);

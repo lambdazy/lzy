@@ -67,11 +67,12 @@ public class LzyExecution {
         final Lock lock = lockManager.getOrCreate(spec.name());
         lock.lock();
         try {
-            if (slots.containsKey(spec.name()))
+            if (slots.containsKey(spec.name())) {
                 return slots.get(spec.name());
+            }
             try {
                 final LzySlot slot = createSlot(spec, binding);
-                if (slot.state() != Operations.SlotStatus.State.CLOSED) {
+                if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
                     if (spec.name().startsWith("local://")) { // No scheme in slot name
                         slots.put(spec.name().substring("local://".length()), slot);
@@ -80,24 +81,32 @@ public class LzyExecution {
                     }
                 }
 
-                slot.onState(Operations.SlotStatus.State.CLOSED, () -> {
-                    progress(Servant.ExecutionProgress.newBuilder()
-                        .setDetach(Servant.SlotDetach.newBuilder()
-                            .setSlot(gRPCConverter.to(spec))
-                            .setUri(servantUri.toString() + spec.name())
-                            .build()
-                        ).build()
-                    );
+                slot.onState(
+                    Operations.SlotStatus.State.SUSPENDED,
+                    () -> {
+                        if (zygote != null) { //not terminal
+                            progress(Servant.ExecutionProgress.newBuilder()
+                                .setDetach(Servant.SlotDetach.newBuilder()
+                                    .setSlot(gRPCConverter.to(spec))
+                                    .setUri(servantUri.toString() + spec.name())
+                                    .build()
+                                ).build()
+                            );
+                        }
+                    }
+                );
+                slot.onState(Operations.SlotStatus.State.DESTROYED, () -> {
                     synchronized (slots) {
                         LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
                         slots.remove(slot.name());
                         slots.notifyAll();
                     }
                 });
-                if (binding == null)
+                if (binding == null) {
                     binding = "";
-                else if (binding.startsWith("channel:"))
+                } else if (binding.startsWith("channel:")) {
                     binding = binding.substring("channel:".length());
+                }
 
                 final String slotPath = URI.create(spec.name()).getPath();
                 progress(Servant.ExecutionProgress.newBuilder().setAttach(
@@ -121,12 +130,13 @@ public class LzyExecution {
         final Lock lock = lockManager.getOrCreate(spec.name());
         lock.lock();
         try {
-            if (spec.equals(Slot.STDIN))
+            if (spec.equals(Slot.STDIN)) {
                 return stdinSlot;
-            else if (spec.equals(Slot.STDOUT))
+            } else if (spec.equals(Slot.STDOUT)) {
                 return stdoutSlot;
-            else if (spec.equals(Slot.STDERR))
+            } else if (spec.equals(Slot.STDERR)) {
                 return stderrSlot;
+            }
 
             switch (spec.media()) {
                 case PIPE:
@@ -135,8 +145,9 @@ public class LzyExecution {
                         case INPUT:
                             return new InFileSlot(taskId, spec);
                         case OUTPUT:
-                            if (spec.name().startsWith("local://"))
+                            if (spec.name().startsWith("local://")) {
                                 return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()));
+                            }
                             return new OutFileSlot(taskId, spec);
                     }
                     break;
@@ -152,10 +163,11 @@ public class LzyExecution {
     }
 
     public void start() {
-        if (zygote == null)
+        if (zygote == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
-        else if (exec != null)
+        } else if (exec != null) {
             throw new IllegalStateException("LzyExecution has been already started");
+        }
         try {
             progress(Servant.ExecutionProgress.newBuilder()
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
@@ -173,7 +185,7 @@ public class LzyExecution {
                 StandardCharsets.UTF_8
             )));
             final int rc = exec.waitFor();
-            Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::close);
+            Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
             synchronized (slots) {
                 LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
                 while (!slots.isEmpty()) {
@@ -184,8 +196,7 @@ public class LzyExecution {
                 .setExit(Servant.ExecutionConcluded.newBuilder().setRc(rc).build())
                 .build()
             );
-        }
-        catch (IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             LOG.warn("Exception during task execution", e);
             progress(Servant.ExecutionProgress.newBuilder()
                 .setExit(Servant.ExecutionConcluded.newBuilder().setRc(-1).build())

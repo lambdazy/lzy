@@ -323,9 +323,6 @@ public class LzyServant {
             this.currentExecution.onProgress(progress -> {
                 LOG.info("Servant::progress {} {}", servantAddress, JsonUtils.printRequest(progress));
                 responseObserver.onNext(progress);
-                if (progress.hasDetach()) {
-                    lzyFS.removeSlot(progress.getDetach().getSlot().getName());
-                }
                 if (progress.hasExit()) {
                     LOG.info("Servant::exit {}", servantAddress);
                     this.currentExecution = null;
@@ -403,7 +400,7 @@ public class LzyServant {
                     ((LzyInputSlot) slot).connect(URI.create(connect.getSlotUri()));
                     break;
                 case DISCONNECT:
-                    ((LzyInputSlot) slot).disconnect();
+                    slot.suspend();
                     break;
                 case STATUS:
                     final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());
@@ -413,8 +410,9 @@ public class LzyServant {
                     responseObserver.onNext(Servant.SlotCommandStatus.newBuilder().setStatus(status.build()).build());
                     responseObserver.onCompleted();
                     return;
-                case CLOSE:
-                    slot.close();
+                case DESTROY:
+                    slot.destroy();
+                    lzyFS.removeSlot(slot.name());
                     LOG.info("Explicitly closing slot " + slot.name());
                     break;
                 default:

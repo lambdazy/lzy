@@ -3,7 +3,6 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
@@ -18,13 +17,13 @@ public class LzySlotBase implements LzySlot {
     private static final Logger LOG = LogManager.getLogger(LzySlotBase.class);
     private final Slot definition;
     private Operations.SlotStatus.State state = Operations.SlotStatus.State.UNBOUND;
-    private Map<Operations.SlotStatus.State, List<Runnable>> actions = Collections.synchronizedMap(new HashMap<>());
+    private final Map<Operations.SlotStatus.State, List<Runnable>> actions = Collections.synchronizedMap(new HashMap<>());
 
     @SuppressWarnings("WeakerAccess")
     protected LzySlotBase(Slot definition) {
         this.definition = definition;
         onState(Operations.SlotStatus.State.OPEN, () -> LOG.info("LzySlot::OPEN " + this));
-        onState(Operations.SlotStatus.State.CLOSED, () -> LOG.info("LzySlot::CLOSED " + this));
+        onState(Operations.SlotStatus.State.DESTROYED, () -> LOG.info("LzySlot::DESTROYED " + this));
         onState(Operations.SlotStatus.State.SUSPENDED, () -> LOG.info("LzySlot::SUSPENDED " + this));
     }
 
@@ -56,8 +55,13 @@ public class LzySlotBase implements LzySlot {
     }
 
     @Override
-    public void close() {
-        state(Operations.SlotStatus.State.CLOSED);
+    public void destroy() {
+        state(Operations.SlotStatus.State.DESTROYED);
+    }
+
+    @Override
+    public void suspend() {
+        state(Operations.SlotStatus.State.SUSPENDED);
     }
 
     @Override
@@ -69,7 +73,7 @@ public class LzySlotBase implements LzySlot {
     /* Waits for specific state or slot close **/
     @SuppressWarnings({"WeakerAccess", "SameParameterValue"})
     protected synchronized void waitForState(Operations.SlotStatus.State state) {
-        while (state != this.state && this.state != Operations.SlotStatus.State.CLOSED) {
+        while (state != this.state && this.state != Operations.SlotStatus.State.DESTROYED) {
             try {
                 wait();
             }

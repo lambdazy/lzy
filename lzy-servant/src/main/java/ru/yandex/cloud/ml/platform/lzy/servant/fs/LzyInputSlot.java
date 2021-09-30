@@ -5,5 +5,5 @@ import java.net.URI;
 public interface LzyInputSlot extends LzySlot {
     void connect(URI slotUri);
     void disconnect();
-    void close();
+    void destroy();
 }

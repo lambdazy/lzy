@@ -28,7 +28,7 @@ message SlotCommand {
         ConnectSlotCommand connect = 3;
         DisconnectCommand disconnect = 4;
         StatusCommand status = 5;
-        CloseCommand close = 6;
+        DestroyCommand destroy = 6;
     }
 }
 
@@ -45,7 +45,7 @@ message ConnectSlotCommand {
 message DisconnectCommand {
 }
 
-message CloseCommand {
+message DestroyCommand {
 }
 
 message StatusCommand {
