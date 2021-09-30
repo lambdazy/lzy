@@ -1,0 +1,1 @@
+from .automagic import proxy

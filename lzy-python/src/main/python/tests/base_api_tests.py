@@ -9,10 +9,12 @@ class BaseApiTests(TestCase):
         # Arrange
         self.sink_done = False
 
+        # @op(input_types=(), output_type=str)
         @op
         def source() -> str:
             return "Are you interested in using a neural network to generate text?"
 
+        # @op(input_types=(str,), output_type=list)
         @op
         def process(p: str) -> List[str]:
             res = []
@@ -21,6 +23,7 @@ class BaseApiTests(TestCase):
             return res
 
         # noinspection PyUnusedLocal
+        # @op(input_types=(list,), output_type=type(None))
         @op
         def sink(p: List[str]) -> None:
             self.sink_done = True
@@ -53,10 +56,36 @@ class BaseApiTests(TestCase):
 
     def test_primitive_proxy(self):
         # Arrange
+        # @op(input_types=(), output_type=int)
         @op
         def get_int() -> int:
             return 10
 
+        # @op(input_types=(int,), output_type=float)
+        @op
+        def add_float(val: int) -> float:
+            return val + 0.5
+
+        # Act
+        # noinspection PyUnusedLocal
+        with LzyEnv(local=True) as env:
+            n = get_int()
+            s = 0.0
+            for i in range(n):
+                s += add_float(i)
+
+        # Assert
+        self.assertEqual(10, n)
+        self.assertAlmostEqual(50, s)
+
+    def test_specified_output_types(self):
+        # Arrange
+        # @op(input_types=(), output_type=int)
+        @op(output_type=int)
+        def get_int():
+            return 10
+
+        # @op(input_types=(int,), output_type=float)
         @op
         def add_float(val: int) -> float:
             return val + 0.5
@@ -90,10 +119,12 @@ class BaseApiTests(TestCase):
             def b(self) -> str:
                 return self._b
 
+        # @op(input_types=(), output_type=A)
         @op
         def a() -> A:
             return A('a')
 
+        # @op(input_types=(), output_type=A)
         @op
         def b(val_a: A) -> B:
             return B(val_a.a(), 'b')
