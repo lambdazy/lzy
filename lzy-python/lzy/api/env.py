@@ -6,7 +6,7 @@ from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable
 
 from .buses import Bus
 from .lazy_op import LzyOp
-from whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
+from .whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
 
 T = TypeVar('T')
 
