@@ -5,7 +5,12 @@ import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
+import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,12 +36,22 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             mount,
             "--private-key",
             "/tmp/nonexistent-key",
-            "terminal",
-            "-Dcustom.log.file=terminal.log"
+            "--internal-host",
+            "localhost",
+            "terminal"
+        };
+        final String pathServantLog4jFile =
+            Path.of(System.getProperty("user.dir")).getParent() +
+                "/lzy-servant/src/main/resources/log4j2.yaml";
+        final String[] systemArgs = {
+            "-Djava.library.path=/usr/local/lib",
+            "-Dlog4j.configurationFile=" + pathServantLog4jFile,
+            "-Dcustom.log.file=terminal.log"//,
+            //"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5056"
         };
         final Process process;
         try {
-            process = Utils.javaProcess(LzyServant.class.getCanonicalName(), lzyArgs).inheritIO().start();
+            process = Utils.javaProcess(LzyServant.class.getCanonicalName(), lzyArgs, systemArgs).inheritIO().start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -64,7 +79,36 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
 
             @Override
             public ExecutionResult execute(Map<String, String> env, String... command) {
-                return null;
+                try {
+                    final Process exec = Runtime.getRuntime().exec(command);
+                    final OutputStreamWriter stdin = new OutputStreamWriter(
+                        exec.getOutputStream(),
+                        StandardCharsets.UTF_8
+                    );
+                    stdin.close();
+
+                    final String stdout = IOUtils.toString(exec.getInputStream(), StandardCharsets.UTF_8);
+                    final String stderr = IOUtils.toString(exec.getErrorStream(), StandardCharsets.UTF_8);
+                    final int rc = exec.waitFor();
+                    return new ExecutionResult() {
+                        @Override
+                        public String stdout() {
+                            return stdout;
+                        }
+
+                        @Override
+                        public String stderr() {
+                            return stderr;
+                        }
+
+                        @Override
+                        public int exitCode() {
+                            return rc;
+                        }
+                    };
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             @Override

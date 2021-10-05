@@ -49,7 +49,8 @@ public class Terminal implements ServantCommand {
             .servantName(host)
             .servantInternalName(parse.getOptionValue('i', host))
             .servantPort(port)
-            .root(lzyRoot);
+            .root(lzyRoot)
+            .isTerminal(true);
 
         if (Files.exists(privateKeyPath)) {
             tokenSignature = signToken(terminalToken, privateKeyPath);

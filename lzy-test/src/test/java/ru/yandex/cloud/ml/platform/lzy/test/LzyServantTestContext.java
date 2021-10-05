@@ -144,7 +144,9 @@ public interface LzyServantTestContext extends AutoCloseable {
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
             }
-            Utils.waitFlagUp(() -> pathExists(Path.of(path)), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+            if (slot.direction() == Slot.Direction.OUTPUT) {
+                Utils.waitFlagUp(() -> pathExists(Path.of(path)), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+            }
         }
 
         boolean waitForStatus(ServantStatus status, long timeout, TimeUnit unit);

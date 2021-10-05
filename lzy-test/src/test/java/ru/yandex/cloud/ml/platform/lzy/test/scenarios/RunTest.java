@@ -9,6 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext.Servant.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
@@ -30,11 +31,11 @@ public class RunTest {
     @Before
     public void setUp() {
         server = new LzyServerProcessesContext();
-        servantContext = new LzyServantDockerContext();
+        servantContext = new LzyServantProcessesContext();
         servant = servantContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             9999,
-            server.host(true),
+            server.host(servantContext instanceof LzyServantDockerContext),
             server.port()
         );
         servant.waitForStatus(
@@ -96,6 +97,128 @@ public class RunTest {
 
         //Assert
         Assert.assertEquals(fileContent + "\n", result.stdout());
+    }
+
+    @Test
+    public void testWriteToSlot() {
+        //Arrange
+        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
+        final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
+        final String channelOutName = "channel2";
+
+        final FileIOOperation echo_lzy = new FileIOOperation(
+            "echo_lzy",
+            Collections.emptyList(),
+            List.of(fileOutName.substring(LZY_MOUNT.length())),
+            "echo mama > " + fileOutName
+        );
+
+        //Act
+        servant.createChannel(channelOutName);
+        servant.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
+
+        servant.publish(echo_lzy.getName(), echo_lzy);
+        final ExecutionResult[] result1 = new ExecutionResult[1];
+        ForkJoinPool.commonPool()
+            .execute(() -> result1[0] = servant.execute("bash", "-c", "cat " + localFileOutName));
+        final ExecutionResult result = servant.run(
+            echo_lzy.getName(),
+            "",
+            Map.of(
+                fileOutName.substring(LZY_MOUNT.length()), channelOutName
+            )
+        );
+
+        //Assert
+        Assert.assertEquals("mama\n", result1[0].stdout());
+    }
+
+    @Test
+    public void testReadWrite() {
+        //Arrange
+        final String fileContent = "fileContent";
+        final String fileName = "/tmp/lzy/kek/some_file.txt";
+        final String localFileName = "/tmp/lzy/lol/some_file.txt";
+        final String channelName = "channel1";
+
+        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
+        final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
+        final String channelOutName = "channel2";
+
+        final FileIOOperation cat_to_file = new FileIOOperation(
+            "cat_to_file_lzy",
+            List.of(fileName.substring(LZY_MOUNT.length())),
+            List.of(fileOutName.substring(LZY_MOUNT.length())),
+            "cat " + fileName + " > " + fileOutName
+        );
+
+        //Act
+        servant.createChannel(channelName);
+        servant.createSlot(localFileName, channelName, Utils.outFileSot());
+        servant.createChannel(channelOutName);
+        servant.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
+
+        ForkJoinPool.commonPool()
+            .execute(() -> servant.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
+        servant.publish(cat_to_file.getName(), cat_to_file);
+        final ExecutionResult[] result1 = new ExecutionResult[1];
+        ForkJoinPool.commonPool()
+            .execute(() -> result1[0] = servant.execute("bash", "-c", "cat " + localFileOutName));
+        final ExecutionResult result = servant.run(
+            cat_to_file.getName(),
+            "",
+            Map.of(
+                fileName.substring(LZY_MOUNT.length()), channelName,
+                fileOutName.substring(LZY_MOUNT.length()), channelOutName
+            )
+        );
+
+        //Assert
+        Assert.assertEquals(fileContent + "\n", result1[0].stdout());
+    }
+
+    @Test
+    public void testStartupPy() {
+        //Arrange
+        final String fileContent = "fileContent";
+        final String fileName = "/tmp/lzy/kek/some_file.txt";
+        final String localFileName = "/tmp/lzy/lol/some_file.txt";
+        final String channelName = "channel1";
+
+        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
+        final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
+        final String channelOutName = "channel2";
+
+        final FileIOOperation python_io_file_lzy = new FileIOOperation(
+            "python_io_file_lzy",
+            List.of(fileName.substring(LZY_MOUNT.length())),
+            List.of(fileOutName.substring(LZY_MOUNT.length())),
+            "python3 /lzy-python/src/main/python/lzy/startup.py " + fileName + " " + fileOutName
+        );
+
+        //Act
+        servant.createChannel(channelName);
+        servant.createSlot(localFileName, channelName, Utils.outFileSot());
+        servant.createChannel(channelOutName);
+        servant.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
+
+        ForkJoinPool.commonPool()
+            .execute(() -> servant.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
+        servant.publish(python_io_file_lzy.getName(), python_io_file_lzy);
+        final ExecutionResult[] result1 = new ExecutionResult[1];
+        ForkJoinPool.commonPool()
+            .execute(() -> result1[0] = servant.execute("bash", "-c", "cat " + localFileOutName));
+        final ExecutionResult result = servant.run(
+            python_io_file_lzy.getName(),
+            "",
+            Map.of(
+                fileName.substring(LZY_MOUNT.length()), channelName,
+                fileOutName.substring(LZY_MOUNT.length()), channelOutName
+            )
+        );
+
+        //Assert
+        Assert.assertEquals(fileContent + "\n", result1[0].stdout());
     }
 
     //@Test

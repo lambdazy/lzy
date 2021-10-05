@@ -4,8 +4,6 @@ COPY target/lzy-server-1.0-SNAPSHOT-jar-with-dependencies.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 
-RUN apt-get install -y fuse
-
 ENTRYPOINT ["java", \
             "-Xmx4G", \
             "-Dsun.jnu.encoding=UTF-8", \

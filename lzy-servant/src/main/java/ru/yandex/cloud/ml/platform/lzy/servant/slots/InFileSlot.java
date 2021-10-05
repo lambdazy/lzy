@@ -57,6 +57,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
     @Override
     public long size() {
+        LOG.info("InFileSlot::size() for slot " + name());
         waitForState(Operations.SlotStatus.State.SUSPENDED);
         try {
             final long size = Files.size(storage);

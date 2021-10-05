@@ -29,9 +29,10 @@ public class Utils {
         return flag;
     }
 
-    static ProcessBuilder javaProcess(String clazz, String[] args) {
+    static ProcessBuilder javaProcess(String clazz, String[] args, String[] systemPropertiesArgs) {
         final List<String> command = new ArrayList<>();
         command.add(System.getProperty("java.home") + "/bin" + "/java");
+        command.addAll(Arrays.asList(systemPropertiesArgs));
         command.add("-cp");
         command.add(System.getProperty("java.class.path"));
         command.add(clazz);
@@ -65,6 +66,30 @@ public class Utils {
             @Override
             public Direction direction() {
                 return Direction.OUTPUT;
+            }
+
+            @Override
+            public DataSchema contentType() {
+                return new PlainTextFileSchema();
+            }
+        };
+    }
+
+    public static Slot inFileSot() {
+        return new Slot() {
+            @Override
+            public String name() {
+                return "";
+            }
+
+            @Override
+            public Media media() {
+                return Media.FILE;
+            }
+
+            @Override
+            public Direction direction() {
+                return Direction.INPUT;
             }
 
             @Override

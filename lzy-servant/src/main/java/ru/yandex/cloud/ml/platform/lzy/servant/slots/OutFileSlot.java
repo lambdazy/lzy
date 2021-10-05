@@ -15,6 +15,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -118,6 +119,14 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             }
         });
         return localFileContents;
+    }
+
+    public void flush() {
+        try {
+            Files.writeString(storage, "empty", StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

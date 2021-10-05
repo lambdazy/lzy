@@ -62,7 +62,8 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                     new String[]{
                         "--port",
                         String.valueOf(LZY_SERVER_PORT)
-                    }
+                    },
+                    new String[]{}
                 ).inheritIO().start();
             } catch (IOException e) {
                 throw new RuntimeException(e);

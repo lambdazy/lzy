@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Collectors;
 
 public class Run implements ServantCommand {
     private static final Logger LOG = LogManager.getLogger(Run.class);
@@ -79,9 +80,16 @@ public class Run implements ServantCommand {
         }
         final Map<String, String> bindings = new HashMap<>();
         if (localCmd.hasOption('m')) {
+            final String mappingFile = localCmd.getOptionValue('m');
+            LOG.info("Read mappings from file " + mappingFile);
             //Slot name -> Channel ID
             //noinspection unchecked
-            bindings.putAll(objectMapper.readValue(new File(localCmd.getOptionValue('m')), Map.class));
+            bindings.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
+            LOG.info("Bindings: " +
+                bindings.entrySet().stream()
+                    .map(e -> e.getKey() + " -> " + e.getValue())
+                    .collect(Collectors.joining(";\n"))
+            );
         }
 
         lzyRoot = command.getOptionValue('m');
@@ -113,6 +121,7 @@ public class Run implements ServantCommand {
         taskSpec.setAuth(auth);
         taskSpec.setZygote(grpcZygote);
         zygote.slots().forEach(slot -> {
+            LOG.info("Resolving slot " + slot.name());
             final String binding;
             if (slot.media() == Slot.Media.ARG) {
                 binding = String.join(" ", command.getArgList().subList(1, command.getArgList().size()));
@@ -190,7 +199,7 @@ public class Run implements ServantCommand {
     }
 
     private String resolveChannel(Slot slot) {
-        LOG.info("Creating custom slot " + slot);
+        LOG.info("Creating custom slot " + slot.name());
         final String prefix = (auth.hasTask() ? auth.getTask().getTaskId() : auth.getUser().getUserId()) + ":" + pid;
         if (slot.name().startsWith("/dev/")) {
             final String devSlot = slot.name().substring("/dev/".length());

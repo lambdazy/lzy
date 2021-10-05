@@ -44,7 +44,8 @@ public class LzyServantDockerContext implements LzyServantTestContext {
             .withEnv("LOG_FILE", "terminal")
             .withEnv("DEBUG_PORT", "5006")
             .withEnv("SUSPEND_DOCKER", "n")
-            //.withFileSystemBind("/tmp/lzy/run/", "/var/log/servant/")
+            .withEnv("IN_DOCKER", "y")
+            .withFileSystemBind("/var/log/servant/", "/var/log/servant/")
             .withCommand("--lzy-address " + serverHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--port " + port + " "

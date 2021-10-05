@@ -16,6 +16,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -95,6 +96,7 @@ public class LzyServant {
         private String user;
         private String task;
         private int servantPort = -1;
+        private boolean isTerminal;
 
         public static Builder forLzyServer(URI serverAddr) {
             return new Builder(serverAddr);
@@ -128,7 +130,7 @@ public class LzyServant {
             }
             final URI servantAddress = new URI("http", null, servantName, servantPort, null, null, null);
             final URI servantInternalAddress = servantInternalName == null ? servantAddress : new URI("http", null, servantInternalName, servantPort, null, null, null);
-            final Impl impl = new Impl(root, servantAddress, servantInternalAddress, serverAddr, authBuilder.build());
+            final Impl impl = new Impl(root, servantAddress, servantInternalAddress, serverAddr, authBuilder.build(), isTerminal);
             final Server server = ServerBuilder.forPort(servantPort).addService(impl).build();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 LOG.info("Shutdown hook in servant {}", servantAddress);
@@ -177,6 +179,11 @@ public class LzyServant {
             this.servantPort = port;
             return this;
         }
+
+        public Builder isTerminal(boolean isTerminal) {
+            this.isTerminal = isTerminal;
+            return this;
+        }
     }
 
     private final Server server;
@@ -198,6 +205,7 @@ public class LzyServant {
 
     private static class Impl extends LzyServantGrpc.LzyServantImplBase {
         private final LzyServerGrpc.LzyServerBlockingStub server;
+        private final LzyServerGrpc.LzyServerStub asyncServerStub;
         private final URI serverAddress;
         private final Path mount;
         private final IAM.Auth auth;
@@ -206,8 +214,9 @@ public class LzyServant {
         private final URI servantAddress;
         private final URI servantInternalAddress;
         private final AtomicReference<ServantStatus> status = new AtomicReference<>(ServantStatus.STARTED);
+        private final boolean isTerminal;
 
-        private Impl(Path mount, URI servantAddress, URI servantInternalAddress, URI serverAddress, IAM.Auth auth) {
+        private Impl(Path mount, URI servantAddress, URI servantInternalAddress, URI serverAddress, IAM.Auth auth, boolean isTerminal) {
             this.mount = mount;
             this.servantInternalAddress = servantInternalAddress;
             this.auth = auth;
@@ -215,12 +224,14 @@ public class LzyServant {
             this.serverAddress = serverAddress;
             this.lzyFS = new LzyFS();
             this.lzyFS.mount(mount, false, false);
+            this.isTerminal = isTerminal;
             //this.lzyFS.mount(mount, false, true);
             final ManagedChannel channel = ManagedChannelBuilder
                 .forAddress(serverAddress.getHost(), serverAddress.getPort())
                 .usePlaintext()
                 .build();
             this.server = LzyServerGrpc.newBlockingStub(channel);
+            this.asyncServerStub = LzyServerGrpc.newStub(channel);
         }
 
         public void close() {
@@ -240,7 +251,6 @@ public class LzyServant {
                     "run"
                 );
             }
-            LOG.info("Registering servant " + servantAddress + " at " + serverAddress);
             final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
             commandBuilder.setAuth(auth);
             commandBuilder.setServantURI(servantAddress.toString());
@@ -345,7 +355,9 @@ public class LzyServant {
                     spec.getBinding()
                 );
                 if (lzySlot instanceof LzyFileSlot) {
+                    LOG.info("lzyFS::addSlot " + lzySlot.name());
                     lzyFS.addSlot((LzyFileSlot) lzySlot);
+                    LOG.info("lzyFS::slot added " + lzySlot.name());
                 }
             }
 
@@ -374,6 +386,16 @@ public class LzyServant {
             }
         }
 
+        private URI resolveUri(URI slotUri) {
+            final String in_docker = System.getenv("IN_DOCKER");
+            if (in_docker == null ||
+                in_docker.equals("n") ||
+                !slotUri.getHost().equals("localhost")
+            )
+                return slotUri;
+            return URI.create(slotUri.toString().replace("localhost", "host.docker.internal"));
+        }
+
         @Override
         public void configureSlot(Servant.SlotCommand request, StreamObserver<Servant.SlotCommandStatus> responseObserver) {
             LOG.info("Servant::configureSlot " + JsonUtils.printRequest(request));
@@ -395,12 +417,15 @@ public class LzyServant {
                         slotSpec,
                         create.getChannelId()
                     );
-                    if (lzySlot instanceof LzyFileSlot)
+                    if (lzySlot instanceof LzyFileSlot) {
+                        LOG.info("lzyFS::addSlot " + lzySlot.name());
                         lzyFS.addSlot((LzyFileSlot)lzySlot);
+                        LOG.info("lzyFS:: slot added " + lzySlot.name());
+                    }
                     break;
                 case CONNECT:
                     final Servant.ConnectSlotCommand connect = request.getConnect();
-                    ((LzyInputSlot) slot).connect(URI.create(connect.getSlotUri()));
+                    ((LzyInputSlot) slot).connect(resolveUri(URI.create(connect.getSlotUri())));
                     break;
                 case DISCONNECT:
                     ((LzyInputSlot) slot).disconnect();

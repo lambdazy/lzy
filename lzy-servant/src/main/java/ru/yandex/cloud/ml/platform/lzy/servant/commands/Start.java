@@ -33,6 +33,7 @@ public class Start implements ServantCommand {
             .servantInternalName(internalHost)
             .servantPort(port)
             .root(path)
+            .isTerminal(false)
             .build();
 
         LOG.info("Starting servant at " + host + ":" + port + path);
