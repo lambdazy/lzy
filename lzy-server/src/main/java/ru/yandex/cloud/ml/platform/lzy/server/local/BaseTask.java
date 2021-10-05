@@ -165,7 +165,6 @@ public abstract class BaseTask implements Task {
                         final Channel channel = channels.bound(slotUri);
                         if (channel != null) {
                             final Binding binding = Binding.singleton(slot, slotUri, servantChannel);
-                            binding.invalidate();
                             attachedSlots.remove(slot);
                             channels.unbind(channel, binding);
                         }

@@ -6,6 +6,5 @@ import java.io.IOException;
 import java.util.stream.Stream;
 
 public interface LzyOutputSlot extends LzySlot {
-    void suspend();
     Stream<ByteString> readFromPosition(long offset) throws IOException;
 }

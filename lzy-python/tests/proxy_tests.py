@@ -1,6 +1,7 @@
 from unittest import TestCase
 
-from lzy._proxy import proxy
+# noinspection PyProtectedMember
+from lzy.api._proxy import proxy
 
 
 class ProxyTests(TestCase):

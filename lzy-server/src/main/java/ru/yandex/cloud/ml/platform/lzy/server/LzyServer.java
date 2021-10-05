@@ -61,7 +61,7 @@ public class LzyServer {
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
     }
 
-    private static int port;
+    public static int port;
 
     public static void main(String[] args) throws IOException, InterruptedException {
         final CommandLineParser cliParser = new DefaultParser();
@@ -332,7 +332,6 @@ public class LzyServer {
                         final Channel bound = this.channels.bound(slotUri);
                         if (bound != null) {
                             final Binding binding = Binding.singleton(slot, slotUri, servantChannel);
-                            binding.invalidate();
                             channels.unbind(bound, binding);
                         }
                     }

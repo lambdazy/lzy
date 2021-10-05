@@ -39,10 +39,8 @@ import java.nio.file.StandardOpenOption;
 import java.text.MessageFormat;
 import java.util.Base64;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
@@ -57,7 +55,6 @@ public class Run implements ServantCommand {
         options.addOption(new Option("m", "mapping", true, "Slot-channel mapping"));
     }
 
-    private final Set<String> tempChannels = new HashSet<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private LzyServerGrpc.LzyServerBlockingStub server;
     private IAM.Auth auth;
@@ -65,6 +62,7 @@ public class Run implements ServantCommand {
     private LzyServantGrpc.LzyServantBlockingStub servant;
     private long pid;
     private String lzyRoot;
+    private String stdinChannel;
 
     private final CountDownLatch communicationLatch = new CountDownLatch(3);
 
@@ -136,7 +134,6 @@ public class Run implements ServantCommand {
                 .build();
         });
 
-        Runtime.getRuntime().addShutdownHook(new Thread(this::onShutdown));
         final Iterator<Servant.ExecutionProgress> executionProgress = server.start(taskSpec.build());
         executionProgress.forEachRemaining(progress -> {
             try {
@@ -151,6 +148,7 @@ public class Run implements ServantCommand {
             }
         });
         communicationLatch.await(); // waiting for slots to finish communication
+        destroyChannel(stdinChannel);
         return 0;
     }
 
@@ -206,22 +204,21 @@ public class Run implements ServantCommand {
             final Map<String, String> pipeConfig = pipesConfig.get(devSlot);
             switch (devSlot) {
                 case "stdin": {
-                    final String channelName;
                     boolean pipe = false;
                     if (!pipeConfig.getOrDefault("node", "").isEmpty()) { // linux
-                        channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("node");
+                        stdinChannel = prefix + ":" + devSlot + ":" + pipeConfig.get("node");
                         pipe = true;
                     } else if (!pipeConfig.getOrDefault("name", "").isEmpty()) { // macos
-                        channelName = prefix + ":" + devSlot + ":" + pipeConfig.get("name");
+                        stdinChannel = prefix + ":" + devSlot + ":" + pipeConfig.get("name");
                         pipe = true;
                     } else {
-                        channelName = UUID.randomUUID().toString();
+                        stdinChannel = UUID.randomUUID().toString();
                     }
 
                     final String slotName = String.join("/", "/tasks", prefix, devSlot);
-                    createChannel(slot, channelName);
+                    createChannel(slot, stdinChannel);
 
-                    createSlotByProto(prefix + ":" + devSlot, pipe, "channel:" + channelName, slotName, Slot.STDOUT);
+                    createSlotByProto(prefix + ":" + devSlot, pipe, "channel:" + stdinChannel, slotName, Slot.STDOUT);
                     final Path inputSlotFile = Path.of(lzyRoot, slotName);
                     ForkJoinPool.commonPool().execute(() -> {
                         byte[] buffer = new byte[BUFFER_SIZE];
@@ -235,7 +232,7 @@ public class Run implements ServantCommand {
                         }
                         communicationLatch.countDown();
                     });
-                    return channelName;
+                    return stdinChannel;
                 }
                 case "stdout":
                 case "stderr": {
@@ -267,6 +264,7 @@ public class Run implements ServantCommand {
                         } catch (IOException e) {
                             LOG.warn("Unable to read from " + devSlot, e);
                         }
+                        destroyChannel(channelName);
                         communicationLatch.countDown();
                     });
                     return channelId;
@@ -310,8 +308,17 @@ public class Run implements ServantCommand {
         }
     }
 
+    private void destroyChannel(String channelName) {
+        //noinspection ResultOfMethodCallIgnored
+        server.channel(Channels.ChannelCommand.newBuilder()
+            .setAuth(auth)
+            .setChannelName(channelName)
+            .setDestroy(Channels.ChannelDestroy.newBuilder().build())
+            .build()
+        );
+    }
+
     private String createChannel(Slot slot, String channelName) {
-        tempChannels.add(channelName);
         final Channels.ChannelStatus channel = server.channel(Channels.ChannelCommand.newBuilder()
             .setAuth(auth)
             .setChannelName(channelName)
@@ -321,18 +328,5 @@ public class Run implements ServantCommand {
             .build()
         );
         return channel.getChannel().getChannelId();
-    }
-
-    private void onShutdown() {
-        tempChannels.forEach(channel -> {
-            LOG.info("Run::server.channel destroy");
-            //noinspection ResultOfMethodCallIgnored
-            server.channel(Channels.ChannelCommand.newBuilder()
-                .setAuth(auth)
-                .setChannelName(channel)
-                .setDestroy(Channels.ChannelDestroy.newBuilder().build())
-                .build()
-            );
-        });
     }
 }

@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from api import print_lzy_ops
 from lzy.api import op, LzyEnv
-from whiteboard.wb import WhiteBoard
+from lzy.api.whiteboard.wb import WhiteBoard
 
 
 class WhiteboardTests(TestCase):

@@ -1,13 +1,13 @@
 import functools
-import sys
-from typing import Tuple, Callable, get_type_hints, Any
-
 import logging
+from typing import Callable, get_type_hints, Any
 
-from _proxy import proxy
-from lzy.api.lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
-from .env import LzyEnv
+import sys
+
+from ._proxy import proxy
+from api.lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
 from .buses import *
+from .env import LzyEnv
 from .utils import print_lzy_ops
 
 logging.root.setLevel(logging.INFO)
@@ -19,7 +19,7 @@ handler.setFormatter(formatter)
 logging.root.addHandler(handler)
 
 
-def op(func: Callable = None, /, *, output_type=None):
+def op(func: Callable = None, *, output_type=None):
     if func is None:
         if output_type is None:
             raise ValueError(f'output_type should be not None')

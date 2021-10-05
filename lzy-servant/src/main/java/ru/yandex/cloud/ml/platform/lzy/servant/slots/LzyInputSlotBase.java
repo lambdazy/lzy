@@ -39,7 +39,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             .usePlaintext()
             .build();
         connectedSlotController = LzyServantGrpc.newBlockingStub(servantSlotCh);
-        state(Operations.SlotStatus.State.OPEN);
     }
 
     @Override
@@ -55,7 +54,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             .setSlot(connected.getPath())
             .setOffset(offset)
             .build());
-        state(Operations.SlotStatus.State.OPEN);
         try {
             while (msgIter.hasNext()) {
                 final Servant.Message next = msgIter.next();
@@ -78,20 +76,17 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             }
         }
         finally {
-            LOG.info("Closing slot {}",connected.getPath());
-            //noinspection ResultOfMethodCallIgnored
-            connectedSlotController.configureSlot(Servant.SlotCommand
-                .newBuilder()
-                .setClose(Servant.CloseCommand.newBuilder().build())
-                .setSlot(connected.getPath())
-                .build());
-            state(Operations.SlotStatus.State.SUSPENDED);
+            LOG.info("Opening slot {}", name());
+            state(Operations.SlotStatus.State.OPEN);
         }
     }
 
     @Override
-    public void close() {
-        state(Operations.SlotStatus.State.CLOSED);
+    public void suspend() {
+        if (state() == Operations.SlotStatus.State.OPEN) {
+            disconnect();
+        }
+        super.suspend();
     }
 
     @Override

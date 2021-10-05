@@ -6,7 +6,8 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 public interface LzySlot {
     String name();
     Slot definition();
-    void close();
+    void suspend();
+    void destroy();
 
     Operations.SlotStatus.State state();
     void onState(Operations.SlotStatus.State state, Runnable action);
