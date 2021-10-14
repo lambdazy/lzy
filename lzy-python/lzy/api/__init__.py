@@ -5,7 +5,7 @@ from typing import Callable, get_type_hints, Any
 import sys
 
 from ._proxy import proxy
-from api.lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
+from .lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
 from .buses import *
 from .env import LzyEnv
 from .utils import print_lzy_ops

@@ -1,5 +1,4 @@
 import abc
-import os
 from pathlib import Path
 
 from lzy.model.channel import Channel, Bindings, Binding
