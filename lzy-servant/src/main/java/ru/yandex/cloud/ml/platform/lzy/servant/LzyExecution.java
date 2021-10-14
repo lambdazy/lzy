@@ -85,7 +85,8 @@ public class LzyExecution {
                 slot.onState(
                     Operations.SlotStatus.State.SUSPENDED,
                     () -> {
-                        if (zygote != null) { //not terminal
+                        //not terminal or input slot
+                        if (zygote != null || spec.direction() == Slot.Direction.INPUT) {
                             progress(Servant.ExecutionProgress.newBuilder()
                                 .setDetach(Servant.SlotDetach.newBuilder()
                                     .setSlot(gRPCConverter.to(spec))

@@ -8,7 +8,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext.Servant.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
@@ -35,7 +34,7 @@ public class RunTest {
         servant = servantContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             9999,
-            server.host(servantContext instanceof LzyServantDockerContext),
+            server.host(servantContext.inDocker()),
             server.port()
         );
         servant.waitForStatus(
@@ -131,7 +130,9 @@ public class RunTest {
 
         //Assert
         Assert.assertEquals("mama\n", result1[0].stdout());
+        Assert.assertEquals(0, result.exitCode());
     }
+
 
     @Test
     public void testReadWrite() {
@@ -175,51 +176,53 @@ public class RunTest {
 
         //Assert
         Assert.assertEquals(fileContent + "\n", result1[0].stdout());
+        Assert.assertEquals(0, result.exitCode());
     }
 
-    @Test
-    public void testStartupPy() {
-        //Arrange
-        final String fileContent = "fileContent";
-        final String fileName = "/tmp/lzy/kek/some_file.txt";
-        final String localFileName = "/tmp/lzy/lol/some_file.txt";
-        final String channelName = "channel1";
-
-        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
-        final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
-        final String channelOutName = "channel2";
-
-        final FileIOOperation python_io_file_lzy = new FileIOOperation(
-            "python_io_file_lzy",
-            List.of(fileName.substring(LZY_MOUNT.length())),
-            List.of(fileOutName.substring(LZY_MOUNT.length())),
-            "python3 /lzy-python/src/main/python/lzy/startup.py " + fileName + " " + fileOutName
-        );
-
-        //Act
-        servant.createChannel(channelName);
-        servant.createSlot(localFileName, channelName, Utils.outFileSot());
-        servant.createChannel(channelOutName);
-        servant.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
-
-        ForkJoinPool.commonPool()
-            .execute(() -> servant.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
-        servant.publish(python_io_file_lzy.getName(), python_io_file_lzy);
-        final ExecutionResult[] result1 = new ExecutionResult[1];
-        ForkJoinPool.commonPool()
-            .execute(() -> result1[0] = servant.execute("bash", "-c", "cat " + localFileOutName));
-        final ExecutionResult result = servant.run(
-            python_io_file_lzy.getName(),
-            "",
-            Map.of(
-                fileName.substring(LZY_MOUNT.length()), channelName,
-                fileOutName.substring(LZY_MOUNT.length()), channelOutName
-            )
-        );
-
-        //Assert
-        Assert.assertEquals(fileContent + "\n", result1[0].stdout());
-    }
+    //@Test
+    //public void testStartupPy() {
+    //    //Arrange
+    //    final String fileContent = "fileContent";
+    //    final String fileName = "/tmp/lzy/kek/some_file.txt";
+    //    final String localFileName = "/tmp/lzy/lol/some_file.txt";
+    //    final String channelName = "channel1";
+    //
+    //    final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
+    //    final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
+    //    final String channelOutName = "channel2";
+    //
+    //    final FileIOOperation python_io_file_lzy = new FileIOOperation(
+    //        "python_io_file_lzy",
+    //        List.of(fileName.substring(LZY_MOUNT.length())),
+    //        List.of(fileOutName.substring(LZY_MOUNT.length())),
+    //        "python3 /lzy-python/src/main/python/lzy/startup.py " + fileName + " " + fileOutName
+    //    );
+    //
+    //    //Act
+    //    servant.createChannel(channelName);
+    //    servant.createSlot(localFileName, channelName, Utils.outFileSot());
+    //    servant.createChannel(channelOutName);
+    //    servant.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
+    //
+    //    ForkJoinPool.commonPool()
+    //        .execute(() -> servant.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
+    //    servant.publish(python_io_file_lzy.getName(), python_io_file_lzy);
+    //    final ExecutionResult[] result1 = new ExecutionResult[1];
+    //    ForkJoinPool.commonPool()
+    //        .execute(() -> result1[0] = servant.execute("bash", "-c", "cat " + localFileOutName));
+    //    final ExecutionResult result = servant.run(
+    //        python_io_file_lzy.getName(),
+    //        "",
+    //        Map.of(
+    //            fileName.substring(LZY_MOUNT.length()), channelName,
+    //            fileOutName.substring(LZY_MOUNT.length()), channelOutName
+    //        )
+    //    );
+    //
+    //    //Assert
+    //    Assert.assertEquals(fileContent + "\n", result1[0].stdout());
+    //    Assert.assertEquals(0, result.exitCode());
+    //}
 
     //@Test
     //public void testDiamondNumbers() {

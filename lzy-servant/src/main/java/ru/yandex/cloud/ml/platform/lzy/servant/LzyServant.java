@@ -16,7 +16,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -383,16 +382,6 @@ public class LzyServant {
             }
         }
 
-        private URI resolveUri(URI slotUri) {
-            final String in_docker = System.getenv("IN_DOCKER");
-            if (in_docker == null ||
-                in_docker.equals("n") ||
-                !slotUri.getHost().equals("localhost")
-            )
-                return slotUri;
-            return URI.create(slotUri.toString().replace("localhost", "host.docker.internal"));
-        }
-
         @Override
         public void configureSlot(Servant.SlotCommand request, StreamObserver<Servant.SlotCommandStatus> responseObserver) {
             LOG.info("Servant::configureSlot " + JsonUtils.printRequest(request));
@@ -422,7 +411,7 @@ public class LzyServant {
                     break;
                 case CONNECT:
                     final Servant.ConnectSlotCommand connect = request.getConnect();
-                    ((LzyInputSlot) slot).connect(resolveUri(URI.create(connect.getSlotUri())));
+                    ((LzyInputSlot) slot).connect(URI.create(connect.getSlotUri()));
                     break;
                 case DISCONNECT:
                     slot.suspend();

@@ -8,7 +8,7 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -28,7 +28,7 @@ public class LzyStartupTest {
 
     @Before
     public void setUp() {
-        servantContext = new LzyServantDockerContext();
+        servantContext = new LzyServantProcessesContext();
         serverContext = new LzyServerProcessesContext();
     }
 

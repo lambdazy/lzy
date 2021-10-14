@@ -5,12 +5,8 @@ import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
 import java.io.OutputStreamWriter;
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,11 +16,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
+
 public class LzyServantProcessesContext implements LzyServantTestContext {
     private final List<Process> servantProcesses = new ArrayList<>();
 
     @Override
     public Servant startTerminalAtPathAndPort(String mount, int port, String serverHost, int serverPort) {
+        final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String[] lzyArgs = {
             "--lzy-address",
             serverHost + ":" + serverPort,
@@ -37,7 +36,7 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             "--private-key",
             "/tmp/nonexistent-key",
             "--internal-host",
-            "localhost",
+            internalHost,
             "terminal"
         };
         final String pathServantLog4jFile =
@@ -120,7 +119,7 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
                             bash.waitFor();
                             final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
                             final String parsedStatus = stdout.split("\n")[0];
-                            return parsedStatus.toLowerCase().equals(status.name().toLowerCase());
+                            return parsedStatus.equalsIgnoreCase(status.name());
                         } catch (InterruptedException | IOException e) {
                             return false;
                         }
