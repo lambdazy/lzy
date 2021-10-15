@@ -13,17 +13,6 @@
     <artifactId>lzy</artifactId>
     <packaging>pom</packaging>
 
-    <repositories>
-        <repository>
-            <id>maven-central</id>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-        <repository>
-            <id>jcentral</id>
-            <url>https://jcenter.bintray.com/</url>
-        </repository>
-    </repositories>
-
     <modules>
         <module>util-zk</module>
         <module>lzy-model</module>
