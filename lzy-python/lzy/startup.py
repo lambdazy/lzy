@@ -9,7 +9,7 @@ def main():
 
     print('RUN startup.py')
     print(f'reading from file {in_file_path}')
-    print('write something to stderr', file=sys.stderr)
+    # print('write something to stderr', file=sys.stderr)
 
     with open(in_file_path, 'rb') as in_handle:
         lzy_op = cloudpickle.load(in_handle)

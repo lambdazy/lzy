@@ -3,8 +3,8 @@ import setuptools
 setuptools.setup(
     name='lzy-py',
     version='0.0.1',
-    package_dir={'': 'lzy'},
-    packages=['api', 'api/whiteboard', 'api/_proxy'],
+    package_dir={'': '.'},
+    packages=['lzy', 'lzy/api', 'lzy/api/whiteboard', 'lzy/api/_proxy', 'lzy/model', 'lzy/servant'],
     install_requires=[
         'cloudpickle==2.0.0'
     ],

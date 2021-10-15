@@ -1,9 +1,8 @@
 import copyreg
 import logging
-import multiprocessing.pool
-import os
 import uuid
 from abc import abstractmethod
+from threading import Thread
 from typing import Callable, Type, Tuple, Any
 
 import cloudpickle
@@ -37,11 +36,11 @@ class LzyOp:
         return self._args
 
     @property
-    def return_type(self):
+    def return_type(self) -> type:
         return self._output_type
 
     @property
-    def input_types(self):
+    def input_types(self) -> Tuple[type, ...]:
         return self._input_types
 
     @abstractmethod
@@ -77,8 +76,7 @@ def read_from_slot(path, log, box):
     log.info(f"Reading result from {path}")
     with open(path, 'rb') as handle:
         box[0] = cloudpickle.load(handle)
-    log.info(f"Read result from {path}; removing slot")
-    os.remove(path)
+    log.info(f"Read result from {path}")
 
 
 class LzyRemoteOp(LzyOp):
@@ -105,13 +103,13 @@ class LzyRemoteOp(LzyOp):
         slot_path = servant.get_slot_path(slot)
 
         box = [None]
-        process = multiprocessing.Process(target=read_from_slot, name='read_from_slot', args=(slot_path, self._log, box))
-        process.start()
+        thread = Thread(target=read_from_slot, name='read_from_slot', args=(slot_path, self._log, box))
+        thread.start()
 
         self._log.info(f"Run task {execution_id} func={self.func.__name__}")
         rc = servant.run(zygote, bindings)
 
-        process.join()
+        thread.join()
         self._materialization = box[0]
         self._log.info("Executed task %s for func %s with rc %s", execution_id[:4], self.func.__name__, str(rc))
 
@@ -147,8 +145,8 @@ class LzyRemoteOp(LzyOp):
     @staticmethod
     def reducer(op) -> Any:
         # noinspection PyProtectedMember
-        return LzyRemoteOp.restore, (op.is_materialized(), op._materialization,
-                                     op.func, op.return_type, *op.args,)
+        return LzyRemoteOp.restore, (op.is_materialized(), op._materialization, op.input_types, op.return_type,
+                                     op.func, *op.args,)
 
 
 copyreg.dispatch_table[LzyRemoteOp] = LzyRemoteOp.reducer

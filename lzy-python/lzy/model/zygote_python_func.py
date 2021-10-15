@@ -9,6 +9,7 @@ from lzy.model.zygote import Zygote
 
 class ZygotePythonFunc(Zygote):
     def __init__(self, func: Callable, lzy_mount: Path):
+        super().__init__()
         self._func = func
         self._name = self._func.__name__
         self.lzy_mount = lzy_mount
@@ -21,7 +22,7 @@ class ZygotePythonFunc(Zygote):
 
     def command(self) -> str:
         return f"python3 " \
-               f"/lzy-python/src/main/python/lzy/startup.py " + \
+               f"/lzy-python/lzy/startup.py " + \
                str(self.lzy_mount.joinpath(self.input_slot.name().lstrip(os.sep))) + " " + \
                str(self.lzy_mount.joinpath(self.output_slot.name().lstrip(os.sep)))
 
