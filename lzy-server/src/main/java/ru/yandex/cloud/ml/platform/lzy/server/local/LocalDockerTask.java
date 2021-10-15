@@ -32,7 +32,7 @@ public class LocalDockerTask extends BaseTask {
     @Override
     protected void runServantAndWaitFor(String serverHost, int serverPort, String servantHost, int servantPort, UUID tid, String token) {
         final String updatedServerHost = SystemUtils.IS_OS_LINUX ? serverHost : serverHost.replace("localhost", "host.docker.internal");
-        final String internalHost = "localhost";
+        final String internalHost = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")

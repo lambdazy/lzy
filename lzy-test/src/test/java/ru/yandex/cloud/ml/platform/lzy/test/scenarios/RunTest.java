@@ -8,7 +8,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext.Servant.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantProcessesContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
@@ -30,7 +30,7 @@ public class RunTest {
     @Before
     public void setUp() {
         server = new LzyServerProcessesContext();
-        servantContext = new LzyServantProcessesContext();
+        servantContext = new LzyServantDockerContext();
         servant = servantContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             9999,
