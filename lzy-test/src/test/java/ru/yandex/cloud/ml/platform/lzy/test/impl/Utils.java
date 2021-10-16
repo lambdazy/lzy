@@ -98,4 +98,9 @@ public class Utils {
             }
         };
     }
+
+    public static String lastLine(String s) {
+        final String[] split = s.split("\n");
+        return split[split.length - 1];
+    }
 }

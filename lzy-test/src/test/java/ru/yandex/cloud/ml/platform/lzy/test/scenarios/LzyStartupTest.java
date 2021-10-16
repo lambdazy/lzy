@@ -1,15 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
 import io.grpc.StatusRuntimeException;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
@@ -19,72 +14,53 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class LzyStartupTest {
-    private static final int DEFAULT_SERVANT_INIT_TIMEOUT_SEC = 30;
-    private static final int DEFAULT_SERVANT_PORT = 9999;
-
-    private LzyServantTestContext servantContext;
-    private LzyServerTestContext serverContext;
-
-    @Before
-    public void setUp() {
-        servantContext = new LzyServantDockerContext();
-        serverContext = new LzyServerProcessesContext();
-    }
-
-    @After
-    public void tearDown() {
-        servantContext.close();
-        serverContext.close();
-    }
-
+public class LzyStartupTest extends LzyBaseTest {
     @Test
     public void testFuseWorks() {
         //Arrange
-        final String lzyPath = "/tmp/lzy";
+        final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
+                LZY_MOUNT,
+                DEFAULT_SERVANT_PORT,
+                serverContext.host(servantContext.inDocker()),
+                serverContext.port()
+        );
 
         //Act
-        final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-            lzyPath,
-            DEFAULT_SERVANT_PORT,
-            serverContext.host(servantContext.inDocker()),
-            serverContext.port()
-        );
         servant.waitForStatus(ServantStatus.EXECUTING, DEFAULT_SERVANT_INIT_TIMEOUT_SEC, TimeUnit.SECONDS);
 
         //Assert
-        Assert.assertTrue(servant.pathExists(Paths.get(lzyPath + "/sbin")));
-        Assert.assertTrue(servant.pathExists(Paths.get(lzyPath + "/bin")));
-        Assert.assertTrue(servant.pathExists(Paths.get(lzyPath + "/dev")));
+        Assert.assertTrue(servant.pathExists(Paths.get(LZY_MOUNT + "/sbin")));
+        Assert.assertTrue(servant.pathExists(Paths.get(LZY_MOUNT + "/bin")));
+        Assert.assertTrue(servant.pathExists(Paths.get(LZY_MOUNT + "/dev")));
     }
 
     @Test
     public void testRegisteredZygotesAvailable() {
         //Arrange
-        final String lzyPath = "/tmp/lzy";
+        final List<Operations.RegisteredZygote> zygotes = IntStream.range(0, 10)
+                .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
+                        .setOperation(Operations.Zygote.newBuilder().build())
+                        .setName("test_op_" + value)
+                        .build()))
+                .collect(Collectors.toList());
 
         //Act
-        final List<Operations.RegisteredZygote> zygotes = IntStream.range(0, 10)
-            .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-                .setOperation(Operations.Zygote.newBuilder().build())
-                .setName("test_op_" + value)
-                .build()))
-            .collect(Collectors.toList());
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-            lzyPath,
-            DEFAULT_SERVANT_PORT,
-            serverContext.host(servantContext.inDocker()),
-            serverContext.port()
+                LZY_MOUNT,
+                DEFAULT_SERVANT_PORT,
+                serverContext.host(servantContext.inDocker()),
+                serverContext.port()
+        );
+        final boolean status = servant.waitForStatus(
+                ServantStatus.EXECUTING,
+                DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
+                TimeUnit.SECONDS
         );
 
         //Assert
-        Assert.assertTrue(servant.waitForStatus(
-            ServantStatus.EXECUTING,
-            DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
-            TimeUnit.SECONDS
-        ));
+        Assert.assertTrue(status);
         zygotes.forEach(registeredZygote -> Assert.assertTrue(servant.pathExists(Paths.get(
-            lzyPath + "/bin/" + registeredZygote.getName()))));
+                LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
     }
 
     @Test
@@ -93,76 +69,74 @@ public class LzyStartupTest {
         final String opName = "test_op";
         //noinspection ResultOfMethodCallIgnored
         serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-            .setOperation(Operations.Zygote.newBuilder().build())
-            .setName(opName)
-            .build());
+                .setOperation(Operations.Zygote.newBuilder().build())
+                .setName(opName)
+                .build());
 
         //Act/Assert
         //noinspection ResultOfMethodCallIgnored
         Assert.assertThrows(
-            StatusRuntimeException.class,
-            () -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-                .setOperation(Operations.Zygote.newBuilder().build())
-                .setName(opName)
-                .build())
+                StatusRuntimeException.class,
+                () -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
+                        .setOperation(Operations.Zygote.newBuilder().build())
+                        .setName(opName)
+                        .build())
         );
     }
 
     @Test
     public void testServantDoesNotSeeNewZygotes() {
         //Arrange
-        final String lzyPath = "/tmp/lzy";
         final List<Operations.RegisteredZygote> zygotesBeforeStart = IntStream.range(0, 10)
-            .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-                .setOperation(Operations.Zygote.newBuilder().build())
-                .setName("test_op_" + value)
-                .build()))
-            .collect(Collectors.toList());
+                .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
+                        .setOperation(Operations.Zygote.newBuilder().build())
+                        .setName("test_op_" + value)
+                        .build()))
+                .collect(Collectors.toList());
 
         //Act
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-            lzyPath,
-            DEFAULT_SERVANT_PORT,
-            serverContext.host(servantContext.inDocker()),
-            serverContext.port()
+                LZY_MOUNT,
+                DEFAULT_SERVANT_PORT,
+                serverContext.host(servantContext.inDocker()),
+                serverContext.port()
         );
         final boolean started = servant.waitForStatus(
-            ServantStatus.EXECUTING,
-            DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
-            TimeUnit.SECONDS
+                ServantStatus.EXECUTING,
+                DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
+                TimeUnit.SECONDS
         );
         final List<Operations.RegisteredZygote> zygotesAfterStart = IntStream.range(10, 20)
-            .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-                .setOperation(Operations.Zygote.newBuilder().build())
-                .setName("test_op_" + value)
-                .build()))
-            .collect(Collectors.toList());
+                .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
+                        .setOperation(Operations.Zygote.newBuilder().build())
+                        .setName("test_op_" + value)
+                        .build()))
+                .collect(Collectors.toList());
 
 
         //Assert
         Assert.assertTrue(started);
         zygotesBeforeStart.forEach(registeredZygote -> Assert.assertTrue(servant.pathExists(Paths.get(
-            lzyPath + "/bin/" + registeredZygote.getName()))));
+                LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
         zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(servant.pathExists(Paths.get(
-            lzyPath + "/bin/" + registeredZygote.getName()))));
+                LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
     }
 
     @Test
     public void testServantDiesAfterServerDied() {
         //Arrange
-        final String lzyPath = "/tmp/lzy";
+        final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
+                LZY_MOUNT,
+                DEFAULT_SERVANT_PORT,
+                serverContext.host(servantContext.inDocker()),
+                serverContext.port()
+        );
 
         //Act
-        final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-            lzyPath,
-            DEFAULT_SERVANT_PORT,
-            serverContext.host(servantContext.inDocker()),
-            serverContext.port()
-        );
         final boolean started = servant.waitForStatus(
-            ServantStatus.EXECUTING,
-            DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
-            TimeUnit.SECONDS
+                ServantStatus.EXECUTING,
+                DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
+                TimeUnit.SECONDS
         );
         serverContext.close();
 

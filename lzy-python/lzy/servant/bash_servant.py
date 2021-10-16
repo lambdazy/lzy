@@ -46,6 +46,7 @@ class BashServant(Servant):
     __metaclass__ = Singleton
 
     def __init__(self):
+        super().__init__()
         self._log = logging.getLogger(str(self.__class__))
         self._mount = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))
         self._port = os.getenv("LZY_PORT", default=9999)
