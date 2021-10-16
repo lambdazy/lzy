@@ -96,6 +96,8 @@ class ProxyTests(TestCase):
                 return "AAA"
 
         prxy = lazy_op_proxy(LazyOpMock(), str)
-        prxy._op
+        op = prxy._op
         islazyproxy(prxy)
         self.assertEqual(len(a), 0)
+        op.materialize()
+        self.assertEqual(len(a), 1)
