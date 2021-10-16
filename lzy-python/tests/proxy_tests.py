@@ -1,6 +1,8 @@
+from typing import Any
 from unittest import TestCase
 
 # noinspection PyProtectedMember
+from api import lazy_op_proxy, LzyOp, islazyproxy
 from lzy.api._proxy import proxy
 
 
@@ -81,3 +83,19 @@ class ProxyTests(TestCase):
         a._fields = None
         self.assertIs(a._fields, None)
         self.assertTupleEqual(B.__slots__, a.__slots__)
+
+    def test_lazy(self):
+        a = []
+
+        class LazyOpMock(LzyOp):
+            def __init__(self):
+                super().__init__(lambda: None, (), None)
+
+            def materialize(self) -> Any:
+                a.append("Materialized without any fcking reason")
+                return "AAA"
+
+        prxy = lazy_op_proxy(LazyOpMock(), str)
+        prxy._op
+        islazyproxy(prxy)
+        self.assertEqual(len(a), 0)
