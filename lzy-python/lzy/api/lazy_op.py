@@ -3,7 +3,7 @@ import logging
 import uuid
 from abc import abstractmethod
 from threading import Thread
-from typing import Callable, Type, Tuple, Any
+from typing import Callable, Type, Tuple, Any, List
 
 import cloudpickle
 
@@ -72,13 +72,6 @@ class LzyLocalOp(LzyOp):
         return self._materialized
 
 
-def read_from_slot(path, log, box):
-    log.info(f"Reading result from {path}")
-    with open(path, 'rb') as handle:
-        box[0] = cloudpickle.load(handle)
-    log.info(f"Read result from {path}")
-
-
 class LzyRemoteOp(LzyOp):
     def __init__(self, func: Callable, input_types: Tuple[type, ...],
                  output_type: type, *args):
@@ -89,29 +82,48 @@ class LzyRemoteOp(LzyOp):
     def execution_logic(self):
         servant: Servant = BashServant()
         zygote = ZygotePythonFunc(self._func, servant.mount())
+        execution = servant.run(zygote)
 
-        execution_id = str(uuid.uuid4())
-        bindings = servant.configure_slots(zygote, execution_id)
-        for i, slot in enumerate(bindings.local_slots(Direction.OUTPUT)):
+        for i, slot in enumerate(execution.bindings().local_slots(Direction.OUTPUT)):
             assert i < 1
             self._log.info(f"Writing argument to slot {slot.name()}")
             with open(servant.get_slot_path(slot), 'wb') as handle:
                 cloudpickle.dump(self, handle)
             self._log.info(f"Written argument to slot {slot.name()}")
 
-        slot = bindings.local_slots(Direction.INPUT)[0]
+        slot = execution.bindings().local_slots(Direction.INPUT)[0]
         slot_path = servant.get_slot_path(slot)
+        self._log.info(f"Reading result from {slot_path}")
+        with open(slot_path, 'rb') as handle:
+            self._materialization = cloudpickle.load(handle)
+        self._log.info(f"Read result from {slot_path}")
 
-        box = [None]
-        thread = Thread(target=read_from_slot, name='read_from_slot', args=(slot_path, self._log, box))
-        thread.start()
+        execution.wait_for()
 
-        self._log.info(f"Run task {execution_id} func={self.func.__name__}")
-        rc = servant.run(zygote, bindings)
-
-        thread.join()
-        self._materialization = box[0]
-        self._log.info("Executed task %s for func %s with rc %s", execution_id[:4], self.func.__name__, str(rc))
+        # servant: Servant = BashServant()
+        # zygote = ZygotePythonFunc(self._func, servant.mount())
+        #
+        # for i, slot in enumerate(bindings.local_slots(Direction.OUTPUT)):
+        #     assert i < 1
+        #     self._log.info(f"Writing argument to slot {slot.name()}")
+        #     with open(servant.get_slot_path(slot), 'wb') as handle:
+        #         cloudpickle.dump(self, handle)
+        #     self._log.info(f"Written argument to slot {slot.name()}")
+        #
+        # slot = bindings.local_slots(Direction.INPUT)[0]
+        # slot_path = servant.get_slot_path(slot)
+        #
+        # box = [None]
+        # thread = Thread(target=self.read_from_slot, name='read_op_result', args=(slot_path, self._log, box))
+        # thread.start()
+        # self._log.info(f"Run task func={self.func.__name__}")
+        # rc = servant.run(zygote)
+        # thread.join(timeout=60)
+        # if thread.is_alive():
+        #     raise ValueError('Reading op result is timed out')
+        #
+        # self._materialization = box[0]
+        # self._log.info("Executed task %s for func %s with rc %s", execution_id[:4], self.func.__name__, str(rc))
 
     def deploy(self):
         self._deployed = True

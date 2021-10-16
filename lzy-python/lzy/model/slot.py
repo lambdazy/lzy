@@ -19,6 +19,13 @@ class Direction(Enum):
     def to_json(self) -> str:
         return self.value
 
+    @staticmethod
+    def opposite(direction):
+        return {
+            Direction.INPUT: Direction.OUTPUT,
+            Direction.OUTPUT: Direction.INPUT
+        }[direction]
+
 
 class DataSchema:
     def to_json(self) -> str:

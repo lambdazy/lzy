@@ -18,6 +18,7 @@ class Zygote:
     def slots(self) -> List[Slot]:
         pass
 
+    # noinspection PyMethodMayBeStatic
     def provisioning(self) -> str:
         return "not implemented"
 
