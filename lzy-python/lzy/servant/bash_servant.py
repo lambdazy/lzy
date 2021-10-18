@@ -25,6 +25,7 @@ class Singleton(type):
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
+            # noinspection PyArgumentList
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
@@ -60,9 +61,7 @@ class BashExecution(Execution):
         return ExecutionResult(self._process.stdout, self._process.stderr, self._process.returncode)
 
 
-class BashServant(Servant):
-    __metaclass__ = Singleton
-
+class BashServant(Servant, metaclass=Singleton):
     def __init__(self):
         super().__init__()
         self._log = logging.getLogger(str(self.__class__))
