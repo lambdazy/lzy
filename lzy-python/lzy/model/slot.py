@@ -28,6 +28,7 @@ class Direction(Enum):
 
 
 class DataSchema:
+    # noinspection PyMethodMayBeStatic
     def to_json(self) -> str:
         return "not implemented yet"
 
@@ -51,6 +52,11 @@ class Slot:
 
     def __hash__(self):
         return hash(self.name())
+
+    def __eq__(self, other):
+        if isinstance(other, Slot):
+            return self.name() == other.name()
+        return False
 
     def to_dict(self):
         return {

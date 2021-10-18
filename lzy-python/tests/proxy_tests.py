@@ -1,14 +1,18 @@
+from abc import ABC
 from typing import Any
 from unittest import TestCase
 
+from lzy.api import LzyOp
+
+from lzy.api.utils import lazy_proxy, is_lazy_proxy
 # noinspection PyProtectedMember
-from api import lazy_op_proxy, LzyOp, islazyproxy
 from lzy.api._proxy import proxy
 
 
 class ProxyTests(TestCase):
     def test_custom_object_with_static_and_class_methods(self):
         class A:
+            # noinspection PyShadowingNames
             def __init__(self, a, b, c):
                 self.__a = a
                 self._b = b
@@ -87,7 +91,7 @@ class ProxyTests(TestCase):
     def test_lazy(self):
         a = []
 
-        class LazyOpMock(LzyOp):
+        class LazyOpMock(LzyOp, ABC):
             def __init__(self):
                 super().__init__(lambda: None, (), None)
 
@@ -95,9 +99,10 @@ class ProxyTests(TestCase):
                 a.append("Materialized without any fcking reason")
                 return "AAA"
 
-        prxy = lazy_op_proxy(LazyOpMock(), str)
+        mock = LazyOpMock()
+        prxy = lazy_proxy(lambda: mock.materialize(), str, {'_op': mock})
         op = prxy._op
-        islazyproxy(prxy)
+        is_lazy_proxy(prxy)
         self.assertEqual(len(a), 0)
         op.materialize()
         self.assertEqual(len(a), 1)

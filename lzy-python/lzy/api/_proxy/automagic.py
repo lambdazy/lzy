@@ -21,11 +21,12 @@ class TrickDescriptor:
 def create_and_cache(proxy_cls, callback):
     if not hasattr(proxy_cls, '_origin'):
         proxy_cls._origin = callback()
+    # noinspection PyProtectedMember
     return proxy_cls._origin
 
 
 class Proxifier(type):
-    def __new__(cls, name, bases, attrs, t, origin_getter, cls_attrs):
+    def __new__(mcs, name, bases, attrs, t, origin_getter, cls_attrs):
         new_attrs = {
             k: TrickDescriptor(v, origin_getter) if hasattr(v, '__get__') else v
             for k, v in collect_attributes(t).items()
@@ -37,7 +38,7 @@ class Proxifier(type):
         # just leave it here
         new_attrs.pop('__slots__', None)
 
-        return super().__new__(cls, name, bases, new_attrs)
+        return super().__new__(mcs, name, bases, new_attrs)
 
 
 def collect_attributes(cls):
@@ -50,7 +51,7 @@ def collect_attributes(cls):
 T = TypeVar('T')
 
 
-def proxy(origin_getter: Callable[[], T], t: Type,
+def proxy(origin_getter: Callable[[], T], t: Type[T],
           cls_attrs=None, obj_attrs=None):
     """
     Function which returns proxy on object, i.e. object which looks like original,
@@ -69,9 +70,10 @@ def proxy(origin_getter: Callable[[], T], t: Type,
     # probably all this stuff could be done with just one `type` call
     #
     # __pearl, hope it's hidden__
-    class pearl(metaclass=Proxifier, t=t, origin_getter=origin_getter,
+    class Pearl(metaclass=Proxifier, t=t, origin_getter=origin_getter,
                 cls_attrs=cls_attrs):
         def __init__(self):
+            super().__init__()
             for k, v in obj_attrs.items():
                 setattr(self, k, v)
 
@@ -92,4 +94,4 @@ def proxy(origin_getter: Callable[[], T], t: Type,
             return setattr(create_and_cache(type(self), origin_getter), item,
                            value)
 
-    return pearl()
+    return Pearl()

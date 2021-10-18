@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
-from lzy.model.slot import Slot, Direction
+from lzy.model.slot import Slot
 
 
 @dataclass
@@ -16,13 +16,15 @@ class Binding:
     channel: Channel
 
 
-@dataclass
 class Bindings:
-    bindings: List[Binding]
+    def __init__(self, bindings: List[Binding]):
+        self._bindings = list(bindings)
+        self._to_local_map = dict()
+        for bind in bindings:
+            self._to_local_map[bind.remote_slot] = bind.local_slot
 
-    def local_slots(self, direction: Direction) -> List[Slot]:
-        return list(
-            filter(lambda x: x.direction() == direction,
-                   map(lambda x: x.local_slot,
-                       self.bindings))
-        )
+    def bindings(self) -> List[Binding]:
+        return list(self._bindings)
+
+    def local_slot(self, remote_slot: Slot) -> Optional[Slot]:
+        return self._to_local_map.get(remote_slot, None)

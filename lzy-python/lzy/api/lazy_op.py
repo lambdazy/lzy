@@ -1,23 +1,27 @@
 import copyreg
+import inspect
 import logging
+import os
 from abc import abstractmethod
-from typing import Callable, Type, Tuple, Any
+from typing import Callable, Type, Tuple, Any, TypeVar
 
 import cloudpickle
 
+from lzy.model.file_slots import create_slot
 from lzy.model.slot import Direction
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant import Servant
 
+T = TypeVar('T')
+
 
 class LzyOp:
-    def __init__(self, func: Callable, input_types: Tuple[type, ...],
-                 return_type: type, *args):
+    def __init__(self, func: Callable, input_types: Tuple[type, ...], return_type: Type[T], *args):
         super().__init__()
         self._func = func
         self._args = args
-        self._output_type = return_type
-        self._input_types = input_types
+        self._return_type = return_type
+        self._arg_types = input_types
 
         self._materialized = False
         self._materialization = None
@@ -34,11 +38,11 @@ class LzyOp:
 
     @property
     def return_type(self) -> type:
-        return self._output_type
+        return self._return_type
 
     @property
     def input_types(self) -> Tuple[type, ...]:
-        return self._input_types
+        return self._arg_types
 
     @abstractmethod
     def materialize(self) -> Any:
@@ -50,8 +54,7 @@ class LzyOp:
 
 
 class LzyLocalOp(LzyOp):
-    def __init__(self, func: Callable, input_types: Tuple[type, ...],
-                 return_type: type, *args):
+    def __init__(self, func: Callable, input_types: Tuple[type, ...], return_type: Type[T], *args):
         super().__init__(func, input_types, return_type, *args)
 
     def materialize(self) -> Any:
@@ -70,56 +73,39 @@ class LzyLocalOp(LzyOp):
 
 
 class LzyRemoteOp(LzyOp):
-    def __init__(self, servant: Servant, func: Callable, input_types: Tuple[type, ...],
-                 output_type: type, *args):
+    def __init__(self, servant: Servant, func: Callable, input_types: Tuple[type, ...], output_type: Type[T], *args):
         super().__init__(func, input_types, output_type, *args)
         self._deployed = False
         self._servant = servant
 
+        arg_slots = []
+        for arg_name in inspect.getfullargspec(func).args:
+            slot = create_slot(os.path.join(os.sep, func.__name__, arg_name), Direction.INPUT)
+            arg_slots.append(slot)
+        out_slot = self.output_slot = create_slot(os.path.join("/", func.__name__, "return"), Direction.OUTPUT)
+
+        self._zygote = ZygotePythonFunc(func, arg_slots, out_slot, self._servant.mount())
+
     def execution_logic(self):
-        zygote = ZygotePythonFunc(self._func, self._servant.mount())
-        execution = self._servant.run(zygote)
+        execution = self._servant.run(self._zygote)
+        arg_slots = self._zygote.arg_slots()
+        arg_names = inspect.getfullargspec(self._func).args
+        for i in range(len(self._args)):
+            local_slot = execution.bindings().local_slot(arg_slots[i])
+            self._log.info(f"Writing argument {arg_names[i]} to local slot {local_slot.name()}")
+            with open(self._servant.get_slot_path(local_slot), 'wb') as handle:
+                cloudpickle.dump(self._args[i], handle)
+            self._log.info(f"Written argument {arg_names[i]} to local slot {local_slot.name()}")
 
-        for i, slot in enumerate(execution.bindings().local_slots(Direction.OUTPUT)):
-            assert i < 1
-            self._log.info(f"Writing argument to slot {slot.name()}")
-            with open(self._servant.get_slot_path(slot), 'wb') as handle:
-                cloudpickle.dump(self, handle)
-            self._log.info(f"Written argument to slot {slot.name()}")
-
-        slot = execution.bindings().local_slots(Direction.INPUT)[0]
-        slot_path = self._servant.get_slot_path(slot)
-        self._log.info(f"Reading result from {slot_path}")
-        with open(slot_path, 'rb') as handle:
+        return_local_slot = execution.bindings().local_slot(self._zygote.return_slot())
+        return_slot_path = self._servant.get_slot_path(return_local_slot)
+        self._log.info(f"Reading result from {return_slot_path}")
+        with open(return_slot_path, 'rb') as handle:
             self._materialization = cloudpickle.load(handle)
-        self._log.info(f"Read result from {slot_path}")
+        self._log.info(f"Read result from {return_slot_path}")
 
-        execution.wait_for()
-
-        # servant: Servant = BashServant()
-        # zygote = ZygotePythonFunc(self._func, servant.mount())
-        #
-        # for i, slot in enumerate(bindings.local_slots(Direction.OUTPUT)):
-        #     assert i < 1
-        #     self._log.info(f"Writing argument to slot {slot.name()}")
-        #     with open(servant.get_slot_path(slot), 'wb') as handle:
-        #         cloudpickle.dump(self, handle)
-        #     self._log.info(f"Written argument to slot {slot.name()}")
-        #
-        # slot = bindings.local_slots(Direction.INPUT)[0]
-        # slot_path = servant.get_slot_path(slot)
-        #
-        # box = [None]
-        # thread = Thread(target=self.read_from_slot, name='read_op_result', args=(slot_path, self._log, box))
-        # thread.start()
-        # self._log.info(f"Run task func={self.func.__name__}")
-        # rc = servant.run(zygote)
-        # thread.join(timeout=60)
-        # if thread.is_alive():
-        #     raise ValueError('Reading op result is timed out')
-        #
-        # self._materialization = box[0]
-        # self._log.info("Executed task %s for func %s with rc %s", execution_id[:4], self.func.__name__, str(rc))
+        result = execution.wait_for()
+        self._log.info("Executed task %s for func %s with rc %s", execution.id()[:4], self.func.__name__, result.rc())
 
     def deploy(self):
         self._deployed = True
@@ -144,7 +130,7 @@ class LzyRemoteOp(LzyOp):
     @staticmethod
     def restore(servant: Servant, materialized: bool, materialization: Any,
                 input_types: Tuple[Type, ...],
-                output_types: Type, func: Callable, *args):
+                output_types: Type[T], func: Callable, *args):
         op = LzyRemoteOp(servant, func, input_types, output_types, *args)
         op._materialized = materialized
         op._materialization = materialization

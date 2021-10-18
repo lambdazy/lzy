@@ -76,7 +76,7 @@ class BashServant(Servant):
         return self._mount
 
     def get_slot_path(self, slot: Slot) -> Path:
-        return self.mount().joinpath(slot.name().lstrip(os.sep))
+        return self.mount().joinpath(slot.name().lstrip(os.path.sep))
 
     def create_channel(self, channel: Channel):
         self._log.info(f"Creating channel {channel.name}")
@@ -115,7 +115,7 @@ class BashServant(Servant):
         slots_mapping_file = tempfile.mktemp(prefix="lzy_slot_mapping_", suffix=".json", dir="/tmp/")
         with open(slots_mapping_file, 'w') as f:
             json_bindings = {
-                binding.remote_slot.name(): binding.channel.name for binding in bindings.bindings
+                binding.remote_slot.name(): binding.channel.name for binding in bindings.bindings()
             }
             json.dump(json_bindings, f, indent=3)
         execution = BashExecution(execution_id, bindings, self._zygote_path(zygote), "--mapping", slots_mapping_file)

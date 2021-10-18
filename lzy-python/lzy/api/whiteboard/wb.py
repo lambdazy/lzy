@@ -1,7 +1,7 @@
 from collections import defaultdict
-from typing import Any
+from typing import Any, Optional
 
-from api import islazyproxy, LzyOp
+from api import is_lazy_proxy, LzyOp
 
 
 class WhiteBoard:
@@ -17,7 +17,7 @@ class WhiteBoard:
         if key in WhiteBoard.__ignore__:
             return super().__setattr__(key, value)
 
-        if islazyproxy(value):
+        if is_lazy_proxy(value):
             self.ops[key] = value
             self.__register_dep(key, value)
         # else:
@@ -29,9 +29,10 @@ class WhiteBoard:
         raise AttributeError(f'No such attribute')
 
     def __register_dep(self, key: str, lzy_proxy):
+        # noinspection PyProtectedMember
         original_lazy_op = lzy_proxy._op  # type: LzyOp
         for arg in original_lazy_op.args:
-            if not islazyproxy(arg):
+            if not is_lazy_proxy(arg):
                 continue
 
             dep_name = self.find_arg_key(arg)
@@ -41,7 +42,7 @@ class WhiteBoard:
                 self.deps[key].add(dep_name)
                 self.deps[key].update(self.deps[dep_name])
 
-    def find_arg_key(self, arg: Any) -> str:
+    def find_arg_key(self, arg: Any) -> Optional[str]:
         for key, op in self.ops.items():
             if op is arg:
                 return key
