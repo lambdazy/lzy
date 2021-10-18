@@ -1,15 +1,15 @@
 import base64
 import inspect
 import os
+from pathlib import Path
 from typing import Any
 
-import sys
 import cloudpickle
-from pathlib import Path
+import sys
 
-from lzy.api.utils import infer_arg_types, infer_return_type
 from lzy.api.lazy_op import LzyRemoteOp
-
+from lzy.api.utils import infer_return_type
+from lzy.api.utils import lazy_proxy
 from servant.bash_servant import BashServant
 
 
@@ -19,22 +19,24 @@ def load_arg(path: Path) -> Any:
 
 
 def main():
-    args = sys.argv[1:]
+    argv = sys.argv[1:]
     servant = BashServant()
 
     print("Loading function")
-    func = cloudpickle.loads(base64.b64decode(args[0].encode('ascii')))
+    func = cloudpickle.loads(base64.b64decode(argv[0].encode('ascii')))
     print("Function loaded: " + func.__name__)
 
-    # TODO: lazy args loading
+    params = inspect.signature(func).parameters
     args = tuple(
-        load_arg(os.path.join(os.path.sep, servant.mount(), func.__name__, arg_name))
-        for arg_name in inspect.getfullargspec(func).args
+        lazy_proxy(lambda name=name: load_arg(os.path.join(os.path.sep, servant.mount(), func.__name__, name)),
+                   value.annotation,
+                   {})
+        for name, value in params.items()
     )
     print(f"Loaded {len(args)} args")
 
     print(f'Running {func.__name__}')
-    op = LzyRemoteOp(servant, func, infer_arg_types(args), infer_return_type(func), *args)
+    op = LzyRemoteOp(servant, func, tuple(v.annotation for k, v in params.items()), infer_return_type(func), *args)
     op.deploy()
     result = op.materialize()
     print(f'Result of execution {result}')

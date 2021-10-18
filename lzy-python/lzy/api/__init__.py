@@ -1,4 +1,5 @@
 import functools
+import inspect
 import logging
 from typing import Callable
 
@@ -48,6 +49,14 @@ def op_(*, input_types=None, output_type=None):
                     arg._op.return_type if is_lazy_proxy(arg) else type(arg)
                     for arg in args
                 )
+                param_names = list(inspect.signature(f).parameters)
+                for i in range(len(args)):
+                    inferred_type = input_types[i]
+                    annotated_type = inspect.signature(f).parameters[param_names[i]].annotation
+                    if inferred_type != annotated_type:
+                        raise ValueError(
+                            f'Argument {param_names[i]} of function {f.__name__} is not properly annotated: '
+                            f'expected {inferred_type}, but got {annotated_type}')
 
             current_env = LzyEnv.get_active()
             if current_env is None:
