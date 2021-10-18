@@ -2,8 +2,10 @@ from abc import abstractmethod, ABC
 import dataclasses
 import inspect
 import logging
-from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable
+from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
+from lzy.servant.bash_servant import BashServant
+from lzy.servant.servant import Servant
 from .buses import Bus
 from .lazy_op import LzyOp
 from .whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
@@ -18,6 +20,10 @@ class LzyEnvBase(ABC):
 
     @abstractmethod
     def is_local(self) -> bool:
+        pass
+
+    @abstractmethod
+    def servant(self) -> Optional[Servant]:
         pass
 
     @abstractmethod
@@ -55,10 +61,15 @@ class LzyEnv(LzyEnvBase):
         else:
             self._wb_controller = None
 
+        self._local = local
+        if not local:
+            self._servant = BashServant()
+        else:
+            self._servant = None
+
         self._wb_repo = WhiteboardsRepoInMem()
         self._ops = []
         self._eager = eager
-        self._local = local
         self._buses = list(buses)
         self._log = logging.getLogger(str(self.__class__))
 
@@ -93,6 +104,9 @@ class LzyEnv(LzyEnvBase):
     def is_local(self) -> bool:
         return self._local
 
+    def servant(self) -> Optional[Servant]:
+        return self._servant
+
     def register_op(self, lzy_op: LzyOp) -> None:
         self._ops.append(lzy_op)
         if self._eager:
@@ -124,7 +138,7 @@ class LzyEnv(LzyEnvBase):
     def run(self) -> None:
         if not self.already_exists():
             raise ValueError('Run operation on a non-entered environment')
-        if len(self._ops) == 0:
+        if not self._ops:
             raise ValueError('No registered ops')
         for wrapper in self._ops:
             wrapper.materialize()

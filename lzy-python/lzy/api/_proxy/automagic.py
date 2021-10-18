@@ -75,8 +75,8 @@ def proxy(origin_getter: Callable[[], T], t: Type,
             for k, v in obj_attrs.items():
                 setattr(self, k, v)
 
-        def __getattr__(self, item):
-            if item in obj_attrs:
+        def __getattribute__(self, item):
+            if item in obj_attrs or item in cls_attrs:
                 return super(type(self), self).__getattribute__(item)
 
             return getattr(create_and_cache(type(self), origin_getter), item)
@@ -84,7 +84,7 @@ def proxy(origin_getter: Callable[[], T], t: Type,
         def __setattr__(self, item, value):
             # if trying to set attributes from obj_attrs to pearl obj
             # try to directly put stuff into __dict__ of pearl obj
-            if item in obj_attrs:
+            if item in obj_attrs or item in cls_attrs:
                 return super(type(self), self).__setattr__(item, value)
 
             # if trying to set smth unspecified then just redirect

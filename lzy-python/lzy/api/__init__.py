@@ -5,9 +5,9 @@ from typing import Callable, get_type_hints, Any
 import sys
 
 from ._proxy import proxy
-from .lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
 from .buses import *
 from .env import LzyEnv
+from .lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
 from .utils import print_lzy_ops
 
 logging.root.setLevel(logging.INFO)
@@ -57,6 +57,7 @@ def op_(*, input_types=None, output_type=None):
             # operation from args return types
             if input_types is None:
                 # TODO: should exception be raised if not lazyproxy?
+                # noinspection PyProtectedMember
                 input_types = tuple(
                     arg._op.return_type if islazyproxy(arg) else type(arg)
                     for arg in args
@@ -69,7 +70,7 @@ def op_(*, input_types=None, output_type=None):
             if current_env.is_local():
                 lzy_op = LzyLocalOp(f, input_types, output_type, *args)
             else:
-                lzy_op = LzyRemoteOp(f, input_types, output_type, *args)
+                lzy_op = LzyRemoteOp(current_env.servant(), f, input_types, output_type, *args)
             current_env.register_op(lzy_op)
             return lazy_op_proxy(lzy_op, output_type)
 
@@ -78,15 +79,15 @@ def op_(*, input_types=None, output_type=None):
     return deco
 
 
-def lazy_op_proxy(op: LzyOp, return_type: type):
+def lazy_op_proxy(lzy_op: LzyOp, return_type: type):
     return proxy(
-        lambda: op.materialize(),
+        lambda: lzy_op.materialize(),
         return_type,
         cls_attrs={
             '__lzy_proxied__': True
         },
         obj_attrs={
-            '_op': op
+            '_op': lzy_op
         }
     )
 

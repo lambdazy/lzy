@@ -1,15 +1,12 @@
 import copyreg
 import logging
-import uuid
 from abc import abstractmethod
-from threading import Thread
-from typing import Callable, Type, Tuple, Any, List
+from typing import Callable, Type, Tuple, Any
 
 import cloudpickle
 
 from lzy.model.slot import Direction
 from lzy.model.zygote_python_func import ZygotePythonFunc
-from lzy.servant.bash_servant import BashServant
 from lzy.servant.servant import Servant
 
 
@@ -73,26 +70,25 @@ class LzyLocalOp(LzyOp):
 
 
 class LzyRemoteOp(LzyOp):
-    def __init__(self, func: Callable, input_types: Tuple[type, ...],
+    def __init__(self, servant: Servant, func: Callable, input_types: Tuple[type, ...],
                  output_type: type, *args):
         super().__init__(func, input_types, output_type, *args)
         self._deployed = False
-        self.rc = None
+        self._servant = servant
 
     def execution_logic(self):
-        servant: Servant = BashServant()
-        zygote = ZygotePythonFunc(self._func, servant.mount())
-        execution = servant.run(zygote)
+        zygote = ZygotePythonFunc(self._func, self._servant.mount())
+        execution = self._servant.run(zygote)
 
         for i, slot in enumerate(execution.bindings().local_slots(Direction.OUTPUT)):
             assert i < 1
             self._log.info(f"Writing argument to slot {slot.name()}")
-            with open(servant.get_slot_path(slot), 'wb') as handle:
+            with open(self._servant.get_slot_path(slot), 'wb') as handle:
                 cloudpickle.dump(self, handle)
             self._log.info(f"Written argument to slot {slot.name()}")
 
         slot = execution.bindings().local_slots(Direction.INPUT)[0]
-        slot_path = servant.get_slot_path(slot)
+        slot_path = self._servant.get_slot_path(slot)
         self._log.info(f"Reading result from {slot_path}")
         with open(slot_path, 'rb') as handle:
             self._materialization = cloudpickle.load(handle)
@@ -146,10 +142,10 @@ class LzyRemoteOp(LzyOp):
         return self._materialized
 
     @staticmethod
-    def restore(materialized: bool, materialization: Any,
+    def restore(servant: Servant, materialized: bool, materialization: Any,
                 input_types: Tuple[Type, ...],
                 output_types: Type, func: Callable, *args):
-        op = LzyRemoteOp(func, input_types, output_types, *args)
+        op = LzyRemoteOp(servant, func, input_types, output_types, *args)
         op._materialized = materialized
         op._materialization = materialization
         return op
@@ -157,8 +153,9 @@ class LzyRemoteOp(LzyOp):
     @staticmethod
     def reducer(op) -> Any:
         # noinspection PyProtectedMember
-        return LzyRemoteOp.restore, (op.is_materialized(), op._materialization, op.input_types, op.return_type,
-                                     op.func, *op.args,)
+        return LzyRemoteOp.restore, (
+            op._servant, op.is_materialized(), op._materialization, op.input_types, op.return_type,
+            op.func, *op.args,)
 
 
 copyreg.dispatch_table[LzyRemoteOp] = LzyRemoteOp.reducer
