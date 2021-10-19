@@ -109,13 +109,15 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         final LocalFileContents localFileContents = new LocalFileContents(storage,
             StandardOpenOption.CREATE,
             StandardOpenOption.WRITE,
-            StandardOpenOption.TRUNCATE_EXISTING
+            StandardOpenOption.READ
         );
-        localFileContents.onClose(() -> {
-            synchronized (OutFileSlot.this) {
-                ready = true;
-                state(Operations.SlotStatus.State.OPEN);
-                OutFileSlot.this.notifyAll();
+        localFileContents.onClose(written -> {
+            if (written) {
+                synchronized (OutFileSlot.this) {
+                    ready = true;
+                    state(Operations.SlotStatus.State.OPEN);
+                    OutFileSlot.this.notifyAll();
+                }
             }
         });
         return localFileContents;

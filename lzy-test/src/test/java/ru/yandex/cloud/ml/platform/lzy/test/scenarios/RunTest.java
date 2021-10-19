@@ -82,6 +82,7 @@ public class RunTest extends LzyBaseTest {
         //Assert
         Assert.assertEquals(fileContent + "\n", result.stdout());
         Assert.assertTrue(terminal.pathExists(Path.of(localFileName)));
+        Assert.assertEquals(fileContent + "\n", terminal.execute("bash", "-c", "cat " + localFileName).stdout());
 
         //Act
         terminal.destroyChannel(channelName);
