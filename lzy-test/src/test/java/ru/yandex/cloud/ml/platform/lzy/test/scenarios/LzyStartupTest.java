@@ -26,7 +26,7 @@ public class LzyStartupTest extends LzyBaseTest {
         );
 
         //Act
-        servant.waitForStatus(ServantStatus.EXECUTING, DEFAULT_SERVANT_INIT_TIMEOUT_SEC, TimeUnit.SECONDS);
+        servant.waitForStatus(ServantStatus.EXECUTING, DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
 
         //Assert
         Assert.assertTrue(servant.pathExists(Paths.get(LZY_MOUNT + "/sbin")));
@@ -53,7 +53,7 @@ public class LzyStartupTest extends LzyBaseTest {
         );
         final boolean status = servant.waitForStatus(
                 ServantStatus.EXECUTING,
-                DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
+                DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
 
@@ -103,7 +103,7 @@ public class LzyStartupTest extends LzyBaseTest {
         );
         final boolean started = servant.waitForStatus(
                 ServantStatus.EXECUTING,
-                DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
+                DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
         final List<Operations.RegisteredZygote> zygotesAfterStart = IntStream.range(10, 20)
@@ -135,7 +135,7 @@ public class LzyStartupTest extends LzyBaseTest {
         //Act
         final boolean started = servant.waitForStatus(
                 ServantStatus.EXECUTING,
-                DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
+                DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
         serverContext.close();

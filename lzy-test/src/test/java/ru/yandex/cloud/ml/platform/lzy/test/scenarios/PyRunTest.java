@@ -24,7 +24,7 @@ public class PyRunTest extends LzyBaseTest {
         );
         terminal.waitForStatus(
                 ServantStatus.EXECUTING,
-                DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
+                DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
     }

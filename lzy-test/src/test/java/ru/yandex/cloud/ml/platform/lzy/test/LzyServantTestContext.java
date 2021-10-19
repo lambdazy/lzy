@@ -117,6 +117,20 @@ public interface LzyServantTestContext extends AutoCloseable {
             }
         }
 
+        default void destroyChannel(String channelName) {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                    String.join(
+                            " ",
+                            mount() + "/sbin/channel",
+                            "destroy",
+                            channelName
+                    )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+        }
+
         default void createSlot(String path, String channelName, Slot slot) {
             try {
                 execute(

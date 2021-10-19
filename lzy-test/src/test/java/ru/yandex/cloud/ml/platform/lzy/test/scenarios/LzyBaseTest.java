@@ -8,7 +8,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServantDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 
 public class LzyBaseTest {
-    protected static final int DEFAULT_SERVANT_INIT_TIMEOUT_SEC = 30;
+    protected static final int DEFAULT_TIMEOUT_SEC = 30;
     protected static final int DEFAULT_SERVANT_PORT = 9999;
     protected static final String LZY_MOUNT = "/tmp/lzy";
 

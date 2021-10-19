@@ -8,6 +8,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext.Servant.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,7 @@ public class RunTest extends LzyBaseTest {
         );
         terminal.waitForStatus(
                 ServantStatus.EXECUTING,
-                DEFAULT_SERVANT_INIT_TIMEOUT_SEC,
+                DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
     }
@@ -80,6 +81,14 @@ public class RunTest extends LzyBaseTest {
 
         //Assert
         Assert.assertEquals(fileContent + "\n", result.stdout());
+        Assert.assertTrue(terminal.pathExists(Path.of(localFileName)));
+
+        //Act
+        terminal.destroyChannel(channelName);
+
+        //Assert
+        Assert.assertTrue(Utils.waitFlagUp(() ->
+                !terminal.pathExists(Path.of(localFileName)), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
     @Test
