@@ -1,18 +1,25 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
@@ -29,7 +36,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSlot {
+public class OutFileSlot extends LzyOutputSlotBase implements LzyFileSlot {
     private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);
     private final Path storage;
     private final String tid;
@@ -136,14 +143,10 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
             .setDeclaration(gRPCConverter.to(definition()));
-        if (tid != null)
+        if (tid != null) {
             builder.setTaskId(tid);
+        }
         return builder.build();
-    }
-
-    @Override
-    public void suspend() {
-        state(Operations.SlotStatus.State.SUSPENDED);
     }
 
     @Override

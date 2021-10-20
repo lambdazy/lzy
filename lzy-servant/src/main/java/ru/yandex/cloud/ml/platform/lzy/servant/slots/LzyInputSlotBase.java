@@ -43,10 +43,34 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
 
     @Override
     public void disconnect() {
+        LOG.info("LzyInputSlotBase:: disconnecting slot " + this);
+        if (connected == null) {
+            LOG.warn("Slot " + this + " was already disconnected");
+            return;
+        }
         servantSlotCh.shutdown();
         connected = null;
         servantSlotCh = null;
+        LOG.info("LzyInputSlotBase:: disconnected " + this);
         state(Operations.SlotStatus.State.SUSPENDED);
+    }
+
+    @Override
+    public long writeChunk(ByteString chunk) {
+        try {
+            onChunk(chunk);
+        } catch (IOException e) {
+            LOG.error("Unable write chunk of data of size " + chunk.size() + " to input slot " + name(), e);
+        } finally {
+            offset += chunk.size();
+        }
+        return offset;
+    }
+
+    @Override
+    public void writeFinished() {
+        LOG.info("Opening slot {}", name());
+        state(Operations.SlotStatus.State.OPEN);
     }
 
     protected void readAll() {
@@ -82,24 +106,18 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     }
 
     @Override
-    public void suspend() {
-        if (state() == Operations.SlotStatus.State.OPEN) {
-            disconnect();
-        }
-        super.suspend();
-    }
-
-    @Override
     public Operations.SlotStatus status() {
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
             .setPointer(offset)
             .setDeclaration(gRPCConverter.to(definition()));
 
-        if (tid != null)
+        if (tid != null) {
             builder.setTaskId(tid);
-        if (connected != null)
+        }
+        if (connected != null) {
             builder.setConnectedTo(connected.toString());
+        }
         return builder.build();
     }
 

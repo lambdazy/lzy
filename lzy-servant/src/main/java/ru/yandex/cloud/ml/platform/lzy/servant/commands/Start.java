@@ -3,14 +3,15 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 import org.apache.commons.cli.CommandLine;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 
 import java.net.URI;
 import java.nio.file.Path;
 
-public class Start implements ServantCommand {
+public class Start implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Start.class);
 
     @Override
@@ -26,20 +27,22 @@ public class Start implements ServantCommand {
         final Path path = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
         final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
         final String internalHost = parse.getOptionValue('i', host);
-        final LzyServant servant = LzyServant.Builder.forLzyServer(URI.create(serverAddress))
-            .task(System.getenv("LZYTASK"))
-            .token(System.getenv("LZYTOKEN"))
-            .servantName(host)
-            .servantInternalName(internalHost)
-            .servantPort(port)
-            .root(path)
-            .isTerminal(false)
-            .build();
+        final LzyAgent agent = new LzyServant(
+            LzyAgentConfig.builder()
+                .serverAddress(URI.create(serverAddress))
+                .task(System.getenv("LZYTASK"))
+                .token(System.getenv("LZYTOKEN"))
+                .agentName(host)
+                .agentInternalName(internalHost)
+                .agentPort(port)
+                .root(path)
+                .build()
+        );
 
         LOG.info("Starting servant at " + host + ":" + port + path);
 
-        servant.start();
-        servant.awaitTermination();
+        agent.start();
+        agent.awaitTermination();
         return 0;
     }
 }

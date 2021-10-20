@@ -1,12 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
 import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
@@ -26,16 +23,16 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.server.local.Binding;
-import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsRepository;
+import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.InMemTasksManager;
+import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.server.local.TerminalEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -45,9 +42,10 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -66,7 +64,6 @@ public class LzyServer {
     public static int port;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-
         final CommandLineParser cliParser = new DefaultParser();
         final HelpFormatter cliHelp = new HelpFormatter();
         CommandLine parse = null;
@@ -104,7 +101,7 @@ public class LzyServer {
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
-        private final ChannelsRepository channels = new LocalChannelsRepository();
+        private final ChannelsManager channels = new LocalChannelsManager();
         private final TasksManager tasks = new InMemTasksManager(URI.create("http://localhost:" + port), channels);
 
         @Inject
@@ -379,8 +376,9 @@ public class LzyServer {
                 builder.setTaskId(task.tid().toString());
 
                 builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
-                if (task.servant() != null)
+                if (task.servant() != null) {
                     builder.setServant(task.servant().toString());
+                }
                 builder.setOwner(tasks.owner(task.tid()));
                 Stream.concat(Stream.of(task.workload().input()), Stream.of(task.workload().output()))
                     .map(task::slotStatus)

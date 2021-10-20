@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -26,7 +26,7 @@ public class LzyStartupTest extends LzyBaseTest {
         );
 
         //Act
-        servant.waitForStatus(ServantStatus.EXECUTING, DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+        servant.waitForStatus(AgentStatus.EXECUTING, DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
 
         //Assert
         Assert.assertTrue(servant.pathExists(Paths.get(LZY_MOUNT + "/sbin")));
@@ -52,7 +52,7 @@ public class LzyStartupTest extends LzyBaseTest {
                 serverContext.port()
         );
         final boolean status = servant.waitForStatus(
-                ServantStatus.EXECUTING,
+                AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
@@ -102,7 +102,7 @@ public class LzyStartupTest extends LzyBaseTest {
                 serverContext.port()
         );
         final boolean started = servant.waitForStatus(
-                ServantStatus.EXECUTING,
+                AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
@@ -134,7 +134,7 @@ public class LzyStartupTest extends LzyBaseTest {
 
         //Act
         final boolean started = servant.waitForStatus(
-                ServantStatus.EXECUTING,
+                AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );

@@ -1,8 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import org.apache.commons.io.IOUtils;
-import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
+import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyServant;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
 import java.io.IOException;
@@ -50,7 +51,7 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
         };
         final Process process;
         try {
-            process = Utils.javaProcess(LzyServant.class.getCanonicalName(), lzyArgs, systemArgs).inheritIO().start();
+            process = Utils.javaProcess(BashApi.class.getCanonicalName(), lzyArgs, systemArgs).inheritIO().start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -111,7 +112,7 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             }
 
             @Override
-            public boolean waitForStatus(ServantStatus status, long timeout, TimeUnit unit) {
+            public boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit) {
                 return Utils.waitFlagUp(() -> {
                     if (pathExists(Paths.get(mount + "/sbin/status"))) {
                         try {

@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.servant;
+package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

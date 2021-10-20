@@ -1,8 +1,8 @@
-package ru.yandex.cloud.ml.platform.lzy.servant;
+package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
-public enum ServantStatus {
+public enum AgentStatus {
     STARTED,
     REGISTERING,
     REGISTERED,

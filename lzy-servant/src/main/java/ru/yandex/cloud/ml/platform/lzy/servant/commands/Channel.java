@@ -9,7 +9,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
@@ -18,7 +17,7 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.UUID;
 
-public class Channel implements ServantCommand {
+public class Channel implements LzyCommand {
     private static final Options options = new Options();
     static  {
         options.addOption(new Option("c", "content-type", true, "Content type"));

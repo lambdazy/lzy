@@ -9,12 +9,11 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyTerminalGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -24,7 +23,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
 
-public class Touch implements ServantCommand {
+public class Touch implements LzyCommand {
     private static final Options options = new Options();
     static {
         options.addOption(new Option("s", "slot", true, "Slot definition"));
@@ -46,11 +45,11 @@ public class Touch implements ServantCommand {
             return -1;
         }
 
-        final ManagedChannel servantCh = ManagedChannelBuilder
+        final ManagedChannel terminalCh = ManagedChannelBuilder
             .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
             .usePlaintext()
             .build();
-        final LzyServantGrpc.LzyServantBlockingStub servant = LzyServantGrpc.newBlockingStub(servantCh);
+        final LzyTerminalGrpc.LzyTerminalBlockingStub terminal = LzyTerminalGrpc.newBlockingStub(terminalCh);
         final Servant.CreateSlotCommand.Builder createCommandBuilder = Servant.CreateSlotCommand.newBuilder();
         if (localCmd.hasOption('s')) {
             final Operations.Slot.Builder slotBuilder = Operations.Slot.newBuilder();
@@ -120,7 +119,7 @@ public class Touch implements ServantCommand {
         else throw new IllegalArgumentException("Please provide a slot definition with -s option");
         createCommandBuilder.setChannelId(channelName);
 
-        final Servant.SlotCommandStatus status = servant.configureSlot(
+        final Servant.SlotCommandStatus status = terminal.configureSlot(
             Servant.SlotCommand.newBuilder().setCreate(createCommandBuilder.build()).build()
         );
         System.out.println(JsonFormat.printer().print(status));

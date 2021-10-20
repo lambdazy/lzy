@@ -130,7 +130,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>ru.yandex.cloud.ml.platform.lzy.servant.LzyServant</mainClass>
+                            <mainClass>ru.yandex.cloud.ml.platform.lzy.servant.BashApi</mainClass>
                         </manifest>
                         <manifestEntries>
                             <Multi-Release>true</Multi-Release>

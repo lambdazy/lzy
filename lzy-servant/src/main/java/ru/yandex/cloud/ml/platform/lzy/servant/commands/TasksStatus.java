@@ -4,8 +4,6 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.cli.CommandLine;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
@@ -13,7 +11,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 import java.net.URI;
 import java.util.Base64;
 
-public class TasksStatus implements ServantCommand {
+public class TasksStatus implements LzyCommand {
     @Override
     public int execute(CommandLine command) throws Exception {
         final URI serverAddr = URI.create(command.getOptionValue('z'));

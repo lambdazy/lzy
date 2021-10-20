@@ -8,7 +8,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
-import ru.yandex.cloud.ml.platform.lzy.server.ChannelsRepository;
+import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 public class InMemTasksManager implements TasksManager {
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     private final URI serverURI;
-    private final ChannelsRepository channels;
+    private final ChannelsManager channels;
     private final Map<UUID, Task> tasks = new HashMap<>();
 
     private final Map<String, List<Task>> userTasks = new HashMap<>();
@@ -39,7 +39,7 @@ public class InMemTasksManager implements TasksManager {
 
     private final Map<String, Map<Slot, Channel>> userSlots = new HashMap<>();
 
-    public InMemTasksManager(URI serverURI, ChannelsRepository channels) {
+    public InMemTasksManager(URI serverURI, ChannelsManager channels) {
         this.serverURI = serverURI;
         this.channels = channels;
     }
@@ -109,7 +109,7 @@ public class InMemTasksManager implements TasksManager {
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
             if (task.servant() != null) {
                 LOG.info("LocalTaskManager::unbindAll");
-                channels.unbindAll(task.servant());
+                channels.unbindAll(task.tid());
             }
             taskChannels.remove(task);
             userTasks.getOrDefault(owners.remove(task), List.of()).remove(task);
