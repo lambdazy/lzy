@@ -1,14 +1,11 @@
 import copyreg
 import inspect
 import logging
-import os
 from abc import abstractmethod
 from typing import Callable, Type, Tuple, Any, TypeVar
 
 import cloudpickle
 
-from lzy.model.file_slots import create_slot
-from lzy.model.slot import Direction
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant import Servant
 
@@ -77,14 +74,7 @@ class LzyRemoteOp(LzyOp):
         super().__init__(func, input_types, output_type, *args)
         self._deployed = False
         self._servant = servant
-
-        arg_slots = []
-        for arg_name in inspect.getfullargspec(func).args:
-            slot = create_slot(os.path.join(os.sep, func.__name__, arg_name), Direction.INPUT)
-            arg_slots.append(slot)
-        out_slot = self.output_slot = create_slot(os.path.join("/", func.__name__, "return"), Direction.OUTPUT)
-
-        self._zygote = ZygotePythonFunc(func, arg_slots, out_slot, self._servant.mount())
+        self._zygote = ZygotePythonFunc(func, input_types, output_type, self._servant.mount())
 
     def execution_logic(self):
         execution = self._servant.run(self._zygote)

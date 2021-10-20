@@ -8,9 +8,9 @@ import cloudpickle
 import sys
 
 from lzy.api.lazy_op import LzyRemoteOp
-from lzy.api.utils import infer_return_type
 from lzy.api.utils import lazy_proxy
-from servant.bash_servant import BashServant
+from lzy.model.zygote_python_func import FuncContainer
+from lzy.servant.bash_servant import BashServant
 
 
 def load_arg(path: Path) -> Any:
@@ -23,25 +23,26 @@ def main():
     servant = BashServant()
 
     print("Loading function")
-    func = cloudpickle.loads(base64.b64decode(argv[0].encode('ascii')))
-    print("Function loaded: " + func.__name__)
+    container: FuncContainer = cloudpickle.loads(base64.b64decode(argv[0].encode('ascii')))
+    print("Function loaded: " + container.func.__name__)
 
-    params = inspect.signature(func).parameters
+    params_names = list(inspect.signature(container.func).parameters)
     args = tuple(
-        lazy_proxy(lambda name=name: load_arg(os.path.join(os.path.sep, servant.mount(), func.__name__, name)),
-                   value.annotation,
-                   {})
-        for name, value in params.items()
+        lazy_proxy(
+            lambda i=i: load_arg(os.path.join(os.path.sep, servant.mount(), container.func.__name__, params_names[i])),
+            container.input_types[i],
+            {})
+        for i in range(len(params_names))
     )
     print(f"Loaded {len(args)} args")
 
-    print(f'Running {func.__name__}')
-    op = LzyRemoteOp(servant, func, tuple(v.annotation for k, v in params.items()), infer_return_type(func), *args)
+    print(f'Running {container.func.__name__}')
+    op = LzyRemoteOp(servant, container.func, container.input_types, container.output_type, *args)
     op.deploy()
     result = op.materialize()
     print(f'Result of execution {result}')
 
-    result_path = os.path.join(os.path.sep, servant.mount(), func.__name__, "return")
+    result_path = os.path.join(os.path.sep, servant.mount(), container.func.__name__, "return")
     print(f'Writing result to file {result_path}')
     with open(result_path, 'wb') as out_handle:
         cloudpickle.dump(result, out_handle)
