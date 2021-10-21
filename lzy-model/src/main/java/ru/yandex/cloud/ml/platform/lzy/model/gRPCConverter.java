@@ -2,10 +2,9 @@ package ru.yandex.cloud.ml.platform.lzy.model;
 
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Container;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
@@ -23,13 +22,30 @@ public abstract class gRPCConverter {
         final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
         if (zygote instanceof AtomicZygote) {
             final AtomicZygote atomicZygote = (AtomicZygote) zygote;
-            builder.setEnv(atomicZygote.container().uri().toString());
+            builder.setEnv(to(atomicZygote.env()));
             builder.setProvisioning(to(atomicZygote.provisioning()));
             builder.setFuze(atomicZygote.fuze());
             Stream.concat(Stream.of(atomicZygote.input()), Stream.of(atomicZygote.output()))
-                .forEach(slot -> builder.addSlots(to(slot)));
+                    .forEach(slot -> builder.addSlots(to(slot)));
         }
         return builder.build();
+    }
+
+    public static Operations.Env to(Env env) {
+        Operations.Env.Builder builder = Operations.Env.newBuilder();
+        if (env instanceof PythonEnv) {
+            builder.setPyenv(to((PythonEnv) env));
+        } // else if (env instanceof DockerEnv) {...}
+        return builder.build();
+    }
+
+
+    public static Operations.PythonEnv to(PythonEnv env) {
+        return Operations.PythonEnv.newBuilder()
+                .setName(env.name())
+                .setInterpreterVersion(env.name())
+                .setPackageVersions(env.packages())
+                .build();
     }
 
     public static Operations.Slot to(Slot slot) {
@@ -65,6 +81,18 @@ public abstract class gRPCConverter {
         return null;
     }
 
+    private static Env envFrom(Operations.Env env) {
+        if (env.hasPyenv()) {
+            return envFrom(env.getPyenv());
+        }
+        return null;
+    }
+
+    private static PythonEnv envFrom(Operations.PythonEnv env) {
+        return new PythonEnvAdapter(env);
+    }
+
+
     public static Channels.Channel to(Channel channel) {
         final Channels.Channel.Builder builder = Channels.Channel.newBuilder();
         builder.setChannelId(channel.name().toString());
@@ -99,20 +127,13 @@ public abstract class gRPCConverter {
         }
 
         @Override
-        public Provisioning provisioning() {
-            return provisioningFrom(operation.getProvisioning());
+        public Env env() {
+            return envFrom(operation.getEnv());
         }
 
-
         @Override
-        public Container container() {
-            //noinspection Convert2Lambda
-            return new Container() {
-                @Override
-                public URI uri() {
-                    return URI.create(operation.getEnv());
-                }
-            };
+        public Provisioning provisioning() {
+            return provisioningFrom(operation.getProvisioning());
         }
 
         @Override
@@ -200,6 +221,29 @@ public abstract class gRPCConverter {
         @Override
         public State state() {
             return State.valueOf(slotStatus.getState().name());
+        }
+    }
+
+    private static class PythonEnvAdapter implements PythonEnv {
+        private final Operations.PythonEnv env;
+
+        public PythonEnvAdapter(Operations.PythonEnv env) {
+            this.env = env;
+        }
+
+        @Override
+        public String name() {
+            return this.env.getName();
+        }
+
+        @Override
+        public String interpreterVersion() {
+            return this.env.getInterpreterVersion();
+        }
+
+        @Override
+        public String packages() {
+            return this.env.getPackageVersions();
         }
     }
 }

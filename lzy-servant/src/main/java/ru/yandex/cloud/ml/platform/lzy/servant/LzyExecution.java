@@ -175,6 +175,11 @@ public class LzyExecution {
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
                 .build()
             );
+//            if (grpcZygote.getEnv().hasPyenv()) {
+//                Operations.PythonEnv pyenv = grpcZygote.getEnv().getPyenv();
+//                pyenv.getInterpreterVersion();
+//                Runtime.getRuntime().exec("bash");
+//            }
             exec = Runtime.getRuntime().exec(new String[]{"bash", "-c", zygote.fuze() + " " + arguments});
 
             stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));

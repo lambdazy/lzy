@@ -2,7 +2,7 @@ from typing import Iterable, Callable, Tuple, get_type_hints, Optional, Any, Typ
 
 # noinspection PyProtectedMember
 from lzy.api._proxy import proxy
-from lzy.api.lazy_op import LzyOp
+from .lazy_op import LzyOp
 
 
 def print_lzy_op(op: LzyOp) -> None:
@@ -30,7 +30,7 @@ def infer_return_type(func: Callable) -> Optional[type]:
         return None
 
 
-def infer_arg_types(*args) -> Tuple[type]:
+def infer_arg_types(*args) -> Tuple[type, ...]:
     # noinspection PyProtectedMember
     return tuple(
         arg._op.return_type if is_lazy_proxy(arg) else type(arg)

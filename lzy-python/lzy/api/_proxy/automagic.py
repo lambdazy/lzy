@@ -12,8 +12,21 @@ class TrickDescriptor:
             # for attributes such that its __get__ requires (or just receives)
             # instance:
             # call given callback and put result as new instance
-            return f.__get__(create_and_cache(type(instance), self.callback),
-                             owner)
+            res = f.__get__(create_and_cache(type(instance), self.callback),
+                            owner)
+
+            # TODO: well and that would be it but sometimes __get__ will
+            # TODO: return methods, sometimes even magic methods.
+            # TODO: This methods possible return instances of the same type as
+            # TODO: passed to __get__ intance
+            # TODO: so we need to wrap it in a proxy if we want to support such
+            # TODO: operations: a + 1
+            # TODO: because it's the same as:
+            # TODO: int.__dict__['__add__'].__get__(inst, int)(1)
+            # TODO: so mb instead it's better to return wrapped function instead
+            # TODO: wrapped function would make proxy out of result of the
+            # TODO: same type
+            return res
         # otherwise just call original __get__ without forcing evaluation
         return f.__get__(instance, owner)
 

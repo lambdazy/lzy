@@ -2,7 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.test;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Container;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
@@ -66,19 +66,13 @@ class FileIOOperation implements AtomicZygote {
     }
 
     @Override
-    public Provisioning provisioning() {
-        return new Provisioning() {};
+    public Env env() {
+        return null;
     }
 
     @Override
-    public Container container() {
-        return () -> {
-            try {
-                return new URI("");
-            } catch (URISyntaxException e) {
-                throw new RuntimeException(e);
-            }
-        };
+    public Provisioning provisioning() {
+        return new Provisioning() {};
     }
 
     @Override
