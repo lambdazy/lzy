@@ -7,7 +7,7 @@ option java_outer_classname = "Operations";
 option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 message Zygote {
-    string env = 1;
+    Env env = 1;
     string provisioning = 2;
     string fuze = 3;
     repeated Slot slots = 4;
@@ -60,3 +60,27 @@ message SlotStatus {
         SUSPENDED = 3;
     }
 }
+
+message Env {
+    oneof env {
+        PythonEnv pyenv = 1;
+//        ????????
+//        DockerEnv docker = 2;
+    }
+}
+
+//??????
+//message DockerEnv {
+//    string uri = 1;
+//}
+
+message PythonEnv {
+    string name = 1;
+    string interpreterVersion = 2;
+    string packageVersions = 3;
+}
+//??????
+//message PyPackageInfo {
+//    string name = 1;
+//    string version = 2;
+//}

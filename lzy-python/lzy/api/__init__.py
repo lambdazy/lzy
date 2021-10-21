@@ -1,4 +1,5 @@
 import functools
+import inspect
 import logging
 from typing import Callable
 
@@ -8,6 +9,7 @@ from ._proxy import proxy
 from .buses import *
 from .env import LzyEnv
 from .lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
+from .pkg_resources import save_python_env
 from .utils import print_lzy_ops, infer_return_type, is_lazy_proxy, lazy_proxy
 
 logging.root.setLevel(logging.INFO)
@@ -48,15 +50,23 @@ def op_(*, input_types=None, output_type=None):
                     arg._op.return_type if is_lazy_proxy(arg) else type(arg)
                     for arg in args
                 )
+                param_names = list(inspect.signature(f).parameters)
+                for i in range(len(args)):
+                    inferred_type = input_types[i]
+                    annotated_type = inspect.signature(f).parameters[param_names[i]].annotation
+                    if inferred_type != annotated_type:
+                        raise ValueError(
+                            f'Argument {param_names[i]} of function {f.__name__} is not properly annotated: '
+                            f'expected {inferred_type}, but got {annotated_type}')
 
             current_env = LzyEnv.get_active()
             if current_env is None:
                 return f(*args)
 
             if current_env.is_local():
-                lzy_op = LzyLocalOp(f, input_types, output_type, *args)
+                lzy_op = LzyLocalOp(f, input_types, output_type, args)
             else:
-                lzy_op = LzyRemoteOp(current_env.servant(), f, input_types, output_type, *args)
+                lzy_op = LzyRemoteOp(current_env.servant(), f, input_types, output_type, save_python_env(), args)
             current_env.register_op(lzy_op)
             return lazy_proxy(lambda: lzy_op.materialize(), output_type, {'_op': lzy_op})
 
