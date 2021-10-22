@@ -1,13 +1,11 @@
-
-# https://stackoverflow.com/a/1883251
 import sys
 from typing import Any
 
 import pkg_resources
-
 from model.env import PyEnv
 
 
+# https://stackoverflow.com/a/1883251
 def get_base_prefix_compat():
     # Get base/real prefix, or sys.prefix if there is none.
     return getattr(sys, "base_prefix", None) or \

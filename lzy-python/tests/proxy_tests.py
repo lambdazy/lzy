@@ -93,7 +93,7 @@ class ProxyTests(TestCase):
 
         class LazyOpMock(LzyOp, ABC):
             def __init__(self):
-                super().__init__(lambda: None, (), None)
+                super().__init__(lambda: None, (), None, None)
 
             def materialize(self) -> Any:
                 a.append("Materialized without any fcking reason")
