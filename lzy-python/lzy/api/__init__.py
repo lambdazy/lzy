@@ -9,7 +9,7 @@ from ._proxy import proxy
 from .buses import *
 from .env import LzyEnv
 from .lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
-from .pkg_resources import save_python_env
+from .pkg_info import save_python_env
 from .utils import print_lzy_ops, infer_return_type, is_lazy_proxy, lazy_proxy
 
 logging.root.setLevel(logging.INFO)

@@ -4,7 +4,7 @@ from lzy.api import op, LzyEnv
 def main():
     @op
     def str_gen() -> str:
-        return "str"
+        return "More meaningful str than ever before"
 
     @op
     def foo(a: int) -> int:

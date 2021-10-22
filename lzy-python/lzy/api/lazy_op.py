@@ -7,8 +7,6 @@ from typing import Callable, Type, Tuple, Any, TypeVar, Optional
 
 import cloudpickle
 
-from lzy.model.file_slots import create_slot
-from lzy.model.slot import Direction
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant import Servant
 from model.env import PyEnv
