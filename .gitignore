@@ -152,3 +152,8 @@ build/cert/*pem
 
 .DS_Store
 __pycache__
+
+# lzy-python install artifacts
+lzy-python/build
+lzy-python/dist
+lzy-python/*.egg-info
