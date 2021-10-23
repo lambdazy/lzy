@@ -1,5 +1,5 @@
 import sys
-from typing import Any
+from typing import Any, Tuple
 
 import pkg_resources
 from model.env import PyEnv
@@ -16,7 +16,7 @@ def in_virtualenv():
     return get_base_prefix_compat() != sys.prefix
 
 
-def to_str(tup: tuple[Any]) -> tuple[str]:
+def to_str(tup: Tuple[Any]) -> Tuple[str]:
     return tuple(map(str, tup))
 
 
@@ -28,9 +28,8 @@ def get_installed_packages():
 
 
 def save_python_env(name='default'):
-    if not in_virtualenv():
-        # TODO: better exception
-        raise ValueError('Script started not from virtualenv')
-
+    # if not in_virtualenv():
+    #     # TODO: better exception
+    #     raise ValueError('Script started not from virtualenv')
     return PyEnv(name, interpreter_version=to_str(sys.version_info),
                  packages=get_installed_packages())
