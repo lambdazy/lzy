@@ -131,7 +131,7 @@ class LzyRemoteOp(LzyOp):
     @staticmethod
     def restore(servant: Servant, materialized: bool, materialization: Any,
                 input_types: Tuple[Type, ...], output_types: Type[T],
-                func: Callable, args: Tuple[Any, ...]):
+                func: Callable, *args: Tuple[Any, ...]):
         op = LzyRemoteOp(servant, func, input_types, output_types, args=args)
         op._materialized = materialized
         op._materialization = materialization
@@ -143,7 +143,7 @@ class LzyRemoteOp(LzyOp):
         return LzyRemoteOp.restore, (
             op._servant, op.is_materialized(), op._materialization,
             op.input_types, op.return_type,
-            op.func, op.args)
+            op.func, *op.args)
 
 
 copyreg.dispatch_table[LzyRemoteOp] = LzyRemoteOp.reducer
