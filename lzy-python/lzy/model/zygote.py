@@ -3,7 +3,7 @@ import json
 from typing import List
 
 from lzy.model.slot import Slot
-from model.env import Env
+from lzy.model.env import Env
 
 
 class Zygote(abc.ABC):
