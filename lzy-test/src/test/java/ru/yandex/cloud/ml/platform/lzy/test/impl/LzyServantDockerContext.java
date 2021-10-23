@@ -112,7 +112,9 @@ public class LzyServantDockerContext implements LzyServantTestContext {
 
                     try (FrameConsumerResultCallback callback = new FrameConsumerResultCallback()) {
                         callback.addConsumer(OutputFrame.OutputType.STDOUT, stdoutConsumer);
+                        callback.addConsumer(OutputFrame.OutputType.STDOUT, new Slf4jLogConsumer(LOGGER));
                         callback.addConsumer(OutputFrame.OutputType.STDERR, stderrConsumer);
+                        callback.addConsumer(OutputFrame.OutputType.STDERR, new Slf4jLogConsumer(LOGGER));
                         dockerClient.execStartCmd(exec.getId()).exec(callback).awaitCompletion();
                     }
                     //noinspection deprecation
