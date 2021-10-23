@@ -9,7 +9,7 @@ import cloudpickle
 
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant import Servant
-from model.env import PyEnv
+from lzy.model.env import PyEnv
 
 T = TypeVar('T')
 

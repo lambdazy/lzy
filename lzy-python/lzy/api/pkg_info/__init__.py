@@ -2,7 +2,7 @@ import sys
 from typing import Any, Tuple
 
 import pkg_resources
-from model.env import PyEnv
+from lzy.model.env import PyEnv
 
 
 # https://stackoverflow.com/a/1883251

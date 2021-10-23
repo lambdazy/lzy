@@ -10,7 +10,7 @@ import cloudpickle
 from lzy.model.file_slots import create_slot
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
-from model.env import Env
+from lzy.model.env import Env
 
 T = TypeVar('T')
 
