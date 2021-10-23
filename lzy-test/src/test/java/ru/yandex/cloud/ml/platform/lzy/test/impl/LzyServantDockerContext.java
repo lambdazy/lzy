@@ -39,27 +39,27 @@ public class LzyServantDockerContext implements LzyServantTestContext {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
-            .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
-            .withEnv("USER", "terminal-test")
-            .withEnv("LOG_FILE", "terminal")
-            .withEnv("DEBUG_PORT", "5006")
-            .withEnv("SUSPEND_DOCKER", "n")
-            //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withCommand("--lzy-address " + serverHost + ":" + serverPort + " "
-                + "--host localhost "
-                + "--port " + port + " "
-                + "--lzy-mount " + mount + " "
-                + "--internal-host " + internalHost + " "
-                + "terminal");
+                .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
+                .withEnv("USER", "terminal-test")
+                .withEnv("LOG_FILE", "terminal")
+                .withEnv("DEBUG_PORT", "5006")
+                .withEnv("SUSPEND_DOCKER", "n")
+                //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
+                .withCommand("--lzy-address " + serverHost + ":" + serverPort + " "
+                        + "--host localhost "
+                        + "--port " + port + " "
+                        + "--lzy-mount " + mount + " "
+                        + "--internal-host " + internalHost + " "
+                        + "terminal");
 
         final GenericContainer<?> servantContainer;
         if (SystemUtils.IS_OS_LINUX) {
             servantContainer = base.withNetworkMode("host");
         } else {
             servantContainer = base
-                .withFixedExposedPort(port, port)
-                .withFixedExposedPort(5006, 5006) //to attach debugger
-                .withExposedPorts(port, 5006);
+                    .withFixedExposedPort(port, port)
+                    .withFixedExposedPort(5006, 5006) //to attach debugger
+                    .withExposedPorts(port, 5006);
         }
 
         servantContainer.start();
@@ -99,22 +99,24 @@ public class LzyServantDockerContext implements LzyServantTestContext {
 
                     final ExecCreateCmd execCreateCmd = dockerClient.execCreateCmd(containerId);
                     final ExecCreateCmdResponse exec = execCreateCmd.withEnv(env.entrySet()
-                            .stream()
-                            .map(e -> e.getKey() + "=" + Utils.bashEscape(e.getValue()))
-                            .collect(Collectors.toList()))
-                        .withAttachStdout(true)
-                        .withAttachStderr(true)
-                        .withCmd(command)
-                        .exec();
+                                    .stream()
+                                    .map(e -> e.getKey() + "=" + Utils.bashEscape(e.getValue()))
+                                    .collect(Collectors.toList()))
+                            .withAttachStdout(true)
+                            .withAttachStderr(true)
+                            .withCmd(command)
+                            .exec();
 
-                    final ToStringConsumer stdoutConsumer = new ToStringConsumer();
-                    final ToStringConsumer stderrConsumer = new ToStringConsumer();
+                    final ToStringConsumer stdoutStringConsumer = new ToStringConsumer();
+                    final ToStringConsumer stderrStringConsumer = new ToStringConsumer();
+                    final Slf4jLogConsumer slf4jLogConsumer = new Slf4jLogConsumer(LOGGER);
+
+                    final MultiLogsConsumer stdoutConsumer = new MultiLogsConsumer(stdoutStringConsumer, slf4jLogConsumer);
+                    final MultiLogsConsumer stderrConsumer = new MultiLogsConsumer(stderrStringConsumer, slf4jLogConsumer);
 
                     try (FrameConsumerResultCallback callback = new FrameConsumerResultCallback()) {
                         callback.addConsumer(OutputFrame.OutputType.STDOUT, stdoutConsumer);
-                        callback.addConsumer(OutputFrame.OutputType.STDOUT, new Slf4jLogConsumer(LOGGER));
                         callback.addConsumer(OutputFrame.OutputType.STDERR, stderrConsumer);
-                        callback.addConsumer(OutputFrame.OutputType.STDERR, new Slf4jLogConsumer(LOGGER));
                         dockerClient.execStartCmd(exec.getId()).exec(callback).awaitCompletion();
                     }
                     //noinspection deprecation
@@ -123,12 +125,12 @@ public class LzyServantDockerContext implements LzyServantTestContext {
                     return new ExecutionResult() {
                         @Override
                         public String stdout() {
-                            return stdoutConsumer.toString(StandardCharsets.UTF_8);
+                            return stdoutStringConsumer.toString(StandardCharsets.UTF_8);
                         }
 
                         @Override
                         public String stderr() {
-                            return stderrConsumer.toString(StandardCharsets.UTF_8);
+                            return stderrStringConsumer.toString(StandardCharsets.UTF_8);
                         }
 
                         @Override
@@ -143,14 +145,14 @@ public class LzyServantDockerContext implements LzyServantTestContext {
 
             @Override
             public boolean waitForStatus(
-                ServantStatus status, long timeout, TimeUnit unit
+                    ServantStatus status, long timeout, TimeUnit unit
             ) {
                 return Utils.waitFlagUp(() -> {
                     if (pathExists(Paths.get(mount + "/sbin/status"))) {
                         try {
                             final Container.ExecResult bash = servantContainer.execInContainer(
-                                "bash",
-                                mount + "/sbin/status"
+                                    "bash",
+                                    mount + "/sbin/status"
                             );
                             final String parsedStatus = bash.getStdout().split("\n")[0];
                             return parsedStatus.equalsIgnoreCase(status.name());
