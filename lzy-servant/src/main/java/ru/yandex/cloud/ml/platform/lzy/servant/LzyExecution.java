@@ -199,9 +199,9 @@ public class LzyExecution {
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
                 .build()
             );
-            if (zygote.env() instanceof PythonEnv) {
-                install_pyenv((PythonEnv) zygote.env());
-            }
+//            if (zygote.env() instanceof PythonEnv) {
+//                install_pyenv((PythonEnv) zygote.env());
+//            }
             exec = Runtime.getRuntime().exec(new String[]{"bash", "-c", zygote.fuze() + " " + arguments});
 
             stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
