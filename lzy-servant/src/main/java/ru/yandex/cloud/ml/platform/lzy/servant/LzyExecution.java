@@ -6,6 +6,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
@@ -21,12 +22,11 @@ import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -164,6 +164,30 @@ public class LzyExecution {
         }
     }
 
+    private void install_pyenv(PythonEnv env) throws IOException, InterruptedException {
+        Path dir = Files.createTempDirectory("pyenv_").normalize().toAbsolutePath();
+        Path requirements = Files.createFile(dir.resolve("requirements.txt")).toAbsolutePath();
+        try (PrintWriter outstr = new PrintWriter(requirements.toString(), StandardCharsets.UTF_8)) {
+            for (String s : env.packages().split(";")) {
+                outstr.println(s);
+            }
+        }
+        // install other python version here
+        // ....
+
+        // setuppyenv
+        String command = "python -m pip install " + requirements;
+        Process install = Runtime.getRuntime().exec(new String[]{
+                "bash", "-c", command
+        });
+        install.wait();
+        if (install.exitValue() != 0) {
+            LOG.warn(install.getOutputStream());
+            LOG.warn(install.getErrorStream());
+            // TODO: better exception
+            throw new IOException("python environment installation failed");
+        }
+    }
     public void start() {
         if (zygote == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
@@ -175,11 +199,9 @@ public class LzyExecution {
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
                 .build()
             );
-//            if (grpcZygote.getEnv().hasPyenv()) {
-//                Operations.PythonEnv pyenv = grpcZygote.getEnv().getPyenv();
-//                pyenv.getInterpreterVersion();
-//                Runtime.getRuntime().exec("bash");
-//            }
+            if (zygote.env() instanceof PythonEnv) {
+                install_pyenv((PythonEnv) zygote.env());
+            }
             exec = Runtime.getRuntime().exec(new String[]{"bash", "-c", zygote.fuze() + " " + arguments});
 
             stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));

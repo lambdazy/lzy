@@ -5,6 +5,15 @@ RUN apt-get install -y fuse
 RUN apt-get install -y python3 python3-pip lsof procps
 RUN mkdir -p /var/log/servant
 
+#RUN apt-get install libssl-dev openssl # needed for
+#sudo apt-get install libssl-dev openssl
+#wget https://www.python.org/ftp/python/3.5.0/Python-3.5.0.tgz
+#tar xzvf Python-3.5.0.tgz
+#cd Python-3.5.0
+#./configure
+#make
+#sudo make install
+
 COPY lzy-python/ lzy-python
 RUN pip3 install lzy-python/ setuptools
 
