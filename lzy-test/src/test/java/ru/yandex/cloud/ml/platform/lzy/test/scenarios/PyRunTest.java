@@ -38,6 +38,6 @@ public class PyRunTest extends LzyBaseTest {
         final LzyServantTestContext.Servant.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c", pyCommand);
 
         //Assert
-        Assert.assertEquals("str3", Utils.lastLine(result.stdout()));
+        Assert.assertEquals("More meaningful str than ever before3", Utils.lastLine(result.stdout()));
     }
 }
