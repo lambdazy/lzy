@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
@@ -164,7 +165,14 @@ public class LzyExecution {
         }
     }
 
-    private void install_pyenv(PythonEnv env) throws IOException, InterruptedException {
+    private String readToStr(InputStream stream) {
+        return new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))
+                .lines()
+                .collect(Collectors.joining("\n"));
+    }
+
+    private void installPyenv(PythonEnv env) throws IOException, InterruptedException {
+        LOG.info("Creating temporary requirements.txt file from pyenv: " + env.name());
         Path dir = Files.createTempDirectory("pyenv_").normalize().toAbsolutePath();
         Path requirements = Files.createFile(dir.resolve("requirements.txt")).toAbsolutePath();
         try (PrintWriter outstr = new PrintWriter(requirements.toString(), StandardCharsets.UTF_8)) {
@@ -172,22 +180,26 @@ public class LzyExecution {
                 outstr.println(s);
             }
         }
+        LOG.info("Successfully generated requirements.txt");
         // install other python version here
         // ....
 
         // setuppyenv
-        String command = "python -m pip install " + requirements;
+        LOG.info("Trying to install python environment from: " + requirements);
+
+        String command = "python3 -m pip install -r" + requirements;
         Process install = Runtime.getRuntime().exec(new String[]{
                 "bash", "-c", command
         });
-        install.wait();
-        if (install.exitValue() != 0) {
-            LOG.warn(install.getOutputStream());
-            LOG.warn(install.getErrorStream());
-            // TODO: better exception
+        int exitValue = install.waitFor();
+        LOG.info("pip installation exit value: " + exitValue);
+        if (exitValue != 0) {
+            LOG.info(readToStr(install.getInputStream()));
+            LOG.warn(readToStr(install.getErrorStream()));
             throw new IOException("python environment installation failed");
         }
     }
+
     public void start() {
         if (zygote == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
@@ -199,9 +211,9 @@ public class LzyExecution {
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
                 .build()
             );
-//            if (zygote.env() instanceof PythonEnv) {
-//                install_pyenv((PythonEnv) zygote.env());
-//            }
+            if (zygote.env() instanceof PythonEnv) {
+                installPyenv((PythonEnv) zygote.env());
+            }
             exec = Runtime.getRuntime().exec(new String[]{"bash", "-c", zygote.fuze() + " " + arguments});
 
             stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
