@@ -43,7 +43,7 @@ public abstract class gRPCConverter {
     public static Operations.PythonEnv to(PythonEnv env) {
         return Operations.PythonEnv.newBuilder()
                 .setName(env.name())
-                .setInterpreterVersion(env.name())
+                .setInterpreterVersion(env.interpreterVersion())
                 .setPackageVersions(env.packages())
                 .build();
     }
