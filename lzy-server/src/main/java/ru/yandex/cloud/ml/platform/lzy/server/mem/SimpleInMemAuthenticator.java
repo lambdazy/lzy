@@ -18,7 +18,7 @@ public class SimpleInMemAuthenticator implements Authenticator {
     private final Map<String, String> owners = new HashMap<>();
 
     @Override
-    public boolean checkUser(String userId, String token) {
+    public boolean checkUser(String userId, String token, String tokenSign) {
         return true;
     }
 
