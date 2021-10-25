@@ -23,6 +23,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.Storage;
 import ru.yandex.cloud.ml.platform.lzy.server.local.Binding;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsRepository;
 import ru.yandex.cloud.ml.platform.lzy.server.local.InMemTasksManager;
@@ -90,13 +91,21 @@ public class LzyServer {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
         private final ChannelsRepository channels = new LocalChannelsRepository();
         private final TasksManager tasks = new InMemTasksManager(URI.create("http://localhost:" + port), channels);
-        private final Authenticator auth = new SimpleInMemAuthenticator();
+        private final Authenticator auth;
+
+        Impl(){
+            String auth_inmemory = System.getenv("AUTH_INMEMORY");
+            if (auth_inmemory == null || !auth_inmemory.equals("1"))
+                auth = new SimpleInMemAuthenticator();
+            else
+                auth = new Storage();
+        }
 
         @Override
         public void publish(Lzy.PublishRequest request, StreamObserver<Operations.RegisteredZygote> responseObserver) {
             LOG.info("Server::Publish " + JsonUtils.printRequest(request));
             final IAM.UserCredentials auth = request.getAuth();
-            if (!this.auth.checkUser(auth.getUserId(), auth.getToken())) {
+            if (!this.auth.checkUser(auth.getUserId(), auth.getToken(), auth.getTokenSign())) {
                 responseObserver.onError(Status.ABORTED.asException());
                 return;
             }
@@ -403,7 +412,7 @@ public class LzyServer {
                 return false;
             }
             else if (auth.hasUser()) {
-                return this.auth.checkUser(auth.getUser().getUserId(), auth.getUser().getToken());
+                return this.auth.checkUser(auth.getUser().getUserId(), auth.getUser().getToken(), auth.getUser().getTokenSign());
             }
             else if (auth.hasTask()) {
                 return this.auth.checkTask(auth.getTask().getTaskId(), auth.getTask().getToken());
