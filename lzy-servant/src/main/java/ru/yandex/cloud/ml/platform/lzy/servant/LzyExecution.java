@@ -172,6 +172,17 @@ public class LzyExecution {
     }
 
     private void installPyenv(PythonEnv env) throws IOException, InterruptedException {
+        // link other python version here
+        // TODO: make PythonEnv normally typed
+//        List<Integer> version = Arrays.stream(env.interpreterVersion().split("\\."))
+//                .map(Integer::parseInt)
+//                .collect(Collectors.toList());
+//        LOG.info("Linking python interpreter to " + env.interpreterVersion());
+//        Runtime.getRuntime().exec(new String[]{
+//                "bash", "-c",
+//                String.format("ln /usr/local/bin/python%s /usr/bin/python", version.get(0) + "." + version.get(1))
+//        });
+
         LOG.info("Creating temporary requirements.txt file from pyenv: " + env.name());
         Path dir = Files.createTempDirectory("pyenv_").normalize().toAbsolutePath();
         Path requirements = Files.createFile(dir.resolve("requirements.txt")).toAbsolutePath();
@@ -181,10 +192,8 @@ public class LzyExecution {
             }
         }
         LOG.info("Successfully generated requirements.txt");
-        // install other python version here
-        // ....
 
-        // setuppyenv
+        // setup pyenv
         LOG.info("Trying to install python environment from: " + requirements);
 
         String command = "python3 -m pip install -r" + requirements;
