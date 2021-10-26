@@ -90,6 +90,8 @@
         <unified-agent-client.version>8232432</unified-agent-client.version>
         <jnr-fuse.version>0.5.4</jnr-fuse.version>
         <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
+        <hibernate.version>5.6.0.Final</hibernate.version>
+        <micronaut.version>3.1.1</micronaut.version>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -656,6 +658,26 @@
                 <groupId>com.github.serceman</groupId>
                 <artifactId>jnr-fuse</artifactId>
                 <version>${jnr-fuse.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate</groupId>
+                <artifactId>hibernate-java8</artifactId>
+                <version>${hibernate.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-inject</artifactId>
+                <version>${micronaut.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-runtime</artifactId>
+                <version>${micronaut.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-inject-java</artifactId>
+                <version>${micronaut.version}</version>
             </dependency>
         </dependencies>
 
