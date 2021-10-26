@@ -6,7 +6,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import java.util.UUID;
 
 public interface Authenticator {
-    boolean checkUser(String userId, String token, String tokenSign);
+    boolean checkUser(String userId, String token);
     boolean checkTask(String tid, String token);
 
     boolean canPublish(String userId);
