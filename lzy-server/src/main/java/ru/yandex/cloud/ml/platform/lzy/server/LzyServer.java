@@ -8,6 +8,9 @@ import io.grpc.ServerBuilder;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.context.ApplicationContext;
+import io.micronaut.runtime.Micronaut;
+import jakarta.inject.Inject;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -23,11 +26,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.Storage;
 import ru.yandex.cloud.ml.platform.lzy.server.local.Binding;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsRepository;
 import ru.yandex.cloud.ml.platform.lzy.server.local.InMemTasksManager;
-import ru.yandex.cloud.ml.platform.lzy.server.mem.SimpleInMemAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
@@ -65,6 +66,7 @@ public class LzyServer {
     public static int port;
 
     public static void main(String[] args) throws IOException, InterruptedException {
+
         final CommandLineParser cliParser = new DefaultParser();
         final HelpFormatter cliHelp = new HelpFormatter();
         CommandLine parse = null;
@@ -77,35 +79,31 @@ public class LzyServer {
         }
         port = Integer.parseInt(parse.getOptionValue('p', "8888"));
 
-        final Server server = ServerBuilder.forPort(port).addService(new Impl()).build();
-
-        server.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("gRPC server is shutting down!");
-            server.shutdown();
-        }));
-        server.awaitTermination();
+        try (ApplicationContext context = ApplicationContext.run()) {
+            Impl impl = context.getBean(Impl.class);
+            final Server server = ServerBuilder.forPort(port).addService(impl).build();
+            server.start();
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("gRPC server is shutting down!");
+                server.shutdown();
+            }));
+            server.awaitTermination();
+        }
     }
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
         private final ChannelsRepository channels = new LocalChannelsRepository();
         private final TasksManager tasks = new InMemTasksManager(URI.create("http://localhost:" + port), channels);
-        private final Authenticator auth;
 
-        Impl(){
-            String auth_inmemory = System.getenv("AUTH_INMEMORY");
-            if (auth_inmemory == null || !auth_inmemory.equals("1"))
-                auth = new SimpleInMemAuthenticator();
-            else
-                auth = new Storage();
-        }
+        @Inject
+        private Authenticator auth;
 
         @Override
         public void publish(Lzy.PublishRequest request, StreamObserver<Operations.RegisteredZygote> responseObserver) {
             LOG.info("Server::Publish " + JsonUtils.printRequest(request));
             final IAM.UserCredentials auth = request.getAuth();
-            if (!this.auth.checkUser(auth.getUserId(), auth.getToken(), auth.getTokenSign())) {
+            if (!this.auth.checkUser(auth.getUserId(), auth.getToken())) {
                 responseObserver.onError(Status.ABORTED.asException());
                 return;
             }
@@ -412,7 +410,7 @@ public class LzyServer {
                 return false;
             }
             else if (auth.hasUser()) {
-                return this.auth.checkUser(auth.getUser().getUserId(), auth.getUser().getToken(), auth.getUser().getTokenSign());
+                return this.auth.checkUser(auth.getUser().getUserId(), auth.getUser().getToken());
             }
             else if (auth.hasTask()) {
                 return this.auth.checkTask(auth.getTask().getTaskId(), auth.getTask().getToken());

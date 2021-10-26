@@ -108,12 +108,11 @@ public class LzyServant {
         public LzyServant build() throws URISyntaxException {
             final IAM.Auth.Builder authBuilder = IAM.Auth.newBuilder();
             if (user != null) {
+                tokenSign = tokenSign != null? tokenSign  : "";
+                String signedToken = token + "." + tokenSign;
                 final IAM.UserCredentials.Builder credBuilder = IAM.UserCredentials.newBuilder()
                     .setUserId(user)
-                    .setToken(token);
-                if (tokenSign != null) {
-                    credBuilder.setTokenSign(tokenSign);
-                }
+                    .setToken(signedToken);
                 authBuilder.setUser(credBuilder.build());
             } else {
                 authBuilder.setTask(IAM.TaskCredentials.newBuilder()

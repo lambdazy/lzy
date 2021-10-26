@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.mem;
 
+import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -8,12 +10,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Singleton
+@Requires(property = "authenticator", value = "SimpleInMemAuthenticator", defaultValue = "SimpleInMemAuthenticator")
 public class SimpleInMemAuthenticator implements Authenticator {
     private final Map<String, String> taskTokens = new HashMap<>();
     private final Map<String, String> owners = new HashMap<>();
 
     @Override
-    public boolean checkUser(String userId, String token, String tokenSign) {
+    public boolean checkUser(String userId, String token) {
         return true;
     }
 

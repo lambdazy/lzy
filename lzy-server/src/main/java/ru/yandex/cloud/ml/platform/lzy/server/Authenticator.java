@@ -4,7 +4,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 public interface Authenticator {
-    boolean checkUser(String userId, String token, String tokenSign);
+    boolean checkUser(String userId, String token);
     boolean checkTask(String tid, String token);
 
     boolean canPublish(String userId);
