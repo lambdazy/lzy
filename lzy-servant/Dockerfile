@@ -3,10 +3,12 @@ FROM findepi/graalvm:java11-all
 RUN apt-get -y update --fix-missing
 RUN apt-get install -y fuse # wget
 RUN apt-get install -y python3 python3-pip lsof procps
-RUN mkdir -p /var/log/servant
+RUN mkdir -p /var/log/servanproject struct
 
 COPY lzy-python/ lzy-python
-RUN pip3 install lzy-python/ setuptools
+# https://stackoverflow.com/questions/43298872/how-to-solve-readtimeouterror-httpsconnectionpoolhost-pypi-python-org-port
+RUN pip3 install --default-timeout=100 future
+RUN pip3 install lzy-python/
 
 COPY lzy-servant/target/lzy-servant-1.0-SNAPSHOT-jar-with-dependencies.jar app/app.jar
 COPY lzy-servant/src/main/resources/ app/resources
