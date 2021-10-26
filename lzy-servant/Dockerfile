@@ -3,7 +3,7 @@ FROM findepi/graalvm:java11-all
 RUN apt-get -y update --fix-missing
 RUN apt-get install -y fuse # wget
 RUN apt-get install -y python3 python3-pip lsof procps
-RUN mkdir -p /var/log/servanproject struct
+RUN mkdir -p /var/log/servant
 
 COPY lzy-python/ lzy-python
 # https://stackoverflow.com/questions/43298872/how-to-solve-readtimeouterror-httpsconnectionpoolhost-pypi-python-org-port
