@@ -183,6 +183,11 @@ public class LzyServer {
 
         @Override
         public void start(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+            if (!checkAuth(request.getAuth(), responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                return;
+            }
+
             LOG.info("Server::start " + JsonUtils.printRequest(request));
             final Zygote workload = gRPCConverter.from(request.getZygote());
             final Map<Slot, String> assignments = new HashMap<>();
