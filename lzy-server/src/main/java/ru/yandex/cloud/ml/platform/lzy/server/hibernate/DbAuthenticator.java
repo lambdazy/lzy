@@ -104,7 +104,8 @@ public class DbAuthenticator implements Authenticator {
 
             try {
                 final byte[] publicKeyPEM = Base64.getDecoder().decode(
-                        user.getPublicToken()
+                        user.getPublicToken().replaceAll("-----[^-]*-----\\n", "")
+                                .replaceAll("\\R", "")
                 );
                 final PublicKey rsaKey = KeyFactory.getInstance("RSA")
                         .generatePublic(new X509EncodedKeySpec(publicKeyPEM));

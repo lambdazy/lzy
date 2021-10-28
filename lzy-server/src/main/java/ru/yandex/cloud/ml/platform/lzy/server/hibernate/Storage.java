@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
 
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.hibernate.SessionFactory;
@@ -8,6 +9,9 @@ import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 
 @Singleton
+@Requires(property = "database.url")
+@Requires(property = "database.username")
+@Requires(property = "database.password")
 public class Storage implements DbStorage{
     private final SessionFactory sessionFactory;
     @Inject
