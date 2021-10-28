@@ -5,8 +5,10 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -24,12 +26,11 @@ import java.util.UUID;
 
 @Singleton
 @Requires(property = "authenticator", value = "DbAuthenticator")
-@Requires(classes = Storage.class)
 public class DbAuthenticator implements Authenticator {
     private final Map<String, String> taskTokens = new HashMap<>();
     private final Map<String, String> owners = new HashMap<>();
     @Inject
-    private Storage storage;
+    private DbStorage storage;
 
     @Override
     public boolean checkUser(String userId, String token) {
@@ -39,7 +40,10 @@ public class DbAuthenticator implements Authenticator {
 
     @Override
     public boolean checkTask(String tid, String token) {
-        return true;
+        try (Session session = storage.getSessionFactory().openSession()) {
+            TaskModel taskModel = session.find(TaskModel.class, tid);
+            return taskModel.getToken().equals(token);
+        }
     }
 
     @Override
@@ -59,7 +63,10 @@ public class DbAuthenticator implements Authenticator {
 
     @Override
     public String userForTask(Task task) {
-        return owners.get(task.tid().toString());
+        try (Session session = storage.getSessionFactory().openSession()) {
+            TaskModel taskModel = session.find(TaskModel.class, task.tid());
+            return taskModel.getOwner().getUserId();
+        }
     }
 
     @Override
@@ -68,10 +75,20 @@ public class DbAuthenticator implements Authenticator {
 
     @Override
     public String registerTask(String uid, Task task) {
-        owners.put(task.tid().toString(), uid);
-        final String token = UUID.randomUUID().toString();
-        taskTokens.put(task.tid().toString(), token);
-        return token;
+        try (Session session = storage.getSessionFactory().openSession()) {
+            Transaction tx = session.beginTransaction();
+            final String token = UUID.randomUUID().toString();
+            try {
+                TaskModel taskModel = new TaskModel(task.tid(), token, new UserModel(uid, null));
+                session.save(taskModel);
+                tx.commit();
+            }
+            catch (Exception e){
+                tx.rollback();
+                throw e;
+            }
+            return token;
+        }
     }
 
     private boolean isUserTokenSigned(String userId, String token, String tokenSign)

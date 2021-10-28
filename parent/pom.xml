@@ -92,6 +92,7 @@
         <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
         <hibernate.version>5.6.0.Final</hibernate.version>
         <micronaut.version>3.1.1</micronaut.version>
+        <micronaut-test.version>3.0.3</micronaut-test.version>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -678,6 +679,24 @@
                 <groupId>io.micronaut</groupId>
                 <artifactId>micronaut-inject-java</artifactId>
                 <version>${micronaut.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut.test</groupId>
+                <artifactId>micronaut-test-junit5</artifactId>
+                <version>3.0.3</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>1.4.200</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-inject-java-test</artifactId>
+                <version>3.1.1</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
 
