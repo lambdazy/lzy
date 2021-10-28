@@ -1,7 +1,6 @@
-package ru.yandex.cloud.ml.platform.lzy.server.test;
+package ru.yandex.cloud.ml.platform.lzy.server;
 
-import io.micronaut.context.annotation.Primary;
-import io.micronaut.context.annotation.Replaces;
+import io.micronaut.context.annotation.Replaces;;
 import jakarta.inject.Singleton;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
@@ -10,9 +9,8 @@ import ru.yandex.cloud.ml.platform.lzy.server.hibernate.Storage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 
-
 @Singleton
-@Replaces(bean = DbStorage.class)
+@Replaces(Storage.class)
 public class MockDbStorage implements DbStorage {
     private final SessionFactory sessionFactory;
 

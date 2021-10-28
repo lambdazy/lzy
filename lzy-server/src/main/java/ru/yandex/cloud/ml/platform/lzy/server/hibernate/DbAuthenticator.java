@@ -4,9 +4,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.hibernate.Session;
-import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import org.hibernate.cfg.Configuration;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
@@ -41,7 +39,7 @@ public class DbAuthenticator implements Authenticator {
     @Override
     public boolean checkTask(String tid, String token) {
         try (Session session = storage.getSessionFactory().openSession()) {
-            TaskModel taskModel = session.find(TaskModel.class, tid);
+            TaskModel taskModel = session.find(TaskModel.class, UUID.fromString(tid));
             return taskModel.getToken().equals(token);
         }
     }
@@ -104,11 +102,10 @@ public class DbAuthenticator implements Authenticator {
                     new org.bouncycastle.jce.provider.BouncyCastleProvider()
             );
 
-            final byte[] publicKeyPEM = Base64.getDecoder().decode(
-                    user.getPublicToken().replaceAll("-----[^-]*-----\\n", "")
-                            .replaceAll("\\R", "")
-            );
             try {
+                final byte[] publicKeyPEM = Base64.getDecoder().decode(
+                        user.getPublicToken()
+                );
                 final PublicKey rsaKey = KeyFactory.getInstance("RSA")
                         .generatePublic(new X509EncodedKeySpec(publicKeyPEM));
 

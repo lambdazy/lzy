@@ -1,25 +1,14 @@
-package ru.yandex.cloud.ml.platform.lzy.server.test;
+package ru.yandex.cloud.ml.platform.lzy.server;
 
+import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.annotation.Property;
-import io.micronaut.context.annotation.Replaces;
-import io.micronaut.test.annotation.MockBean;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import io.micronaut.test.support.TestPropertyProvider;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import org.hibernate.Session;
-import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import org.hibernate.cfg.Configuration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
-import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.Storage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -34,15 +23,14 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
-@MicronautTest
-@Property(name="authenticator", value="DbAuthenticator")
+
 public class LzyDbAuthTest {
     User[] users = null;
-    @Inject
-    private DbStorage storage;
     private InProcessServer<LzyServer.Impl> inprocessServer;
     private io.grpc.ManagedChannel channel;
     private LzyServerGrpc.LzyServerBlockingStub blockingStub;
+    private ApplicationContext ctx;
+    private DbStorage storage;
 
     static class User{
         public String publicKey;
@@ -74,7 +62,7 @@ public class LzyDbAuthTest {
         }
 
         public UserModel getUserModel(){
-            return new UserModel(userId, getToken());
+            return new UserModel(userId, publicKey);
         }
 
         private String signToken(UUID terminalToken, String privateKey) throws
@@ -101,8 +89,17 @@ public class LzyDbAuthTest {
         }
     }
 
+    private void generateContext(){
+        ctx = ApplicationContext.run(Map.of(
+                "authenticator", "DbAuthenticator"
+        ));
+    }
+
     @Before
-    public void before() throws IOException, InstantiationException, IllegalAccessException {
+    public void before() throws IOException{
+        generateContext();
+        storage = ctx.getBean(DbStorage.class);
+
         try {
             users = new User[]{
                     new User("user1"), new User("user2"), new User("user3")
@@ -110,6 +107,7 @@ public class LzyDbAuthTest {
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
+
         try(Session session =  storage.getSessionFactory().openSession()){
             Transaction tx = session.beginTransaction();
             for (User user: users) {
@@ -117,7 +115,10 @@ public class LzyDbAuthTest {
             }
             tx.commit();
         }
-        inprocessServer = new InProcessServer<>(LzyServer.Impl.class);
+
+        LzyServer.Impl impl = ctx.getBean(LzyServer.Impl.class);
+
+        inprocessServer = new InProcessServer<>(impl);
         inprocessServer.start();
         channel = InProcessChannelBuilder
                 .forName("test")
@@ -132,6 +133,7 @@ public class LzyDbAuthTest {
         channel.shutdownNow();
         inprocessServer.stop();
         inprocessServer.blockUntilShutdown();
+        ctx.stop();
     }
 
 
@@ -148,5 +150,36 @@ public class LzyDbAuthTest {
                 .build()
         );
         assert list != null;
+    }
+
+    @Test(expected = StatusRuntimeException.class)
+    public void testWrongAuth() throws NoSuchAlgorithmException {
+        User user = new User("some_wrong_user");
+
+        Operations.ZygoteList list = blockingStub.zygotes(
+                IAM.Auth.newBuilder()
+                        .setUser(
+                                IAM.UserCredentials.newBuilder()
+                                        .setUserId(user.userId)
+                                        .setToken(user.getToken())
+                                        .build())
+                        .build()
+        );
+        assert list != null;
+    }
+
+    @Test
+    public void testTaskToken(){
+        UUID taskUUID = UUID.randomUUID();
+        String taskToken = UUID.randomUUID().toString();
+
+        try(Session session = storage.getSessionFactory().openSession()){
+            Transaction tx = session.beginTransaction();
+            session.save(new TaskModel(taskUUID, taskToken, users[0].getUserModel()));
+            tx.commit();
+        }
+
+        Authenticator authenticator = ctx.getBean(Authenticator.class);
+        assert authenticator.checkTask(taskUUID.toString(), taskToken);
     }
 }
