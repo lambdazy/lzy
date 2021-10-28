@@ -34,6 +34,11 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     @Override
     public void connect(URI slotUri) {
         LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri);
+        if (servantSlotCh != null) {
+            LOG.warn("Slot " + this + " was already connected");
+            return;
+        }
+
         connected = slotUri;
         servantSlotCh = ManagedChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
             .usePlaintext()
@@ -53,24 +58,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         servantSlotCh = null;
         LOG.info("LzyInputSlotBase:: disconnected " + this);
         state(Operations.SlotStatus.State.SUSPENDED);
-    }
-
-    @Override
-    public long writeChunk(ByteString chunk) {
-        try {
-            onChunk(chunk);
-        } catch (IOException e) {
-            LOG.error("Unable write chunk of data of size " + chunk.size() + " to input slot " + name(), e);
-        } finally {
-            offset += chunk.size();
-        }
-        return offset;
-    }
-
-    @Override
-    public void writeFinished() {
-        LOG.info("Opening slot {}", name());
-        state(Operations.SlotStatus.State.OPEN);
     }
 
     protected void readAll() {

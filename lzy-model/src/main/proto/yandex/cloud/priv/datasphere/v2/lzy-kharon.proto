@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-servant.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-server.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-task.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-channel.proto";
+
+package yandex.cloud.priv.datasphere.v2;
+
+option go_package = "datasphere";
+option java_outer_classname = "Kharon";
+option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+
+
+service LzyKharon {
+  // API for terminal
+  rpc AttachTerminal (stream TerminalState) returns (stream TerminalCommand);
+  rpc WriteToInputSlot(stream SendSlotDataMessage) returns (ReceivedDataStatus);
+  rpc OpenOutputSlot (KharonSlotRequest) returns (stream Message);
+
+  // Server API
+  rpc Publish (PublishRequest) returns (RegisteredZygote);
+  rpc Zygotes (Auth) returns (ZygoteList);
+  rpc Task (TaskCommand) returns (TaskStatus);
+  rpc Start (TaskSpec) returns (stream ExecutionProgress);
+  rpc Channel (ChannelCommand) returns (ChannelStatus);
+  rpc TasksStatus (Auth) returns (TasksList);
+  rpc ChannelsStatus (Auth) returns (ChannelStatusList);
+}
+
+message TerminalState {
+  string commandId = 1;
+  oneof progress {
+    AttachTerminal attachTerminal = 2;
+    SlotAttach attach = 3;
+    SlotDetach detach = 4;
+    SlotCommandStatus slotStatus = 5;
+  }
+}
+
+message AttachTerminal {
+  UserCredentials auth = 1;
+}
+
+message TerminalCommand {
+  string commandId = 1;
+  oneof command {
+    SlotCommand slotCommand = 2;
+  }
+}
+
+message SendSlotDataMessage {
+  oneof writeCommand {
+    SlotRequest request = 1;
+    Message message = 2;
+  }
+}
+
+message ReceivedDataStatus {
+  Status status = 1;
+  int64 offset = 2;
+
+  enum Status {
+    OK = 0;
+    FAILED = 1;
+  }
+}
+
+message KharonSlotRequest {
+  string slotUri = 1;
+  SlotRequest request = 2;
+}

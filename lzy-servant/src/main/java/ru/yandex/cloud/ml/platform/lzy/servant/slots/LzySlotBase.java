@@ -62,16 +62,6 @@ public class LzySlotBase implements LzySlot {
     }
 
     @Override
-    public void connect(URI slotUri) {
-        throw new NotImplementedException("Connect is not implemented for LzySlotBase");
-    }
-
-    @Override
-    public void disconnect() {
-        throw new NotImplementedException("Disconnect is not implemented for LzySlotBase");
-    }
-
-    @Override
     public void suspend() {
         state(Operations.SlotStatus.State.SUSPENDED);
     }

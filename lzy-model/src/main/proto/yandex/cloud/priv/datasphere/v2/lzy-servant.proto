@@ -14,7 +14,6 @@ service LzyServant {
     /** Only one execution at a time */
     rpc Execute (TaskSpec) returns (stream ExecutionProgress);
     rpc OpenOutputSlot (SlotRequest) returns (stream Message);
-    rpc WriteToInputSlot(stream SendSlotDataMessage) returns (ReceivedDataStatus);
     rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
     rpc Signal (TaskSignal) returns (ExecutionStarted);
     rpc Update (Auth) returns (ExecutionStarted);
@@ -72,23 +71,6 @@ message SlotCommandStatus {
 message SlotRequest {
     string slot = 1;
     int64 offset = 2;
-}
-
-message SendSlotDataMessage {
-    oneof writeCommand {
-        SlotRequest request = 1;
-        Message message = 2;
-    }
-}
-
-message ReceivedDataStatus {
-    Status status = 1;
-    int64 offset = 2;
-
-    enum Status {
-        OK = 0;
-        FAILED = 1;
-    }
 }
 
 message Message {

@@ -1,10 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import com.google.protobuf.ByteString;
-import io.grpc.Context;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.Status;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,12 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
 import java.net.URI;
@@ -33,11 +25,17 @@ import java.util.stream.Collectors;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
+    private final LzyServerGrpc.LzyServerBlockingStub server;
     private final Server agentServer;
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
         final Impl impl = new Impl();
+        final ManagedChannel channel = ManagedChannelBuilder
+            .forAddress(serverAddress.getHost(), serverAddress.getPort())
+            .usePlaintext()
+            .build();
+        server = LzyServerGrpc.newBlockingStub(channel);
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
     }
 
@@ -50,11 +48,16 @@ public class LzyServant extends LzyAgent {
     protected void onStartUp() {
         status.set(AgentStatus.REGISTERING);
         final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
-        commandBuilder.setAuth(auth.getTask());
+        commandBuilder.setAuth(auth);
         commandBuilder.setServantURI(agentAddress.toString());
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
+    }
+
+    @Override
+    protected LzyServerApi lzyServerApi() {
+        return server::zygotes;
     }
 
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
@@ -108,61 +111,6 @@ public class LzyServant extends LzyAgent {
         }
 
         @Override
-        public StreamObserver<Servant.SendSlotDataMessage> writeToInputSlot(StreamObserver<Servant.ReceivedDataStatus> responseObserver) {
-            return new StreamObserver<>() {
-                LzyInputSlot connectedSlot;
-
-                @Override
-                public void onNext(Servant.SendSlotDataMessage slotDataMessage) {
-                    switch (slotDataMessage.getWriteCommandCase()) {
-                        case REQUEST: {
-                            final Servant.SlotRequest request = slotDataMessage.getRequest();
-                            LOG.info("LzyServant::writeToInputSlot " + JsonUtils.printRequest(request));
-                            connectedSlot = (LzyInputSlot) currentExecution.slot(request.getSlot());
-                            if (currentExecution == null || connectedSlot == null) {
-                                LOG.info("Not found slot: " + request.getSlot());
-                                responseObserver.onError(Status.NOT_FOUND.asException());
-                                return;
-                            }
-                            break;
-                        }
-                        case MESSAGE: {
-                            final Servant.Message message = slotDataMessage.getMessage();
-                            if (message.hasChunk()) {
-                                final ByteString chunk = message.getChunk();
-                                LOG.info("LzyServant::writeToInputSlot got bytes: "
-                                    + chunk.toString(StandardCharsets.UTF_8));
-                                final long offset = connectedSlot.writeChunk(chunk);
-                                responseObserver.onNext(Servant.ReceivedDataStatus.newBuilder()
-                                    .setOffset(offset)
-                                    .setStatus(Servant.ReceivedDataStatus.Status.OK)
-                                    .build());
-                            } else if (message.hasControl() && message.getControl() == Servant.Message.Controls.EOS) {
-                                LOG.info("LzyServant::writeToInputSlot Control::EOS");
-                                connectedSlot.writeFinished();
-                                responseObserver.onNext(
-                                    Servant.ReceivedDataStatus.newBuilder()
-                                        .setStatus(Servant.ReceivedDataStatus.Status.OK)
-                                        .build()
-                                );
-                                responseObserver.onCompleted();
-                            }
-                            break;
-                        }
-                    }
-                }
-
-                @Override
-                public void onError(Throwable throwable) {
-                    LOG.error("Error while LzyServant::writeToInputSlot " + throwable);
-                }
-
-                @Override
-                public void onCompleted() { }
-            };
-        }
-
-        @Override
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
             LOG.info("LzyServant::openOutputSlot " + JsonUtils.printRequest(request));
             if (currentExecution == null || currentExecution.slot(request.getSlot()) == null) {
@@ -201,16 +149,12 @@ public class LzyServant extends LzyAgent {
         }
 
         @Override
-        public void update(
-            IAM.Auth request, StreamObserver<Servant.ExecutionStarted> responseObserver
-        ) {
+        public void update(IAM.Auth request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             LzyServant.this.update(request, responseObserver);
         }
 
         @Override
-        public void status(
-            IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver
-        ) {
+        public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             LzyServant.this.status(currentExecution, request, responseObserver);
         }
 

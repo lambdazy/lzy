@@ -4,7 +4,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
-import ru.yandex.cloud.ml.platform.lzy.server.local.BaseEndpoint;
 
 public class EmptyController implements ChannelController {
     @Override

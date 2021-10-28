@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
-import io.grpc.ManagedChannel;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -12,21 +11,73 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
+import java.util.Objects;
 import java.util.UUID;
 
-public class ServantEndpoint extends BaseEndpoint {
+public class ServantEndpoint implements Endpoint {
     private static final Logger LOG = LogManager.getLogger(ServantEndpoint.class);
-    private final ManagedChannel servantChannel;
 
-    public ServantEndpoint(Slot slot, URI uri, UUID taskId, ManagedChannel servantChannel) {
-        super(slot, uri, taskId);
-        this.servantChannel = servantChannel;
+    private final URI uri;
+    private final Slot slot;
+    private final UUID sessionId;
+    private boolean invalid = false;
+    private final LzyServantGrpc.LzyServantBlockingStub servant;
+
+    public ServantEndpoint(Slot slot, URI uri, UUID sessionId, Channel servantChannel) {
+        this.uri = uri;
+        this.slot = slot;
+        this.sessionId = sessionId;
+        servant = LzyServantGrpc.newBlockingStub(servantChannel);
+    }
+
+    public URI uri() {
+        return uri;
+    }
+
+    public Slot slot() {
+        return slot;
+    }
+
+    @Override
+    public UUID sessionId() {
+        return sessionId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final ServantEndpoint endpoint = (ServantEndpoint) o;
+        return uri.equals(endpoint.uri);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(uri);
+    }
+
+    @Override
+    public String toString() {
+        return "(endpoint) {" + uri + "}";
+    }
+
+    @Override
+    public boolean isInvalid() {
+        return invalid;
+    }
+
+    protected void invalidate() {
+        invalid = true;
     }
 
     @Override
     public int connect(Endpoint endpoint) {
         try {
-            final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(servantChannel)
+            final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
                         .setSlot(slot().name())
@@ -46,7 +97,7 @@ public class ServantEndpoint extends BaseEndpoint {
     @Override
     public SlotStatus status() {
         try {
-            final Servant.SlotCommandStatus slotCommandStatus = LzyServantGrpc.newBlockingStub(servantChannel)
+            final Servant.SlotCommandStatus slotCommandStatus = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
                         .setSlot(slot().name())
@@ -66,7 +117,7 @@ public class ServantEndpoint extends BaseEndpoint {
             return 0;
         }
         try {
-            final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(servantChannel)
+            final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
                         .setSlot(slot().name())
@@ -83,7 +134,7 @@ public class ServantEndpoint extends BaseEndpoint {
     @Override
     public int destroy() {
         try {
-            final Servant.SlotCommandStatus rc = LzyServantGrpc.newBlockingStub(servantChannel)
+            final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
                         .setSlot(slot().name())

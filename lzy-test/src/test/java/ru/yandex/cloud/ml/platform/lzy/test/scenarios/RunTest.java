@@ -23,15 +23,15 @@ public class RunTest extends LzyBaseTest {
     public void setUp() {
         super.setUp();
         terminal = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                9999,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+            LZY_MOUNT,
+            9999,
+            kharonContext.host(servantContext.inDocker()),
+            kharonContext.port()
         );
         terminal.waitForStatus(
-                AgentStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
-                TimeUnit.SECONDS
+            AgentStatus.EXECUTING,
+            DEFAULT_TIMEOUT_SEC,
+            TimeUnit.SECONDS
         );
     }
 

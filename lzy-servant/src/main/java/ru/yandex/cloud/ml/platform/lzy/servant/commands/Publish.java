@@ -4,10 +4,7 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.cli.CommandLine;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.net.URI;
 import java.nio.file.Files;
@@ -25,7 +22,7 @@ public class Publish implements LzyCommand {
             .forAddress(serverAddr.getHost(), serverAddr.getPort())
             .usePlaintext()
             .build();
-        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(channel);
+        final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(channel);
         final Operations.Zygote.Builder zbuilder = Operations.Zygote.newBuilder();
         JsonFormat.parser().merge(Files.newBufferedReader(Paths.get(command.getArgs()[2])), zbuilder);
         final Operations.RegisteredZygote registered = server.publish(Lzy.PublishRequest.newBuilder()

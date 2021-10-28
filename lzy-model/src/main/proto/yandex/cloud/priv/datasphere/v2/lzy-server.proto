@@ -25,7 +25,6 @@ service LzyServer {
   rpc ChannelsStatus (Auth) returns (ChannelStatusList);
 
   rpc RegisterServant (AttachServant) returns (AttachStatus);
-  rpc AttachTerminal (stream TerminalState) returns (stream TerminalCommand);
 }
 
 message PublishRequest {
@@ -43,30 +42,9 @@ message PublishRequest {
 }
 
 message AttachServant {
-  TaskCredentials auth = 1;
+  Auth auth = 1;
   string servantURI = 2;
 }
 
-message TerminalState {
-  string commandId = 1;
-  oneof progress {
-    AttachTerminal attachTerminal = 2;
-    SlotAttach attach = 3;
-    SlotDetach detach = 4;
-    SlotCommandStatus slotStatus = 5;
-  }
-}
-
-message AttachTerminal {
-  UserCredentials auth = 1;
-}
-
 message AttachStatus {
-}
-
-message TerminalCommand {
-  string commandId = 1;
-  oneof command {
-    SlotCommand slotCommand = 2;
-  }
 }

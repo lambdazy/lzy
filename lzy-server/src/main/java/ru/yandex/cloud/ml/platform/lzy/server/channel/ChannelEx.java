@@ -1,9 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.server.local.BaseEndpoint;
 
-import java.net.URI;
 import java.util.stream.Stream;
 
 public interface ChannelEx extends Channel {

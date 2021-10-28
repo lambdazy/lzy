@@ -4,11 +4,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
-import ru.yandex.cloud.ml.platform.lzy.server.local.BaseEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 
 import javax.annotation.Nullable;
-import java.net.URI;
 import java.util.UUID;
 import java.util.stream.Stream;
 

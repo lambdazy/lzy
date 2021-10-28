@@ -11,16 +11,8 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyTerminalGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.*;
 
 import java.io.Closeable;
 import java.net.URISyntaxException;
@@ -28,8 +20,10 @@ import java.net.URISyntaxException;
 public class LzyTerminal extends LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
     private final Server agentServer;
-    private final ManagedChannel channel;
-    private final LzyServerGrpc.LzyServerStub asyncServer;
+    private final ManagedChannel channel1;
+    private final ManagedChannel channel2;
+    private final LzyKharonGrpc.LzyKharonStub kharon;
+    private final LzyKharonGrpc.LzyKharonBlockingStub kharonBlockingStub;
     private CommandHandler commandHandler;
     private LzyExecution currentExecution;
 
@@ -37,11 +31,16 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         super(config);
         final LzyTerminal.Impl impl = new Impl();
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
-        channel = ManagedChannelBuilder
+        channel1 = ManagedChannelBuilder
             .forAddress(serverAddress.getHost(), serverAddress.getPort())
             .usePlaintext()
             .build();
-        asyncServer = LzyServerGrpc.newStub(channel);
+        channel2 = ManagedChannelBuilder
+            .forAddress(serverAddress.getHost(), serverAddress.getPort())
+            .usePlaintext()
+            .build();
+        kharon = LzyKharonGrpc.newStub(channel1);
+        kharonBlockingStub = LzyKharonGrpc.newBlockingStub(channel2);
     }
 
     @Override
@@ -50,17 +49,17 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     private class CommandHandler {
-        private final StreamObserver<Lzy.TerminalCommand> supplier;
-        private StreamObserver<Lzy.TerminalState> responseObserver;
+        private final StreamObserver<TerminalCommand> supplier;
+        private StreamObserver<TerminalState> responseObserver;
 
         CommandHandler() {
             supplier = new StreamObserver<>() {
                 @Override
-                public void onNext(Lzy.TerminalCommand terminalCommand) {
+                public void onNext(TerminalCommand terminalCommand) {
                     LOG.info("TerminalCommand::onNext " + JsonUtils.printRequest(terminalCommand));
 
                     final String commandId = terminalCommand.getCommandId();
-                    if (terminalCommand.getCommandCase() != Lzy.TerminalCommand.CommandCase.SLOTCOMMAND) {
+                    if (terminalCommand.getCommandCase() != TerminalCommand.CommandCase.SLOTCOMMAND) {
                         CommandHandler.this.onError(Status.INVALID_ARGUMENT.asException());
                     }
 
@@ -70,7 +69,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                             currentExecution,
                             slotCommand
                         );
-                        final Lzy.TerminalState terminalState = Lzy.TerminalState.newBuilder()
+                        final TerminalState terminalState = TerminalState.newBuilder()
                             .setCommandId(commandId)
                             .setSlotStatus(slotCommandStatus)
                             .build();
@@ -95,15 +94,15 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                 }
             };
 
-            responseObserver = asyncServer.attachTerminal(supplier);
-            responseObserver.onNext(Lzy.TerminalState.newBuilder()
-                .setAttachTerminal(Lzy.AttachTerminal.newBuilder()
+            responseObserver = kharon.attachTerminal(supplier);
+            responseObserver.onNext(TerminalState.newBuilder()
+                .setAttachTerminal(AttachTerminal.newBuilder()
                     .setAuth(auth.getUser())
                     .build())
                 .build());
         }
 
-        public synchronized void onNext(Lzy.TerminalState terminalState) {
+        public synchronized void onNext(TerminalState terminalState) {
             responseObserver.onNext(terminalState);
         }
 
@@ -136,12 +135,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         currentExecution.onProgress(progress -> {
             LOG.info("LzyTerminal::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
             if (progress.hasAttach()) {
-                final Lzy.TerminalState terminalState = Lzy.TerminalState.newBuilder()
+                final TerminalState terminalState = TerminalState.newBuilder()
                     .setAttach(progress.getAttach())
                     .build();
                 commandHandler.onNext(terminalState);
             } else if (progress.hasDetach()) {
-                final Lzy.TerminalState terminalState = Lzy.TerminalState.newBuilder()
+                final TerminalState terminalState = TerminalState.newBuilder()
                     .setDetach(progress.getDetach())
                     .build();
                 commandHandler.onNext(terminalState);
@@ -158,13 +157,19 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     @Override
+    protected LzyServerApi lzyServerApi() {
+        return kharonBlockingStub::zygotes;
+    }
+
+    @Override
     public void close() {
         super.close();
         commandHandler.onCompleted();
-        channel.shutdown();
+        channel1.shutdown();
+        channel2.shutdown();
     }
 
-    private class Impl extends LzyTerminalGrpc.LzyTerminalImplBase {
+    private class Impl extends LzyServantGrpc.LzyServantImplBase {
         @Override
         public void configureSlot(
             Servant.SlotCommand request,
@@ -175,16 +180,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         }
 
         @Override
-        public void update(
-            IAM.Auth request, StreamObserver<Servant.ExecutionStarted> responseObserver
-        ) {
+        public void update(IAM.Auth request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             LzyTerminal.this.update(request, responseObserver);
         }
 
         @Override
-        public void status(
-            IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver
-        ) {
+        public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             LzyTerminal.this.status(currentExecution, request, responseObserver);
         }
     }

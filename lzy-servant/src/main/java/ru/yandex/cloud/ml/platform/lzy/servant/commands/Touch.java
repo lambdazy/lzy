@@ -3,19 +3,9 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyTerminalGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.net.URI;
 import java.nio.file.Files;
@@ -49,7 +39,7 @@ public class Touch implements LzyCommand {
             .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
             .usePlaintext()
             .build();
-        final LzyTerminalGrpc.LzyTerminalBlockingStub terminal = LzyTerminalGrpc.newBlockingStub(terminalCh);
+        final LzyServantGrpc.LzyServantBlockingStub terminal = LzyServantGrpc.newBlockingStub(terminalCh);
         final Servant.CreateSlotCommand.Builder createCommandBuilder = Servant.CreateSlotCommand.newBuilder();
         if (localCmd.hasOption('s')) {
             final Operations.Slot.Builder slotBuilder = Operations.Slot.newBuilder();
@@ -80,7 +70,7 @@ public class Touch implements LzyCommand {
                     .forAddress(serverAddr.getHost(), serverAddr.getPort())
                     .usePlaintext()
                     .build();
-                final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
+                final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
 
                 final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
                     .setAuth(auth)

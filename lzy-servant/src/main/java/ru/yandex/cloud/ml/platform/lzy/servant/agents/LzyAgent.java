@@ -16,10 +16,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyScript;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.*;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.TerminalOutputSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -42,8 +40,6 @@ import java.util.stream.Collectors;
 
 public abstract class LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);
-
-    protected final LzyServerGrpc.LzyServerBlockingStub server;
     protected final URI serverAddress;
     protected final Path mount;
     protected final IAM.Auth auth;
@@ -61,12 +57,6 @@ public abstract class LzyAgent implements Closeable {
         this.lzyFS.mount(mount, false, false);
         //this.lzyFS.mount(mount, false, true);
 
-        final ManagedChannel channel = ManagedChannelBuilder
-            .forAddress(serverAddress.getHost(), serverAddress.getPort())
-            .usePlaintext()
-            .build();
-        this.server = LzyServerGrpc.newBlockingStub(channel);
-
         auth = getAuth(config);
         agentAddress = new URI("http", null, config.getAgentName(), config.getAgentPort(), null, null, null);
         agentInternalAddress = config.getAgentInternalName() == null ? agentAddress : new URI("http", null,
@@ -78,6 +68,8 @@ public abstract class LzyAgent implements Closeable {
     abstract protected void onStartUp();
 
     abstract protected Server server();
+
+    abstract protected LzyServerApi lzyServerApi();
 
     private static IAM.Auth getAuth(LzyAgentConfig config) {
         final IAM.Auth.Builder authBuilder = IAM.Auth.newBuilder();
@@ -105,7 +97,7 @@ public abstract class LzyAgent implements Closeable {
         for (LzyCommand.Commands command : LzyCommand.Commands.values()) {
             publishTool(null, Paths.get(command.name()), command.name());
         }
-        final Operations.ZygoteList zygotes = server.zygotes(auth);
+        final Operations.ZygoteList zygotes = lzyServerApi().zygotes(auth);
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
             publishTool(
                 zygote.getWorkload(),
@@ -251,10 +243,19 @@ public abstract class LzyAgent implements Closeable {
                 break;
             case CONNECT:
                 final Servant.ConnectSlotCommand connect = request.getConnect();
-                slot.connect(URI.create(connect.getSlotUri()));
+                final URI slotUri = URI.create(connect.getSlotUri());
+                if (slot instanceof LzyInputSlot) {
+                    ((LzyInputSlot) slot).connect(slotUri);
+                } else if (slot instanceof TerminalOutputSlot) {
+                    ((TerminalOutputSlot) slot).connect(slotUri);
+                }
                 break;
             case DISCONNECT:
-                slot.disconnect();
+                if (slot instanceof LzyInputSlot) {
+                    ((LzyInputSlot) slot).disconnect();
+                } else if (slot instanceof TerminalOutputSlot) {
+                    ((TerminalOutputSlot) slot).disconnect();
+                }
                 break;
             case STATUS:
                 final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());
@@ -274,7 +275,7 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public void update(IAM.Auth request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
-        final Operations.ZygoteList zygotes = server.zygotes(auth);
+        final Operations.ZygoteList zygotes = lzyServerApi().zygotes(auth);
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
             publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());
         }

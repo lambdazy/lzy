@@ -6,6 +6,7 @@ import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.cli.CommandLine;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 import java.net.URI;
@@ -20,7 +21,7 @@ public class ChannelsStatus implements LzyCommand {
             .forAddress(serverAddr.getHost(), serverAddr.getPort())
             .usePlaintext()
             .build();
-        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
+        final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         final Channels.ChannelStatusList statusList = server.channelsStatus(auth);
         for (final Channels.ChannelStatus status : statusList.getStatusesList()) {
             System.out.println(JsonFormat.printer().print(status));

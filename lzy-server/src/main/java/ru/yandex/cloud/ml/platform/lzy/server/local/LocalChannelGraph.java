@@ -57,12 +57,7 @@ public class LocalChannelGraph implements ChannelGraph {
 
         checkConsistency(sender, receiver);
 
-        int rc;
-        if (sender instanceof TerminalEndpoint) {
-            rc = sender.connect(receiver);
-        } else {
-            rc = receiver.connect(sender);
-        }
+        final int rc = receiver.connect(sender);
         if (rc != 0) {
             throw new ChannelException(MessageFormat.format(
                 "Failure rc:{2} while connecting sender:{0} to receiver:{1}",

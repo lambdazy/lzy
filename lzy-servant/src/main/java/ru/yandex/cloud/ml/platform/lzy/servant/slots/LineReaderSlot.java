@@ -22,7 +22,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class LineReaderSlot extends LzyOutputSlotBase implements LzyOutputSlot {
+public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);
 
     private final String tid;
