@@ -138,10 +138,12 @@ public class TerminalSession {
         LOG.info("Kharon::configureSlot " + JsonUtils.printRequest(request));
         final CompletableFuture<Kharon.TerminalState> future = new CompletableFuture<>();
         final String commandId = generateCommandId(future);
-        terminalController.onNext(Kharon.TerminalCommand.newBuilder()
+        final Kharon.TerminalCommand sendingRequest = Kharon.TerminalCommand.newBuilder()
             .setCommandId(commandId)
             .setSlotCommand(request)
-            .build());
+            .build();
+        LOG.info("terminalController send request " + JsonUtils.printRequest(sendingRequest));
+        terminalController.onNext(sendingRequest);
         try {
             return future.get(10, TimeUnit.SECONDS).getSlotStatus();
         } catch (InterruptedException | ExecutionException | TimeoutException e) {

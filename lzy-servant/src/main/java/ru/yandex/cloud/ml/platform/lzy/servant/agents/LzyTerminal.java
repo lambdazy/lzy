@@ -1,26 +1,23 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
-import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.Status;
-import io.grpc.StatusException;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.*;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.io.Closeable;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class LzyTerminal extends LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
@@ -70,6 +67,14 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                         if (slotCommand.hasConnect() && slot instanceof LzyOutputSlot) {
                             final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
                             slotSender.connect((LzyOutputSlot) slot, slotUri);
+                            CommandHandler.this.onNext(TerminalState.newBuilder()
+                                .setCommandId(commandId)
+                                .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
+                                    .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                        .setCodeValue(0)
+                                        .build())
+                                    .build())
+                                .build());
                             return;
                         }
 
@@ -110,15 +115,15 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                 .build());
         }
 
-        public synchronized void onNext(TerminalState terminalState) {
+        public void onNext(TerminalState terminalState) {
             responseObserver.onNext(terminalState);
         }
 
-        public synchronized void onError(Throwable th) {
+        public void onError(Throwable th) {
             responseObserver.onError(th);
         }
 
-        public synchronized void onCompleted() {
+        public void onCompleted() {
             responseObserver.onCompleted();
         }
     }

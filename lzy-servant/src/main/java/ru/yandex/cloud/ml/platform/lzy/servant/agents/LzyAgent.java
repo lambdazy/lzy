@@ -242,7 +242,7 @@ public abstract class LzyAgent implements Closeable {
                 ((LzyInputSlot) slot).connect(URI.create(connect.getSlotUri()));
                 break;
             case DISCONNECT:
-                ((LzyInputSlot) slot).disconnect();
+                slot.suspend();
                 break;
             case STATUS:
                 final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());

@@ -39,9 +39,10 @@ public class DataCarrier {
                     }
                     case MESSAGE: {
                         getServantMessageStream().onNext(slotDataMessage.getMessage());
-                        receiver.onNext(Kharon.ReceivedDataStatus.newBuilder()
-                            .setStatus(Kharon.ReceivedDataStatus.Status.OK)
-                            .build());
+//                        receiver.onNext(Kharon.ReceivedDataStatus.newBuilder()
+//                            .setStatus(Kharon.ReceivedDataStatus.Status.OK)
+//                            .setOffset(offset)
+//                            .build());
                         break;
                     }
                 }
@@ -64,6 +65,7 @@ public class DataCarrier {
             @Override
             public void onCompleted() {
                 LOG.info("DataCarrier:: sending completed");
+                receiver.onCompleted();
 //                getServantMessageStream().onCompleted();
             }
         };

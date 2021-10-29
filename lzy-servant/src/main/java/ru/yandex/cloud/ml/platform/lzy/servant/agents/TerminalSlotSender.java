@@ -15,6 +15,8 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
 
@@ -27,6 +29,7 @@ public class TerminalSlotSender {
         private final ManagedChannel servantSlotCh;
         private long offset = 0;
         private final StreamObserver<SendSlotDataMessage> responseObserver;
+        private final CompletableFuture<Boolean> writingCompleted = new CompletableFuture<>();
 
         SlotWriter(LzyOutputSlot lzySlot, URI slotUri) {
             this.lzySlot = lzySlot;
@@ -39,18 +42,19 @@ public class TerminalSlotSender {
             final StreamObserver<ReceivedDataStatus> statusReceiver = new StreamObserver<>() {
                 @Override
                 public void onNext(ReceivedDataStatus receivedDataStatus) {
-                    LOG.info("Got response for slot " + TerminalSlotSender.this + " sending " + JsonUtils.printRequest(receivedDataStatus));
+                    LOG.info("Got response for slot " + lzySlot + " sending " + JsonUtils.printRequest(receivedDataStatus));
                     offset = receivedDataStatus.getOffset();
                 }
 
                 @Override
                 public void onError(Throwable throwable) {
-                    LOG.error("Exception while sending chunks from slot " + TerminalSlotSender.this + ": " + throwable);
+                    LOG.error("Exception while sending chunks from slot " + lzySlot + ": " + throwable);
                 }
 
                 @Override
                 public void onCompleted() {
-                    LOG.info("Sending chunks from slot " + TerminalSlotSender.this + " was finished");
+                    LOG.info("Sending chunks from slot " + lzySlot + " was finished");
+                    writingCompleted.complete(true);
                 }
             };
             responseObserver = connectedSlotController.writeToInputSlot(statusReceiver);
@@ -58,7 +62,7 @@ public class TerminalSlotSender {
 
         public void run() {
             try {
-                LOG.info("Starting sending bytes SlotWriter :: " + lzySlot);
+                LOG.info("Starting sending bytes slot:: " + lzySlot);
                 responseObserver.onNext(SendSlotDataMessage.newBuilder()
                     .setRequest(Servant.SlotRequest.newBuilder()
                         .setSlot(slotUri.getPath())
@@ -67,29 +71,32 @@ public class TerminalSlotSender {
                         .build())
                     .build());
                 lzySlot.readFromPosition(offset).forEach(chunk -> responseObserver.onNext(createChunkMessage(chunk)));
-                LOG.info("Completed sending bytes SlotWriter :: " + lzySlot);
+                LOG.info("Completed sending bytes slot:: " + lzySlot);
                 responseObserver.onNext(createEosMessage());
                 responseObserver.onCompleted();
             }
             catch (IOException iae) {
-                LOG.error("Got exception while sending bytes SlotWriter :: " + lzySlot + " exception:" + iae);
+                LOG.error("Got exception while sending bytes slot:: " + lzySlot + " exception:" + iae);
                 responseObserver.onError(iae);
             }
         }
 
         @Override
-        public void close() throws IOException {
+        public void close() throws IOException, ExecutionException, InterruptedException {
+            writingCompleted.get();
             servantSlotCh.shutdown();
         }
     }
 
     public void connect(LzyOutputSlot lzySlot, URI slotUri) {
         LOG.info("TerminalOutputSlot::connect " + slotUri);
-        try (SlotWriter writer = new SlotWriter(lzySlot, slotUri)) {
-            ForkJoinPool.commonPool().execute(writer::run);
-        } catch (IOException e) {
-            LOG.error("Failed to send slot " + lzySlot + " cause: " + e);
-        }
+        ForkJoinPool.commonPool().execute(() -> {
+            try (SlotWriter writer = new SlotWriter(lzySlot, slotUri)) {
+                writer.run();
+            } catch (IOException | ExecutionException | InterruptedException e) {
+                LOG.error("Failed to send slot " + lzySlot + " cause: " + e);
+            }
+        });
     }
 
     private static SendSlotDataMessage createChunkMessage(ByteString chunk) {
