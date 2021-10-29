@@ -1,0 +1,6 @@
+micronaut:
+  application:
+    name: lzyBackoffice
+grpc:
+  host: localhost
+  port: 1234

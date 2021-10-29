@@ -80,8 +80,13 @@ public class LzyServer {
         port = Integer.parseInt(parse.getOptionValue('p', "8888"));
 
         try (ApplicationContext context = ApplicationContext.run()) {
+            System.out.println(context.containsProperties("database.url"));
             Impl impl = context.getBean(Impl.class);
-            final Server server = ServerBuilder.forPort(port).addService(impl).build();
+            BackOfficeService backoffice = context.getBean(BackOfficeService.class);
+            final Server server = ServerBuilder.forPort(port)
+                    .addService(impl)
+                    .addService(backoffice)
+                    .build();
             server.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("gRPC server is shutting down!");

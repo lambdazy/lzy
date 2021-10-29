@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "datasphere";
+option java_outer_classname = "BackOffice";
+option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+
+service LzyBackoffice{
+  rpc AddUser(User) returns (AddUserResult);
+}
+
+message User{
+  string userId = 1;
+  string publicKey = 2;
+}
+
+message AddUserResult{}
