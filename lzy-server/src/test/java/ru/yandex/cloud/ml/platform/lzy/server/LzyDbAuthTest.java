@@ -56,8 +56,7 @@ public class LzyDbAuthTest {
                 this.token = token + "." + signedToken;
                 return this.token;
             } catch (Exception e) {
-                e.printStackTrace();
-                return null;
+                throw new RuntimeException(e);
             }
         }
 
@@ -105,7 +104,7 @@ public class LzyDbAuthTest {
                     new User("user1"), new User("user2"), new User("user3")
             };
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
 
         try(Session session =  storage.getSessionFactory().openSession()){
