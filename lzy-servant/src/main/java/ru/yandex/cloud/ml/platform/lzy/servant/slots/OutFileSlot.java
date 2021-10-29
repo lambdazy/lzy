@@ -110,6 +110,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         localFileContents.onClose(written -> {
             if (written) {
                 synchronized (OutFileSlot.this) {
+                    LOG.info("Content to slot " + OutFileSlot.this + " was written; READY=true");
                     ready = true;
                     state(Operations.SlotStatus.State.OPEN);
                     OutFileSlot.this.notifyAll();

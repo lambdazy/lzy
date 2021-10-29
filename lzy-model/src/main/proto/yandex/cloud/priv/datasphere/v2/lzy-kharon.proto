@@ -18,7 +18,7 @@ service LzyKharon {
   // API for terminal
   rpc AttachTerminal (stream TerminalState) returns (stream TerminalCommand);
   rpc WriteToInputSlot(stream SendSlotDataMessage) returns (ReceivedDataStatus);
-  rpc OpenOutputSlot (KharonSlotRequest) returns (stream Message);
+  rpc OpenOutputSlot (SlotRequest) returns (stream Message);
 
   // Server API
   rpc Publish (PublishRequest) returns (RegisteredZygote);
@@ -66,9 +66,4 @@ message ReceivedDataStatus {
     OK = 0;
     FAILED = 1;
   }
-}
-
-message KharonSlotRequest {
-  string slotUri = 1;
-  SlotRequest request = 2;
 }

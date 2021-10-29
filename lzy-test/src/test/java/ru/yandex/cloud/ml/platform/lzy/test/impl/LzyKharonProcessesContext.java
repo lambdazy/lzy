@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.lang3.SystemUtils;
-import ru.yandex.cloud.ml.platform.lzy.kharon.Kharon;
+import ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 
@@ -15,28 +15,60 @@ import java.util.concurrent.TimeoutException;
 public class LzyKharonProcessesContext implements LzyKharonTestContext {
     private static final long KHARON_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_KHARON_PORT = 8899;
+    private static final int LZY_KHARON_SERVANT_PROXY_PORT = 8900;
     private Process lzyKharon;
     private ManagedChannel channel;
     protected LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
+    public LzyKharonProcessesContext(String serverAddress) {
+        try {
+            lzyKharon = Utils.javaProcess(
+                LzyKharon.class.getCanonicalName(),
+                new String[]{
+                    "--host",
+                    "host.docker.internal",
+                    "--port",
+                    String.valueOf(LZY_KHARON_PORT),
+                    "--servant-proxy-port",
+                    String.valueOf(LZY_KHARON_SERVANT_PROXY_PORT),
+                    "--lzy-server-address",
+                    serverAddress
+                },
+                new String[]{}
+            ).inheritIO().start();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        channel = ManagedChannelBuilder
+            .forAddress("localhost", LZY_KHARON_PORT)
+            .usePlaintext()
+            .build();
+        lzyKharonClient = LzyKharonGrpc.newBlockingStub(channel)
+            .withWaitForReady()
+            .withDeadlineAfter(KHARON_STARTUP_TIMEOUT_SEC, TimeUnit.SECONDS);
+    }
+
     @Override
-    public String host(boolean fromDocker) {
+    public String serverAddress(boolean fromDocker) {
         if (!SystemUtils.IS_OS_LINUX && fromDocker) {
-            return "host.docker.internal";
+            return "http://host.docker.internal:" + LZY_KHARON_PORT;
         } else {
-            return "localhost";
+            return "http://localhost" + LZY_KHARON_PORT;
         }
     }
 
     @Override
-    public int port() {
-        init();
-        return LZY_KHARON_PORT;
+    public String servantAddress(boolean fromDocker) {
+        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
+            return "http://host.docker.internal:" + LZY_KHARON_SERVANT_PROXY_PORT;
+        } else {
+            return "http://localhost" + LZY_KHARON_SERVANT_PROXY_PORT;
+        }
     }
 
     @Override
     public LzyKharonGrpc.LzyKharonBlockingStub client() {
-        init();
         return lzyKharonClient;
     }
 
@@ -51,31 +83,6 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 throw new RuntimeException(e);
             }
-        }
-    }
-
-    private synchronized void init() {
-        if (lzyKharonClient == null) {
-            try {
-                lzyKharon = Utils.javaProcess(
-                    Kharon.class.getCanonicalName(),
-                    new String[]{
-                        "--port",
-                        String.valueOf(LZY_KHARON_PORT)
-                    },
-                    new String[]{}
-                ).inheritIO().start();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
-            channel = ManagedChannelBuilder
-                .forAddress("localhost", LZY_KHARON_PORT)
-                .usePlaintext()
-                .build();
-            lzyKharonClient = LzyKharonGrpc.newBlockingStub(channel)
-                .withWaitForReady()
-                .withDeadlineAfter(KHARON_STARTUP_TIMEOUT_SEC, TimeUnit.SECONDS);
         }
     }
 }

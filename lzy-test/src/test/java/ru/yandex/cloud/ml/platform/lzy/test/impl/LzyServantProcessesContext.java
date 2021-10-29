@@ -23,11 +23,11 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
     private final List<Process> servantProcesses = new ArrayList<>();
 
     @Override
-    public Servant startTerminalAtPathAndPort(String mount, int port, String serverHost, int serverPort) {
+    public Servant startTerminalAtPathAndPort(String mount, int port, String serverAddress) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String[] lzyArgs = {
             "--lzy-address",
-            serverHost + ":" + serverPort,
+            serverAddress,
             "--host",
             "localhost",
             "--port",
@@ -63,8 +63,8 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             }
 
             @Override
-            public String serverHost() {
-                return serverHost;
+            public String serverAddress() {
+                return serverAddress;
             }
 
             @Override

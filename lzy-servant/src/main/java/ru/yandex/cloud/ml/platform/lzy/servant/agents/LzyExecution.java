@@ -68,15 +68,7 @@ public class LzyExecution {
                 return slots.get(spec.name());
             }
             try {
-                final LzySlot slot;
-                {
-                    LzySlot basicSlot = createSlot(spec, binding);
-                    if (zygote == null && basicSlot instanceof LzyOutputSlot) { // isTerminal and OutputSlot
-                        slot = new TerminalOutputSlot(spec, (LzyOutputSlot) basicSlot);
-                    } else {
-                        slot = basicSlot;
-                    }
-                }
+                final LzySlot slot = createSlot(spec, binding);
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
                     if (spec.name().startsWith("local://")) { // No scheme in slot name

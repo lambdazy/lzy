@@ -35,7 +35,7 @@ public class LzyServantDockerContext implements LzyServantTestContext {
     private final List<GenericContainer<?>> startedContainers = new ArrayList<>();
 
     @Override
-    public Servant startTerminalAtPathAndPort(String mount, int port, String serverHost, int serverPort) {
+    public Servant startTerminalAtPathAndPort(String mount, int port, String serverAddress) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
@@ -45,7 +45,7 @@ public class LzyServantDockerContext implements LzyServantTestContext {
             .withEnv("DEBUG_PORT", "5006")
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withCommand("--lzy-address " + serverHost + ":" + serverPort + " "
+            .withCommand("--lzy-address " + serverAddress + " "
                 + "--host localhost "
                 + "--port " + port + " "
                 + "--lzy-mount " + mount + " "
@@ -72,8 +72,8 @@ public class LzyServantDockerContext implements LzyServantTestContext {
             }
 
             @Override
-            public String serverHost() {
-                return serverHost;
+            public String serverAddress() {
+                return serverAddress;
             }
 
             @Override

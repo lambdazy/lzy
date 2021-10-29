@@ -20,18 +20,13 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
     protected LzyServerGrpc.LzyServerBlockingStub lzyServerClient;
 
     @Override
-    public String host(boolean fromDocker) {
-        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
-            return "host.docker.internal";
-        } else {
-            return "localhost";
-        }
-    }
-
-    @Override
-    public int port() {
+    public String address(boolean fromDocker) {
         init();
-        return LZY_SERVER_PORT;
+        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
+            return "http://host.docker.internal:" + LZY_SERVER_PORT;
+        } else {
+            return "http://localhost:" + LZY_SERVER_PORT;
+        }
     }
 
     @Override

@@ -21,8 +21,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
                 LZY_MOUNT,
                 DEFAULT_SERVANT_PORT,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+                serverContext.address(servantContext.inDocker())
         );
 
         //Act
@@ -48,8 +47,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
                 LZY_MOUNT,
                 DEFAULT_SERVANT_PORT,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+                serverContext.address(servantContext.inDocker())
         );
         final boolean status = servant.waitForStatus(
                 AgentStatus.EXECUTING,
@@ -98,8 +96,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
                 LZY_MOUNT,
                 DEFAULT_SERVANT_PORT,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+                serverContext.address(servantContext.inDocker())
         );
         final boolean started = servant.waitForStatus(
                 AgentStatus.EXECUTING,
@@ -128,8 +125,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
                 LZY_MOUNT,
                 DEFAULT_SERVANT_PORT,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+                serverContext.address(servantContext.inDocker())
         );
 
         //Act

@@ -11,17 +11,21 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.*;
 
 import java.io.Closeable;
+import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LzyTerminal extends LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
     private final Server agentServer;
-    private final ManagedChannel channel1;
-    private final ManagedChannel channel2;
+    private final ManagedChannel channel;
     private final LzyKharonGrpc.LzyKharonStub kharon;
     private final LzyKharonGrpc.LzyKharonBlockingStub kharonBlockingStub;
     private CommandHandler commandHandler;
@@ -31,16 +35,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         super(config);
         final LzyTerminal.Impl impl = new Impl();
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
-        channel1 = ManagedChannelBuilder
+        channel = ManagedChannelBuilder
             .forAddress(serverAddress.getHost(), serverAddress.getPort())
             .usePlaintext()
             .build();
-        channel2 = ManagedChannelBuilder
-            .forAddress(serverAddress.getHost(), serverAddress.getPort())
-            .usePlaintext()
-            .build();
-        kharon = LzyKharonGrpc.newStub(channel1);
-        kharonBlockingStub = LzyKharonGrpc.newBlockingStub(channel2);
+        kharon = LzyKharonGrpc.newStub(channel);
+        kharonBlockingStub = LzyKharonGrpc.newBlockingStub(channel);
     }
 
     @Override
@@ -51,6 +51,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private class CommandHandler {
         private final StreamObserver<TerminalCommand> supplier;
         private StreamObserver<TerminalState> responseObserver;
+        private final TerminalSlotSender slotSender = new TerminalSlotSender();
 
         CommandHandler() {
             supplier = new StreamObserver<>() {
@@ -65,6 +66,13 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
                     final Servant.SlotCommand slotCommand = terminalCommand.getSlotCommand();
                     try {
+                        final LzySlot slot = currentExecution.slot(slotCommand.getSlot());
+                        if (slotCommand.hasConnect() && slot instanceof LzyOutputSlot) {
+                            final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
+                            slotSender.connect((LzyOutputSlot) slot, slotUri);
+                            return;
+                        }
+
                         final Servant.SlotCommandStatus slotCommandStatus = configureSlot(
                             currentExecution,
                             slotCommand
@@ -165,8 +173,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     public void close() {
         super.close();
         commandHandler.onCompleted();
-        channel1.shutdown();
-        channel2.shutdown();
+        channel.shutdown();
     }
 
     private class Impl extends LzyServantGrpc.LzyServantImplBase {

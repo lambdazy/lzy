@@ -64,6 +64,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         final Iterator<Servant.Message> msgIter = connectedSlotController.openOutputSlot(Servant.SlotRequest.newBuilder()
             .setSlot(connected.getPath())
             .setOffset(offset)
+            .setSlotUri(connected.toString())
             .build());
         try {
             while (msgIter.hasNext()) {

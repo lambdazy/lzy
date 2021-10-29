@@ -8,6 +8,7 @@ import io.grpc.stub.StreamObserver;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.*;
 
@@ -17,8 +18,8 @@ import java.net.URISyntaxException;
 import java.util.Iterator;
 import java.util.UUID;
 
-public class Kharon {
-    private static final Logger LOG = LogManager.getLogger(Kharon.class);
+public class LzyKharon {
+    private static final Logger LOG = LogManager.getLogger(LzyKharon.class);
     private final LzyServerGrpc.LzyServerBlockingStub server;
 
     private final TerminalSessionManager terminalManager;
@@ -55,13 +56,13 @@ public class Kharon {
         servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
         serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
 
-        final Kharon kharon = new Kharon(serverAddress, host, port, servantPort);
+        final LzyKharon kharon = new LzyKharon(serverAddress, host, port, servantPort);
         kharon.start();
         kharon.awaitTermination();
     }
 
 
-    public Kharon(URI serverUri, String host, int port, int servantProxyPort) throws URISyntaxException {
+    public LzyKharon(URI serverUri, String host, int port, int servantProxyPort) throws URISyntaxException {
         final ManagedChannel serverChannel = ManagedChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
@@ -106,17 +107,19 @@ public class Kharon {
 
         @Override
         public StreamObserver<SendSlotDataMessage> writeToInputSlot(StreamObserver<ReceivedDataStatus> responseObserver) {
+            LOG.info("Kharon::writeToInputSlot");
             final TerminalSession terminalSession = getTerminalSession();
             return terminalSession.initDataTransfer(responseObserver);
         }
 
         @Override
-        public void openOutputSlot(KharonSlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+        public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+            LOG.info("Kharon::openOutputSlot from Terminal " + JsonUtils.printRequest(request));
             final URI slotUri = URI.create(request.getSlotUri());
             final ManagedChannel channel = ManagedChannelBuilder
                 .forAddress(slotUri.getHost(), slotUri.getPort())
                 .build();
-            final Iterator<Servant.Message> messageIterator = LzyServantGrpc.newBlockingStub(channel).openOutputSlot(request.getRequest());
+            final Iterator<Servant.Message> messageIterator = LzyServantGrpc.newBlockingStub(channel).openOutputSlot(request);
             while (messageIterator.hasNext()) {
                 responseObserver.onNext(messageIterator.next());
             }
@@ -177,12 +180,14 @@ public class Kharon {
     private class KharonServantProxyService extends LzyServantGrpc.LzyServantImplBase {
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+            LOG.info("KharonServantProxyService::execute " + JsonUtils.printRequest(request));
             final TerminalSession session = getTerminalSession();
             session.setExecutionProgress(responseObserver);
         }
 
         @Override
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+            LOG.info("KharonServantProxyService::openOutputSlot " + JsonUtils.printRequest(request));
             final TerminalSession session = getTerminalSession();
             session.carryTerminalSlotContent(request, responseObserver);
         }

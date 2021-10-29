@@ -2,8 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -17,9 +15,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.*;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.TerminalOutputSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -243,19 +239,10 @@ public abstract class LzyAgent implements Closeable {
                 break;
             case CONNECT:
                 final Servant.ConnectSlotCommand connect = request.getConnect();
-                final URI slotUri = URI.create(connect.getSlotUri());
-                if (slot instanceof LzyInputSlot) {
-                    ((LzyInputSlot) slot).connect(slotUri);
-                } else if (slot instanceof TerminalOutputSlot) {
-                    ((TerminalOutputSlot) slot).connect(slotUri);
-                }
+                ((LzyInputSlot) slot).connect(URI.create(connect.getSlotUri()));
                 break;
             case DISCONNECT:
-                if (slot instanceof LzyInputSlot) {
-                    ((LzyInputSlot) slot).disconnect();
-                } else if (slot instanceof TerminalOutputSlot) {
-                    ((TerminalOutputSlot) slot).disconnect();
-                }
+                ((LzyInputSlot) slot).disconnect();
                 break;
             case STATUS:
                 final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());

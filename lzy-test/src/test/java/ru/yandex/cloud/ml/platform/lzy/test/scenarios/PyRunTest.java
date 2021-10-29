@@ -19,8 +19,7 @@ public class PyRunTest extends LzyBaseTest {
         terminal = servantContext.startTerminalAtPathAndPort(
                 LZY_MOUNT,
                 9999,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+                serverContext.address(servantContext.inDocker())
         );
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,

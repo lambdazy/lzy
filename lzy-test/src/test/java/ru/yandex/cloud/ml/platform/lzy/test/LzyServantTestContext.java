@@ -22,7 +22,7 @@ public interface LzyServantTestContext extends AutoCloseable {
     Logger LOGGER = LoggerFactory.getLogger(LzyServantTestContext.class);
     int DEFAULT_TIMEOUT_SEC = 30;
 
-    Servant startTerminalAtPathAndPort(String path, int port, String serverHost, int serverPort);
+    Servant startTerminalAtPathAndPort(String path, int port, String serverAddress);
 
     boolean inDocker();
     void close();
@@ -32,7 +32,7 @@ public interface LzyServantTestContext extends AutoCloseable {
         String mount();
         @SuppressWarnings("unused")
         int port();
-        String serverHost();
+        String serverAddress();
 
         @SuppressWarnings("UnusedReturnValue")
         default ExecutionResult execute(String... command) {
@@ -90,7 +90,7 @@ public interface LzyServantTestContext extends AutoCloseable {
                         zygoteName,
                         "filename",
                         "-z",
-                        serverHost() // serverAddress
+                        serverAddress() // serverAddress
                     )
                 );
                 Utils.waitFlagUp(

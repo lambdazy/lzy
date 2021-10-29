@@ -130,7 +130,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>ru.yandex.cloud.ml.platform.lzy.kharon.Kharon</mainClass>
+                            <mainClass>ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon</mainClass>
                         </manifest>
                         <manifestEntries>
                             <Multi-Release>true</Multi-Release>

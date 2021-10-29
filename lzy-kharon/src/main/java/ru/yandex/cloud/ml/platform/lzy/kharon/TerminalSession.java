@@ -12,9 +12,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.*;
 
 public class TerminalSession {
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
@@ -28,7 +26,7 @@ public class TerminalSession {
     private String user;
     private final UUID sessionId = UUID.randomUUID();
     private final URI kharonAddress;
-    private final URI kharonServantAddress;
+    private final URI kharonServantProxyAddress;
 
     private final Map<UUID, CompletableFuture<Kharon.TerminalState>> tasks = new ConcurrentHashMap<>();
 
@@ -39,12 +37,14 @@ public class TerminalSession {
         URI kharonServantAddress
     ) {
         this.kharonAddress = kharonAddress;
-        this.kharonServantAddress = kharonServantAddress;
+        this.kharonServantProxyAddress = kharonServantAddress;
         terminalController = terminalCommandObserver;
         terminalStateObserver = new StreamObserver<>() {
             @Override
             public void onNext(Kharon.TerminalState terminalState) {
-                LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:" + JsonUtils.printRequest(terminalState));
+                if (!terminalState.hasSlotStatus()) {
+                    LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:" + JsonUtils.printRequest(terminalState));
+                }
                 switch (terminalState.getProgressCase()) {
                     case ATTACHTERMINAL: {
                         final Kharon.AttachTerminal attachTerminal = terminalState.getAttachTerminal();
@@ -61,12 +61,16 @@ public class TerminalSession {
                             .setSessionId(sessionId.toString())
                             .build();
 
+                        String servantAddr = kharonServantAddress.toString();
+                        if (servantAddr.contains("host.docker.internal")) {
+                            servantAddr = servantAddr.replace("host.docker.internal", "localhost");
+                        }
                         //noinspection ResultOfMethodCallIgnored
                         lzyServer.registerServant(Lzy.AttachServant.newBuilder()
                             .setAuth(IAM.Auth.newBuilder()
                                 .setUser(userCredentials)
                                 .build())
-                            .setServantURI(kharonServantAddress.toString())
+                            .setServantURI(servantAddr)
                             .build());
                         break;
                     }
@@ -76,7 +80,7 @@ public class TerminalSession {
                         executionProgress.onNext(Servant.ExecutionProgress.newBuilder()
                             .setAttach(Servant.SlotAttach.newBuilder()
                                 .setSlot(attach.getSlot())
-                                .setUri(convertToKharonUri(attach.getUri()))
+                                .setUri(convertToKharonServantUri(attach.getUri()))
                                 .setChannel(attach.getChannel())
                                 .build())
                             .build());
@@ -88,7 +92,7 @@ public class TerminalSession {
                         executionProgress.onNext(Servant.ExecutionProgress.newBuilder()
                             .setDetach(Servant.SlotDetach.newBuilder()
                                 .setSlot(detach.getSlot())
-                                .setUri(convertToKharonUri(detach.getUri()))
+                                .setUri(convertToKharonServantUri(detach.getUri()))
                                 .build())
                             .build());
                         break;
@@ -130,7 +134,8 @@ public class TerminalSession {
     }
 
     @Nullable
-    public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) {
+    public synchronized Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) {
+        LOG.info("Kharon::configureSlot " + JsonUtils.printRequest(request));
         final CompletableFuture<Kharon.TerminalState> future = new CompletableFuture<>();
         final String commandId = generateCommandId(future);
         terminalController.onNext(Kharon.TerminalCommand.newBuilder()
@@ -138,9 +143,9 @@ public class TerminalSession {
             .setSlotCommand(request)
             .build());
         try {
-            return future.get().getSlotStatus();
-        } catch (InterruptedException | ExecutionException e) {
-            LOG.error("Failed while configure slot in bidirectional stream");
+            return future.get(10, TimeUnit.SECONDS).getSlotStatus();
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOG.error("Failed while configure slot in bidirectional stream " + e);
         }
         return Servant.SlotCommandStatus.newBuilder().build();
     }
@@ -160,14 +165,34 @@ public class TerminalSession {
         return taskId.toString();
     }
 
-    private String convertToKharonUri(String slotStrUri) {
+    private String convertToKharonServantUri(String slotStrUri) {
         try {
             final URI slotUri = URI.create(slotStrUri);
             return new URI(
                 slotUri.getScheme(),
-                kharonAddress.getHost(),
+                null,
+                kharonServantProxyAddress.getHost(),
+                kharonServantProxyAddress.getPort(),
                 slotUri.getPath(),
-                sessionId.toString()
+                "sessionId=" + sessionId,
+                null
+            ).toString();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String generateKharonUriForDataTransfer(String slotStrUri) {
+        try {
+            final URI slotUri = URI.create(slotStrUri);
+            return new URI(
+                slotUri.getScheme(),
+                null,
+                kharonAddress.getHost(),
+                kharonAddress.getPort(),
+                slotUri.getPath(),
+                "dataCarryId=" + UUID.randomUUID(),
+                null
             ).toString();
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
@@ -175,12 +200,16 @@ public class TerminalSession {
     }
 
     public void carryTerminalSlotContent(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+        LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
         final String slot = request.getSlot();
+        final String slotUri = generateKharonUriForDataTransfer(request.getSlotUri());
+        dataCarrier.openServantConnection(slotUri, responseObserver);
         configureSlot(Servant.SlotCommand.newBuilder()
             .setSlot(slot)
-            .setConnect(Servant.ConnectSlotCommand.newBuilder().build())
+            .setConnect(Servant.ConnectSlotCommand.newBuilder()
+                .setSlotUri(slotUri)
+                .build())
             .build());
-        dataCarrier.openServantConnection(slot, responseObserver);
     }
 
     public StreamObserver<Kharon.SendSlotDataMessage> initDataTransfer(StreamObserver<Kharon.ReceivedDataStatus> responseObserver) {
