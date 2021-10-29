@@ -1,9 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate.models;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -15,11 +13,14 @@ public class UserModel {
     }
 
     @Id
-    @Column(name = "user_id")
+    @Column(name = "user_id", nullable = false)
     private String userId;
 
-    @Column(name = "public_token")
+    @Column(name = "public_token", nullable = false)
     private String publicToken;
+
+    @OneToMany(mappedBy = "owner")
+    private Set<TaskModel> tasks;
 
     public UserModel() {}
 
@@ -37,5 +38,9 @@ public class UserModel {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public Set<TaskModel> getTasks() {
+        return tasks;
     }
 }

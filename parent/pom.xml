@@ -93,6 +93,8 @@
         <hibernate.version>5.6.0.Final</hibernate.version>
         <micronaut.version>3.1.1</micronaut.version>
         <junit-api.version>5.8.1</junit-api.version>
+        <micronaut-test.version>3.0.3</micronaut-test.version>
+        <h2database.version>1.4.200</h2database.version>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -681,6 +683,7 @@
                 <version>${micronaut.version}</version>
             </dependency>
             <dependency>
+<<<<<<< HEAD
                 <groupId>io.micronaut</groupId>
                 <artifactId>micronaut-http-server-netty</artifactId>
                 <version>${micronaut.version}</version>
@@ -704,6 +707,18 @@
                 <groupId>io.micronaut.test</groupId>
                 <artifactId>micronaut-test-junit5</artifactId>
                 <version>3.0.2</version>
+=======
+                <groupId>io.micronaut.test</groupId>
+                <artifactId>micronaut-test-junit5</artifactId>
+                <version>${micronaut-test.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>${h2database.version}</version>
+                <scope>test</scope>
+>>>>>>> d5325f0ad972a6d6ba59f4e4d23afc60f6ad9ba0
             </dependency>
         </dependencies>
 
