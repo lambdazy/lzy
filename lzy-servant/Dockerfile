@@ -1,8 +1,5 @@
 FROM findepi/graalvm:java11-all
-# not great idea ofc, but source and conda activate doesn't work otherwise
-SHELL ["/bin/bash", "-c"]
-
-# conda installation
+### conda installation
 ENV PATH="/root/miniconda3/bin:$PATH"
 ARG PATH="/root/miniconda3/bin:$PATH"
 RUN apt-get install -y wget
@@ -10,17 +7,20 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && mkdir /root/.conda \
     && bash Miniconda3-latest-Linux-x86_64.sh -b \
     && rm -f Miniconda3-latest-Linux-x86_64.sh
-RUN conda --version
-RUN conda init bash
-RUN conda create --name default
-# make RUN commands use the new environment:
-SHELL ["conda", "run", "-n", "default", "/bin/bash", "-c"]
 
 ### lzy-python
 COPY lzy-python/ lzy-python
-# to be sure that run from conda env
-RUN python3 -m pip --version
-RUN python3 -m pip install --default-timeout=100 lzy-python/
+
+SHELL ["/bin/bash", "-c"]
+# for future interactive shell sessions
+RUN conda init
+RUN eval "$(conda shell.bash hook)" \
+    && conda create --name default \
+    && conda activate default \
+    && printf "%s" "$CONDA_DEFAULT_ENV" \
+    && pip --version \
+    && which pip \
+    && python -m pip install --default-timeout=100 lzy-python/ setuptools
 
 COPY lzy-servant/entrypoint.sh /
 COPY test.yaml /
