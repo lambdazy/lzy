@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.servant;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -9,6 +10,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvConnector;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.Connector;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.InFileSlot;
@@ -25,13 +28,10 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
@@ -161,38 +161,6 @@ public class LzyExecution {
         }
     }
 
-    private void logStream(InputStream stream, boolean warn) {
-        Scanner scanner = new Scanner(stream);
-        while (scanner.hasNextLine()) {
-            String line = scanner.nextLine();
-            if (warn) {
-                LOG.warn(line);
-            } else {
-                LOG.info(line);
-            }
-        }
-    }
-
-    private int execAndLog(String command) throws IOException, InterruptedException {
-        LOG.info("Executing command: " + command);
-        Process run = Runtime.getRuntime().exec(new String[]{
-                "bash", "-c", command
-        });
-        int res = run.waitFor();
-        logStream(run.getInputStream(), false);
-        logStream(run.getErrorStream(), true);
-        return res;
-    }
-
-    private void installPyenv(PythonEnv env) throws IOException, InterruptedException {
-        execAndLog("pip --version");
-        execAndLog("python --version");
-        execAndLog("echo $PREFIX");
-
-        String s = "conda env update --name default --file /test.yaml --prune";
-        execAndLog(s);
-    }
-
     public void start() {
         if (zygote == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
@@ -204,14 +172,20 @@ public class LzyExecution {
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
                 .build()
             );
+            Connector session = null;
             if (zygote.env() instanceof PythonEnv) {
-                installPyenv((PythonEnv) zygote.env());
+                session = new CondaEnvConnector((PythonEnv) zygote.env());
+            } else {
+                throw new NotImplementedException("Environments different than conda are not supported");
             }
-            exec = Runtime.getRuntime().exec(new String[]{
-                    "conda", "run", "-n", "default",
-                    "bash", "-c",
-                    zygote.fuze() + " " + arguments
-            });
+
+            String command = "printf \"%s\" \"$CONDA_DEFAULT_ENV\" && ";
+            LOG.info("Going to exec command " + command);
+            session.execAndLog(command);
+
+            command = zygote.fuze() + " " + arguments;
+            LOG.info("Going to exec command " + command);
+            this.exec = session.exec(command);
 
             stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
             stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(

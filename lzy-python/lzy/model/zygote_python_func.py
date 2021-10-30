@@ -53,7 +53,7 @@ class ZygotePythonFunc(Zygote):
     def command(self) -> str:
         serialized_func = base64.b64encode(
             cloudpickle.dumps(FuncContainer(self._func, self._arg_types, self._return_type))).decode('ascii')
-        return f"python3 /lzy-python/lzy/startup.py " + serialized_func
+        return f"python /lzy-python/lzy/startup.py " + serialized_func
 
     def slots(self) -> List[Slot]:
         return self._arg_slots + [self._return_slot]
