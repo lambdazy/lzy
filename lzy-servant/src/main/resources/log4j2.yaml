@@ -17,4 +17,4 @@ Configuration:
     Root:
       level: info
       AppenderRef:
-        ref: LogFile
+        ref: Console
