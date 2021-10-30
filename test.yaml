@@ -1,0 +1,10 @@
+---
+name: default
+dependencies:
+- python>=3.5
+- pip
+- pip:
+  - wheel==0.36.2
+  - urllib3==1.26.6
+  - tqdm==4.61.2
+  - numpy==1.21.2

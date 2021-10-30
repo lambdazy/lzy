@@ -1,27 +1,39 @@
 FROM findepi/graalvm:java11-all
+# not great idea ofc, but source and conda activate doesn't work otherwise
+SHELL ["/bin/bash", "-c"]
 
+# conda installation
+ENV PATH="/root/miniconda3/bin:$PATH"
+ARG PATH="/root/miniconda3/bin:$PATH"
+RUN apt-get install -y wget
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && mkdir /root/.conda \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh
+RUN conda --version
+RUN conda init bash
+RUN conda create --name default
+# make RUN commands use the new environment:
+SHELL ["conda", "run", "-n", "default", "/bin/bash", "-c"]
+
+### lzy-python
+COPY lzy-python/ lzy-python
+# to be sure that run from conda env
+RUN python3 -m pip --version
+RUN python3 -m pip install --default-timeout=100 lzy-python/
+
+COPY lzy-servant/entrypoint.sh /
+COPY test.yaml /
+
+### deps
 RUN apt-get -y update --fix-missing
-RUN apt-get install -y fuse
-RUN apt-get install -y python3 python3-pip lsof procps
+RUN apt-get install -y fuse lsof procps
 RUN mkdir -p /var/log/servant
 
-COPY lzy-python/ lzy-python
-# https://stackoverflow.com/questions/43298872/how-to-solve-readtimeouterror-httpsconnectionpoolhost-pypi-python-org-port
-RUN pip3 install --default-timeout=100 lzy-python/
-
+### java
 COPY lzy-servant/target/lzy-servant-1.0-SNAPSHOT-jar-with-dependencies.jar app/app.jar
 COPY lzy-servant/src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 
-# commented because it actually builds python interpreter from sources: this is the only way to install
-# specific interpreter version.
-# uncomment if ready to wait for building
-#RUN apt-get install -y wget
-#COPY lzy-servant/pyinstaller.sh /
-#RUN chmod a+rx /pyinstaller.sh
-#RUN ./pyinstaller.sh "3.9.7" "3.8.9"
-#RUN ln /usr/local/bin/python3.9 /usr/bin/python
-
-COPY lzy-servant/entrypoint.sh /
 RUN chmod a+rx /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]

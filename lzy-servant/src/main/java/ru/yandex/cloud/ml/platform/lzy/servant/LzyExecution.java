@@ -27,11 +27,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
@@ -165,48 +161,36 @@ public class LzyExecution {
         }
     }
 
-    private String readToStr(InputStream stream) {
-        return new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))
-                .lines()
-                .collect(Collectors.joining("\n"));
+    private void logStream(InputStream stream, boolean warn) {
+        Scanner scanner = new Scanner(stream);
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
+            if (warn) {
+                LOG.warn(line);
+            } else {
+                LOG.info(line);
+            }
+        }
+    }
+
+    private int execAndLog(String command) throws IOException, InterruptedException {
+        LOG.info("Executing command: " + command);
+        Process run = Runtime.getRuntime().exec(new String[]{
+                "bash", "-c", command
+        });
+        int res = run.waitFor();
+        logStream(run.getInputStream(), false);
+        logStream(run.getErrorStream(), true);
+        return res;
     }
 
     private void installPyenv(PythonEnv env) throws IOException, InterruptedException {
-        // link other python version here
-        // TODO: make PythonEnv normally typed
-//        List<Integer> version = Arrays.stream(env.interpreterVersion().split("\\."))
-//                .map(Integer::parseInt)
-//                .collect(Collectors.toList());
-//        LOG.info("Linking python interpreter to " + env.interpreterVersion());
-//        Runtime.getRuntime().exec(new String[]{
-//                "bash", "-c",
-//                String.format("ln /usr/local/bin/python%s /usr/bin/python", version.get(0) + "." + version.get(1))
-//        });
+        execAndLog("pip --version");
+        execAndLog("python --version");
+        execAndLog("echo $PREFIX");
 
-        LOG.info("Creating temporary requirements.txt file from pyenv: " + env.name());
-        Path dir = Files.createTempDirectory("pyenv_").normalize().toAbsolutePath();
-        Path requirements = Files.createFile(dir.resolve("requirements.txt")).toAbsolutePath();
-        try (PrintWriter outstr = new PrintWriter(requirements.toString(), StandardCharsets.UTF_8)) {
-            for (String s : env.packages().split(";")) {
-                outstr.println(s);
-            }
-        }
-        LOG.info("Successfully generated requirements.txt");
-
-        // setup pyenv
-        LOG.info("Trying to install python environment from: " + requirements);
-
-        String command = "python3 -m pip install -r" + requirements;
-        Process install = Runtime.getRuntime().exec(new String[]{
-                "bash", "-c", command
-        });
-        int exitValue = install.waitFor();
-        LOG.info("pip installation exit value: " + exitValue);
-        if (exitValue != 0) {
-            LOG.info(readToStr(install.getInputStream()));
-            LOG.warn(readToStr(install.getErrorStream()));
-            throw new IOException("python environment installation failed");
-        }
+        String s = "conda env update --name default --file /test.yaml --prune";
+        execAndLog(s);
     }
 
     public void start() {
@@ -223,7 +207,11 @@ public class LzyExecution {
             if (zygote.env() instanceof PythonEnv) {
                 installPyenv((PythonEnv) zygote.env());
             }
-            exec = Runtime.getRuntime().exec(new String[]{"bash", "-c", zygote.fuze() + " " + arguments});
+            exec = Runtime.getRuntime().exec(new String[]{
+                    "conda", "run", "-n", "default",
+                    "bash", "-c",
+                    zygote.fuze() + " " + arguments
+            });
 
             stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
             stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
