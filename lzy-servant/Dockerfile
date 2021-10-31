@@ -12,15 +12,16 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
 COPY lzy-python/ lzy-python
 
 SHELL ["/bin/bash", "-c"]
-# for future interactive shell sessions
-RUN conda init
+## for future interactive shell sessions
+RUN conda init bash
 RUN eval "$(conda shell.bash hook)" \
-    && conda create --name default \
-    && conda activate default \
-    && printf "%s" "$CONDA_DEFAULT_ENV" \
-    && pip --version \
-    && which pip \
-    && python -m pip install --default-timeout=100 lzy-python/ setuptools
+    && conda create --name default
+#    && conda activate default \
+#    && source ~/.bashrc \
+#    && printf "%s" "$CONDA_DEFAULT_ENV" \
+#    && pip --version \
+#    && which pip \
+#    && python -m pip install --default-timeout=100 lzy-python/ setuptools
 
 COPY lzy-servant/entrypoint.sh /
 COPY test.yaml /

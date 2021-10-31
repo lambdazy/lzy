@@ -28,7 +28,6 @@ public class CondaEnvConnector implements Connector {
     }
 
     public int execAndLog(String command) throws IOException, InterruptedException {
-        LOG.info("Executing command: " + command);
         Process run = exec(command);
         int res = run.waitFor();
         logStream(run.getInputStream(), false);
@@ -38,6 +37,7 @@ public class CondaEnvConnector implements Connector {
 
     private void installPyenv(PythonEnv env) throws IOException, InterruptedException {
         execAndLog("conda env update --file /test.yaml --prune");
+        execAndLog("pip install --default-timeout=100 /lzy-python setuptools");
     }
 
 
