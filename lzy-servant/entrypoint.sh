@@ -1,9 +1,5 @@
 #!/bin/bash
 
-eval "$(conda shell.bash hook)"
-conda activate default
-printf "%s" "$CONDA_DEFAULT_ENV"
-
 java \
 -Xmx4G \
 -Dsun.jnu.encoding=UTF-8 \
