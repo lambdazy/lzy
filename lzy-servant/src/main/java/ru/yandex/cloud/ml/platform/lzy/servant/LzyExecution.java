@@ -179,11 +179,7 @@ public class LzyExecution {
                 throw new NotImplementedException("Environments different than conda are not supported");
             }
 
-            String command = "printf \"%s\" \"$CONDA_DEFAULT_ENV\" && ";
-            LOG.info("Going to exec command " + command);
-            session.execAndLog(command);
-
-            command = zygote.fuze() + " " + arguments;
+            String command = zygote.fuze() + " " + arguments;
             LOG.info("Going to exec command " + command);
             this.exec = session.exec(command);
 
