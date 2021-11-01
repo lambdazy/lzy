@@ -6,6 +6,7 @@ from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 from lzy.servant.bash_servant import BashServant
 from lzy.servant.servant import Servant
+from . import get_python_env_as_yaml
 from .buses import Bus
 from .lazy_op import LzyOp
 from .whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
@@ -46,13 +47,17 @@ class LzyEnvBase(ABC):
     def run(self) -> None:
         pass
 
+    @abstractmethod
+    def python_env_as_yaml(self) -> str:
+        pass
 
 class LzyEnv(LzyEnvBase):
     instance = None
 
     # noinspection PyDefaultArgument
     def __init__(self, eager: bool = False, whiteboard: Any = None,
-                 buses: List[Tuple[Callable, Bus]] = [], local: bool = False):
+                 buses: List[Tuple[Callable, Bus]] = [], local: bool = False,
+                 yaml_path: str = None):
         super().__init__()
         # if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
         #     raise ValueError('Whiteboard should be a dataclass')
@@ -71,7 +76,17 @@ class LzyEnv(LzyEnvBase):
         self._ops = []
         self._eager = eager
         self._buses = list(buses)
+        self._yaml = yaml_path
         self._log = logging.getLogger(str(self.__class__))
+
+    def python_env_as_yaml(self) -> str:
+        if self._yaml is None:
+            return get_python_env_as_yaml()
+
+        # TODO: as usually not good idea to read whole file into memory
+        # TODO: but right now it's the best option
+        with open(self._yaml, 'r') as file:
+            return "".join(file.readlines())
 
     # TODO: mb better naming
     def already_exists(self):
