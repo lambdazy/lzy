@@ -1,0 +1,29 @@
+#!/bin/bash
+
+#PODS=$(kubectl get pods | sed 1d | awk '{printf $1 " "}')
+#printf "deleting pods: %s\n" "$PODS"
+#for POD in $PODS
+#do
+#  kubectl delete POD "$POD"
+#done
+#
+#mvn clean install -DskipTests
+#
+#docker tag lzy-server cr.yandex/crppns4pq490jrka0sth/lzy-server:latest
+#docker tag lzy-servant cr.yandex/crppns4pq490jrka0sth/lzy-servant:latest
+#
+#docker push cr.yandex/crppns4pq490jrka0sth/lzy-server:latest
+#docker push cr.yandex/crppns4pq490jrka0sth/lzy-servant:latest
+#
+#kubectl create -f lzy-server-test-pod.yaml
+#sleep 2s
+#
+#LZY_SERVER_HOST=$(kubectl get pod lzy-server-test-pod -o custom-columns=IP:status.podIP)
+#echo "$LZY_SERVER_HOST"
+
+kubectl create -f terminal-test-pod.yaml
+sleep 20s
+
+kubectl exec terminal-test-pod -- bash -c 'export "ZYGOTE={\"fuze\":\"echo 44\",\"provisioning\":\"not implemented\"}" && /tmp/lzy/sbin/run'
+
+
