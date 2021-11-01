@@ -5,11 +5,12 @@ from typing import Callable
 
 import sys
 
+from lzy.model.env import PyEnv
 from ._proxy import proxy
 from .buses import *
 from .env import LzyEnv
 from .lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
-from .pkg_info import save_python_env
+from .pkg_info import get_python_env_as_yaml
 from .utils import print_lzy_ops, infer_return_type, is_lazy_proxy, lazy_proxy
 
 logging.root.setLevel(logging.INFO)
@@ -58,9 +59,13 @@ def op_(*, input_types=None, output_type=None):
             if current_env.is_local():
                 lzy_op = LzyLocalOp(f, input_types, output_type, args)
             else:
-                lzy_op = LzyRemoteOp(current_env.servant(), f, input_types, output_type, save_python_env(), args)
+                lzy_op = LzyRemoteOp(current_env.servant(), f, input_types,
+                                     output_type,
+                                     PyEnv(get_python_env_as_yaml()),
+                                     args)
             current_env.register_op(lzy_op)
-            return lazy_proxy(lambda: lzy_op.materialize(), output_type, {'_op': lzy_op})
+            return lazy_proxy(lambda: lzy_op.materialize(), output_type,
+                              {'_op': lzy_op})
 
         return lazy
 

@@ -1,8 +1,8 @@
 import sys
-from typing import Any, Tuple
+from typing import Any, Iterable
 
 import pkg_resources
-from lzy.model.env import PyEnv
+import yaml
 
 
 # https://stackoverflow.com/a/1883251
@@ -16,20 +16,30 @@ def in_virtualenv():
     return get_base_prefix_compat() != sys.prefix
 
 
-def to_str(tup: Tuple[Any]) -> Tuple[str]:
-    return tuple(map(str, tup))
+def to_str(source: Iterable[Any], delim: str = '.') -> str:
+    return delim.join(map(str, source))
 
 
 def get_installed_packages():
+    exclude = {'lzy-py'}
     return {
         entry.project_name: entry.version.split('.')
         for entry in pkg_resources.working_set
+        if entry.project_name not in exclude
     }
 
+def get_python_env_as_yaml(name='default'):
+    # get only first three numbers, otherwise conda won't find
+    python_version = sys.version_info[:3]
+    conda_yaml = {
+        'name': name,
+        'dependencies': [
+            f'python=={to_str(python_version)}',
+            'pip',
+            {'pip': [f'{name}=={to_str(version)}'
+                     for name, version in
+                     get_installed_packages().items()]}
+        ]
+    }
 
-def save_python_env(name='default'):
-    # if not in_virtualenv():
-    #     # TODO: better exception
-    #     raise ValueError('Script started not from virtualenv')
-    return PyEnv(name, interpreter_version=to_str(sys.version_info),
-                 packages=get_installed_packages())
+    return yaml.dump(conda_yaml, sort_keys=False)
