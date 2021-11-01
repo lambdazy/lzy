@@ -5,7 +5,9 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
 import jakarta.inject.Inject;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.grpc.Client;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.AddTokenRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.User;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 
@@ -16,9 +18,9 @@ public class UserController {
     @Inject
     Client client;
 
-    @Post("add")
-    public HttpResponse addUser(@Valid @Body User user){
-        client.addUser(user.getModel());
+    @Post("add_token")
+    public HttpResponse<?> addUser(@Valid @Body AddTokenRequest request){
+        client.addToken(request);
         return HttpResponse.ok();
     }
 }

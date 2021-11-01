@@ -17,14 +17,27 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     @Inject
     DbStorage storage;
 
+    @Inject
+    Authenticator auth;
+
     @Override
-    public void addUser(BackOffice.User user, StreamObserver<BackOffice.AddUserResult> responseObserver){
+    public void addToken(BackOffice.AddTokenRequest request, StreamObserver<BackOffice.AddTokenResult> responseObserver){
+        if (!auth.checkUser(request.getBackofficeCredentials().getUserId(), request.getBackofficeCredentials().getToken())){
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
         try(Session session = storage.getSessionFactory().openSession()){
             Transaction tx = session.beginTransaction();
+            UserModel user = session.get(UserModel.class, request.getUserId());
+            if (user == null){
+                responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+                return;
+            }
+            user.setPublicToken(request.getToken());
             try {
-                session.save(new UserModel(user.getUserId(), user.getPublicKey()));
+                session.save(user);
                 tx.commit();
-                responseObserver.onNext(BackOffice.AddUserResult.newBuilder().build());
+                responseObserver.onNext(BackOffice.AddTokenResult.newBuilder().build());
                 responseObserver.onCompleted();
             }
             catch (Exception e){

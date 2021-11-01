@@ -23,11 +23,4 @@ public class User {
     public void setPublicKey(String publicToken) {
         this.publicKey = publicToken;
     }
-
-    public BackOffice.User getModel(){
-        return BackOffice.User.newBuilder()
-                .setUserId(userId)
-                .setPublicKey(publicKey)
-                .build();
-    }
 }
