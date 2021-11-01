@@ -6,7 +6,7 @@ from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 from lzy.servant.bash_servant import BashServant
 from lzy.servant.servant import Servant
-from . import get_python_env_as_yaml
+from lzy.api.pkg_info import get_python_env_as_yaml
 from .buses import Bus
 from .lazy_op import LzyOp
 from .whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
