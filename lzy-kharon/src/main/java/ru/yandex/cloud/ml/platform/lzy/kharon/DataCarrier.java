@@ -65,8 +65,12 @@ public class DataCarrier {
             @Override
             public void onCompleted() {
                 LOG.info("DataCarrier:: sending completed");
+                receiver.onNext(
+                    Kharon.ReceivedDataStatus.newBuilder()
+                    .setStatus(Kharon.ReceivedDataStatus.Status.OK)
+                    .build()
+                );
                 receiver.onCompleted();
-//                getServantMessageStream().onCompleted();
             }
         };
     }
