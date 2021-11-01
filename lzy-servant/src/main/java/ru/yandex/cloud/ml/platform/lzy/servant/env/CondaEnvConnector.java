@@ -4,8 +4,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Scanner;
 
 public class CondaEnvConnector implements Connector {
@@ -36,7 +40,12 @@ public class CondaEnvConnector implements Connector {
     }
 
     private void installPyenv(PythonEnv env) throws IOException, InterruptedException {
-        execAndLog("conda env update --file /test.yaml --prune");
+        Path yaml = Paths.get("/req.yaml");
+        Files.createFile(yaml);
+        try (FileWriter file = new FileWriter(yaml.toString())){
+            file.write(env.yaml());
+        }
+        execAndLog("conda env update --file " + yaml + " --prune");
         execAndLog("pip install --default-timeout=100 /lzy-python setuptools");
     }
 

@@ -75,12 +75,5 @@ message Env {
 //}
 
 message PythonEnv {
-    string name = 1;
-    string interpreterVersion = 2;
-    string packageVersions = 3;
+    string yaml = 1;
 }
-//??????
-//message PyPackageInfo {
-//    string name = 1;
-//    string version = 2;
-//}
