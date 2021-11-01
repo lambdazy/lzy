@@ -61,7 +61,7 @@ def op_(*, input_types=None, output_type=None):
             else:
                 lzy_op = LzyRemoteOp(current_env.servant(), f, input_types,
                                      output_type,
-                                     PyEnv(get_python_env_as_yaml()),
+                                     PyEnv(current_env.python_env_as_yaml()),
                                      args)
             current_env.register_op(lzy_op)
             return lazy_proxy(lambda: lzy_op.materialize(), output_type,
