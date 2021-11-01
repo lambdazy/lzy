@@ -41,7 +41,6 @@ public class Client {
     }
 
     public BackOffice.AddTokenResult addToken(AddTokenRequest request){
-        System.out.println(credentials.getPrivateKey());
         try {
             return getBlockingStub().addToken(
                     request.getModel(credentials.getCredentials())
