@@ -16,8 +16,6 @@
 
     <properties>
         <packaging>jar</packaging>
-        <jdk.version>11</jdk.version>
-        <release.version>11</release.version>
         <exec.mainClass>ru.yandex.cloud.ml.platform.lzy.backoffice.Application</exec.mainClass>
         <micronaut.runtime>netty</micronaut.runtime>
     </properties>
