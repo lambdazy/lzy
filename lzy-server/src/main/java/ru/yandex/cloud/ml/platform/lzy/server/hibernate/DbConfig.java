@@ -20,4 +20,16 @@ public class DbConfig {
     public String getPassword() {
         return password;
     }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
 }

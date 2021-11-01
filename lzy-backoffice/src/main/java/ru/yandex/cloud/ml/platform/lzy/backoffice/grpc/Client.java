@@ -2,14 +2,10 @@ package ru.yandex.cloud.ml.platform.lzy.backoffice.grpc;
 
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.slf4j.helpers.SubstituteLogger;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
-
-import java.util.logging.LogManager;
 
 
 @Singleton
@@ -18,8 +14,9 @@ public class Client {
 
     @Inject
     Client(GrpcConfig config){
+        System.out.println("Starting channel on "+ config.getHost() + ":" + config.getPort());
 
-        channel = ManagedChannelBuilder.forAddress(config.getHost(), config.getPort()).build();
+        channel = ManagedChannelBuilder.forAddress(config.getHost(), config.getPort()).usePlaintext().build();
     }
 
     public LzyBackofficeGrpc.LzyBackofficeBlockingStub getBlockingStub(){

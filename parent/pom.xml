@@ -94,7 +94,13 @@
         <micronaut.version>3.1.1</micronaut.version>
         <junit-api.version>5.8.1</junit-api.version>
         <micronaut-test.version>3.0.3</micronaut-test.version>
+        <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
+        <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
         <h2database.version>1.4.200</h2database.version>
+        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <maven-failsafe-plugin.version>2.22.2</maven-failsafe-plugin.version>
+        <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
+        <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -400,6 +406,16 @@
             </dependency>
             <dependency>
                 <groupId>io.grpc</groupId>
+                <artifactId>grpc-api</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-context</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
                 <artifactId>grpc-stub</artifactId>
                 <version>${grpc.version}</version>
             </dependency>
@@ -683,7 +699,6 @@
                 <version>${micronaut.version}</version>
             </dependency>
             <dependency>
-<<<<<<< HEAD
                 <groupId>io.micronaut</groupId>
                 <artifactId>micronaut-http-server-netty</artifactId>
                 <version>${micronaut.version}</version>
@@ -706,10 +721,6 @@
             <dependency>
                 <groupId>io.micronaut.test</groupId>
                 <artifactId>micronaut-test-junit5</artifactId>
-                <version>3.0.2</version>
-=======
-                <groupId>io.micronaut.test</groupId>
-                <artifactId>micronaut-test-junit5</artifactId>
                 <version>${micronaut-test.version}</version>
                 <scope>test</scope>
             </dependency>
@@ -718,7 +729,6 @@
                 <artifactId>h2</artifactId>
                 <version>${h2database.version}</version>
                 <scope>test</scope>
->>>>>>> d5325f0ad972a6d6ba59f4e4d23afc60f6ad9ba0
             </dependency>
         </dependencies>
 

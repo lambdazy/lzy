@@ -5,6 +5,7 @@ import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.Storage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
@@ -12,7 +13,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 
 public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     @Inject
-    Storage storage;
+    DbStorage storage;
 
     @Override
     public void addUser(BackOffice.User user, StreamObserver<BackOffice.AddUserResult> responseObserver){

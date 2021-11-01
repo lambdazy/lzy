@@ -79,8 +79,9 @@ public class LzyServer {
         }
         port = Integer.parseInt(parse.getOptionValue('p', "8888"));
 
-        try (ApplicationContext context = ApplicationContext.run()) {
-            System.out.println(context.containsProperties("database.url"));
+        try (ApplicationContext context = ApplicationContext.run(args)) {
+            System.out.println(context.get("database.url", String.class));
+            System.out.println(port);
             Impl impl = context.getBean(Impl.class);
             BackOfficeService backoffice = context.getBean(BackOfficeService.class);
             final Server server = ServerBuilder.forPort(port)
