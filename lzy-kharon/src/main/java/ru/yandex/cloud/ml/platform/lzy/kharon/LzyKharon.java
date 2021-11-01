@@ -1,9 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
@@ -183,6 +180,10 @@ public class LzyKharon {
             LOG.info("KharonServantProxyService::execute " + JsonUtils.printRequest(request));
             final TerminalSession session = getTerminalSession();
             session.setExecutionProgress(responseObserver);
+            Context.current().addListener(context -> {
+                LOG.info("Execution terminated from server ");
+                session.close();
+            }, Runnable::run);
         }
 
         @Override

@@ -19,9 +19,9 @@ public class LzyStartupTest extends LzyBaseTest {
     public void testFuseWorks() {
         //Arrange
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                serverContext.address(servantContext.inDocker())
+            LZY_MOUNT,
+            DEFAULT_SERVANT_PORT,
+            kharonContext.serverAddress(servantContext.inDocker())
         );
 
         //Act
@@ -45,9 +45,9 @@ public class LzyStartupTest extends LzyBaseTest {
 
         //Act
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                serverContext.address(servantContext.inDocker())
+            LZY_MOUNT,
+            DEFAULT_SERVANT_PORT,
+            kharonContext.serverAddress(servantContext.inDocker())
         );
         final boolean status = servant.waitForStatus(
                 AgentStatus.EXECUTING,
@@ -94,9 +94,9 @@ public class LzyStartupTest extends LzyBaseTest {
 
         //Act
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                serverContext.address(servantContext.inDocker())
+            LZY_MOUNT,
+            DEFAULT_SERVANT_PORT,
+            kharonContext.serverAddress(servantContext.inDocker())
         );
         final boolean started = servant.waitForStatus(
                 AgentStatus.EXECUTING,
@@ -123,9 +123,9 @@ public class LzyStartupTest extends LzyBaseTest {
     public void testServantDiesAfterServerDied() {
         //Arrange
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                serverContext.address(servantContext.inDocker())
+            LZY_MOUNT,
+            DEFAULT_SERVANT_PORT,
+            kharonContext.serverAddress(servantContext.inDocker())
         );
 
         //Act

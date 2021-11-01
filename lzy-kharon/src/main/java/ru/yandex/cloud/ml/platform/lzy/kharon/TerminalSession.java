@@ -45,6 +45,9 @@ public class TerminalSession {
                 if (!terminalState.hasSlotStatus()) {
                     LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:" + JsonUtils.printRequest(terminalState));
                 }
+                if (terminalState.getProgressCase() != Kharon.TerminalState.ProgressCase.ATTACHTERMINAL) {
+                    checkConsistency();
+                }
                 switch (terminalState.getProgressCase()) {
                     case ATTACHTERMINAL: {
                         final Kharon.AttachTerminal attachTerminal = terminalState.getAttachTerminal();
@@ -75,7 +78,6 @@ public class TerminalSession {
                         break;
                     }
                     case ATTACH: {
-                        checkConsistency();
                         final Servant.SlotAttach attach = terminalState.getAttach();
                         executionProgress.onNext(Servant.ExecutionProgress.newBuilder()
                             .setAttach(Servant.SlotAttach.newBuilder()
@@ -87,7 +89,6 @@ public class TerminalSession {
                         break;
                     }
                     case DETACH: {
-                        checkConsistency();
                         final Servant.SlotDetach detach = terminalState.getDetach();
                         executionProgress.onNext(Servant.ExecutionProgress.newBuilder()
                             .setDetach(Servant.SlotDetach.newBuilder()
@@ -98,7 +99,6 @@ public class TerminalSession {
                         break;
                     }
                     case SLOTSTATUS: {
-                        checkConsistency();
                         final CompletableFuture<Kharon.TerminalState> future = tasks.get(UUID.fromString(terminalState.getCommandId()));
                         if (future == null) {
                             throw new IllegalStateException("No such task " + terminalState.getCommandId());
@@ -216,5 +216,9 @@ public class TerminalSession {
 
     public StreamObserver<Kharon.SendSlotDataMessage> initDataTransfer(StreamObserver<Kharon.ReceivedDataStatus> responseObserver) {
         return dataCarrier.connectTerminalConnection(responseObserver);
+    }
+
+    public void close() {
+        terminalController.onCompleted();
     }
 }

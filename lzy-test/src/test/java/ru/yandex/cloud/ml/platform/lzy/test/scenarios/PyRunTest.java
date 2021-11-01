@@ -19,7 +19,7 @@ public class PyRunTest extends LzyBaseTest {
         terminal = servantContext.startTerminalAtPathAndPort(
                 LZY_MOUNT,
                 9999,
-                serverContext.address(servantContext.inDocker())
+                kharonContext.serverAddress(servantContext.inDocker())
         );
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,

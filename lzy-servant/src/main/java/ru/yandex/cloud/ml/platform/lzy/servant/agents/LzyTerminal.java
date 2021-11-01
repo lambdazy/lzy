@@ -108,11 +108,14 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             };
 
             responseObserver = kharon.attachTerminal(supplier);
+
+            status.set(AgentStatus.REGISTERING);
             responseObserver.onNext(TerminalState.newBuilder()
                 .setAttachTerminal(AttachTerminal.newBuilder()
                     .setAuth(auth.getUser())
                     .build())
                 .build());
+            status.set(AgentStatus.REGISTERED);
         }
 
         public void onNext(TerminalState terminalState) {
@@ -130,10 +133,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
     @Override
     protected void onStartUp() {
-        status.set(AgentStatus.REGISTERING);
         commandHandler = new CommandHandler();
-        status.set(AgentStatus.REGISTERED);
-
         status.set(AgentStatus.PREPARING_EXECUTION);
         currentExecution = new LzyExecution(null, null, agentInternalAddress);
         status.set(AgentStatus.EXECUTING);
