@@ -60,7 +60,6 @@ public class TerminalSession {
                         final IAM.UserCredentials userCredentials = IAM.UserCredentials.newBuilder()
                             .setUserId(user)
                             .setToken(auth.getToken())
-                            .setTokenSign(auth.getTokenSign())
                             .setSessionId(sessionId.toString())
                             .build();
 
