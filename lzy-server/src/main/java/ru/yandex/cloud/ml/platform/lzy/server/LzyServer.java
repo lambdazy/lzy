@@ -9,6 +9,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.exceptions.NoSuchBeanException;
 import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Inject;
 import org.apache.commons.cli.CommandLine;
@@ -83,11 +84,16 @@ public class LzyServer {
             System.out.println(context.get("database.url", String.class));
             System.out.println(port);
             Impl impl = context.getBean(Impl.class);
-            BackOfficeService backoffice = context.getBean(BackOfficeService.class);
-            final Server server = ServerBuilder.forPort(port)
-                    .addService(impl)
-                    .addService(backoffice)
-                    .build();
+            ServerBuilder<?> builder = ServerBuilder.forPort(port)
+                    .addService(impl);
+            try{
+                BackOfficeService backoffice = context.getBean(BackOfficeService.class);
+                builder.addService(backoffice);
+            }
+            catch (NoSuchBeanException e){
+                LOG.info("Running in inmemory mode without backoffice");
+            }
+            final Server server = builder.build();
             server.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("gRPC server is shutting down!");

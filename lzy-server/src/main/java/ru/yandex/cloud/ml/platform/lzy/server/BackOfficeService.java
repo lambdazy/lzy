@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
@@ -11,6 +12,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 
+@Requires(beans = DbStorage.class)
 public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     @Inject
     DbStorage storage;
