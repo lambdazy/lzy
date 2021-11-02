@@ -49,7 +49,7 @@ public class Client {
             );
         }
         catch (InvalidKeySpecException | NoSuchAlgorithmException | SignatureException | InvalidKeyException e) {
-            throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Corrupted backoffice token");
+            throw new HttpStatusException(HttpStatus.FORBIDDEN, "Corrupted backoffice token");
         }
     }
 

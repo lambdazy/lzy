@@ -1,32 +1,30 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate.models;
 
 import javax.persistence.*;
+import java.io.Serializable;
 import java.util.Objects;
 
 @Entity
-@Table(name = "tokens", uniqueConstraints = { @UniqueConstraint(columnNames = { "name", "value" }) })
+@Table(name = "tokens")
+@IdClass(TokenModel.TokenPk.class)
 public class TokenModel {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Integer id;
-
     @Column(name="name")
     private String name;
+
+    @Id
+    @Column(name = "user_id")
+    private String userId;
 
     @Column(name = "value")
     private String value;
 
     @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name="user_id", nullable=false)
+    @JoinColumn(name="user_id", nullable=false, insertable = false, updatable = false)
     private UserModel user;
 
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
+    public String getUserId() {
+        return userId;
     }
 
     public String getName() {
@@ -56,8 +54,15 @@ public class TokenModel {
     public TokenModel(String name, String value, UserModel user) {
         this.name = name;
         this.value = value;
-        this.user = user;
+        this.userId = user.getUserId();
     }
+
+    public TokenModel(String name, String value, String userId) {
+        this.name = name;
+        this.value = value;
+        this.userId = userId;
+    }
+
     public TokenModel() {}
 
     @Override
@@ -71,5 +76,30 @@ public class TokenModel {
     @Override
     public int hashCode() {
         return Objects.hash(value);
+    }
+
+    public static class TokenPk implements Serializable{
+        protected String name;
+        protected String userId;
+
+        public TokenPk(String name, String userId) {
+            this.name = name;
+            this.userId = userId;
+        }
+
+        public TokenPk() {}
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            TokenPk tokenPk = (TokenPk) o;
+            return name.equals(tokenPk.name) && userId.equals(tokenPk.userId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, userId);
+        }
     }
 }

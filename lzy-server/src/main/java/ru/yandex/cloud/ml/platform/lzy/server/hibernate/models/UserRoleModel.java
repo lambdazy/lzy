@@ -13,13 +13,16 @@ public class UserRoleModel {
     @Column(name = "name")
     private String roleName;
 
-    @ManyToMany(cascade = CascadeType.ALL)
+    @ManyToMany()
     @JoinTable(
             name="role_to_user",
             joinColumns = {@JoinColumn(name = "role_id")},
             inverseJoinColumns = {@JoinColumn(name = "user_id")}
     )
     private Set<UserModel> users = new HashSet<>();
+
+    @ManyToMany(mappedBy = "roles")
+    private Set<PermissionModel> permissions = new HashSet<>();
 
     public String getRoleName() {
         return roleName;

@@ -6,10 +6,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserRoleModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 
 @Singleton
 @Requires(property = "database.url")
@@ -30,6 +27,7 @@ public class Storage implements DbStorage{
         cfg.addAnnotatedClass(TaskModel.class);
         cfg.addAnnotatedClass(TokenModel.class);
         cfg.addAnnotatedClass(UserRoleModel.class);
+        cfg.addAnnotatedClass(PermissionModel.class);
         this.sessionFactory = cfg.buildSessionFactory();
     }
 

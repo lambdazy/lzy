@@ -62,7 +62,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             return;
         }
 
-        if (!auth.hasRole(request.getCreatorCredentials().getUserId(), "admin")){
+        if (!auth.hasPermission(request.getCreatorCredentials().getUserId(), Permissions.USERS_CREATE)){
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
@@ -93,7 +93,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             return;
         }
 
-        if (!auth.hasRole(request.getDeleterCredentials().getUserId(), "admin")){
+        if (!auth.hasPermission(request.getDeleterCredentials().getUserId(), Permissions.USERS_DELETE)){
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
@@ -118,7 +118,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         if (!auth.checkUser(credentials.getUserId(), credentials.getToken())){
             throw Status.PERMISSION_DENIED.asException();
         }
-        if (!auth.hasRole(credentials.getUserId(), "admin")){
+        if (!auth.hasPermission(credentials.getUserId(), Permissions.BACKOFFICE_INTERNAL)){
             throw Status.PERMISSION_DENIED.asException();
         }
     }

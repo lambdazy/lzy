@@ -6,10 +6,8 @@ import jakarta.inject.Singleton;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserRoleModel;
+import ru.yandex.cloud.ml.platform.lzy.server.Permissions;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
@@ -18,10 +16,7 @@ import java.security.PublicKey;
 import java.security.Security;
 import java.security.Signature;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 
 @Singleton
@@ -92,14 +87,24 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean hasRole(String uid, String roleName) {
+    public boolean hasPermission(String uid, Permissions permission) {
         try (Session session = storage.getSessionFactory().openSession()) {
             UserModel user = session.find(UserModel.class, uid);
             if (user == null){
                 return false;
             }
-            UserRoleModel role = new UserRoleModel(roleName);
-            return user.getRoles().contains(role);
+            List<?> permissions = session.createSQLQuery(
+                 "SELECT(permissions.*)\n" +
+                    "FROM users\n" +
+                    "JOIN role_to_user on users.user_id = role_to_user.user_id\n" +
+                    "JOIN permission_to_role on role_to_user.role_id = permission_to_role.role_id\n" +
+                    "JOIN permissions on permissions.name = permission_to_role.permission_id\n" +
+                    "WHERE users.user_id = :userId"
+            )
+                    .setParameter("userId", user.getUserId())
+                    .addEntity(PermissionModel.class)
+                    .list();
+            return permissions.contains(new PermissionModel(permission.name));
         }
     }
 
