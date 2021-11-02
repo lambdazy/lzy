@@ -28,7 +28,7 @@ public class AddTokenRequest {
 
     public BackOffice.AddTokenRequest getModel(IAM.UserCredentials credentials){
         return BackOffice.AddTokenRequest.newBuilder()
-                .setToken(token)
+                .setPublicKey(token)
                 .setUserId(userId)
                 .setBackofficeCredentials(credentials)
                 .build();

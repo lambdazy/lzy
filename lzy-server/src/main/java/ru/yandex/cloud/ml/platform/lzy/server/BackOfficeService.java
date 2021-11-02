@@ -33,7 +33,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                 responseObserver.onError(Status.INVALID_ARGUMENT.asException());
                 return;
             }
-            user.setPublicToken(request.getToken());
+            user.setPublicToken(request.getPublicKey());
             try {
                 session.save(user);
                 tx.commit();
