@@ -16,6 +16,7 @@ message AddTokenRequest{
   UserCredentials backofficeCredentials = 1;
   string userId = 2;
   string token = 3;
+  string tokenName = 4;
 }
 
 message AddTokenResult{}

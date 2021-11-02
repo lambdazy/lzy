@@ -24,6 +24,7 @@ public class Credentials {
                 privateKey
                         .replaceAll("-----[^-]*-----\\n", "")
                         .replaceAll("\\R", "")
+                        .replaceAll("\\n", "")
         );
 
         final PrivateKey rsaKey = KeyFactory.getInstance("RSA")

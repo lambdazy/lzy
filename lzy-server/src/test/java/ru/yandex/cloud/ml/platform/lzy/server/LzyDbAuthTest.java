@@ -62,7 +62,7 @@ public class LzyDbAuthTest {
         }
 
         public UserModel getUserModel(){
-            return new UserModel(userId, publicKey);
+            return new UserModel(userId);
         }
     }
 

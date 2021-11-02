@@ -7,6 +7,7 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -77,7 +78,7 @@ public class DbAuthenticator implements Authenticator {
             Transaction tx = session.beginTransaction();
             final String token = UUID.randomUUID().toString();
             try {
-                TaskModel taskModel = new TaskModel(task.tid(), token, new UserModel(uid, null));
+                TaskModel taskModel = new TaskModel(task.tid(), token, new UserModel(uid));
                 session.save(taskModel);
                 tx.commit();
             }
@@ -101,24 +102,26 @@ public class DbAuthenticator implements Authenticator {
             Security.addProvider(
                     new org.bouncycastle.jce.provider.BouncyCastleProvider()
             );
+            for (TokenModel user_token: user.getTokens()) {
+                try {
+                    final byte[] publicKeyPEM = Base64.getDecoder().decode(
+                            user_token.getValue().replaceAll("-----[^-]*-----\\n", "")
+                                    .replaceAll("\\R", "")
+                    );
+                    final PublicKey rsaKey = KeyFactory.getInstance("RSA")
+                            .generatePublic(new X509EncodedKeySpec(publicKeyPEM));
 
-            try {
-                final byte[] publicKeyPEM = Base64.getDecoder().decode(
-                        user.getPublicToken().replaceAll("-----[^-]*-----\\n", "")
-                                .replaceAll("\\R", "")
-                );
-                final PublicKey rsaKey = KeyFactory.getInstance("RSA")
-                        .generatePublic(new X509EncodedKeySpec(publicKeyPEM));
+                    final Signature sign = Signature.getInstance("SHA1withRSA");
+                    sign.initVerify(rsaKey);
+                    sign.update(token.getBytes());
 
-                final Signature sign = Signature.getInstance("SHA1withRSA");
-                sign.initVerify(rsaKey);
-                sign.update(token.getBytes());
-
-                return sign.verify(Base64.getDecoder().decode(tokenSign));
-            } catch (Exception e) {
-                e.printStackTrace();
-                return false;
+                    if (sign.verify(Base64.getDecoder().decode(tokenSign)))
+                        return true;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
+            return false;
         }
     }
 }

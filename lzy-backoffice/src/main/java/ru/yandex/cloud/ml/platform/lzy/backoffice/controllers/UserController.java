@@ -19,7 +19,7 @@ public class UserController {
     Client client;
 
     @Post("add_token")
-    public HttpResponse<?> addUser(@Valid @Body AddTokenRequest request){
+    public HttpResponse<?> addToken(@Valid @Body AddTokenRequest request){
         client.addToken(request);
         return HttpResponse.ok();
     }

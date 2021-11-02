@@ -8,6 +8,7 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.Storage;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
@@ -33,9 +34,9 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                 responseObserver.onError(Status.INVALID_ARGUMENT.asException());
                 return;
             }
-            user.setPublicToken(request.getToken());
+            TokenModel token = new TokenModel(request.getTokenName(), request.getToken(), user);
             try {
-                session.save(user);
+                session.save(token);
                 tx.commit();
                 responseObserver.onNext(BackOffice.AddTokenResult.newBuilder().build());
                 responseObserver.onCompleted();

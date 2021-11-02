@@ -7,30 +7,21 @@ import java.util.Set;
 @Table(name = "users")
 public class UserModel {
 
-    public UserModel(String userId, String publicToken) {
+    public UserModel(String userId) {
         this.userId = userId;
-        this.publicToken = publicToken;
     }
 
     @Id
     @Column(name = "user_id", nullable = false)
     private String userId;
 
-    @Column(name = "public_token", nullable = false)
-    private String publicToken;
-
     @OneToMany(mappedBy = "owner")
     private Set<TaskModel> tasks;
 
+    @OneToMany(mappedBy = "user")
+    private Set<TokenModel> tokens;
+
     public UserModel() {}
-
-    public String getPublicToken() {
-        return publicToken;
-    }
-
-    public void setPublicToken(String publicToken) {
-        this.publicToken = publicToken;
-    }
 
     public String getUserId() {
         return userId;
@@ -42,5 +33,9 @@ public class UserModel {
 
     public Set<TaskModel> getTasks() {
         return tasks;
+    }
+
+    public Set<TokenModel> getTokens() {
+        return tokens;
     }
 }
