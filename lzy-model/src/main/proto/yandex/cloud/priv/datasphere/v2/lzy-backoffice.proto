@@ -15,7 +15,7 @@ service LzyBackoffice{
 message AddTokenRequest{
   UserCredentials backofficeCredentials = 1;
   string userId = 2;
-  string token = 3;
+  string publicKey = 3;
   string tokenName = 4;
 }
 

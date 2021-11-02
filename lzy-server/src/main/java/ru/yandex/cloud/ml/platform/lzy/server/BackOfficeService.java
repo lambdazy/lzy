@@ -38,7 +38,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                 responseObserver.onError(Status.INVALID_ARGUMENT.asException());
                 return;
             }
-            TokenModel token = new TokenModel(request.getTokenName(), request.getToken(), user);
+            TokenModel token = new TokenModel(request.getTokenName(), request.getPublicKey(), user);
             try {
                 session.save(token);
                 tx.commit();

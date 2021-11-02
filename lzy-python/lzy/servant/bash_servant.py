@@ -66,10 +66,7 @@ class BashServant(Servant, metaclass=Singleton):
         super().__init__()
         self._log = logging.getLogger(str(self.__class__))
         self._mount = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))
-        self._port = os.getenv("LZY_PORT", default=9999)
-        self._server_host = os.getenv("LZY_SERVER", default="host.docker.internal")
-        self._log.info(
-            f"Creating BashServant at MOUNT_PATH={self._mount}, PORT={self._port}, SERVER={self._server_host}")
+        self._log.info(f"Creating BashServant at MOUNT_PATH={self._mount}")
 
     def mount(self) -> Path:
         return self._mount
@@ -107,8 +104,7 @@ class BashServant(Servant, metaclass=Singleton):
         zygote_description_file = tempfile.mktemp(prefix="lzy_zygote_", suffix=".json", dir="/tmp/")
         with open(zygote_description_file, 'w') as f:
             f.write(zygote.to_json())
-        return self._exec_bash(f"{self._mount}/sbin/publish", zygote.name(), zygote_description_file, "-z",
-                               self._server_host)
+        return self._exec_bash(f"{self._mount}/sbin/publish", zygote.name(), zygote_description_file)
 
     def _execute_run(self, execution_id: str, zygote: Zygote, bindings: Bindings) -> Execution:
         slots_mapping_file = tempfile.mktemp(prefix="lzy_slot_mapping_", suffix=".json", dir="/tmp/")
