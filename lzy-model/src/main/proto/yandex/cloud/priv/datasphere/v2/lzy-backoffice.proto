@@ -10,13 +10,39 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service LzyBackoffice{
   rpc AddToken(AddTokenRequest) returns (AddTokenResult);
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResult);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResult);
 }
 
 message AddTokenRequest{
   UserCredentials backofficeCredentials = 1;
-  string userId = 2;
+  BackofficeUserCredentials userCredentials = 2;
   string publicKey = 3;
   string tokenName = 4;
 }
 
-message AddTokenResult{}
+message User{
+  string userId = 1;
+}
+
+message CreateUserRequest{
+  UserCredentials backofficeCredentials = 1;
+  BackofficeUserCredentials creatorCredentials = 2;
+  User user = 3;
+}
+
+message DeleteUserRequest{
+  UserCredentials backofficeCredentials = 1;
+  BackofficeUserCredentials deleterCredentials = 2;
+  string userId = 3;
+}
+
+message DeleteUserResult {};
+
+message CreateUserResult {};
+
+message AddTokenResult{};
+
+message BackofficeUserCredentials{
+  string user_id = 1; // Can contains Oauth token in future
+};

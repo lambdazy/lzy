@@ -7,17 +7,9 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Introspected
 public class AddTokenRequest {
-    private String userId;
+    private UserCredentials userCredentials;
     private String token;
     private String tokenName;
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
 
     public String getTokenName() {
         return tokenName;
@@ -35,13 +27,20 @@ public class AddTokenRequest {
         this.token = token;
     }
 
+    public UserCredentials getUserCredentials() {
+        return userCredentials;
+    }
+
+    public void setUserCredentials(UserCredentials userCredentials) {
+        this.userCredentials = userCredentials;
+    }
+
     public BackOffice.AddTokenRequest getModel(IAM.UserCredentials credentials){
         return BackOffice.AddTokenRequest.newBuilder()
                 .setPublicKey(token)
-                .setUserId(userId)
+                .setUserCredentials(userCredentials.getModel())
                 .setBackofficeCredentials(credentials)
                 .setTokenName(tokenName)
                 .build();
-
     }
 }

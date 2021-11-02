@@ -92,7 +92,7 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean canUseRole(String uid, String roleName) {
+    public boolean hasRole(String uid, String roleName) {
         try (Session session = storage.getSessionFactory().openSession()) {
             UserModel user = session.find(UserModel.class, uid);
             if (user == null){
@@ -103,8 +103,7 @@ public class DbAuthenticator implements Authenticator {
         }
     }
 
-    private boolean isUserTokenSigned(String userId, String token, String tokenSign)
-    {
+    private boolean isUserTokenSigned(String userId, String token, String tokenSign) {
         try (Session session = storage.getSessionFactory().openSession()) {
             final UserModel user;
             user = session.find(UserModel.class, userId);

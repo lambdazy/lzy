@@ -59,7 +59,7 @@ public class SimpleInMemAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean canUseRole(String uid, String roleName) {
+    public boolean hasRole(String uid, String roleName) {
         return true;
     }
 }

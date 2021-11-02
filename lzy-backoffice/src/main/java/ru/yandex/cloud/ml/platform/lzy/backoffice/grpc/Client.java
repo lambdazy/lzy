@@ -8,6 +8,8 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.AddTokenRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.CreateUserRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.DeleteUserRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.User;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
@@ -45,7 +47,26 @@ public class Client {
             return getBlockingStub().addToken(
                     request.getModel(credentials.getCredentials())
             );
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException | SignatureException | InvalidKeyException e) {
+        }
+        catch (InvalidKeySpecException | NoSuchAlgorithmException | SignatureException | InvalidKeyException e) {
+            throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Corrupted backoffice token");
+        }
+    }
+
+    public BackOffice.CreateUserResult createUser(CreateUserRequest request){
+        try {
+            return getBlockingStub().createUser(request.getModel(credentials.getCredentials()));
+        }
+        catch (InvalidKeySpecException | NoSuchAlgorithmException | SignatureException | InvalidKeyException e) {
+            throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Corrupted backoffice token");
+        }
+    }
+
+    public BackOffice.DeleteUserResult deleteUser(DeleteUserRequest request){
+        try {
+            return getBlockingStub().deleteUser(request.getModel(credentials.getCredentials()));
+        }
+        catch (InvalidKeySpecException | NoSuchAlgorithmException | SignatureException | InvalidKeyException e) {
             throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Corrupted backoffice token");
         }
     }

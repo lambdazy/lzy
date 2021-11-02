@@ -6,17 +6,4 @@ grpc:
   port: 8888
 credentials:
   user-id: artolord
-  private-key: |
-    MIICXQIBAAKBgQChlUap8g0gnbs0mDugfL1zlpuaSkf64XGNXVGAP+BgraVgzYD5
-    8ctN5l4EyEMz/v13Zb4OpNGvp2mQXdIn4uFxPpNN0nOpKmhD5cVsvbOAgzxAHoZ4
-    vXBchxDQ8oZ/ZZhSfZFgULEqgDaLEG1l1+0ZwwSRXXf52eaIfXmnphiUDQIDAQAB
-    AoGBAJ6sfYED3lpKKn1ChUNbW5u3qUQBb9/xJVZB7nf3wjqOKxn9lIteI1xzPZ6K
-    nlvgKj3mnpW4yuUojGSljWt3xBOdXRs40/q0q9oELIR70kunX680m4hc1tPgvJd9
-    KNsIvhQHL9tKbFPk27lO6XEE/iUOMmko8Vg4ISQw2wuZnCZtAkEA+8uVO5jQ8GYR
-    6G0j/PO7NjzbvNL2PL2XdnF7VaJqGIQ4Gzz1NvvqKeB/sn8/R6xt9nQyGnxFBK2I
-    3dAss1f82wJBAKRICfe0r/XqCAQCccNHpZlTlYvV0YpU8j8kGtuLSSdI7uvmGpKP
-    NdK6TvabjTmfiaf6aUOyfXnNm7iQ8HhXEzcCQEO2Q7N7LPT4/efbMcpcYQP86bql
-    oMJE2e5oJhqpSo69P7lTcz4OELKiRLTjs0i6/fdA2Bh3Qrg3Uo8T5HF2P/ECQDKF
-    wSL/25maVsq84bW3xBLqZLRzlpSfWTzX4ragGGhPgsLjqkpmZpwfFge7gOw2x0P0
-    vAjIzNP3yqsxT/MCfHMCQQC4WY653aAL+z2hNk381QvTNvyJnEdgrU5+jfb9bKcH
-    dHzM273ubsbUsVudrsfBRPCZVAThcZU7sxqIn74xAj+i
+  private-key: <some key>  # Can be set with env var CREDENTIALS_PRIVATE_KEY

@@ -17,5 +17,5 @@ public interface Authenticator {
 
     String registerTask(String uid, Task task);
 
-    boolean canUseRole(String uid, String roleName);
+    boolean hasRole(String uid, String roleName);
 }

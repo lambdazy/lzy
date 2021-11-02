@@ -4,7 +4,7 @@ import io.micronaut.core.annotation.Introspected;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 
 @Introspected
-public class User {
+public class UserCredentials {
     private String userId;
 
     public String getUserId() {
@@ -15,8 +15,8 @@ public class User {
         this.userId = userId;
     }
 
-    public BackOffice.User getModel(){
-        return BackOffice.User.newBuilder()
+    public BackOffice.BackofficeUserCredentials getModel(){
+        return BackOffice.BackofficeUserCredentials.newBuilder()
                 .setUserId(userId)
                 .build();
     }
