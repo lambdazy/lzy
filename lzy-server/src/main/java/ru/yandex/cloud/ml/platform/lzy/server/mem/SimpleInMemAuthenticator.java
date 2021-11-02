@@ -57,4 +57,9 @@ public class SimpleInMemAuthenticator implements Authenticator {
         taskTokens.put(task.tid().toString(), token);
         return token;
     }
+
+    @Override
+    public boolean canUseRole(String uid, String roleName) {
+        return true;
+    }
 }

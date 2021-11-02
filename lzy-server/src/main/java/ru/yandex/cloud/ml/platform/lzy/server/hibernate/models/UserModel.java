@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate.models;
 
 import javax.persistence.*;
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -21,6 +22,9 @@ public class UserModel {
     @OneToMany(mappedBy = "user")
     private Set<TokenModel> tokens;
 
+    @ManyToMany(mappedBy = "users")
+    private Set<UserRoleModel> roles = new HashSet<>();
+
     public UserModel() {}
 
     public String getUserId() {
@@ -37,5 +41,13 @@ public class UserModel {
 
     public Set<TokenModel> getTokens() {
         return tokens;
+    }
+
+    public Set<UserRoleModel> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<UserRoleModel> roles) {
+        this.roles = roles;
     }
 }

@@ -9,6 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserRoleModel;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
@@ -87,6 +88,18 @@ public class DbAuthenticator implements Authenticator {
                 throw e;
             }
             return token;
+        }
+    }
+
+    @Override
+    public boolean canUseRole(String uid, String roleName) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            UserModel user = session.find(UserModel.class, uid);
+            if (user == null){
+                return false;
+            }
+            UserRoleModel role = new UserRoleModel(roleName);
+            return user.getRoles().contains(role);
         }
     }
 

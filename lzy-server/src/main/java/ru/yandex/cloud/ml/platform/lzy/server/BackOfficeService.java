@@ -27,6 +27,10 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
+        if (!auth.canUseRole(request.getBackofficeCredentials().getUserId(), "admin")){
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
         try(Session session = storage.getSessionFactory().openSession()){
             Transaction tx = session.beginTransaction();
             UserModel user = session.get(UserModel.class, request.getUserId());

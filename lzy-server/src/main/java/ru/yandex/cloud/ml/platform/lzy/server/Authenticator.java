@@ -16,4 +16,6 @@ public interface Authenticator {
     void registerOperation(String zygoteName, String userId, Lzy.PublishRequest.VisibilityScope scope);
 
     String registerTask(String uid, Task task);
+
+    boolean canUseRole(String uid, String roleName);
 }

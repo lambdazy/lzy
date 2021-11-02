@@ -9,6 +9,7 @@ import org.hibernate.cfg.Configuration;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserRoleModel;
 
 @Singleton
 @Requires(property = "database.url")
@@ -28,6 +29,7 @@ public class Storage implements DbStorage{
         cfg.addAnnotatedClass(UserModel.class);
         cfg.addAnnotatedClass(TaskModel.class);
         cfg.addAnnotatedClass(TokenModel.class);
+        cfg.addAnnotatedClass(UserRoleModel.class);
         this.sessionFactory = cfg.buildSessionFactory();
     }
 
