@@ -39,10 +39,6 @@ public class DataCarrier {
                     }
                     case MESSAGE: {
                         getServantMessageStream().onNext(slotDataMessage.getMessage());
-//                        receiver.onNext(Kharon.ReceivedDataStatus.newBuilder()
-//                            .setStatus(Kharon.ReceivedDataStatus.Status.OK)
-//                            .setOffset(offset)
-//                            .build());
                         break;
                     }
                 }

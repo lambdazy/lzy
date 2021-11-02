@@ -118,7 +118,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             status.set(AgentStatus.REGISTERED);
         }
 
-        public void onNext(TerminalState terminalState) {
+        public synchronized void onNext(TerminalState terminalState) {
             responseObserver.onNext(terminalState);
         }
 

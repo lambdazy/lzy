@@ -26,7 +26,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.InMemTasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.server.local.TerminalEndpoint;
+import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
@@ -314,13 +314,16 @@ public class LzyServer {
                     final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
                     task.attachServant(servantUri);
                 }
-                else runTerminal(auth, servantUri);
+                else {
+                    runTerminal(auth, servantUri);
+                }
             });
         }
 
         private void runTerminal(IAM.Auth auth, URI servantUri) {
             final String user = auth.getUser().getUserId();
-            final ManagedChannel servantChannel = ManagedChannelBuilder
+            final UUID sessionId = UUID.fromString(auth.getUser().getSessionId());
+            final ManagedChannel kharonChannel = ManagedChannelBuilder
                 .forAddress(servantUri.getHost(), servantUri.getPort())
                 .usePlaintext()
                 .build();
@@ -331,7 +334,7 @@ public class LzyServer {
                 .build()
             );
             final Iterator<Servant.ExecutionProgress> execute = LzyServantGrpc
-                .newBlockingStub(servantChannel)
+                .newBlockingStub(kharonChannel)
                 .execute(executionSpec.build());
             try {
                 execute.forEachRemaining(progress -> {
@@ -342,17 +345,17 @@ public class LzyServer {
                         final URI slotUri = URI.create(attach.getUri());
                         final String channelName = attach.getChannel();
                         tasks.addUserSlot(user, slot, channels.get(channelName));
-                        this.channels.bind(channels.get(channelName), Binding.singleton(slot, slotUri, servantChannel));
+                        this.channels.bind(channels.get(channelName), new ServantEndpoint(slot, slotUri, sessionId, kharonChannel));
                     }
                     else if (progress.hasDetach()) {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = gRPCConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
                         tasks.removeUserSlot(user, slot);
-                        final Channel bound = this.channels.bound(slotUri);
+                        final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharonChannel);
+                        final Channel bound = channels.bound(endpoint);
                         if (bound != null) {
-                            final Binding binding = Binding.singleton(slot, slotUri, servantChannel);
-                            channels.unbind(bound, binding);
+                            channels.unbind(bound, endpoint);
                         }
                     }
                 });
@@ -365,8 +368,8 @@ public class LzyServer {
                 LOG.info("unbindAll from runTerminal");
                 //Clean up slots if terminal did not send detach
                 tasks.slots(user).keySet().forEach(slot -> tasks.removeUserSlot(user, slot));
-                channels.unbindAll(servantUri);
-                servantChannel.shutdown();
+                channels.unbindAll(sessionId);
+                kharonChannel.shutdown();
             }
         }
 

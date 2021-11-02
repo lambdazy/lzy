@@ -30,6 +30,7 @@ public class TerminalSessionManager {
 
     public TerminalSession getSession(UUID sessionId) {
         return sessions.values().stream().findFirst().get();
-//        return sessions.get(sessionId);
+        // TODO(d-kruchinin): multiple sessions
+        // return sessions.get(sessionId);
     }
 }

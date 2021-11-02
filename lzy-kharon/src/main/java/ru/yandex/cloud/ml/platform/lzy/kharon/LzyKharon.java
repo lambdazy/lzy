@@ -204,7 +204,8 @@ public class LzyKharon {
 
     private final UUID sessionId = UUID.randomUUID();
     private TerminalSession getTerminalSession() {
-//        final UUID sessionId = UUID.fromString(Constant.SESSION_ID_CTX_KEY.get());
+        // TODO(d-kruchinin): multi-session
+        // final UUID sessionId = UUID.fromString(Constant.SESSION_ID_CTX_KEY.get());
         return terminalManager.getSession(sessionId);
     }
 }
