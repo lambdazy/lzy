@@ -25,8 +25,5 @@ public interface ChannelGraph {
     void removeSender(@NonNull Endpoint sender);
     void removeReceiver(@NonNull Endpoint receiver);
 
-    void destroySender(@NonNull Endpoint sender);
-    void destroyReceiver(@NonNull Endpoint receiver);
-
     boolean hasBound(@NonNull Endpoint endpoint);
 }

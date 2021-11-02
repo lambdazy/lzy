@@ -1,13 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
-import io.grpc.*;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
@@ -21,13 +21,13 @@ public class ServantEndpoint implements Endpoint {
     private final Slot slot;
     private final UUID sessionId;
     private boolean invalid = false;
-    private final LzyServantGrpc.LzyServantBlockingStub servant;
+    private final LzyServantBlockingStub servant;
 
-    public ServantEndpoint(Slot slot, URI uri, UUID sessionId, Channel servantChannel) {
+    public ServantEndpoint(Slot slot, URI uri, UUID sessionId, LzyServantBlockingStub servant) {
         this.uri = uri;
         this.slot = slot;
         this.sessionId = sessionId;
-        servant = LzyServantGrpc.newBlockingStub(servantChannel);
+        this.servant = servant;
     }
 
     public URI uri() {
@@ -76,6 +76,10 @@ public class ServantEndpoint implements Endpoint {
 
     @Override
     public int connect(Endpoint endpoint) {
+        if (isInvalid()) {
+            LOG.warn("Attempt to connect to invalid endpoint " + this);
+            return 1;
+        }
         try {
             final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
@@ -96,6 +100,10 @@ public class ServantEndpoint implements Endpoint {
 
     @Override
     public SlotStatus status() {
+        if (isInvalid()) {
+            LOG.warn("Attempt to get status of invalid endpoint " + this);
+            return null;
+        }
         try {
             final Servant.SlotCommandStatus slotCommandStatus = servant
                 .configureSlot(
@@ -133,6 +141,9 @@ public class ServantEndpoint implements Endpoint {
 
     @Override
     public int destroy() {
+        if (isInvalid()) { // skip invalid connections
+            return 0;
+        }
         try {
             final Servant.SlotCommandStatus rc = servant
                 .configureSlot(

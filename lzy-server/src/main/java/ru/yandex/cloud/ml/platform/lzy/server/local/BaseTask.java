@@ -18,6 +18,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
@@ -47,7 +48,7 @@ public abstract class BaseTask implements Task {
     private State state = State.PREPARING;
     private ManagedChannel servantChannel;
     private URI servantURI;
-    private LzyServantGrpc.LzyServantBlockingStub servant;
+    private LzyServantBlockingStub servant;
 
     BaseTask(
         String owner,
@@ -112,13 +113,9 @@ public abstract class BaseTask implements Task {
     }
 
     @Override
-    public void attachServant(URI uri) {
-        servantChannel = ManagedChannelBuilder
-            .forAddress(uri.getHost(), uri.getPort())
-            .usePlaintext()
-            .build();
+    public void attachServant(URI uri, LzyServantBlockingStub servant) {
         servantURI = uri;
-        servant = LzyServantGrpc.newBlockingStub(servantChannel);
+        this.servant = servant;
         final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
             .setZygote(gRPCConverter.to(workload));
         assignments.forEach((slot, binding) ->
@@ -154,7 +151,7 @@ public abstract class BaseTask implements Task {
                         final Channel channel = channels.get(channelName);
                         if (channel != null) {
                             attachedSlots.put(slot, channel);
-                            channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, servantChannel));
+                            channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, servant));
                         } else {
                             LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
                         }
@@ -164,7 +161,7 @@ public abstract class BaseTask implements Task {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = gRPCConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
-                        final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, servantChannel);
+                        final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, servant);
                         final Channel channel = channels.bound(endpoint);
                         if (channel != null) {
                             attachedSlots.remove(slot);

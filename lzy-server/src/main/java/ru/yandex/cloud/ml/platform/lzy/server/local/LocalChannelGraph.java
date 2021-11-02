@@ -9,13 +9,8 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraphException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 
-import java.net.URI;
 import java.text.MessageFormat;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
@@ -27,12 +22,12 @@ public class LocalChannelGraph implements ChannelGraph {
 
     @Override
     public Set<Endpoint> senders() {
-        return senders;
+        return new HashSet<>(senders);
     }
 
     @Override
     public Set<Endpoint> receivers() {
-        return receivers;
+        return new HashSet<>(receivers);
     }
 
     @Override
@@ -127,22 +122,6 @@ public class LocalChannelGraph implements ChannelGraph {
             }
         }
         receivers.remove(receiver);
-    }
-
-    @Override
-    public void destroySender(@NonNull Endpoint sender) {
-        senders.remove(sender);
-        edges.remove(sender);
-        sender.destroy();
-    }
-
-    @Override
-    public void destroyReceiver(@NonNull Endpoint receiver) {
-        receivers.remove(receiver);
-        for (Set<Endpoint> adjEndpoints: edges.values()) {
-            adjEndpoints.remove(receiver);
-        }
-        receiver.destroy();
     }
 
     @Override
