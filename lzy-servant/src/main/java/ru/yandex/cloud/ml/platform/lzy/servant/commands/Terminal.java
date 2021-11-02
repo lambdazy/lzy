@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import org.apache.commons.cli.CommandLine;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
@@ -53,7 +54,7 @@ public class Terminal implements ServantCommand {
             .isTerminal(true);
 
         if (Files.exists(privateKeyPath)) {
-            tokenSignature = signToken(terminalToken, privateKeyPath);
+            tokenSignature = Credentials.signToken(terminalToken, new String(Files.readAllBytes(privateKeyPath)));
             builder.tokenSign(tokenSignature);
         }
         final LzyServant servant = builder.build();
@@ -61,31 +62,5 @@ public class Terminal implements ServantCommand {
         servant.start();
         servant.awaitTermination();
         return 0;
-    }
-
-    private static String signToken(UUID terminalToken, Path privateKeyPath) throws
-                                                                             IOException,
-                                                                             InvalidKeySpecException,
-                                                                             NoSuchAlgorithmException,
-                                                                             InvalidKeyException,
-                                                                             SignatureException {
-        java.security.Security.addProvider(
-            new org.bouncycastle.jce.provider.BouncyCastleProvider()
-        );
-
-        final String tokenSignature;
-        final byte[] privKeyPEM = Base64.getDecoder().decode(
-            new String(Files.readAllBytes(privateKeyPath))
-                .replaceAll("-----[^-]*-----\\n", "")
-                .replaceAll("\\R", "")
-        );
-
-        final PrivateKey rsaKey = KeyFactory.getInstance("RSA")
-            .generatePrivate(new PKCS8EncodedKeySpec(privKeyPEM));
-        final Signature sign = Signature.getInstance("SHA1withRSA");
-        sign.initSign(rsaKey);
-        sign.update(terminalToken.toString().getBytes());
-        tokenSignature = new String(Base64.getEncoder().encode(sign.sign()));
-        return tokenSignature;
     }
 }

@@ -16,9 +16,11 @@
     <modules>
         <module>util-zk</module>
         <module>lzy-model</module>
+        <module>lzy-backoffice</module>
         <module>lzy-server</module>
         <module>lzy-servant</module>
         <module>lzy-test</module>
         <module>lzy-python</module>
+        <module>parent</module>
     </modules>
 </project>

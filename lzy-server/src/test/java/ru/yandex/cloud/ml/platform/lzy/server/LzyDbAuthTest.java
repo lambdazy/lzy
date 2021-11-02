@@ -8,6 +8,7 @@ import org.hibernate.Transaction;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
@@ -52,7 +53,7 @@ public class LzyDbAuthTest {
                 return token;
             UUID token = UUID.randomUUID();
             try {
-                String signedToken = signToken(token, privateKey);
+                String signedToken = Credentials.signToken(token, privateKey);
                 this.token = token + "." + signedToken;
                 return this.token;
             } catch (Exception e) {
@@ -62,29 +63,6 @@ public class LzyDbAuthTest {
 
         public UserModel getUserModel(){
             return new UserModel(userId, publicKey);
-        }
-
-        private String signToken(UUID terminalToken, String privateKey) throws
-                InvalidKeySpecException,
-                NoSuchAlgorithmException,
-                InvalidKeyException,
-                SignatureException {
-            java.security.Security.addProvider(
-                    new org.bouncycastle.jce.provider.BouncyCastleProvider()
-            );
-
-            final String tokenSignature;
-            final byte[] privKeyPEM = Base64.getDecoder().decode(
-                    privateKey
-            );
-
-            final PrivateKey rsaKey = KeyFactory.getInstance("RSA")
-                    .generatePrivate(new PKCS8EncodedKeySpec(privKeyPEM));
-            final Signature sign = Signature.getInstance("SHA1withRSA");
-            sign.initSign(rsaKey);
-            sign.update(terminalToken.toString().getBytes());
-            tokenSignature = new String(Base64.getEncoder().encode(sign.sign()));
-            return tokenSignature;
         }
     }
 

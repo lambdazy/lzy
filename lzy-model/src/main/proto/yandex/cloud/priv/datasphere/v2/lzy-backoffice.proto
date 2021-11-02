@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package yandex.cloud.priv.datasphere.v2;
+
+import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
+
+option go_package = "datasphere";
+option java_outer_classname = "BackOffice";
+option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+
+service LzyBackoffice{
+  rpc AddToken(AddTokenRequest) returns (AddTokenResult);
+}
+
+message AddTokenRequest{
+  UserCredentials backofficeCredentials = 1;
+  string userId = 2;
+  string publicKey = 3;
+}
+
+message AddTokenResult{}
