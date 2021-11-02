@@ -32,10 +32,15 @@ public class PyRunTest extends LzyBaseTest {
     @Test
     public void testSimplePyGraph() {
         //Arrange
-        final String pyCommand = "python3 /lzy-python/examples/integration/simple_graph.py";
+        String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
+                "conda activate default && ";
+        terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
+        final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
 
         //Act
-        final LzyServantTestContext.Servant.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c", pyCommand);
+        final LzyServantTestContext.Servant.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + pyCommand);
 
         //Assert
         Assert.assertEquals("More meaningful str than ever before3", Utils.lastLine(result.stdout()));
