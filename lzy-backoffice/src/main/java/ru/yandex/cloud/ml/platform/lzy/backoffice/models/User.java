@@ -21,11 +21,9 @@ public class User {
                 .build();
     }
 
-    public User(String userId) {
-        this.userId = userId;
-    }
-
     public static User fromModel(BackOffice.User user){
-        return new User(user.getUserId());
+        User userModel = new User();
+        userModel.setUserId(user.getUserId());
+        return userModel;
     }
 }
