@@ -1,9 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import io.grpc.Context;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.Status;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
@@ -12,12 +9,7 @@ import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
+import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.server.local.InMemTasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
