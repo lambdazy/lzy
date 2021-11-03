@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: terminal-pod-1
+  name: terminal-pod-2
 spec:
   containers:
     - name: lzy-servant
@@ -10,7 +10,7 @@ spec:
         - name: LOG_FILE
           value: "terminal.log"
         - name: USER
-          value: "NIKITKA"
+          value: "tycoon"
         - name: LZYHOST
           valueFrom:
             fieldRef:
