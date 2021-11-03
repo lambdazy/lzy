@@ -11,12 +11,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CondaEnvConnector implements Connector {
     private static final Logger LOG = LogManager.getLogger(CondaEnvConnector.class);
+    private final PythonEnv env;
+    private final AtomicBoolean envInstalled = new AtomicBoolean(false);
 
-    public CondaEnvConnector(PythonEnv env) throws IOException, InterruptedException {
-        installPyenv(env);
+    public CondaEnvConnector(PythonEnv env) {
+        this.env = env;
     }
 
     private void logStream(InputStream stream, boolean warn) {
@@ -31,7 +34,7 @@ public class CondaEnvConnector implements Connector {
         }
     }
 
-    public int execAndLog(String command) throws IOException, InterruptedException {
+    private int execAndLog(String command) throws IOException, InterruptedException {
         Process run = exec(command);
         int res = run.waitFor();
         logStream(run.getInputStream(), false);
@@ -39,19 +42,26 @@ public class CondaEnvConnector implements Connector {
         return res;
     }
 
-    private void installPyenv(PythonEnv env) throws IOException, InterruptedException {
+    private void installPyenv() throws IOException, InterruptedException {
         Path yaml = Paths.get("/req.yaml");
         Files.createFile(yaml);
-        try (FileWriter file = new FileWriter(yaml.toString())){
+        try (FileWriter file = new FileWriter(yaml.toString())) {
             file.write(env.yaml());
         }
-        execAndLog("conda env update --file " + yaml + " --prune");
-        execAndLog("pip install --default-timeout=100 /lzy-python setuptools");
+        int rcSum = 0;
+        rcSum += execAndLog("conda env update --file " + yaml + " --prune");
+        rcSum += execAndLog("pip install --default-timeout=100 /lzy-python setuptools");
+//        if (rcSum > 0) {
+//            throw new IOException("Failed to update conda env");
+//        }
     }
 
 
     @Override
-    public Process exec(String command) throws IOException {
+    public Process exec(String command) throws IOException, InterruptedException {
+        if (envInstalled.compareAndSet(false, true)) {
+            installPyenv();
+        }
         LOG.info("Executing command " + command);
         return Runtime.getRuntime().exec(new String[]{
                 "bash", "-c",

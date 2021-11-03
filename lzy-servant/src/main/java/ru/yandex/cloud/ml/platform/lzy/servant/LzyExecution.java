@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.servant;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -12,20 +11,19 @@ import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvConnector;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Connector;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashConnector;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.InFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.LineReaderSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.LocalOutFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.LzySlotBase;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.OutFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.WriterSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
+import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -172,11 +170,11 @@ public class LzyExecution {
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
                 .build()
             );
-            Connector session = null;
+            Connector session;
             if (zygote.env() instanceof PythonEnv) {
                 session = new CondaEnvConnector((PythonEnv) zygote.env());
             } else {
-                throw new NotImplementedException("Environments different than conda are not supported");
+                session = new SimpleBashConnector();
             }
 
             String command = zygote.fuze() + " " + arguments;

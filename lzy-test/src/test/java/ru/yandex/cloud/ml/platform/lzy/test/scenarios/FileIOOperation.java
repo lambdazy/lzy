@@ -56,7 +56,7 @@ class FileIOOperation implements AtomicZygote {
 
     @Override
     public Env env() {
-        throw new NotImplementedException("env is not implemented for FileIOOperation");
+        return null;
     }
 
     @Override
