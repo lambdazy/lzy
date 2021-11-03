@@ -4,6 +4,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Dict
 
 from time import sleep
 
@@ -31,10 +32,11 @@ class Singleton(type):
 
 
 class BashExecution(Execution):
-    def __init__(self, execution_id: str, bindings: Bindings, *command):
+    def __init__(self, execution_id: str, bindings: Bindings, env: Dict[str, str], *command):
         super().__init__()
         self._id = execution_id
         self._cmd = command
+        self._env = env
         self._bindings = bindings
         self._process = None
 
@@ -51,14 +53,15 @@ class BashExecution(Execution):
             ["bash", "-c", " ".join(self._cmd)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            stdin=subprocess.PIPE
+            stdin=subprocess.PIPE,
+            env=self._env
         )
 
     def wait_for(self) -> ExecutionResult:
         if not self._process:
             raise ValueError('Execution has NOT been started')
-        self._process.communicate()
-        return ExecutionResult(self._process.stdout, self._process.stderr, self._process.returncode)
+        out, err = self._process.communicate()
+        return ExecutionResult(out, err, self._process.returncode)
 
 
 class BashServant(Servant, metaclass=Singleton):
@@ -113,7 +116,12 @@ class BashServant(Servant, metaclass=Singleton):
                 binding.remote_slot.name(): binding.channel.name for binding in bindings.bindings()
             }
             json.dump(json_bindings, f, indent=3)
-        execution = BashExecution(execution_id, bindings, self._zygote_path(zygote), "--mapping", slots_mapping_file)
+
+        env = os.environ.copy()
+        env['ZYGOTE'] = zygote.to_json()
+
+        execution = BashExecution(execution_id, bindings, env, f"{self._mount}/sbin/run", "--mapping",
+                                  slots_mapping_file)
         execution.start()
         return execution
 

@@ -1,13 +1,12 @@
 import abc
 import logging
-import os
 import uuid
 from pathlib import Path
 
 from lzy.model.channel import Channel, Bindings, Binding
+from lzy.model.file_slots import create_slot
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
-from lzy.model.file_slots import create_slot
 
 
 class ExecutionResult:
@@ -71,10 +70,6 @@ class Servant:
     def run(self, zygote: Zygote) -> Execution:
         execution_id = str(uuid.uuid4())
         self._log.info(f"Running zygote {zygote.name()}, execution id {execution_id}")
-
-        if not os.path.exists(self._zygote_path(zygote)):
-            self._log.warning(f"zygote {zygote.name()} was not published")
-            self.publish(zygote)
 
         bindings = []
         for slot in zygote.slots():
