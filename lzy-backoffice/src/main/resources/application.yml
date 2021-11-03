@@ -1,9 +1,12 @@
 micronaut:
   application:
     name: lzyBackoffice
+  server:
+    cors:
+      enabled: true
 grpc:
   host: 127.0.0.1
   port: 8888
 credentials:
   user-id: artolord
-  private-key: <some key>  # Can be set with env var CREDENTIALS_PRIVATE_KEY
+  private-key-path: <Some token path> # Can be set with CREDENTIALS_PRIVATE_KEY_PATH env var

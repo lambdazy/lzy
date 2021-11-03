@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.server.mem;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
+import ru.yandex.cloud.ml.platform.lzy.server.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
@@ -56,5 +57,10 @@ public class SimpleInMemAuthenticator implements Authenticator {
         final String token = UUID.randomUUID().toString();
         taskTokens.put(task.tid().toString(), token);
         return token;
+    }
+
+    @Override
+    public boolean hasPermission(String uid, Permissions permission) {
+        return true;
     }
 }

@@ -1,9 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.backoffice;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.exceptions.HttpStatusException;
+import org.bouncycastle.util.io.pem.PemReader;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.StringReader;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
@@ -13,7 +19,7 @@ import java.util.UUID;
 @ConfigurationProperties("credentials")
 public class CredentialsConfig {
     private String userId;
-    private String privateKey;
+    private String privateKeyPath;
 
     public String getUserId() {
         return userId;
@@ -23,17 +29,23 @@ public class CredentialsConfig {
         this.userId = userId;
     }
 
-    public String getPrivateKey() {
-        return privateKey;
+    public String getPrivateKeyPath() {
+        return privateKeyPath;
     }
 
-    public void setPrivateKey(String privateKey) {
-        this.privateKey = privateKey;
+    public void setPrivateKeyPath(String privateKeyPath) {
+        this.privateKeyPath = privateKeyPath;
     }
 
-    public IAM.UserCredentials getCredentials() throws InvalidKeySpecException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
+    public IAM.UserCredentials getCredentials(){
         UUID uuid = UUID.randomUUID();
-        String token = uuid.toString() + "." + Credentials.signToken(uuid, privateKey);
+        String token;
+        try (FileReader keyReader = new FileReader(privateKeyPath)) {
+            token = uuid + "." + Credentials.signToken(uuid, keyReader);
+        }
+        catch (InvalidKeySpecException | NoSuchAlgorithmException | SignatureException | InvalidKeyException | IOException e){
+            throw new HttpStatusException(HttpStatus.FORBIDDEN, "Corrupted backoffice token");
+        }
 
         return IAM.UserCredentials.newBuilder()
                 .setToken(token)

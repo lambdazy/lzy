@@ -11,12 +11,14 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -42,7 +44,7 @@ public class LzyDbAuthTest {
         public User(String userId) throws NoSuchAlgorithmException {
             this.userId = userId;
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-            kpg.initialize(1024);
+            kpg.initialize(512);
             KeyPair kp = kpg.generateKeyPair();
             publicKey = new String(Base64.getEncoder().encode(kp.getPublic().getEncoded()));
             privateKey = new String(Base64.getEncoder().encode(kp.getPrivate().getEncoded()));
@@ -52,8 +54,8 @@ public class LzyDbAuthTest {
             if (token != null)
                 return token;
             UUID token = UUID.randomUUID();
-            try {
-                String signedToken = Credentials.signToken(token, privateKey);
+            try(StringReader reader = new StringReader("-----BEGIN RSA PRIVATE KEY-----\n"+privateKey+"\n-----END RSA PRIVATE KEY-----")) {
+                String signedToken = Credentials.signToken(token, reader);
                 this.token = token + "." + signedToken;
                 return this.token;
             } catch (Exception e) {
@@ -62,7 +64,7 @@ public class LzyDbAuthTest {
         }
 
         public UserModel getUserModel(){
-            return new UserModel(userId, publicKey);
+            return new UserModel(userId);
         }
     }
 
@@ -89,6 +91,7 @@ public class LzyDbAuthTest {
             Transaction tx = session.beginTransaction();
             for (User user: users) {
                 session.persist(user.getUserModel());
+                session.persist(new TokenModel("main", "-----BEGIN PUBLIC KEY-----\n" + user.publicKey + "\n-----END PUBLIC KEY-----", user.userId));
             }
             tx.commit();
         }

@@ -2,20 +2,12 @@ package ru.yandex.cloud.ml.platform.lzy.backoffice.grpc;
 
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.AddTokenRequest;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.User;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
-
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
-import java.security.spec.InvalidKeySpecException;
 
 
 @Singleton
@@ -41,12 +33,19 @@ public class Client {
     }
 
     public BackOffice.AddTokenResult addToken(AddTokenRequest request){
-        try {
-            return getBlockingStub().addToken(
-                    request.getModel(credentials.getCredentials())
-            );
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException | SignatureException | InvalidKeyException e) {
-            throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Corrupted backoffice token");
-        }
+        return getBlockingStub().addToken(
+                request.toModel(credentials.getCredentials())
+        );
+    }
+
+    public BackOffice.CreateUserResult createUser(CreateUserRequest request){
+        return getBlockingStub().createUser(request.toModel(credentials.getCredentials()));
+    }
+
+    public BackOffice.DeleteUserResult deleteUser(DeleteUserRequest request){
+        return getBlockingStub().deleteUser(request.toModel(credentials.getCredentials()));
+    }
+    public BackOffice.ListUsersResponse listUsers(ListUsersRequest request){
+        return getBlockingStub().listUsers(request.toModel(credentials.getCredentials()));
     }
 }

@@ -6,8 +6,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 
 @Singleton
 @Requires(property = "database.url")
@@ -23,8 +22,12 @@ public class Storage implements DbStorage{
         cfg.setProperty("hibernate.connection.username", config.getUsername());
         cfg.setProperty("hibernate.connection.password", config.getPassword());
         cfg.setProperty("hibernate.connection.driver_class", "org.postgresql.Driver");
+        cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         cfg.addAnnotatedClass(UserModel.class);
         cfg.addAnnotatedClass(TaskModel.class);
+        cfg.addAnnotatedClass(TokenModel.class);
+        cfg.addAnnotatedClass(UserRoleModel.class);
+        cfg.addAnnotatedClass(PermissionModel.class);
         this.sessionFactory = cfg.buildSessionFactory();
     }
 
