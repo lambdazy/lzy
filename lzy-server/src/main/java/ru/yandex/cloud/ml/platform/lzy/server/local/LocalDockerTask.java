@@ -15,7 +15,7 @@ import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 
-public class LocalDockerTask extends BaseTask {
+public class LocalDockerTask extends LocalTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(LocalDockerTask.class);
 
     LocalDockerTask(

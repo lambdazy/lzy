@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 
-public class LocalProcessTask extends BaseTask {
+public class LocalProcessTask extends LocalTask {
     private static final Logger LOG = LogManager.getLogger(LocalProcessTask.class);
 
     LocalProcessTask(

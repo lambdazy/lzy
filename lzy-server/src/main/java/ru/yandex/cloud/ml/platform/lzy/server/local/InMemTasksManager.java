@@ -25,7 +25,7 @@ import java.util.stream.Stream;
 
 public class InMemTasksManager implements TasksManager {
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
-    private final URI serverURI;
+    protected final URI serverURI;
     private final ChannelsManager channels;
     private final Map<UUID, Task> tasks = new HashMap<>();
 
