@@ -2,8 +2,9 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import org.apache.commons.cli.CommandLine;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
-import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 
 import java.io.FileReader;
@@ -23,7 +24,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.UUID;
 
-public class Terminal implements ServantCommand {
+public class Terminal implements LzyCommand {
     @Override
     public int execute(CommandLine parse) throws Exception {
         if (!parse.hasOption('z')) {
@@ -45,14 +46,14 @@ public class Terminal implements ServantCommand {
         final Path lzyRoot = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
         Runtime.getRuntime().exec("umount " + lzyRoot);
         final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
-        final LzyServant.Builder builder = LzyServant.Builder.forLzyServer(URI.create(serverAddress))
+        final LzyAgentConfig.LzyAgentConfigBuilder builder = LzyAgentConfig.builder()
+            .serverAddress(URI.create(serverAddress))
             .user(System.getenv("USER"))
             .token(terminalToken.toString())
-            .servantName(host)
-            .servantInternalName(parse.getOptionValue('i', host))
-            .servantPort(port)
-            .root(lzyRoot)
-            .isTerminal(true);
+            .agentName(host)
+            .agentInternalName(parse.getOptionValue('i', host))
+            .agentPort(port)
+            .root(lzyRoot);
 
         if (Files.exists(privateKeyPath)) {
             try (FileReader keyReader = new FileReader(String.valueOf(privateKeyPath))) {
@@ -60,10 +61,10 @@ public class Terminal implements ServantCommand {
                 builder.tokenSign(tokenSignature);
             }
         }
-        final LzyServant servant = builder.build();
+        final LzyAgent terminal = new LzyTerminal(builder.build());
 
-        servant.start();
-        servant.awaitTermination();
+        terminal.start();
+        terminal.awaitTermination();
         return 0;
     }
 }

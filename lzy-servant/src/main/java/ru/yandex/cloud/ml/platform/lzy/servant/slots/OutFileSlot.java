@@ -20,11 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -114,6 +110,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         localFileContents.onClose(written -> {
             if (written) {
                 synchronized (OutFileSlot.this) {
+                    LOG.info("Content to slot " + OutFileSlot.this + " was written; READY=true");
                     ready = true;
                     state(Operations.SlotStatus.State.OPEN);
                     OutFileSlot.this.notifyAll();
@@ -136,14 +133,10 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
             .setDeclaration(gRPCConverter.to(definition()));
-        if (tid != null)
+        if (tid != null) {
             builder.setTaskId(tid);
+        }
         return builder.build();
-    }
-
-    @Override
-    public void suspend() {
-        state(Operations.SlotStatus.State.SUSPENDED);
     }
 
     @Override

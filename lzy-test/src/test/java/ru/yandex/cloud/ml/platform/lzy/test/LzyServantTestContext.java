@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.nio.file.Path;
@@ -22,7 +22,7 @@ public interface LzyServantTestContext extends AutoCloseable {
     Logger LOGGER = LoggerFactory.getLogger(LzyServantTestContext.class);
     int DEFAULT_TIMEOUT_SEC = 30;
 
-    Servant startTerminalAtPathAndPort(String path, int port, String serverHost, int serverPort);
+    Servant startTerminalAtPathAndPort(String path, int port, String serverAddress);
 
     boolean inDocker();
     void close();
@@ -32,7 +32,7 @@ public interface LzyServantTestContext extends AutoCloseable {
         String mount();
         @SuppressWarnings("unused")
         int port();
-        String serverHost();
+        String serverAddress();
 
         @SuppressWarnings("UnusedReturnValue")
         default ExecutionResult execute(String... command) {
@@ -90,7 +90,7 @@ public interface LzyServantTestContext extends AutoCloseable {
                         zygoteName,
                         "filename",
                         "-z",
-                        serverHost() // serverAddress
+                        serverAddress() // serverAddress
                     )
                 );
                 Utils.waitFlagUp(
@@ -163,7 +163,7 @@ public interface LzyServantTestContext extends AutoCloseable {
             }
         }
 
-        boolean waitForStatus(ServantStatus status, long timeout, TimeUnit unit);
+        boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit);
         boolean waitForShutdown(long timeout, TimeUnit unit);
 
         interface ExecutionResult {

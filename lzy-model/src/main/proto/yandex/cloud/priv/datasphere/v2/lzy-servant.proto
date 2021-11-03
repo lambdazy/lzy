@@ -57,15 +57,21 @@ message SlotCommandStatus {
         SlotStatus status = 2;
     }
 
-    enum RC {
-        SUCCESS = 0;
-        ERROR = 1;
+    message RC {
+        Code code = 1;
+        string description = 2;
+
+        enum Code {
+            SUCCESS = 0;
+            ERROR = 1;
+        }
     }
 }
 
 message SlotRequest {
     string slot = 1;
     int64 offset = 2;
+    string slotUri = 3;
 }
 
 message Message {

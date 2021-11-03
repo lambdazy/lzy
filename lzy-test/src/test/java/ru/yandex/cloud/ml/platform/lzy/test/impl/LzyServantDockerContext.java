@@ -15,7 +15,7 @@ import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.output.ToStringConsumer;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 
 import java.io.IOException;
@@ -35,31 +35,31 @@ public class LzyServantDockerContext implements LzyServantTestContext {
     private final List<GenericContainer<?>> startedContainers = new ArrayList<>();
 
     @Override
-    public Servant startTerminalAtPathAndPort(String mount, int port, String serverHost, int serverPort) {
+    public Servant startTerminalAtPathAndPort(String mount, int port, String serverAddress) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
-                .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
-                .withEnv("USER", "terminal-test")
-                .withEnv("LOG_FILE", "terminal")
-                .withEnv("DEBUG_PORT", "5006")
-                .withEnv("SUSPEND_DOCKER", "n")
-                //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-                .withCommand("--lzy-address " + serverHost + ":" + serverPort + " "
-                        + "--host localhost "
-                        + "--port " + port + " "
-                        + "--lzy-mount " + mount + " "
-                        + "--internal-host " + internalHost + " "
-                        + "terminal");
+            .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
+            .withEnv("USER", "terminal-test")
+            .withEnv("LOG_FILE", "terminal")
+            .withEnv("DEBUG_PORT", "5006")
+            .withEnv("SUSPEND_DOCKER", "n")
+//            .withFileSystemBind("/var/log/servant/", "/var/log/servant/")
+            .withCommand("--lzy-address " + serverAddress + " "
+                + "--host localhost "
+                + "--port " + port + " "
+                + "--lzy-mount " + mount + " "
+                + "--internal-host " + internalHost + " "
+                + "terminal");
 
         final GenericContainer<?> servantContainer;
         if (SystemUtils.IS_OS_LINUX) {
             servantContainer = base.withNetworkMode("host");
         } else {
             servantContainer = base
-                    .withFixedExposedPort(port, port)
-                    .withFixedExposedPort(5006, 5006) //to attach debugger
-                    .withExposedPorts(port, 5006);
+                .withFixedExposedPort(port, port)
+                .withFixedExposedPort(5006, 5006) //to attach debugger
+                .withExposedPorts(port, 5006);
         }
 
         servantContainer.start();
@@ -72,8 +72,8 @@ public class LzyServantDockerContext implements LzyServantTestContext {
             }
 
             @Override
-            public String serverHost() {
-                return serverHost;
+            public String serverAddress() {
+                return serverAddress;
             }
 
             @Override
@@ -99,13 +99,13 @@ public class LzyServantDockerContext implements LzyServantTestContext {
 
                     final ExecCreateCmd execCreateCmd = dockerClient.execCreateCmd(containerId);
                     final ExecCreateCmdResponse exec = execCreateCmd.withEnv(env.entrySet()
-                                    .stream()
-                                    .map(e -> e.getKey() + "=" + Utils.bashEscape(e.getValue()))
-                                    .collect(Collectors.toList()))
-                            .withAttachStdout(true)
-                            .withAttachStderr(true)
-                            .withCmd(command)
-                            .exec();
+                            .stream()
+                            .map(e -> e.getKey() + "=" + Utils.bashEscape(e.getValue()))
+                            .collect(Collectors.toList()))
+                        .withAttachStdout(true)
+                        .withAttachStderr(true)
+                        .withCmd(command)
+                        .exec();
 
                     final ToStringConsumer stdoutStringConsumer = new ToStringConsumer();
                     final ToStringConsumer stderrStringConsumer = new ToStringConsumer();
@@ -145,14 +145,14 @@ public class LzyServantDockerContext implements LzyServantTestContext {
 
             @Override
             public boolean waitForStatus(
-                    ServantStatus status, long timeout, TimeUnit unit
+                AgentStatus status, long timeout, TimeUnit unit
             ) {
                 return Utils.waitFlagUp(() -> {
                     if (pathExists(Paths.get(mount + "/sbin/status"))) {
                         try {
                             final Container.ExecResult bash = servantContainer.execInContainer(
-                                    "bash",
-                                    mount + "/sbin/status"
+                                "bash",
+                                mount + "/sbin/status"
                             );
                             final String parsedStatus = bash.getStdout().split("\n")[0];
                             return parsedStatus.equalsIgnoreCase(status.name());

@@ -9,7 +9,7 @@ import org.testcontainers.containers.output.WaitingConsumer;
 import org.testcontainers.shaded.org.apache.commons.lang.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.server.ChannelsRepository;
+import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 
 import java.net.URI;
 import java.util.Map;
@@ -23,7 +23,7 @@ public class LocalDockerTask extends BaseTask {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        ChannelsRepository channels,
+        ChannelsManager channels,
         URI serverURI
     ) {
         super(owner, tid, workload, assignments, channels, serverURI);
@@ -42,7 +42,7 @@ public class LocalDockerTask extends BaseTask {
             .withEnv("LOG_FILE", "servant_start_" + uuid)
             .withEnv("DEBUG_PORT", "5005")
             .withEnv("SUSPEND_DOCKER", "n")
-            //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
+//            .withFileSystemBind("/var/log/servant/", "/var/log/servant/")
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "

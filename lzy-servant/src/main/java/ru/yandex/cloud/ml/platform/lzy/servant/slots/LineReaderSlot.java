@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
@@ -11,6 +12,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.LineNumberReader;
+import java.net.URI;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Spliterator;
@@ -45,12 +47,6 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
             .setDeclaration(gRPCConverter.to(definition()))
             .setTaskId(tid)
             .build();
-    }
-
-
-    @Override
-    public void suspend() {
-        state(Operations.SlotStatus.State.SUSPENDED);
     }
 
     @Override

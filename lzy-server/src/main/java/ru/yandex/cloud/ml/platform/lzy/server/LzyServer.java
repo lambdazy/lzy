@@ -1,53 +1,26 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
 import jakarta.inject.Inject;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.server.local.Binding;
-import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsRepository;
+import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.server.local.InMemTasksManager;
+import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -66,7 +39,6 @@ public class LzyServer {
     public static int port;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-
         final CommandLineParser cliParser = new DefaultParser();
         final HelpFormatter cliHelp = new HelpFormatter();
         CommandLine parse = null;
@@ -104,8 +76,11 @@ public class LzyServer {
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
-        private final ChannelsRepository channels = new LocalChannelsRepository();
+        private final ChannelsManager channels = new LocalChannelsManager();
         private final TasksManager tasks = new InMemTasksManager(URI.create("http://localhost:" + port), channels);
+
+        @Inject
+        private ConnectionManager connectionManager;
 
         @Inject
         private Authenticator auth;
@@ -309,33 +284,32 @@ public class LzyServer {
             }
 
             final URI servantUri = URI.create(request.getServantURI());
+            final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager.getOrCreate(servantUri);
             responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
             responseObserver.onCompleted();
 
             ForkJoinPool.commonPool().execute(() -> {
                 if (auth.hasTask()) {
                     final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
-                    task.attachServant(servantUri);
+                    task.attachServant(servantUri, servant);
                 }
-                else runTerminal(auth, servantUri);
+                else {
+                    runTerminal(auth, servant, UUID.fromString(request.getSessionId()));
+                }
+                connectionManager.shutdownConnection(servantUri);
             });
         }
 
-        private void runTerminal(IAM.Auth auth, URI servantUri) {
+        private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
             final String user = auth.getUser().getUserId();
-            final ManagedChannel servantChannel = ManagedChannelBuilder
-                .forAddress(servantUri.getHost(), servantUri.getPort())
-                .usePlaintext()
-                .build();
+
             final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
             tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()
                 .setSlot(gRPCConverter.to(slot))
                 .setBinding("channel:" + channel.name())
                 .build()
             );
-            final Iterator<Servant.ExecutionProgress> execute = LzyServantGrpc
-                .newBlockingStub(servantChannel)
-                .execute(executionSpec.build());
+            final Iterator<Servant.ExecutionProgress> execute = kharon.execute(executionSpec.build());
             try {
                 execute.forEachRemaining(progress -> {
                     LOG.info("LzyServer::terminalProgress " + JsonUtils.printRequest(progress));
@@ -345,17 +319,17 @@ public class LzyServer {
                         final URI slotUri = URI.create(attach.getUri());
                         final String channelName = attach.getChannel();
                         tasks.addUserSlot(user, slot, channels.get(channelName));
-                        this.channels.bind(channels.get(channelName), Binding.singleton(slot, slotUri, servantChannel));
+                        this.channels.bind(channels.get(channelName), new ServantEndpoint(slot, slotUri, sessionId, kharon));
                     }
                     else if (progress.hasDetach()) {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = gRPCConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
                         tasks.removeUserSlot(user, slot);
-                        final Channel bound = this.channels.bound(slotUri);
+                        final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharon);
+                        final Channel bound = channels.bound(endpoint);
                         if (bound != null) {
-                            final Binding binding = Binding.singleton(slot, slotUri, servantChannel);
-                            channels.unbind(bound, binding);
+                            channels.unbind(bound, endpoint);
                         }
                     }
                 });
@@ -368,8 +342,7 @@ public class LzyServer {
                 LOG.info("unbindAll from runTerminal");
                 //Clean up slots if terminal did not send detach
                 tasks.slots(user).keySet().forEach(slot -> tasks.removeUserSlot(user, slot));
-                channels.unbindAll(servantUri);
-                servantChannel.shutdown();
+                channels.unbindAll(sessionId);
             }
         }
 
@@ -379,8 +352,9 @@ public class LzyServer {
                 builder.setTaskId(task.tid().toString());
 
                 builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
-                if (task.servant() != null)
+                if (task.servant() != null) {
                     builder.setServant(task.servant().toString());
+                }
                 builder.setOwner(tasks.owner(task.tid()));
                 Stream.concat(Stream.of(task.workload().input()), Stream.of(task.workload().output()))
                     .map(task::slotStatus)

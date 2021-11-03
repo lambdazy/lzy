@@ -44,6 +44,7 @@ message PublishRequest {
 message AttachServant {
   Auth auth = 1;
   string servantURI = 2;
+  string sessionId = 3;
 }
 
 message AttachStatus {

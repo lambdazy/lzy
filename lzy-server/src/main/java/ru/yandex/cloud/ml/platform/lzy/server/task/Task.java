@@ -5,6 +5,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
@@ -26,7 +28,7 @@ public interface Task {
 
     URI servant();
     Channel servantChannel();
-    void attachServant(URI uri);
+    void attachServant(URI uri, LzyServantBlockingStub servant);
 
     Stream<Slot> slots();
 

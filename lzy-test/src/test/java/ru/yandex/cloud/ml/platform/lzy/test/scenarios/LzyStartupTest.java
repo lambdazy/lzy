@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -19,14 +19,13 @@ public class LzyStartupTest extends LzyBaseTest {
     public void testFuseWorks() {
         //Arrange
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+            LZY_MOUNT,
+            DEFAULT_SERVANT_PORT,
+            kharonContext.serverAddress(servantContext.inDocker())
         );
 
         //Act
-        servant.waitForStatus(ServantStatus.EXECUTING, DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+        servant.waitForStatus(AgentStatus.EXECUTING, DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
 
         //Assert
         Assert.assertTrue(servant.pathExists(Paths.get(LZY_MOUNT + "/sbin")));
@@ -46,13 +45,12 @@ public class LzyStartupTest extends LzyBaseTest {
 
         //Act
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+            LZY_MOUNT,
+            DEFAULT_SERVANT_PORT,
+            kharonContext.serverAddress(servantContext.inDocker())
         );
         final boolean status = servant.waitForStatus(
-                ServantStatus.EXECUTING,
+                AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
@@ -96,13 +94,12 @@ public class LzyStartupTest extends LzyBaseTest {
 
         //Act
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+            LZY_MOUNT,
+            DEFAULT_SERVANT_PORT,
+            kharonContext.serverAddress(servantContext.inDocker())
         );
         final boolean started = servant.waitForStatus(
-                ServantStatus.EXECUTING,
+                AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
@@ -126,15 +123,14 @@ public class LzyStartupTest extends LzyBaseTest {
     public void testServantDiesAfterServerDied() {
         //Arrange
         final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+            LZY_MOUNT,
+            DEFAULT_SERVANT_PORT,
+            kharonContext.serverAddress(servantContext.inDocker())
         );
 
         //Act
         final boolean started = servant.waitForStatus(
-                ServantStatus.EXECUTING,
+                AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );

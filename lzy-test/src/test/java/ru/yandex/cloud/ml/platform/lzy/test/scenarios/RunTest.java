@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantStatus;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext.Servant.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
@@ -23,15 +23,14 @@ public class RunTest extends LzyBaseTest {
     public void setUp() {
         super.setUp();
         terminal = servantContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                9999,
-                serverContext.host(servantContext.inDocker()),
-                serverContext.port()
+            LZY_MOUNT,
+            9999,
+            kharonContext.serverAddress(servantContext.inDocker())
         );
         terminal.waitForStatus(
-                ServantStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
-                TimeUnit.SECONDS
+            AgentStatus.EXECUTING,
+            DEFAULT_TIMEOUT_SEC,
+            TimeUnit.SECONDS
         );
     }
 

@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.servant;
+package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,6 +13,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvConnector;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Connector;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashConnector;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;

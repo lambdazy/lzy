@@ -34,6 +34,11 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     @Override
     public void connect(URI slotUri) {
         LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri);
+        if (servantSlotCh != null) {
+            LOG.warn("Slot " + this + " was already connected");
+            return;
+        }
+
         connected = slotUri;
         servantSlotCh = ManagedChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
             .usePlaintext()
@@ -43,9 +48,15 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
 
     @Override
     public void disconnect() {
+        LOG.info("LzyInputSlotBase:: disconnecting slot " + this);
+        if (connected == null) {
+            LOG.warn("Slot " + this + " was already disconnected");
+            return;
+        }
         servantSlotCh.shutdown();
         connected = null;
         servantSlotCh = null;
+        LOG.info("LzyInputSlotBase:: disconnected " + this);
         state(Operations.SlotStatus.State.SUSPENDED);
     }
 
@@ -53,6 +64,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         final Iterator<Servant.Message> msgIter = connectedSlotController.openOutputSlot(Servant.SlotRequest.newBuilder()
             .setSlot(connected.getPath())
             .setOffset(offset)
+            .setSlotUri(connected.toString())
             .build());
         try {
             while (msgIter.hasNext()) {
@@ -82,24 +94,18 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     }
 
     @Override
-    public void suspend() {
-        if (state() == Operations.SlotStatus.State.OPEN) {
-            disconnect();
-        }
-        super.suspend();
-    }
-
-    @Override
     public Operations.SlotStatus status() {
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
             .setPointer(offset)
             .setDeclaration(gRPCConverter.to(definition()));
 
-        if (tid != null)
+        if (tid != null) {
             builder.setTaskId(tid);
-        if (connected != null)
+        }
+        if (connected != null) {
             builder.setConnectedTo(connected.toString());
+        }
         return builder.build();
     }
 

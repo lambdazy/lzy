@@ -5,48 +5,27 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.text.MessageFormat;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
-public class Run implements ServantCommand {
+public class Run implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Run.class);
     private static final int BUFFER_SIZE = 4096;
     private static final Options options = new Options();
@@ -56,7 +35,7 @@ public class Run implements ServantCommand {
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private LzyServerGrpc.LzyServerBlockingStub server;
+    private LzyKharonGrpc.LzyKharonBlockingStub kharon;
     private IAM.Auth auth;
     private Map<String, Map<String, String>> pipesConfig;
     private LzyServantGrpc.LzyServantBlockingStub servant;
@@ -101,14 +80,14 @@ public class Run implements ServantCommand {
                 .forAddress(serverAddr.getHost(), serverAddr.getPort())
                 .usePlaintext()
                 .build();
-            server = LzyServerGrpc.newBlockingStub(serverCh);
+            kharon = LzyKharonGrpc.newBlockingStub(serverCh);
         }
         {
-            final ManagedChannel servantCh = ManagedChannelBuilder
+            final ManagedChannel servant = ManagedChannelBuilder
                 .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
                 .usePlaintext()
                 .build();
-            servant = LzyServantGrpc.newBlockingStub(servantCh);
+            this.servant = LzyServantGrpc.newBlockingStub(servant);
         }
 
         final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
@@ -134,7 +113,7 @@ public class Run implements ServantCommand {
                 .build();
         });
 
-        final Iterator<Servant.ExecutionProgress> executionProgress = server.start(taskSpec.build());
+        final Iterator<Servant.ExecutionProgress> executionProgress = kharon.start(taskSpec.build());
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
@@ -310,7 +289,7 @@ public class Run implements ServantCommand {
 
     private void destroyChannel(String channelName) {
         //noinspection ResultOfMethodCallIgnored
-        server.channel(Channels.ChannelCommand.newBuilder()
+        kharon.channel(Channels.ChannelCommand.newBuilder()
             .setAuth(auth)
             .setChannelName(channelName)
             .setDestroy(Channels.ChannelDestroy.newBuilder().build())
@@ -319,7 +298,7 @@ public class Run implements ServantCommand {
     }
 
     private String createChannel(Slot slot, String channelName) {
-        final Channels.ChannelStatus channel = server.channel(Channels.ChannelCommand.newBuilder()
+        final Channels.ChannelStatus channel = kharon.channel(Channels.ChannelCommand.newBuilder()
             .setAuth(auth)
             .setChannelName(channelName)
             .setCreate(Channels.ChannelCreate.newBuilder()

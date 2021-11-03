@@ -10,13 +10,15 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.server.ChannelsRepository;
+import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
+import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
@@ -37,7 +39,7 @@ public abstract class BaseTask implements Task {
     private final UUID tid;
     private final Zygote workload;
     private final Map<Slot, String> assignments;
-    private final ChannelsRepository channels;
+    private final ChannelsManager channels;
     private final URI serverURI;
 
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
@@ -46,14 +48,14 @@ public abstract class BaseTask implements Task {
     private State state = State.PREPARING;
     private ManagedChannel servantChannel;
     private URI servantURI;
-    private LzyServantGrpc.LzyServantBlockingStub servant;
+    private LzyServantBlockingStub servant;
 
     BaseTask(
         String owner,
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        ChannelsRepository channels,
+        ChannelsManager channels,
         URI serverURI
     ) {
         this.owner = owner;
@@ -111,13 +113,9 @@ public abstract class BaseTask implements Task {
     }
 
     @Override
-    public void attachServant(URI uri) {
-        servantChannel = ManagedChannelBuilder
-            .forAddress(uri.getHost(), uri.getPort())
-            .usePlaintext()
-            .build();
+    public void attachServant(URI uri, LzyServantBlockingStub servant) {
         servantURI = uri;
-        servant = LzyServantGrpc.newBlockingStub(servantChannel);
+        this.servant = servant;
         final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
             .setZygote(gRPCConverter.to(workload));
         assignments.forEach((slot, binding) ->
@@ -153,20 +151,21 @@ public abstract class BaseTask implements Task {
                         final Channel channel = channels.get(channelName);
                         if (channel != null) {
                             attachedSlots.put(slot, channel);
-                            channels.bind(channel, Binding.singleton(slot, slotUri, servantChannel));
+                            channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, servant));
+                        } else {
+                            LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
                         }
-                        else LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
                         break;
                     }
                     case DETACH: {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = gRPCConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
-                        final Channel channel = channels.bound(slotUri);
+                        final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, servant);
+                        final Channel channel = channels.bound(endpoint);
                         if (channel != null) {
-                            final Binding binding = Binding.singleton(slot, slotUri, servantChannel);
                             attachedSlots.remove(slot);
-                            channels.unbind(channel, binding);
+                            channels.unbind(channel, endpoint);
                         }
                         break;
                     }

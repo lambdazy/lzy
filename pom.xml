@@ -19,6 +19,7 @@
         <module>lzy-backoffice</module>
         <module>lzy-server</module>
         <module>lzy-servant</module>
+        <module>lzy-kharon</module>
         <module>lzy-test</module>
         <module>lzy-python</module>
         <module>parent</module>
