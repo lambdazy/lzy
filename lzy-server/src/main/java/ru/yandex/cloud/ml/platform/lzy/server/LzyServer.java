@@ -10,7 +10,6 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
-import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Inject;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -367,6 +366,8 @@ public class LzyServer {
             }
             finally {
                 LOG.info("unbindAll from runTerminal");
+                //Clean up slots if terminal did not send detach
+                tasks.slots(user).keySet().forEach(slot -> tasks.removeUserSlot(user, slot));
                 channels.unbindAll(servantUri);
                 servantChannel.shutdown();
             }
