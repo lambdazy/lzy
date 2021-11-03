@@ -8,6 +8,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -17,6 +18,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 
+import static io.grpc.stub.ClientCalls.blockingServerStreamingCall;
+
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {
     private static final Logger LOG = LogManager.getLogger(LzyInputSlotBase.class);
 
@@ -24,11 +27,35 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private long offset = 0;
     private URI connected;
     private ManagedChannel servantSlotCh;
-    private LzyServantGrpc.LzyServantBlockingStub connectedSlotController;
+
+    interface SlotController {
+        Iterator<Servant.Message> openOutputSlot(Servant.SlotRequest request);
+    }
+    private SlotController connectedSlotController;
 
     LzyInputSlotBase(String tid, Slot definition) {
         super(definition);
         this.tid = tid;
+    }
+
+    public void connect(URI slotUri, URI kharonUri) {
+        LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri);
+        if (servantSlotCh != null) {
+            LOG.warn("Slot " + this + " was already connected");
+            return;
+        }
+
+        connected = slotUri;
+        servantSlotCh = ManagedChannelBuilder.forAddress(kharonUri.getHost(), kharonUri.getPort())
+                .usePlaintext()
+                .build();
+        connectedSlotController = new SlotController() {
+            private final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(servantSlotCh);
+            @Override
+            public Iterator<Servant.Message> openOutputSlot(Servant.SlotRequest request) {
+                return stub.openOutputSlot(request);
+            }
+        };
     }
 
     @Override
@@ -41,9 +68,15 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
 
         connected = slotUri;
         servantSlotCh = ManagedChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
-            .usePlaintext()
-            .build();
-        connectedSlotController = LzyServantGrpc.newBlockingStub(servantSlotCh);
+                .usePlaintext()
+                .build();
+        connectedSlotController = new SlotController() {
+            private final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(servantSlotCh);
+            @Override
+            public Iterator<Servant.Message> openOutputSlot(Servant.SlotRequest request) {
+                return stub.openOutputSlot(request);
+            }
+        };
     }
 
     @Override

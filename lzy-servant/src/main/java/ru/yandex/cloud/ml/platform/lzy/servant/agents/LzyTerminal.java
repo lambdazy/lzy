@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.LzyInputSlotBase;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
@@ -64,18 +65,22 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     final Servant.SlotCommand slotCommand = terminalCommand.getSlotCommand();
                     try {
                         final LzySlot slot = currentExecution.slot(slotCommand.getSlot());
-                        if (slotCommand.hasConnect() && slot instanceof LzyOutputSlot) {
+                        if (slotCommand.hasConnect()) {
                             final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
-                            slotSender.connect((LzyOutputSlot) slot, slotUri);
-                            CommandHandler.this.onNext(TerminalState.newBuilder()
-                                .setCommandId(commandId)
-                                .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
-                                    .setRc(Servant.SlotCommandStatus.RC.newBuilder()
-                                        .setCodeValue(0)
-                                        .build())
-                                    .build())
-                                .build());
-                            return;
+                            if (slot instanceof LzyOutputSlot) {
+                                slotSender.connect((LzyOutputSlot) slot, slotUri);
+                                CommandHandler.this.onNext(TerminalState.newBuilder()
+                                        .setCommandId(commandId)
+                                        .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
+                                                .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                                        .setCodeValue(0)
+                                                        .build())
+                                                .build())
+                                        .build());
+                                return;
+                            } else if (slot instanceof LzyInputSlotBase) {
+                                ((LzyInputSlotBase) slot).connect(slotUri, serverAddress);
+                            }
                         }
 
                         final Servant.SlotCommandStatus slotCommandStatus = configureSlot(

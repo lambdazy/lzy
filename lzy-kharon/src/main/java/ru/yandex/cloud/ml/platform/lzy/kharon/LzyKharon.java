@@ -113,8 +113,14 @@ public class LzyKharon {
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
             LOG.info("Kharon::openOutputSlot from Terminal " + JsonUtils.printRequest(request));
             final URI slotUri = URI.create(request.getSlotUri());
+            String slotHost = slotUri.getHost();
+            if (slotHost.equals("host.docker.internal")) {
+                slotHost = "localhost";
+            }
+
             final ManagedChannel channel = ManagedChannelBuilder
-                .forAddress(slotUri.getHost(), slotUri.getPort())
+                .forAddress(slotHost, slotUri.getPort())
+                .usePlaintext()
                 .build();
             final Iterator<Servant.Message> messageIterator = LzyServantGrpc.newBlockingStub(channel).openOutputSlot(request);
             while (messageIterator.hasNext()) {

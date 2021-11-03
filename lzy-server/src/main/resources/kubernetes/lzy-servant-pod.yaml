@@ -11,6 +11,10 @@ spec:
       env:
         - name: LOG_FILE
           value: "servant.log"
+        - name: SUSPEND_DOCKER
+          value: n
+        - name: DEBUG_PORT
+          value: 5006
         - name: LZYHOST
           valueFrom:
             fieldRef:
