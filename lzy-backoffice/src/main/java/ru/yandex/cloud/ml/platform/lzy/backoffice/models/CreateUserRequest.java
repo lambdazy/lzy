@@ -25,11 +25,11 @@ public class CreateUserRequest {
         this.user = user;
     }
 
-    public BackOffice.CreateUserRequest getModel(IAM.UserCredentials credentials){
+    public BackOffice.CreateUserRequest toModel(IAM.UserCredentials credentials){
         return BackOffice.CreateUserRequest.newBuilder()
                 .setBackofficeCredentials(credentials)
-                .setCreatorCredentials(creatorCredentials.getModel())
-                .setUser(user.getModel())
+                .setCreatorCredentials(creatorCredentials.toModel())
+                .setUser(user.toModel())
                 .build();
     }
 }

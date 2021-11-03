@@ -6,6 +6,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.ServantCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -54,8 +55,10 @@ public class Terminal implements ServantCommand {
             .isTerminal(true);
 
         if (Files.exists(privateKeyPath)) {
-            tokenSignature = Credentials.signToken(terminalToken, new String(Files.readAllBytes(privateKeyPath)));
-            builder.tokenSign(tokenSignature);
+            try (FileReader keyReader = new FileReader(String.valueOf(privateKeyPath))) {
+                tokenSignature = Credentials.signToken(terminalToken, keyReader);
+                builder.tokenSign(tokenSignature);
+            }
         }
         final LzyServant servant = builder.build();
 

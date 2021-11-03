@@ -25,11 +25,11 @@ public class DeleteUserRequest {
         this.deleterCredentials = deleterCredentials;
     }
 
-    public BackOffice.DeleteUserRequest getModel(IAM.UserCredentials credentials) {
+    public BackOffice.DeleteUserRequest toModel(IAM.UserCredentials credentials) {
         return BackOffice.DeleteUserRequest.newBuilder()
                 .setUserId(userId)
                 .setBackofficeCredentials(credentials)
-                .setDeleterCredentials(deleterCredentials.getModel())
+                .setDeleterCredentials(deleterCredentials.toModel())
                 .build();
     }
 }

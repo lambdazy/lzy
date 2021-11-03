@@ -15,7 +15,7 @@ public class UserCredentials {
         this.userId = userId;
     }
 
-    public BackOffice.BackofficeUserCredentials getModel(){
+    public BackOffice.BackofficeUserCredentials toModel(){
         return BackOffice.BackofficeUserCredentials.newBuilder()
                 .setUserId(userId)
                 .build();

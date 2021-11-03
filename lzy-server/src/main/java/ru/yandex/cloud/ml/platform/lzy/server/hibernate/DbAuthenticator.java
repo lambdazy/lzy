@@ -3,6 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
@@ -11,6 +13,8 @@ import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
+import java.io.FileReader;
+import java.io.StringReader;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.Security;
@@ -120,13 +124,12 @@ public class DbAuthenticator implements Authenticator {
                     new org.bouncycastle.jce.provider.BouncyCastleProvider()
             );
             for (TokenModel user_token: user.getTokens()) {
-                try {
-                    final byte[] publicKeyPEM = Base64.getDecoder().decode(
-                            user_token.getValue().replaceAll("-----[^-]*-----\\n", "")
-                                    .replaceAll("\\R", "")
-                    );
-                    final PublicKey rsaKey = KeyFactory.getInstance("RSA")
-                            .generatePublic(new X509EncodedKeySpec(publicKeyPEM));
+                try (StringReader keyReader = new StringReader(user_token.getValue()); PemReader pemReader = new PemReader(keyReader)){
+                    KeyFactory factory = KeyFactory.getInstance("RSA");
+                    PemObject pemObject = pemReader.readPemObject();
+                    byte[] content = pemObject.getContent();
+                    X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(content);
+                    PublicKey rsaKey = factory.generatePublic(pubKeySpec);
 
                     final Signature sign = Signature.getInstance("SHA1withRSA");
                     sign.initVerify(rsaKey);

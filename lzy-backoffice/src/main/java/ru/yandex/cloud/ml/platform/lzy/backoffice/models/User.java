@@ -15,9 +15,17 @@ public class User {
         this.userId = userId;
     }
 
-    public BackOffice.User getModel(){
+    public BackOffice.User toModel(){
         return BackOffice.User.newBuilder()
                 .setUserId(userId)
                 .build();
+    }
+
+    public User(String userId) {
+        this.userId = userId;
+    }
+
+    public static User fromModel(BackOffice.User user){
+        return new User(user.getUserId());
     }
 }

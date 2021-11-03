@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.backoffice.models;
 
 import io.micronaut.core.annotation.Introspected;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
@@ -35,10 +34,10 @@ public class AddTokenRequest {
         this.userCredentials = userCredentials;
     }
 
-    public BackOffice.AddTokenRequest getModel(IAM.UserCredentials credentials){
+    public BackOffice.AddTokenRequest toModel(IAM.UserCredentials credentials){
         return BackOffice.AddTokenRequest.newBuilder()
                 .setPublicKey(token)
-                .setUserCredentials(userCredentials.getModel())
+                .setUserCredentials(userCredentials.toModel())
                 .setBackofficeCredentials(credentials)
                 .setTokenName(tokenName)
                 .build();

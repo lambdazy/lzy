@@ -6,8 +6,7 @@ import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.Storage;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 
 @Singleton
 @Replaces(Storage.class)
@@ -23,6 +22,9 @@ public class MockDbStorage implements DbStorage {
         cfg.setProperty("hibernate.hbm2ddl.auto", "create");
         cfg.addAnnotatedClass(UserModel.class);
         cfg.addAnnotatedClass(TaskModel.class);
+        cfg.addAnnotatedClass(UserRoleModel.class);
+        cfg.addAnnotatedClass(PermissionModel.class);
+        cfg.addAnnotatedClass(TokenModel.class);
         this.sessionFactory = cfg.buildSessionFactory();
     }
 

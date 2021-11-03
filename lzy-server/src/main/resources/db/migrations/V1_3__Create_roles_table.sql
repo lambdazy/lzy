@@ -25,11 +25,12 @@ CREATE TABLE permission_to_role(
 
 INSERT INTO permissions (name) VALUES
     ('backoffice.users.create'),
-    ('backoffice.internal'),
-    ('backoffice.users.delete');
+    ('backoffice.internal.privateApi'),
+    ('backoffice.users.delete'),
+    ('backoffice.users.list');
 
 INSERT INTO roles (name) VALUES ('admin'), ('backoffice');
 
 INSERT INTO permission_to_role (role_id, permission_id) VALUES
-    ('admin', 'backoffice.users.create'), ('admin', 'backoffice.users.delete'),
-    ('backoffice', 'backoffice.internal');
+    ('admin', 'backoffice.users.create'), ('admin', 'backoffice.users.delete'), ('admin', 'backoffice.users.list'),
+    ('backoffice', 'backoffice.internal.privateApi');

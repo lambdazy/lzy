@@ -12,6 +12,7 @@ service LzyBackoffice{
   rpc AddToken(AddTokenRequest) returns (AddTokenResult);
   rpc CreateUser(CreateUserRequest) returns (CreateUserResult);
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResult);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
 }
 
 message AddTokenRequest{
@@ -35,6 +36,14 @@ message DeleteUserRequest{
   UserCredentials backofficeCredentials = 1;
   BackofficeUserCredentials deleterCredentials = 2;
   string userId = 3;
+}
+
+message ListUsersRequest{
+  UserCredentials backofficeCredentials = 1;
+  BackofficeUserCredentials callerCredentials = 2;
+}
+message ListUsersResponse{
+  repeated User users = 1;
 }
 
 message DeleteUserResult {};

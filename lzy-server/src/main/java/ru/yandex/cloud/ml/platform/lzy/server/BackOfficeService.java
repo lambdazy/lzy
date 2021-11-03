@@ -14,6 +14,10 @@ import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 
+import javax.persistence.criteria.CriteriaQuery;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Requires(beans = DbStorage.class)
 public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     @Inject
@@ -105,6 +109,42 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                 session.remove(user);
                 tx.commit();
                 responseObserver.onNext(BackOffice.DeleteUserResult.newBuilder().build());
+                responseObserver.onCompleted();
+            }
+            catch (Exception e){
+                tx.rollback();
+                responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            }
+        }
+    }
+
+    @Override
+    public void listUsers(BackOffice.ListUsersRequest request, StreamObserver<BackOffice.ListUsersResponse> responseObserver){
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+        }
+        catch (StatusException e){
+            responseObserver.onError(e);
+            return;
+        }
+
+        if (!auth.hasPermission(request.getCallerCredentials().getUserId(), Permissions.USERS_LIST)){
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
+
+        try(Session session = storage.getSessionFactory().openSession()){
+            Transaction tx = session.beginTransaction();
+            try {
+                CriteriaQuery<UserModel> cq = session.getCriteriaBuilder().createQuery(UserModel.class);
+                List<UserModel> users = session.createQuery(cq.select(cq.from(UserModel.class))).getResultList();
+                responseObserver.onNext(
+                        BackOffice.ListUsersResponse.newBuilder()
+                                .addAllUsers(users.stream().map(userModel ->
+                                    BackOffice.User.newBuilder().setUserId(userModel.getUserId()).build()
+                                ).collect(Collectors.toList()))
+                                .build()
+                );
                 responseObserver.onCompleted();
             }
             catch (Exception e){
