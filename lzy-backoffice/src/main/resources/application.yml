@@ -6,4 +6,4 @@ grpc:
   port: 8888
 credentials:
   user-id: artolord
-  private-key-path: /home/artolord/projects/lzy/lzy-backoffice/privateKey.txt
+  private-key-path: <Some token path> # Can be set with CREDENTIALS_PRIVATE_KEY_PATH env var
