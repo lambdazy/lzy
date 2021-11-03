@@ -23,8 +23,8 @@ LZY_SERVER_HOST=$(kubectl get pod lzy-server-pod -o custom-columns=IP:status.pod
 echo "$LZY_SERVER_HOST"
 
 #kubectl delete pod terminal-pod
-kubectl create -f terminal-pod.yaml
-sleep 20s
-
-echo "executing task \"echo 44\""
-kubectl exec terminal-pod-2 -- bash -c 'export "ZYGOTE={\"fuze\":\"echo 44\",\"provisioning\":\"not implemented\"}" && /tmp/lzy/sbin/run'
+#kubectl create -f terminal-pod.yaml
+#sleep 20s
+#
+#echo "executing task \"echo 44\""
+#kubectl exec terminal-pod-2 -- bash -c 'export "ZYGOTE={\"fuze\":\"echo 44\",\"provisioning\":\"not implemented\"}" && /tmp/lzy/sbin/run'
