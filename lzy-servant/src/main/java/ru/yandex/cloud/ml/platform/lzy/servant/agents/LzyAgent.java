@@ -65,6 +65,10 @@ public abstract class LzyAgent implements Closeable {
 
     abstract protected Server server();
 
+    public interface LzyServerApi {
+        Operations.ZygoteList zygotes(IAM.Auth auth);
+    }
+
     abstract protected LzyServerApi lzyServerApi();
 
     private static IAM.Auth getAuth(LzyAgentConfig config) {

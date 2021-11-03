@@ -302,15 +302,14 @@ public class LzyServer {
                     task.attachServant(servantUri, servant);
                 }
                 else {
-                    runTerminal(auth, servant);
+                    runTerminal(auth, servant, UUID.fromString(request.getSessionId()));
                 }
                 connectionManager.shutdownConnection(servantUri);
             });
         }
 
-        private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon) {
+        private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
             final String user = auth.getUser().getUserId();
-            final UUID sessionId = UUID.fromString(auth.getUser().getSessionId());
 
             final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
             tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()

@@ -60,7 +60,6 @@ public class TerminalSession {
                         final IAM.UserCredentials userCredentials = IAM.UserCredentials.newBuilder()
                             .setUserId(user)
                             .setToken(auth.getToken())
-                            .setSessionId(sessionId.toString())
                             .build();
 
                         String servantAddr = kharonServantAddress.toString();
@@ -73,6 +72,7 @@ public class TerminalSession {
                                 .setUser(userCredentials)
                                 .build())
                             .setServantURI(servantAddr)
+                            .setSessionId(sessionId.toString())
                             .build());
                         break;
                     }
@@ -133,7 +133,7 @@ public class TerminalSession {
     }
 
     @Nullable
-    public synchronized Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) {
+    public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) {
         LOG.info("Kharon::configureSlot " + JsonUtils.printRequest(request));
         final CompletableFuture<Kharon.TerminalState> future = new CompletableFuture<>();
         final String commandId = generateCommandId(future);
@@ -142,7 +142,9 @@ public class TerminalSession {
             .setSlotCommand(request)
             .build();
         LOG.info("terminalController send request " + JsonUtils.printRequest(sendingRequest));
-        terminalController.onNext(sendingRequest);
+        synchronized (terminalController) {
+            terminalController.onNext(sendingRequest);
+        }
         try {
             return future.get(10, TimeUnit.SECONDS).getSlotStatus();
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
