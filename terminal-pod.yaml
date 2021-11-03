@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: terminal-test-pod
+spec:
+  containers:
+    - name: lzy-servant
+      image: cr.yandex/crppns4pq490jrka0sth/lzy-servant:latest
+      env:
+        - name: LOG_FILE
+          value: "terminal.log"
+        - name: USER
+          value: "NIKITKA"
+        - name: LZYHOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+      args: ["--lzy-address", "178.154.227.38:8888", "--lzy-mount", "/tmp/lzy", "--private-key", "/app/resources/.ssh/non_exist_rsa", "--host", "$(LZYHOST)", "--port", "9990", "terminal"]
+      securityContext:
+        privileged: true
+  hostNetwork: true
+  dnsPolicy: Default

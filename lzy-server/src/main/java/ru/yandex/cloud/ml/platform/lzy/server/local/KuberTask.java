@@ -36,7 +36,7 @@ public class KuberTask extends BaseTask {
             Configuration.setDefaultApiClient(client);
 
             // TODO: move path to config or env
-            final File file = new File("/app/resources/lzy-servant-test-pod.yaml");  // path in docker container
+            final File file = new File("/app/resources/kubernetes/lzy-servant-pod.yaml");  // path in docker container
             final V1Pod servantPod = (V1Pod) Yaml.load(file);
 
             servantPod.getSpec().getContainers().get(0).addEnvItem(
@@ -60,6 +60,7 @@ public class KuberTask extends BaseTask {
 
             LOG.info("KuberTask servant exited");
             try {
+//                TODO: replace with container waiting
                 Thread.sleep(30000);
             } catch (InterruptedException e) {
                 LOG.error("30s sleep interrupted");
