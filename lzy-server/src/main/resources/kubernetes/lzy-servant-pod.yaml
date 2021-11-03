@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lzy-servant-test-pod-change-me
+  labels:
+    app: lzy-servant
+spec:
+  containers:
+    - name: lzy-servant
+      image: cr.yandex/crppns4pq490jrka0sth/lzy-servant:latest
+      env:
+        - name: LOG_FILE
+          value: "servant.log"
+        - name: LZYHOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+      args: ["--lzy-address", "$(LZY_SERVER_URI)", "--lzy-mount", "/tmp/lzy", "--host", "$(LZYHOST)", "--port", "9999"]
+      securityContext:
+        privileged: true
+  restartPolicy: OnFailure
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - lzy-servant
+          topologyKey: "kubernetes.io/hostname"
+  hostNetwork: true
+  dnsPolicy: Default
