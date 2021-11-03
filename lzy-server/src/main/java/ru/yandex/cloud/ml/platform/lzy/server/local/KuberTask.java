@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.server.ChannelsRepository;
+import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,7 +24,7 @@ import java.util.UUID;
 public class KuberTask extends BaseTask {
     private static final Logger LOG = LoggerFactory.getLogger(KuberTask.class);
 
-    KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments, ChannelsRepository channels, URI serverURI) {
+    KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments, ChannelsManager channels, URI serverURI) {
         super(owner, tid, workload, assignments, channels, serverURI);
     }
 
