@@ -59,9 +59,10 @@ def op_(*, input_types=None, output_type=None):
             if current_env.is_local():
                 lzy_op = LzyLocalOp(f, input_types, output_type, args)
             else:
+                env_name, yaml = current_env.generate_conda_env()
                 lzy_op = LzyRemoteOp(current_env.servant(), f, input_types,
                                      output_type,
-                                     PyEnv(current_env.python_env_as_yaml()),
+                                     PyEnv(env_name, yaml),
                                      args)
             current_env.register_op(lzy_op)
             return lazy_proxy(lambda: lzy_op.materialize(), output_type,

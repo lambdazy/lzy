@@ -48,7 +48,7 @@ class LzyEnvBase(ABC):
         pass
 
     @abstractmethod
-    def python_env_as_yaml(self) -> str:
+    def generate_conda_env(self) -> Tuple[str, str]:
         pass
 
 class LzyEnv(LzyEnvBase):
@@ -79,14 +79,15 @@ class LzyEnv(LzyEnvBase):
         self._yaml = yaml_path
         self._log = logging.getLogger(str(self.__class__))
 
-    def python_env_as_yaml(self) -> str:
+    def generate_conda_env(self) -> Tuple[str, str]:
         if self._yaml is None:
             return get_python_env_as_yaml()
 
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option
+        # TODO: parse yaml and get name?
         with open(self._yaml, 'r') as file:
-            return "".join(file.readlines())
+            return "default", "".join(file.readlines())
 
     # TODO: mb better naming
     def already_exists(self):

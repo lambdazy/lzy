@@ -49,7 +49,8 @@ public class CondaEnvConnector implements Connector {
             file.write(env.yaml());
         }
         int rcSum = 0;
-        rcSum += execAndLog("conda env update --file " + yaml + " --prune");
+        // --prune removes packages not specified in yaml, so probably it has not to be there
+        rcSum += execAndLog("conda env update --file " + yaml); // + " --prune");
         rcSum += execAndLog("pip install --default-timeout=100 /lzy-python setuptools");
 //        if (rcSum > 0) {
 //            throw new IOException("Failed to update conda env");
@@ -66,7 +67,7 @@ public class CondaEnvConnector implements Connector {
         return Runtime.getRuntime().exec(new String[]{
                 "bash", "-c",
                 "eval \"$(conda shell.bash hook)\" && " +
-                        "conda activate default && " +
+                        "conda activate " + env.name() + " && " +
                         command
         });
     }

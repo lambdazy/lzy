@@ -7,6 +7,7 @@ option java_outer_classname = "Operations";
 option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 message Zygote {
+    // TODO: return uri back
     Env env = 1;
     string provisioning = 2;
     string fuze = 3;
@@ -75,5 +76,6 @@ message Env {
 //}
 
 message PythonEnv {
-    string yaml = 1;
+    string name = 1;
+    string yaml = 2;
 }
