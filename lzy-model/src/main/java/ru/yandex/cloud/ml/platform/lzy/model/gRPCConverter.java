@@ -42,6 +42,7 @@ public abstract class gRPCConverter {
 
     public static Operations.PythonEnv to(PythonEnv env) {
         return Operations.PythonEnv.newBuilder()
+                .setName(env.name())
                 .setYaml(env.yaml())
                 .build();
     }
@@ -227,6 +228,11 @@ public abstract class gRPCConverter {
 
         public PythonEnvAdapter(Operations.PythonEnv env) {
             this.env = env;
+        }
+
+        @Override
+        public String name() {
+            return this.env.getName();
         }
 
         @Override

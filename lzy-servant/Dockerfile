@@ -10,11 +10,17 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && rm -f Miniconda3-latest-Linux-x86_64.sh
 
 SHELL ["/bin/bash", "-c"]
+
 # for future interactive shell sessions
 RUN conda init bash
-RUN eval "$(conda shell.bash hook)" \
-    && conda create --name default
 
+COPY lzy-servant/create_env.sh /
+RUN chmod a+rx /create_env.sh
+RUN ./create_env.sh "default" "3.9.7" \
+    && ./create_env.sh "py37" "3.7.11" \
+    && ./create_env.sh "py38" "3.8.12" \
+    && ./create_env.sh "py39" "3.9.7" \
+    && ./create_env.sh "py310" "3.10.0"
 
 ### deps
 RUN apt-get -y update --fix-missing

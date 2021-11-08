@@ -21,19 +21,24 @@ class Env(abc.ABC):
 
 
 class PyEnv(Env):
-    def __init__(self, yaml: str):
+    def __init__(self, env_name: str, yaml: str):
         super().__init__()
+        self._name = env_name
         self._yaml = yaml
         self._log = logging.getLogger(str(self.__class__))
 
     def type_id(self) -> str:
         return 'pyenv'
 
+    def name(self) -> str:
+        return self._name
+
     def yaml(self) -> str:
         return self._yaml
 
     def as_dct(self) -> Dict[str, str]:
         return {
+            'name': self._name,
             'yaml': self._yaml
         }
 

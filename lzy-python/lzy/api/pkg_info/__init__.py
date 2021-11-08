@@ -28,18 +28,34 @@ def get_installed_packages():
         if entry.project_name not in exclude
     }
 
+
+_installed_versions = {
+    "3.7.11": "py37",
+    "3.8.12": "py38",
+    "3.9.7": "py39",
+    "3.10.0": "py310"
+}
+
+
 def get_python_env_as_yaml(name='default'):
-    # get only first three numbers, otherwise conda won't find
-    python_version = sys.version_info[:3]
+    # always use only first three numbers, otherwise conda won't find
+    python_version = to_str(sys.version_info[:3])
+    if python_version in _installed_versions:
+        name = _installed_versions[python_version]
+        deps = []
+    else:
+        name = 'default'
+        deps = [f'python=={python_version}']
+
+    deps.append('pip')
+    deps.append(
+        {'pip': [f'{name}=={to_str(version)}'
+                 for name, version in
+                 get_installed_packages().items()]}
+    )
+
     conda_yaml = {
         'name': name,
-        'dependencies': [
-            f'python=={to_str(python_version)}',
-            'pip',
-            {'pip': [f'{name}=={to_str(version)}'
-                     for name, version in
-                     get_installed_packages().items()]}
-        ]
+        'dependencies': deps
     }
-
-    return yaml.dump(conda_yaml, sort_keys=False)
+    return name, yaml.dump(conda_yaml, sort_keys=False)

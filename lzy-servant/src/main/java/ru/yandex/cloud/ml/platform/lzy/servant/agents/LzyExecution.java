@@ -174,8 +174,10 @@ public class LzyExecution {
             Connector session;
             if (zygote.env() instanceof PythonEnv) {
                 session = new CondaEnvConnector((PythonEnv) zygote.env());
+                LOG.info("Conda environment is provided, using CondaEnvConnector");
             } else {
                 session = new SimpleBashConnector();
+                LOG.info("No environment provided, using SimpleBashConnector");
             }
 
             String command = zygote.fuze() + " " + arguments;
