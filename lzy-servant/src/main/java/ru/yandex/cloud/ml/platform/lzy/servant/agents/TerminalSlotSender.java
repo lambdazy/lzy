@@ -23,6 +23,12 @@ import java.util.concurrent.ForkJoinPool;
 public class TerminalSlotSender {
     private static final Logger LOG = LogManager.getLogger(TerminalSlotSender.class);
 
+    private final URI kharonAddress;
+
+    public TerminalSlotSender(URI kharonAddress) {
+        this.kharonAddress = kharonAddress;
+    }
+
     private class SlotWriter implements AutoCloseable {
         private final LzyOutputSlot lzySlot;
         private final URI slotUri;
@@ -35,8 +41,8 @@ public class TerminalSlotSender {
             this.lzySlot = lzySlot;
             this.slotUri = slotUri;
             servantSlotCh = ManagedChannelBuilder.forAddress(
-                slotUri.getHost(),
-                slotUri.getPort()
+                kharonAddress.getHost(),
+                kharonAddress.getPort()
             ).usePlaintext().build();
             final LzyKharonGrpc.LzyKharonStub connectedSlotController = LzyKharonGrpc.newStub(servantSlotCh);
             final StreamObserver<ReceivedDataStatus> statusReceiver = new StreamObserver<>() {

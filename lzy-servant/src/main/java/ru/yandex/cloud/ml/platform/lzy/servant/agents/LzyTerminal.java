@@ -49,7 +49,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private class CommandHandler {
         private final StreamObserver<TerminalCommand> supplier;
         private StreamObserver<TerminalState> responseObserver;
-        private final TerminalSlotSender slotSender = new TerminalSlotSender();
+        private final TerminalSlotSender slotSender = new TerminalSlotSender(serverAddress);
 
         CommandHandler() {
             supplier = new StreamObserver<>() {

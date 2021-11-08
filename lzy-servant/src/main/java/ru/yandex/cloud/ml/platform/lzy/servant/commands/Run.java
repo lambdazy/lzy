@@ -118,6 +118,7 @@ public class Run implements LzyCommand {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
                 if (progress.hasDetach() && "/dev/stdin".equals(progress.getDetach().getSlot().getName())) {
+                    LOG.info("Closing stdin");
                     System.in.close();
                 }
             } catch (InvalidProtocolBufferException e) {
@@ -126,6 +127,7 @@ public class Run implements LzyCommand {
                 LOG.error("Failed to close stdin", e);
             }
         });
+        LOG.info("Run:: Task finished");
         communicationLatch.await(); // waiting for slots to finish communication
         destroyChannel(stdinChannel);
         return 0;
@@ -209,6 +211,7 @@ public class Run implements LzyCommand {
                         } catch (IOException e) {
                             LOG.warn("Unable to read from input stream", e);
                         }
+                        LOG.info("Slot {} has been processed, counting down latch", devSlot);
                         communicationLatch.countDown();
                     });
                     return stdinChannel;
@@ -244,6 +247,7 @@ public class Run implements LzyCommand {
                             LOG.warn("Unable to read from " + devSlot, e);
                         }
                         destroyChannel(channelName);
+                        LOG.info("Slot {} has been processed, counting down latch", devSlot);
                         communicationLatch.countDown();
                     });
                     return channelId;

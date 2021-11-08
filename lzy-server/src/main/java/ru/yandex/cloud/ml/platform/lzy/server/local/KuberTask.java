@@ -4,9 +4,9 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.V1EnvVar;
-import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.ClientBuilder;
+import io.kubernetes.client.util.Watch;
 import io.kubernetes.client.util.Yaml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +31,7 @@ public class KuberTask extends BaseTask {
     @Override
     public void start(String token) {
         LOG.info("KuberTask::start {}", token);
+        V1Pod pod = null;
         try {
             final ApiClient client = ClientBuilder.cluster().build();
             Configuration.setDefaultApiClient(client);
@@ -40,24 +41,37 @@ public class KuberTask extends BaseTask {
             final V1Pod servantPod = (V1Pod) Yaml.load(file);
 
             servantPod.getSpec().getContainers().get(0).addEnvItem(
-                new V1EnvVar().name("LZYTASK").value(tid.toString())
+                    new V1EnvVar().name("LZYTASK").value(tid.toString())
             ).addEnvItem(
-                new V1EnvVar().name("LZYTOKEN").value(token)
+                    new V1EnvVar().name("LZYTOKEN").value(token)
             ).addEnvItem(
-                new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
+                    new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
             );
             servantPod.getMetadata().setName("lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT));
 
             final CoreV1Api api = new CoreV1Api();
-            final V1Pod createResult = api.createNamespacedPod("default", servantPod, null, null, null);
-            LOG.info("Created servant pod in Kuber: {}", createResult);
+            pod = api.createNamespacedPod("default", servantPod, null, null, null);
+            LOG.info("Created servant pod in Kuber: {}", pod);
+
+//            Watch<V1Pod> podWatch = Watch.createWatch()
+
+
         } catch (IOException e) {
             LOG.error("KuberTask:: IO exception while pod creation. " + e.getMessage());
         } catch (ApiException e) {
             LOG.error("KuberTask:: API exception while pod creation. " + e.getMessage());
             LOG.error(e.getResponseBody());
         } finally {
-
+//            final V1PodStatus status = pod.getStatus();
+//            if (pod != null) {
+//                while (true) {
+//                    final V1PodStatus status = pod.getStatus();
+//                    final String phase = status.getPhase();
+//                    if ("Succeeded".equals(phase)) {
+//                        break;
+//                    }
+//                }
+//            }
             LOG.info("KuberTask servant exited");
             try {
 //                TODO: replace with container waiting

@@ -152,15 +152,18 @@ public class LzyKharon {
 
         @Override
         public void start(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+            LOG.info("Kharon::start " + JsonUtils.printRequest(request));
             final Iterator<Servant.ExecutionProgress> start = server.start(request);
             while (start.hasNext()) {
                 responseObserver.onNext(start.next());
             }
+            LOG.info("Kharon::start user task completed " + request.getAuth().getUser().getUserId());
             responseObserver.onCompleted();
         }
 
         @Override
         public void channel(Channels.ChannelCommand request, StreamObserver<Channels.ChannelStatus> responseObserver) {
+            LOG.info("Kharon::channel " + JsonUtils.printRequest(request));
             final Channels.ChannelStatus channel = server.channel(request);
             responseObserver.onNext(channel);
             responseObserver.onCompleted();
