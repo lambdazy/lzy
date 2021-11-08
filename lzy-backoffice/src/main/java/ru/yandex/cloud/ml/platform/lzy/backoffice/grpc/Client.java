@@ -2,6 +2,10 @@ package ru.yandex.cloud.ml.platform.lzy.backoffice.grpc;
 
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
@@ -33,19 +37,57 @@ public class Client {
     }
 
     public BackOffice.AddTokenResult addToken(AddTokenRequest request){
-        return getBlockingStub().addToken(
-                request.toModel(credentials.getCredentials())
-        );
+        try {
+            return getBlockingStub().addToken(
+                    request.toModel(credentials.getCredentials())
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
     }
 
     public BackOffice.CreateUserResult createUser(CreateUserRequest request){
-        return getBlockingStub().createUser(request.toModel(credentials.getCredentials()));
+        try {
+            return getBlockingStub().createUser(request.toModel(credentials.getCredentials()));
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
     }
 
     public BackOffice.DeleteUserResult deleteUser(DeleteUserRequest request){
-        return getBlockingStub().deleteUser(request.toModel(credentials.getCredentials()));
+        try {
+            return getBlockingStub().deleteUser(request.toModel(credentials.getCredentials()));
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
     }
     public BackOffice.ListUsersResponse listUsers(ListUsersRequest request){
-        return getBlockingStub().listUsers(request.toModel(credentials.getCredentials()));
+        try {
+            return getBlockingStub().listUsers(request.toModel(credentials.getCredentials()));
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
+
+    private HttpStatusException catchStatusException(StatusRuntimeException e){
+        switch (e.getStatus().getCode()){
+            case ALREADY_EXISTS:
+            case OUT_OF_RANGE:
+            case UNKNOWN:
+            case INVALID_ARGUMENT:
+                return new HttpStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+            case UNAUTHENTICATED:
+            case UNAVAILABLE:
+            case PERMISSION_DENIED:
+                return new HttpStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+            case NOT_FOUND:
+                return new HttpStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+            default:
+                return new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 }
