@@ -69,18 +69,18 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                             final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
                             if (slot instanceof LzyOutputSlot) {
                                 slotSender.connect((LzyOutputSlot) slot, slotUri);
-                                CommandHandler.this.onNext(TerminalState.newBuilder()
-                                        .setCommandId(commandId)
-                                        .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
-                                                .setRc(Servant.SlotCommandStatus.RC.newBuilder()
-                                                        .setCodeValue(0)
-                                                        .build())
-                                                .build())
-                                        .build());
-                                return;
-                            } else if (slot instanceof LzyInputSlotBase) {
+                            } else if (LzyInputSlotBase.class.isAssignableFrom(slot.getClass())) {
                                 ((LzyInputSlotBase) slot).connect(slotUri, serverAddress);
                             }
+                            CommandHandler.this.onNext(TerminalState.newBuilder()
+                                .setCommandId(commandId)
+                                .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
+                                    .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                        .setCodeValue(0)
+                                        .build())
+                                    .build())
+                                .build());
+                            return;
                         }
 
                         final Servant.SlotCommandStatus slotCommandStatus = configureSlot(

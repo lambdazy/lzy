@@ -17,9 +17,8 @@ import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class KuberTask extends BaseTask {
     private static final Logger LOG = LoggerFactory.getLogger(KuberTask.class);
@@ -31,55 +30,72 @@ public class KuberTask extends BaseTask {
     @Override
     public void start(String token) {
         LOG.info("KuberTask::start {}", token);
-        V1Pod pod = null;
         try {
             final ApiClient client = ClientBuilder.cluster().build();
             Configuration.setDefaultApiClient(client);
 
             // TODO: move path to config or env
             final File file = new File("/app/resources/kubernetes/lzy-servant-pod.yaml");  // path in docker container
-            final V1Pod servantPod = (V1Pod) Yaml.load(file);
+            final V1Pod servantPodDescription = (V1Pod) Yaml.load(file);
 
-            servantPod.getSpec().getContainers().get(0).addEnvItem(
-                    new V1EnvVar().name("LZYTASK").value(tid.toString())
+            servantPodDescription.getSpec().getContainers().get(0).addEnvItem(
+                new V1EnvVar().name("LZYTASK").value(tid.toString())
             ).addEnvItem(
-                    new V1EnvVar().name("LZYTOKEN").value(token)
+                new V1EnvVar().name("LZYTOKEN").value(token)
             ).addEnvItem(
-                    new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
+                new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
             );
-            servantPod.getMetadata().setName("lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT));
+            final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
+            servantPodDescription.getMetadata().setName(podName);
 
             final CoreV1Api api = new CoreV1Api();
-            pod = api.createNamespacedPod("default", servantPod, null, null, null);
+            final String namespace = "default";
+            final V1Pod pod = api.createNamespacedPod(namespace, servantPodDescription, null, null, null);
             LOG.info("Created servant pod in Kuber: {}", pod);
 
-//            Watch<V1Pod> podWatch = Watch.createWatch()
-
-
-        } catch (IOException e) {
-            LOG.error("KuberTask:: IO exception while pod creation. " + e.getMessage());
+            while (true) {
+                Thread.sleep(2000); // sleep for 2 second
+                final V1PodList listNamespacedPod = api.listNamespacedPod(
+                    "default",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "app=lzy-servant",
+                    Integer.MAX_VALUE,
+                    null,
+                    null,
+                    Boolean.FALSE
+                );
+                final Optional<V1Pod> queriedPod =
+                    listNamespacedPod
+                        .getItems()
+                        .stream()
+                        .filter(v1pod -> v1pod.getMetadata().getName().equals(podName))
+                        .collect(Collectors.toList())
+                        .stream()
+                        .findFirst();
+                if (queriedPod.isEmpty()) {
+                    LOG.error("Not found pod " + podName);
+                    break;
+                }
+                if (queriedPod.get().getStatus() == null || queriedPod.get().getStatus().getPhase() == null) {
+                    continue;
+                }
+                final String phase = queriedPod.get().getStatus().getPhase();
+                LOG.info("KuberTask current phase: " + phase);
+                if (phase.equals("Succeeded") || phase.equals("Failed")) {
+                    api.deleteNamespacedPod(podName, namespace, null, null, null, null, null, null);
+                    break;
+                }
+            }
+        } catch (IOException | InterruptedException e) {
+            LOG.error("KuberTask:: Exception while execution. " + e);
         } catch (ApiException e) {
-            LOG.error("KuberTask:: API exception while pod creation. " + e.getMessage());
+            LOG.error("KuberTask:: API exception while pod creation. " + e);
             LOG.error(e.getResponseBody());
         } finally {
-//            final V1PodStatus status = pod.getStatus();
-//            if (pod != null) {
-//                while (true) {
-//                    final V1PodStatus status = pod.getStatus();
-//                    final String phase = status.getPhase();
-//                    if ("Succeeded".equals(phase)) {
-//                        break;
-//                    }
-//                }
-//            }
-            LOG.info("KuberTask servant exited");
-            try {
-//                TODO: replace with container waiting
-                Thread.sleep(30000);
-            } catch (InterruptedException e) {
-                LOG.error("30s sleep interrupted");
-            }
-            LOG.info("DESTROYING STATE");
+            LOG.info("Destroying kuber task");
             state(State.DESTROYED);
         }
     }

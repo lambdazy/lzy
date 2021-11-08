@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+import java.util.concurrent.ForkJoinPool;
 
 import static io.grpc.stub.ClientCalls.blockingServerStreamingCall;
 
@@ -28,7 +29,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private URI connected;
     private ManagedChannel servantSlotCh;
 
-    interface SlotController {
+    private interface SlotController {
         Iterator<Servant.Message> openOutputSlot(Servant.SlotRequest request);
     }
     private SlotController connectedSlotController;
@@ -38,44 +39,38 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         this.tid = tid;
     }
 
-    public void connect(URI slotUri, URI kharonUri) {
-        LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri);
+    private synchronized void initManagedChannel(URI uri) {
+        LOG.info("LzyInputSlotBase:: Attempt to connect to " + uri + " slot " + this);
         if (servantSlotCh != null) {
-            LOG.warn("Slot " + this + " was already connected");
+            LOG.warn("Managed channel for URI " + uri + " and slot " + this + " was already created");
             return;
         }
+        servantSlotCh = ManagedChannelBuilder.forAddress(uri.getHost(), uri.getPort())
+            .usePlaintext()
+            .build();
+    }
 
-        connected = slotUri;
-        servantSlotCh = ManagedChannelBuilder.forAddress(kharonUri.getHost(), kharonUri.getPort())
-                .usePlaintext()
-                .build();
-        connectedSlotController = new SlotController() {
-            private final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(servantSlotCh);
-            @Override
-            public Iterator<Servant.Message> openOutputSlot(Servant.SlotRequest request) {
+    public void connect(URI slotUri, URI kharonUri) {
+        ForkJoinPool.commonPool().execute(() -> {
+            initManagedChannel(kharonUri);
+
+            connected = slotUri;
+            connectedSlotController = request -> {
+                final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(servantSlotCh);
                 return stub.openOutputSlot(request);
-            }
-        };
+            };
+            readAll();
+        });
     }
 
     @Override
     public void connect(URI slotUri) {
-        LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri);
-        if (servantSlotCh != null) {
-            LOG.warn("Slot " + this + " was already connected");
-            return;
-        }
+        initManagedChannel(slotUri);
 
         connected = slotUri;
-        servantSlotCh = ManagedChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
-                .usePlaintext()
-                .build();
-        connectedSlotController = new SlotController() {
-            private final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(servantSlotCh);
-            @Override
-            public Iterator<Servant.Message> openOutputSlot(Servant.SlotRequest request) {
-                return stub.openOutputSlot(request);
-            }
+        connectedSlotController = request -> {
+            final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(servantSlotCh);
+            return stub.openOutputSlot(request);
         };
     }
 
