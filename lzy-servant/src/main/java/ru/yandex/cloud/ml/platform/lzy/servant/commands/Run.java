@@ -203,7 +203,7 @@ public class Run implements LzyCommand {
                         byte[] buffer = new byte[BUFFER_SIZE];
                         try (OutputStream is = Files.newOutputStream(inputSlotFile, StandardOpenOption.WRITE)) {
                             int read;
-                            while ((read = System.in.read(buffer)) >= 0) {
+                            while (System.in.available() > 0 && (read = System.in.read(buffer)) >= 0) {
                                 is.write(buffer, 0, read);
                             }
                         } catch (IOException e) {
