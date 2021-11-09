@@ -89,7 +89,7 @@ public class InMemTasksManager implements TasksManager {
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
         // TODO: manage task kind (in config or somewhere)
-        final Task task = new KuberTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
+        final Task task = new LocalDockerTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
         tasks.put(task.tid(), task);
         if (parent != null)
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);

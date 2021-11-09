@@ -65,9 +65,8 @@ public class LzyKharon {
             .usePlaintext()
             .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
-        final URI address = new URI("http", null, host, port, null, null, null);
         final URI servantProxyAddress = new URI("http", null, host, servantProxyPort, null, null, null);
-        terminalManager = new TerminalSessionManager(server, address, servantProxyAddress);
+        terminalManager = new TerminalSessionManager(server, servantProxyAddress);
 
         kharonServer = ServerBuilder
             .forPort(port)

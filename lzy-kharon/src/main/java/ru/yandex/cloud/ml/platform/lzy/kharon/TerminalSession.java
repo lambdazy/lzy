@@ -26,7 +26,6 @@ public class TerminalSession {
 
     private String user;
     private final UUID sessionId = UUID.randomUUID();
-    private final URI kharonAddress;
     private final URI kharonServantProxyAddress;
 
     private final Map<UUID, CompletableFuture<Kharon.TerminalState>> tasks = new ConcurrentHashMap<>();
@@ -34,10 +33,8 @@ public class TerminalSession {
     public TerminalSession(
         LzyServerGrpc.LzyServerBlockingStub lzyServer,
         StreamObserver<Kharon.TerminalCommand> terminalCommandObserver,
-        URI kharonAddress,
         URI kharonServantAddress
     ) {
-        this.kharonAddress = kharonAddress;
         this.kharonServantProxyAddress = kharonServantAddress;
         terminalController = terminalCommandObserver;
         terminalStateObserver = new StreamObserver<>() {
@@ -190,27 +187,9 @@ public class TerminalSession {
         }
     }
 
-    private String generateKharonUriForDataTransfer(String slotStrUri) {
-        try {
-            final URI slotUri = URI.create(slotStrUri);
-            return new URI(
-                slotUri.getScheme(),
-                null,
-                kharonAddress.getHost(),
-                kharonAddress.getPort(),
-                slotUri.getPath(),
-                "dataCarryId=" + UUID.randomUUID(),
-                null
-            ).toString();
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     public void carryTerminalSlotContent(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
         LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
         final String slot = request.getSlot();
-//        final String slotUri = generateKharonUriForDataTransfer(request.getSlotUri());
         dataCarrier.openServantConnection(request.getSlotUri(), responseObserver);
         configureSlot(Servant.SlotCommand.newBuilder()
             .setSlot(slot)

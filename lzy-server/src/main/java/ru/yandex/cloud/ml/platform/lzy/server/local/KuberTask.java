@@ -90,7 +90,7 @@ public class KuberTask extends BaseTask {
                 }
             }
         } catch (IOException | InterruptedException e) {
-            LOG.error("KuberTask:: Exception while execution. " + e);
+            throw new RuntimeException("KuberTask:: Exception while execution. " + e);
         } catch (ApiException e) {
             LOG.error("KuberTask:: API exception while pod creation. " + e);
             LOG.error(e.getResponseBody());
