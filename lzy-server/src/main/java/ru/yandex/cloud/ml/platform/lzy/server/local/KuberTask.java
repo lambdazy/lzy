@@ -4,9 +4,10 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.*;
+import io.kubernetes.client.openapi.models.V1EnvVar;
+import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.ClientBuilder;
-import io.kubernetes.client.util.Watch;
 import io.kubernetes.client.util.Yaml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,10 @@ import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class KuberTask extends BaseTask {
@@ -35,7 +39,7 @@ public class KuberTask extends BaseTask {
             Configuration.setDefaultApiClient(client);
 
             // TODO: move path to config or env
-            final File file = new File("/app/resources/kubernetes/lzy-servant-pod.yaml");  // path in docker container
+            final File file = new File("/app/resources/kubernetes/lzy-servant-pod-template.yaml");  // path in docker container
             final V1Pod servantPodDescription = (V1Pod) Yaml.load(file);
 
             servantPodDescription.getSpec().getContainers().get(0).addEnvItem(
@@ -52,7 +56,6 @@ public class KuberTask extends BaseTask {
             final String namespace = "default";
             final V1Pod pod = api.createNamespacedPod(namespace, servantPodDescription, null, null, null);
             LOG.info("Created servant pod in Kuber: {}", pod);
-
             while (true) {
                 Thread.sleep(2000); // sleep for 2 second
                 final V1PodList listNamespacedPod = api.listNamespacedPod(

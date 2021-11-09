@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: lzy-servant-test-pod-change-me
+  name: lzy-servant
   labels:
     app: lzy-servant
 spec:
