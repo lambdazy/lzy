@@ -3,6 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
+import java.util.UUID;
+
 public interface Authenticator {
     boolean checkUser(String userId, String token);
     boolean checkTask(String tid, String token);
@@ -18,4 +20,6 @@ public interface Authenticator {
     String registerTask(String uid, Task task);
 
     boolean hasPermission(String uid, Permissions permission);
+
+    boolean checkBackOfficeSession(UUID sessionId, String userId);
 }

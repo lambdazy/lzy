@@ -732,6 +732,11 @@
                 <version>${h2database.version}</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-http-client</artifactId>
+                <version>${micronaut.version}</version>
+            </dependency>
         </dependencies>
 
     </dependencyManagement>

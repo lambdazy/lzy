@@ -10,3 +10,7 @@ grpc:
 credentials:
   user-id: artolord
   private-key-path: <Some token path> # Can be set with CREDENTIALS_PRIVATE_KEY_PATH env var
+oauth:
+  github:
+    client-id: <Some client id>
+    client-secret: <Some client secret>

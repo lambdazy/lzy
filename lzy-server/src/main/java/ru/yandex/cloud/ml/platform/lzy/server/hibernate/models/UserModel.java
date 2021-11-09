@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate.models;
 
+import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
+
 import javax.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
@@ -24,6 +26,43 @@ public class UserModel {
 
     @ManyToMany(mappedBy = "users")
     private Set<UserRoleModel> roles = new HashSet<>();
+
+    @OneToMany(mappedBy = "owner")
+    private Set<BackofficeSessionModel> sessions;
+
+    public Set<BackofficeSessionModel> getSessions() {
+        return sessions;
+    }
+
+    @Column(name = "auth_provider")
+    private String authProvider;
+
+    @Column(name = "provider_user_id")
+    private String providerUserId;
+
+    public AuthProviders getAuthProviderEnum() {
+        return AuthProviders.fromString(authProvider);
+    }
+
+    public String getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(String authProvider) {
+        this.authProvider = authProvider;
+    }
+
+    public void setAuthProviderEnum(AuthProviders authProvider) {
+        this.authProvider = authProvider.toString();
+    }
+
+    public String getProviderUserId() {
+        return providerUserId;
+    }
+
+    public void setProviderUserId(String providerUserId) {
+        this.providerUserId = providerUserId;
+    }
 
     public UserModel() {}
 
