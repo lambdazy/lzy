@@ -54,7 +54,7 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
         if (!SystemUtils.IS_OS_LINUX && fromDocker) {
             return "http://host.docker.internal:" + LZY_KHARON_PORT;
         } else {
-            return "http://localhost" + LZY_KHARON_PORT;
+            return "http://localhost:" + LZY_KHARON_PORT;
         }
     }
 
@@ -63,7 +63,7 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
         if (!SystemUtils.IS_OS_LINUX && fromDocker) {
             return "http://host.docker.internal:" + LZY_KHARON_SERVANT_PROXY_PORT;
         } else {
-            return "http://localhost" + LZY_KHARON_SERVANT_PROXY_PORT;
+            return "http://localhost:" + LZY_KHARON_SERVANT_PROXY_PORT;
         }
     }
 
