@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: lzy-server-pod
+  name: lzy-server
 spec:
   containers:
   - name: lzy-server
