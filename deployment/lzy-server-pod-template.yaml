@@ -10,7 +10,7 @@ spec:
         valueFrom:
           fieldRef:
             fieldPath: status.podIP
-    image: cr.yandex/crppns4pq490jrka0sth/lzy-server:latest
+    image: celdwind/lzy:lzy-server
     ports:
       - containerPort: 8888
   hostNetwork: true

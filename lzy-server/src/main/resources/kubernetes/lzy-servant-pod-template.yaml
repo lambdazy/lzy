@@ -7,7 +7,7 @@ metadata:
 spec:
   containers:
     - name: lzy-servant
-      image: cr.yandex/crppns4pq490jrka0sth/lzy-servant:latest
+      image: celdwind/lzy:lzy-servant
       env:
         - name: LOG_FILE
           value: "servant.log"
