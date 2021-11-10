@@ -25,6 +25,9 @@ public class MockDbStorage implements DbStorage {
         cfg.addAnnotatedClass(UserRoleModel.class);
         cfg.addAnnotatedClass(PermissionModel.class);
         cfg.addAnnotatedClass(TokenModel.class);
+        cfg.addAnnotatedClass(UserRoleModel.class);
+        cfg.addAnnotatedClass(PermissionModel.class);
+        cfg.addAnnotatedClass(BackofficeSessionModel.class);
         this.sessionFactory = cfg.buildSessionFactory();
     }
 

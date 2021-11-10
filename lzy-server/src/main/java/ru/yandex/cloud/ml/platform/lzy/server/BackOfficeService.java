@@ -205,6 +205,12 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             Transaction tx = session.beginTransaction();
             try {
                 UserModel user = session.find(UserModel.class, request.getUserId());
+                if (user == null){
+                    user = new UserModel(
+                            request.getUserId()
+                    );
+                    session.save(user);
+                }
                 if (user.getAuthProvider() != null) {
                     if (AuthProviders.fromGrpcMessage(request.getProvider()) != user.getAuthProviderEnum() || !request.getProviderUserId().equals(user.getProviderUserId())) {
                         responseObserver.onError(Status.PERMISSION_DENIED.asException());

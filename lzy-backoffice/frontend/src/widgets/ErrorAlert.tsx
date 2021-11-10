@@ -8,6 +8,7 @@ export interface AlertPatrams {
   show: boolean;
   text: string | undefined;
   header: string | undefined;
+  variant: "danger" | "success";
   onClose: (() => void) | undefined;
 }
 
@@ -16,7 +17,8 @@ export interface AlertContext {
   show: (
     text: string,
     header: string,
-    onClose: (() => void) | undefined
+    onClose: (() => void) | undefined,
+    variant: "danger" | "success"
   ) => void;
   close: () => void;
 }
@@ -27,6 +29,7 @@ const alertContext = createContext<AlertContext>({
     text: undefined,
     header: undefined,
     onClose: undefined,
+    variant: "danger"
   },
   show: () => {},
   close: () => {},
@@ -42,17 +45,20 @@ export function useProvideAlert(): AlertContext {
     text: undefined,
     header: undefined,
     onClose: undefined,
+    variant: "danger"
   });
   const show = (
     text: string,
     header: string,
-    onClose: (() => void) | undefined
+    onClose: (() => void) | undefined,
+    variant: "danger"| "success"
   ) => {
     setShowState({
       show: true,
       text,
       header,
       onClose,
+      variant
     });
   };
   const close = () => {
@@ -61,6 +67,7 @@ export function useProvideAlert(): AlertContext {
       text: undefined,
       header: undefined,
       onClose: undefined,
+      variant: "danger"
     });
   };
   return { params: showState, show, close };
@@ -82,7 +89,7 @@ export const ErrorAlert: FC<{}> = () => {
         alert.close();
         if (alert.params.onClose !== undefined) alert.params.onClose();
       }}
-      variant="danger"
+      variant={alert.params.variant}
       dismissible
     >
       <Alert.Heading>{alert.params.header}</Alert.Heading>

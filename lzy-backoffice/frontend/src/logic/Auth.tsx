@@ -1,18 +1,21 @@
 import { useContext, createContext, useState, HTMLAttributes } from "react";
 import { cookies } from "../App";
 import { Route, Redirect } from "react-router-dom";
+import axios from "axios";
+import { BACKEND_HOST } from "../config";
 
-export const Auth = {
-  isAuthenticated: false,
-  signin(userId: UserCredentials, cb: () => void) {
-    Auth.isAuthenticated = true;
-    cb();
-  },
-  signout(cb: () => void) {
-    Auth.isAuthenticated = false;
-    cb();
-  },
-};
+export enum Providers{
+    GITHUB = "github"
+}
+
+export async function login(provider: Providers, userId: string, sessionId: string): Promise<string>{
+    console.log(provider)
+    const res = await axios.post(
+        BACKEND_HOST + "/auth/login",
+        { sessionId, userId, provider: provider.toString(), redirectUrl: window.location.origin + "/login_user" }
+    );
+    return res.data.redirectUrl;
+}
 
 export interface AuthContext {
   userCredentials: UserCredentials | null;
@@ -21,7 +24,8 @@ export interface AuthContext {
 }
 
 export interface UserCredentials {
-  userId: string;
+  userId: string,
+  sessionId: string
 }
 
 const authContext = createContext<AuthContext>({
@@ -34,25 +38,34 @@ export function useAuth(): AuthContext {
   return useContext(authContext);
 }
 
+export async function getSession(): Promise<string> {
+    if (cookies.get("sessionId") == null){
+        const res = await axios.post(BACKEND_HOST + "/auth/generate_session");
+        cookies.set("sessionId", res.data.sessionId);
+        return res.data.sessionId;
+    }
+    return cookies.get("sessionId");
+}
+
 export function useProvideAuth() {
   let creds = null;
-  if (cookies.get("userId") != null) creds = { userId: cookies.get("userId") };
+  getSession();
+  if (cookies.get("userId") != null && cookies.get("sessionId") != null){
+      creds = {userId: cookies.get("userId"), sessionId: cookies.get("sessionId")}
+  }
   const [user, setUser] = useState<UserCredentials | null>(creds);
 
   const signin = (user: UserCredentials, cb: () => void) => {
-    return Auth.signin(user, () => {
       cookies.set("userId", user.userId);
       setUser(user);
       cb();
-    });
   };
 
   const signout = (cb: () => void) => {
-    return Auth.signout(() => {
       setUser(null);
       cookies.remove("userId");
+      cookies.remove("sessionId");
       cb();
-    });
   };
 
   return {

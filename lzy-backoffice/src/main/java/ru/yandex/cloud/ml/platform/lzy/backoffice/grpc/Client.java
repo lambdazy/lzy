@@ -91,20 +91,35 @@ public class Client {
         }
     }
     public BackOffice.GenerateSessionIdResponse generateSessionId(){
-        return getBlockingStub().generateSessionId(
-                BackOffice.GenerateSessionIdRequest.newBuilder().setBackofficeCredentials(credentials.getCredentials()).build()
-        );
+        try {
+            return getBlockingStub().generateSessionId(
+                    BackOffice.GenerateSessionIdRequest.newBuilder().setBackofficeCredentials(credentials.getCredentials()).build()
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
     }
     public BackOffice.CheckSessionResponse checkSession(CheckSessionRequest request){
-        return getBlockingStub().checkSession(
-                request.toModel(credentials.getCredentials())
-        );
+        try {
+            return getBlockingStub().checkSession(
+                    request.toModel(credentials.getCredentials())
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
     }
 
     public BackOffice.AuthUserSessionResponse authUserSession(BackOffice.AuthUserSessionRequest.Builder request){
-        return getBlockingStub().authUserSession(
-                request.setBackofficeCredentials(credentials.getCredentials())
-                        .build()
-        );
+        try {
+            return getBlockingStub().authUserSession(
+                    request.setBackofficeCredentials(credentials.getCredentials())
+                            .build()
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
     }
 }
