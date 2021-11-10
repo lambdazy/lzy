@@ -161,11 +161,15 @@ public abstract class BaseTask implements Task {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = gRPCConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
+                        final String linkToStorage = detach.getLinkToStorage();
                         final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, servant);
                         final Channel channel = channels.bound(endpoint);
                         if (channel != null) {
                             attachedSlots.remove(slot);
                             channels.unbind(channel, endpoint);
+                            if (!linkToStorage.equals("")) {
+                                channels.addLinkToStorage(channel, slot.name(), linkToStorage);
+                            }
                         }
                         break;
                     }

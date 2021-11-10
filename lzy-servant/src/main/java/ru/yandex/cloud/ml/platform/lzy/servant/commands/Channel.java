@@ -47,11 +47,15 @@ public class Channel implements LzyCommand {
         switch (command.getArgs()[1]) {
             case "create": {
                 String channelName;
+                boolean persistent = false;
                 if (command.getArgs().length < 3)
                     channelName = UUID.randomUUID().toString();
                 else
                     channelName = command.getArgs()[2];
-                final Channels.ChannelCreate.Builder createCommandBuilder = Channels.ChannelCreate.newBuilder();
+                if (command.getArgs().length >= 4)
+                    persistent = Boolean.parseBoolean(command.getArgs()[3]);
+                final Channels.ChannelCreate.Builder createCommandBuilder =
+                        Channels.ChannelCreate.newBuilder().setPersistent(persistent);
                 if (localCmd.hasOption('c')) {
                     createCommandBuilder.setContentType(command.getOptionValue('c'));
                 }
@@ -61,7 +65,7 @@ public class Channel implements LzyCommand {
                     .setCreate(createCommandBuilder)
                     .build();
                 final Channels.ChannelStatus channel = server.channel(channelReq);
-                System.out.println(channel.getChannel().getChannelId());
+                System.out.println(JsonFormat.printer().print(channel));
                 break;
             }
             case "status": {

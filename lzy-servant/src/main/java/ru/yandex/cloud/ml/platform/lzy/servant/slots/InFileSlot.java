@@ -46,6 +46,12 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     }
 
     @Override
+    public void connectPersistent(URI slotUri) {
+        persistent = true;
+        connect(slotUri);
+    }
+
+    @Override
     protected void onChunk(ByteString bytes) throws IOException {
         outputStream.write(bytes.toByteArray());
     }

@@ -45,8 +45,8 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom) {
-        final Channel channel = channels.create(name, contentTypeFrom);
+    public Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom, boolean persistent) {
+        final Channel channel = channels.create(name, contentTypeFrom, persistent);
         if (channel == null)
             return null;
         if (parent != null)

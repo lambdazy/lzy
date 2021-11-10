@@ -26,4 +26,5 @@ public interface ChannelGraph {
     void removeReceiver(@NonNull Endpoint receiver);
 
     boolean hasBound(@NonNull Endpoint endpoint);
+    void setPersistence(boolean persistent);
 }

@@ -21,6 +21,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.*;
 import java.io.IOException;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -230,11 +231,11 @@ public class LzyServer {
                 case CREATE: {
                     final Channels.ChannelCreate create = request.getCreate();
                     channel = tasks.createChannel(
-                        request.getChannelName(),
-                        resolveUser(auth),
-                        resolveTask(auth),
-                        gRPCConverter.contentTypeFrom(create.getContentType())
-                    );
+                            request.getChannelName(),
+                            resolveUser(auth),
+                            resolveTask(auth),
+                            gRPCConverter.contentTypeFrom(create.getContentType()),
+                            create.getPersistent());
                     if (channel == null)
                         channel = channels.get(request.getChannelName());
                     break;
@@ -325,10 +326,14 @@ public class LzyServer {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = gRPCConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
+                        final String linkToStorage = detach.getLinkToStorage();
                         tasks.removeUserSlot(user, slot);
                         final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharon);
                         final Channel bound = channels.bound(endpoint);
                         if (bound != null) {
+                            if (!linkToStorage.equals("")) {
+                                channels.addLinkToStorage(bound, slot.name(), linkToStorage);
+                            }
                             channels.unbind(bound, endpoint);
                         }
                     }
@@ -376,6 +381,7 @@ public class LzyServer {
         }
 
         private Channels.ChannelStatus channelStatus(Channel channel) {
+            Map<String, String> linksToStorage = channels.getLinksToStorage(channel);
             final Channels.ChannelStatus.Builder slotStatus = Channels.ChannelStatus.newBuilder();
             slotStatus.setChannel(gRPCConverter.to(channel));
             for (SlotStatus state : tasks.connected(channel)) {
@@ -391,6 +397,12 @@ public class LzyServer {
                     .setPointer(state.pointer())
                     .setState(Operations.SlotStatus.State.valueOf(state.state().toString()))
                     .build();
+            }
+            for (var entry : linksToStorage.entrySet()) {
+                final Channels.StorageBinding.Builder builder = slotStatus.addStorageBindingsBuilder();
+                builder.setSlotName(entry.getKey());
+                builder.setLinkToStorage(entry.getValue());
+                builder.build();
             }
             return slotStatus.build();
         }

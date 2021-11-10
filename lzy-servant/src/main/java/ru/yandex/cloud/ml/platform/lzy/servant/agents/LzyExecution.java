@@ -47,6 +47,7 @@ public class LzyExecution {
     private Process exec;
     private String arguments = "";
     private final Map<String, LzySlot> slots = new ConcurrentHashMap<>();
+    private final Map<String, String> slotToPersistentStorage = new ConcurrentHashMap<>();
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
 
@@ -83,12 +84,15 @@ public class LzyExecution {
                     () -> {
                         //not terminal or input slot
                         if (zygote != null || spec.direction() == Slot.Direction.INPUT) {
+                            Servant.SlotDetach.Builder slotDetachBuilder =
+                                    Servant.SlotDetach.newBuilder()
+                                    .setSlot(gRPCConverter.to(spec)).setUri(servantUri.toString() + spec.name());
+                                    String link = slotToPersistentStorage.get(slot.name());
+                                    if (link != null) {
+                                        slotDetachBuilder.setLinkToStorage(link);
+                                    }
                             progress(Servant.ExecutionProgress.newBuilder()
-                                .setDetach(Servant.SlotDetach.newBuilder()
-                                    .setSlot(gRPCConverter.to(spec))
-                                    .setUri(servantUri.toString() + spec.name())
-                                    .build()
-                                ).build()
+                                    .setDetach(slotDetachBuilder.build()).build()
                             );
                         }
                     }
@@ -217,6 +221,12 @@ public class LzyExecution {
                 .setExit(Servant.ExecutionConcluded.newBuilder().setRc(-1).build())
                 .build()
             );
+        }
+    }
+
+    public void addLinkToStorage(String slot, String link) {
+        if (!link.equals("")) {
+            slotToPersistentStorage.put(slot, link);
         }
     }
 

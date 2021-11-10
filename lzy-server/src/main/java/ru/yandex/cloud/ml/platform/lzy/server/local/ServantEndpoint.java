@@ -76,6 +76,15 @@ public class ServantEndpoint implements Endpoint {
 
     @Override
     public int connect(Endpoint endpoint) {
+        return connect(endpoint, false);
+    }
+
+    @Override
+    public int connectPersistent(Endpoint endpoint) {
+        return connect(endpoint, true);
+    }
+
+    private int connect(Endpoint endpoint, boolean persistent) {
         if (isInvalid()) {
             LOG.warn("Attempt to connect to invalid endpoint " + this);
             return 1;
@@ -86,7 +95,7 @@ public class ServantEndpoint implements Endpoint {
                     Servant.SlotCommand.newBuilder()
                         .setSlot(slot().name())
                         .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                            .setSlotUri(endpoint.uri().toString())
+                            .setSlotUri(endpoint.uri().toString()).setPersistent(persistent)
                             .build()
                         )
                         .build()

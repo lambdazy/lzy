@@ -7,15 +7,18 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 
 import javax.annotation.Nullable;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 
 public interface ChannelsManager {
     Channel get(String cid);
-    Channel create(String name, DataSchema contentTypeFrom);
+    Channel create(String name, DataSchema contentTypeFrom, boolean persistent);
     void bind(Channel channel, Endpoint endpoint) throws ChannelException;
     void unbind(Channel channel, Endpoint endpoint) throws ChannelException;
     void destroy(Channel channel);
+    void addLinkToStorage(Channel channel, String slotName, String link);
+    Map<String, String> getLinksToStorage(Channel channel);
 
     @Nullable
     Channel bound(Endpoint endpoint);

@@ -12,6 +12,7 @@ public interface Endpoint {
     UUID sessionId();
 
     int connect(Endpoint endpoint);
+    int connectPersistent(Endpoint endpoint);
     SlotStatus status();
     int disconnect();
     int destroy();

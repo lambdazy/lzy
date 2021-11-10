@@ -103,21 +103,27 @@ public interface LzyServantTestContext extends AutoCloseable {
             }
         }
 
-        default void createChannel(String channelName) {
+        default String createChannel(String channelName, boolean persistent) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                String.join(
-                    " ",
-                    mount() + "/sbin/channel",
-                    "create",
-                    channelName
-                )
+                    String.join(
+                            " ",
+                            mount() + "/sbin/channel",
+                            "create",
+                            channelName,
+                            Boolean.toString(persistent)
+                    )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
             }
+            return execute.stdout();
         }
 
-        default void destroyChannel(String channelName) {
+        default String createChannel(String channelName) {
+            return createChannel(channelName, false);
+        }
+
+        default String destroyChannel(String channelName) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(
                             " ",
@@ -129,6 +135,22 @@ public interface LzyServantTestContext extends AutoCloseable {
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
             }
+            return execute.stdout();
+        }
+
+        default String channelStatus(String channelName) {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                    String.join(
+                            " ",
+                            mount() + "/sbin/channel",
+                            "status",
+                            channelName
+                    )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+            return execute.stdout();
         }
 
         default void createSlot(String path, String channelName, Slot slot) {

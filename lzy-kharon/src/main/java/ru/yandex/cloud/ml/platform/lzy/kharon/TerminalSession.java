@@ -90,11 +90,12 @@ public class TerminalSession {
                     case DETACH: {
                         final Servant.SlotDetach detach = terminalState.getDetach();
                         executionProgress.onNext(Servant.ExecutionProgress.newBuilder()
-                            .setDetach(Servant.SlotDetach.newBuilder()
-                                .setSlot(detach.getSlot())
-                                .setUri(convertToKharonServantUri(detach.getUri()))
-                                .build())
-                            .build());
+                                .setDetach(Servant.SlotDetach.newBuilder()
+                                        .setSlot(detach.getSlot())
+                                        .setUri(convertToKharonServantUri(detach.getUri()))
+                                        .setLinkToStorage(detach.getLinkToStorage())
+                                        .build())
+                                .build());
                         break;
                     }
                     case SLOTSTATUS: {

@@ -30,7 +30,7 @@ public interface TasksManager {
     Stream<Channel> cs();
 
     Channel channel(String chName);
-    Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom);
+    Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom, boolean persistent);
 
     SlotStatus[] connected(Channel channel);
 

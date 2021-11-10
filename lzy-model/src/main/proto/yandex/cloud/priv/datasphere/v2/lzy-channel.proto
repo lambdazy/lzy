@@ -26,6 +26,7 @@ message ChannelCommand {
 
 message ChannelCreate {
     string contentType = 1;
+    bool persistent = 2;
 }
 
 message ChannelDestroy {
@@ -52,9 +53,15 @@ message Binding {
     }
 }
 
+message StorageBinding {
+    string slotName = 1;
+    string linkToStorage = 2;
+}
+
 message ChannelStatus {
     Channel channel = 1;
     repeated SlotStatus connected = 2;
+    repeated StorageBinding storageBindings = 3;
 }
 
 message ChannelStatusList {
