@@ -11,5 +11,6 @@ ENTRYPOINT ["java", \
             "-XX:+HeapDumpOnOutOfMemoryError", \
             "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32", \
             "-Dlzy.server.task.type=kuber", \
+            "-Dlzy.servant.pod.template.file=/app/resources/kubernetes/lzy-servant-pod-template.yaml", \
             "-jar", \
             "app/app.jar"]

@@ -26,6 +26,8 @@ import java.util.stream.Collectors;
 
 public class KuberTask extends BaseTask {
     private static final Logger LOG = LoggerFactory.getLogger(KuberTask.class);
+    public static final String LZY_SERVANT_POD_TEMPLATE_FILE_PROPERTY = "lzy.servant.pod.template.file";
+    public static final String DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE = "/app/resources/kubernetes/lzy-servant-pod-template.yaml";
 
     KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments, ChannelsManager channels, URI serverURI) {
         super(owner, tid, workload, assignments, channels, serverURI);
@@ -38,8 +40,11 @@ public class KuberTask extends BaseTask {
             final ApiClient client = ClientBuilder.cluster().build();
             Configuration.setDefaultApiClient(client);
 
-            // TODO: move path to config or env
-            final File file = new File("/app/resources/kubernetes/lzy-servant-pod-template.yaml");  // path in docker container
+            final String lzyServantPodTemplatePath = System.getProperty(
+                    LZY_SERVANT_POD_TEMPLATE_FILE_PROPERTY,
+                    DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE
+            );
+            final File file = new File(lzyServantPodTemplatePath);
             final V1Pod servantPodDescription = (V1Pod) Yaml.load(file);
 
             servantPodDescription.getSpec().getContainers().get(0).addEnvItem(
