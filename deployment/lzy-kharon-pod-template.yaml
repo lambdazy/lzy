@@ -2,6 +2,8 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: lzy-kharon
+  labels:
+    app: lzy-kharon
 spec:
   containers:
   - name: lzy-kharon
