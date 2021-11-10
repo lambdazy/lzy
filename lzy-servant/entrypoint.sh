@@ -8,5 +8,6 @@ java \
 -Dlog4j.configurationFile=/app/resources/log4j2.yaml \
 -XX:+HeapDumpOnOutOfMemoryError \
 -agentlib:jdwp=transport=dt_socket,server=y,suspend="$SUSPEND_DOCKER",address=*:"$DEBUG_PORT" \
+-Djava.util.concurrent.ForkJoinPool.common.parallelism=32 \
 -jar /app/app.jar \
 "$@"

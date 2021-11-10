@@ -9,5 +9,6 @@ ENTRYPOINT ["java", \
             "-Dsun.jnu.encoding=UTF-8", \
             "-Dfile.encoding=UTF-8", \
             "-XX:+HeapDumpOnOutOfMemoryError", \
+            "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32", \
             "-jar", \
             "app/app.jar"]

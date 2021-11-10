@@ -58,7 +58,9 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                         "--port",
                         String.valueOf(LZY_SERVER_PORT)
                     },
-                    new String[]{}
+                    new String[]{
+                        "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32"
+                    }
                 ).inheritIO().start();
             } catch (IOException e) {
                 throw new RuntimeException(e);

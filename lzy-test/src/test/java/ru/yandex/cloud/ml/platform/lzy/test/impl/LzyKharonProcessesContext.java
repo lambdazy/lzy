@@ -34,7 +34,9 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
                             "--lzy-server-address",
                             serverAddress
                     },
-                    new String[]{}
+                    new String[]{
+                        "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32"
+                    }
             ).inheritIO().start();
         } catch (IOException e) {
             throw new RuntimeException(e);
