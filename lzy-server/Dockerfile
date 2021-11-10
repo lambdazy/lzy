@@ -10,5 +10,6 @@ ENTRYPOINT ["java", \
             "-Dfile.encoding=UTF-8", \
             "-XX:+HeapDumpOnOutOfMemoryError", \
             "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32", \
+            "-Dlzy.server.task.type=kuber", \
             "-jar", \
             "app/app.jar"]
