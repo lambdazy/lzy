@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from api import print_lzy_ops
+from lzy.api import print_lzy_ops
 from lzy.api import op, LzyEnv
 from lzy.api.whiteboard.wb import WhiteBoard
 
