@@ -1,14 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -23,8 +21,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private final String tid;
     private long offset = 0;
     private URI connected;
-    private ManagedChannel servantSlotCh;
-    private LzyServantGrpc.LzyServantBlockingStub connectedSlotController;
+    private SlotController slotController;
 
     LzyInputSlotBase(String tid, Slot definition) {
         super(definition);
@@ -32,18 +29,9 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     }
 
     @Override
-    public void connect(URI slotUri) {
-        LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri);
-        if (servantSlotCh != null) {
-            LOG.warn("Slot " + this + " was already connected");
-            return;
-        }
-
+    public void connect(URI slotUri, SlotController slotController) {
         connected = slotUri;
-        servantSlotCh = ManagedChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
-            .usePlaintext()
-            .build();
-        connectedSlotController = LzyServantGrpc.newBlockingStub(servantSlotCh);
+        this.slotController = slotController;
     }
 
     @Override
@@ -53,15 +41,14 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             LOG.warn("Slot " + this + " was already disconnected");
             return;
         }
-        servantSlotCh.shutdown();
         connected = null;
-        servantSlotCh = null;
+        slotController = null;
         LOG.info("LzyInputSlotBase:: disconnected " + this);
         state(Operations.SlotStatus.State.SUSPENDED);
     }
 
     protected void readAll() {
-        final Iterator<Servant.Message> msgIter = connectedSlotController.openOutputSlot(Servant.SlotRequest.newBuilder()
+        final Iterator<Servant.Message> msgIter = slotController.openOutputSlot(Servant.SlotRequest.newBuilder()
             .setSlot(connected.getPath())
             .setOffset(offset)
             .setSlotUri(connected.toString())

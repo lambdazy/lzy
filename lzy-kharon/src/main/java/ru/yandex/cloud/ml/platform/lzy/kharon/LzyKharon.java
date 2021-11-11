@@ -65,9 +65,8 @@ public class LzyKharon {
             .usePlaintext()
             .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
-        final URI address = new URI("http", null, host, port, null, null, null);
         final URI servantProxyAddress = new URI("http", null, host, servantProxyPort, null, null, null);
-        terminalManager = new TerminalSessionManager(server, address, servantProxyAddress);
+        terminalManager = new TerminalSessionManager(server, servantProxyAddress);
 
         kharonServer = ServerBuilder
             .forPort(port)
@@ -113,8 +112,14 @@ public class LzyKharon {
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
             LOG.info("Kharon::openOutputSlot from Terminal " + JsonUtils.printRequest(request));
             final URI slotUri = URI.create(request.getSlotUri());
+            String slotHost = slotUri.getHost();
+            if (slotHost.equals("host.docker.internal")) {
+                slotHost = "localhost";
+            }
+
             final ManagedChannel channel = ManagedChannelBuilder
-                .forAddress(slotUri.getHost(), slotUri.getPort())
+                .forAddress(slotHost, slotUri.getPort())
+                .usePlaintext()
                 .build();
             final Iterator<Servant.Message> messageIterator = LzyServantGrpc.newBlockingStub(channel).openOutputSlot(request);
             while (messageIterator.hasNext()) {
@@ -146,15 +151,18 @@ public class LzyKharon {
 
         @Override
         public void start(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+            LOG.info("Kharon::start " + JsonUtils.printRequest(request));
             final Iterator<Servant.ExecutionProgress> start = server.start(request);
             while (start.hasNext()) {
                 responseObserver.onNext(start.next());
             }
+            LOG.info("Kharon::start user task completed " + request.getAuth().getUser().getUserId());
             responseObserver.onCompleted();
         }
 
         @Override
         public void channel(Channels.ChannelCommand request, StreamObserver<Channels.ChannelStatus> responseObserver) {
+            LOG.info("Kharon::channel " + JsonUtils.printRequest(request));
             final Channels.ChannelStatus channel = server.channel(request);
             responseObserver.onNext(channel);
             responseObserver.onCompleted();

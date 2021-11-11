@@ -59,7 +59,8 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                         String.valueOf(LZY_SERVER_PORT)
                     },
                     new String[]{
-                        "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32"
+                        "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
+                        "-Dlzy.server.task.type=local-docker"
                     }
                 ).inheritIO().start();
             } catch (IOException e) {

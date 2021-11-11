@@ -1,6 +1,6 @@
 FROM findepi/graalvm:java11-all
 
-COPY target/lzy-server-1.0-SNAPSHOT.jar app/app.jar
+COPY target/lzy-kharon-1.0-SNAPSHOT-jar-with-dependencies.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 
@@ -8,9 +8,7 @@ ENTRYPOINT ["java", \
             "-Xmx4G", \
             "-Dsun.jnu.encoding=UTF-8", \
             "-Dfile.encoding=UTF-8", \
-            "-XX:+HeapDumpOnOutOfMemoryError", \
             "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32", \
-            "-Dlzy.server.task.type=kuber", \
-            "-Dlzy.servant.pod.template.file=/app/resources/kubernetes/lzy-servant-pod-template.yaml", \
+            "-XX:+HeapDumpOnOutOfMemoryError", \
             "-jar", \
             "app/app.jar"]

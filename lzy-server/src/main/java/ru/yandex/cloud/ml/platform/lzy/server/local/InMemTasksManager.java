@@ -25,7 +25,7 @@ import java.util.stream.Stream;
 
 public class InMemTasksManager implements TasksManager {
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
-    private final URI serverURI;
+    protected final URI serverURI;
     private final ChannelsManager channels;
     private final Map<UUID, Task> tasks = new HashMap<>();
 
@@ -88,7 +88,7 @@ public class InMemTasksManager implements TasksManager {
 
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
-        final Task task = new LocalDockerTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
+        final Task task = TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
         tasks.put(task.tid(), task);
         if (parent != null)
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);

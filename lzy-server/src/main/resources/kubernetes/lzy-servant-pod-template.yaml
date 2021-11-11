@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lzy-servant
+  labels:
+    app: lzy-servant
+spec:
+  containers:
+    - name: lzy-servant
+      image: celdwind/lzy:lzy-servant
+      env:
+        - name: LOG_FILE
+          value: "servant.log"
+        - name: SUSPEND_DOCKER
+          value: n
+        - name: DEBUG_PORT
+          value: 5006
+        - name: LZYHOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+      args: ["--lzy-address", "$(LZY_SERVER_URI)", "--lzy-mount", "/tmp/lzy", "--host", "$(LZYHOST)", "--port", "9999"]
+      securityContext:
+        privileged: true
+  restartPolicy: OnFailure
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - lzy-servant
+          topologyKey: "kubernetes.io/hostname"
+  hostNetwork: true
+  dnsPolicy: Default
