@@ -1,9 +1,28 @@
 import abc
 import json
+from dataclasses import dataclass
 from typing import List
 
 from lzy.model.slot import Slot
 from lzy.model.env import Env
+
+
+@dataclass
+class Option:
+    any: bool
+
+    @staticmethod
+    def any():
+        return Option(True)
+
+
+class Gpu(Option):
+    # TODO: implement me
+    pass
+
+
+class Provisioning:
+    gpu: Gpu
 
 
 class Zygote(abc.ABC):

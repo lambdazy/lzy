@@ -51,6 +51,7 @@ class LzyEnvBase(ABC):
     def generate_conda_env(self) -> Tuple[str, str]:
         pass
 
+
 class LzyEnv(LzyEnvBase):
     instance = None
 

@@ -1,11 +1,11 @@
 import functools
-import inspect
 import logging
 from typing import Callable
 
 import sys
 
 from lzy.model.env import PyEnv
+from lzy.model.zygote import Gpu
 from ._proxy import proxy
 from .buses import *
 from .env import LzyEnv
@@ -22,7 +22,7 @@ handler.setFormatter(formatter)
 logging.root.addHandler(handler)
 
 
-def op(func: Callable = None, *, output_type=None):
+def op(func: Callable = None, *, output_type=None, gpu: Gpu = None):
     if func is None:
         if output_type is None:
             raise ValueError(f'output_type should be not None')
