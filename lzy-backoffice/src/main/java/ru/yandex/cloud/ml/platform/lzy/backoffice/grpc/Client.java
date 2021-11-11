@@ -90,4 +90,36 @@ public class Client {
                 return new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
+    public BackOffice.GenerateSessionIdResponse generateSessionId(){
+        try {
+            return getBlockingStub().generateSessionId(
+                    BackOffice.GenerateSessionIdRequest.newBuilder().setBackofficeCredentials(credentials.getCredentials()).build()
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
+    public BackOffice.CheckSessionResponse checkSession(CheckSessionRequest request){
+        try {
+            return getBlockingStub().checkSession(
+                    request.toModel(credentials.getCredentials())
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
+
+    public BackOffice.AuthUserSessionResponse authUserSession(BackOffice.AuthUserSessionRequest.Builder request){
+        try {
+            return getBlockingStub().authUserSession(
+                    request.setBackofficeCredentials(credentials.getCredentials())
+                            .build()
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
 }

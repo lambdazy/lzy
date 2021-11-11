@@ -16,10 +16,8 @@ import { useAlert } from "./ErrorAlert";
 
 export const UserTableFC: React.FC<{ host: string }> = ({ host }) => {
   let auth = useAuth();
-  let userId: string | null =
-    auth.userCredentials == null ? null : auth.userCredentials.userId;
-  if (userId != null) {
-    return <UsersTable host={host} userCredentials={{ userId: userId }} />;
+  if (auth.userCredentials != null) {
+    return <UsersTable host={host} userCredentials={auth.userCredentials} />;
   }
   return <div />;
 };
@@ -31,7 +29,8 @@ export interface UsersTableStateInterface {
 export interface UsersTablePropsInterface {
   host: string;
   userCredentials: {
-    userId: string;
+    userId: string,
+    sessionId: string
   };
 }
 
@@ -46,7 +45,7 @@ export function UsersTable(props: UsersTablePropsInterface) {
       })
       .catch((res) => {
         console.log(res);
-        alert.show(res.message, "An error while fetching users", () => {});
+        alert.show(res.message, "An error while fetching users", () => {}, "danger");
       });
   };
 
@@ -54,11 +53,11 @@ export function UsersTable(props: UsersTablePropsInterface) {
     return axios
       .post(props.host + "/users/create", {
         creatorCredentials: props.userCredentials,
-        user: { userId},
+        user: { userId },
       })
       .catch((res) => {
         console.log(res);
-        alert.show(res.message, "An error while creating user", () => {});
+        alert.show(res.message, "An error while creating user", () => {}, "danger");
       });
   };
 
@@ -70,7 +69,7 @@ export function UsersTable(props: UsersTablePropsInterface) {
       })
       .catch((res) => {
         console.log(res);
-        alert.show(res.message, "An error while deleting user", () => {});
+        alert.show(res.message, "An error while deleting user", () => {}, "danger");
       });
   };
 

@@ -1,10 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.backoffice.models;
 
 import io.micronaut.core.annotation.Introspected;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Introspected
-public class UserCredentials {
+public class CheckSessionRequest {
     private String userId;
     private String sessionId;
 
@@ -24,16 +26,11 @@ public class UserCredentials {
         this.sessionId = sessionId;
     }
 
-    public BackOffice.BackofficeUserCredentials toModel(){
-        return BackOffice.BackofficeUserCredentials.newBuilder()
-                .setUserId(userId)
+    public BackOffice.CheckSessionRequest toModel(IAM.UserCredentials credentials){
+        return BackOffice.CheckSessionRequest.newBuilder()
+                .setBackofficeCredentials(credentials)
                 .setSessionId(sessionId)
+                .setUserId(userId)
                 .build();
-    }
-    public static UserCredentials fromModel(BackOffice.BackofficeUserCredentials model){
-        UserCredentials creds = new UserCredentials();
-        creds.setUserId(model.getUserId());
-        creds.setSessionId(model.getSessionId());
-        return creds;
     }
 }

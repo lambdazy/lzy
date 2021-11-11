@@ -9,6 +9,7 @@ import { Header } from "./Header";
 export interface AddTokenFormStateInterface {
   tokenName: string | null;
   token: string | null;
+  stateLabel: string | null;
 }
 
 export interface AddTokenFormPropsInterface {
@@ -19,6 +20,7 @@ export function AddToken(props: AddTokenFormPropsInterface) {
   let [state, setState] = useState<AddTokenFormStateInterface>({
     token: null,
     tokenName: null,
+    stateLabel: null
   });
 
   let auth = useAuth();
@@ -33,17 +35,20 @@ export function AddToken(props: AddTokenFormPropsInterface) {
           tokenName: state.tokenName,
         })
         .catch((error) => {
-          alert.show(error.message, "Some error while adding token", undefined);
-        });
+          alert.show(error.message, "Some error while adding token", undefined, "danger");
+        })
+        .then(() => {
+            alert.show("Token " + state.tokenName + " added!", "Success", () => {}, "success")
+        })
     }
   };
 
   const handleChangeTokenName = (event: any): void => {
-    setState({ tokenName: event.target.value, token: state.token });
+    setState({ tokenName: event.target.value, token: state.token, stateLabel: state.stateLabel});
   };
 
   const handleChangeToken = (event: any): void => {
-    setState({ token: event.target.value, tokenName: state.tokenName });
+    setState({ token: event.target.value, tokenName: state.tokenName, stateLabel: state.stateLabel});
   };
 
   return (
@@ -67,6 +72,9 @@ export function AddToken(props: AddTokenFormPropsInterface) {
               onChange={handleChangeToken}
             />
           </Form.Group>
+          <Form.Label>
+              {state.stateLabel}
+          </Form.Label>
           <Button variant="primary" onClick={handleSubmit}>
             Ok
           </Button>

@@ -13,6 +13,9 @@ service LzyBackoffice{
   rpc CreateUser(CreateUserRequest) returns (CreateUserResult);
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResult);
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc GenerateSessionId(GenerateSessionIdRequest) returns (GenerateSessionIdResponse);
+  rpc AuthUserSession(AuthUserSessionRequest) returns (AuthUserSessionResponse);
+  rpc CheckSession(CheckSessionRequest) returns (CheckSessionResponse);
 }
 
 message AddTokenRequest{
@@ -54,4 +57,46 @@ message AddTokenResult{};
 
 message BackofficeUserCredentials{
   string user_id = 1; // Can contains Oauth token in future
+  string sessionId = 2;
 };
+
+message GenerateSessionIdRequest{
+  UserCredentials backofficeCredentials = 1;
+};
+
+message GenerateSessionIdResponse{
+  string sessionId = 1;
+}
+
+enum OAuthProviders{
+  GITHUB = 0;
+};
+
+message AuthUserSessionRequest{
+  UserCredentials backofficeCredentials = 1;
+  string userId = 2;
+  string sessionId = 3;
+  OAuthProviders provider = 4;
+  string providerUserId = 5;
+}
+
+message AuthUserSessionResponse{
+  BackofficeUserCredentials credentials = 1;
+};
+
+message CheckSessionRequest{
+  UserCredentials backofficeCredentials = 1;
+  string sessionId = 2;
+  string userId = 3;
+};
+
+message CheckSessionResponse{
+  enum SessionStatus{
+    EXISTS = 0;
+    WRONG_USER = 1;
+    NOT_RELATED_WITH_USER = 2;
+    NOT_EXISTS = 3;
+  }
+  SessionStatus status = 1;
+}
+

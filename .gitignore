@@ -158,3 +158,4 @@ lzy-python/build
 lzy-python/dist
 
 **/*.env
+lzy-python/*.egg-info
