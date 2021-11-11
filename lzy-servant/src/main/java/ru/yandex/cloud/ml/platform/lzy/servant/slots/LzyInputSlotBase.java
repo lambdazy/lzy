@@ -1,15 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -17,9 +14,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
-import java.util.concurrent.ForkJoinPool;
-
-import static io.grpc.stub.ClientCalls.blockingServerStreamingCall;
 
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {
     private static final Logger LOG = LogManager.getLogger(LzyInputSlotBase.class);
@@ -27,51 +21,17 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private final String tid;
     private long offset = 0;
     private URI connected;
-    private ManagedChannel servantSlotCh;
-
-    private interface SlotController {
-        Iterator<Servant.Message> openOutputSlot(Servant.SlotRequest request);
-    }
-    private SlotController connectedSlotController;
+    private SlotController slotController;
 
     LzyInputSlotBase(String tid, Slot definition) {
         super(definition);
         this.tid = tid;
     }
 
-    private synchronized void initManagedChannel(URI uri) {
-        LOG.info("LzyInputSlotBase:: Attempt to connect to " + uri + " slot " + this);
-        if (servantSlotCh != null) {
-            LOG.warn("Managed channel for URI " + uri + " and slot " + this + " was already created");
-            return;
-        }
-        servantSlotCh = ManagedChannelBuilder.forAddress(uri.getHost(), uri.getPort())
-            .usePlaintext()
-            .build();
-    }
-
-    public void connect(URI slotUri, URI kharonUri) {
-        ForkJoinPool.commonPool().execute(() -> {
-            initManagedChannel(kharonUri);
-
-            connected = slotUri;
-            connectedSlotController = request -> {
-                final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(servantSlotCh);
-                return stub.openOutputSlot(request);
-            };
-            readAll();
-        });
-    }
-
     @Override
-    public void connect(URI slotUri) {
-        initManagedChannel(slotUri);
-
+    public void connect(URI slotUri, SlotController slotController) {
         connected = slotUri;
-        connectedSlotController = request -> {
-            final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(servantSlotCh);
-            return stub.openOutputSlot(request);
-        };
+        this.slotController = slotController;
     }
 
     @Override
@@ -81,15 +41,14 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             LOG.warn("Slot " + this + " was already disconnected");
             return;
         }
-        servantSlotCh.shutdown();
         connected = null;
-        servantSlotCh = null;
+        slotController = null;
         LOG.info("LzyInputSlotBase:: disconnected " + this);
         state(Operations.SlotStatus.State.SUSPENDED);
     }
 
     protected void readAll() {
-        final Iterator<Servant.Message> msgIter = connectedSlotController.openOutputSlot(Servant.SlotRequest.newBuilder()
+        final Iterator<Servant.Message> msgIter = slotController.openOutputSlot(Servant.SlotRequest.newBuilder()
             .setSlot(connected.getPath())
             .setOffset(offset)
             .setSlotUri(connected.toString())

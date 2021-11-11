@@ -15,7 +15,10 @@ import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.*;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -43,6 +46,7 @@ public abstract class LzyAgent implements Closeable {
     protected final URI agentAddress;
     protected final URI agentInternalAddress;
     protected final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
+    protected final SlotConnectionManager slotConnectionManager = new SlotConnectionManager();
 
     protected LzyAgent(LzyAgentConfig config) throws URISyntaxException {
         this.mount = config.getRoot();
@@ -243,9 +247,17 @@ public abstract class LzyAgent implements Closeable {
                 break;
             case CONNECT:
                 final Servant.ConnectSlotCommand connect = request.getConnect();
-                ((LzyInputSlot) slot).connect(URI.create(connect.getSlotUri()));
+                final URI slotUri = URI.create(connect.getSlotUri());
+                final SlotController slotController = slotConnectionManager.getOrCreate(slot.name(), slotUri, channel -> {
+                    final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(channel);
+                    return stub::openOutputSlot;
+                });
+                ((LzyInputSlot) slot).connect(slotUri, slotController);
                 break;
             case DISCONNECT:
+                if (slot instanceof LzyInputSlot) {
+                    slotConnectionManager.shutdownConnections(slot.name());
+                }
                 slot.suspend();
                 break;
             case STATUS:

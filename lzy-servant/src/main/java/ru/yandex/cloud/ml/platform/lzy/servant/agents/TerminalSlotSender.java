@@ -22,29 +22,21 @@ import java.util.concurrent.ForkJoinPool;
 
 public class TerminalSlotSender {
     private static final Logger LOG = LogManager.getLogger(TerminalSlotSender.class);
+    private final LzyKharonGrpc.LzyKharonStub connectedSlotController;
 
-    private final URI kharonAddress;
-
-    public TerminalSlotSender(URI kharonAddress) {
-        this.kharonAddress = kharonAddress;
+    public TerminalSlotSender(LzyKharonGrpc.LzyKharonStub kharonStub) {
+        connectedSlotController = kharonStub;
     }
 
-    private class SlotWriter implements AutoCloseable {
+    private class SlotWriter {
         private final LzyOutputSlot lzySlot;
         private final URI slotUri;
-        private final ManagedChannel servantSlotCh;
         private long offset = 0;
         private final StreamObserver<SendSlotDataMessage> responseObserver;
-        private final CompletableFuture<Boolean> writingCompleted = new CompletableFuture<>();
 
         SlotWriter(LzyOutputSlot lzySlot, URI slotUri) {
             this.lzySlot = lzySlot;
             this.slotUri = slotUri;
-            servantSlotCh = ManagedChannelBuilder.forAddress(
-                kharonAddress.getHost(),
-                kharonAddress.getPort()
-            ).usePlaintext().build();
-            final LzyKharonGrpc.LzyKharonStub connectedSlotController = LzyKharonGrpc.newStub(servantSlotCh);
             final StreamObserver<ReceivedDataStatus> statusReceiver = new StreamObserver<>() {
                 @Override
                 public void onNext(ReceivedDataStatus receivedDataStatus) {
@@ -60,7 +52,6 @@ public class TerminalSlotSender {
                 @Override
                 public void onCompleted() {
                     LOG.info("Sending chunks from slot " + lzySlot + " was finished");
-                    writingCompleted.complete(true);
                 }
             };
             responseObserver = connectedSlotController.writeToInputSlot(statusReceiver);
@@ -86,23 +77,12 @@ public class TerminalSlotSender {
                 responseObserver.onError(iae);
             }
         }
-
-        @Override
-        public void close() throws IOException, ExecutionException, InterruptedException {
-            writingCompleted.get();
-            servantSlotCh.shutdown();
-        }
     }
 
     public void connect(LzyOutputSlot lzySlot, URI slotUri) {
         LOG.info("TerminalOutputSlot::connect " + slotUri);
-        ForkJoinPool.commonPool().execute(() -> {
-            try (SlotWriter writer = new SlotWriter(lzySlot, slotUri)) {
-                writer.run();
-            } catch (IOException | ExecutionException | InterruptedException e) {
-                LOG.error("Failed to send slot " + lzySlot + " cause: " + e);
-            }
-        });
+        final SlotWriter writer = new SlotWriter(lzySlot, slotUri);
+        writer.run();
     }
 
     private static SendSlotDataMessage createChunkMessage(ByteString chunk) {
