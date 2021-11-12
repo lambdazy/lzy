@@ -1,1 +1,3 @@
-export const BACKEND_HOST: string = "http://localhost:8080"
+export function BACKEND_HOST(){
+    return "http://" + window.location.hostname + ":8080"
+}

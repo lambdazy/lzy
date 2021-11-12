@@ -8,11 +8,11 @@ export enum Providers{
     GITHUB = "github"
 }
 
-export async function login(provider: Providers, userId: string, sessionId: string): Promise<string>{
+export async function login(provider: Providers, sessionId: string): Promise<string>{
     console.log(provider)
     const res = await axios.post(
-        BACKEND_HOST + "/auth/login",
-        { sessionId, userId, provider: provider.toString(), redirectUrl: window.location.origin + "/login_user" }
+        BACKEND_HOST() + "/auth/login",
+        { sessionId, provider: provider.toString(), redirectUrl: window.location.origin + "/login_user" }
     );
     return res.data.redirectUrl;
 }
@@ -40,7 +40,7 @@ export function useAuth(): AuthContext {
 
 export async function getSession(): Promise<string> {
     if (cookies.get("sessionId") == null){
-        const res = await axios.post(BACKEND_HOST + "/auth/generate_session");
+        const res = await axios.post(BACKEND_HOST() + "/auth/generate_session");
         cookies.set("sessionId", res.data.sessionId);
         return res.data.sessionId;
     }

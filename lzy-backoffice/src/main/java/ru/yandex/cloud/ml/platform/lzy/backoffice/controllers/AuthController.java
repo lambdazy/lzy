@@ -57,7 +57,7 @@ public class AuthController {
     public HttpResponse<LoginResponse> login(@Valid @Body LoginRequest body, HttpRequest<?> request) throws URISyntaxException {
         CheckSessionRequest sessionRequest = new CheckSessionRequest();
         sessionRequest.setSessionId(body.getSessionId());
-        sessionRequest.setUserId(body.getUserId());
+        sessionRequest.setUserId(null);
         BackOffice.CheckSessionResponse res = client.checkSession(sessionRequest);
         switch (res.getStatus()){
             case UNRECOGNIZED:
@@ -75,7 +75,7 @@ public class AuthController {
                 LoginResponse resp = new LoginResponse();
                 String redirectURL = UriBuilder.of(new URI("https://github.com/login/oauth/authorize"))
                         .queryParam("client_id", oAuthConfig.getGithub().getClientId())
-                        .queryParam("state", body.getSessionId() + "." + body.getUserId() + "." + body.getRedirectUrl())
+                        .queryParam("state", body.getSessionId()  + "." + body.getRedirectUrl())
                         .queryParam("redirect_uri", httpHostResolver.resolve(request) +
                                 uriNamingStrategy.resolveUri(AuthController.class) + "/code/" + body.getProvider()
                                 )
@@ -91,13 +91,13 @@ public class AuthController {
     @Get("/code/github{?code,state}")
     public HttpResponse<UserCredentials> authCodeGitHub(@QueryValue String code, @QueryValue String state){
         String[] stateValues = state.split("\\.");
-        if (stateValues.length < 3){
+        if (stateValues.length < 2){
             throw new HttpStatusException(HttpStatus.BAD_REQUEST, "Wrong state");
         }
 
         CheckSessionRequest sessionRequest = new CheckSessionRequest();
         sessionRequest.setSessionId(stateValues[0]);
-        sessionRequest.setUserId(stateValues[1]);
+        sessionRequest.setUserId(null);
         BackOffice.CheckSessionResponse res = client.checkSession(sessionRequest);
         switch (res.getStatus()){
             case UNRECOGNIZED:
@@ -146,13 +146,13 @@ public class AuthController {
         BackOffice.AuthUserSessionRequest.Builder builder = BackOffice.AuthUserSessionRequest.newBuilder();
         builder
                 .setSessionId(stateValues[0])
-                .setUserId(stateValues[1])
+                .setUserId(result.getBody().orElseThrow().getLogin())
                 .setProvider(AuthProviders.GITHUB.toGrpcMessage())
                 .setProviderUserId(result.getBody().orElseThrow().getId());
         BackOffice.AuthUserSessionResponse response = client.authUserSession(builder);
 
         return HttpResponse.redirect(
-                UriBuilder.of(URI.create(stateValues[2]))
+                UriBuilder.of(URI.create(stateValues[1]))
                     .queryParam("userId", response.getCredentials().getUserId())
                     .queryParam("sessionId", response.getCredentials().getSessionId())
                     .build()
