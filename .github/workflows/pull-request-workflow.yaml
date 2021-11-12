@@ -21,7 +21,7 @@ jobs:
 
       - uses: docker-practice/actions-setup-docker@master
 
-      - name: 'test'
+      - name: 'java-test'
         run: mvn clean test
 
       - name: 'install lzy-python'
