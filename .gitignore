@@ -156,6 +156,7 @@ __pycache__
 # lzy-python install artifacts
 lzy-python/build
 lzy-python/dist
+lzy-python/*.egg-info
 
 **/*.env
 lzy-python/*.egg-info
