@@ -1,5 +1,7 @@
 import setuptools
 
+from installer import Installer
+
 setuptools.setup(
     name='lzy-py',
     version='0.0.1',
@@ -11,5 +13,8 @@ setuptools.setup(
         'pyyaml'
 
     ],
-    python_requires='>=3.7'
+    python_requires='>=3.7',
+    cmdclass={
+        'install': Installer
+    }
 )
