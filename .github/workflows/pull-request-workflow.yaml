@@ -28,4 +28,4 @@ jobs:
         run: cd lzy-python/ && pip install .
 
       - name: 'python-test'
-        run:  python -m unittest discover tests/
+        run:  cd lzy-python/ && python -m unittest discover tests/
