@@ -14,7 +14,14 @@ jobs:
           distribution: 'adopt'
           java-version: '11'
 
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
       - uses: docker-practice/actions-setup-docker@master
 
       - name: 'test'
         run: mvn clean install
+
+      - name: 'python-test'
+        run: cd lzy-python/ && python -m unittest discover tests/
