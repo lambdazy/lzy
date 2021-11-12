@@ -158,7 +158,7 @@ class LzyEnv(LzyEnvBase):
         type(self).instance = None
         self._terminal.stop()
 
-    def __enter__(self):  # -> LzyEnv
+    def __enter__(self) -> 'LzyEnv':
         if self.already_exists():
             raise ValueError('More than one started lzy environment found')
         self.activate()
