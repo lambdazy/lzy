@@ -89,7 +89,7 @@ class TerminalProcess:
              '--private-key', self._private_key,
              '--host', 'localhost',
              'terminal'
-             ], stdout=self._terminal_log)
+             ], stdout=self._terminal_log, stderr=self._terminal_log)
         sbin_channel = Path(self._lzy_mount) / 'sbin' / 'channel'
         while not sbin_channel.exists():
             time.sleep(0.2)
