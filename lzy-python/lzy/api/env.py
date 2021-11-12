@@ -1,7 +1,12 @@
-from abc import abstractmethod, ABC
+import os
+import subprocess
+import time
 import dataclasses
 import inspect
 import logging
+
+from abc import abstractmethod, ABC
+from pathlib import Path
 from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 from lzy.servant.bash_servant import BashServant
@@ -52,13 +57,60 @@ class LzyEnvBase(ABC):
         pass
 
 
+class TerminalProcess:
+    jar_path = Path(os.path.dirname(__file__)) / '..' / 'lzy-servant.jar'
+    jar_path = jar_path.resolve().absolute()
+
+    def __init__(self, private_key_path: str, lzy_mount: str, url: str,
+                 custom_log_file: str = './custom_terminal_log',
+                 terminal_log_path: str = './terminal_log'):
+        self._private_key = private_key_path
+        self._lzy_mount = lzy_mount
+        self._url = url
+        self._log_file = custom_log_file
+        self._terminal_log_path = terminal_log_path
+        self._terminal_log = None
+        # TODO: check that private key, lzy_mount and log files exist
+
+    def start(self):
+        # TODO: understand why terminal writes to stdout even with
+        # TODO: custom.log.file argument and drop terminal_log_path and
+        # TODO: redirection
+        if not self._terminal_log:
+            self._terminal_log = open(self._terminal_log_path, 'w')
+        self._pcs = subprocess.Popen(
+            ['java', '-Dfile.encoding=UTF-8',
+             '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32'
+             f'-Dcustom.log.file={self._log_file}',
+             '-classpath', TerminalProcess.jar_path,
+             'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
+             '--lzy-address', self._url,
+             '--lzy-mount', self._lzy_mount,
+             '--private-key', self._private_key,
+             '--host', 'localhost',
+             'terminal'
+             ], stdout=self._terminal_log)
+        sbin_channel = Path(self._lzy_mount) / 'sbin' / 'channel'
+        while not sbin_channel.exists():
+            time.sleep(0.2)
+
+    def stop(self):
+        assert self._pcs is not None, "Terminal hasn't been started"
+        self._pcs.kill()
+        if self._terminal_log:
+            self._terminal_log.flush()
+            self._terminal_log.close()
+
+
 class LzyEnv(LzyEnvBase):
     instance = None
 
     # noinspection PyDefaultArgument
     def __init__(self, eager: bool = False, whiteboard: Any = None,
                  buses: List[Tuple[Callable, Bus]] = [], local: bool = False,
-                 yaml_path: str = None):
+                 yaml_path: str = None, private_key_path: str = '~/.ssh/id_rsa',
+                 server_url: str = 'localhost:8899',
+                 lzy_mount: str = '/tmp/lzy'):
         super().__init__()
         # if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
         #     raise ValueError('Whiteboard should be a dataclass')
@@ -80,6 +132,8 @@ class LzyEnv(LzyEnvBase):
         self._yaml = yaml_path
         self._log = logging.getLogger(str(self.__class__))
 
+        self._terminal = TerminalProcess(private_key_path, lzy_mount, server_url)
+
     def generate_conda_env(self) -> Tuple[str, str]:
         if self._yaml is None:
             return get_python_env_as_yaml()
@@ -96,10 +150,13 @@ class LzyEnv(LzyEnvBase):
         return hasattr(cls, 'instance') and cls.instance is not None
 
     def activate(self):
+        # TODO: should it be here or in __exit__?
+        self._terminal.start()
         type(self).instance = self
 
     def deactivate(self):
         type(self).instance = None
+        self._terminal.stop()
 
     def __enter__(self):  # -> LzyEnv
         if self.already_exists():
