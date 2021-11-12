@@ -27,9 +27,11 @@ public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final Server agentServer;
+    private final String taskId;
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
+        taskId = config.getTask();
         final Impl impl = new Impl();
         final ManagedChannel channel = ManagedChannelBuilder
             .forAddress(serverAddress.getHost(), serverAddress.getPort())
@@ -50,6 +52,7 @@ public class LzyServant extends LzyAgent {
         final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
         commandBuilder.setAuth(auth);
         commandBuilder.setServantURI(agentAddress.toString());
+        commandBuilder.setSessionId(taskId);
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);

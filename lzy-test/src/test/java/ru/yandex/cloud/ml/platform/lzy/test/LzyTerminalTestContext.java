@@ -17,17 +17,20 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public interface LzyServantTestContext extends AutoCloseable {
+public interface LzyTerminalTestContext extends AutoCloseable {
     ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    Logger LOGGER = LoggerFactory.getLogger(LzyServantTestContext.class);
+    Logger LOGGER = LoggerFactory.getLogger(LzyTerminalTestContext.class);
     int DEFAULT_TIMEOUT_SEC = 30;
 
-    Servant startTerminalAtPathAndPort(String path, int port, String serverAddress);
+    default Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress) {
+        return startTerminalAtPathAndPort(path, port, serverAddress, 5006);
+    }
+    Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort);
 
     boolean inDocker();
     void close();
 
-    interface Servant {
+    interface Terminal {
         boolean pathExists(Path path);
         String mount();
         @SuppressWarnings("unused")
@@ -160,6 +163,18 @@ public interface LzyServantTestContext extends AutoCloseable {
             }
             if (slot.direction() == Slot.Direction.OUTPUT) {
                 Utils.waitFlagUp(() -> pathExists(Path.of(path)), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+            }
+        }
+
+        default void update() {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                String.join(
+                    " ",
+                    mount() + "/sbin/update"
+                )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
             }
         }
 

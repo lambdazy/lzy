@@ -2,9 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import org.apache.commons.io.IOUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -19,11 +18,11 @@ import java.util.concurrent.TimeUnit;
 
 import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
 
-public class LzyServantProcessesContext implements LzyServantTestContext {
+public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
     private final List<Process> servantProcesses = new ArrayList<>();
 
     @Override
-    public Servant startTerminalAtPathAndPort(String mount, int port, String serverAddress) {
+    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String[] lzyArgs = {
             "--lzy-address",
@@ -46,8 +45,8 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
         final String[] systemArgs = {
             "-Djava.library.path=/usr/local/lib",
             "-Dlog4j.configurationFile=" + pathServantLog4jFile,
-            "-Dcustom.log.file=terminal.log"//,
-            //"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5056"
+            "-Dcustom.log.file=terminal.log",
+            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:" + debugPort
         };
         final Process process;
         try {
@@ -56,7 +55,7 @@ public class LzyServantProcessesContext implements LzyServantTestContext {
             throw new RuntimeException(e);
         }
         servantProcesses.add(process);
-        return new Servant() {
+        return new Terminal() {
             @Override
             public String mount() {
                 return mount;

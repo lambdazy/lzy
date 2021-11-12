@@ -13,13 +13,13 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Iterator;
-import java.util.UUID;
 
 public class LzyKharon {
     private static final Logger LOG = LogManager.getLogger(LzyKharon.class);
     private final LzyServerGrpc.LzyServerBlockingStub server;
 
     private final TerminalSessionManager terminalManager;
+    private final DataCarrier dataCarrier = new DataCarrier();
 
     private static final Options options = new Options();
     static {
@@ -70,11 +70,11 @@ public class LzyKharon {
 
         kharonServer = ServerBuilder
             .forPort(port)
-            .addService(new KharonService())
+            .addService(ServerInterceptors.intercept(new KharonService(), new SessionIdInterceptor()))
             .build();
         kharonServantProxy = ServerBuilder
             .forPort(servantProxyPort)
-            .addService(new KharonServantProxyService())
+            .addService(ServerInterceptors.intercept(new KharonServantProxyService(), new SessionIdInterceptor()))
             .build();
     }
 
@@ -104,8 +104,7 @@ public class LzyKharon {
         @Override
         public StreamObserver<SendSlotDataMessage> writeToInputSlot(StreamObserver<ReceivedDataStatus> responseObserver) {
             LOG.info("Kharon::writeToInputSlot");
-            final TerminalSession terminalSession = getTerminalSession();
-            return terminalSession.initDataTransfer(responseObserver);
+            return dataCarrier.connectTerminalConnection(responseObserver);
         }
 
         @Override
@@ -126,6 +125,7 @@ public class LzyKharon {
                 responseObserver.onNext(messageIterator.next());
             }
             responseObserver.onCompleted();
+            channel.shutdown();
         }
 
         @Override
@@ -185,8 +185,9 @@ public class LzyKharon {
     private class KharonServantProxyService extends LzyServantGrpc.LzyServantImplBase {
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
-            LOG.info("KharonServantProxyService::execute " + JsonUtils.printRequest(request));
-            final TerminalSession session = getTerminalSession();
+            final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
+            LOG.info("KharonServantProxyService sessionId = " + session.getSessionId() +
+                "::execute " + JsonUtils.printRequest(request));
             session.setExecutionProgress(responseObserver);
             Context.current().addListener(context -> {
                 LOG.info("Execution terminated from server ");
@@ -196,24 +197,25 @@ public class LzyKharon {
 
         @Override
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
-            LOG.info("KharonServantProxyService::openOutputSlot " + JsonUtils.printRequest(request));
-            final TerminalSession session = getTerminalSession();
-            session.carryTerminalSlotContent(request, responseObserver);
+            final TerminalSession session = terminalManager.getTerminalSessionFromSlotUri(request.getSlotUri());
+            LOG.info("KharonServantProxyService sessionId = " + session.getSessionId() +
+                "::openOutputSlot " + JsonUtils.printRequest(request));
+            LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
+            dataCarrier.openServantConnection(URI.create(request.getSlotUri()), responseObserver);
+            session.configureSlot(Servant.SlotCommand.newBuilder()
+                .setSlot(request.getSlot())
+                .setConnect(Servant.ConnectSlotCommand.newBuilder()
+                    .setSlotUri(request.getSlotUri())
+                    .build())
+                .build());
         }
 
         @Override
         public void configureSlot(Servant.SlotCommand request, StreamObserver<Servant.SlotCommandStatus> responseObserver) {
-            final TerminalSession session = getTerminalSession();
+            final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
             final Servant.SlotCommandStatus slotCommandStatus = session.configureSlot(request);
             responseObserver.onNext(slotCommandStatus);
             responseObserver.onCompleted();
         }
-    }
-
-    private final UUID sessionId = UUID.randomUUID();
-    private TerminalSession getTerminalSession() {
-        // TODO(d-kruchinin): multi-session
-        // final UUID sessionId = UUID.fromString(Constant.SESSION_ID_CTX_KEY.get());
-        return terminalManager.getSession(sessionId);
     }
 }

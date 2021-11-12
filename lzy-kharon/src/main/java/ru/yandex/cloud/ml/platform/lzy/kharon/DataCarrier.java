@@ -7,6 +7,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,9 +16,9 @@ import java.util.concurrent.ExecutionException;
 public class DataCarrier {
     private static final Logger LOG = LogManager.getLogger(DataCarrier.class);
 
-    private final Map<String, StreamObserver<Servant.Message>> openDataConnections = new ConcurrentHashMap<>();
+    private final Map<URI, StreamObserver<Servant.Message>> openDataConnections = new ConcurrentHashMap<>();
 
-    public void openServantConnection(String slotUri, StreamObserver<Servant.Message> responseObserver) {
+    public void openServantConnection(URI slotUri, StreamObserver<Servant.Message> responseObserver) {
         LOG.info("DataCarrier::openServantConnection for slotUri " + slotUri);
         openDataConnections.put(slotUri, responseObserver);
     }
@@ -33,7 +34,7 @@ public class DataCarrier {
                 switch (slotDataMessage.getWriteCommandCase()) {
                     case REQUEST: {
                         final Servant.SlotRequest request = slotDataMessage.getRequest();
-                        final String slotUri = request.getSlotUri();
+                        final URI slotUri = URI.create(request.getSlotUri());
                         servantMessageStream.complete(openDataConnections.get(slotUri));
                         break;
                     }

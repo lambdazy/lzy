@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.stub.StreamObserver;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcConstant;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc.LzyServerBlockingStub;
@@ -26,9 +27,36 @@ public class TerminalSessionManager {
         return terminalSession.getTerminalStateObserver();
     }
 
-    public TerminalSession getSession(UUID sessionId) {
-        return sessions.values().stream().findFirst().get();
-        // TODO(d-kruchinin): multiple sessions
-        // return sessions.get(sessionId);
+    public TerminalSession getTerminalSessionFromGrpcContext() {
+        final UUID sessionId = UUID.fromString(GrpcConstant.SESSION_ID_CTX_KEY.get());
+        final TerminalSession session = sessions.get(sessionId);
+        if (session == null) {
+            throw new IllegalStateException("Failed to parse sessionId from Grpc Context: Unknown sessionId " + sessionId);
+        }
+        return session;
+    }
+
+    public TerminalSession getTerminalSessionFromSlotUri(String slotUri) {
+        final UUID sessionIdFromUri = parseSessionIdFromUri(slotUri);
+        final TerminalSession session = sessions.get(sessionIdFromUri);
+        if (session == null) {
+            throw new IllegalStateException(
+                String.format("Failed to parse sessionId from slot uri %s: Unknown sessionId %s", slotUri, sessionIdFromUri)
+            );
+        }
+        return session;
+    }
+
+    private UUID parseSessionIdFromUri(String slotUri) {
+        final URI uri = URI.create(slotUri);
+        for (String queryPart: uri.getQuery().split("\\?")) {
+            final int equalPos = queryPart.indexOf('=');
+            final String key = queryPart.substring(0, equalPos);
+            final String value = queryPart.substring(equalPos + 1);
+            if (key.equals(TerminalSession.SESSION_ID_KEY)) {
+                return UUID.fromString(value);
+            }
+        }
+        return null;
     }
 }

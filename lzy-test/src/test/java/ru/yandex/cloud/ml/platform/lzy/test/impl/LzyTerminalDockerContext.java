@@ -16,7 +16,7 @@ import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.output.ToStringConsumer;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -30,19 +30,19 @@ import java.util.stream.Collectors;
 
 import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
 
-public class LzyServantDockerContext implements LzyServantTestContext {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LzyServantDockerContext.class);
+public class LzyTerminalDockerContext implements LzyTerminalTestContext {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LzyTerminalDockerContext.class);
     private final List<GenericContainer<?>> startedContainers = new ArrayList<>();
 
     @Override
-    public Servant startTerminalAtPathAndPort(String mount, int port, String serverAddress) {
+    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
             .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
             .withEnv("USER", "terminal-test")
             .withEnv("LOG_FILE", "terminal")
-            .withEnv("DEBUG_PORT", "5006")
+            .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
 //            .withFileSystemBind("/var/log/servant/", "/var/log/servant/")
             .withCommand("--lzy-address " + serverAddress + " "
@@ -58,14 +58,14 @@ public class LzyServantDockerContext implements LzyServantTestContext {
         } else {
             servantContainer = base
                 .withFixedExposedPort(port, port)
-                .withFixedExposedPort(5006, 5006) //to attach debugger
-                .withExposedPorts(port, 5006);
+                .withFixedExposedPort(debugPort, debugPort) //to attach debugger
+                .withExposedPorts(port, debugPort);
         }
 
         servantContainer.start();
         servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
         startedContainers.add(servantContainer);
-        return new Servant() {
+        return new Terminal() {
             @Override
             public String mount() {
                 return mount;
