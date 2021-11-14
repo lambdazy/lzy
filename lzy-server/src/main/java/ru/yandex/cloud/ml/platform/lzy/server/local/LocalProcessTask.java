@@ -41,11 +41,12 @@ public class LocalProcessTask extends LocalTask {
             taskDir.mkdirs();
             taskDir.mkdir();
             final Process process = runJvm(
-                "ru.yandex.cloud.ml.platform.lzy.servant.LzyServant", taskDir,
+                "lzy-servant/target/lzy-servant-1.0-SNAPSHOT-jar-with-dependencies.jar", taskDir,
                 new String[]{
                     "-z", serverHost + ":" + serverPort,
+                    "--host", servantHost,
                     "-p", String.valueOf(servantPort),
-                    "-m", taskDir.toString() + "/lzy"
+                    "-m", taskDir + "/lzy"
                 },
                 Map.of(
                     "LZYTASK", tid.toString(),
@@ -88,7 +89,7 @@ public class LocalProcessTask extends LocalTask {
 
     @SuppressWarnings("SameParameterValue")
     private static Process runJvm(
-        final String mainClass,
+        final String pathToJar,
         File wd,
         final String[] args,
         final Map<String, String> env
@@ -100,9 +101,8 @@ public class LocalProcessTask extends LocalTask {
             final List<String> parameters = pb.command();
             parameters.add(System.getProperty("java.home") + "/bin/java");
             parameters.add("-Xmx1g");
-            parameters.add("-classpath");
-            parameters.add(System.getProperty("java.class.path"));
-            parameters.add(mainClass);
+            parameters.add("-jar");
+            parameters.add(new File(pathToJar).getAbsolutePath());
             parameters.addAll(Arrays.asList(args));
             pb.environment().putAll(env);
             return pb.start();
