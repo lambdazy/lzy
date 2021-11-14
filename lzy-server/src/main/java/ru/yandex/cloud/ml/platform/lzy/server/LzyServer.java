@@ -37,7 +37,9 @@ public class LzyServer {
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
     }
 
-    public static int port;
+    private static final String LZY_SERVER_HOST_ENV = "LZY_SERVER_HOST";
+    private static final String DEFAULT_LZY_SERVER_LOCALHOST = "http://localhost";
+    private static URI serverURI;
 
     public static void main(String[] args) throws IOException, InterruptedException {
         final CommandLineParser cliParser = new DefaultParser();
@@ -50,7 +52,14 @@ public class LzyServer {
             cliHelp.printHelp("lzy-server", options);
             System.exit(-1);
         }
-        port = Integer.parseInt(parse.getOptionValue('p', "8888"));
+        final int port = Integer.parseInt(parse.getOptionValue('p', "8888"));
+        final String lzyServerHost;
+        if (System.getenv().containsKey(LZY_SERVER_HOST_ENV)) {
+            lzyServerHost = "http://" + System.getenv(LZY_SERVER_HOST_ENV);
+        } else {
+            lzyServerHost = DEFAULT_LZY_SERVER_LOCALHOST;
+        }
+        serverURI = URI.create(lzyServerHost + ":" + port);
 
         try (ApplicationContext context = ApplicationContext.run(args)) {
             System.out.println(context.get("database.url", String.class));
@@ -78,7 +87,7 @@ public class LzyServer {
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
         private final ChannelsManager channels = new LocalChannelsManager();
-        private final TasksManager tasks = new InMemTasksManager(URI.create("http://localhost:" + port), channels);
+        private final TasksManager tasks = new InMemTasksManager(serverURI, channels);
 
         @Inject
         private ConnectionManager connectionManager;

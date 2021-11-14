@@ -1,7 +1,8 @@
 import React from "react";
 import { Button, Container, Form } from "react-bootstrap";
 import { Redirect, useHistory } from "react-router-dom";
-import { useAuth } from "../logic/Auth";
+import { getSession, login, Providers, useAuth } from "../logic/Auth";
+import { useAlert } from "./ErrorAlert";
 import { LzyLogo } from "./LzyLogo";
 
 export interface LoginFormStateInterface {
@@ -10,7 +11,7 @@ export interface LoginFormStateInterface {
 }
 
 export interface LoginFormPropsInterface {
-  onUserIdSet: (userId: string) => void;
+  onUserIdSet: (userId: string, provider: Providers) => void;
 }
 
 export class LoginForm extends React.Component<
@@ -22,10 +23,10 @@ export class LoginForm extends React.Component<
     this.state = { userId: null, userIdSet: false };
   }
 
-  handleSubmit = (event: any): void => {
+  handleSubmit = (provider: Providers): void => {
     if (this.state.userId != null) {
       this.setState({ userIdSet: true });
-      this.props.onUserIdSet(this.state.userId);
+      this.props.onUserIdSet(this.state.userId, provider);
     }
   };
 
@@ -55,9 +56,9 @@ export class LoginForm extends React.Component<
               <Button
                 variant="primary"
                 type="submit"
-                onClick={this.handleSubmit}
+                onClick={() => {this.handleSubmit(Providers.GITHUB)}}
               >
-                Ok
+                  Login with github
               </Button>
             </Form>
           </Container>
@@ -70,15 +71,21 @@ export class LoginForm extends React.Component<
 
 export const LoginFormFC: React.FC<{}> = () => {
   let auth = useAuth();
-  let history = useHistory();
+  let alert = useAlert();
   return (
     <LoginForm
-      onUserIdSet={(s: string) => {
+      onUserIdSet={(s: string, provider: Providers) => {
         auth.signout(() => {
-          auth.signin({ userId: s }, () => {
-            console.log("Signed in");
-            history.push("/");
-          });
+            getSession().then((res) => {
+                login(provider, s, res).then(
+                    (res) => {
+                        window.location.assign(res);
+                    }
+                )
+                .catch((err) => {
+                    alert.show(err.message, "Some error while logging in", undefined, "danger");
+                })
+            })
         });
       }}
     />

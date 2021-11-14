@@ -36,11 +36,11 @@ public abstract class BaseTask implements Task {
     private static final Logger LOG = LogManager.getLogger(BaseTask.class);
 
     private final String owner;
-    private final UUID tid;
+    protected final UUID tid;
     private final Zygote workload;
     private final Map<Slot, String> assignments;
     private final ChannelsManager channels;
-    private final URI serverURI;
+    protected final URI serverURI;
 
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final Map<Slot, Channel> attachedSlots = new HashMap<>();
@@ -92,14 +92,6 @@ public abstract class BaseTask implements Task {
             .filter(s -> s.name().equals(slotName))
             .findFirst()
             .orElse(workload.slot(slotName));
-    }
-
-    @Override
-    public void start(String token) {
-        final int port = (10000 + (hashCode() % 1000));
-        runServantAndWaitFor(serverURI.getHost(), serverURI.getPort(), "localhost", port, tid, token);
-        LOG.info("LocalTask servant exited");
-        state(State.DESTROYED);
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -229,7 +221,4 @@ public abstract class BaseTask implements Task {
         //noinspection ResultOfMethodCallIgnored
         servant.signal(Tasks.TaskSignal.newBuilder().setSigValue(signal.sig()).build());
     }
-
-    @SuppressWarnings("SameParameterValue")
-    protected abstract void runServantAndWaitFor(String serverHost, int serverPort, String servantHost, int servantPort, UUID tid, String token);
 }

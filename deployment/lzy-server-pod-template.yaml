@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lzy-server
+spec:
+  containers:
+  - name: lzy-server
+    env:
+      - name: LZY_SERVER_HOST
+        valueFrom:
+          fieldRef:
+            fieldPath: status.podIP
+    image: celdwind/lzy:lzy-server
+    ports:
+      - containerPort: 8888
+  hostNetwork: true
+  dnsPolicy: Default
+

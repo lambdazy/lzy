@@ -17,6 +17,7 @@ import java.util.concurrent.*;
 public class TerminalSession {
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
 
+    private final CompletableFuture<StreamObserver<Servant.ExecutionProgress>> executeFromServerFuture = new CompletableFuture<>();
     private StreamObserver<Servant.ExecutionProgress> executionProgress;
     private final StreamObserver<Kharon.TerminalState> terminalStateObserver;
     private final StreamObserver<Kharon.TerminalCommand> terminalController;
@@ -25,7 +26,6 @@ public class TerminalSession {
 
     private String user;
     private final UUID sessionId = UUID.randomUUID();
-    private final URI kharonAddress;
     private final URI kharonServantProxyAddress;
 
     private final Map<UUID, CompletableFuture<Kharon.TerminalState>> tasks = new ConcurrentHashMap<>();
@@ -33,10 +33,8 @@ public class TerminalSession {
     public TerminalSession(
         LzyServerGrpc.LzyServerBlockingStub lzyServer,
         StreamObserver<Kharon.TerminalCommand> terminalCommandObserver,
-        URI kharonAddress,
         URI kharonServantAddress
     ) {
-        this.kharonAddress = kharonAddress;
         this.kharonServantProxyAddress = kharonServantAddress;
         terminalController = terminalCommandObserver;
         terminalStateObserver = new StreamObserver<>() {
@@ -130,7 +128,7 @@ public class TerminalSession {
     }
 
     public void setExecutionProgress(StreamObserver<Servant.ExecutionProgress> executionProgress) {
-        this.executionProgress = executionProgress;
+        executeFromServerFuture.complete(executionProgress);
     }
 
     @Nullable
@@ -159,7 +157,11 @@ public class TerminalSession {
             throw new IllegalStateException("Got terminal state before attachTerminal");
         }
         if (executionProgress == null) {
-            throw new IllegalStateException("Got terminal state before execute from server");
+            try {
+                executionProgress = executeFromServerFuture.get(10, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                throw new IllegalStateException("Got terminal state before execute from server. " + e);
+            }
         }
     }
 
@@ -186,32 +188,14 @@ public class TerminalSession {
         }
     }
 
-    private String generateKharonUriForDataTransfer(String slotStrUri) {
-        try {
-            final URI slotUri = URI.create(slotStrUri);
-            return new URI(
-                slotUri.getScheme(),
-                null,
-                kharonAddress.getHost(),
-                kharonAddress.getPort(),
-                slotUri.getPath(),
-                "dataCarryId=" + UUID.randomUUID(),
-                null
-            ).toString();
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     public void carryTerminalSlotContent(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
         LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
         final String slot = request.getSlot();
-        final String slotUri = generateKharonUriForDataTransfer(request.getSlotUri());
-        dataCarrier.openServantConnection(slotUri, responseObserver);
+        dataCarrier.openServantConnection(request.getSlotUri(), responseObserver);
         configureSlot(Servant.SlotCommand.newBuilder()
             .setSlot(slot)
             .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                .setSlotUri(slotUri)
+                .setSlotUri(request.getSlotUri())
                 .build())
             .build());
     }

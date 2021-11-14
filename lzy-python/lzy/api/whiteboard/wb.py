@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Any, Optional
 
-from api import is_lazy_proxy, LzyOp
+from lzy.api import is_lazy_proxy, LzyOp
 
 
 class WhiteBoard:

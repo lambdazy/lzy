@@ -112,6 +112,17 @@ public class DbAuthenticator implements Authenticator {
         }
     }
 
+    @Override
+    public boolean checkBackOfficeSession(UUID sessionId, String userId) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            BackofficeSessionModel sessionModel = session.find(BackofficeSessionModel.class, sessionId);
+            return Objects.equals(sessionModel.getOwner().getUserId(), userId);
+        }
+        catch (Exception e){
+            return false;
+        }
+    }
+
     private boolean isUserTokenSigned(String userId, String token, String tokenSign) {
         try (Session session = storage.getSessionFactory().openSession()) {
             final UserModel user;

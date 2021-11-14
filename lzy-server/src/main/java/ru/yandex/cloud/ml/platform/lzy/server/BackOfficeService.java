@@ -7,7 +7,9 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
@@ -16,6 +18,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 
 import javax.persistence.criteria.CriteriaQuery;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Requires(beans = DbStorage.class)
@@ -30,6 +33,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     public void addToken(BackOffice.AddTokenRequest request, StreamObserver<BackOffice.AddTokenResult> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getUserCredentials());
         }
         catch (StatusException e){
             responseObserver.onError(e);
@@ -60,6 +64,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     public void createUser(BackOffice.CreateUserRequest request, StreamObserver<BackOffice.CreateUserResult> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getCreatorCredentials());
         }
         catch (StatusException e){
             responseObserver.onError(e);
@@ -91,6 +96,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     public void deleteUser(BackOffice.DeleteUserRequest request, StreamObserver<BackOffice.DeleteUserResult> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getDeleterCredentials());
         }
         catch (StatusException e){
             responseObserver.onError(e);
@@ -122,6 +128,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     public void listUsers(BackOffice.ListUsersRequest request, StreamObserver<BackOffice.ListUsersResponse> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getCallerCredentials());
         }
         catch (StatusException e){
             responseObserver.onError(e);
@@ -154,6 +161,121 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         }
     }
 
+    @Override
+    public void generateSessionId(BackOffice.GenerateSessionIdRequest request, StreamObserver<BackOffice.GenerateSessionIdResponse> responseObserver){
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+        }
+        catch (StatusException e){
+            responseObserver.onError(e);
+            return;
+        }
+
+        UUID sessionId = UUID.randomUUID();
+
+        try(Session session = storage.getSessionFactory().openSession()){
+            Transaction tx = session.beginTransaction();
+            try {
+                session.save(new BackofficeSessionModel(sessionId, null));
+                responseObserver.onNext(
+                        BackOffice.GenerateSessionIdResponse.newBuilder()
+                                .setSessionId(sessionId.toString())
+                                .build()
+                );
+                responseObserver.onCompleted();
+                tx.commit();
+            }
+            catch (Exception e){
+                tx.rollback();
+                responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            }
+        }
+    }
+
+    @Override
+    public void authUserSession(BackOffice.AuthUserSessionRequest request, StreamObserver<BackOffice.AuthUserSessionResponse> responseObserver){
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+        }
+        catch (StatusException e){
+            responseObserver.onError(e);
+            return;
+        }
+        try(Session session = storage.getSessionFactory().openSession()){
+            Transaction tx = session.beginTransaction();
+            try {
+                UserModel user = session.find(UserModel.class, request.getUserId());
+                if (user == null){
+                    user = new UserModel(
+                            request.getUserId()
+                    );
+                    session.save(user);
+                }
+                if (user.getAuthProvider() != null) {
+                    if (AuthProviders.fromGrpcMessage(request.getProvider()) != user.getAuthProviderEnum() || !request.getProviderUserId().equals(user.getProviderUserId())) {
+                        responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                        tx.rollback();
+                        return;
+                    }
+                }
+                else {
+                    user.setAuthProviderEnum(AuthProviders.fromGrpcMessage(request.getProvider()));
+                    user.setProviderUserId(request.getProviderUserId());
+                    session.save(user);
+                }
+                BackofficeSessionModel sessionModel = session.find(BackofficeSessionModel.class, UUID.fromString(request.getSessionId()));
+                sessionModel.setOwner(user);
+                session.save(sessionModel);
+                responseObserver.onNext(
+                        BackOffice.AuthUserSessionResponse
+                                .newBuilder()
+                                .setCredentials(BackOffice.BackofficeUserCredentials.newBuilder()
+                                        .setSessionId(sessionModel.getId().toString())
+                                        .setUserId(user.getUserId())
+                                        .build())
+                                .build()
+                );
+                tx.commit();
+                responseObserver.onCompleted();
+            }
+            catch (Exception e){
+                tx.rollback();
+                responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            }
+        }
+
+    }
+
+    @Override
+    public void checkSession(BackOffice.CheckSessionRequest request, StreamObserver<BackOffice.CheckSessionResponse> responseObserver){
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+        }
+        catch (StatusException e){
+            responseObserver.onError(e);
+            return;
+        }
+        try(Session session = storage.getSessionFactory().openSession()){
+            BackofficeSessionModel sessionModel = session.find(BackofficeSessionModel.class, UUID.fromString(request.getSessionId()));
+            if (sessionModel == null){
+                responseObserver.onNext(BackOffice.CheckSessionResponse.newBuilder().setStatus(BackOffice.CheckSessionResponse.SessionStatus.NOT_EXISTS).build());
+                return;
+            }
+            if (sessionModel.getOwner() == null){
+                responseObserver.onNext(BackOffice.CheckSessionResponse.newBuilder().setStatus(BackOffice.CheckSessionResponse.SessionStatus.NOT_RELATED_WITH_USER).build());
+                return;
+            }
+            if (!sessionModel.getOwner().getUserId().equals(request.getUserId())){
+                responseObserver.onNext(BackOffice.CheckSessionResponse.newBuilder().setStatus(BackOffice.CheckSessionResponse.SessionStatus.WRONG_USER).build());
+                return;
+            }
+            responseObserver.onNext(BackOffice.CheckSessionResponse.newBuilder().setStatus(BackOffice.CheckSessionResponse.SessionStatus.EXISTS).build());
+        }
+        finally {
+            responseObserver.onCompleted();
+        }
+    }
+
     private void authBackofficeCredentials(IAM.UserCredentials credentials) throws StatusException {
         if (!auth.checkUser(credentials.getUserId(), credentials.getToken())){
             throw Status.PERMISSION_DENIED.asException();
@@ -162,4 +284,11 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             throw Status.PERMISSION_DENIED.asException();
         }
     }
+
+    private void authBackofficeUserCredentials(BackOffice.BackofficeUserCredentials credentials) throws StatusException {
+        if (!auth.checkBackOfficeSession(UUID.fromString(credentials.getSessionId()), credentials.getUserId())){
+            throw Status.PERMISSION_DENIED.asException();
+        }
+    }
+
 }

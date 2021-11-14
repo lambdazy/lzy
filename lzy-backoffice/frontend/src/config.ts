@@ -1,1 +1,1 @@
-export const BACKEND_HOST: string = "localhost:8080"
+export const BACKEND_HOST: string = "http://localhost:8080"

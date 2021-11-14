@@ -1,11 +1,11 @@
 import functools
-import inspect
 import logging
 from typing import Callable
 
 import sys
 
 from lzy.model.env import PyEnv
+from lzy.model.zygote import Gpu
 from ._proxy import proxy
 from .buses import *
 from .env import LzyEnv
@@ -22,26 +22,27 @@ handler.setFormatter(formatter)
 logging.root.addHandler(handler)
 
 
-def op(func: Callable = None, *, output_type=None):
+def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
     if func is None:
-        if output_type is None:
-            raise ValueError(f'output_type should be not None')
         return op_(output_type=output_type)
-
-    return_type = infer_return_type(func)
-    if return_type is None:
-        raise TypeError(f"{func} return type is not annotated."
-                        f"Please for proper use of {op.__name__} annotate "
-                        f"return type of your function.")
-    return op_(output_type=return_type)(func)
+    return op_(output_type=output_type)(func)
 
 
 def op_(*, input_types=None, output_type=None):
     def deco(f):
+        nonlocal output_type
+        if output_type is None:
+            output_type = infer_return_type(f)
+            if output_type is None:
+                raise TypeError(f"{f} return type is not annotated. "
+                                f"Please for proper use of {op.__name__} annotate "
+                                f"return type of your function.")
+
         @functools.wraps(f)
         def lazy(*args):
             # TODO: all possible arguments, including **kwargs and defaults
             nonlocal input_types
+            nonlocal output_type
 
             # if input types are not specified then try to get types of
             # operation from args return types

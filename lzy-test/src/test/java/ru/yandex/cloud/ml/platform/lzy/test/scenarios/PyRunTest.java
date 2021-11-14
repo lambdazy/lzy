@@ -31,10 +31,7 @@ public class PyRunTest extends LzyBaseTest {
     @Test
     public void testSimplePyGraph() {
         //Arrange
-        String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
-                "conda activate default && ";
-        terminal.execute(Map.of(), "bash", "-c",
-                condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
+        String condaPrefix = prepareConda();
         final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
 
         //Act
@@ -43,5 +40,29 @@ public class PyRunTest extends LzyBaseTest {
 
         //Assert
         Assert.assertEquals("More meaningful str than ever before3", Utils.lastLine(result.stdout()));
+    }
+
+    @Test
+    public void testSimpleCatboostGraph() {
+        //Arrange
+        String condaPrefix = prepareConda();
+        terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + "pip install catboost");
+        final String pyCommand = "python /lzy-python/examples/integration/catboost_simple.py";
+
+        //Act
+        final LzyServantTestContext.Servant.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + pyCommand);
+
+        //Assert
+        Assert.assertEquals("1", Utils.lastLine(result.stdout()));
+    }
+
+    private String prepareConda() {
+        String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
+                "conda activate default && ";
+        terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
+        return condaPrefix;
     }
 }

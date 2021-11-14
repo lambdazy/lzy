@@ -5,6 +5,7 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -18,6 +19,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import java.io.Closeable;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.ForkJoinPool;
 
 public class LzyTerminal extends LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
@@ -46,12 +48,11 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     private class CommandHandler {
-        private final StreamObserver<TerminalCommand> supplier;
-        private StreamObserver<TerminalState> responseObserver;
-        private final TerminalSlotSender slotSender = new TerminalSlotSender();
+        private final StreamObserver<TerminalState> responseObserver;
+        private final TerminalSlotSender slotSender = new TerminalSlotSender(kharon);
 
         CommandHandler() {
-            supplier = new StreamObserver<>() {
+            StreamObserver<TerminalCommand> supplier = new StreamObserver<>() {
                 @Override
                 public void onNext(TerminalCommand terminalCommand) {
                     LOG.info("TerminalCommand::onNext " + JsonUtils.printRequest(terminalCommand));
@@ -64,9 +65,16 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     final Servant.SlotCommand slotCommand = terminalCommand.getSlotCommand();
                     try {
                         final LzySlot slot = currentExecution.slot(slotCommand.getSlot());
-                        if (slotCommand.hasConnect() && slot instanceof LzyOutputSlot) {
+                        if (slotCommand.hasConnect()) {
                             final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
-                            slotSender.connect((LzyOutputSlot) slot, slotUri);
+                            ForkJoinPool.commonPool().execute(() -> {
+                                if (slot instanceof LzyOutputSlot) {
+                                    slotSender.connect((LzyOutputSlot) slot, slotUri);
+                                } else if (slot instanceof LzyInputSlot) {
+                                    ((LzyInputSlot) slot).connect(slotUri, kharonBlockingStub::openOutputSlot);
+                                }
+                            });
+
                             CommandHandler.this.onNext(TerminalState.newBuilder()
                                 .setCommandId(commandId)
                                 .setSlotStatus(Servant.SlotCommandStatus.newBuilder()

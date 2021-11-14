@@ -1,18 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -24,10 +21,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private final String tid;
     private long offset = 0;
     private URI connected;
-    private ManagedChannel servantSlotCh;
-    private LzyServantGrpc.LzyServantBlockingStub connectedSlotController;
-    protected boolean persistent = false;
-    protected String linkToStorage = null;
+    private SlotController slotController;
 
     LzyInputSlotBase(String tid, Slot definition) {
         super(definition);
@@ -35,29 +29,9 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     }
 
     @Override
-    public void connectPersistent(URI slotUri) {
-        persistent = true;
-        connect(slotUri);
-    }
-
-    @Override
-    public void connect(URI slotUri) {
-        LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri);
-        if (servantSlotCh != null) {
-            LOG.warn("Slot " + this + " was already connected");
-            return;
-        }
-
+    public void connect(URI slotUri, SlotController slotController) {
         connected = slotUri;
-        servantSlotCh = ManagedChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
-            .usePlaintext()
-            .build();
-        connectedSlotController = LzyServantGrpc.newBlockingStub(servantSlotCh);
-    }
-
-    @Override
-    public @Nullable String getLinkToStorage() {
-        return linkToStorage;
+        this.slotController = slotController;
     }
 
     @Override
@@ -67,30 +41,25 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             LOG.warn("Slot " + this + " was already disconnected");
             return;
         }
-        servantSlotCh.shutdown();
         connected = null;
-        servantSlotCh = null;
+        slotController = null;
         LOG.info("LzyInputSlotBase:: disconnected " + this);
         state(Operations.SlotStatus.State.SUSPENDED);
     }
 
     protected void readAll() {
-        final Iterator<Servant.Message> msgIter = connectedSlotController.openOutputSlot(Servant.SlotRequest.newBuilder()
+        final Iterator<Servant.Message> msgIter = slotController.openOutputSlot(Servant.SlotRequest.newBuilder()
             .setSlot(connected.getPath())
             .setOffset(offset)
             .setSlotUri(connected.toString())
             .build());
         try {
-            ByteString result = ByteString.EMPTY;
             while (msgIter.hasNext()) {
                 final Servant.Message next = msgIter.next();
                 if (next.hasChunk()) {
                     final ByteString chunk = next.getChunk();
                     try {
                         LOG.info("From {} chunk received {}", name(), chunk.toString(StandardCharsets.UTF_8));
-                        if (persistent) {
-                            result = result.concat(chunk);
-                        }
                         onChunk(chunk);
                     } catch (IOException ioe) {
                         LOG.warn(
@@ -101,9 +70,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                         offset += chunk.size();
                     }
                 } else if (next.getControl() == Servant.Message.Controls.EOS) {
-                    if (persistent) {
-                        linkToStorage = saveToStorage(result);
-                    }
                     break;
                 }
             }
@@ -112,10 +78,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             LOG.info("Opening slot {}", name());
             state(Operations.SlotStatus.State.OPEN);
         }
-    }
-
-    private static String saveToStorage(ByteString str) {
-        return "Link to a storage " + str.toStringUtf8();
     }
 
     @Override

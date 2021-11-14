@@ -9,6 +9,7 @@ import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.IOException;
@@ -38,9 +39,10 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     }
 
     @Override
-    public void connect(URI slotUri) {
+    public void connect(URI slotUri, SlotController slotController) {
         ForkJoinPool.commonPool().execute(() -> {
-            super.connect(slotUri);
+            LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri + " slot " + this);
+            super.connect(slotUri, slotController);
             readAll();
         });
     }
