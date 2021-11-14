@@ -7,10 +7,10 @@ from typing import List, Callable, Tuple, Type, TypeVar
 
 import cloudpickle
 
+from lzy.model.env import Env
 from lzy.model.file_slots import create_slot
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
-from lzy.model.env import Env
 
 T = TypeVar('T')
 
@@ -20,8 +20,6 @@ class FuncContainer:
     func: Callable
     input_types: Tuple[type, ...]
     output_type: Type[T]
-
-T = TypeVar('T')
 
 
 @dataclass
@@ -53,7 +51,7 @@ class ZygotePythonFunc(Zygote):
     def command(self) -> str:
         serialized_func = base64.b64encode(
             cloudpickle.dumps(FuncContainer(self._func, self._arg_types, self._return_type))).decode('ascii')
-        return f"python /lzy-python/lzy/startup.py " + serialized_func
+        return "python $(python -c 'import site; print(site.getsitepackages()[0])')/lzy/startup.py " + serialized_func
 
     def slots(self) -> List[Slot]:
         return self._arg_slots + [self._return_slot]

@@ -5,7 +5,6 @@ then
     if [[ $2 == "base" ]]
         then
             docker build -t celdwind/lzy:lzy-servant-base -f lzy-servant/BaseDockerfile .
-            docker tag lzy-servant-base celdwind/lzy:lzy-servant-base
             docker push celdwind/lzy:lzy-servant-base
     fi
     mvn clean install -DskipTests

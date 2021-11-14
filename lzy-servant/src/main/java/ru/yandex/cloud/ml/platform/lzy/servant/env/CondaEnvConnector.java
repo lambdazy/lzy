@@ -4,12 +4,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -43,18 +41,15 @@ public class CondaEnvConnector implements Connector {
     }
 
     private void installPyenv() throws IOException, InterruptedException {
-        Path yaml = Paths.get("/req.yaml");
-        Files.createFile(yaml);
-        try (FileWriter file = new FileWriter(yaml.toString())) {
+        final File yaml = File.createTempFile("conda", "req.yaml");
+        try (FileWriter file = new FileWriter(yaml.getAbsolutePath())) {
             file.write(env.yaml());
         }
-        int rcSum = 0;
         // --prune removes packages not specified in yaml, so probably it has not to be there
-        rcSum += execAndLog("conda env update --file " + yaml); // + " --prune");
-        rcSum += execAndLog("pip install --default-timeout=100 /lzy-python setuptools");
-//        if (rcSum > 0) {
-//            throw new IOException("Failed to update conda env");
-//        }
+        final int rc = execAndLog("conda env update --file " + yaml.getAbsolutePath()); // + " --prune");
+        if (rc > 0) {
+            throw new IOException("Failed to update conda env");
+        }
     }
 
 
