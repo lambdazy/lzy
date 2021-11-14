@@ -46,11 +46,12 @@ public class LocalProcessTask extends LocalTask {
                     "-z", serverHost + ":" + serverPort,
                     "--host", servantHost,
                     "-p", String.valueOf(servantPort),
-                    "-m", taskDir + "/lzy"
+                    "-m", taskDir.getAbsolutePath()
                 },
                 Map.of(
                     "LZYTASK", tid.toString(),
-                    "LZYTOKEN", token
+                    "LZYTOKEN", token,
+                    "LZY_MOUNT", taskDir.getAbsolutePath()
                 )
             );
             process.getOutputStream().close();
