@@ -7,6 +7,7 @@ on:
 jobs:
   maven-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v2
 
@@ -22,10 +23,12 @@ jobs:
       - uses: docker-practice/actions-setup-docker@master
 
       - name: 'java-test'
+        timeout-minutes: 30
         run: mvn clean install
 
       - name: 'install lzy-python'
         run: cd lzy-python/ && pip install .
 
       - name: 'python-test'
+        timeout-minutes: 5
         run:  cd lzy-python/ && python -m unittest discover tests/
