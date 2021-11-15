@@ -90,7 +90,7 @@ public class ServantEndpoint implements Endpoint {
                             .build()
                         )
                         .build()
-                    );
+                );
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
             LOG.error("Unable to connect from: " + this + " to " + endpoint + "\nCause:\n " + sre);

@@ -91,9 +91,9 @@ public class LzyExecution {
                         if (zygote != null || spec.direction() == Slot.Direction.INPUT) {
                             progress(Servant.ExecutionProgress.newBuilder()
                                 .setDetach(Servant.SlotDetach.newBuilder()
-                                        .setSlot(gRPCConverter.to(spec))
-                                        .setUri(servantUri.toString() + spec.name())
-                                        .build()
+                                    .setSlot(gRPCConverter.to(spec))
+                                    .setUri(servantUri.toString() + spec.name())
+                                    .build()
                                 ).build()
                             );
                         }

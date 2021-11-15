@@ -105,12 +105,12 @@ public interface LzyServantTestContext extends AutoCloseable {
 
         default void createChannel(String channelName) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                    String.join(
-                            " ",
-                            mount() + "/sbin/channel",
-                            "create",
-                            channelName
-                    )
+                String.join(
+                    " ",
+                    mount() + "/sbin/channel",
+                    "create",
+                    channelName
+                )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
@@ -133,12 +133,12 @@ public interface LzyServantTestContext extends AutoCloseable {
 
         default String channelStatus(String channelName) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                    String.join(
-                            " ",
-                            mount() + "/sbin/channel",
-                            "status",
-                            channelName
-                    )
+                String.join(
+                    " ",
+                    mount() + "/sbin/channel",
+                    "status",
+                    channelName
+                )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
