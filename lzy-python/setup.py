@@ -102,8 +102,9 @@ class Installer(install):
 
 
 setuptools.setup(
-    name='lzy-py',
-    version='0.0.1',
+    name='pyzy-eap',
+    version='0.0.2',
+    author='ʎzy developers',
     include_package_data=True,
     package_data={
         'lzy': ['lzy/lzy-servant.jar']

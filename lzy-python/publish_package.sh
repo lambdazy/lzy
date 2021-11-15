@@ -9,6 +9,6 @@ python -m build # builds both wheel dist and source dist
 
 # currently publish to testpypi repo later should be changed to real pypi
 # token has to be provided by person who runs the script
-python -m twine upload --repository testpypi dist/*
+python -m twine upload dist/* --verbose
 
 
