@@ -7,7 +7,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 
 import javax.annotation.Nullable;
-import java.util.Map;
+
 import java.util.UUID;
 import java.util.stream.Stream;
 

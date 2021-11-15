@@ -73,7 +73,8 @@ public class LzyServant extends LzyAgent {
             currentExecution = new LzyExecution(
                 tid,
                 (AtomicZygote) gRPCConverter.from(request.getZygote()),
-                agentInternalAddress, request.getPersistent()
+                agentInternalAddress,
+                request.getPersistent()
             );
 
             currentExecution.onProgress(progress -> {

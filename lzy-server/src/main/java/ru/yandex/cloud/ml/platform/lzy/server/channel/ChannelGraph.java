@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.server.channel;
 
 import org.springframework.lang.NonNull;
 
+import java.net.URI;
 import java.util.Set;
 
 public interface ChannelGraph {

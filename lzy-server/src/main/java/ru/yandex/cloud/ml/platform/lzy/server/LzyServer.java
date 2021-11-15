@@ -240,10 +240,10 @@ public class LzyServer {
                 case CREATE: {
                     final Channels.ChannelCreate create = request.getCreate();
                     channel = tasks.createChannel(
-                            request.getChannelName(),
-                            resolveUser(auth),
-                            resolveTask(auth),
-                            gRPCConverter.contentTypeFrom(create.getContentType()));
+                        request.getChannelName(),
+                        resolveUser(auth),
+                        resolveTask(auth),
+                        gRPCConverter.contentTypeFrom(create.getContentType()));
                     if (channel == null)
                         channel = channels.get(request.getChannelName());
                     break;

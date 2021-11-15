@@ -101,7 +101,6 @@ public class Run implements LzyCommand {
         final Tasks.TaskSpec.Builder taskSpec = Tasks.TaskSpec.newBuilder();
         taskSpec.setAuth(auth);
         taskSpec.setZygote(grpcZygote);
-        LOG.info("Got persistence option " + localCmd.hasOption("persistent"));
         if (localCmd.hasOption("persistent")) {
             taskSpec.setPersistent(true);
         }

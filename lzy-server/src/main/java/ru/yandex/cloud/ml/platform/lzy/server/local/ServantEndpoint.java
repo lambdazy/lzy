@@ -86,9 +86,11 @@ public class ServantEndpoint implements Endpoint {
                     Servant.SlotCommand.newBuilder()
                         .setSlot(slot().name())
                         .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                            .setSlotUri(endpoint.uri().toString()))
+                            .setSlotUri(endpoint.uri().toString())
                             .build()
-                        );
+                        )
+                        .build()
+                    );
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
             LOG.error("Unable to connect from: " + this + " to " + endpoint + "\nCause:\n " + sre);

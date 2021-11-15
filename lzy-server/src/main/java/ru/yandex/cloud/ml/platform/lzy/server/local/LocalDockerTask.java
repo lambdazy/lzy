@@ -43,7 +43,7 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("LOG_FILE", "servant_start_" + uuid)
             .withEnv("DEBUG_PORT", "5005")
             .withEnv("SUSPEND_DOCKER", "n")
-            .withFileSystemBind("/var/log/servant/", "/var/log/servant/")
+            //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "

@@ -18,8 +18,13 @@ import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 
 import javax.annotation.Nullable;
+import java.net.URI;
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
@@ -44,8 +49,8 @@ public class LocalChannelsManager implements ChannelsManager {
                 return null;
             }
             final ChannelEx channel = new ChannelImpl(
-                    name == null ? UUID.randomUUID().toString() : name,
-                    contentTypeFrom
+                name == null ? UUID.randomUUID().toString() : name,
+                contentTypeFrom
             );
             channels.put(channel.name(), channel);
             return channel;

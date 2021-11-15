@@ -26,7 +26,6 @@ message ChannelCommand {
 
 message ChannelCreate {
     string contentType = 1;
-    bool persistent = 2;
 }
 
 message ChannelDestroy {

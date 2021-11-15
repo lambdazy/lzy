@@ -89,11 +89,12 @@ public class LzyExecution {
                     () -> {
                         //not terminal or input slot
                         if (zygote != null || spec.direction() == Slot.Direction.INPUT) {
-                            Servant.SlotDetach.Builder slotDetachBuilder =
-                                    Servant.SlotDetach.newBuilder()
-                                    .setSlot(gRPCConverter.to(spec)).setUri(servantUri.toString() + spec.name());
                             progress(Servant.ExecutionProgress.newBuilder()
-                                    .setDetach(slotDetachBuilder.build()).build()
+                                .setDetach(Servant.SlotDetach.newBuilder()
+                                        .setSlot(gRPCConverter.to(spec))
+                                        .setUri(servantUri.toString() + spec.name())
+                                        .build()
+                                ).build()
                             );
                         }
                     }
