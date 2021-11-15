@@ -25,6 +25,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -35,13 +36,14 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     private final List<GenericContainer<?>> startedContainers = new ArrayList<>();
 
     @Override
-    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort) {
+    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
+        final String uuid = UUID.randomUUID().toString().substring(0, 5);
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
             .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
-            .withEnv("USER", "terminal-test")
-            .withEnv("LOG_FILE", "terminal")
+            .withEnv("USER", user)
+            .withEnv("LOG_FILE", "terminal_" + uuid)
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
 //            .withFileSystemBind("/var/log/servant/", "/var/log/servant/")

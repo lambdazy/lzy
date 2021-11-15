@@ -9,9 +9,10 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class MultiSessionTest extends LzyBaseTest {
     @Before
@@ -19,13 +20,13 @@ public class MultiSessionTest extends LzyBaseTest {
         super.setUp();
     }
 
-    private Terminal createTerminal(int port, int debugPort) {
+    private Terminal createTerminal(int port, int debugPort, String user) {
         final Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             port,
             kharonContext.serverAddress(terminalContext.inDocker()),
-            debugPort
-        );
+            debugPort,
+            user);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
             DEFAULT_TIMEOUT_SEC,
@@ -36,8 +37,8 @@ public class MultiSessionTest extends LzyBaseTest {
 
     @Test
     public void testEcho42() {
-        final Terminal terminal1 = createTerminal(9998, 5006);
-        final Terminal terminal2 = createTerminal(9999, 5007);
+        final Terminal terminal1 = createTerminal(9998, 5006, "user1");
+        final Terminal terminal2 = createTerminal(9999, 5007, "user2");
 
         //Arrange
         final FileIOOperation echo42 = new FileIOOperation(
@@ -59,34 +60,31 @@ public class MultiSessionTest extends LzyBaseTest {
     }
 
     @Test
-    public void parallelPyGraphExecution() {
-        final Terminal terminal1 = createTerminal(9998, 5006);
-        final Terminal terminal2 = createTerminal(9999, 5007);
+    public void parallelPyGraphExecution() throws ExecutionException, InterruptedException {
+        final Terminal terminal1 = createTerminal(9998, 5006, "user1");
+        final Terminal terminal2 = createTerminal(9999, 5007, "user2");
 
         final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " + "conda activate default && ";
 
-        final AtomicReference<Terminal.ExecutionResult> result1 = new AtomicReference<>();
+        final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> {
             terminal1.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
             final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
 
             //Act
-            result1.set(terminal1.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand));
+            result1.complete(terminal1.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand));
         });
 
-        final AtomicReference<Terminal.ExecutionResult> result2 = new AtomicReference<>();
+        final CompletableFuture<Terminal.ExecutionResult> result2 = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> {
             terminal2.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
             final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
 
             //Act
-            result2.set(terminal2.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand));
+            result2.complete(terminal2.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand));
         });
-
-        terminal1.waitForShutdown(20, TimeUnit.MINUTES);
-        terminal2.waitForShutdown(20, TimeUnit.MINUTES);
 
         //Assert
         Assert.assertEquals("More meaningful str than ever before3", Utils.lastLine(result1.get().stdout()));

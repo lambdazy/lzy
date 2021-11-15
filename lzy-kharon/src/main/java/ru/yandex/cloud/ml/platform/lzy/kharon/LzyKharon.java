@@ -20,6 +20,7 @@ public class LzyKharon {
 
     private final TerminalSessionManager terminalManager;
     private final DataCarrier dataCarrier = new DataCarrier();
+    private final ServantConnectionManager connectionManager = new ServantConnectionManager();
 
     private static final Options options = new Options();
     static {
@@ -116,16 +117,18 @@ public class LzyKharon {
                 slotHost = "localhost";
             }
 
-            final ManagedChannel channel = ManagedChannelBuilder
-                .forAddress(slotHost, slotUri.getPort())
-                .usePlaintext()
-                .build();
-            final Iterator<Servant.Message> messageIterator = LzyServantGrpc.newBlockingStub(channel).openOutputSlot(request);
-            while (messageIterator.hasNext()) {
-                responseObserver.onNext(messageIterator.next());
+            try {
+                final URI servantUri = new URI(null, null, slotHost, slotUri.getPort(), null, null, null);
+                final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager.getOrCreate(servantUri);
+                final Iterator<Servant.Message> messageIterator = servant.openOutputSlot(request);
+                while (messageIterator.hasNext()) {
+                    responseObserver.onNext(messageIterator.next());
+                }
+                responseObserver.onCompleted();
+                connectionManager.shutdownConnection(servantUri);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
-            responseObserver.onCompleted();
-            channel.shutdown();
         }
 
         @Override

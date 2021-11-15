@@ -237,9 +237,12 @@ public class LzyExecution {
     }
 
     public void signal(int sigValue) {
+        if (exec == null) {
+            LOG.warn("Attempt to kill not started process");
+        }
         try {
             Runtime.getRuntime().exec("kill -" + sigValue + " " + exec.pid());
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOG.warn("Unable to send signal to process", e);
         }
     }

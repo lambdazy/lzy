@@ -107,7 +107,10 @@ public class InMemTasksManager implements TasksManager {
                 return;
             children.getOrDefault(task, List.of()).forEach(child -> child.signal(Signal.TERM));
             children.remove(task);
-            children.getOrDefault(parents.remove(task), new ArrayList<>()).remove(task);
+            final Task removedTask = parents.remove(task);
+            if (removedTask != null) {
+                children.getOrDefault(removedTask, new ArrayList<>()).remove(task);
+            }
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
             if (task.servant() != null) {
                 LOG.info("LocalTaskManager::unbindAll");
