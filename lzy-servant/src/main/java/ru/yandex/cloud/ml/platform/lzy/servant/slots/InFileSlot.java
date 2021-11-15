@@ -48,9 +48,9 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     }
 
     @Override
-    public void connectPersistent(URI slotUri) {
+    public void connectPersistent(URI slotUri, SlotController slotController) {
         persistent = true;
-        connect(slotUri);
+        connect(slotUri, slotController);
     }
 
     @Override
