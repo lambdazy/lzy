@@ -40,7 +40,6 @@ message CreateSlotCommand {
 
 message ConnectSlotCommand {
     string slotUri = 1;
-    bool persistent = 2;
 }
 
 message DisconnectCommand {
@@ -124,7 +123,6 @@ message SlotAttach {
 message SlotDetach {
     Slot slot = 1;
     string uri = 2;
-    string linkToStorage = 3;
 }
 
 message ExecutionConcluded {

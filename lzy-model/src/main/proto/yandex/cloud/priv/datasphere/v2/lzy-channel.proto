@@ -53,15 +53,9 @@ message Binding {
     }
 }
 
-message StorageBinding {
-    string slotName = 1;
-    string linkToStorage = 2;
-}
-
 message ChannelStatus {
     Channel channel = 1;
     repeated SlotStatus connected = 2;
-    repeated StorageBinding storageBindings = 3;
 }
 
 message ChannelStatusList {

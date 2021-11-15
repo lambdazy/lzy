@@ -19,7 +19,6 @@ public class LocalChannelGraph implements ChannelGraph {
     private final Set<Endpoint> senders = new HashSet<>();
     private final Set<Endpoint> receivers = new HashSet<>();
     private final Map<Endpoint, HashSet<Endpoint>> edges = new HashMap<>();
-    private boolean persistent = false;
 
     @Override
     public Set<Endpoint> senders() {
@@ -53,7 +52,7 @@ public class LocalChannelGraph implements ChannelGraph {
 
         checkConsistency(sender, receiver);
 
-        final int rc = persistent ? receiver.connectPersistent(sender) : receiver.connect(sender);
+        final int rc = receiver.connect(sender);
         if (rc != 0) {
             throw new ChannelException(MessageFormat.format(
                 "Failure rc:{2} while connecting sender:{0} to receiver:{1}",
@@ -128,11 +127,6 @@ public class LocalChannelGraph implements ChannelGraph {
     @Override
     public boolean hasBound(@NonNull Endpoint endpoint) {
         return senders.contains(endpoint) || receivers.contains(endpoint);
-    }
-
-    @Override
-    public void setPersistence(boolean persistent) {
-        this.persistent = persistent;
     }
 
     private static void checkConsistency(Endpoint sender, Endpoint receiver) {

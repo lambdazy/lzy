@@ -34,6 +34,10 @@ public class Run implements LzyCommand {
         options.addOption(new Option("m", "mapping", true, "Slot-channel mapping"));
     }
 
+    static {
+        options.addOption(new Option("persistent", "persistent", false, "Task persistence"));
+    }
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private LzyKharonGrpc.LzyKharonBlockingStub kharon;
     private IAM.Auth auth;
@@ -97,6 +101,10 @@ public class Run implements LzyCommand {
         final Tasks.TaskSpec.Builder taskSpec = Tasks.TaskSpec.newBuilder();
         taskSpec.setAuth(auth);
         taskSpec.setZygote(grpcZygote);
+        LOG.info("Got persistence option " + localCmd.hasOption("persistent"));
+        if (localCmd.hasOption("persistent")) {
+            taskSpec.setPersistent(true);
+        }
         zygote.slots().forEach(slot -> {
             LOG.info("Resolving slot " + slot.name());
             final String binding;

@@ -39,6 +39,7 @@ public class LzyExecution {
 
     @SuppressWarnings("FieldCanBeLocal")
     private final String taskId;
+    private final boolean persistent;
     private final AtomicZygote zygote;
     private final LineReaderSlot stdoutSlot;
     private final LineReaderSlot stderrSlot;
@@ -47,17 +48,18 @@ public class LzyExecution {
     private Process exec;
     private String arguments = "";
     private final Map<String, LzySlot> slots = new ConcurrentHashMap<>();
-    private final Map<String, String> slotToPersistentStorage = new ConcurrentHashMap<>();
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
+    private final StorageManager storageManager = new LocalStorageManager();
 
-    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri) {
+    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, boolean persistent) {
         this.taskId = taskId;
         this.zygote = zygote;
         stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"));
         stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"));
         stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"));
         this.servantUri = servantUri;
+        this.persistent = persistent;
     }
 
     public LzySlot configureSlot(Slot spec, String binding) {
@@ -70,6 +72,9 @@ public class LzyExecution {
             }
             try {
                 final LzySlot slot = createSlot(spec, binding);
+                if (persistent) {
+                    storageManager.prepareToSaveData(spec.name(), taskId);
+                }
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
                     if (spec.name().startsWith("local://")) { // No scheme in slot name
@@ -87,10 +92,6 @@ public class LzyExecution {
                             Servant.SlotDetach.Builder slotDetachBuilder =
                                     Servant.SlotDetach.newBuilder()
                                     .setSlot(gRPCConverter.to(spec)).setUri(servantUri.toString() + spec.name());
-                                    String link = slotToPersistentStorage.get(slot.name());
-                                    if (link != null) {
-                                        slotDetachBuilder.setLinkToStorage(link);
-                                    }
                             progress(Servant.ExecutionProgress.newBuilder()
                                     .setDetach(slotDetachBuilder.build()).build()
                             );
@@ -224,12 +225,6 @@ public class LzyExecution {
         }
     }
 
-    public void addLinkToStorage(String slot, String link) {
-        if (!link.equals("")) {
-            slotToPersistentStorage.put(slot, link);
-        }
-    }
-
     public Stream<LzySlot> slots() {
         return slots.values().stream();
     }
@@ -246,6 +241,10 @@ public class LzyExecution {
         return slots.get(name);
     }
 
+    public String taskId() {
+        return taskId;
+    }
+
     public void signal(int sigValue) {
         try {
             Runtime.getRuntime().exec("kill -" + sigValue + " " + exec.pid());
@@ -258,4 +257,6 @@ public class LzyExecution {
     public Zygote zygote() {
         return zygote;
     }
+
+    public boolean persistent() { return persistent; }
 }

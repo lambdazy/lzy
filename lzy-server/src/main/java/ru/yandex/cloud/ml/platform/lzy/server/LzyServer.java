@@ -183,7 +183,6 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-
             LOG.info("Server::start " + JsonUtils.printRequest(request));
             final Zygote workload = gRPCConverter.from(request.getZygote());
             final Map<Slot, String> assignments = new HashMap<>();
@@ -191,8 +190,9 @@ public class LzyServer {
 
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
+            final boolean persistent = request.getPersistent();
             final AtomicBoolean concluded = new AtomicBoolean(false);
-            Task task = tasks.start(uid, parent, workload, assignments, auth, progress -> {
+            Task task = tasks.start(uid, parent, workload, assignments, persistent, auth, progress -> {
                 if (concluded.get())
                     return;
                 responseObserver.onNext(progress);
@@ -243,8 +243,7 @@ public class LzyServer {
                             request.getChannelName(),
                             resolveUser(auth),
                             resolveTask(auth),
-                            gRPCConverter.contentTypeFrom(create.getContentType()),
-                            create.getPersistent());
+                            gRPCConverter.contentTypeFrom(create.getContentType()));
                     if (channel == null)
                         channel = channels.get(request.getChannelName());
                     break;
@@ -335,14 +334,10 @@ public class LzyServer {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = gRPCConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
-                        final String linkToStorage = detach.getLinkToStorage();
                         tasks.removeUserSlot(user, slot);
                         final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharon);
                         final Channel bound = channels.bound(endpoint);
                         if (bound != null) {
-                            if (!linkToStorage.equals("")) {
-                                channels.addLinkToStorage(bound, slot.name(), linkToStorage);
-                            }
                             channels.unbind(bound, endpoint);
                         }
                     }
@@ -390,7 +385,6 @@ public class LzyServer {
         }
 
         private Channels.ChannelStatus channelStatus(Channel channel) {
-            Map<String, String> linksToStorage = channels.getLinksToStorage(channel);
             final Channels.ChannelStatus.Builder slotStatus = Channels.ChannelStatus.newBuilder();
             slotStatus.setChannel(gRPCConverter.to(channel));
             for (SlotStatus state : tasks.connected(channel)) {
@@ -406,12 +400,6 @@ public class LzyServer {
                     .setPointer(state.pointer())
                     .setState(Operations.SlotStatus.State.valueOf(state.state().toString()))
                     .build();
-            }
-            for (var entry : linksToStorage.entrySet()) {
-                final Channels.StorageBinding.Builder builder = slotStatus.addStorageBindingsBuilder();
-                builder.setSlotName(entry.getKey());
-                builder.setLinkToStorage(entry.getValue());
-                builder.build();
             }
             return slotStatus.build();
         }

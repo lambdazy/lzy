@@ -36,7 +36,7 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public Channel create(String name, DataSchema contentTypeFrom, boolean persistent) {
+    public Channel create(String name, DataSchema contentTypeFrom) {
         final Lock lock = lockManager.getOrCreate(name);
         lock.lock();
         try {
@@ -45,8 +45,7 @@ public class LocalChannelsManager implements ChannelsManager {
             }
             final ChannelEx channel = new ChannelImpl(
                     name == null ? UUID.randomUUID().toString() : name,
-                    contentTypeFrom,
-                    persistent
+                    contentTypeFrom
             );
             channels.put(channel.name(), channel);
             return channel;
@@ -130,30 +129,6 @@ public class LocalChannelsManager implements ChannelsManager {
         }
     }
 
-    @Override
-    public void addLinkToStorage(Channel ch, String slotName, String link) {
-        final Lock lock = lockManager.getOrCreate(ch.name());
-        lock.lock();
-        try {
-            final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
-            channel.addLinkToStorage(slotName, link);
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    @Override
-    public Map<String, String> getLinksToStorage(Channel ch) {
-        final Lock lock = lockManager.getOrCreate(ch.name());
-        lock.lock();
-        try {
-            final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
-            return channel.getLinksToStorage();
-        } finally {
-            lock.unlock();
-        }
-    }
-
     @Nullable
     @Override
     public Channel bound(Endpoint endpoint) {
@@ -214,16 +189,12 @@ public class LocalChannelsManager implements ChannelsManager {
         private final DataSchema contentType;
         private ChannelController logic; // pluggable channel logic
         private final ChannelGraph channelGraph;
-        private final boolean persistent;
-        private final Map<String, String> linksToStorage = new ConcurrentHashMap<>();
 
-        ChannelImpl(String id, DataSchema contentType, boolean persistent) {
+        ChannelImpl(String id, DataSchema contentType) {
             this.id = id;
             this.contentType = contentType;
             this.logic = new DirectChannelController();
             this.channelGraph = new LocalChannelGraph();
-            this.persistent = persistent;
-            channelGraph.setPersistence(persistent);
         }
 
         @Override
@@ -234,19 +205,6 @@ public class LocalChannelsManager implements ChannelsManager {
         @Override
         public DataSchema contentType() {
             return contentType;
-        }
-
-        @Override
-        public boolean isPersistent() { return persistent; }
-
-        @Override
-        public void addLinkToStorage(String slotName, String linkToStorage) {
-            linksToStorage.put(slotName, linkToStorage);
-        }
-
-        @Override
-        public Map<String, String> getLinksToStorage() {
-            return linksToStorage;
         }
 
         @Override

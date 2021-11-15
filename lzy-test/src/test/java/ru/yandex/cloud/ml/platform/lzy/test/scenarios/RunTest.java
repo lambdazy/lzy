@@ -174,63 +174,6 @@ public class RunTest extends LzyBaseTest {
         Assert.assertEquals(0, result.exitCode());
     }
 
-    @Test
-    public void testChannelPersistent() {
-        //Arrange
-        final String fileContent = "fileContent";
-        final String fileName = "/tmp/lzy/kek/some_file.txt";
-        final String localFileName = "/tmp/lzy/lol/some_file.txt";
-        final String channelName = "channel1";
-
-        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
-        final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
-        final String channelOutName = "channel2";
-
-        final FileIOOperation cat_to_file = new FileIOOperation(
-                "cat_to_file_lzy",
-                List.of(fileName.substring(LZY_MOUNT.length())),
-                List.of(fileOutName.substring(LZY_MOUNT.length())),
-                "cat " + fileName + " > " + fileOutName
-        );
-
-        String channelStatusJson = terminal.createChannel(channelName, true);
-        Assert.assertTrue(new JSONObject(channelStatusJson).isNull("storageBindings"));
-        terminal.createSlot(localFileName, channelName, Utils.outFileSot());
-
-        channelStatusJson = terminal.createChannel(channelOutName, true);
-        Assert.assertTrue(new JSONObject(channelStatusJson).isNull("storageBindings"));
-        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
-
-        ForkJoinPool.commonPool()
-                .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
-        terminal.publish(cat_to_file.getName(), cat_to_file);
-        ForkJoinPool.commonPool()
-                .execute(() -> terminal.execute("bash", "-c", "cat " + localFileOutName));
-        final ExecutionResult result = terminal.run(
-                cat_to_file.getName(),
-                "",
-                Map.of(
-                        fileName.substring(LZY_MOUNT.length()), channelName,
-                        fileOutName.substring(LZY_MOUNT.length()), channelOutName
-                )
-        );
-
-        //Assert
-        channelStatusJson = terminal.channelStatus(channelName);
-        JSONArray storageBindings = new JSONObject(channelStatusJson).getJSONArray("storageBindings");
-        Assert.assertEquals(1, storageBindings.length());
-        JSONObject binding = storageBindings.getJSONObject(0);
-        Assert.assertEquals("Link to a storage " + fileContent + "\n", binding.getString("linkToStorage"));
-        Assert.assertEquals("/kek/some_file.txt", binding.getString("slotName"));
-
-        channelStatusJson = terminal.channelStatus(channelOutName);
-        storageBindings = new JSONObject(channelStatusJson).getJSONArray("storageBindings");
-        Assert.assertEquals(1, storageBindings.length());
-        binding = storageBindings.getJSONObject(0);
-        Assert.assertEquals("Link to a storage " + fileContent + "\n", binding.getString("linkToStorage"));
-        Assert.assertEquals("/lol/some_file_out.txt", binding.getString("slotName"));
-    }
-
     //@Test
     //public void testStartupPy() {
     //    //Arrange

@@ -91,7 +91,6 @@ public class TerminalSession {
                                 .setDetach(Servant.SlotDetach.newBuilder()
                                         .setSlot(detach.getSlot())
                                         .setUri(convertToKharonServantUri(detach.getUri()))
-                                        .setLinkToStorage(detach.getLinkToStorage())
                                         .build())
                                 .build());
                         break;

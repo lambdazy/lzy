@@ -37,4 +37,6 @@ public interface Task {
     enum State {
         PREPARING, CONNECTED, RUNNING, SUSPENDED, FINISHED, DESTROYED;
     }
+
+    boolean persistent();
 }

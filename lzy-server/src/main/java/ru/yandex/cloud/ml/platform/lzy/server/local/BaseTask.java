@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
@@ -17,7 +16,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
@@ -41,6 +39,7 @@ public abstract class BaseTask implements Task {
     private final Map<Slot, String> assignments;
     private final ChannelsManager channels;
     protected final URI serverURI;
+    protected final boolean persistent;
 
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final Map<Slot, Channel> attachedSlots = new HashMap<>();
@@ -55,6 +54,7 @@ public abstract class BaseTask implements Task {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
+        boolean persistent,
         ChannelsManager channels,
         URI serverURI
     ) {
@@ -62,6 +62,7 @@ public abstract class BaseTask implements Task {
         this.tid = tid;
         this.workload = workload;
         this.assignments = assignments;
+        this.persistent = persistent;
         this.channels = channels;
         this.serverURI = serverURI;
     }
@@ -80,6 +81,9 @@ public abstract class BaseTask implements Task {
     public State state() {
         return state;
     }
+
+    @Override
+    public boolean persistent() { return persistent; }
 
     @Override
     public void onProgress(Consumer<Servant.ExecutionProgress> listener) {
@@ -109,7 +113,13 @@ public abstract class BaseTask implements Task {
         servantURI = uri;
         this.servant = servant;
         final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
+            .setAuth(IAM.Auth.newBuilder()
+                .setTask(IAM.TaskCredentials.newBuilder()
+                    .setTaskId(tid.toString())
+                    .build())
+                .build())
             .setZygote(gRPCConverter.to(workload));
+        builder.setPersistent(persistent);
         assignments.forEach((slot, binding) ->
             builder.addAssignmentsBuilder()
                 .setSlot(gRPCConverter.to(slot))
@@ -153,15 +163,11 @@ public abstract class BaseTask implements Task {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = gRPCConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
-                        final String linkToStorage = detach.getLinkToStorage();
                         final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, servant);
                         final Channel channel = channels.bound(endpoint);
                         if (channel != null) {
                             attachedSlots.remove(slot);
                             channels.unbind(channel, endpoint);
-                            if (!linkToStorage.equals("")) {
-                                channels.addLinkToStorage(channel, slot.name(), linkToStorage);
-                            }
                         }
                         break;
                     }

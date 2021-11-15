@@ -22,6 +22,7 @@ public interface TasksManager {
         Task parent,
         Zygote workload,
         Map<Slot, String> assignments,
+        boolean persistent,
         Authenticator token,
         Consumer<Servant.ExecutionProgress> progressTracker
     ) throws TaskException;
@@ -30,7 +31,7 @@ public interface TasksManager {
     Stream<Channel> cs();
 
     Channel channel(String chName);
-    Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom, boolean persistent);
+    Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom);
 
     SlotStatus[] connected(Channel channel);
 

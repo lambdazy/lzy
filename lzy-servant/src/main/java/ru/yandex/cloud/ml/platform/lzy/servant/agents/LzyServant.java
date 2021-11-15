@@ -14,14 +14,12 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.LocalStorageManager;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.StorageManager;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.util.stream.Collectors;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
@@ -75,7 +73,7 @@ public class LzyServant extends LzyAgent {
             currentExecution = new LzyExecution(
                 tid,
                 (AtomicZygote) gRPCConverter.from(request.getZygote()),
-                agentInternalAddress
+                agentInternalAddress, request.getPersistent()
             );
 
             currentExecution.onProgress(progress -> {
@@ -119,9 +117,20 @@ public class LzyServant extends LzyAgent {
                 return;
             }
             final LzyOutputSlot slot = (LzyOutputSlot) currentExecution.slot(request.getSlot());
+            StorageManager storageManager = new LocalStorageManager();
             try {
                 slot.readFromPosition(request.getOffset())
-                    .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
+                    .forEach(chunk -> {
+                        responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build());
+                        if (currentExecution.persistent()) {
+                            LOG.info("LzyServant::openOutputSlot saving data from slot "
+                                    + slot.name() + ", with taskId " + currentExecution.taskId());
+                            storageManager.saveDataSender(chunk, slot.name(), currentExecution.taskId());
+                        }
+                    });
+                if (currentExecution.persistent()) {
+                    storageManager.end(slot.name(), currentExecution.taskId());
+                }
                 responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
                 responseObserver.onCompleted();
             } catch (IOException iae) {

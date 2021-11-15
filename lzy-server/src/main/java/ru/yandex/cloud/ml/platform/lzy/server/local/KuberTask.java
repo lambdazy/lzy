@@ -29,8 +29,9 @@ public class KuberTask extends BaseTask {
     public static final String LZY_SERVANT_POD_TEMPLATE_FILE_PROPERTY = "lzy.servant.pod.template.file";
     public static final String DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE = "/app/resources/kubernetes/lzy-servant-pod-template.yaml";
 
-    KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments, ChannelsManager channels, URI serverURI) {
-        super(owner, tid, workload, assignments, channels, serverURI);
+    KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
+              boolean persistent, ChannelsManager channels, URI serverURI) {
+        super(owner, tid, workload, assignments, persistent, channels, serverURI);
     }
 
     @Override

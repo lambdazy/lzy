@@ -13,12 +13,10 @@ import java.util.stream.Stream;
 
 public interface ChannelsManager {
     Channel get(String cid);
-    Channel create(String name, DataSchema contentTypeFrom, boolean persistent);
+    Channel create(String name, DataSchema contentTypeFrom);
     void bind(Channel channel, Endpoint endpoint) throws ChannelException;
     void unbind(Channel channel, Endpoint endpoint) throws ChannelException;
     void destroy(Channel channel);
-    void addLinkToStorage(Channel channel, String slotName, String link);
-    Map<String, String> getLinksToStorage(Channel channel);
 
     @Nullable
     Channel bound(Endpoint endpoint);
