@@ -51,7 +51,7 @@ public class PyRunTest extends LzyBaseTest {
         final String pyCommand = "python /lzy-python/examples/integration/catboost_simple.py";
 
         //Act
-        final LzyServantTestContext.Servant.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + pyCommand);
 
         //Assert

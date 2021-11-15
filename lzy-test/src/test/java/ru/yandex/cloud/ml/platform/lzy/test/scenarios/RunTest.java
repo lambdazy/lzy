@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("CommentedOutCode")
 public class RunTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
 
