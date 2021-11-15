@@ -90,6 +90,7 @@ pacman -Sy fuse2 inetutils
 4. Now ʎzy FS should be available at path `/tmp/lzy`
 ---
 **For python API:**
+
 5. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
 6. `cd lzy-servant/ && ./prepare_envs.sh ../lzy-python` (conda envs setup)
 
