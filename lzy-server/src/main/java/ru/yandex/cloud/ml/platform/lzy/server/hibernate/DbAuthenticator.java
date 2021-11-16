@@ -3,8 +3,9 @@ package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemReader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
@@ -13,32 +14,33 @@ import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
-import java.io.FileReader;
 import java.io.StringReader;
-import java.security.KeyFactory;
-import java.security.PublicKey;
 import java.security.Security;
-import java.security.Signature;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+
+import static ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials.checkToken;
 
 
 @Singleton
 @Requires(property = "authenticator", value = "DbAuthenticator")
 public class DbAuthenticator implements Authenticator {
-    private final Map<String, String> taskTokens = new HashMap<>();
-    private final Map<String, String> owners = new HashMap<>();
+    private static final Logger LOG = LogManager.getLogger(DbAuthenticator.class);
+
     @Inject
     private DbStorage storage;
 
     @Override
     public boolean checkUser(String userId, String token) {
+        LOG.info("checkUser userId=" + userId);
         String[] tokenParts = token.split("\\.");
         return isUserTokenSigned(userId, tokenParts[0], tokenParts[1]);
     }
 
     @Override
     public boolean checkTask(String tid, String token) {
+        LOG.info("checkTask tid=" + tid);
         try (Session session = storage.getSessionFactory().openSession()) {
             TaskModel taskModel = session.find(TaskModel.class, UUID.fromString(tid));
             return taskModel.getToken().equals(token);
@@ -124,32 +126,23 @@ public class DbAuthenticator implements Authenticator {
     }
 
     private boolean isUserTokenSigned(String userId, String token, String tokenSign) {
+        LOG.info("isUserTokenSigned " + userId);
         try (Session session = storage.getSessionFactory().openSession()) {
-            final UserModel user;
-            user = session.find(UserModel.class, userId);
+            final UserModel user = session.find(UserModel.class, userId);
             if (user == null) {
+                LOG.error("User " + userId + " not found in database");
                 return false;
             }
 
-            Security.addProvider(
-                    new org.bouncycastle.jce.provider.BouncyCastleProvider()
-            );
-            for (TokenModel user_token: user.getTokens()) {
-                try (StringReader keyReader = new StringReader(user_token.getValue()); PemReader pemReader = new PemReader(keyReader)){
-                    KeyFactory factory = KeyFactory.getInstance("RSA");
-                    PemObject pemObject = pemReader.readPemObject();
-                    byte[] content = pemObject.getContent();
-                    X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(content);
-                    PublicKey rsaKey = factory.generatePublic(pubKeySpec);
-
-                    final Signature sign = Signature.getInstance("SHA1withRSA");
-                    sign.initVerify(rsaKey);
-                    sign.update(token.getBytes());
-
-                    if (sign.verify(Base64.getDecoder().decode(tokenSign)))
+            Security.addProvider(new BouncyCastleProvider());
+            for (TokenModel userToken: user.getTokens()) {
+                try (StringReader keyReader = new StringReader(userToken.getValue())) {
+                    if (checkToken(keyReader, token, tokenSign)) {
+                        LOG.info("Successfully checked user token " + userId);
                         return true;
+                    }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    LOG.error(e);
                 }
             }
             return false;
