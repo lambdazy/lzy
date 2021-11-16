@@ -32,13 +32,21 @@ public class Credentials {
             PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(content);
             PrivateKey privateKey = factory.generatePrivate(privateKeySpec);
 
-            final String tokenSignature;
-            final Signature sign = Signature.getInstance("SHA1withRSA");
-            sign.initSign(privateKey);
-            sign.update(token.toString().getBytes());
-            tokenSignature = new String(Base64.getEncoder().encode(sign.sign()));
-            return tokenSignature;
+            return signToken(token, privateKey);
         }
+    }
+
+    public static String signToken(UUID token, PrivateKey privateKey) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        java.security.Security.addProvider(
+                new org.bouncycastle.jce.provider.BouncyCastleProvider()
+        );
+
+        final String tokenSignature;
+        final Signature sign = Signature.getInstance("SHA1withRSA");
+        sign.initSign(privateKey);
+        sign.update(token.toString().getBytes());
+        tokenSignature = new String(Base64.getEncoder().encode(sign.sign()));
+        return tokenSignature;
     }
 
     public static boolean checkToken(Reader keyReader, String token, String tokenSign) throws IOException, InvalidKeyException, SignatureException, InvalidKeySpecException {

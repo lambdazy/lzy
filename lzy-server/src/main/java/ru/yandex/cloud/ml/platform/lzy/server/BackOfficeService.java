@@ -276,6 +276,25 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         }
     }
 
+    @Override
+    public void checkPermission(BackOffice.CheckPermissionRequest request, StreamObserver<BackOffice.CheckPermissionResponse> responseObserver){
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getCredentials());
+        }
+        catch (StatusException e){
+            responseObserver.onError(e);
+            return;
+        }
+
+        responseObserver.onNext(BackOffice.CheckPermissionResponse.newBuilder()
+            .setGranted(auth.hasPermission(request.getCredentials().getUserId(), request.getPermissionName()))
+            .build()
+        );
+        responseObserver.onCompleted();
+
+    }
+
     private void authBackofficeCredentials(IAM.UserCredentials credentials) throws StatusException {
         if (!auth.checkUser(credentials.getUserId(), credentials.getToken())){
             throw Status.PERMISSION_DENIED.asException();

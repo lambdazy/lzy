@@ -93,7 +93,7 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean hasPermission(String uid, Permissions permission) {
+    public boolean hasPermission(String uid, String permission) {
         try (Session session = storage.getSessionFactory().openSession()) {
             UserModel user = session.find(UserModel.class, uid);
             if (user == null){
@@ -110,8 +110,13 @@ public class DbAuthenticator implements Authenticator {
                     .setParameter("userId", user.getUserId())
                     .addEntity(PermissionModel.class)
                     .list();
-            return permissions.contains(new PermissionModel(permission.name));
+            return permissions.contains(new PermissionModel(permission));
         }
+    }
+
+    @Override
+    public boolean hasPermission(String uid, Permissions permission) {
+        return hasPermission(uid, permission.name);
     }
 
     @Override

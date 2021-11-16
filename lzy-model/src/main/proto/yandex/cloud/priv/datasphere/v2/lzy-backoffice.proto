@@ -16,6 +16,7 @@ service LzyBackoffice{
   rpc GenerateSessionId(GenerateSessionIdRequest) returns (GenerateSessionIdResponse);
   rpc AuthUserSession(AuthUserSessionRequest) returns (AuthUserSessionResponse);
   rpc CheckSession(CheckSessionRequest) returns (CheckSessionResponse);
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
 }
 
 message AddTokenRequest{
@@ -100,3 +101,12 @@ message CheckSessionResponse{
   SessionStatus status = 1;
 }
 
+message CheckPermissionRequest{
+  UserCredentials backofficeCredentials = 1;
+  BackofficeUserCredentials credentials = 2;
+  string permissionName = 3;
+}
+
+message CheckPermissionResponse{
+  bool granted = 1;
+}

@@ -1,11 +1,13 @@
-package ru.yandex.cloud.ml.platform.lzy.backoffice.oauth;
+package ru.yandex.cloud.ml.platform.lzy.backoffice.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import io.micronaut.context.annotation.Requires;
 
 import javax.validation.constraints.NotBlank;
 
+@Requires(property = "azure-providers", value = "false", defaultValue = "false")
 @ConfigurationProperties("oauth")
-public class OAuthConfig {
+public class OAuthConfig implements OAuthSecretsProvider{
 
     private GithubOAuthConfig github = new GithubOAuthConfig();
 
@@ -18,7 +20,7 @@ public class OAuthConfig {
     }
 
     @ConfigurationProperties("github")
-    public static class GithubOAuthConfig{
+    public static class GithubOAuthConfig implements OAuthSecretsProvider.GithubOAuthSecretsProvider{
 
         @NotBlank
         private String clientId;

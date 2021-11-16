@@ -5,14 +5,26 @@ metadata:
 spec:
   containers:
   - name: lzy-server
+    imagePullPolicy: Always
     env:
       - name: LZY_SERVER_HOST
         valueFrom:
           fieldRef:
             fieldPath: status.podIP
+      - name: AUTHENTICATOR
+        value: "DbAuthenticator"
+      - name: DATABASE_URL
+        value: "jdbc:postgresql://postgres-postgresql.default.svc.cluster.local:5432/serverDB"
+      - name: DATABASE_USERNAME
+        value: "server"
+      - name: DATABASE_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: postgres
+            key: postgresql-password
     image: celdwind/lzy:lzy-server
     ports:
       - containerPort: 8888
   hostNetwork: true
-  dnsPolicy: Default
+  dnsPolicy: ClusterFirstWithHostNet
 

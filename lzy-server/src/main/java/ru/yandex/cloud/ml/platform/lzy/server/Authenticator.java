@@ -21,5 +21,7 @@ public interface Authenticator {
 
     boolean hasPermission(String uid, Permissions permission);
 
+    boolean hasPermission(String uid, String permission);
+
     boolean checkBackOfficeSession(UUID sessionId, String userId);
 }

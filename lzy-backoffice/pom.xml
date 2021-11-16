@@ -117,6 +117,14 @@
             <groupId>io.micronaut</groupId>
             <artifactId>micronaut-http-client</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-security-keyvault-secrets</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

@@ -4,14 +4,15 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.grpc.Client;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
-import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 
 import javax.validation.Valid;
 
+@ExecuteOn(TaskExecutors.IO)
 @Controller("users")
 public class UserController {
     @Inject

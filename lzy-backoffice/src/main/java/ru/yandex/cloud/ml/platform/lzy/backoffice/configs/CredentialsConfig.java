@@ -1,6 +1,7 @@
-package ru.yandex.cloud.ml.platform.lzy.backoffice;
+package ru.yandex.cloud.ml.platform.lzy.backoffice.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import org.bouncycastle.util.io.pem.PemReader;
@@ -16,8 +17,9 @@ import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.UUID;
 
+@Requires(property = "azure-providers", value = "false", defaultValue = "false")
 @ConfigurationProperties("credentials")
-public class CredentialsConfig {
+public class CredentialsConfig implements CredentialsProvider{
     private String userId;
     private String privateKeyPath;
 

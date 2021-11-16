@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.backoffice.grpc;
+package ru.yandex.cloud.ml.platform.lzy.backoffice.configs;
 
 import io.micronaut.context.annotation.Configuration;
 import io.micronaut.context.annotation.ConfigurationProperties;

@@ -68,6 +68,8 @@ export function AddToken(props: AddTokenFormPropsInterface) {
             <Form.Label>Token</Form.Label>
             <Form.Control
               type="text"
+              as="textarea"
+              rows={6}
               placeholder="Enter token"
               onChange={handleChangeToken}
             />

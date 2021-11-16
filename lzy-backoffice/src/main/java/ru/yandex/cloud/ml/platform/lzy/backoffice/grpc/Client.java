@@ -2,13 +2,13 @@ package ru.yandex.cloud.ml.platform.lzy.backoffice.grpc;
 
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.CredentialsProvider;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.GrpcConfig;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
@@ -19,7 +19,7 @@ public class Client {
     private final Channel channel;
 
     @Inject
-    CredentialsConfig credentials;
+    CredentialsProvider credentials;
 
     @Inject
     Client(GrpcConfig config){
@@ -116,6 +116,17 @@ public class Client {
             return getBlockingStub().authUserSession(
                     request.setBackofficeCredentials(credentials.getCredentials())
                             .build()
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
+
+    public BackOffice.CheckPermissionResponse checkPermission(CheckPermissionRequest request){
+        try {
+            return getBlockingStub().checkPermission(
+                request.toModel(credentials.getCredentials())
             );
         }
         catch (StatusRuntimeException e){

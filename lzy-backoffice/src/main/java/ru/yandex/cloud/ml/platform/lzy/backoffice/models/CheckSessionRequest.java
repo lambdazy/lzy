@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.backoffice.models;
 
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
