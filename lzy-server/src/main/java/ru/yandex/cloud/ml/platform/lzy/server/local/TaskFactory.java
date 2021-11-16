@@ -14,7 +14,7 @@ public class TaskFactory {
         final String taskType = System.getProperty("lzy.server.task.type", "default");
         switch (taskType) {
             case "local-docker":
-                return new LocalDockerTask(owner, tid, workload, assignments, channels, serverURI);
+                return new LocalDockerTask(owner, tid, workload, assignments, persistent, channels, serverURI);
             case "kuber":
                 return new KuberTask(owner, tid, workload, assignments, persistent, channels, serverURI);
             case "local-process":
