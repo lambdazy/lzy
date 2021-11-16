@@ -22,10 +22,9 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private long offset = 0;
     private URI connected;
     private SlotController slotController;
-    protected boolean persistent;
 
-    LzyInputSlotBase(String tid, Slot definition) {
-        super(definition);
+    LzyInputSlotBase(String tid, Slot definition, ExecutionSnapshot snapshot) {
+        super(definition, snapshot);
         this.tid = tid;
     }
 
@@ -35,11 +34,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         this.slotController = slotController;
     }
 
-    @Override
-    public void connectPersistent(URI slotUri, SlotController slotController) {
-        this.persistent = true;
-        connect(slotUri, slotController);
-    }
 
     @Override
     public void disconnect() {
@@ -61,7 +55,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             .setSlotUri(connected.toString())
             .build());
         try {
-            StorageManager storageManager = new LocalStorageManager();
             while (msgIter.hasNext()) {
                 final Servant.Message next = msgIter.next();
                 if (next.hasChunk()) {
@@ -69,10 +62,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                     try {
                         LOG.info("From {} chunk received {}", name(), chunk.toString(StandardCharsets.UTF_8));
                         onChunk(chunk);
-                        if (persistent) {
-                            LOG.info("LzyInputSlotBase::readAll() saving data from slot " + name() + ", taskId" + tid);
-                            storageManager.saveDataReceiver(chunk, name(), tid);
-                        }
+                        snapshot.onChunkInput(chunk, definition());
                     } catch (IOException ioe) {
                         LOG.warn(
                             "Unable write chunk of data of size " + chunk.size() + " to input slot " + name(),
@@ -82,9 +72,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                         offset += chunk.size();
                     }
                 } else if (next.getControl() == Servant.Message.Controls.EOS) {
-                    if (persistent) {
-                        storageManager.end(name(), tid);
-                    }
                     break;
                 }
             }

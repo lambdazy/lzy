@@ -28,12 +28,12 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private final Path storage;
     private final OutputStream outputStream;
 
-    public InFileSlot(String tid, Slot definition) throws IOException {
-        this(tid, definition, Files.createTempFile("lzy", "file-slot"));
+    public InFileSlot(String tid, Slot definition, ExecutionSnapshot snapshot) throws IOException {
+        this(tid, definition, Files.createTempFile("lzy", "file-slot"), snapshot);
     }
 
-    public InFileSlot(String tid, Slot definition, Path storage) throws IOException {
-        super(tid, definition);
+    public InFileSlot(String tid, Slot definition, Path storage, ExecutionSnapshot snapshot) throws IOException {
+        super(tid, definition, snapshot);
         this.storage = storage;
         outputStream = Files.newOutputStream(storage);
     }
@@ -45,12 +45,6 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
             super.connect(slotUri, slotController);
             readAll();
         });
-    }
-
-    @Override
-    public void connectPersistent(URI slotUri, SlotController slotController) {
-        persistent = true;
-        connect(slotUri, slotController);
     }
 
     @Override

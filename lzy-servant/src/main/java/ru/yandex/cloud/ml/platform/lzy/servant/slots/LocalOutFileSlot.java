@@ -8,8 +8,8 @@ import java.nio.file.Path;
 public class LocalOutFileSlot extends OutFileSlot {
     private final Path location;
 
-    public LocalOutFileSlot(String tid, Slot definition, URI uri) {
-        super(tid, definition, Path.of(uri.getPath()));
+    public LocalOutFileSlot(String tid, Slot definition, URI uri, ExecutionSnapshot snapshot) {
+        super(tid, definition, Path.of(uri.getPath()), snapshot);
         location = Path.of(uri.getPath());
     }
 

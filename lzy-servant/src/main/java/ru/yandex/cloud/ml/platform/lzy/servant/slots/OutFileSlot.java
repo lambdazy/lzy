@@ -32,15 +32,15 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     private boolean ready;
     private final List<Runnable> closeActions = new ArrayList<>();
 
-    protected OutFileSlot(String tid, Slot definition, Path storage) {
-        super(definition);
+    protected OutFileSlot(String tid, Slot definition, Path storage, ExecutionSnapshot snapshot) {
+        super(definition, snapshot);
         this.tid = tid;
         this.storage = storage;
         ready = true;
     }
 
-    public OutFileSlot(String tid, Slot definition) throws IOException {
-        super(definition);
+    public OutFileSlot(String tid, Slot definition, ExecutionSnapshot snapshot) throws IOException {
+        super(definition, snapshot);
         this.tid = tid;
         this.storage = Files.createTempFile("lzy", "file-slot");
         ready = false;

@@ -9,8 +9,8 @@ import java.io.Writer;
 public class WriterSlot extends LzyInputSlotBase {
     private Writer writer;
 
-    public WriterSlot(String tid, TextLinesInSlot definition) {
-        super(tid, definition);
+    public WriterSlot(String tid, TextLinesInSlot definition, ExecutionSnapshot snapshot) {
+        super(tid, definition, snapshot);
     }
 
     public void setStream(Writer wri) {

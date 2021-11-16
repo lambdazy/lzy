@@ -252,12 +252,7 @@ public abstract class LzyAgent implements Closeable {
                     final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(channel);
                     return stub::openOutputSlot;
                 });
-                LzyInputSlot lzyInputSlot = (LzyInputSlot) slot;
-                if (currentExecution.persistent()) {
-                    lzyInputSlot.connectPersistent(slotUri, slotController);
-                } else {
-                    lzyInputSlot.connect(slotUri, slotController);
-                }
+                ((LzyInputSlot) slot).connect(slotUri, slotController);
                 break;
             case DISCONNECT:
                 if (slot instanceof LzyInputSlot) {

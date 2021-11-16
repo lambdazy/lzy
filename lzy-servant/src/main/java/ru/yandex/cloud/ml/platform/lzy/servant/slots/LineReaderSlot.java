@@ -29,8 +29,8 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private final CompletableFuture<LineNumberReader> reader = new CompletableFuture<>();
     private long offset = 0;
 
-    public LineReaderSlot(String tid, TextLinesOutSlot definition) {
-        super(definition);
+    public LineReaderSlot(String tid, TextLinesOutSlot definition, ExecutionSnapshot snapshot) {
+        super(definition, snapshot);
         state(Operations.SlotStatus.State.OPEN);
         this.tid = tid;
     }

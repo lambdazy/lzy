@@ -20,9 +20,10 @@ public class LzySlotBase implements LzySlot {
     private final Slot definition;
     private Operations.SlotStatus.State state = Operations.SlotStatus.State.UNBOUND;
     private final Map<Operations.SlotStatus.State, List<Runnable>> actions = Collections.synchronizedMap(new HashMap<>());
+    protected final ExecutionSnapshot snapshot;
 
-    @SuppressWarnings("WeakerAccess")
-    protected LzySlotBase(Slot definition) {
+    protected LzySlotBase(Slot definition, ExecutionSnapshot snapshot) {
+        this.snapshot = snapshot;
         this.definition = definition;
         onState(Operations.SlotStatus.State.OPEN, () -> LOG.info("LzySlot::OPEN " + this));
         onState(Operations.SlotStatus.State.DESTROYED, () -> LOG.info("LzySlot::DESTROYED " + this));

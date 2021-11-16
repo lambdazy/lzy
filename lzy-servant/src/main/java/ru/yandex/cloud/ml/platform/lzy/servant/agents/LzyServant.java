@@ -1,21 +1,16 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
-import com.google.protobuf.ByteString;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.LocalStorageManager;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.StorageManager;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.ExecutionSnapshot;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -118,20 +113,13 @@ public class LzyServant extends LzyAgent {
                 return;
             }
             final LzyOutputSlot slot = (LzyOutputSlot) currentExecution.slot(request.getSlot());
-            StorageManager storageManager = new LocalStorageManager();
             try {
                 slot.readFromPosition(request.getOffset())
                     .forEach(chunk -> {
                         responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build());
-                        if (currentExecution.persistent()) {
-                            LOG.info("LzyServant::openOutputSlot saving data from slot "
-                                    + slot.name() + ", with taskId " + currentExecution.taskId());
-                            storageManager.saveDataSender(chunk, slot.name(), currentExecution.taskId());
-                        }
+                        ExecutionSnapshot executionSnapshot = currentExecution.executionSnapshot();
+                        executionSnapshot.onChunkOutput(chunk, slot.definition());
                     });
-                if (currentExecution.persistent()) {
-                    storageManager.end(slot.name(), currentExecution.taskId());
-                }
                 responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
                 responseObserver.onCompleted();
             } catch (IOException iae) {

@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.io.OutputStreamWriter;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,16 +51,26 @@ public class LzyExecution {
     private final Map<String, LzySlot> slots = new ConcurrentHashMap<>();
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
-    private final StorageManager storageManager = new LocalStorageManager();
+    private final ExecutionSnapshot executionSnapshot;
+    private final Whiteboard whiteboard = new LocalWhiteboard();
 
     public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, boolean persistent) {
         this.taskId = taskId;
         this.zygote = zygote;
-        stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"));
-        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"));
-        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"));
+        if (persistent) {
+            executionSnapshot = new LocalExecutionSnapshot();
+        } else {
+            executionSnapshot = new EmptyExecutionSnapshot();
+        }
+        stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"), executionSnapshot);
+        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"), executionSnapshot);
+        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"), executionSnapshot);
         this.servantUri = servantUri;
         this.persistent = persistent;
+    }
+
+    private URI generateSlotUri(Slot slot) throws URISyntaxException {
+        return new URI("https://some/address");
     }
 
     public LzySlot configureSlot(Slot spec, String binding) {
@@ -73,7 +84,8 @@ public class LzyExecution {
             try {
                 final LzySlot slot = createSlot(spec, binding);
                 if (persistent) {
-                    storageManager.prepareToSaveData(spec.name(), taskId);
+                    URI uri = generateSlotUri(slot.definition());
+                    whiteboard.prepareToSaveData(slot.definition(), uri);
                 }
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
@@ -102,6 +114,9 @@ public class LzyExecution {
                 slot.onState(Operations.SlotStatus.State.DESTROYED, () -> {
                     synchronized (slots) {
                         LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
+                        if (persistent) {
+                            whiteboard.commit(slot.definition());
+                        }
                         slots.remove(slot.name());
                         slots.notifyAll();
                     }
@@ -122,12 +137,16 @@ public class LzyExecution {
                 ).build());
                 LOG.info("Configured slot " + spec.name() + " " + slot);
                 return slot;
-            } catch (IOException ioe) {
+            } catch (IOException | URISyntaxException ioe) {
                 throw new RuntimeException(ioe);
             }
         } finally {
             lock.unlock();
         }
+    }
+
+    public ExecutionSnapshot executionSnapshot() {
+        return executionSnapshot;
     }
 
     public LzySlot createSlot(Slot spec, String binding) throws IOException {
@@ -147,18 +166,18 @@ public class LzyExecution {
                 case FILE: {
                     switch (spec.direction()) {
                         case INPUT:
-                            return new InFileSlot(taskId, spec);
+                            return new InFileSlot(taskId, spec, executionSnapshot);
                         case OUTPUT:
                             if (spec.name().startsWith("local://")) {
-                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()));
+                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()), executionSnapshot);
                             }
-                            return new OutFileSlot(taskId, spec);
+                            return new OutFileSlot(taskId, spec, executionSnapshot);
                     }
                     break;
                 }
                 case ARG:
                     arguments = binding;
-                    return new LzySlotBase(spec) {};
+                    return new LzySlotBase(spec, executionSnapshot) {};
             }
             throw new UnsupportedOperationException("Not implemented yet");
         } finally {
