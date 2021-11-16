@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 
-class TerminalProcess:
+class TerminalServer:
     jar_path = Path(os.path.dirname(__file__)) / '..' / 'lzy-servant.jar'
     jar_path = jar_path.resolve().absolute()
     start_timeout_sec = 30
@@ -40,7 +40,7 @@ class TerminalProcess:
             ['java', '-Dfile.encoding=UTF-8',
              '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32'
              f'-Dcustom.log.file={self._log_file}',
-             '-classpath', TerminalProcess.jar_path,
+             '-classpath', TerminalServer.jar_path,
              'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
              '--lzy-address', self._url,
              '--lzy-mount', self._lzy_mount,

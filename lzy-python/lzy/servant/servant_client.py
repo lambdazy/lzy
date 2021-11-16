@@ -39,7 +39,7 @@ class Execution:
         pass
 
 
-class Servant:
+class ServantClient:
     def __init__(self):
         self._log = logging.getLogger(str(self.__class__))
 

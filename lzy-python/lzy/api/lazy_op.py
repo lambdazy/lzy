@@ -7,7 +7,7 @@ from typing import Callable, Type, Tuple, Any, TypeVar, Optional
 import cloudpickle
 
 from lzy.model.zygote_python_func import ZygotePythonFunc
-from lzy.servant.servant import Servant
+from lzy.servant.servant_client import ServantClient
 from lzy.model.env import PyEnv
 
 T = TypeVar('T')
@@ -73,7 +73,7 @@ class LzyLocalOp(LzyOp):
 
 
 class LzyRemoteOp(LzyOp):
-    def __init__(self, servant: Servant, func: Callable,
+    def __init__(self, servant: ServantClient, func: Callable,
                  input_types: Tuple[type, ...],
                  output_type: Type[T], env: Optional[PyEnv] = None,
                  args: Tuple[Any, ...] = ()):
@@ -128,7 +128,7 @@ class LzyRemoteOp(LzyOp):
         return self._materialized
 
     @staticmethod
-    def restore(servant: Servant, materialized: bool, materialization: Any,
+    def restore(servant: ServantClient, materialized: bool, materialization: Any,
                 input_types: Tuple[Type, ...], output_types: Type[T],
                 func: Callable, *args: Tuple[Any, ...]):
         op = LzyRemoteOp(servant, func, input_types, output_types, args=args)
@@ -140,7 +140,7 @@ class LzyRemoteOp(LzyOp):
     def reducer(op) -> Any:
         # noinspection PyProtectedMember
         return LzyRemoteOp.restore, (
-            op._servant, op.is_materialized(), op._materialization,
+            op._servant_client, op.is_materialized(), op._materialization,
             op.input_types, op.return_type,
             op.func, *op.args)
 

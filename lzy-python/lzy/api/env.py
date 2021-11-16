@@ -1,13 +1,15 @@
 import dataclasses
 import inspect
 import logging
+import os
 from abc import abstractmethod, ABC
+from pathlib import Path
 from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 from lzy.api.pkg_info import get_python_env_as_yaml
-from lzy.servant.bash_servant import BashServant
-from lzy.servant.servant import Servant
-from lzy.servant.terminal import TerminalProcess
+from lzy.servant.bash_servant_client import BashServantClient
+from lzy.servant.servant_client import ServantClient
+from lzy.servant.terminal_server import TerminalServer
 from .buses import Bus
 from .lazy_op import LzyOp
 from .whiteboard import WhiteboardsRepoInMem, WhiteboardControllerImpl
@@ -25,7 +27,7 @@ class LzyEnvBase(ABC):
         pass
 
     @abstractmethod
-    def servant(self) -> Optional[Servant]:
+    def servant(self) -> Optional[ServantClient]:
         pass
 
     @abstractmethod
@@ -61,7 +63,7 @@ class LzyEnv(LzyEnvBase):
                  buses: List[Tuple[Callable, Bus]] = [], local: bool = False,
                  yaml_path: str = None, private_key_path: str = '~/.ssh/id_rsa',
                  server_url: str = 'localhost:8899',
-                 lzy_mount: str = '/tmp/lzy'):
+                 lzy_mount: str = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))):
         super().__init__()
         # if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
         #     raise ValueError('Whiteboard should be a dataclass')
@@ -72,9 +74,11 @@ class LzyEnv(LzyEnvBase):
 
         self._local = local
         if not local:
-            self._servant = BashServant()
+            self._terminal_server = TerminalServer(private_key_path, lzy_mount, server_url)
+            self._servant_client = BashServantClient(lzy_mount)
         else:
-            self._servant = None
+            self._terminal_server = None
+            self._servant_client = None
 
         self._wb_repo = WhiteboardsRepoInMem()
         self._ops = []
@@ -82,8 +86,6 @@ class LzyEnv(LzyEnvBase):
         self._buses = list(buses)
         self._yaml = yaml_path
         self._log = logging.getLogger(str(self.__class__))
-
-        self._terminal = TerminalProcess(private_key_path, lzy_mount, server_url)
 
     def generate_conda_env(self) -> Tuple[str, str]:
         if self._yaml is None:
@@ -102,12 +104,14 @@ class LzyEnv(LzyEnvBase):
 
     def activate(self):
         # TODO: should it be here or in __exit__?
-        self._terminal.start()
+        if self._terminal_server:
+            self._terminal_server.start()
         type(self).instance = self
 
     def deactivate(self):
         type(self).instance = None
-        self._terminal.stop()
+        if self._terminal_server:
+            self._terminal_server.stop()
 
     def __enter__(self) -> 'LzyEnv':
         if self.already_exists():
@@ -129,8 +133,8 @@ class LzyEnv(LzyEnvBase):
     def is_local(self) -> bool:
         return self._local
 
-    def servant(self) -> Optional[Servant]:
-        return self._servant
+    def servant(self) -> Optional[ServantClient]:
+        return self._servant_client
 
     def register_op(self, lzy_op: LzyOp) -> None:
         self._ops.append(lzy_op)
