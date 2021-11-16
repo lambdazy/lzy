@@ -13,13 +13,13 @@ public class TaskFactory {
     public static Task createTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments, boolean persistent, ChannelsManager channels, URI serverURI) {
         final String taskType = System.getProperty("lzy.server.task.type", "default");
         switch (taskType) {
+            case "local-docker":
+                return new LocalDockerTask(owner, tid, workload, assignments, channels, serverURI);
             case "kuber":
                 return new KuberTask(owner, tid, workload, assignments, persistent, channels, serverURI);
             case "local-process":
-                return new LocalProcessTask(owner, tid, workload, assignments, persistent, channels, serverURI);
-            case "local-docker":
             default:
-                return new LocalDockerTask(owner, tid, workload, assignments, persistent, channels, serverURI);
+                return new LocalProcessTask(owner, tid, workload, assignments, persistent, channels, serverURI);
         }
     }
 }

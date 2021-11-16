@@ -10,7 +10,8 @@ import sys
 from lzy.api.lazy_op import LzyRemoteOp
 from lzy.api.utils import lazy_proxy
 from lzy.model.zygote_python_func import FuncContainer
-from lzy.servant.bash_servant import BashServant
+from lzy.servant.bash_servant_client import BashServantClient
+from lzy.servant.servant_client import ServantClient
 
 
 def load_arg(path: Path) -> Any:
@@ -20,7 +21,7 @@ def load_arg(path: Path) -> Any:
 
 def main():
     argv = sys.argv[1:]
-    servant = BashServant()
+    servant: ServantClient = BashServantClient()
 
     print("Loading function")
     container: FuncContainer = cloudpickle.loads(base64.b64decode(argv[0].encode('ascii')))

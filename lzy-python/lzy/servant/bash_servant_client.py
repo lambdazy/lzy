@@ -11,8 +11,7 @@ from time import sleep
 from lzy.model.channel import Channel, Bindings
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
-from lzy.servant.servant import Servant, Execution
-from lzy.servant.servant import ExecutionResult
+from lzy.servant.servant_client import ServantClient, Execution, ExecutionResult
 
 
 class BashExecutionException(Exception):
@@ -64,11 +63,11 @@ class BashExecution(Execution):
         return ExecutionResult(out, err, self._process.returncode)
 
 
-class BashServant(Servant, metaclass=Singleton):
-    def __init__(self):
+class BashServantClient(ServantClient, metaclass=Singleton):
+    def __init__(self, lzy_mount: str = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))):
         super().__init__()
         self._log = logging.getLogger(str(self.__class__))
-        self._mount = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))
+        self._mount = lzy_mount
         self._log.info(f"Creating BashServant at MOUNT_PATH={self._mount}")
 
     def mount(self) -> Path:

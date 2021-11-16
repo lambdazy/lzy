@@ -14,11 +14,11 @@ The system is based on the following principle: a computing cluster is represent
 
 ## Quick start
 
-#### Installation
+### Installation
 
 `TODO: pip install lzy`
 
-#### Running
+### Running
 
 Just decorate your python functions with `@op` and run them within `LzyEnv` block!
 
@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
 ## Development
 
-#### Before local run
+### Before local run
 
 * For macOS: install [macFuse](https://osxfuse.github.io)
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 pacman -Sy fuse2 inetutils
 ```
 
-#### Local run
+### Local run
 
 1. Run `ru.yandex.cloud.ml.platform.lzy.server.LzyServer`
 2. Run `ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon`
@@ -88,7 +88,12 @@ pacman -Sy fuse2 inetutils
    4. `--internal-host host.docker.internal` (docker support; **only for macOS**)
    5. `terminal` (command name)
 4. Now ʎzy FS should be available at path `/tmp/lzy`
+---
+**For python API:**
 
-#### FAQ
+5. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
+6. `cd lzy-servant/ && ./prepare_envs.sh ../lzy-python` (conda envs setup)
+
+### FAQ
 
 * ```Exception in thread "main" java.lang.UnsatisfiedLinkError: dlopen(libfuse.dylib, 9): image not found```: Java > 11 is required

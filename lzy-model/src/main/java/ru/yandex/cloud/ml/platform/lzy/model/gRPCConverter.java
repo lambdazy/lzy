@@ -94,7 +94,7 @@ public abstract class gRPCConverter {
 
     public static Channels.Channel to(Channel channel) {
         final Channels.Channel.Builder builder = Channels.Channel.newBuilder();
-        builder.setChannelId(channel.name().toString());
+        builder.setChannelId(channel.name());
         builder.setContentType(to(channel.contentType()));
         return builder.build();
     }
@@ -199,7 +199,8 @@ public abstract class gRPCConverter {
 
         @Override
         public UUID tid() {
-            return slotStatus.getTaskId() != null && !slotStatus.getTaskId().isEmpty() ? UUID.fromString(slotStatus.getTaskId()) : null;
+            slotStatus.getTaskId();
+            return !slotStatus.getTaskId().isEmpty() ? UUID.fromString(slotStatus.getTaskId()) : null;
         }
 
         @Override
@@ -238,6 +239,11 @@ public abstract class gRPCConverter {
         @Override
         public String yaml() {
             return this.env.getYaml();
+        }
+
+        @Override
+        public URI uri() {
+            return URI.create("conda/" + name());
         }
     }
 }
