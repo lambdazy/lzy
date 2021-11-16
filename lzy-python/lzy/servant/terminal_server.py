@@ -9,11 +9,12 @@ class TerminalServer:
     jar_path = jar_path.resolve().absolute()
     start_timeout_sec = 30
 
-    def __init__(self, private_key_path: str, lzy_mount: str, url: str,
+    def __init__(self, private_key_path: str, lzy_mount: str, url: str, user: str,
                  custom_log_file: str = './custom_terminal_log',
                  terminal_log_path: str = './terminal_log'):
         self._private_key = private_key_path
         self._lzy_mount = lzy_mount
+        self._user = user
         self._url = url
         self._log_file = custom_log_file
         self._terminal_log_path = terminal_log_path
@@ -36,6 +37,8 @@ class TerminalServer:
         # TODO: redirection
         if not self._terminal_log:
             self._terminal_log = open(self._terminal_log_path, 'w')
+        env = os.environ.copy()
+        env['USER'] = self._user
         self._pcs = subprocess.Popen(
             ['java', '-Dfile.encoding=UTF-8',
              '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32'
@@ -47,7 +50,7 @@ class TerminalServer:
              '--private-key', self._private_key,
              '--host', 'localhost',
              'terminal'
-             ], stdout=self._terminal_log, stderr=self._terminal_log)
+             ], stdout=self._terminal_log, stderr=self._terminal_log, env=env)
         started_ts = int(time.time())
         while not self._check_exists_safe(sbin_channel) and int(time.time()) < started_ts + self.start_timeout_sec:
             time.sleep(0.2)

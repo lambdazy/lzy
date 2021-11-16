@@ -60,7 +60,7 @@ class LzyEnv(LzyEnvBase):
 
     # noinspection PyDefaultArgument
     def __init__(self, eager: bool = False, whiteboard: Any = None,
-                 buses: List[Tuple[Callable, Bus]] = [], local: bool = False,
+                 buses: List[Tuple[Callable, Bus]] = [], local: bool = False, user: str = None,
                  yaml_path: str = None, private_key_path: str = '~/.ssh/id_rsa',
                  server_url: str = 'localhost:8899',
                  lzy_mount: str = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))):
@@ -74,7 +74,9 @@ class LzyEnv(LzyEnvBase):
 
         self._local = local
         if not local:
-            self._terminal_server = TerminalServer(private_key_path, lzy_mount, server_url)
+            if not user:
+                raise ValueError("Username must be specified")
+            self._terminal_server = TerminalServer(private_key_path, lzy_mount, server_url, user)
             self._servant_client = BashServantClient(lzy_mount)
         else:
             self._terminal_server = None

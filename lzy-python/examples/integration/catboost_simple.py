@@ -33,7 +33,7 @@ def predict(cb_model: CatBoostClassifier, point: np.array) -> np.int64:
 
 
 if __name__ == '__main__':
-    with LzyEnv():
+    with LzyEnv(user="test_user"):
         data = dataset()
         model = learn(data)
         result = predict(model, np.array([9, 1]))
