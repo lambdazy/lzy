@@ -1,15 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
@@ -17,18 +10,12 @@ import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -46,7 +33,6 @@ public abstract class BaseTask implements Task {
     private final Map<Slot, Channel> attachedSlots = new HashMap<>();
 
     private State state = State.PREPARING;
-    private ManagedChannel servantChannel;
     private URI servantURI;
     private LzyServantBlockingStub servant;
 
@@ -182,11 +168,6 @@ public abstract class BaseTask implements Task {
     @Override
     public URI servant() {
         return servantURI;
-    }
-
-    @Override
-    public io.grpc.Channel servantChannel() {
-        return servantChannel;
     }
 
     @Override

@@ -2,13 +2,14 @@ import copyreg
 import inspect
 import logging
 from abc import abstractmethod
-from typing import Callable, Type, Tuple, Any, TypeVar, Optional
+from typing import Callable, Type, Tuple, Any, TypeVar
 
 import cloudpickle
 
+from lzy.model.env import PyEnv
+from lzy.model.zygote import Provisioning
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant_client import ServantClient
-from lzy.model.env import PyEnv
 
 T = TypeVar('T')
 
@@ -75,12 +76,17 @@ class LzyLocalOp(LzyOp):
 class LzyRemoteOp(LzyOp):
     def __init__(self, servant: ServantClient, func: Callable,
                  input_types: Tuple[type, ...],
-                 output_type: Type[T], env: Optional[PyEnv] = None,
+                 output_type: Type[T], provisioning: Provisioning = None, env: PyEnv = None,
+                 deployed: bool = False,
                  args: Tuple[Any, ...] = ()):
         super().__init__(func, input_types, output_type, args)
-        self._deployed = False
+        self._deployed = deployed
         self._servant = servant
-        self._zygote = ZygotePythonFunc(func, input_types, output_type, self._servant.mount(), env)
+        self._provisioning = provisioning
+        self._env = env
+        if (not provisioning or not env) and not deployed:
+            raise ValueError('Non-deployed ops must have provisioning and env')
+        self._zygote = ZygotePythonFunc(func, input_types, output_type, self._servant.mount(), env, provisioning)
 
     def execution_logic(self):
         execution = self._servant.run(self._zygote)
@@ -106,9 +112,6 @@ class LzyRemoteOp(LzyOp):
         self._log.info("Executed task %s for func %s with rc %s",
                        execution.id()[:4], self.func.__name__, result.rc())
 
-    def deploy(self):
-        self._deployed = True
-
     def materialize(self) -> Any:
         self._log.info("Materializing function %s", self.func)
         if not self._materialized:
@@ -130,8 +133,8 @@ class LzyRemoteOp(LzyOp):
     @staticmethod
     def restore(servant: ServantClient, materialized: bool, materialization: Any,
                 input_types: Tuple[Type, ...], output_types: Type[T],
-                func: Callable, *args: Tuple[Any, ...]):
-        op = LzyRemoteOp(servant, func, input_types, output_types, args=args)
+                func: Callable, provisioning: Provisioning, env: PyEnv, *args: Tuple[Any, ...]):
+        op = LzyRemoteOp(servant, func, input_types, output_types, provisioning, env, deployed=False, args=args)
         op._materialized = materialized
         op._materialization = materialization
         return op
@@ -142,7 +145,7 @@ class LzyRemoteOp(LzyOp):
         return LzyRemoteOp.restore, (
             op._servant_client, op.is_materialized(), op._materialization,
             op.input_types, op.return_type,
-            op.func, *op.args)
+            op.func, op._provisioning, op._env, *op.args)
 
 
 copyreg.dispatch_table[LzyRemoteOp] = LzyRemoteOp.reducer
