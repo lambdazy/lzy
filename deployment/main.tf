@@ -25,24 +25,12 @@ resource "azurerm_kubernetes_cluster" "main" {
   resource_group_name = azurerm_resource_group.test.name
   dns_prefix          = var.dns_prefix
 
-  #  linux_profile {
-  #    admin_username = "ubuntu"
-  #
-  #    ssh_key {
-  #      key_data = file(var.ssh_public_key)
-  #    }
-  #  }
-
   default_node_pool {
     name       = "agentpool"
     node_count = var.agent_count
     vm_size    = "Standard_D2_v2"
   }
 
-  #  service_principal {
-  #    client_id     = var.client_id
-  #    client_secret = var.client_secret
-  #  }
   identity {
     type = "SystemAssigned"
   }
@@ -57,9 +45,9 @@ resource "azurerm_kubernetes_cluster" "main" {
   }
 }
 
-resource "kubernetes_pod" "lzy-server" {
+resource "kubernetes_pod" "lzy_server" {
   metadata {
-    name = "lzy-server"
+    name   = "lzy-server"
     labels = {
       app = "lzy-server"
     }
@@ -83,7 +71,7 @@ resource "kubernetes_pod" "lzy-server" {
   }
 }
 
-resource "kubernetes_service" "lzy-server-service" {
+resource "kubernetes_service" "lzy_server" {
   metadata {
     name = "lzy-server-service"
   }
@@ -97,7 +85,7 @@ resource "kubernetes_service" "lzy-server-service" {
   }
 }
 
-resource "kubernetes_pod" "lzy-kharon" {
+resource "kubernetes_pod" "lzy_kharon" {
   metadata {
     name   = "lzy-kharon"
     labels = {
@@ -119,7 +107,7 @@ resource "kubernetes_pod" "lzy-kharon" {
       }
       env {
         name  = "LZY_SERVER_IP"
-        value = kubernetes_service.lzy-server-service.spec[0].cluster_ip
+        value = kubernetes_service.lzy_server.spec[0].cluster_ip
       }
       args              = [
         "--lzy-server-address",
@@ -137,12 +125,13 @@ resource "kubernetes_pod" "lzy-kharon" {
   }
 }
 
-resource "azurerm_public_ip" "test" {
+resource "azurerm_public_ip" "lzy_kharon" {
   name                = "lzy_kharon_domain_name_label"
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
   sku                 = "Standard"
   allocation_method   = "Static"
+  domain_name_label   = "lzy-kharon.northeurope.cloudapp.azure.com"
 }
 
 resource "azurerm_role_assignment" "test" {
@@ -151,7 +140,7 @@ resource "azurerm_role_assignment" "test" {
   principal_id         = azurerm_kubernetes_cluster.main.identity[0].principal_id
 }
 
-resource "kubernetes_service" "lzy-kharon-service" {
+resource "kubernetes_service" "lzy_kharon" {
   metadata {
     annotations = {
       "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
@@ -159,7 +148,7 @@ resource "kubernetes_service" "lzy-kharon-service" {
     name        = "lzy-kharon-service"
   }
   spec {
-    load_balancer_ip = azurerm_public_ip.test.ip_address
+    load_balancer_ip = azurerm_public_ip.lzy_kharon.ip_address
     type             = "LoadBalancer"
     port {
       port = 8899

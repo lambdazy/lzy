@@ -23,3 +23,7 @@ variable location {
 variable lzy_server_ip {
   default = "North Europe"
 }
+
+variable lzy_kharon_dns {
+  default = "North Europe"
+}
