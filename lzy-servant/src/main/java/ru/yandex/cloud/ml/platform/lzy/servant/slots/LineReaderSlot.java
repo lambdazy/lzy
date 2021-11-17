@@ -77,6 +77,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                 LineReaderSlot.this.offset += bytes.size();
                 LOG.info("Send from slot {} data {}", name(), line);
                 line = null;
+                snapshot.onChunkOutput(bytes, definition());
                 return bytes;
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);

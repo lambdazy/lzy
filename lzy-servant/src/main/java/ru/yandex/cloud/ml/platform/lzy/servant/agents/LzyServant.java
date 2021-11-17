@@ -117,8 +117,6 @@ public class LzyServant extends LzyAgent {
                 slot.readFromPosition(request.getOffset())
                     .forEach(chunk -> {
                         responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build());
-                        ExecutionSnapshot executionSnapshot = currentExecution.executionSnapshot();
-                        executionSnapshot.onChunkOutput(chunk, slot.definition());
                     });
                 responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
                 responseObserver.onCompleted();

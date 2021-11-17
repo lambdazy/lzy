@@ -145,10 +145,6 @@ public class LzyExecution {
         }
     }
 
-    public ExecutionSnapshot executionSnapshot() {
-        return executionSnapshot;
-    }
-
     public LzySlot createSlot(Slot spec, String binding) throws IOException {
         final Lock lock = lockManager.getOrCreate(spec.name());
         lock.lock();
