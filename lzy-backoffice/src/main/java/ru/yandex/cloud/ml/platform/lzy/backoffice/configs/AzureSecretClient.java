@@ -22,10 +22,10 @@ import java.util.UUID;
 
 @Requires(property = "azure-providers", value = "true")
 @Singleton
-public class BackofficeSecretClient implements CredentialsProvider{
+public class AzureSecretClient implements CredentialsProvider{
     private final SecretClient secretClient;
 
-    BackofficeSecretClient(){
+    AzureSecretClient(){
         DefaultAzureCredential defaultCredential = new DefaultAzureCredentialBuilder()
             .build();
 

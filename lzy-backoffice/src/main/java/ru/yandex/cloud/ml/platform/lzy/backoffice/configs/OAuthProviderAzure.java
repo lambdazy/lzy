@@ -19,7 +19,7 @@ public class OAuthProviderAzure implements OAuthSecretsProvider{
     @Singleton
     public class GithubOAuthProviderAzure implements OAuthSecretsProvider.GithubOAuthSecretsProvider{
         @Inject
-        BackofficeSecretClient secrets;
+        AzureSecretClient secrets;
 
         @Override
         public String getClientId() {

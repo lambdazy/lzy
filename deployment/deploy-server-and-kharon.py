@@ -61,7 +61,7 @@ def main():
     with open(path.join("deployment", "lzy-backoffice-pod-template.yaml")) as f:
         dep = yaml.safe_load(f)
         lzy_server_ip = get_pod(server_pod_name, default_namespace, api).status.pod_ip
-        dep["spec"]["containers"][1]["env"].append(client.models.V1EnvVar(name="LZY_SERVER_IP", value=lzy_server_ip))
+        dep["spec"]["containers"][1]["env"].append(client.models.V1EnvVar(name="GRPC_HOST", value=lzy_server_ip))
         resp = api.create_namespaced_pod(body=dep, namespace=default_namespace)
         wait_pod_phase_or_destroy(backoffice_pod_name, default_namespace, api, "Running")
 

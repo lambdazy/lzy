@@ -17,8 +17,6 @@ spec:
       env:
         - name: GRPC_PORT
           value: "8888"
-        - name: GRPC_HOST
-          value: "$(LZY_SERVER_IP)"
         - name: OAUTH_GITHUB_CLIENT_ID
           valueFrom:
             secretKeyRef:
