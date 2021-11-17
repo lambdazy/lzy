@@ -11,7 +11,7 @@ export const Header = () => {
     <div>
       <Navbar bg="light">
         <Container>
-          <Navbar.Brand>
+          <Navbar.Brand href="/">
             <LzyLogo width="100" height="50"></LzyLogo>
           </Navbar.Brand>
           <Nav className="me-auto">
