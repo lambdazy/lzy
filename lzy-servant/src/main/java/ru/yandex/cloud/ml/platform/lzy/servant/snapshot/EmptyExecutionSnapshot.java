@@ -7,13 +7,21 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 public class EmptyExecutionSnapshot implements ExecutionSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
 
     @Override
-    public String getSlotKey(Slot slot) {
+    public URI getSlotUri(Slot slot) {
         // do nothing
-        return "";
+        try {
+            return new URI("https://some_address");
+        } catch (URISyntaxException e) {
+            // never happens
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

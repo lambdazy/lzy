@@ -83,8 +83,8 @@ public class LzyExecution {
             try {
                 final LzySlot slot = createSlot(spec, binding);
                 if (persistent) {
-                    String key = executionSnapshot.getSlotKey(slot.definition());
-                    whiteboard.prepareToSaveData(slot.definition(), key);
+                    URI uri = executionSnapshot.getSlotUri(slot.definition());
+                    whiteboard.prepareToSaveData(slot.definition(), uri);
                 }
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");

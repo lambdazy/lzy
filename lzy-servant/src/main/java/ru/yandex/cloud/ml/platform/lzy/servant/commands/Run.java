@@ -32,9 +32,6 @@ public class Run implements LzyCommand {
 
     static {
         options.addOption(new Option("m", "mapping", true, "Slot-channel mapping"));
-    }
-
-    static {
         options.addOption(new Option("persistent", "persistent", false, "Task persistence"));
     }
 
