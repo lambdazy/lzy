@@ -106,3 +106,12 @@ class ProxyTests(TestCase):
         self.assertEqual(len(a), 0)
         op.materialize()
         self.assertEqual(len(a), 1)
+
+
+    def test_int_sum(self):
+        a = 10
+        b = 50
+
+        prxy_a = proxy(lambda: a, int)
+        prxy_b = proxy(lambda: b, int)
+        print(prxy_a + prxy_b)

@@ -1,5 +1,18 @@
+import functools
 from typing import Type, Callable, TypeVar
 
+def caster(f):
+    @functools.wraps(f)
+    def inner(*args, **kwargs):
+        try:
+            print("Or here")
+            return f(*args, **kwargs)
+        finally:
+            args = tuple(create_and_cache(type(arg), type(arg).__origin) if isinstance(type(arg), Proxifier) else arg for arg in args)
+            kwargs = {k: create_and_cache(type(arg), type(arg).__origin) if isinstance(type(arg), Proxifier) else arg for k, arg in kwargs.items()}
+            print('here')
+            return f(*args, **kwargs)
+    return inner
 
 class TrickDescriptor:
     def __init__(self, attr, callback):
@@ -26,7 +39,7 @@ class TrickDescriptor:
             # TODO: so mb instead it's better to return wrapped function instead
             # TODO: wrapped function would make proxy out of result of the
             # TODO: same type
-            return res
+            return caster(res)
         # otherwise just call original __get__ without forcing evaluation
         return f.__get__(instance, owner)
 
@@ -46,6 +59,7 @@ class Proxifier(type):
         }
         new_attrs.update(attrs)
         new_attrs.update(cls_attrs)
+        new_attrs.update({'__origin': origin_getter})
 
         # omg, this single line allows proxy to wrap types with __slots__
         # just leave it here
