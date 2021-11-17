@@ -23,14 +23,14 @@ class TerminalServer:
         self._already_started = False
 
     def start(self):
-        if not os.path.exists(os.path.expanduser(self._private_key)):
-            raise ValueError(f'Private key path does not exists: {self._private_key}')
-
         sbin_channel = Path(self._lzy_mount) / 'sbin' / 'channel'
         # using safe version instead of `exists()` because path can be not mounted
         self._already_started = self._check_exists_safe(sbin_channel)
         if self._already_started:
             return
+
+        if not os.path.exists(os.path.expanduser(self._private_key)):
+            raise ValueError(f'Private key path does not exists: {self._private_key}')
 
         # TODO: understand why terminal writes to stdout even with
         # TODO: custom.log.file argument and drop terminal_log_path and
