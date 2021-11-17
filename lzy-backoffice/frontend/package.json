@@ -31,7 +31,7 @@
     "web-vitals": "^1.1.2"
   },
   "scripts": {
-    "build-markdown": "markdown ../../readme.md > src/readme.html",
+    "build-markdown": "cp../../readme.md src/readme.md",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
