@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lzy-backoffice
+  labels:
+    app: lzy-backoffice
+spec:
+  containers:
+    - name: lzy-backoffice-frontend
+      imagePullPolicy: Always
+      image: celdwind/lzy:lzy-backoffice-frontend
+      ports:
+        - containerPort: 80
+    - name: lzy-backoffice-backend
+      imagePullPolicy: Always
+      image: celdwind/lzy:lzy-backoffice-backend
+      env:
+        - name: GRPC_PORT
+          value: "8888"
+        - name: OAUTH_GITHUB_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: oauth-github
+              key: client-id
+        - name: CREDENTIALS_USER_ID
+          value: "backoffice"
+        - name: OAUTH_GITHUB_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: oauth-github
+              key: client-secret
+        - name: CREDENTIALS_PRIVATE_KEY_PATH
+          value: "/etc/sec/backofficePrivateKey.txt"
+      volumeMounts:
+        - name: sec
+          mountPath: "/etc/sec"
+      ports:
+        - containerPort: 8080
+  volumes:
+    - name: sec
+      secret:
+        secretName: backoffice-secrets
+        items:
+          - key: private-key
+            path: backofficePrivateKey.txt
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet

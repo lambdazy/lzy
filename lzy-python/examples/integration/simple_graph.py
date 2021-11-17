@@ -15,7 +15,7 @@ def main():
         # noinspection PyTypeChecker
         return v + "" + str(a)
 
-    with LzyEnv(user="test_user"):
+    with LzyEnv(user="test_user", server_url="localhost:8899"):
         s = str_gen()
         f = foo(2)
         b = bar(f, s)

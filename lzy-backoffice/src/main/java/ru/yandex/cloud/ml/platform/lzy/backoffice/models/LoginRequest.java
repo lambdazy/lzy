@@ -4,18 +4,9 @@ import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class LoginRequest{
-    private String userId;
     private String sessionId;
     private String provider;
     private String redirectUrl;
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
 
     public String getSessionId() {
         return sessionId;

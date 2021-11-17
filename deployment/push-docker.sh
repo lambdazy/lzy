@@ -8,6 +8,8 @@ then
             docker push celdwind/lzy:lzy-servant-base
     fi
     mvn clean install -DskipTests
+    docker build -t celdwind/lzy:lzy-backoffice-backend lzy-backoffice/Dockerfile
+    docker build -t celdwind/lzy:lzy-backoffice-frontend lzy-backoffice/frontend/Dockerfile
 fi
 
 docker tag lzy-server celdwind/lzy:lzy-server
@@ -17,3 +19,5 @@ docker tag lzy-kharon celdwind/lzy:lzy-kharon
 docker push celdwind/lzy:lzy-server
 docker push celdwind/lzy:lzy-servant
 docker push celdwind/lzy:lzy-kharon
+docker push celdwind/lzy:lzy-backoffice-backend
+docker push celdwind/lzy:lzy-backoffice-frontend

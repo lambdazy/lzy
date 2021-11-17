@@ -4,7 +4,7 @@ import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
@@ -18,19 +18,19 @@ public class LzyStartupTest extends LzyBaseTest {
     @Test
     public void testFuseWorks() {
         //Arrange
-        final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
+        final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
-            kharonContext.serverAddress(servantContext.inDocker())
+            kharonContext.serverAddress(terminalContext.inDocker())
         );
 
         //Act
-        servant.waitForStatus(AgentStatus.EXECUTING, DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+        terminal.waitForStatus(AgentStatus.EXECUTING, DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
 
         //Assert
-        Assert.assertTrue(servant.pathExists(Paths.get(LZY_MOUNT + "/sbin")));
-        Assert.assertTrue(servant.pathExists(Paths.get(LZY_MOUNT + "/bin")));
-        Assert.assertTrue(servant.pathExists(Paths.get(LZY_MOUNT + "/dev")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(LZY_MOUNT + "/sbin")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(LZY_MOUNT + "/bin")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(LZY_MOUNT + "/dev")));
     }
 
     @Test
@@ -44,12 +44,12 @@ public class LzyStartupTest extends LzyBaseTest {
                 .collect(Collectors.toList());
 
         //Act
-        final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
+        final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
-            kharonContext.serverAddress(servantContext.inDocker())
+            kharonContext.serverAddress(terminalContext.inDocker())
         );
-        final boolean status = servant.waitForStatus(
+        final boolean status = terminal.waitForStatus(
                 AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
@@ -57,7 +57,7 @@ public class LzyStartupTest extends LzyBaseTest {
 
         //Assert
         Assert.assertTrue(status);
-        zygotes.forEach(registeredZygote -> Assert.assertTrue(servant.pathExists(Paths.get(
+        zygotes.forEach(registeredZygote -> Assert.assertTrue(terminal.pathExists(Paths.get(
                 LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
     }
 
@@ -93,12 +93,12 @@ public class LzyStartupTest extends LzyBaseTest {
                 .collect(Collectors.toList());
 
         //Act
-        final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
+        final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
-            kharonContext.serverAddress(servantContext.inDocker())
+            kharonContext.serverAddress(terminalContext.inDocker())
         );
-        final boolean started = servant.waitForStatus(
+        final boolean started = terminal.waitForStatus(
                 AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
@@ -113,23 +113,23 @@ public class LzyStartupTest extends LzyBaseTest {
 
         //Assert
         Assert.assertTrue(started);
-        zygotesBeforeStart.forEach(registeredZygote -> Assert.assertTrue(servant.pathExists(Paths.get(
+        zygotesBeforeStart.forEach(registeredZygote -> Assert.assertTrue(terminal.pathExists(Paths.get(
                 LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
-        zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(servant.pathExists(Paths.get(
+        zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(terminal.pathExists(Paths.get(
                 LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
     }
 
     @Test
     public void testServantDiesAfterServerDied() {
         //Arrange
-        final LzyServantTestContext.Servant servant = servantContext.startTerminalAtPathAndPort(
+        final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
-            kharonContext.serverAddress(servantContext.inDocker())
+            kharonContext.serverAddress(terminalContext.inDocker())
         );
 
         //Act
-        final boolean started = servant.waitForStatus(
+        final boolean started = terminal.waitForStatus(
                 AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
@@ -138,6 +138,6 @@ public class LzyStartupTest extends LzyBaseTest {
 
         //Assert
         Assert.assertTrue(started);
-        Assert.assertTrue(servant.waitForShutdown(10, TimeUnit.SECONDS));
+        Assert.assertTrue(terminal.waitForShutdown(10, TimeUnit.SECONDS));
     }
 }

@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -27,17 +28,17 @@ public class InMemTasksManager implements TasksManager {
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     protected final URI serverURI;
     private final ChannelsManager channels;
-    private final Map<UUID, Task> tasks = new HashMap<>();
+    private final Map<UUID, Task> tasks = new ConcurrentHashMap<>();
 
-    private final Map<String, List<Task>> userTasks = new HashMap<>();
-    private final Map<Task, Task> parents = new HashMap<>();
-    private final Map<Task, String> owners = new HashMap<>();
-    private final Map<Task, List<Task>> children = new HashMap<>();
+    private final Map<String, List<Task>> userTasks = new ConcurrentHashMap<>();
+    private final Map<Task, Task> parents = new ConcurrentHashMap<>();
+    private final Map<Task, String> owners = new ConcurrentHashMap<>();
+    private final Map<Task, List<Task>> children = new ConcurrentHashMap<>();
 
-    private final Map<Task, List<Channel>> taskChannels = new HashMap<>();
-    private final Map<String, List<Channel>> userChannels = new HashMap<>();
+    private final Map<Task, List<Channel>> taskChannels = new ConcurrentHashMap<>();
+    private final Map<String, List<Channel>> userChannels = new ConcurrentHashMap<>();
 
-    private final Map<String, Map<Slot, Channel>> userSlots = new HashMap<>();
+    private final Map<String, Map<Slot, Channel>> userSlots = new ConcurrentHashMap<>();
 
     public InMemTasksManager(URI serverURI, ChannelsManager channels) {
         this.serverURI = serverURI;
@@ -73,7 +74,7 @@ public class InMemTasksManager implements TasksManager {
 
     @Override
     public void addUserSlot(String user, Slot slot, Channel channel) {
-        userSlots.computeIfAbsent(user, u -> new HashMap<>()).put(slot, channel);
+        userSlots.computeIfAbsent(user, u -> new ConcurrentHashMap<>()).put(slot, channel);
     }
 
     @Override
@@ -91,10 +92,11 @@ public class InMemTasksManager implements TasksManager {
                       boolean persistent, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
         final Task task = TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, persistent, channels, serverURI);
         tasks.put(task.tid(), task);
-        if (parent != null)
+        if (parent != null) {
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);
+            parents.put(task, parent);
+        }
         userTasks.computeIfAbsent(uid, user -> new ArrayList<>()).add(task);
-        parents.put(task, parent);
         owners.put(task, uid);
         task.onProgress(state -> {
             consumer.accept(state);
@@ -106,7 +108,10 @@ public class InMemTasksManager implements TasksManager {
                 return;
             children.getOrDefault(task, List.of()).forEach(child -> child.signal(Signal.TERM));
             children.remove(task);
-            children.getOrDefault(parents.remove(task), new ArrayList<>()).remove(task);
+            final Task removedTask = parents.remove(task);
+            if (removedTask != null) {
+                children.getOrDefault(removedTask, new ArrayList<>()).remove(task);
+            }
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
             if (task.servant() != null) {
                 LOG.info("LocalTaskManager::unbindAll");

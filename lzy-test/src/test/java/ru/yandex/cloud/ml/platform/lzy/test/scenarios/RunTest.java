@@ -4,8 +4,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext.Servant.ExecutionResult;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.nio.file.Path;
@@ -15,17 +15,16 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("CommentedOutCode")
 public class RunTest extends LzyBaseTest {
-    private LzyServantTestContext.Servant terminal;
+    private LzyTerminalTestContext.Terminal terminal;
 
     @Before
     public void setUp() {
         super.setUp();
-        terminal = servantContext.startTerminalAtPathAndPort(
+        terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             9999,
-            kharonContext.serverAddress(servantContext.inDocker())
+            kharonContext.serverAddress(terminalContext.inDocker())
         );
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
@@ -171,88 +170,4 @@ public class RunTest extends LzyBaseTest {
         Assert.assertEquals(fileContent + "\n", result1[0].stdout());
         Assert.assertEquals(0, result.exitCode());
     }
-
-    //@Test
-    //public void testStartupPy() {
-    //    //Arrange
-    //    final String fileContent = "fileContent";
-    //    final String fileName = "/tmp/lzy/kek/some_file.txt";
-    //    final String localFileName = "/tmp/lzy/lol/some_file.txt";
-    //    final String channelName = "channel1";
-    //
-    //    final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
-    //    final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
-    //    final String channelOutName = "channel2";
-    //
-    //    final FileIOOperation python_io_file_lzy = new FileIOOperation(
-    //        "python_io_file_lzy",
-    //        List.of(fileName.substring(LZY_MOUNT.length())),
-    //        List.of(fileOutName.substring(LZY_MOUNT.length())),
-    //        "python3 /lzy-python/src/main/python/lzy/startup.py " + fileName + " " + fileOutName
-    //    );
-    //
-    //    //Act
-    //    servant.createChannel(channelName);
-    //    servant.createSlot(localFileName, channelName, Utils.outFileSot());
-    //    servant.createChannel(channelOutName);
-    //    servant.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
-    //
-    //    ForkJoinPool.commonPool()
-    //        .execute(() -> servant.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
-    //    servant.publish(python_io_file_lzy.getName(), python_io_file_lzy);
-    //    final ExecutionResult[] result1 = new ExecutionResult[1];
-    //    ForkJoinPool.commonPool()
-    //        .execute(() -> result1[0] = servant.execute("bash", "-c", "cat " + localFileOutName));
-    //    final ExecutionResult result = servant.run(
-    //        python_io_file_lzy.getName(),
-    //        "",
-    //        Map.of(
-    //            fileName.substring(LZY_MOUNT.length()), channelName,
-    //            fileOutName.substring(LZY_MOUNT.length()), channelOutName
-    //        )
-    //    );
-    //
-    //    //Assert
-    //    Assert.assertEquals(fileContent + "\n", result1[0].stdout());
-    //    Assert.assertEquals(0, result.exitCode());
-    //}
-
-    //@Test
-    //public void testDiamondNumbers() {
-    //    final String generated0 = "generated_0";
-    //    final String generated1 = "generated_1";
-    //    final String incremented = "incremented";
-    //    final String multiplied = "multiplied";
-    //    final String sum = "sum";
-    //
-    //    final FileIOOperation generator = new FileIOOperation(
-    //        "gen",
-    //        Collections.emptyList(),
-    //        List.of(), // generated0, generated1),
-    //        "gen"
-    //    );
-    //
-    //    final FileIOOperation incrementor = new FileIOOperation(
-    //        List.of(generated0),
-    //        List.of(incremented),
-    //        "inc"
-    //    );
-    //
-    //    final FileIOOperation multiplier = new FileIOOperation(
-    //        List.of(generated1),
-    //        List.of(multiplied),
-    //        "mul"
-    //    );
-    //
-    //    final FileIOOperation summer = new FileIOOperation(
-    //        List.of(incremented, multiplied),
-    //        List.of(sum),
-    //        "add"
-    //    );
-    //
-    //    final ExecutionResult run = publishAndRun(generator, "");
-    //    run(incrementor);
-    //    run(multiplier);
-    //    run(summer);
-    //}
 }

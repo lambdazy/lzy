@@ -9,6 +9,7 @@ import org.testcontainers.containers.output.WaitingConsumer;
 import org.testcontainers.shaded.org.apache.commons.lang.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 
 import java.net.URI;
@@ -35,13 +36,14 @@ public class LocalDockerTask extends LocalTask {
         final String updatedServerHost = SystemUtils.IS_OS_LINUX ? serverHost : serverHost.replace("localhost", "host.docker.internal");
         final String internalHost = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
+        final int debugPort = FreePortFinder.find(5000, 6000);
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
             .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but is is easier for testing
             .withEnv("LZYTASK", tid.toString())
             .withEnv("LZYTOKEN", token)
             .withEnv("LOG_FILE", "servant_start_" + uuid)
-            .withEnv("DEBUG_PORT", "5005")
+            .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
@@ -56,8 +58,8 @@ public class LocalDockerTask extends LocalTask {
         } else {
             servantContainer = base
                 .withFixedExposedPort(servantPort, servantPort)
-                .withFixedExposedPort(5005, 5005) //to attach debugger
-                .withExposedPorts(servantPort, 5005);
+                .withFixedExposedPort(debugPort, debugPort) //to attach debugger
+                .withExposedPorts(servantPort, debugPort);
         }
         servantContainer.start();
 

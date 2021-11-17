@@ -11,7 +11,7 @@ export interface LoginFormStateInterface {
 }
 
 export interface LoginFormPropsInterface {
-  onUserIdSet: (userId: string, provider: Providers) => void;
+  onUserIdSet: (provider: Providers) => void;
 }
 
 export class LoginForm extends React.Component<
@@ -24,14 +24,8 @@ export class LoginForm extends React.Component<
   }
 
   handleSubmit = (provider: Providers): void => {
-    if (this.state.userId != null) {
-      this.setState({ userIdSet: true });
-      this.props.onUserIdSet(this.state.userId, provider);
-    }
-  };
-
-  handleChange = (event: any): void => {
-    this.setState({ userId: event.target.value });
+    this.setState({ userIdSet: true });
+    this.props.onUserIdSet(provider);
   };
 
   render() {
@@ -45,14 +39,6 @@ export class LoginForm extends React.Component<
           </div>
           <Container className="loginForm" fluid>
             <Form>
-              <Form.Group className="mb-3" controlId="loginFormUserId">
-                <Form.Label>Username</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter username"
-                  onChange={this.handleChange}
-                />
-              </Form.Group>
               <Button
                 variant="primary"
                 type="submit"
@@ -74,10 +60,10 @@ export const LoginFormFC: React.FC<{}> = () => {
   let alert = useAlert();
   return (
     <LoginForm
-      onUserIdSet={(s: string, provider: Providers) => {
+      onUserIdSet={(provider: Providers) => {
         auth.signout(() => {
             getSession().then((res) => {
-                login(provider, s, res).then(
+                login(provider, res).then(
                     (res) => {
                         window.location.assign(res);
                     }

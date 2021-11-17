@@ -293,7 +293,8 @@ public class LzyServer {
             }
 
             final URI servantUri = URI.create(request.getServantURI());
-            final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager.getOrCreate(servantUri);
+            final UUID sessionId = UUID.fromString(request.getSessionId());
+            final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager.getOrCreate(servantUri, sessionId);
             responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
             responseObserver.onCompleted();
 
@@ -303,9 +304,9 @@ public class LzyServer {
                     task.attachServant(servantUri, servant);
                 }
                 else {
-                    runTerminal(auth, servant, UUID.fromString(request.getSessionId()));
+                    runTerminal(auth, servant, sessionId);
                 }
-                connectionManager.shutdownConnection(servantUri);
+                connectionManager.shutdownConnection(sessionId);
             });
         }
 

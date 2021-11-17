@@ -39,8 +39,7 @@ def main():
 
     print(f'Running {container.func.__name__}')
     op = LzyRemoteOp(servant, container.func, container.input_types,
-                     container.output_type, None, args)
-    op.deploy()
+                     container.output_type, deployed=True, args=args)
     result = op.materialize()
     print(f'Result of execution {result}')
 

@@ -2,13 +2,13 @@ package ru.yandex.cloud.ml.platform.lzy.backoffice.grpc;
 
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.CredentialsConfig;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.CredentialsProvider;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.GrpcConfig;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
@@ -19,7 +19,7 @@ public class Client {
     private final Channel channel;
 
     @Inject
-    CredentialsConfig credentials;
+    CredentialsProvider credentials;
 
     @Inject
     Client(GrpcConfig config){
@@ -39,7 +39,7 @@ public class Client {
     public BackOffice.AddTokenResult addToken(AddTokenRequest request){
         try {
             return getBlockingStub().addToken(
-                    request.toModel(credentials.getCredentials())
+                    request.toModel(credentials.createCreds())
             );
         }
         catch (StatusRuntimeException e){
@@ -49,7 +49,7 @@ public class Client {
 
     public BackOffice.CreateUserResult createUser(CreateUserRequest request){
         try {
-            return getBlockingStub().createUser(request.toModel(credentials.getCredentials()));
+            return getBlockingStub().createUser(request.toModel(credentials.createCreds()));
         }
         catch (StatusRuntimeException e){
             throw catchStatusException(e);
@@ -58,7 +58,7 @@ public class Client {
 
     public BackOffice.DeleteUserResult deleteUser(DeleteUserRequest request){
         try {
-            return getBlockingStub().deleteUser(request.toModel(credentials.getCredentials()));
+            return getBlockingStub().deleteUser(request.toModel(credentials.createCreds()));
         }
         catch (StatusRuntimeException e){
             throw catchStatusException(e);
@@ -66,7 +66,7 @@ public class Client {
     }
     public BackOffice.ListUsersResponse listUsers(ListUsersRequest request){
         try {
-            return getBlockingStub().listUsers(request.toModel(credentials.getCredentials()));
+            return getBlockingStub().listUsers(request.toModel(credentials.createCreds()));
         }
         catch (StatusRuntimeException e){
             throw catchStatusException(e);
@@ -93,7 +93,7 @@ public class Client {
     public BackOffice.GenerateSessionIdResponse generateSessionId(){
         try {
             return getBlockingStub().generateSessionId(
-                    BackOffice.GenerateSessionIdRequest.newBuilder().setBackofficeCredentials(credentials.getCredentials()).build()
+                    BackOffice.GenerateSessionIdRequest.newBuilder().setBackofficeCredentials(credentials.createCreds()).build()
             );
         }
         catch (StatusRuntimeException e){
@@ -103,7 +103,7 @@ public class Client {
     public BackOffice.CheckSessionResponse checkSession(CheckSessionRequest request){
         try {
             return getBlockingStub().checkSession(
-                    request.toModel(credentials.getCredentials())
+                    request.toModel(credentials.createCreds())
             );
         }
         catch (StatusRuntimeException e){
@@ -114,8 +114,19 @@ public class Client {
     public BackOffice.AuthUserSessionResponse authUserSession(BackOffice.AuthUserSessionRequest.Builder request){
         try {
             return getBlockingStub().authUserSession(
-                    request.setBackofficeCredentials(credentials.getCredentials())
+                    request.setBackofficeCredentials(credentials.createCreds())
                             .build()
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
+
+    public BackOffice.CheckPermissionResponse checkPermission(CheckPermissionRequest request){
+        try {
+            return getBlockingStub().checkPermission(
+                request.toModel(credentials.createCreds())
             );
         }
         catch (StatusRuntimeException e){

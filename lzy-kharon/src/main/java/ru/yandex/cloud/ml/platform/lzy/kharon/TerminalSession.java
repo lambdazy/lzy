@@ -4,6 +4,7 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcConstant;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
@@ -16,6 +17,7 @@ import java.util.concurrent.*;
 
 public class TerminalSession {
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
+    public static final String SESSION_ID_KEY = "kharon_session_id";
 
     private final CompletableFuture<StreamObserver<Servant.ExecutionProgress>> executeFromServerFuture = new CompletableFuture<>();
     private StreamObserver<Servant.ExecutionProgress> executionProgress;
@@ -132,7 +134,7 @@ public class TerminalSession {
 
     @Nullable
     public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) {
-        LOG.info("Kharon::configureSlot " + JsonUtils.printRequest(request));
+        LOG.info("Kharon sessionId " + sessionId + " ::configureSlot " + JsonUtils.printRequest(request));
         final CompletableFuture<Kharon.TerminalState> future = new CompletableFuture<>();
         final String commandId = generateCommandId(future);
         final Kharon.TerminalCommand sendingRequest = Kharon.TerminalCommand.newBuilder()
@@ -179,28 +181,12 @@ public class TerminalSession {
                 kharonServantProxyAddress.getHost(),
                 kharonServantProxyAddress.getPort(),
                 slotUri.getPath(),
-                "sessionId=" + sessionId,
+                SESSION_ID_KEY + "=" + sessionId,
                 null
             ).toString();
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public void carryTerminalSlotContent(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
-        LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
-        final String slot = request.getSlot();
-        dataCarrier.openServantConnection(request.getSlotUri(), responseObserver);
-        configureSlot(Servant.SlotCommand.newBuilder()
-            .setSlot(slot)
-            .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                .setSlotUri(request.getSlotUri())
-                .build())
-            .build());
-    }
-
-    public StreamObserver<Kharon.SendSlotDataMessage> initDataTransfer(StreamObserver<Kharon.ReceivedDataStatus> responseObserver) {
-        return dataCarrier.connectTerminalConnection(responseObserver);
     }
 
     public void close() {

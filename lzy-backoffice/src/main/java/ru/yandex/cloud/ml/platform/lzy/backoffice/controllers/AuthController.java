@@ -10,11 +10,15 @@ import io.micronaut.http.client.exceptions.HttpClientException;
 import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.server.util.HttpHostResolver;
 import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.web.router.RouteBuilder;
 import jakarta.inject.Inject;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.OAuthSecretsProvider;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.grpc.Client;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.oauth.OAuthConfig;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.oauth.models.GitHubGetUserResponse;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.oauth.models.GithubAccessTokenRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.oauth.models.GithubAccessTokenResponse;
@@ -25,13 +29,16 @@ import javax.validation.Valid;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+@ExecuteOn(TaskExecutors.IO)
 @Controller("auth")
 public class AuthController {
+    private static final Logger LOG = LogManager.getLogger(AuthController.class);
+
     @Inject
     Client client;
 
     @Inject
-    OAuthConfig oAuthConfig;
+    OAuthSecretsProvider oAuthConfig;
 
     @Inject
     private HttpHostResolver httpHostResolver;
@@ -57,7 +64,7 @@ public class AuthController {
     public HttpResponse<LoginResponse> login(@Valid @Body LoginRequest body, HttpRequest<?> request) throws URISyntaxException {
         CheckSessionRequest sessionRequest = new CheckSessionRequest();
         sessionRequest.setSessionId(body.getSessionId());
-        sessionRequest.setUserId(body.getUserId());
+        sessionRequest.setUserId(null);
         BackOffice.CheckSessionResponse res = client.checkSession(sessionRequest);
         switch (res.getStatus()){
             case UNRECOGNIZED:
@@ -75,7 +82,7 @@ public class AuthController {
                 LoginResponse resp = new LoginResponse();
                 String redirectURL = UriBuilder.of(new URI("https://github.com/login/oauth/authorize"))
                         .queryParam("client_id", oAuthConfig.getGithub().getClientId())
-                        .queryParam("state", body.getSessionId() + "." + body.getUserId() + "." + body.getRedirectUrl())
+                        .queryParam("state", body.getSessionId()  + "," + body.getRedirectUrl())
                         .queryParam("redirect_uri", httpHostResolver.resolve(request) +
                                 uriNamingStrategy.resolveUri(AuthController.class) + "/code/" + body.getProvider()
                                 )
@@ -90,14 +97,14 @@ public class AuthController {
 
     @Get("/code/github{?code,state}")
     public HttpResponse<UserCredentials> authCodeGitHub(@QueryValue String code, @QueryValue String state){
-        String[] stateValues = state.split("\\.");
-        if (stateValues.length < 3){
+        String[] stateValues = state.split(",");
+        if (stateValues.length < 2){
             throw new HttpStatusException(HttpStatus.BAD_REQUEST, "Wrong state");
         }
 
         CheckSessionRequest sessionRequest = new CheckSessionRequest();
         sessionRequest.setSessionId(stateValues[0]);
-        sessionRequest.setUserId(stateValues[1]);
+        sessionRequest.setUserId(null);
         BackOffice.CheckSessionResponse res = client.checkSession(sessionRequest);
         switch (res.getStatus()){
             case UNRECOGNIZED:
@@ -111,6 +118,7 @@ public class AuthController {
         tokenRequest.setClient_id(oAuthConfig.getGithub().getClientId());
         tokenRequest.setClient_secret(oAuthConfig.getGithub().getClientSecret());
         HttpResponse<GithubAccessTokenResponse> resp;
+        LOG.info("Checking github code: " + code);
         try {
              resp = githubClient.toBlocking().exchange(
                     HttpRequest.POST("/login/oauth/access_token", tokenRequest).accept(MediaType.APPLICATION_JSON_TYPE),
@@ -118,15 +126,20 @@ public class AuthController {
             );
         }
         catch (HttpClientException e){
+            LOG.error(e);
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
         if (resp.getStatus() != HttpStatus.OK){
+           LOG.info("Code request status: " + resp.getStatus());
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
         GithubAccessTokenResponse body = resp.getBody().orElseThrow();
         if (body.getAccess_token() == null){
+            LOG.info("Body is null");
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
+        LOG.info("Code is OK");
+        LOG.info("Getting user");
         HttpResponse<GitHubGetUserResponse> result;
         try {
             result = githubApiClient.toBlocking().exchange(
@@ -138,6 +151,7 @@ public class AuthController {
             );
         }
         catch (HttpClientException e){
+            LOG.error(e);
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
         if (result.getStatus() != HttpStatus.OK){
@@ -146,16 +160,25 @@ public class AuthController {
         BackOffice.AuthUserSessionRequest.Builder builder = BackOffice.AuthUserSessionRequest.newBuilder();
         builder
                 .setSessionId(stateValues[0])
-                .setUserId(stateValues[1])
+                .setUserId(result.getBody().orElseThrow().getLogin())
                 .setProvider(AuthProviders.GITHUB.toGrpcMessage())
                 .setProviderUserId(result.getBody().orElseThrow().getId());
         BackOffice.AuthUserSessionResponse response = client.authUserSession(builder);
-
+        LOG.info("User is ok, redirecting");
         return HttpResponse.redirect(
-                UriBuilder.of(URI.create(stateValues[2]))
+                UriBuilder.of(URI.create(stateValues[1]))
                     .queryParam("userId", response.getCredentials().getUserId())
                     .queryParam("sessionId", response.getCredentials().getSessionId())
                     .build()
+        );
+    }
+
+    @Post("/check_permission")
+    public HttpResponse<CheckPermissionResponse> checkPermission(@Valid @Body CheckPermissionRequest body) throws URISyntaxException {
+        return HttpResponse.ok(
+            CheckPermissionResponse.fromModel(
+                client.checkPermission(body)
+            )
         );
     }
 

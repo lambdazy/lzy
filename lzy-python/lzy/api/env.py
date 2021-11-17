@@ -62,7 +62,7 @@ class LzyEnv(LzyEnvBase):
     def __init__(self, eager: bool = False, whiteboard: Any = None,
                  buses: List[Tuple[Callable, Bus]] = [], local: bool = False, user: str = None,
                  yaml_path: str = None, private_key_path: str = '~/.ssh/id_rsa',
-                 server_url: str = 'localhost:8899',
+                 server_url: str = 'lzy-kharon.northeurope.cloudapp.azure.com:8899',
                  lzy_mount: str = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))):
         super().__init__()
         # if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):

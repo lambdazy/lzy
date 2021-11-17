@@ -65,6 +65,11 @@ public class SimpleInMemAuthenticator implements Authenticator {
     }
 
     @Override
+    public boolean hasPermission(String uid, String permission) {
+        return true;
+    }
+
+    @Override
     public boolean checkBackOfficeSession(UUID sessionId, String userId) {
         return true;
     }

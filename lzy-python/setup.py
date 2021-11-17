@@ -103,7 +103,7 @@ class Installer(install):
 
 setuptools.setup(
     name='pyzy-eap',
-    version='0.0.2',
+    version='0.0.4',
     author='ʎzy developers',
     include_package_data=True,
     package_data={

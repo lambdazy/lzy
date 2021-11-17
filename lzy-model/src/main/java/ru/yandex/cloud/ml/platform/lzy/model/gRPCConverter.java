@@ -11,6 +11,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class gRPCConverter {
@@ -72,12 +73,16 @@ public abstract class gRPCConverter {
         return null;
     }
 
-    private static String to(Provisioning provisioning) {
-        return "not implemented yet";
+    private static Operations.Provisioning to(Provisioning provisioning) {
+        return Operations.Provisioning.newBuilder()
+                .addAllTags(provisioning.tags()
+                        .map(tag -> Operations.Provisioning.Tag.newBuilder().setTag(tag.tag()).build())
+                        .collect(Collectors.toList()))
+                .build();
     }
 
-    private static Provisioning provisioningFrom(String contentType) {
-        return null;
+    private static Provisioning from(Operations.Provisioning provisioning) {
+        return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
     }
 
     private static Env envFrom(Operations.Env env) {
@@ -132,7 +137,7 @@ public abstract class gRPCConverter {
 
         @Override
         public Provisioning provisioning() {
-            return provisioningFrom(operation.getProvisioning());
+            return from(operation.getProvisioning());
         }
 
         @Override

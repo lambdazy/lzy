@@ -4,22 +4,22 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyServantTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class PyRunTest extends LzyBaseTest {
-    private LzyServantTestContext.Servant terminal;
+    private LzyTerminalTestContext.Terminal terminal;
 
     @Before
     public void setUp() {
         super.setUp();
-        terminal = servantContext.startTerminalAtPathAndPort(
+        terminal = terminalContext.startTerminalAtPathAndPort(
                 LZY_MOUNT,
                 9999,
-                kharonContext.serverAddress(servantContext.inDocker())
+                kharonContext.serverAddress(terminalContext.inDocker())
         );
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,
@@ -35,7 +35,7 @@ public class PyRunTest extends LzyBaseTest {
         final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
 
         //Act
-        final LzyServantTestContext.Servant.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + pyCommand);
 
         //Assert
@@ -51,7 +51,7 @@ public class PyRunTest extends LzyBaseTest {
         final String pyCommand = "python /lzy-python/examples/integration/catboost_simple.py";
 
         //Act
-        final LzyServantTestContext.Servant.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + pyCommand);
 
         //Assert
