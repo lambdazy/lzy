@@ -152,6 +152,7 @@
                                 <contextDir>${project.basedir}/../</contextDir>
                                 <dockerFile>${project.basedir}/Dockerfile</dockerFile>
                                 <noCache>true</noCache>
+                                <imagePullPolicy>IfNotPresent</imagePullPolicy>
                             </build>
                         </image>
                     </images>
