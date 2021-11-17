@@ -39,7 +39,7 @@ public class CredentialsConfig implements CredentialsProvider{
         this.privateKeyPath = privateKeyPath;
     }
 
-    public IAM.UserCredentials getCredentials(){
+    public IAM.UserCredentials createCreds(){
         UUID uuid = UUID.randomUUID();
         String token;
         try (FileReader keyReader = new FileReader(privateKeyPath)) {

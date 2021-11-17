@@ -39,7 +39,7 @@ public class AzureSecretClient implements CredentialsProvider{
         return secretClient;
     }
 
-    public IAM.UserCredentials getCredentials(){
+    public IAM.UserCredentials createCreds(){
         UUID uuid = UUID.randomUUID();
         String token;
 
