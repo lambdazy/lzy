@@ -8,6 +8,7 @@ spec:
   containers:
     - name: lzy-servant
       image: celdwind/lzy:lzy-servant
+      imagePullPolicy: Always
       env:
         - name: LOG_FILE
           value: "servant.log"
@@ -20,6 +21,8 @@ spec:
             fieldRef:
               fieldPath: status.podIP
       args: ["--lzy-address", "$(LZY_SERVER_URI)", "--lzy-mount", "/tmp/lzy", "--host", "$(LZYHOST)", "--port", "9999"]
+      ports:
+        - containerPort: 9999
       securityContext:
         privileged: true
   restartPolicy: OnFailure
@@ -32,6 +35,9 @@ spec:
                 operator: In
                 values:
                   - lzy-servant
+                  - lzy-server
+                  - lzy-kharon
+                  - lzy-backoffice
           topologyKey: "kubernetes.io/hostname"
   hostNetwork: true
   dnsPolicy: Default
