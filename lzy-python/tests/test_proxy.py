@@ -106,3 +106,7 @@ class ProxyTests(TestCase):
         self.assertEqual(len(a), 0)
         op.materialize()
         self.assertEqual(len(a), 1)
+
+    def test_primitive_2(self):
+        i = proxy(lambda: 2, int)
+        self.assertEqual(i * i, 4)
