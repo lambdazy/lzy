@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 
 import java.net.URI;
 import java.nio.file.Path;

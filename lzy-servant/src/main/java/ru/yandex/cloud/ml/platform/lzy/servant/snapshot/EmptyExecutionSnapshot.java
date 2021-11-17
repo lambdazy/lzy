@@ -1,13 +1,21 @@
-package ru.yandex.cloud.ml.platform.lzy.servant.slots;
+package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 
 public class EmptyExecutionSnapshot implements ExecutionSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
+
+    @Override
+    public String getSlotKey(Slot slot) {
+        // do nothing
+        return "";
+    }
+
     @Override
     public void onChunkInput(ByteString chunk, Slot slot) {
         // do nothing

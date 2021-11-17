@@ -1,8 +1,6 @@
-package ru.yandex.cloud.ml.platform.lzy.servant.slots;
+package ru.yandex.cloud.ml.platform.lzy.servant.whiteboard;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-
-import java.net.URI;
 
 public interface Whiteboard {
     enum status {
@@ -10,7 +8,7 @@ public interface Whiteboard {
         FINISHED
     }
     // create entry in the database and set status IN_PROGRESS
-    void prepareToSaveData(Slot slot, URI uri);
+    void prepareToSaveData(Slot slot, String key);
 
     // set status FINISHED
     void commit(Slot slot);

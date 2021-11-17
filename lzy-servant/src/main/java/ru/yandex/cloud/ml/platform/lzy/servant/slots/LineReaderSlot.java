@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.EOFException;

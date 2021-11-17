@@ -1,12 +1,10 @@
-package ru.yandex.cloud.ml.platform.lzy.servant.slots;
+package ru.yandex.cloud.ml.platform.lzy.servant.whiteboard;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 
-import java.net.URI;
-
 public class LocalWhiteboard implements Whiteboard {
     @Override
-    public void prepareToSaveData(Slot slot, URI uri) {
+    public void prepareToSaveData(Slot slot, String key) {
         // create entry in database
         // set status to IN_PROGRESS
     }

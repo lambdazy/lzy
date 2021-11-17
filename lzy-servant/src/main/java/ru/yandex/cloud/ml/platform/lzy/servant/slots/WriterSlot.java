@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 
 import java.io.IOException;
 import java.io.Writer;

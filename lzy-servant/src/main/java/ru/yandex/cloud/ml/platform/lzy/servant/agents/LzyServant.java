@@ -10,7 +10,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.ExecutionSnapshot;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -115,9 +114,7 @@ public class LzyServant extends LzyAgent {
             final LzyOutputSlot slot = (LzyOutputSlot) currentExecution.slot(request.getSlot());
             try {
                 slot.readFromPosition(request.getOffset())
-                    .forEach(chunk -> {
-                        responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build());
-                    });
+                    .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
                 responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
                 responseObserver.onCompleted();
             } catch (IOException iae) {

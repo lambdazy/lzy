@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.servant.slots;
+package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
@@ -8,6 +8,17 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
 
 public class LocalExecutionSnapshot implements ExecutionSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
+    private final String taskId;
+
+    public LocalExecutionSnapshot(String taskId) {
+        this.taskId = taskId;
+    }
+
+    @Override
+    public String getSlotKey(Slot slot) {
+        return "/task/" + taskId + "/slot/" + slot.name();
+    }
+
     @Override
     public void onChunkInput(ByteString chunk, Slot slot) {
         // save input chunk to Storage

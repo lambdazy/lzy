@@ -13,9 +13,13 @@ import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvConnector;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Connector;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashConnector;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.EmptyExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.LocalExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.whiteboard.LocalWhiteboard;
+import ru.yandex.cloud.ml.platform.lzy.servant.whiteboard.Whiteboard;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -26,7 +30,6 @@ import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.io.OutputStreamWriter;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,7 +61,7 @@ public class LzyExecution {
         this.taskId = taskId;
         this.zygote = zygote;
         if (persistent) {
-            executionSnapshot = new LocalExecutionSnapshot();
+            executionSnapshot = new LocalExecutionSnapshot(taskId);
         } else {
             executionSnapshot = new EmptyExecutionSnapshot();
         }
@@ -67,10 +70,6 @@ public class LzyExecution {
         stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"), executionSnapshot);
         this.servantUri = servantUri;
         this.persistent = persistent;
-    }
-
-    private URI generateSlotUri(Slot slot) throws URISyntaxException {
-        return new URI("https://some/address");
     }
 
     public LzySlot configureSlot(Slot spec, String binding) {
@@ -84,8 +83,8 @@ public class LzyExecution {
             try {
                 final LzySlot slot = createSlot(spec, binding);
                 if (persistent) {
-                    URI uri = generateSlotUri(slot.definition());
-                    whiteboard.prepareToSaveData(slot.definition(), uri);
+                    String key = executionSnapshot.getSlotKey(slot.definition());
+                    whiteboard.prepareToSaveData(slot.definition(), key);
                 }
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
@@ -137,7 +136,7 @@ public class LzyExecution {
                 ).build());
                 LOG.info("Configured slot " + spec.name() + " " + slot);
                 return slot;
-            } catch (IOException | URISyntaxException ioe) {
+            } catch (IOException ioe) {
                 throw new RuntimeException(ioe);
             }
         } finally {
