@@ -9,6 +9,6 @@ export function AuthUser(){
     console.log(params)
     if (params.userId != null && params.sessionId != null)
         auth.signin(
-                 {userId: params.userId.toString(), sessionId: params.sessionId?.toString()}, () => {history.push("/users")})
+                 {userId: params.userId.toString(), sessionId: params.sessionId?.toString()}, () => {history.push("/")})
     return (<div></div>)
 }
