@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -66,14 +67,19 @@ public class TerminalSession {
                         if (servantAddr.contains("host.docker.internal")) {
                             servantAddr = servantAddr.replace("host.docker.internal", "localhost");
                         }
-                        //noinspection ResultOfMethodCallIgnored
-                        lzyServer.registerServant(Lzy.AttachServant.newBuilder()
-                            .setAuth(IAM.Auth.newBuilder()
-                                .setUser(userCredentials)
-                                .build())
-                            .setServantURI(servantAddr)
-                            .setSessionId(sessionId.toString())
-                            .build());
+                        try {
+                            //noinspection ResultOfMethodCallIgnored
+                            lzyServer.registerServant(Lzy.AttachServant.newBuilder()
+                                    .setAuth(IAM.Auth.newBuilder()
+                                            .setUser(userCredentials)
+                                            .build())
+                                    .setServantURI(servantAddr)
+                                    .setSessionId(sessionId.toString())
+                                    .build());
+                        } catch (StatusRuntimeException e) {
+                            LOG.error("registerServant failed. " + e);
+                            terminalController.onError(e);
+                        }
                         break;
                     }
                     case ATTACH: {
