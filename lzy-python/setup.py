@@ -103,7 +103,7 @@ class Installer(install):
 
 setuptools.setup(
     name='pylzy-nightly',
-    version='0.0.1',
+    version='0.0.2',
     author='ʎzy developers',
     include_package_data=True,
     package_data={
