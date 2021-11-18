@@ -2,6 +2,8 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: lzy-server
+  labels:
+    app: lzy-server
 spec:
   containers:
   - name: lzy-server
@@ -25,6 +27,19 @@ spec:
     image: celdwind/lzy:lzy-server
     ports:
       - containerPort: 8888
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - lzy-servant
+                - lzy-server
+                - lzy-kharon
+                - lzy-backoffice
+          topologyKey: "kubernetes.io/hostname"
   hostNetwork: true
   dnsPolicy: ClusterFirstWithHostNet
 

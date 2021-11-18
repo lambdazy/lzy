@@ -43,5 +43,18 @@ spec:
         items:
           - key: private-key
             path: backofficePrivateKey.txt
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - lzy-servant
+                  - lzy-server
+                  - lzy-kharon
+                  - lzy-backoffice
+          topologyKey: "kubernetes.io/hostname"
   hostNetwork: true
   dnsPolicy: ClusterFirstWithHostNet
