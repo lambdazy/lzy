@@ -13,9 +13,13 @@ import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvConnector;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Connector;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashConnector;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.EmptyExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.LocalExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.whiteboard.LocalWhiteboard;
+import ru.yandex.cloud.ml.platform.lzy.servant.whiteboard.Whiteboard;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -39,6 +43,7 @@ public class LzyExecution {
 
     @SuppressWarnings("FieldCanBeLocal")
     private final String taskId;
+    private final boolean persistent;
     private final AtomicZygote zygote;
     private final LineReaderSlot stdoutSlot;
     private final LineReaderSlot stderrSlot;
@@ -49,14 +54,22 @@ public class LzyExecution {
     private final Map<String, LzySlot> slots = new ConcurrentHashMap<>();
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
+    private final ExecutionSnapshot executionSnapshot;
+    private final Whiteboard whiteboard = new LocalWhiteboard();
 
-    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri) {
+    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, boolean persistent) {
         this.taskId = taskId;
         this.zygote = zygote;
-        stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"));
-        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"));
-        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"));
+        if (persistent) {
+            executionSnapshot = new LocalExecutionSnapshot(taskId);
+        } else {
+            executionSnapshot = new EmptyExecutionSnapshot();
+        }
+        stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"), executionSnapshot);
+        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"), executionSnapshot);
+        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"), executionSnapshot);
         this.servantUri = servantUri;
+        this.persistent = persistent;
     }
 
     public LzySlot configureSlot(Slot spec, String binding) {
@@ -69,6 +82,10 @@ public class LzyExecution {
             }
             try {
                 final LzySlot slot = createSlot(spec, binding);
+                if (persistent) {
+                    URI uri = executionSnapshot.getSlotUri(slot.definition());
+                    whiteboard.prepareToSaveData(slot.definition(), uri);
+                }
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
                     if (spec.name().startsWith("local://")) { // No scheme in slot name
@@ -96,6 +113,9 @@ public class LzyExecution {
                 slot.onState(Operations.SlotStatus.State.DESTROYED, () -> {
                     synchronized (slots) {
                         LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
+                        if (persistent) {
+                            whiteboard.commit(slot.definition());
+                        }
                         slots.remove(slot.name());
                         slots.notifyAll();
                     }
@@ -141,18 +161,18 @@ public class LzyExecution {
                 case FILE: {
                     switch (spec.direction()) {
                         case INPUT:
-                            return new InFileSlot(taskId, spec);
+                            return new InFileSlot(taskId, spec, executionSnapshot);
                         case OUTPUT:
                             if (spec.name().startsWith("local://")) {
-                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()));
+                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()), executionSnapshot);
                             }
-                            return new OutFileSlot(taskId, spec);
+                            return new OutFileSlot(taskId, spec, executionSnapshot);
                     }
                     break;
                 }
                 case ARG:
                     arguments = binding;
-                    return new LzySlotBase(spec) {};
+                    return new LzySlotBase(spec, executionSnapshot) {};
             }
             throw new UnsupportedOperationException("Not implemented yet");
         } finally {
@@ -236,6 +256,10 @@ public class LzyExecution {
         return slots.get(name);
     }
 
+    public String taskId() {
+        return taskId;
+    }
+
     public void signal(int sigValue) {
         if (exec == null) {
             LOG.warn("Attempt to kill not started process");
@@ -251,4 +275,6 @@ public class LzyExecution {
     public Zygote zygote() {
         return zygote;
     }
+
+    public boolean persistent() { return persistent; }
 }

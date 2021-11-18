@@ -10,6 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.IOException;
@@ -32,15 +33,15 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     private boolean ready;
     private final List<Runnable> closeActions = new ArrayList<>();
 
-    protected OutFileSlot(String tid, Slot definition, Path storage) {
-        super(definition);
+    protected OutFileSlot(String tid, Slot definition, Path storage, ExecutionSnapshot snapshot) {
+        super(definition, snapshot);
         this.tid = tid;
         this.storage = storage;
         ready = true;
     }
 
-    public OutFileSlot(String tid, Slot definition) throws IOException {
-        super(definition);
+    public OutFileSlot(String tid, Slot definition, ExecutionSnapshot snapshot) throws IOException {
+        super(definition, snapshot);
         this.tid = tid;
         this.storage = Files.createTempFile("lzy", "file-slot");
         ready = false;
@@ -175,7 +176,9 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             public ByteString next() {
                 bb.flip();
                 LOG.info("Send from slot {} data {}", name(), bb.toString());
-                return ByteString.copyFrom(bb);
+                ByteString chunk = ByteString.copyFrom(bb);
+                snapshot.onChunkOutput(chunk, definition());
+                return chunk;
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);
     }

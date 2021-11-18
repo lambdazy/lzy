@@ -134,6 +134,21 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             }
         }
 
+        default String channelStatus(String channelName) {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                String.join(
+                    " ",
+                    mount() + "/sbin/channel",
+                    "status",
+                    channelName
+                )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+            return execute.stdout();
+        }
+
         default void createSlot(String path, String channelName, Slot slot) {
             try {
                 execute(

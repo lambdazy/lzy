@@ -22,6 +22,7 @@ public interface TasksManager {
         Task parent,
         Zygote workload,
         Map<Slot, String> assignments,
+        boolean persistent,
         Authenticator token,
         Consumer<Servant.ExecutionProgress> progressTracker
     ) throws TaskException;

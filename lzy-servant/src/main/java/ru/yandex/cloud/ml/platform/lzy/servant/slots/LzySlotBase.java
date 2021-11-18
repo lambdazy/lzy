@@ -1,13 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -20,9 +19,10 @@ public class LzySlotBase implements LzySlot {
     private final Slot definition;
     private Operations.SlotStatus.State state = Operations.SlotStatus.State.UNBOUND;
     private final Map<Operations.SlotStatus.State, List<Runnable>> actions = Collections.synchronizedMap(new HashMap<>());
+    protected final ExecutionSnapshot snapshot;
 
-    @SuppressWarnings("WeakerAccess")
-    protected LzySlotBase(Slot definition) {
+    protected LzySlotBase(Slot definition, ExecutionSnapshot snapshot) {
+        this.snapshot = snapshot;
         this.definition = definition;
         onState(Operations.SlotStatus.State.OPEN, () -> LOG.info("LzySlot::OPEN " + this));
         onState(Operations.SlotStatus.State.DESTROYED, () -> LOG.info("LzySlot::DESTROYED " + this));

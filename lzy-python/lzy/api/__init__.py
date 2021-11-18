@@ -5,7 +5,7 @@ from typing import Callable
 import sys
 
 from lzy.model.env import PyEnv
-from lzy.model.zygote import Gpu
+from lzy.model.zygote import Gpu, Provisioning
 from ._proxy import proxy
 from .buses import *
 from .env import LzyEnv
@@ -23,12 +23,13 @@ logging.root.addHandler(handler)
 
 
 def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
+    provisioning = Provisioning(gpu)
     if func is None:
-        return op_(output_type=output_type)
-    return op_(output_type=output_type)(func)
+        return op_(provisioning, output_type=output_type)
+    return op_(provisioning, output_type=output_type)(func)
 
 
-def op_(*, input_types=None, output_type=None):
+def op_(provisioning: Provisioning, *, input_types=None, output_type=None):
     def deco(f):
         nonlocal output_type
         if output_type is None:
@@ -63,8 +64,10 @@ def op_(*, input_types=None, output_type=None):
                 env_name, yaml = current_env.generate_conda_env()
                 lzy_op = LzyRemoteOp(current_env.servant(), f, input_types,
                                      output_type,
+                                     provisioning,
                                      PyEnv(env_name, yaml),
-                                     args)
+                                     deployed=False,
+                                     args=args)
             current_env.register_op(lzy_op)
             return lazy_proxy(lambda: lzy_op.materialize(), output_type,
                               {'_op': lzy_op})

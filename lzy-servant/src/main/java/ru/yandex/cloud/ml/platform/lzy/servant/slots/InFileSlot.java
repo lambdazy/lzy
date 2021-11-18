@@ -10,6 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.IOException;
@@ -28,12 +29,12 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private final Path storage;
     private final OutputStream outputStream;
 
-    public InFileSlot(String tid, Slot definition) throws IOException {
-        this(tid, definition, Files.createTempFile("lzy", "file-slot"));
+    public InFileSlot(String tid, Slot definition, ExecutionSnapshot snapshot) throws IOException {
+        this(tid, definition, Files.createTempFile("lzy", "file-slot"), snapshot);
     }
 
-    public InFileSlot(String tid, Slot definition, Path storage) throws IOException {
-        super(tid, definition);
+    public InFileSlot(String tid, Slot definition, Path storage, ExecutionSnapshot snapshot) throws IOException {
+        super(tid, definition, snapshot);
         this.storage = storage;
         outputStream = Files.newOutputStream(storage);
     }

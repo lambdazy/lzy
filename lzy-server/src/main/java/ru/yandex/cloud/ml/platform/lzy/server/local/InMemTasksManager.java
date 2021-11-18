@@ -88,8 +88,9 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
-        final Task task = TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI);
+    public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments,
+                      boolean persistent, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
+        final Task task = TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, persistent, channels, serverURI);
         tasks.put(task.tid(), task);
         if (parent != null) {
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);

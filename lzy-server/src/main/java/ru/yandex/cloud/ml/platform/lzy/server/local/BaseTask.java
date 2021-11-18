@@ -1,15 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
@@ -17,18 +11,12 @@ import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -41,12 +29,12 @@ public abstract class BaseTask implements Task {
     private final Map<Slot, String> assignments;
     private final ChannelsManager channels;
     protected final URI serverURI;
+    protected final boolean persistent;
 
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final Map<Slot, Channel> attachedSlots = new HashMap<>();
 
     private State state = State.PREPARING;
-    private ManagedChannel servantChannel;
     private URI servantURI;
     private LzyServantBlockingStub servant;
 
@@ -55,6 +43,7 @@ public abstract class BaseTask implements Task {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
+        boolean persistent,
         ChannelsManager channels,
         URI serverURI
     ) {
@@ -62,6 +51,7 @@ public abstract class BaseTask implements Task {
         this.tid = tid;
         this.workload = workload;
         this.assignments = assignments;
+        this.persistent = persistent;
         this.channels = channels;
         this.serverURI = serverURI;
     }
@@ -80,6 +70,9 @@ public abstract class BaseTask implements Task {
     public State state() {
         return state;
     }
+
+    @Override
+    public boolean persistent() { return persistent; }
 
     @Override
     public void onProgress(Consumer<Servant.ExecutionProgress> listener) {
@@ -109,7 +102,13 @@ public abstract class BaseTask implements Task {
         servantURI = uri;
         this.servant = servant;
         final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
+            .setAuth(IAM.Auth.newBuilder()
+                .setTask(IAM.TaskCredentials.newBuilder()
+                    .setTaskId(tid.toString())
+                    .build())
+                .build())
             .setZygote(gRPCConverter.to(workload));
+        builder.setPersistent(persistent);
         assignments.forEach((slot, binding) ->
             builder.addAssignmentsBuilder()
                 .setSlot(gRPCConverter.to(slot))
@@ -182,11 +181,6 @@ public abstract class BaseTask implements Task {
     @Override
     public URI servant() {
         return servantURI;
-    }
-
-    @Override
-    public io.grpc.Channel servantChannel() {
-        return servantChannel;
     }
 
     @Override

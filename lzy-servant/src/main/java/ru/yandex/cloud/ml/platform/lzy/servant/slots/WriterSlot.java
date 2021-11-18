@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -9,8 +10,8 @@ import java.io.Writer;
 public class WriterSlot extends LzyInputSlotBase {
     private Writer writer;
 
-    public WriterSlot(String tid, TextLinesInSlot definition) {
-        super(tid, definition);
+    public WriterSlot(String tid, TextLinesInSlot definition, ExecutionSnapshot snapshot) {
+        super(tid, definition, snapshot);
     }
 
     public void setStream(Writer wri) {

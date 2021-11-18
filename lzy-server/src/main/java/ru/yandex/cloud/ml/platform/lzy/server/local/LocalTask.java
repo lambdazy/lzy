@@ -14,8 +14,9 @@ import java.util.UUID;
 public abstract class LocalTask extends BaseTask {
     private static final Logger LOG = LogManager.getLogger(LocalTask.class);
 
-    LocalTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments, ChannelsManager channels, URI serverURI) {
-        super(owner, tid, workload, assignments, channels, serverURI);
+    LocalTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
+              boolean persistent, ChannelsManager channels, URI serverURI) {
+        super(owner, tid, workload, assignments, persistent, channels, serverURI);
     }
 
     @Override

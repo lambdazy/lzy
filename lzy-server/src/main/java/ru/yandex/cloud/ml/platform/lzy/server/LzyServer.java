@@ -21,6 +21,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.*;
 import java.io.IOException;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -182,7 +183,6 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-
             LOG.info("Server::start " + JsonUtils.printRequest(request));
             final Zygote workload = gRPCConverter.from(request.getZygote());
             final Map<Slot, String> assignments = new HashMap<>();
@@ -190,8 +190,9 @@ public class LzyServer {
 
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
+            final boolean persistent = request.getPersistent();
             final AtomicBoolean concluded = new AtomicBoolean(false);
-            Task task = tasks.start(uid, parent, workload, assignments, auth, progress -> {
+            Task task = tasks.start(uid, parent, workload, assignments, persistent, auth, progress -> {
                 if (concluded.get())
                     return;
                 responseObserver.onNext(progress);
@@ -242,8 +243,7 @@ public class LzyServer {
                         request.getChannelName(),
                         resolveUser(auth),
                         resolveTask(auth),
-                        gRPCConverter.contentTypeFrom(create.getContentType())
-                    );
+                        gRPCConverter.contentTypeFrom(create.getContentType()));
                     if (channel == null)
                         channel = channels.get(request.getChannelName());
                     break;

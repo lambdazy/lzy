@@ -22,6 +22,10 @@ jobs:
 
       - uses: docker-practice/actions-setup-docker@master
 
+      - name: 'build-base-image'
+        timeout-minutes: 10
+        run: docker build -t celdwind/lzy:lzy-servant-base -f lzy-servant/BaseDockerfile .
+
       - name: 'java-test'
         timeout-minutes: 30
         run: mvn clean install
@@ -31,4 +35,4 @@ jobs:
 
       - name: 'python-test'
         timeout-minutes: 5
-        run:  cd lzy-python/ && python -m unittest discover tests/
+        run: cd lzy-python/ && python -m unittest discover tests/

@@ -7,6 +7,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -23,8 +24,8 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private URI connected;
     private SlotController slotController;
 
-    LzyInputSlotBase(String tid, Slot definition) {
-        super(definition);
+    LzyInputSlotBase(String tid, Slot definition, ExecutionSnapshot snapshot) {
+        super(definition, snapshot);
         this.tid = tid;
     }
 
@@ -33,6 +34,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         connected = slotUri;
         this.slotController = slotController;
     }
+
 
     @Override
     public void disconnect() {
@@ -61,6 +63,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                     try {
                         LOG.info("From {} chunk received {}", name(), chunk.toString(StandardCharsets.UTF_8));
                         onChunk(chunk);
+                        snapshot.onChunkInput(chunk, definition());
                     } catch (IOException ioe) {
                         LOG.warn(
                             "Unable write chunk of data of size " + chunk.size() + " to input slot " + name(),

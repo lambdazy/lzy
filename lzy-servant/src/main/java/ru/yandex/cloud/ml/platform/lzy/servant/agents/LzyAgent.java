@@ -54,6 +54,7 @@ public abstract class LzyAgent implements Closeable {
 
         this.lzyFS = new LzyFS();
         createFsDirectories();
+        LOG.info("Mounting LZY FS: " + mount);
         this.lzyFS.mount(mount, false, false);
         //this.lzyFS.mount(mount, false, true);
 

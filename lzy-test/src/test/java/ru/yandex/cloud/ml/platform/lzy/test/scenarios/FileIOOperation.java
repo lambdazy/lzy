@@ -58,7 +58,7 @@ class FileIOOperation implements AtomicZygote {
 
     @Override
     public Provisioning provisioning() {
-        return new Provisioning() {};
+        return new Provisioning.Any();
     }
 
     @Override

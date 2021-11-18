@@ -10,7 +10,7 @@ import cloudpickle
 from lzy.model.env import Env
 from lzy.model.file_slots import create_slot
 from lzy.model.slot import Slot, Direction
-from lzy.model.zygote import Zygote
+from lzy.model.zygote import Zygote, Provisioning
 
 T = TypeVar('T')
 
@@ -31,13 +31,14 @@ class FuncContainer:
 
 class ZygotePythonFunc(Zygote):
     def __init__(self, func: Callable, arg_types: Tuple[type, ...],
-                 output_type: Type[T], lzy_mount: Path, env: Env):
+                 output_type: Type[T], lzy_mount: Path, env: Env, provisioning: Provisioning):
         super().__init__()
         self._func = func
         self._arg_types = arg_types
         self._return_type = output_type
         self._lzy_mount = lzy_mount
         self._env = env
+        self._provisioning = provisioning
 
         self._arg_slots = []
         for arg_name in inspect.getfullargspec(func).args:
@@ -64,3 +65,6 @@ class ZygotePythonFunc(Zygote):
 
     def env(self) -> Env:
         return self._env
+
+    def provisioning(self) -> Provisioning:
+        return self._provisioning

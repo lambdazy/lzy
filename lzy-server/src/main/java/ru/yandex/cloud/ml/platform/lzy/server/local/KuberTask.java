@@ -18,10 +18,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class KuberTask extends BaseTask {
@@ -29,8 +26,9 @@ public class KuberTask extends BaseTask {
     public static final String LZY_SERVANT_POD_TEMPLATE_FILE_PROPERTY = "lzy.servant.pod.template.file";
     public static final String DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE = "/app/resources/kubernetes/lzy-servant-pod-template.yaml";
 
-    KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments, ChannelsManager channels, URI serverURI) {
-        super(owner, tid, workload, assignments, channels, serverURI);
+    KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
+              boolean persistent, ChannelsManager channels, URI serverURI) {
+        super(owner, tid, workload, assignments, persistent, channels, serverURI);
     }
 
     @Override
@@ -46,6 +44,8 @@ public class KuberTask extends BaseTask {
             );
             final File file = new File(lzyServantPodTemplatePath);
             final V1Pod servantPodDescription = (V1Pod) Yaml.load(file);
+            Objects.requireNonNull(servantPodDescription.getSpec());
+            Objects.requireNonNull(servantPodDescription.getMetadata());
 
             servantPodDescription.getSpec().getContainers().get(0).addEnvItem(
                 new V1EnvVar().name("LZYTASK").value(tid.toString())
@@ -57,11 +57,15 @@ public class KuberTask extends BaseTask {
             final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
             servantPodDescription.getMetadata().setName(podName);
 
+            //TODO: run on GPU node if zygote requires GPU
+            // (((AtomicZygote)workload()).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));)
+
             final CoreV1Api api = new CoreV1Api();
             final String namespace = "default";
             final V1Pod pod = api.createNamespacedPod(namespace, servantPodDescription, null, null, null);
             LOG.info("Created servant pod in Kuber: {}", pod);
             while (true) {
+                //noinspection BusyWait
                 Thread.sleep(2000); // sleep for 2 second
                 final V1PodList listNamespacedPod = api.listNamespacedPod(
                     "default",
@@ -79,7 +83,7 @@ public class KuberTask extends BaseTask {
                     listNamespacedPod
                         .getItems()
                         .stream()
-                        .filter(v1pod -> v1pod.getMetadata().getName().equals(podName))
+                        .filter(v1pod -> podName.equals(Objects.requireNonNull(v1pod.getMetadata()).getName()))
                         .collect(Collectors.toList())
                         .stream()
                         .findFirst();
@@ -87,12 +91,12 @@ public class KuberTask extends BaseTask {
                     LOG.error("Not found pod " + podName);
                     break;
                 }
-                if (queriedPod.get().getStatus() == null || queriedPod.get().getStatus().getPhase() == null) {
+                if (queriedPod.get().getStatus() == null || Objects.requireNonNull(queriedPod.get().getStatus()).getPhase() == null) {
                     continue;
                 }
-                final String phase = queriedPod.get().getStatus().getPhase();
+                final String phase = Objects.requireNonNull(queriedPod.get().getStatus()).getPhase();
                 LOG.info("KuberTask current phase: " + phase);
-                if (phase.equals("Succeeded") || phase.equals("Failed")) {
+                if ("Succeeded".equals(phase) || "Failed".equals(phase)) {
                     api.deleteNamespacedPod(podName, namespace, null, null, null, null, null, null);
                     break;
                 }
