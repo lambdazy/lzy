@@ -353,6 +353,7 @@ public class LzyServer {
                 //Clean up slots if terminal did not send detach
                 tasks.slots(user).keySet().forEach(slot -> tasks.removeUserSlot(user, slot));
                 channels.unbindAll(sessionId);
+                tasks.destroyUserChannels(user);
             }
         }
 
