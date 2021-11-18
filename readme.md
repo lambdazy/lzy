@@ -16,18 +16,18 @@ The system is based on the following principle: a computing cluster is represent
 
 ### Installation
 
-`pip install lzy-py-eap`
+`pip install pyzy-eap`
 
 ### Generating keys
 To access lzy, you must generate RSA public and private key, and then add them to [site](http://lzy.northeurope.cloudapp.azure.com/add_token).
 
 To generate RSA keys with openssl, run commands:
 ```shell
-$ openssl genrsa -out <your-path-to-keys>/private.pem 2048
-$ openssl rsa -in <your-path-to-keys>/private.pem -outform PEM -pubout -out <your-path-to-keys>/public.pem
+$ openssl genrsa -out ~/.ssh/private.pem 2048
+$ openssl rsa -in ~/.ssh/private.pem -outform PEM -pubout -out ~/.ssh/public.pem
 ```
 
-Then copy content of `<your-path-to-keys>/public.pem` to form on [site](http://lzy.northeurope.cloudapp.azure.com/add_token).
+Then copy content of `~/.ssh/public.pem` to form on [site](http://lzy.northeurope.cloudapp.azure.com/add_token).
 
 ### Running
 
@@ -69,7 +69,7 @@ def predict(cb_model: CatBoostClassifier, point: np.array) -> np.int64:
 
 
 if __name__ == '__main__':
-    with LzyEnv(user="<Your github username>", private_key_path="<your-path-to-keys>/private.pem"):
+    with LzyEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem"):
         data = dataset()
         model = learn(data)
         result = predict(model, np.array([9, 1]))

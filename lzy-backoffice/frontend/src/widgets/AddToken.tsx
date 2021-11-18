@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useAuth } from "../logic/Auth";
 import { useAlert } from "./ErrorAlert";
 import { Header } from "./Header";
+import { useAsync } from "react-async";
 
 export interface AddTokenFormStateInterface {
   tokenName: string | null;
@@ -24,13 +25,17 @@ export function AddToken(props: AddTokenFormPropsInterface) {
   });
 
   let auth = useAuth();
+  let {data, error} = useAsync({promiseFn: auth.getCredentials})
   let alert = useAlert();
+  if (error){
+    alert.show(error.message, error.name, () => {}, "danger");
+  }
 
   const handleSubmit = (event: any): void => {
     if (state.token != null && state.tokenName != null) {
       axios
         .post(props.host + "/users/add_token", {
-          userCredentials: auth.userCredentials,
+          userCredentials: data,
           token: state.token,
           tokenName: state.tokenName,
         })

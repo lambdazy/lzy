@@ -104,6 +104,8 @@
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <flyway-maven-plugin.version>8.0.2</flyway-maven-plugin.version>
         <io.kubernetes.version>10.0.0</io.kubernetes.version>
+        <logback.version>1.2.7</logback.version>
+        <slf4j.version>1.7.30</slf4j.version>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -749,6 +751,21 @@
                 <version>1.0.5</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
             </dependency>
         </dependencies>
 

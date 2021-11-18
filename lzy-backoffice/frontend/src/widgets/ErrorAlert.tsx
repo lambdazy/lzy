@@ -53,22 +53,24 @@ export function useProvideAlert(): AlertContext {
     onClose: (() => void) | undefined,
     variant: "danger"| "success"
   ) => {
-    setShowState({
-      show: true,
-      text,
-      header,
-      onClose,
-      variant
-    });
+    if (!showState.show)
+      setShowState({
+        show: true,
+        text,
+        header,
+        onClose,
+        variant
+      });
   };
   const close = () => {
-    setShowState({
-      show: false,
-      text: undefined,
-      header: undefined,
-      onClose: undefined,
-      variant: "danger"
-    });
+    if (showState.show)
+      setShowState({
+        show: false,
+        text: undefined,
+        header: undefined,
+        onClose: undefined,
+        variant: "danger"
+      });
   };
   return { params: showState, show, close };
 }

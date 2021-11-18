@@ -6,7 +6,7 @@ import Cookies from "universal-cookie";
 import { MainRouter } from "./widgets/Router";
 import { Header } from "./widgets/Header";
 import { ProvideAuth } from "./logic/Auth";
-import { ProvideAlert } from "./widgets/ErrorAlert";
+import { ErrorAlert, ProvideAlert } from "./widgets/ErrorAlert";
 
 export const cookies = new Cookies();
 
@@ -16,6 +16,7 @@ class Main extends React.Component<{}, {}> {
       <div>
         <ProvideAuth>
           <ProvideAlert>
+            <ErrorAlert />
             <MainRouter />
           </ProvideAlert>
         </ProvideAuth>

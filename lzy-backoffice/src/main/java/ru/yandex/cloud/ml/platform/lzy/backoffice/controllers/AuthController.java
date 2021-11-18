@@ -14,8 +14,8 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.web.router.RouteBuilder;
 import jakarta.inject.Inject;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.OAuthSecretsProvider;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.grpc.Client;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
@@ -32,7 +32,8 @@ import java.net.URISyntaxException;
 @ExecuteOn(TaskExecutors.IO)
 @Controller("auth")
 public class AuthController {
-    private static final Logger LOG = LogManager.getLogger(AuthController.class);
+    private static final Logger LOG
+            = LoggerFactory.getLogger(AuthController.class);
 
     @Inject
     Client client;
@@ -126,7 +127,7 @@ public class AuthController {
             );
         }
         catch (HttpClientException e){
-            LOG.error(e);
+            LOG.error("Error:", e);
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
         if (resp.getStatus() != HttpStatus.OK){
@@ -151,7 +152,7 @@ public class AuthController {
             );
         }
         catch (HttpClientException e){
-            LOG.error(e);
+            LOG.error("Error:", e);
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
         if (result.getStatus() != HttpStatus.OK){

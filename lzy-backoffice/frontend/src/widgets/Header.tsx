@@ -1,12 +1,18 @@
+import { useAsync } from "react-async";
 import { Button, Container, Nav, Navbar } from "react-bootstrap";
 import { useHistory } from "react-router-dom";
 import { useAuth } from "../logic/Auth";
-import { ErrorAlert } from "./ErrorAlert";
+import { ErrorAlert, useAlert } from "./ErrorAlert";
 import { LzyLogo } from "./LzyLogo";
 
 export const Header = () => {
   let auth = useAuth();
   let history = useHistory();
+  let {data, error} = useAsync({promiseFn: auth.getCredentials});
+  let alert = useAlert();
+  if (error){
+    alert.show(error.message, error.name, () => {}, "danger");
+  }
   return (
     <div>
       <Navbar bg="light">
@@ -19,7 +25,6 @@ export const Header = () => {
             <Nav.Link href="/add_token">Add token</Nav.Link>
           </Nav>
           <Navbar.Collapse className="justify-content-end">
-            {auth.userCredentials != null && (
               <Navbar.Text>
                 Signed in as:{" "}
                 <Button
@@ -29,15 +34,20 @@ export const Header = () => {
                     });
                   }}
                 >
-                  {" "}
-                  {auth.userCredentials.userId}
+                  {data != null && (<>
+                    {" "}
+                    {data.userId}
+                    </>
+                  )}
+                  {data == null && (<>
+                    {"Login"}
+                    </>
+                  )}
                 </Button>
               </Navbar.Text>
-            )}
           </Navbar.Collapse>
         </Container>
       </Navbar>
-      <ErrorAlert />
     </div>
   );
 };

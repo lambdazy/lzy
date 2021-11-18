@@ -14,11 +14,17 @@ import { useAuth, UserCredentials } from "../logic/Auth";
 import { useState } from "react";
 import { useAlert } from "./ErrorAlert";
 import { Permissions, PermittedComponent } from "../logic/Permissions";
+import { useAsync } from "react-async";
 
 export const UserTableFC: React.FC<{ host: string }> = ({ host }) => {
   let auth = useAuth();
-  if (auth.userCredentials != null) {
-    return <UsersTable host={host} userCredentials={auth.userCredentials} />;
+  let {data, error} = useAsync({promiseFn: auth.getCredentials})
+  let alert = useAlert();
+  if (error){
+    alert.show(error.message, error.name, () => {}, "danger");
+  }
+  if (data != null) {
+    return <UsersTable host={host} userCredentials={data} />;
   }
   return <div />;
 };
