@@ -3,12 +3,14 @@ from os import path
 import yaml
 import time
 
+
 def get_pod(name, namespace, api):
     filtered = list(filter(lambda p: p.metadata.name == name, api.list_namespaced_pod(namespace=namespace).items))
     if len(filtered) > 0:
         return filtered[0]
     else:
         return None
+
 
 def wait_pod_phase_or_destroy(name, namespace, api, phase):
     while True:
@@ -21,6 +23,7 @@ def wait_pod_phase_or_destroy(name, namespace, api, phase):
             continue
         if pod.status.phase == phase:
             break
+
 
 def main():
     config.load_kube_config()
@@ -69,6 +72,7 @@ def main():
     ret = api.list_namespaced_pod(namespace=default_namespace)
     for i in ret.items:
         print("%s\t%s\t%s" % (i.status.pod_ip, i.metadata.namespace, i.metadata.name))
+
 
 if __name__ == '__main__':
     main()

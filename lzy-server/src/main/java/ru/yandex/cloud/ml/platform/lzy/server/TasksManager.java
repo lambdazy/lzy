@@ -40,6 +40,7 @@ public interface TasksManager {
     Map<Slot, Channel> slots(String user);
     void addUserSlot(String user, Slot slot, Channel channel);
     boolean removeUserSlot(String user, Slot slot);
+    void destroyUserChannels(String user);
 
     enum Signal {
         TOUCH(0),

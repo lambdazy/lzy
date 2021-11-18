@@ -15,7 +15,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -50,10 +49,11 @@ public class InMemTasksManager implements TasksManager {
         final Channel channel = channels.create(name, contentTypeFrom);
         if (channel == null)
             return null;
-        if (parent != null)
+        if (parent != null) {
             taskChannels.computeIfAbsent(parent, task -> new ArrayList<>()).add(channel);
-        else
+        } else {
             userChannels.computeIfAbsent(uid, user -> new ArrayList<>()).add(channel);
+        }
         return channel;
     }
 
@@ -80,6 +80,12 @@ public class InMemTasksManager implements TasksManager {
     @Override
     public boolean removeUserSlot(String user, Slot slot) {
         return userSlots.getOrDefault(user, Map.of()).remove(slot) != null;
+    }
+
+    @Override
+    public void destroyUserChannels(String user) {
+        userChannels.getOrDefault(user, List.of()).forEach(channels::destroy);
+        userChannels.remove(user);
     }
 
     @Override
