@@ -12,6 +12,28 @@ Configuration:
       fileName: /var/log/servant/${sys:custom.log.file}
       PatternLayout:
         pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] [%t] %c{1} - %msg%n"
+    JDBC:
+      name: "databaseAppender"
+      tableName: "lzy.servant_logs"
+      ConnectionFactory:
+        class: "ru.yandex.cloud.ml.platform.lzy.servant.logs.ConnectionFactory"
+        method: "getDatabaseConnection"
+      Column:
+        - name: EVENT_ID
+          literal: LOGGING.APPLICATION_LOG_SEQUENCE.NEXTVAL
+        - name: EVENT_DATE
+          isEventTimestamp: true
+        - name: LEVEL
+          pattern: "%level"
+        - name: LOGGER
+          pattern: "%logger"
+        - name: MESSAGE
+          pattern: "%message"
+        - name: THROWABLE
+          pattern: "%ex{full}"
+        - name: SERVANT_ID
+          literal: ${sys:custom.log.file}
+
 
   Loggers:
     Root:
