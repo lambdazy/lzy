@@ -7,5 +7,5 @@ eval "$(conda shell.bash hook)" && \
   conda create --name "$name" "python=$version" pip && \
   conda activate "$name" && \
   python -m ensurepip && \
-  pip install setuptools && \
+  pip install -r requirements.txt && \
   cd "$lzy_py_path" && pip install .
