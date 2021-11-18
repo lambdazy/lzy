@@ -16,7 +16,7 @@ The system is based on the following principle: a computing cluster is represent
 
 ### Installation
 
-`pip install lzy-py-eap`
+`pip install pylzy-nightly`
 
 ### Generating keys
 To access lzy, you must generate RSA public and private key, and then add them to [site](http://lzy.northeurope.cloudapp.azure.com/add_token).

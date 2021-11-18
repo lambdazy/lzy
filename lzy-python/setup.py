@@ -102,8 +102,8 @@ class Installer(install):
 
 
 setuptools.setup(
-    name='pyzy-eap',
-    version='0.0.4',
+    name='pylzy-nightly',
+    version='0.0.1',
     author='ʎzy developers',
     include_package_data=True,
     package_data={
