@@ -41,7 +41,8 @@ class TerminalServer:
         env['USER'] = self._user
         self._pcs = subprocess.Popen(
             ['java', '-Dfile.encoding=UTF-8',
-             '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32'
+             '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32',
+             '-Djava.library.path=/usr/local/lib',
              f'-Dcustom.log.file={self._log_file}',
              '-classpath', TerminalServer.jar_path,
              'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
