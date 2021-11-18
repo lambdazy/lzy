@@ -93,6 +93,7 @@ class ProxyTests(TestCase):
 
         class LazyOpMock(LzyOp, ABC):
             def __init__(self):
+                # noinspection PyTypeChecker
                 super().__init__(lambda: None, (), None, None)
 
             def materialize(self) -> Any:
@@ -107,11 +108,11 @@ class ProxyTests(TestCase):
         op.materialize()
         self.assertEqual(len(a), 1)
 
-
     def test_int_sum(self):
         a = 10
         b = 50
 
         prxy_a = proxy(lambda: a, int)
         prxy_b = proxy(lambda: b, int)
-        print(prxy_a + prxy_b)
+        self.assertEqual(prxy_a + prxy_b, 60)
+        self.assertEqual(prxy_a * prxy_b, 500)

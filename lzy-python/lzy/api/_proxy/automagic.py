@@ -1,18 +1,24 @@
 import functools
 from typing import Type, Callable, TypeVar
 
+
 def caster(f):
     @functools.wraps(f)
     def inner(*args, **kwargs):
         try:
-            print("Or here")
+            # noinspection PyArgumentList
             return f(*args, **kwargs)
         finally:
-            args = tuple(create_and_cache(type(arg), type(arg).__origin) if isinstance(type(arg), Proxifier) else arg for arg in args)
-            kwargs = {k: create_and_cache(type(arg), type(arg).__origin) if isinstance(type(arg), Proxifier) else arg for k, arg in kwargs.items()}
-            print('here')
+            args = tuple(
+                create_and_cache(type(arg), type(arg).__origin) if isinstance(type(arg), Proxifier) else arg for arg in
+                args)
+            kwargs = {k: create_and_cache(type(arg), type(arg).__origin) if isinstance(type(arg), Proxifier) else arg
+                      for k, arg in kwargs.items()}
+            # noinspection PyArgumentList
             return f(*args, **kwargs)
+
     return inner
+
 
 class TrickDescriptor:
     def __init__(self, attr, callback):
