@@ -24,7 +24,7 @@ public class ConnectionFactory {
         String clickhouseHost = System.getenv("LOGS_HOST");
         String clickhouseUser = System.getenv("LOGS_USER");
         String clickhousePass = System.getenv("LOGS_PASSWORD");
-        String url = String.format("jdbc:clickhouse://%s:8123/lzy.servant_logs?user=%s&password=%s",
+        String url = String.format("jdbc:clickhouse://%s:8123/lzy?user=%s&password=%s",
                 clickhouseHost, clickhouseUser, clickhousePass);
 
         this.dataSource = new ClickHouseDataSource(url);
