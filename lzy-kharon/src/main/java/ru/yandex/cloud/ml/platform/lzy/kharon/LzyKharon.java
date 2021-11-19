@@ -117,17 +117,24 @@ public class LzyKharon {
                 slotHost = "localhost";
             }
 
+            URI servantUri = null;
             try {
-                final URI servantUri = new URI(null, null, slotHost, slotUri.getPort(), null, null, null);
+                servantUri = new URI(null, null, slotHost, slotUri.getPort(), null, null, null);
                 final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager.getOrCreate(servantUri);
+                LOG.info("Created connection to servant " + servantUri);
                 final Iterator<Servant.Message> messageIterator = servant.openOutputSlot(request);
                 while (messageIterator.hasNext()) {
                     responseObserver.onNext(messageIterator.next());
                 }
                 responseObserver.onCompleted();
-                connectionManager.shutdownConnection(servantUri);
+                LOG.info("openOutputSlot completed for " + servantUri);
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                LOG.error("Exception while openOutputSlot " + e);
+                responseObserver.onError(e);
+            } finally {
+                if (servantUri != null) {
+                    connectionManager.shutdownConnection(servantUri);
+                }
             }
         }
 
