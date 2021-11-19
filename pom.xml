@@ -14,7 +14,7 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>util-zk</module>
+        <module>lzy-util</module>
         <module>lzy-model</module>
         <module>lzy-backoffice</module>
         <module>lzy-server</module>

@@ -35,4 +35,10 @@ public class EmptyExecutionSnapshot implements ExecutionSnapshot {
         // do nothing
         LOG.info("EmptyExecutionSnapshot::onChunkOutput invoked with slot " + slot.name());
     }
+
+    @Override
+    public void onFinish(Slot slot) {
+        // do nothing
+        LOG.info("EmptyExecutionSnapshot::onFinish invoked with slot " + slot.name());
+    }
 }
