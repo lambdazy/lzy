@@ -14,7 +14,7 @@ Configuration:
         pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] [%t] %c{1} - %msg%n"
     JDBC:
       name: DatabaseAppender
-      tableName: "lzy.servant_logs"
+      tableName: "servant_logs"
       ConnectionFactory:
         class: "ru.yandex.cloud.ml.platform.lzy.servant.logs.ConnectionFactory"
         method: "getDatabaseConnection"
