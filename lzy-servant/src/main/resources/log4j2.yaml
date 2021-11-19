@@ -13,7 +13,7 @@ Configuration:
       PatternLayout:
         pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] [%t] %c{1} - %msg%n"
     JDBC:
-      name: "databaseAppender"
+      name: DatabaseAppender
       tableName: "lzy.servant_logs"
       ConnectionFactory:
         class: "ru.yandex.cloud.ml.platform.lzy.servant.logs.ConnectionFactory"
@@ -39,4 +39,4 @@ Configuration:
     Root:
       level: info
       AppenderRef:
-        ref: LogFile
+        - ref: ${sys:custom.log.appender}
