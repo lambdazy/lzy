@@ -42,6 +42,7 @@
         <httpclient.version>4.5.9</httpclient.version>
         <log4j.version>2.11.2</log4j.version>
         <commons-lang3.version>3.9</commons-lang3.version>
+        <commons-pool2.version>2.11.1</commons-pool2.version>
         <commons-math3.version>3.6.1</commons-math3.version>
         <AmazonCorrettoCryptoProvider.version>1.2.0</AmazonCorrettoCryptoProvider.version>
         <proto-google-common-protos.version>1.17.0</proto-google-common-protos.version>
@@ -106,7 +107,14 @@
         <io.kubernetes.version>10.0.0</io.kubernetes.version>
         <logback.version>1.2.7</logback.version>
         <slf4j.version>1.7.30</slf4j.version>
-
+        <joda-time.version>2.10.13</joda-time.version>
+        <easystream.version>1.2.15</easystream.version>
+        <hamcrest-core.version>2.2</hamcrest-core.version>
+        <spring-beans.version>5.3.13</spring-beans.version>
+        <aws-java-sdk-cloudwatchmetrics.version>1.12.112</aws-java-sdk-cloudwatchmetrics.version>
+        <spring-test.version>5.3.13</spring-test.version>
+        <jackson-annotations.version>2.13.0</jackson-annotations.version>
+        <javax.ws.rs.version>2.1.1</javax.ws.rs.version>
         <clickhouse.version>0.3.1</clickhouse.version>
 
         <!-- maven docker plugin -->
@@ -217,6 +225,11 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
                 <version>${commons-lang3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-pool2</artifactId>
+                <version>${commons-pool2.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -773,6 +786,48 @@
                 <groupId>ru.yandex.clickhouse</groupId>
                 <artifactId>clickhouse-jdbc</artifactId>
                 <version>${clickhouse.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>joda-time</groupId>
+                <artifactId>joda-time</artifactId>
+                <version>${joda-time.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.sf.jsignature.io-tools</groupId>
+                <artifactId>easystream</artifactId>
+                <version>${easystream.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest-core</artifactId>
+                <version>${hamcrest-core.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-beans</artifactId>
+                <version>${spring-beans.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-cloudwatchmetrics</artifactId>
+                <version>${aws-java-sdk-cloudwatchmetrics.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-test</artifactId>
+                <version>${spring-test.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson-annotations.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.ws.rs</groupId>
+                <artifactId>javax.ws.rs-api</artifactId>
+                <version>${javax.ws.rs.version}</version>
             </dependency>
         </dependencies>
 

@@ -73,6 +73,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                         offset += chunk.size();
                     }
                 } else if (next.getControl() == Servant.Message.Controls.EOS) {
+                    snapshot.onFinish(definition());
                     break;
                 }
             }
