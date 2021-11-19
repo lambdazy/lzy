@@ -32,11 +32,11 @@ Configuration:
         - name: THROWABLE
           pattern: "%ex{full}"
         - name: SERVANT_ID
-          literal: ${sys:custom.log.file}
+          literal: ${sys:custom.log.servant_id}
 
 
   Loggers:
     Root:
       level: info
       AppenderRef:
-        - ref: ${sys:custom.log.appender}
+        ref: ${sys:custom.log.appender:-LogFile}
