@@ -54,9 +54,9 @@ resource "kubernetes_pod" "lzy_server" {
   }
   spec {
     container {
+      name              = "lzy-server"
       image             = "celdwind/lzy:lzy-server"
       image_pull_policy = "Always"
-      name              = "lzy-server"
       env {
         name = "LZY_SERVER_HOST"
         value_from {
@@ -65,9 +65,51 @@ resource "kubernetes_pod" "lzy_server" {
           }
         }
       }
+      env {
+        name  = "AUTHENTICATOR"
+        value = "DbAuthenticator"
+      }
+      env {
+        name  = "DATABASE_URL"
+        value = "jdbc:postgresql://postgres-postgresql.default.svc.cluster.local:5432/serverDB"
+      }
+      env {
+        name  = "DATABASE_USERNAME"
+        value = "server"
+      }
+      env {
+        name = "DATABASE_PASSWORD"
+        value_from {
+          secret_key_ref {
+            name = "postgres"
+            key  = "postgresql-password"
+          }
+        }
+      }
+      port {
+        container_port = 8888
+      }
+    }
+    affinity {
+      pod_anti_affinity {
+        required_during_scheduling_ignored_during_execution {
+          label_selector {
+            match_expressions {
+              key      = "app"
+              operator = "In"
+              values   = [
+                "lzy-servant",
+                "lzy-server",
+                "lzy-kharon",
+                "lzy-backoffice"
+              ]
+            }
+          }
+        }
+      }
     }
     host_network = true
-    dns_policy   = "Default"
+    dns_policy   = "ClusterFirstWithHostNet"
   }
 }
 
