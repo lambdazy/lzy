@@ -14,7 +14,6 @@ spec:
           fieldRef:
             fieldPath: status.podIP
     image:  celdwind/lzy:lzy-kharon
-    imagePullPolicy: Always
     args: ["--lzy-server-address", "http://$(LZY_SERVER_IP):8888", "--host", "$(LZY_HOST)", "--port", "8899", "--servant-proxy-port", "8900"]
     ports:
       - containerPort: 8899
