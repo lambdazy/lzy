@@ -173,7 +173,7 @@ resource "azurerm_public_ip" "lzy_kharon" {
   resource_group_name = azurerm_resource_group.test.name
   sku                 = "Standard"
   allocation_method   = "Static"
-  domain_name_label   = "lzy-kharon.northeurope.cloudapp.azure.com"
+  domain_name_label   = "lzy.kharon.northeurope.cloudapp.azure.com"
 }
 
 resource "azurerm_role_assignment" "test" {
