@@ -115,11 +115,15 @@ resource "kubernetes_pod" "lzy_server" {
 
 resource "kubernetes_service" "lzy_server" {
   metadata {
-    name = "lzy-server-service"
+    name        = "lzy-server-service"
+    annotations = {
+      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+    }
   }
   spec {
     port {
-      port = 8888
+      port        = 8888
+      target_port = 8888
     }
     selector = {
       app = "lzy-server"
@@ -173,7 +177,8 @@ resource "azurerm_public_ip" "lzy_kharon" {
   resource_group_name = azurerm_resource_group.test.name
   sku                 = "Standard"
   allocation_method   = "Static"
-  domain_name_label   = "lzy.kharon.northeurope.cloudapp.azure.com"
+  domain_name_label   = "lzy-kharon"
+  reverse_fqdn        = "lzy.kharon.northeurope.cloudapp.azure.com"
 }
 
 resource "azurerm_role_assignment" "test" {
