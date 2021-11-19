@@ -17,7 +17,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.EmptyExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.LocalExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.S3ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.whiteboard.LocalWhiteboard;
 import ru.yandex.cloud.ml.platform.lzy.servant.whiteboard.Whiteboard;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
@@ -61,7 +61,7 @@ public class LzyExecution {
         this.taskId = taskId;
         this.zygote = zygote;
         if (persistent) {
-            executionSnapshot = new LocalExecutionSnapshot(taskId);
+            executionSnapshot = new S3ExecutionSnapshot(taskId);
         } else {
             executionSnapshot = new EmptyExecutionSnapshot();
         }

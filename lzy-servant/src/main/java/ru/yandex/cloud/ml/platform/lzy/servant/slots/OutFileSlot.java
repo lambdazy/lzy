@@ -164,10 +164,14 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                     bb.clear();
                     int read = channel.read(bb);
                     LOG.info("Slot {} hasNext read {}", name(), read);
+                    if (read < 0) {
+                        snapshot.onFinish(definition());
+                    }
                     return read >= 0;
                 }
                 catch (IOException e) {
                     LOG.warn("Unable to read line from reader", e);
+                    snapshot.onFinish(definition());
                     return false;
                 }
             }
