@@ -14,4 +14,6 @@ public interface ExecutionSnapshot {
 
     // save to persistent storage sender slot data
     void onChunkOutput(ByteString chunk, Slot slot);
+
+    void onFinish(Slot slot);
 }

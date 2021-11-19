@@ -51,7 +51,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     }
 
     @Override
-    public Stream<ByteString> readFromPosition(long offset) throws IOException {
+    public synchronized Stream<ByteString> readFromPosition(long offset) throws IOException {
         if (offset != 0) {
             throw new EOFException();
         }
@@ -61,11 +61,15 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
             public boolean hasNext() {
                 try {
                     line = reader.get().readLine();
+                    if (line == null) {
+                        snapshot.onFinish(definition());
+                    }
                     return line != null;
                 }
                 catch (IOException | InterruptedException | ExecutionException e) {
                     LOG.warn("Unable to read line from reader", e);
                     line = null;
+                    snapshot.onFinish(definition());
                     return false;
                 }
             }

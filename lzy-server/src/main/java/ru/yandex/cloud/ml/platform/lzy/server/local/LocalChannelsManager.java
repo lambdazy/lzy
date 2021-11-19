@@ -18,7 +18,6 @@ import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 
 import javax.annotation.Nullable;
-import java.net.URI;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
