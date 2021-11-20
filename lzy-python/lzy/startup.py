@@ -30,7 +30,7 @@ def main():
     params_names = list(inspect.signature(container.func).parameters)
     args = tuple(
         lazy_proxy(
-            lambda i=i: load_arg(os.path.join(os.path.sep, servant.mount(), container.func.__name__, params_names[i])),
+            lambda i=i: load_arg(Path(os.path.join(os.path.sep, servant.mount(), container.func.__name__, params_names[i]))),
             container.input_types[i],
             {})
         for i in range(len(params_names))

@@ -1,8 +1,8 @@
 import copyreg
 import inspect
 import logging
-from abc import abstractmethod
-from typing import Callable, Type, Tuple, Any, TypeVar
+from abc import abstractmethod, ABC
+from typing import Callable, Optional, Type, Tuple, Any, TypeVar, Generic
 
 import cloudpickle
 
@@ -14,8 +14,8 @@ from lzy.servant.servant_client import ServantClient
 T = TypeVar('T')
 
 
-class LzyOp:
-    def __init__(self, func: Callable, input_types: Tuple[type, ...],
+class LzyOp(Generic[T], ABC):
+    def __init__(self, func: Callable[..., T], input_types: Tuple[type, ...],
                  return_type: Type[T], args: Tuple[Any, ...]):
         super().__init__()
         self._func = func
@@ -24,20 +24,20 @@ class LzyOp:
         self._arg_types = input_types
 
         self._materialized = False
-        self._materialization = None
+        self._materialization: Optional[T] = None
 
         self._log = logging.getLogger(str(self.__class__))
 
     @property
-    def func(self) -> Callable:
+    def func(self) -> Callable[..., T]:
         return self._func
 
     @property
-    def args(self) -> Tuple:
+    def args(self) -> Tuple[Any, ...]:
         return self._args
 
     @property
-    def return_type(self) -> type:
+    def return_type(self) -> Type[T]:
         return self._return_type
 
     @property
@@ -45,7 +45,7 @@ class LzyOp:
         return self._arg_types
 
     @abstractmethod
-    def materialize(self) -> Any:
+    def materialize(self) -> T:
         pass
 
     @abstractmethod
@@ -53,15 +53,15 @@ class LzyOp:
         pass
 
 
-class LzyLocalOp(LzyOp):
-    def __init__(self, func: Callable, input_types: Tuple[type, ...],
+class LzyLocalOp(LzyOp, Generic[T]):
+    def __init__(self, func: Callable[..., T], input_types: Tuple[type, ...],
                  return_type: Type[T], args: Tuple[Any, ...]):
         super().__init__(func, input_types, return_type, args)
 
-    def materialize(self) -> Any:
+    def materialize(self) -> T:
         self._log.info("Materializing function %s", self.func)
         if not self._materialized:
-            self._materialization = self.func(*self.args)
+            self._materialization: T = self.func(*self.args)
             self._materialized = True
             self._log.info("Materializing function %s done", self.func)
         else:
@@ -73,7 +73,7 @@ class LzyLocalOp(LzyOp):
         return self._materialized
 
 
-class LzyRemoteOp(LzyOp):
+class LzyRemoteOp(LzyOp, Generic[T]):
     def __init__(self, servant: ServantClient, func: Callable,
                  input_types: Tuple[type, ...],
                  output_type: Type[T], provisioning: Provisioning = None, env: PyEnv = None,
@@ -94,6 +94,8 @@ class LzyRemoteOp(LzyOp):
         arg_names = inspect.getfullargspec(self._func).args
         for i in range(len(self._args)):
             local_slot = execution.bindings().local_slot(arg_slots[i])
+            if not local_slot:
+                raise RuntimeError(f"Slot {arg_slots[i].name} not binded")
             self._log.info(f"Writing argument {arg_names[i]} to local slot {local_slot.name()}")
             with open(self._servant.get_slot_path(local_slot), 'wb') as handle:
                 cloudpickle.dump(self._args[i], handle)
@@ -102,6 +104,8 @@ class LzyRemoteOp(LzyOp):
 
         return_local_slot = execution.bindings().local_slot(
             self._zygote.return_slot())
+        if not return_local_slot:
+            raise RuntimeError(f"Slot {self._zygote.return_slot().name} not binded")
         return_slot_path = self._servant.get_slot_path(return_local_slot)
         self._log.info(f"Reading result from {return_slot_path}")
         with open(return_slot_path, 'rb') as handle:
@@ -148,4 +152,4 @@ class LzyRemoteOp(LzyOp):
             op.func, op._provisioning, op._env, *op.args)
 
 
-copyreg.dispatch_table[LzyRemoteOp] = LzyRemoteOp.reducer
+copyreg.dispatch_table[LzyRemoteOp] = LzyRemoteOp.reducer  # type: ignore

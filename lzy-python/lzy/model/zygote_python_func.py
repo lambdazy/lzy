@@ -3,7 +3,7 @@ import inspect
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Callable, Tuple, Type, TypeVar
+from typing import Generic, List, Callable, Tuple, Type, TypeVar, Optional
 
 import cloudpickle
 
@@ -16,22 +16,15 @@ T = TypeVar('T')
 
 
 @dataclass
-class FuncContainer:
+class FuncContainer(Generic[T]):
     func: Callable
     input_types: Tuple[type, ...]
     output_type: Type[T]
 
 
-@dataclass
-class FuncContainer:
-    func: Callable
-    input_types: Tuple[type, ...]
-    output_type: Type[T]
-
-
-class ZygotePythonFunc(Zygote):
+class ZygotePythonFunc(Zygote, Generic[T]):
     def __init__(self, func: Callable, arg_types: Tuple[type, ...],
-                 output_type: Type[T], lzy_mount: Path, env: Env, provisioning: Provisioning):
+                 output_type: Type[T], lzy_mount: Path, env: Optional[Env], provisioning: Optional[Provisioning]):
         super().__init__()
         self._func = func
         self._arg_types = arg_types
@@ -63,8 +56,8 @@ class ZygotePythonFunc(Zygote):
     def return_slot(self) -> Slot:
         return self._return_slot
 
-    def env(self) -> Env:
+    def env(self) -> Optional[Env]:
         return self._env
 
-    def provisioning(self) -> Provisioning:
+    def provisioning(self) -> Optional[Provisioning]:
         return self._provisioning

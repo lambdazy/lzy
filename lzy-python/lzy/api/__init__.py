@@ -62,7 +62,10 @@ def op_(provisioning: Provisioning, *, input_types=None, output_type=None):
                 lzy_op = LzyLocalOp(f, input_types, output_type, args)
             else:
                 env_name, yaml = current_env.generate_conda_env()
-                lzy_op = LzyRemoteOp(current_env.servant(), f, input_types,
+                servant = current_env.servant()
+                if not servant:
+                    raise RuntimeError("Cannot find servant")
+                lzy_op = LzyRemoteOp(servant, f, input_types,
                                      output_type,
                                      provisioning,
                                      PyEnv(env_name, yaml),

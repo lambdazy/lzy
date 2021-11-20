@@ -56,7 +56,13 @@ class JavaCheckStage(Stage):
         try:
             out = str(subprocess.check_output(['java', '-version'],
                                               stderr=subprocess.STDOUT))
-            version = int(float(self._version_pattern.search(out).groups()[0]))
+            
+            search = self._version_pattern.search(out)
+            if not search:
+                self._error = "Wrong java version"
+                return False
+            
+            version = int(float(search.groups()[0]))
             if version < JAVA_VERSION_MIN:
                 self._error = "Java >= 11 is required"
                 return False
@@ -117,6 +123,6 @@ setuptools.setup(
     ],
     python_requires='>=3.7',
     cmdclass={
-        'installer.py': Installer
+        'installer.py': Installer  # type: ignore
     }
 )
