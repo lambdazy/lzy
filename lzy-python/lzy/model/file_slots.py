@@ -2,7 +2,7 @@ from lzy.model.slot import Slot, DataSchema, Direction, Media
 
 
 class InFileSlot(Slot):
-    def __init__(self, name):
+    def __init__(self, name: str):
         super().__init__()
         self._name = name
 
@@ -20,7 +20,7 @@ class InFileSlot(Slot):
 
 
 class OutFileSlot(Slot):
-    def __init__(self, name):
+    def __init__(self, name: str):
         super().__init__()
         self._name = name
 

@@ -4,7 +4,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict, Optional
 
 from time import sleep
 
@@ -21,7 +21,7 @@ class BashExecutionException(Exception):
 
 
 class Singleton(type):
-    _instances = {}
+    _instances: Dict[type, Any] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
@@ -37,7 +37,7 @@ class BashExecution(Execution):
         self._cmd = command
         self._env = env
         self._bindings = bindings
-        self._process = None
+        self._process: Optional[subprocess.Popen] = None
 
     def id(self) -> str:
         return self._id
@@ -60,14 +60,14 @@ class BashExecution(Execution):
         if not self._process:
             raise ValueError('Execution has NOT been started')
         out, err = self._process.communicate()
-        return ExecutionResult(out, err, self._process.returncode)
+        return ExecutionResult(str(out, "utf8"), str(err, "utf8"), self._process.returncode)
 
 
 class BashServantClient(ServantClient, metaclass=Singleton):
-    def __init__(self, lzy_mount: str = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))):
+    def __init__(self, lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy")):
         super().__init__()
         self._log = logging.getLogger(str(self.__class__))
-        self._mount = lzy_mount
+        self._mount = Path(lzy_mount)
         self._log.info(f"Creating BashServant at MOUNT_PATH={self._mount}")
 
     def mount(self) -> Path:
@@ -125,9 +125,9 @@ class BashServantClient(ServantClient, metaclass=Singleton):
         return execution
 
     @staticmethod
-    def _exec_bash(*command):
+    def _exec_bash(*command: str):
         process = subprocess.Popen(
-            ["bash", "-c", " ".join(command)],
+            ["bash", "-c", *command],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             stdin=subprocess.PIPE

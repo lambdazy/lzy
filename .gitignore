@@ -160,3 +160,4 @@ lzy-python/*.egg-info
 
 **/*.env
 lzy-python/*.egg-info
+**/.vscode

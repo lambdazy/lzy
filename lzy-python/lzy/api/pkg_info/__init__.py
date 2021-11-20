@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Iterable
+from typing import Any, Iterable, List, Tuple
 
 import pkg_resources
 import yaml
@@ -37,12 +37,12 @@ _installed_versions = {
 }
 
 
-def get_python_env_as_yaml(name='default'):
+def get_python_env_as_yaml(name='default') -> Tuple[str, str]:
     # always use only first three numbers, otherwise conda won't find
     python_version = to_str(sys.version_info[:3])
     if python_version in _installed_versions:
         name = _installed_versions[python_version]
-        deps = []
+        deps: List[Any] = []
     else:
         name = 'default'
         deps = [f'python=={python_version}']

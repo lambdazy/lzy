@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABC
 from collections import defaultdict
-from typing import Any, TypeVar, Type, Iterable
+from typing import Any, Dict, TypeVar, Type, Iterable
 
 T = TypeVar('T')
 
@@ -18,7 +18,7 @@ class WhiteboardsRepo(ABC):
 class WhiteboardsRepoInMem(WhiteboardsRepo):
     def __init__(self):
         super().__init__()
-        self._whiteboards = defaultdict(list)
+        self._whiteboards: Dict[Type, list] = defaultdict(list)
 
     def register(self, wb: Any) -> None:
         self._whiteboards[type(wb)].append(wb)

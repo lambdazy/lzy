@@ -61,5 +61,5 @@ def join_packages(packages: Iterable[Tuple[str, str]]) -> str:
     )
 
 
-def parse_version(version: str) -> Tuple[str]:
+def parse_version(version: str) -> Tuple[str, ...]:
     return tuple(version.split('.'))
