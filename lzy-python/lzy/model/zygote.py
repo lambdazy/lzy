@@ -1,7 +1,7 @@
 import abc
 import json
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from lzy.model.env import Env
 from lzy.model.slot import Slot
@@ -30,7 +30,7 @@ class Gpu(Tag):
 
 @dataclass
 class Provisioning:
-    gpu: Gpu = None
+    gpu: Optional[Gpu] = None
 
     def tags(self) -> List[Tag]:
         res = []
@@ -54,20 +54,22 @@ class Zygote(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def env(self) -> Env:
+    def env(self) -> Optional[Env]:
         pass
 
     @abc.abstractmethod
-    def provisioning(self) -> Provisioning:
+    def provisioning(self) -> Optional[Provisioning]:
         pass
 
     def to_json(self) -> str:
+        env = self.env()
+        provisioning = self.provisioning()
         return json.dumps({
             # tried to serialize env as json and it didn't work,
             # so build dict here instead for env
-            "env": {self.env().type_id(): self.env().as_dct()},
+            "env": {env.type_id(): env.as_dct()} if env else {},
             "fuze": self.command(),
-            "provisioning": {"tags": [{"tag": tag} for tag in self.provisioning().tags()]},
+            "provisioning": {"tags": [{"tag": tag} for tag in provisioning.tags()]} if provisioning else {},
             "slots": [
                 slot.to_dict() for slot in self.slots()
             ]

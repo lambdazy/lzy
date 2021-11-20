@@ -3,32 +3,33 @@ import subprocess
 import sys
 from abc import ABC
 from pathlib import Path
+from typing import Any, List, Mapping
 import uuid
 import base64
 
 
 # mb dataclass
 class Channel:
-    def __init__(self, id, input, output):
+    def __init__(self, id: int, input: Path, output: Path):
         self.input = Path(input)
         self.output = Path(output)
         self.id = id
 
 
 class FileChannel(Channel):
-    def __init__(self, id, filepath):
+    def __init__(self, id: int, filepath: Path):
         super().__init__(id, filepath, filepath)
 
 
 class Server:
-    def __init__(self, tmp_path):
+    def __init__(self, tmp_path: str):
         self._path = Path(tmp_path)
-        self._processes = []
-        self._channels = []
+        self._processes: List[Any] = []
+        self._channels: List[FileChannel] = []
         self._channels_file = self._make_tmp()
 
     # comand should be bytes, starts zygote
-    def publish(self, comand, mapping):
+    def publish(self, comand: bytes, mapping: Mapping):
         map_args = []
         for k, v in mapping.items():
             map_args.append(str(k))

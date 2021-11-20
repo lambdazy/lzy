@@ -4,9 +4,10 @@ import logging
 import os
 from abc import abstractmethod, ABC
 from pathlib import Path
-from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
+from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional, Union
 
 from lzy.api.pkg_info import get_python_env_as_yaml
+from lzy.api.whiteboard.controller import WhiteboardController
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.terminal_server import TerminalServer
@@ -56,19 +57,19 @@ class LzyEnvBase(ABC):
 
 
 class LzyEnv(LzyEnvBase):
-    instance = None
+    instance: Optional['LzyEnv'] = None
 
     # noinspection PyDefaultArgument
     def __init__(self, eager: bool = False, whiteboard: Any = None,
                  buses: List[Tuple[Callable, Bus]] = [], local: bool = False, user: str = None,
                  yaml_path: str = None, private_key_path: str = '~/.ssh/id_rsa',
                  server_url: str = 'lzy-kharon.northeurope.cloudapp.azure.com:8899',
-                 lzy_mount: str = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))):
+                 lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy")):
         super().__init__()
         # if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
         #     raise ValueError('Whiteboard should be a dataclass')
         if whiteboard is not None:
-            self._wb_controller = WhiteboardControllerImpl(whiteboard)
+            self._wb_controller: Optional[WhiteboardController] = WhiteboardControllerImpl(whiteboard)
         else:
             self._wb_controller = None
 
@@ -76,14 +77,14 @@ class LzyEnv(LzyEnvBase):
         if not local:
             if not user:
                 raise ValueError("Username must be specified")
-            self._terminal_server = TerminalServer(private_key_path, lzy_mount, server_url, user)
-            self._servant_client = BashServantClient(lzy_mount)
+            self._terminal_server: Optional[TerminalServer] = TerminalServer(private_key_path, lzy_mount, server_url, user)
+            self._servant_client: Optional[BashServantClient] = BashServantClient(lzy_mount)
         else:
             self._terminal_server = None
             self._servant_client = None
 
         self._wb_repo = WhiteboardsRepoInMem()
-        self._ops = []
+        self._ops: List[LzyOp] = []
         self._eager = eager
         self._buses = list(buses)
         self._yaml = yaml_path
@@ -121,7 +122,7 @@ class LzyEnv(LzyEnvBase):
         self.activate()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, *_) -> None:
         try:
             self.run()
             if self._wb_controller is not None:
@@ -164,7 +165,7 @@ class LzyEnv(LzyEnvBase):
             raise ValueError('Projection class should accept whiteboard dataclass as an init argument')
 
         # noinspection PyArgumentList
-        return map(lambda x: typ(**{wb_arg_name: x}), self._wb_repo.whiteboards(wb_arg_type))
+        return map(lambda x: typ(**{wb_arg_name: x}), self._wb_repo.whiteboards(wb_arg_type))  # type: ignore
 
     def run(self) -> None:
         if not self.already_exists():
@@ -175,5 +176,5 @@ class LzyEnv(LzyEnvBase):
             wrapper.materialize()
 
     @classmethod
-    def get_active(cls) -> 'LzyEnv':
+    def get_active(cls) -> Optional['LzyEnv']:
         return cls.instance

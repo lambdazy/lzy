@@ -58,7 +58,7 @@ def create_and_cache(proxy_cls, callback):
 
 
 class Proxifier(type):
-    def __new__(mcs, name, bases, attrs, t, origin_getter, cls_attrs):
+    def __new__(cls, name, bases, attrs, t, origin_getter, cls_attrs):
         new_attrs = {
             k: TrickDescriptor(v, origin_getter) if hasattr(v, '__get__') else v
             for k, v in collect_attributes(t).items()
@@ -71,7 +71,7 @@ class Proxifier(type):
         # just leave it here
         new_attrs.pop('__slots__', None)
 
-        return super().__new__(mcs, name, bases, new_attrs)
+        return super().__new__(cls, name, bases, new_attrs)
 
 
 def collect_attributes(cls):
