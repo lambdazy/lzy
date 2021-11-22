@@ -216,7 +216,7 @@ resource "kubernetes_service" "lzy_kharon" {
     annotations = {
       "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
-    name        = "lzy-kharon-service"
+    name        = "lzy-kharon-load-balancer"
   }
   spec {
     load_balancer_ip = azurerm_public_ip.lzy_kharon.ip_address
@@ -227,5 +227,96 @@ resource "kubernetes_service" "lzy_kharon" {
     selector         = {
       app = "lzy-kharon"
     }
+  }
+}
+
+resource "kubernetes_pod" "lzy_backoffice" {
+  metadata {
+    name   = "lzy-backoffice"
+    labels = {
+      app = "lzy-backoffice"
+    }
+  }
+  spec {
+    container {
+      name = "lzy-backoffice-frontend"
+      image = "celdwind/lzy:lzy-backoffice-frontend"
+      image_pull_policy = "Always"
+      port {
+        container_port = 80
+      }
+    }
+    container {
+      name = "lzy-backoffice-backend"
+      image = "celdwind/lzy:lzy-backoffice-backend"
+      image_pull_policy = "Always"
+      env {
+        name = "GRPC_PORT"
+        value = "8888"
+      }
+      env {
+        name = "OAUTH_GITHUB_CLIENT_ID"
+        value_from {
+          secret_key_ref {
+            name = "oauth-github"
+            key = "client-id"
+          }
+        }
+      }
+      env {
+        name = "CREDENTIALS_USER_ID"
+        value = "backoffice"
+      }
+      env {
+        name = "OAUTH_GITHUB_CLIENT_SECRET"
+        value_from {
+          secret_key_ref {
+            name = "oauth-github"
+            key = "client-secret"
+          }
+        }
+      }
+      env {
+        name = "CREDENTIALS_PRIVATE_KEY_PATH"
+        value = "/etc/sec/backofficePrivateKey.txt"
+      }
+      volume_mount {
+        mount_path = "sec"
+        name       = "/etc/sec"
+      }
+      port {
+        container_port = 8080
+      }
+    }
+    volume {
+      name = "sec"
+      secret {
+        secret_name = "backoffice-secrets"
+        items {
+          key = "private-key"
+          path = "backofficePrivateKey.txt"
+        }
+      }
+    }
+    affinity {
+      pod_anti_affinity {
+        required_during_scheduling_ignored_during_execution {
+          label_selector {
+            match_expressions {
+              key      = "app"
+              operator = "In"
+              values   = [
+                "lzy-servant",
+                "lzy-server",
+                "lzy-kharon",
+                "lzy-backoffice"
+              ]
+            }
+          }
+        }
+      }
+    }
+    host_network = true
+    dns_policy   = "ClusterFirstWithHostNet"
   }
 }
