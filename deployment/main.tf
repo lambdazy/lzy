@@ -215,10 +215,10 @@ resource "azurerm_role_assignment" "test" {
 
 resource "kubernetes_service" "lzy_kharon" {
   metadata {
+    name        = "lzy-kharon-load-balancer"
     annotations = {
       "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
-    name        = "lzy-kharon-load-balancer"
   }
   spec {
     load_balancer_ip = azurerm_public_ip.lzy_kharon.ip_address
@@ -241,19 +241,19 @@ resource "kubernetes_pod" "lzy_backoffice" {
   }
   spec {
     container {
-      name = "lzy-backoffice-frontend"
-      image = "celdwind/lzy:lzy-backoffice-frontend"
+      name              = "lzy-backoffice-frontend"
+      image             = "celdwind/lzy:lzy-backoffice-frontend"
       image_pull_policy = "Always"
       port {
         container_port = 80
       }
     }
     container {
-      name = "lzy-backoffice-backend"
-      image = "celdwind/lzy:lzy-backoffice-backend"
+      name              = "lzy-backoffice-backend"
+      image             = "celdwind/lzy:lzy-backoffice-backend"
       image_pull_policy = "Always"
       env {
-        name = "GRPC_PORT"
+        name  = "GRPC_PORT"
         value = "8888"
       }
       env {
@@ -261,12 +261,12 @@ resource "kubernetes_pod" "lzy_backoffice" {
         value_from {
           secret_key_ref {
             name = "oauth-github"
-            key = "client-id"
+            key  = "client-id"
           }
         }
       }
       env {
-        name = "CREDENTIALS_USER_ID"
+        name  = "CREDENTIALS_USER_ID"
         value = "backoffice"
       }
       env {
@@ -274,12 +274,12 @@ resource "kubernetes_pod" "lzy_backoffice" {
         value_from {
           secret_key_ref {
             name = "oauth-github"
-            key = "client-secret"
+            key  = "client-secret"
           }
         }
       }
       env {
-        name = "CREDENTIALS_PRIVATE_KEY_PATH"
+        name  = "CREDENTIALS_PRIVATE_KEY_PATH"
         value = "/etc/sec/backofficePrivateKey.txt"
       }
       volume_mount {
@@ -295,7 +295,7 @@ resource "kubernetes_pod" "lzy_backoffice" {
       secret {
         secret_name = "backoffice-secrets"
         items {
-          key = "private-key"
+          key  = "private-key"
           path = "backofficePrivateKey.txt"
         }
       }
@@ -321,5 +321,39 @@ resource "kubernetes_pod" "lzy_backoffice" {
     }
     host_network = true
     dns_policy   = "ClusterFirstWithHostNet"
+  }
+}
+
+resource "azurerm_public_ip" "lzy_backoffice" {
+  name                = "lzy_backoffice_domain_name_label"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  sku                 = "Standard"
+  allocation_method   = "Static"
+  domain_name_label   = "lzy-backoffice"
+  reverse_fqdn        = "lzy.backoffice.northeurope.cloudapp.azure.com"
+}
+
+resource "kubernetes_service" "lzy_backoffice" {
+  metadata {
+    name        = "lzy-backoffice-service"
+    annotations = {
+      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+    }
+  }
+  spec {
+    load_balancer_ip = azurerm_public_ip.lzy_backoffice.ip_address
+    type             = "LoadBalancer"
+    selector         = {
+      app : "lzy-backoffice"
+    }
+    port {
+      name = "backend"
+      port = 8080
+    }
+    port {
+      name = "frontend"
+      port = 80
+    }
   }
 }
