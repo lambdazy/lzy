@@ -2,6 +2,7 @@ import axios from "axios";
 import { useState } from "react";
 import { useAsync } from "react-async";
 import { Container} from "react-bootstrap";
+import { Col,Container, Row } from "react-bootstrap";
 import { BACKEND_HOST } from "../config";
 import { useAuth, UserCredentials } from "../logic/Auth";
 import { useAlert } from "./ErrorAlert";
@@ -9,6 +10,7 @@ import { Header } from "./Header";
 import { DataGrid, GridCellParams, GridColDef, GridRowsProp, MuiEvent } from '@mui/x-data-grid';
 import Popup from "reactjs-popup";
 import { Card, CardContent } from "@mui/material";
+import { DataGrid, GridColDef, GridRowsProp } from '@mui/x-data-grid';
 
 export interface Task{
     taskId: string;
@@ -18,6 +20,15 @@ export interface Task{
     status: string;
     fuse: string;
     tags: string[];
+}
+
+function generateTasks(tasks: Task[]){
+    return Array.from(tasks.map((t) =>
+        <Row>
+            <Col>{t.taskId}</Col>
+            <Col>{t.status}</Col>
+        </Row>
+    ))
 }
 
 async function fetchTasks(credentials: UserCredentials): Promise<Task[]>{
