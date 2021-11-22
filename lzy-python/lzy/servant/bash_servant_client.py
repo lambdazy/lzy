@@ -4,7 +4,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from time import sleep
 
@@ -125,9 +125,9 @@ class BashServantClient(ServantClient, metaclass=Singleton):
         return execution
 
     @staticmethod
-    def _exec_bash(*command: str):
+    def _exec_bash(*command: Tuple[str, ...]):
         process = subprocess.Popen(
-            ["bash", "-c", *command],
+            ["bash", "-c", " ".join(command)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             stdin=subprocess.PIPE
