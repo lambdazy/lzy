@@ -297,7 +297,24 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     }
 
     @Override
-    public void getTasks(BackOffice.GetTasksRequest request, StreamObserver<BackOffice.GetTasksResponse> responseObserver){
+    public void getTasks(BackOffice.GetTasksRequest request, StreamObserver<BackOffice.GetTasksResponse> responseObserver) {
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getCredentials());
+        } catch (StatusException e) {
+            responseObserver.onError(e);
+            return;
+        }
+        responseObserver.onNext(BackOffice.GetTasksResponse.newBuilder().setTasks(Tasks.TasksList.newBuilder().addAllTasks(tasks.ps()
+                .filter(t -> this.auth.canAccess(t, request.getCredentials().getUserId()))
+                .map(t -> LzyServer.Impl.taskStatus(t, tasks))
+                .collect(Collectors.toList())
+        )).build());
+
+        responseObserver.onCompleted();
+    }
+
+    public void listTokens(BackOffice.ListTokensRequest request, StreamObserver<BackOffice.ListTokensResponse> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
             authBackofficeUserCredentials(request.getCredentials());
@@ -307,14 +324,46 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             return;
         }
 
-        responseObserver.onNext(BackOffice.GetTasksResponse.newBuilder().setTasks(Tasks.TasksList.newBuilder().addAllTasks(tasks.ps()
-            .filter(t -> this.auth.canAccess(t, request.getCredentials().getUserId()))
-            .map(t -> LzyServer.Impl.taskStatus(t, tasks))
-            .collect(Collectors.toList())
-        )).build());
+        try(Session session = storage.getSessionFactory().openSession()){
+            UserModel user = session.find(UserModel.class, request.getCredentials().getUserId());
+            responseObserver.onNext(BackOffice.ListTokensResponse.newBuilder()
+                .addAllTokenNames(user.getTokens().stream().map(
+                    TokenModel::getName
+                ).collect(Collectors.toList()))
+                .build());
+            responseObserver.onCompleted();
+        }
+    }
 
-        responseObserver.onCompleted();
+    @Override
+    public void deleteToken(BackOffice.DeleteTokenRequest request, StreamObserver<BackOffice.DeleteTokenResponse> responseObserver){
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getCredentials());
+        }
+        catch (StatusException e){
+            responseObserver.onError(e);
+            return;
+        }
 
+        try(Session session = storage.getSessionFactory().openSession()){
+            Transaction tx = session.beginTransaction();
+            try {
+                TokenModel token = session.find(TokenModel.class, new TokenModel.TokenPk(request.getTokenName(), request.getCredentials().getUserId()));
+                if (token == null) {
+                    responseObserver.onError(Status.NOT_FOUND.asException());
+                    return;
+                }
+                session.delete(token);
+                tx.commit();
+                responseObserver.onNext(BackOffice.DeleteTokenResponse.newBuilder().build());
+                responseObserver.onCompleted();
+            }
+            catch (Exception e){
+                tx.rollback();
+                responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            }
+        }
     }
 
     private void authBackofficeCredentials(IAM.UserCredentials credentials) throws StatusException {

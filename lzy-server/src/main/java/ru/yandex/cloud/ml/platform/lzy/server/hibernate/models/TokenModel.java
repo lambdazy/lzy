@@ -19,7 +19,7 @@ public class TokenModel {
     @Column(name = "value")
     private String value;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne()
     @JoinColumn(name="user_id", nullable=false, insertable = false, updatable = false)
     private UserModel user;
 

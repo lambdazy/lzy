@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.backoffice.models;
+package ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth;
 
 import io.micronaut.core.annotation.Introspected;
 
