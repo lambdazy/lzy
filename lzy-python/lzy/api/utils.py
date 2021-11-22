@@ -45,7 +45,7 @@ def is_lazy_proxy(obj: Any) -> bool:
     return hasattr(cls, '__lzy_proxied__') and cls.__lzy_proxied__
 
 
-def lazy_proxy(materialization: Callable, return_type: Type[T], obj_attrs: Dict[str, Any]) -> Any:
+def lazy_proxy(materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]) -> Any:
     return proxy(
         lambda: materialization(),
         return_type,
