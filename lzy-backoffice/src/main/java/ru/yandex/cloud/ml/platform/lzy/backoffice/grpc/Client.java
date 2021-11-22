@@ -9,7 +9,14 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.CredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.GrpcConfig;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth.CheckPermissionRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth.CheckSessionRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tokens.AddTokenRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tokens.DeleteTokenRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tokens.ListTokensRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.CreateUserRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.DeleteUserRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.ListUsersRequest;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 
@@ -137,6 +144,29 @@ public class Client {
     public BackOffice.GetTasksResponse getTasks(GetTasksRequest request){
         try {
             return getBlockingStub().getTasks(
+                    request.toModel(credentials.createCreds())
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
+
+
+    public BackOffice.ListTokensResponse listTokens(ListTokensRequest request){
+        try {
+            return getBlockingStub().listTokens(
+                    request.toModel(credentials.createCreds())
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
+
+    public BackOffice.DeleteTokenResponse deleteToken(DeleteTokenRequest request){
+        try {
+            return getBlockingStub().deleteToken(
                     request.toModel(credentials.createCreds())
             );
         }

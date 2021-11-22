@@ -11,6 +11,8 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service LzyBackoffice{
   rpc AddToken(AddTokenRequest) returns (AddTokenResult);
+  rpc ListTokens(ListTokensRequest) returns (ListTokensResponse);
+  rpc DeleteToken(DeleteTokenRequest) returns (DeleteTokenResponse);
   rpc CreateUser(CreateUserRequest) returns (CreateUserResult);
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResult);
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
@@ -118,6 +120,23 @@ message GetTasksRequest{
   BackofficeUserCredentials credentials = 2;
 }
 
+message ListTokensRequest {
+  UserCredentials backofficeCredentials = 1;
+  BackofficeUserCredentials credentials = 2;
+}
+
 message GetTasksResponse{
   TasksList tasks = 1;
 }
+
+message ListTokensResponse {
+  repeated string tokenNames = 1;
+}
+
+message DeleteTokenRequest {
+  UserCredentials backofficeCredentials = 1;
+  BackofficeUserCredentials credentials = 2;
+  string tokenName = 3;
+}
+
+message DeleteTokenResponse {}
