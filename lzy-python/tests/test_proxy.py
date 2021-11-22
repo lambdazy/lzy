@@ -93,12 +93,14 @@ class ProxyTests(TestCase):
 
         class LazyOpMock(LzyOp, ABC):
             def __init__(self):
-                # noinspection PyTypeChecker
-                super().__init__(lambda: None, (), None, None)
+                super().__init__(lambda: None, (), None, ())
 
             def materialize(self) -> Any:
                 a.append("Materialized without any fcking reason")
                 return "AAA"
+
+            def is_materialized(self) -> bool:
+                return False
 
         mock = LazyOpMock()
         prxy = lazy_proxy(lambda: mock.materialize(), str, {'_op': mock})

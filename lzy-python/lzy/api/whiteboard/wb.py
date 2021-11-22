@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Any, Dict, Optional
 
-from lzy.api import is_lazy_proxy, LzyOp, lazy_op
+from lzy.api import is_lazy_proxy, LzyOp
 
 
 class WhiteBoard:
@@ -15,7 +15,8 @@ class WhiteBoard:
 
     def __setattr__(self, key: str, value: Any):
         if key in WhiteBoard.__ignore__:
-            self.__setattr__(key, value)
+            super().__setattr__(key, value)
+            return
 
         if is_lazy_proxy(value):
             self.ops[key] = value
