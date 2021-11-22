@@ -23,9 +23,9 @@ public interface LzyTerminalTestContext extends AutoCloseable {
     int DEFAULT_TIMEOUT_SEC = 30;
 
     default Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress) {
-        return startTerminalAtPathAndPort(path, port, serverAddress, 5006, "test-user");
+        return startTerminalAtPathAndPort(path, port, serverAddress, 5006, "test-user", "/tmp/nonexistent-key");
     }
-    Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort, String user);
+    Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort, String user, String privateKeyPath);
 
     boolean inDocker();
     void close();

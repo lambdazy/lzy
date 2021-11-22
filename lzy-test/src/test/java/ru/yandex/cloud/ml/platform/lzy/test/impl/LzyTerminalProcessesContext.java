@@ -22,7 +22,7 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
     private final List<Process> servantProcesses = new ArrayList<>();
 
     @Override
-    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user) {
+    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String privateKeyPath) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String[] lzyArgs = {
             "--lzy-address",
@@ -34,7 +34,7 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
             "--lzy-mount",
             mount,
             "--private-key",
-            "/tmp/nonexistent-key",
+            privateKeyPath,
             "--internal-host",
             internalHost,
             "terminal"
