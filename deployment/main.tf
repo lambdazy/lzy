@@ -105,6 +105,7 @@ resource "kubernetes_pod" "lzy_server" {
               ]
             }
           }
+          topology_key = "kubernetes.io/hostname"
         }
       }
     }
@@ -187,6 +188,7 @@ resource "kubernetes_pod" "lzy_kharon" {
               ]
             }
           }
+          topology_key = "kubernetes.io/hostname"
         }
       }
     }
@@ -313,6 +315,7 @@ resource "kubernetes_pod" "lzy_backoffice" {
               ]
             }
           }
+          topology_key = "kubernetes.io/hostname"
         }
       }
     }
