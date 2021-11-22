@@ -23,4 +23,4 @@ Configuration:
     Root:
       level: info
       AppenderRef:
-        - ref: ${sys:custom.log.appender:-LogFile}
+        - ref: LogFile
