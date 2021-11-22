@@ -11,7 +11,7 @@ spec:
       imagePullPolicy: Always
       env:
         - name: LOGS_HOST
-          value: "clickhouse-lzy-clickhouse.default.svc.cluster.local"
+          value: "10.240.2.173"
         - name: LOGS_APPENDER
           value: "DatabaseAppender"
         - name: LOGS_USER
@@ -20,10 +20,10 @@ spec:
               name: logs
               key: logs-user
         - name: LOGS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: logs
-                key: logs-password
+          valueFrom:
+            secretKeyRef:
+              name: logs
+              key: logs-password
         - name: LOG_FILE
           value: "servant.log"
         - name: SUSPEND_DOCKER
