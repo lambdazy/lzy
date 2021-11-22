@@ -155,6 +155,12 @@ resource "kubernetes_pod" "lzy_kharon" {
         name  = "LZY_SERVER_IP"
         value = kubernetes_service.lzy_server.spec[0].cluster_ip
       }
+      port {
+        container_port = 8899
+      }
+      port {
+        container_port = 8900
+      }
       args              = [
         "--lzy-server-address",
         "http://$(LZY_SERVER_IP):8888",
@@ -166,8 +172,26 @@ resource "kubernetes_pod" "lzy_kharon" {
         "8900"
       ]
     }
+    affinity {
+      pod_anti_affinity {
+        required_during_scheduling_ignored_during_execution {
+          label_selector {
+            match_expressions {
+              key      = "app"
+              operator = "In"
+              values   = [
+                "lzy-servant",
+                "lzy-server",
+                "lzy-kharon",
+                "lzy-backoffice"
+              ]
+            }
+          }
+        }
+      }
+    }
     host_network = true
-    dns_policy   = "Default"
+    dns_policy   = "ClusterFirstWithHostNet"
   }
 }
 
