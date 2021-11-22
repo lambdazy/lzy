@@ -26,7 +26,8 @@ public class MultiSessionTest extends LzyBaseTest {
             port,
             kharonContext.serverAddress(terminalContext.inDocker()),
             debugPort,
-            user);
+            user,
+            null);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
             DEFAULT_TIMEOUT_SEC,
