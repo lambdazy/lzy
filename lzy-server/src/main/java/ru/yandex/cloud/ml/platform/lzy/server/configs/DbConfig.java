@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
+package ru.yandex.cloud.ml.platform.lzy.server.configs;
 
 
 import io.micronaut.context.annotation.ConfigurationProperties;

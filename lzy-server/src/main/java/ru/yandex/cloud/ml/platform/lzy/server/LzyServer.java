@@ -3,7 +3,9 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.exceptions.NoSuchBeanException;
+import io.micronaut.core.util.CollectionUtils;
 import jakarta.inject.Inject;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
@@ -39,7 +41,6 @@ public class LzyServer {
 
     private static final String LZY_SERVER_HOST_ENV = "LZY_SERVER_HOST";
     private static final String DEFAULT_LZY_SERVER_LOCALHOST = "http://localhost";
-    private static URI serverURI;
 
     public static void main(String[] args) throws IOException, InterruptedException {
         final CommandLineParser cliParser = new DefaultParser();
@@ -59,11 +60,15 @@ public class LzyServer {
         } else {
             lzyServerHost = DEFAULT_LZY_SERVER_LOCALHOST;
         }
-        serverURI = URI.create(lzyServerHost + ":" + port);
+        URI serverURI = URI.create(lzyServerHost + ":" + port);
 
-        try (ApplicationContext context = ApplicationContext.run(args)) {
-            System.out.println(context.get("database.url", String.class));
-            System.out.println(port);
+        try (ApplicationContext context = ApplicationContext.run(
+            PropertySource.of(
+                CollectionUtils.mapOf(
+                    "server.server-uri", serverURI.toString()
+                )
+            )
+        )) {
             Impl impl = context.getBean(Impl.class);
             ServerBuilder<?> builder = ServerBuilder.forPort(port)
                     .addService(impl);
@@ -87,7 +92,8 @@ public class LzyServer {
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
         private final ChannelsManager channels = new LocalChannelsManager();
-        private final TasksManager tasks = new InMemTasksManager(serverURI, channels);
+        @Inject
+        private TasksManager tasks;
 
         @Inject
         private ConnectionManager connectionManager;
@@ -171,7 +177,7 @@ public class LzyServer {
                     break;
             }
             if (task != null) {
-                responseObserver.onNext(taskStatus(task));
+                responseObserver.onNext(taskStatus(task, tasks));
                 responseObserver.onCompleted();
             }
             else responseObserver.onError(new IllegalArgumentException());
@@ -221,7 +227,7 @@ public class LzyServer {
             final Tasks.TasksList.Builder builder = Tasks.TasksList.newBuilder();
             tasks.ps()
                 .filter(t -> this.auth.canAccess(t, user))
-                .map(this::taskStatus).forEach(builder::addTasks);
+                .map(t -> taskStatus(t, tasks)).forEach(builder::addTasks);
             responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
         }
@@ -357,7 +363,7 @@ public class LzyServer {
             }
         }
 
-        private Tasks.TaskStatus taskStatus(Task task) {
+        public static Tasks.TaskStatus taskStatus(Task task, TasksManager tasks) {
             final Tasks.TaskStatus.Builder builder = Tasks.TaskStatus.newBuilder();
             try {
                 builder.setTaskId(task.tid().toString());
