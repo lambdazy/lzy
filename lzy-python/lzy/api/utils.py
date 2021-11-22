@@ -1,8 +1,10 @@
-from typing import Iterable, Callable, Tuple, get_type_hints, Optional, Any, Type, Dict
+from typing import Iterable, Callable, Tuple, get_type_hints, Optional, Any, Type, Dict, TypeVar
 
 # noinspection PyProtectedMember
 from lzy.api._proxy import proxy
 from .lazy_op import LzyOp
+
+T = TypeVar('T')
 
 
 def print_lzy_op(op: LzyOp) -> None:
@@ -43,7 +45,7 @@ def is_lazy_proxy(obj: Any) -> bool:
     return hasattr(cls, '__lzy_proxied__') and cls.__lzy_proxied__
 
 
-def lazy_proxy(materialization: Callable, return_type: Type, obj_attrs: Dict[str, Any]) -> Any:
+def lazy_proxy(materialization: Callable, return_type: Type[T], obj_attrs: Dict[str, Any]) -> Any:
     return proxy(
         lambda: materialization(),
         return_type,
