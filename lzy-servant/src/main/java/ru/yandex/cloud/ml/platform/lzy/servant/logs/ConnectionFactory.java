@@ -11,23 +11,18 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 public class ConnectionFactory {
-    private interface Singleton {
-        ConnectionFactory INSTANCE = new ConnectionFactory();
-    }
 
-    private final DataSource dataSource;
-
-    private ConnectionFactory() {
-        String clickhouseHost = System.getenv("LOGS_HOST");
-        String clickhouseUser = System.getenv("LOGS_USER");
-        String clickhousePass = System.getenv("LOGS_PASSWORD");
-        String url = String.format("jdbc:clickhouse://%s:8123/lzy?user=%s&password=%s",
-                clickhouseHost, clickhouseUser, clickhousePass);
-
-        this.dataSource = new ClickHouseDataSource(url);
-    }
+    private static DataSource dataSource;
 
     public static Connection getDatabaseConnection() throws SQLException {
-        return Singleton.INSTANCE.dataSource.getConnection();
+        if (dataSource == null){
+            String clickhouseHost = System.getenv("LOGS_HOST");
+            String clickhouseUser = System.getenv("LOGS_USER");
+            String clickhousePass = System.getenv("LOGS_PASSWORD");
+            String url = String.format("jdbc:clickhouse://%s:8123?user=%s&password=%s",
+                    clickhouseHost, clickhouseUser, clickhousePass);
+            dataSource = new ClickHouseDataSource(url);
+        }
+        return dataSource.getConnection();
     }
 }
