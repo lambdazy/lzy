@@ -68,6 +68,8 @@ resource "kubernetes_secret" "postgres" {
 
   data = {
     postgresql-postgres-password = random_password.postgres_password[0].result
+    postgresql-password          = random_password.postgres_password[0].result
+    password                     = random_password.postgres_password[0].result
   }
 
   type = "Opaque"
@@ -270,8 +272,6 @@ resource "azurerm_public_ip" "lzy_kharon" {
   resource_group_name = azurerm_resource_group.test.name
   sku                 = "Standard"
   allocation_method   = "Static"
-  domain_name_label   = "lzy-kharon"
-  reverse_fqdn        = "lzy.kharon.northeurope.cloudapp.azure.com"
 }
 
 resource "azurerm_role_assignment" "test" {
@@ -354,8 +354,8 @@ resource "kubernetes_pod" "lzy_backoffice" {
         value = "/etc/sec/backofficePrivateKey.txt"
       }
       volume_mount {
-        mount_path = "sec"
-        name       = "/etc/sec"
+        name       = "sec"
+        mount_path = "/etc/sec"
       }
       port {
         container_port = 8080
@@ -406,8 +406,6 @@ resource "azurerm_public_ip" "lzy_backoffice" {
   resource_group_name = azurerm_resource_group.test.name
   sku                 = "Standard"
   allocation_method   = "Static"
-  domain_name_label   = "lzy-backoffice"
-  reverse_fqdn        = "lzy.backoffice.northeurope.cloudapp.azure.com"
 }
 
 resource "kubernetes_service" "lzy_backoffice" {
