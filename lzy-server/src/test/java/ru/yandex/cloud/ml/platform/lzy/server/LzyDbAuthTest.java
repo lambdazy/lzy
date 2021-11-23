@@ -3,6 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.env.PropertySource;
+import io.micronaut.core.util.CollectionUtils;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.junit.After;
@@ -70,7 +72,8 @@ public class LzyDbAuthTest {
 
     private void generateContext(){
         ctx = ApplicationContext.run(Map.of(
-                "authenticator", "DbAuthenticator"
+                "authenticator", "DbAuthenticator",
+                "server.server-uri", "https://lzy.server.com:8888"
         ));
     }
 

@@ -64,7 +64,7 @@ public class LzyServer {
 
         try (ApplicationContext context = ApplicationContext.run(
             PropertySource.of(
-                CollectionUtils.mapOf(
+                Map.of(
                     "server.server-uri", serverURI.toString()
                 )
             )
