@@ -1,8 +1,18 @@
 terraform {
   required_providers {
-    azurerm = {
+    azurerm    = {
       source  = "hashicorp/azurerm"
       version = "2.85.0"
+    }
+    kubernetes = {
+      source = "hashicorp/kubernetes"
+    }
+    helm       = {
+      source = "hashicorp/helm"
+    }
+    random     = {
+      source  = "hashicorp/random"
+      version = "3.0.1"
     }
   }
 }
@@ -42,6 +52,55 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   tags = {
     Environment = "Development"
+  }
+}
+
+resource "random_password" "postgres_password" {
+  count   = 1
+  length  = 16
+  special = true
+}
+
+resource "kubernetes_secret" "postgres" {
+  metadata {
+    name = "postgres"
+  }
+
+  data = {
+    postgresql-postgres-password = random_password.postgres_password[0].result
+  }
+
+  type = "Opaque"
+}
+
+resource "helm_release" "lzy_server_db" {
+  name       = "postgresql"
+  chart      = "postgresql"
+  repository = "https://charts.bitnami.com/bitnami"
+
+  set {
+    name  = "global.postgresql.postgresqlDatabase"
+    value = "serverDB"
+  }
+
+  set {
+    name  = "global.postgresql.postgresqlUsername"
+    value = "server"
+  }
+
+  set {
+    name  = "global.postgresql.existingSecret"
+    value = kubernetes_secret.postgres.metadata[0].name
+  }
+
+  set_sensitive {
+    name  = "global.postgresql.postgresqlPassword"
+    value = random_password.postgres_password[0].result
+  }
+
+  set {
+    name  = "global.postgresql.servicePort"
+    value = "5432"
   }
 }
 
@@ -112,6 +171,10 @@ resource "kubernetes_pod" "lzy_server" {
     host_network = true
     dns_policy   = "ClusterFirstWithHostNet"
   }
+
+  depends_on = [
+    helm_release.lzy_server_db
+  ]
 }
 
 resource "kubernetes_service" "lzy_server" {
@@ -195,6 +258,10 @@ resource "kubernetes_pod" "lzy_kharon" {
     host_network = true
     dns_policy   = "ClusterFirstWithHostNet"
   }
+
+  depends_on = [
+    kubernetes_pod.lzy_server
+  ]
 }
 
 resource "azurerm_public_ip" "lzy_kharon" {
@@ -252,6 +319,10 @@ resource "kubernetes_pod" "lzy_backoffice" {
       name              = "lzy-backoffice-backend"
       image             = "celdwind/lzy:lzy-backoffice-backend"
       image_pull_policy = "Always"
+      env {
+        name  = "GRPC_HOST"
+        value = kubernetes_service.lzy_server.spec[0].cluster_ip
+      }
       env {
         name  = "GRPC_PORT"
         value = "8888"
@@ -322,6 +393,11 @@ resource "kubernetes_pod" "lzy_backoffice" {
     host_network = true
     dns_policy   = "ClusterFirstWithHostNet"
   }
+
+  depends_on = [
+    kubernetes_pod.lzy_server,
+    helm_release.lzy_server_db
+  ]
 }
 
 resource "azurerm_public_ip" "lzy_backoffice" {
