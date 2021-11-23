@@ -7,7 +7,7 @@ on:
 jobs:
   maven-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
 
@@ -27,7 +27,7 @@ jobs:
         run: docker build -t celdwind/lzy:lzy-servant-base -f lzy-servant/BaseDockerfile .
 
       - name: 'java-test'
-        timeout-minutes: 30
+        timeout-minutes: 45
         run: mvn clean install
 
       - name: 'install lzy-python'
