@@ -76,7 +76,7 @@ resource "kubernetes_secret" "postgres" {
 }
 
 resource "helm_release" "lzy_server_db" {
-  name       = "postgresql"
+  name       = "postgres"
   chart      = "postgresql"
   repository = "https://charts.bitnami.com/bitnami"
 
@@ -297,6 +297,31 @@ resource "kubernetes_service" "lzy_kharon" {
       app = "lzy-kharon"
     }
   }
+}
+
+resource "kubernetes_secret" "oauth_github" {
+  metadata {
+    name = "oauth-github"
+  }
+
+  data = {
+    client-id     = var.oauth-github-client-id
+    client-secret = var.oauth-github-client-secret
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_secret" "backoffice_secrets" {
+  metadata {
+    name = "backoffice-secrets"
+  }
+
+  data = {
+    private-key = var.backoffice-secrets-private-key
+  }
+
+  type = "Opaque"
 }
 
 resource "kubernetes_pod" "lzy_backoffice" {

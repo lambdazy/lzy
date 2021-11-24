@@ -20,10 +20,14 @@ variable location {
   default = "North Europe"
 }
 
-variable lzy_server_ip {
-  default = "North Europe"
+variable "oauth-github-client-id" {
+  type = string
 }
 
-variable lzy_kharon_dns {
-  default = "North Europe"
+variable "oauth-github-client-secret" {
+  type = string
+}
+
+variable "backoffice-secrets-private-key" {
+  type = string
 }
