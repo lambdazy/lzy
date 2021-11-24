@@ -267,7 +267,8 @@ resource "kubernetes_pod" "lzy_kharon" {
 }
 
 resource "azurerm_public_ip" "lzy_kharon" {
-  name                = "lzy_kharon_domain_name_label"
+  domain_name_label   = "kharon-lzy"
+  name                = "lzy-kharon-public-ip"
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
   sku                 = "Standard"
@@ -297,6 +298,11 @@ resource "kubernetes_service" "lzy_kharon" {
       app = "lzy-kharon"
     }
   }
+
+  depends_on = [
+    kubernetes_pod.lzy_kharon,
+    azurerm_public_ip.lzy_kharon
+  ]
 }
 
 resource "kubernetes_secret" "oauth_github" {
@@ -426,7 +432,8 @@ resource "kubernetes_pod" "lzy_backoffice" {
 }
 
 resource "azurerm_public_ip" "lzy_backoffice" {
-  name                = "lzy_backoffice_domain_name_label"
+  domain_name_label   = "lzy-backoffice"
+  name                = "lzy-backoffice-public-ip"
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
   sku                 = "Standard"
@@ -455,4 +462,9 @@ resource "kubernetes_service" "lzy_backoffice" {
       port = 80
     }
   }
+
+  depends_on = [
+    kubernetes_pod.lzy_backoffice,
+    azurerm_public_ip.lzy_backoffice
+  ]
 }
