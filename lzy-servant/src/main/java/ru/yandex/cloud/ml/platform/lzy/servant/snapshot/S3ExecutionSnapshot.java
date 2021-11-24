@@ -26,25 +26,30 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class S3ExecutionSnapshot implements ExecutionSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
-    private static final String BUCKET_NAME = System.getenv("BUCKET");
+    private static final String BUCKET_NAME = System.getenv("BUCKET_NAME");
     private static final String ACCESS_KEY = System.getenv("ACCESS_KEY");
     private static final String SECRET_KEY = System.getenv("SECRET_KEY");
-    private static final String REGION = "ru-central1";
-
-    private static final String SERVICE_ENDPOINT = "storage.yandexcloud.net";
+    private static final String REGION = System.getenv("REGION");
+    private static final String SERVICE_ENDPOINT = System.getenv("SERVICE_ENDPOINT");
+    private static final String PATH_STYLE_ACCESS_ENABLED = System.getenv("PATH_STYLE_ACCESS_ENABLED");
 
     private static final Transmitter transmitter;
+    private static final AmazonS3 client;
     static {
         BasicAWSCredentials credentials = new BasicAWSCredentials(ACCESS_KEY, SECRET_KEY);
-        AmazonS3 s3 = AmazonS3ClientBuilder.standard()
+        client = AmazonS3ClientBuilder.standard()
                 .withCredentials(new AWSStaticCredentialsProvider(credentials))
                 .withEndpointConfiguration(
                         new AmazonS3ClientBuilder.EndpointConfiguration(
                                 SERVICE_ENDPOINT,REGION
                         )
                 )
+                .withPathStyleAccessEnabled(Boolean.parseBoolean(PATH_STYLE_ACCESS_ENABLED))
                 .build();
-        AmazonTransmitterFactory factory = new AmazonTransmitterFactory(s3);
+        if (!client.doesBucketExistV2(BUCKET_NAME)) {
+            client.createBucket(BUCKET_NAME);
+        }
+        AmazonTransmitterFactory factory = new AmazonTransmitterFactory(client);
         transmitter = factory.fixedPoolsTransmitter("transmitter", 10, 10);
     }
 
@@ -62,7 +67,7 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
     @Override
     public URI getSlotUri(Slot slot) {
         try {
-            return new URI("https://" + SERVICE_ENDPOINT + "/" + BUCKET_NAME  + generateKey(slot));
+            return client.getUrl(BUCKET_NAME, generateKey(slot)).toURI();
         } catch (URISyntaxException e) {
             // never happens
             throw new RuntimeException(e);
