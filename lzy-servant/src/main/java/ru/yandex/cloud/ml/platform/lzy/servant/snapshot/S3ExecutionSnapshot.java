@@ -26,12 +26,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class S3ExecutionSnapshot implements ExecutionSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
-    private static final String BUCKET_NAME = System.getenv("BUCKET_NAME");
-    private static final String ACCESS_KEY = System.getenv("ACCESS_KEY");
-    private static final String SECRET_KEY = System.getenv("SECRET_KEY");
-    private static final String REGION = System.getenv("REGION");
-    private static final String SERVICE_ENDPOINT = System.getenv("SERVICE_ENDPOINT");
-    private static final String PATH_STYLE_ACCESS_ENABLED = System.getenv("PATH_STYLE_ACCESS_ENABLED");
+    private static final String BUCKET_NAME = Environment.getBucketName();
+    private static final String ACCESS_KEY = Environment.getAccessKey();
+    private static final String SECRET_KEY = Environment.getSecretKey();
+    private static final String REGION = Environment.getRegion();
+    private static final String SERVICE_ENDPOINT = Environment.getServiceEndpoint();
+    private static final String PATH_STYLE_ACCESS_ENABLED = Environment.getPathStyleAccessEnabled();
 
     private static final Transmitter transmitter;
     private static final AmazonS3 client;
