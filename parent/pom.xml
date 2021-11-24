@@ -63,7 +63,7 @@
         <bcprov-jdk15on.version>1.64</bcprov-jdk15on.version>
         <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
         <curator.version>4.2.0</curator.version>
-        <mockito-core.version>3.2.4</mockito-core.version>
+        <mockito-core.version>3.5.15</mockito-core.version>
         <grpc-server-spring-boot-starter.version>2.4.0.RELEASE</grpc-server-spring-boot-starter.version>
         <spring-boot-starter-log4j2.version>2.2.4.RELEASE</spring-boot-starter-log4j2.version>
         <spring-boot-starter-websocket.version>2.1.7.RELEASE</spring-boot-starter-websocket.version>
@@ -117,7 +117,8 @@
         <javax.ws.rs.version>2.1.1</javax.ws.rs.version>
         <clickhouse.version>0.3.1</clickhouse.version>
         <s3mock_2.13.version>0.2.6</s3mock_2.13.version>
-        <system-rules.version>1.19.0</system-rules.version>
+        <mockito-inline.version>3.6.28</mockito-inline.version>
+        <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -838,10 +839,15 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>com.github.stefanbirkner</groupId>
-                <artifactId>system-rules</artifactId>
-                <version>${system-rules.version}</version>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-inline</artifactId>
+                <version>${mockito-inline.version}</version>
                 <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-core</artifactId>
+                <version>${aws-java-sdk-core.version}</version>
             </dependency>
         </dependencies>
 
