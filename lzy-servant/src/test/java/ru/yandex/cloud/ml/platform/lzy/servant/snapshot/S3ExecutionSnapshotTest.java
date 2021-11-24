@@ -4,18 +4,17 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.google.protobuf.ByteString;
 import org.apache.commons.io.IOUtils;
 import org.junit.*;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 
 import io.findify.s3mock.S3Mock;
@@ -28,10 +27,6 @@ public class S3ExecutionSnapshotTest {
     private final String SERVICE_ENDPOINT = "http://localhost:8001";
     private static final String PATH_STYLE_ACCESS_ENABLED = "true";
 
-    @Rule
-    public final EnvironmentVariables environmentVariables
-            = new EnvironmentVariables();
-
     private final S3Mock api = new S3Mock.Builder().withPort(8001).withInMemoryBackend().build();
     private final AmazonS3 client = AmazonS3ClientBuilder
             .standard()
@@ -43,12 +38,6 @@ public class S3ExecutionSnapshotTest {
     @Before
     public void setUp() {
         api.start();
-        environmentVariables.set("BUCKET_NAME", BUCKET_NAME);
-        environmentVariables.set("ACCESS_KEY", ACCESS_KEY);
-        environmentVariables.set("SECRET_KEY", SECRET_KEY);
-        environmentVariables.set("REGION", REGION);
-        environmentVariables.set("SERVICE_ENDPOINT", SERVICE_ENDPOINT);
-        environmentVariables.set("PATH_STYLE_ACCESS_ENABLED", PATH_STYLE_ACCESS_ENABLED);
     }
 
     @After
@@ -93,54 +82,63 @@ public class S3ExecutionSnapshotTest {
 
     @Test
     public void testMultipleSnapshots() throws IOException {
-        var firstSnapshot = new S3ExecutionSnapshot("first-task-id");
-        var secondSnapshot = new S3ExecutionSnapshot("second-task-id");
-        var thirdSnapshot = new S3ExecutionSnapshot("third-task-id");
+        try (MockedStatic<Environment> environment = Mockito.mockStatic(Environment.class)) {
+            environment.when(Environment::getBucketName).thenReturn(BUCKET_NAME);
+            environment.when(Environment::getAccessKey).thenReturn(ACCESS_KEY);
+            environment.when(Environment::getSecretKey).thenReturn(SECRET_KEY);
+            environment.when(Environment::getRegion).thenReturn(REGION);
+            environment.when(Environment::getServiceEndpoint).thenReturn(SERVICE_ENDPOINT);
+            environment.when(Environment::getPathStyleAccessEnabled).thenReturn(PATH_STYLE_ACCESS_ENABLED);
 
-        var firstSlot = slotForName("first");
-        var secondSlot = slotForName("second");
-        var thirdSlot = slotForName("third");
-        var fourthSlot = slotForName("fourth");
-        var fifthSlot = slotForName("fifth");
+            var firstSnapshot = new S3ExecutionSnapshot("first-task-id");
+            var secondSnapshot = new S3ExecutionSnapshot("second-task-id");
+            var thirdSnapshot = new S3ExecutionSnapshot("third-task-id");
 
-        firstSnapshot.onChunkInput(ByteString.copyFrom("Hello ", "utf-8"), firstSlot);
-        secondSnapshot.onChunkInput(ByteString.copyFrom("Moni ", "utf-8"), fourthSlot);
-        firstSnapshot.onChunkInput(ByteString.copyFrom("Bonjour ", "utf-8"), secondSlot);
-        firstSnapshot.onChunkInput(ByteString.copyFrom("le ", "utf-8"), secondSlot);
-        secondSnapshot.onChunkInput(ByteString.copyFrom("Dziko ", "utf-8"), fourthSlot);
-        firstSnapshot.onChunkInput(ByteString.copyFrom("world!", "utf-8"), firstSlot);
-        thirdSnapshot.onChunkInput(ByteString.copyFrom("Ciao ", "utf-8"), fifthSlot);
-        secondSnapshot.onChunkInput(ByteString.copyFrom("Hola ", "utf-8"), thirdSlot);
-        firstSnapshot.onChunkInput(ByteString.copyFrom("monde", "utf-8"), secondSlot);
-        secondSnapshot.onChunkInput(ByteString.copyFrom("mundo!", "utf-8"), thirdSlot);
-        thirdSnapshot.onChunkInput(ByteString.copyFrom("mondo!", "utf-8"), fifthSlot);
-        secondSnapshot.onChunkInput(ByteString.copyFrom("Lapansi!", "utf-8"), fourthSlot);
+            var firstSlot = slotForName("first");
+            var secondSlot = slotForName("second");
+            var thirdSlot = slotForName("third");
+            var fourthSlot = slotForName("fourth");
+            var fifthSlot = slotForName("fifth");
 
-        firstSnapshot.onFinish(firstSlot);
-        firstSnapshot.onFinish(secondSlot);
-        secondSnapshot.onFinish(thirdSlot);
-        secondSnapshot.onFinish(fourthSlot);
-        thirdSnapshot.onFinish(fifthSlot);
+            firstSnapshot.onChunkInput(ByteString.copyFrom("Hello ", "utf-8"), firstSlot);
+            secondSnapshot.onChunkInput(ByteString.copyFrom("Moni ", "utf-8"), fourthSlot);
+            firstSnapshot.onChunkInput(ByteString.copyFrom("Bonjour ", "utf-8"), secondSlot);
+            firstSnapshot.onChunkInput(ByteString.copyFrom("le ", "utf-8"), secondSlot);
+            secondSnapshot.onChunkInput(ByteString.copyFrom("Dziko ", "utf-8"), fourthSlot);
+            firstSnapshot.onChunkInput(ByteString.copyFrom("world!", "utf-8"), firstSlot);
+            thirdSnapshot.onChunkInput(ByteString.copyFrom("Ciao ", "utf-8"), fifthSlot);
+            secondSnapshot.onChunkInput(ByteString.copyFrom("Hola ", "utf-8"), thirdSlot);
+            firstSnapshot.onChunkInput(ByteString.copyFrom("monde", "utf-8"), secondSlot);
+            secondSnapshot.onChunkInput(ByteString.copyFrom("mundo!", "utf-8"), thirdSlot);
+            thirdSnapshot.onChunkInput(ByteString.copyFrom("mondo!", "utf-8"), fifthSlot);
+            secondSnapshot.onChunkInput(ByteString.copyFrom("Lapansi!", "utf-8"), fourthSlot);
 
-        Assert.assertEquals(
-                getObjectContent(getKey("first-task-id", "first")),
-                "Hello world!"
-        );
-        Assert.assertEquals(
-                getObjectContent(getKey("first-task-id", "second")),
-                "Bonjour le monde"
-        );
-        Assert.assertEquals(
-                getObjectContent(getKey("second-task-id", "third")),
-                "Hola mundo!"
-        );
-        Assert.assertEquals(
-                getObjectContent(getKey("second-task-id", "fourth")),
-                "Moni Dziko Lapansi!"
-        );
-        Assert.assertEquals(
-                getObjectContent(getKey("third-task-id", "fifth")),
-                "Ciao mondo!"
-        );
+            firstSnapshot.onFinish(firstSlot);
+            firstSnapshot.onFinish(secondSlot);
+            secondSnapshot.onFinish(thirdSlot);
+            secondSnapshot.onFinish(fourthSlot);
+            thirdSnapshot.onFinish(fifthSlot);
+
+            Assert.assertEquals(
+                    getObjectContent(getKey("first-task-id", "first")),
+                    "Hello world!"
+            );
+            Assert.assertEquals(
+                    getObjectContent(getKey("first-task-id", "second")),
+                    "Bonjour le monde"
+            );
+            Assert.assertEquals(
+                    getObjectContent(getKey("second-task-id", "third")),
+                    "Hola mundo!"
+            );
+            Assert.assertEquals(
+                    getObjectContent(getKey("second-task-id", "fourth")),
+                    "Moni Dziko Lapansi!"
+            );
+            Assert.assertEquals(
+                    getObjectContent(getKey("third-task-id", "fifth")),
+                    "Ciao mondo!"
+            );
+        }
     }
 }
