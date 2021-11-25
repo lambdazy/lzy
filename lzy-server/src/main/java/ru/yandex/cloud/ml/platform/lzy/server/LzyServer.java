@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.server.local.InMemTasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.local.LocalChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
@@ -26,6 +27,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
@@ -368,6 +370,14 @@ public class LzyServer {
             try {
                 builder.setTaskId(task.tid().toString());
 
+                builder.setProvisioning(Operations.Provisioning.newBuilder()
+                        .addAllTags(((AtomicZygote)task.workload()).provisioning().tags().map(
+                                tag -> Operations.Provisioning.Tag.newBuilder().setTag(tag.tag()).build()
+                        ).collect(Collectors.toList()))
+                );
+
+                builder.setFuse(((AtomicZygote)task.workload()).fuze());
+
                 builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
                 if (task.servant() != null) {
                     builder.setServant(task.servant().toString());
@@ -379,9 +389,12 @@ public class LzyServer {
                         final Operations.SlotStatus.Builder slotStateBuilder = builder.addConnectionsBuilder();
                         slotStateBuilder.setTaskId(task.tid().toString());
                         slotStateBuilder.setDeclaration(gRPCConverter.to(slotStatus.slot()));
-                        slotStateBuilder.setConnectedTo(slotStatus.connected().toString());
+                        URI connected = slotStatus.connected();
+                        if (connected != null)
+                            slotStateBuilder.setConnectedTo(connected.toString());
                         slotStateBuilder.setPointer(slotStatus.pointer());
-                        slotStateBuilder.setState(Operations.SlotStatus.State.valueOf(slotStatus.state().toString()));
+                        LOG.info("Getting status of slot with state: " + slotStatus.state().name());
+                        slotStateBuilder.setState(Operations.SlotStatus.State.valueOf(slotStatus.state().name()));
                         builder.addConnections(slotStateBuilder.build());
                     });
             }

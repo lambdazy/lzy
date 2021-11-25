@@ -2,7 +2,7 @@ import { createContext } from "react";
 import { useState } from "react";
 import { useContext } from "react";
 import { FC } from "react";
-import { Alert, Button } from "react-bootstrap";
+import { Alert } from "react-bootstrap";
 
 export interface AlertPatrams {
   show: boolean;

@@ -1,6 +1,6 @@
 import React from "react";
 import { Button, Container, Form } from "react-bootstrap";
-import { Redirect, useHistory } from "react-router-dom";
+import { Redirect } from "react-router-dom";
 import { getSession, login, Providers, useAuth } from "../logic/Auth";
 import { useAlert } from "./ErrorAlert";
 import { LzyLogo } from "./LzyLogo";

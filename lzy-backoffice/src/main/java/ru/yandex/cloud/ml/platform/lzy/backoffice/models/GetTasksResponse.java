@@ -21,14 +21,6 @@ public class GetTasksResponse {
     public static GetTasksResponse fromModel(BackOffice.GetTasksResponse response){
         GetTasksResponse resp = new GetTasksResponse();
         resp.tasks = response.getTasks().getTasksList().stream().map(TaskStatus::fromModel).collect(Collectors.toList());
-        TaskStatus testStatus = new TaskStatus();
-        testStatus.setStatus("COMPLETED");
-        testStatus.setTaskId("afjaisdfjnfi13143421nsjkdnfo");
-        resp.tasks.add(testStatus);
-        testStatus = new TaskStatus();
-        testStatus.setStatus("OK");
-        testStatus.setTaskId("doasjfoiasdjfopsajdfo");
-        resp.tasks.add(testStatus);
         return resp;
     }
 }

@@ -1,5 +1,5 @@
 import { useHistory } from "react-router";
-import { useAuth, UserCredentials } from "../logic/Auth";
+import { useAuth } from "../logic/Auth";
 import qs from "qs";
 
 export function AuthUser(){

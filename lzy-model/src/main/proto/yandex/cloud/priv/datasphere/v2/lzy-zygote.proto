@@ -59,6 +59,8 @@ message SlotStatus {
         OPEN = 1;
         DESTROYED = 2;
         SUSPENDED = 3;
+        PREPARING = 4;
+        CLOSED = 5;
     }
 }
 

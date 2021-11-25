@@ -54,6 +54,10 @@ message TaskStatus {
 
   string explanation = 6;
 
+  Provisioning provisioning = 7;
+
+  string fuse = 8;
+
   enum Status {
     PREPARING = 0;
     CONNECTED = 1;
