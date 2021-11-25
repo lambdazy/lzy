@@ -1,6 +1,3 @@
-#variable "client_id" {}
-#variable "client_secret" {}
-
 variable "cluster_name" {
   type = string
   default = "lzy-testing"
