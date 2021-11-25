@@ -7,5 +7,6 @@ public interface LzyServerTestContext extends AutoCloseable {
 
     LzyServerGrpc.LzyServerBlockingStub client();
 
+    void init();
     void close();
 }

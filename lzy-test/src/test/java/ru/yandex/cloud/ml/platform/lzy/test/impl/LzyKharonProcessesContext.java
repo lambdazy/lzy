@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
+import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.lang3.SystemUtils;
@@ -11,44 +12,20 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.LockSupport;
 
 public class LzyKharonProcessesContext implements LzyKharonTestContext {
     private static final long KHARON_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_KHARON_PORT = 8899;
     private static final int LZY_KHARON_SERVANT_PROXY_PORT = 8900;
-    private final Process lzyKharon;
-    private final ManagedChannel channel;
-    private final LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
+
+    private final String serverAddress;
+    private Process lzyKharon;
+    private ManagedChannel channel;
+    private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
     public LzyKharonProcessesContext(String serverAddress) {
-        try {
-            lzyKharon = Utils.javaProcess(
-                    LzyKharon.class.getCanonicalName(),
-                    new String[]{
-                            "--host",
-                            outerHost(true),
-                            "--port",
-                            String.valueOf(LZY_KHARON_PORT),
-                            "--servant-proxy-port",
-                            String.valueOf(LZY_KHARON_SERVANT_PROXY_PORT),
-                            "--lzy-server-address",
-                            serverAddress
-                    },
-                    new String[]{
-                        "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32"
-                    }
-            ).inheritIO().start();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        channel = ManagedChannelBuilder
-                .forAddress("localhost", LZY_KHARON_PORT)
-                .usePlaintext()
-                .build();
-        lzyKharonClient = LzyKharonGrpc.newBlockingStub(channel)
-                .withWaitForReady()
-                .withDeadlineAfter(KHARON_STARTUP_TIMEOUT_SEC, TimeUnit.SECONDS);
+        this.serverAddress = serverAddress;
     }
 
     @Override
@@ -64,6 +41,44 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
     @Override
     public LzyKharonGrpc.LzyKharonBlockingStub client() {
         return lzyKharonClient;
+    }
+
+    @Override
+    public synchronized void init() {
+        if (lzyKharonClient == null) {
+            try {
+                lzyKharon = Utils.javaProcess(
+                        LzyKharon.class.getCanonicalName(),
+                        new String[]{
+                                "--host",
+                                outerHost(true),
+                                "--port",
+                                String.valueOf(LZY_KHARON_PORT),
+                                "--servant-proxy-port",
+                                String.valueOf(LZY_KHARON_SERVANT_PROXY_PORT),
+                                "--lzy-server-address",
+                                serverAddress
+                        },
+                        new String[]{
+                                "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32"
+                        }
+                ).inheritIO().start();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            channel = ManagedChannelBuilder
+                    .forAddress("localhost", LZY_KHARON_PORT)
+                    .usePlaintext()
+                    .build();
+            lzyKharonClient = LzyKharonGrpc.newBlockingStub(channel)
+                    .withWaitForReady()
+                    .withDeadlineAfter(KHARON_STARTUP_TIMEOUT_SEC, TimeUnit.SECONDS);
+
+            while (channel.getState(true) != ConnectivityState.READY) {
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
+            }
+        }
     }
 
     @Override

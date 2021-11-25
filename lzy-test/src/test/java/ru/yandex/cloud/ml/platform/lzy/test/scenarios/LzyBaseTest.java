@@ -21,7 +21,9 @@ public class LzyBaseTest {
     @Before
     public void setUp() {
         serverContext = new LzyServerProcessesContext();
+        serverContext.init();
         kharonContext = new LzyKharonProcessesContext(serverContext.address(false));
+        kharonContext.init();
         terminalContext = new LzyTerminalDockerContext();
     }
 
