@@ -8,5 +8,6 @@ public interface LzyKharonTestContext {
 
     LzyKharonGrpc.LzyKharonBlockingStub client();
 
+    void init();
     void close();
 }
