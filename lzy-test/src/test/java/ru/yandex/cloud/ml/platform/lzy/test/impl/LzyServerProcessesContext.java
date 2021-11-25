@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
+import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.lang3.SystemUtils;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.LockSupport;
 
 public class LzyServerProcessesContext implements LzyServerTestContext {
     private static final long SERVER_STARTUP_TIMEOUT_SEC = 60;
@@ -49,7 +51,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
         }
     }
 
-    private synchronized void init() {
+    public synchronized void init() {
         if (lzyServerClient == null) {
             try {
                 lzyServer = Utils.javaProcess(
@@ -74,6 +76,10 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
             lzyServerClient = LzyServerGrpc.newBlockingStub(channel)
                 .withWaitForReady()
                 .withDeadlineAfter(SERVER_STARTUP_TIMEOUT_SEC, TimeUnit.SECONDS);
+
+            while (channel.getState(true) != ConnectivityState.READY) {
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
+            }
         }
     }
 }
