@@ -46,6 +46,12 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
+            .withEnv("BUCKET_NAME", "bucket-test")
+            .withEnv("ACCESS_KEY", "access_key")
+            .withEnv("SECRET_KEY", "secret_key")
+            .withEnv("REGION", "us-west-2")
+            .withEnv("SERVICE_ENDPOINT", "http://" + internalHost + ":8001")
+            .withEnv("PATH_STYLE_ACCESS_ENABLED", "true")
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "
