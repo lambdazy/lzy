@@ -15,6 +15,13 @@ terraform {
       version = "3.0.1"
     }
   }
+  backend "remote" {
+    organization = "lzy"
+
+    workspaces {
+      name = "lzy-testing-eu-north"
+    }
+  }
 }
 
 resource "azurerm_resource_group" "test" {
