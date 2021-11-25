@@ -7,7 +7,8 @@ import { useAuth, UserCredentials } from "../logic/Auth";
 import { useAlert } from "./ErrorAlert";
 import { Header } from "./Header";
 import { DataGrid, GridCellParams, GridColDef, GridRowsProp, MuiEvent } from '@mui/x-data-grid';
-import { Popper } from "@mui/material";
+import Popup from "reactjs-popup";
+import { Card, CardContent } from "@mui/material";
 
 export interface Task{
     taskId: string;
@@ -65,7 +66,15 @@ export function Tasks(props: {}){
     return (
         <>
         <Header />
-        <Popper transition placement="top" disablePortal={false} open={openPopper.show}> <p>{openPopper.text}</p> </Popper>
+        <Popup closeOnDocumentClick modal open={openPopper.show} onClose={() => setOpenPopper({show: false, text: ""})}> 
+        <Container>
+            <Card style={{width: "70%"}}>
+                <CardContent>
+                    <p>{openPopper.text}</p>
+                </CardContent>
+            </Card>
+        </Container>
+        </Popup>
         <DataGrid autoHeight  columns={columns} rows={rows} onCellClick={(params: GridCellParams, event: MuiEvent<React.MouseEvent>) => {
             event.defaultMuiPrevented = true;
             if (params.colDef.field === "fuse"){
