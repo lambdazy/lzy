@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
@@ -202,7 +203,23 @@ public class LzyExecution {
 
             String command = zygote.fuze() + " " + arguments;
             LOG.info("Going to exec command " + command);
-            this.exec = session.exec(command);
+            try {
+                this.exec = session.exec(command);
+            } catch (EnvironmentInstallationException e) {
+                LOG.warn("Error during environment installation", e);
+                progress(Servant.ExecutionProgress.newBuilder()
+                    .setExit(Servant.ExecutionConcluded.newBuilder()
+                        .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc()).build())
+                    .build()
+                );
+            } catch (LzyExecutionException e) {
+                LOG.warn("Error during task execution", e);
+                progress(Servant.ExecutionProgress.newBuilder()
+                    .setExit(Servant.ExecutionConcluded.newBuilder()
+                        .setRc(ReturnCodes.EXECUTION_ERROR.getRc()).build())
+                    .build()
+                );
+            }
 
             stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
             stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
@@ -231,7 +248,7 @@ public class LzyExecution {
                 .setExit(Servant.ExecutionConcluded.newBuilder().setRc(rc).build())
                 .build()
             );
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             LOG.warn("Exception during task execution", e);
             progress(Servant.ExecutionProgress.newBuilder()
                 .setExit(Servant.ExecutionConcluded.newBuilder().setRc(-1).build())

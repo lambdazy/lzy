@@ -73,6 +73,12 @@ class LzyLocalOp(LzyOp, Generic[T]):
         return self._materialized
 
 
+class LzyExecutionException(Exception):
+    def __init__(self, message, *args):
+        super().__init__(message, *args)
+        self.message = message
+
+
 class LzyRemoteOp(LzyOp, Generic[T]):
     def __init__(self, servant: ServantClient, func: Callable,
                  input_types: Tuple[type, ...],
