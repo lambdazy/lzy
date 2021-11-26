@@ -10,6 +10,7 @@ from lzy.model.env import PyEnv
 from lzy.model.zygote import Provisioning
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant_client import ServantClient
+from lzy.model.return_codes import ReturnCode
 
 T = TypeVar('T')
 
@@ -74,9 +75,18 @@ class LzyLocalOp(LzyOp, Generic[T]):
 
 
 class LzyExecutionException(Exception):
-    def __init__(self, message, *args):
-        super().__init__(message, *args)
+    def __init__(self, message, func, execution, rc):
+        super().__init__(message, func, execution, rc)
         self.message = message
+        self.func = func
+        self.execution = execution
+        self.rc = rc
+
+    def __str__(self):
+        return f"Task {self.execution.id()[:4]} failed " \
+               f"for func {self.func.__name__} " \
+               f"with rc {self.rc} " \
+               f"and message: {self.message}"
 
 
 class LzyRemoteOp(LzyOp, Generic[T]):
@@ -114,13 +124,26 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             raise RuntimeError(f"Slot {self._zygote.return_slot().name} not binded")
         return_slot_path = self._servant.get_slot_path(return_local_slot)
         self._log.info(f"Reading result from {return_slot_path}")
-        with open(return_slot_path, 'rb') as handle:
-            self._materialization = cloudpickle.load(handle)
-        self._log.info(f"Read result from {return_slot_path}")
+        # noinspection PyBroadException
+        try:
+            with open(return_slot_path, 'rb') as handle:
+                self._materialization = cloudpickle.load(handle)
+            self._log.info(f"Read result from {return_slot_path}")
+        except Exception as e:
+            self._log.error(f"Failed to read result from {return_slot_path}\n{e}")
 
         result = execution.wait_for()
+        rc = result.rc()
+        if rc:
+            if rc == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR:
+                raise LzyExecutionException("Failed to install environment on remote machine", self.func, execution, rc)
+            if rc == ReturnCode.EXECUTION_ERROR:
+                raise LzyExecutionException("Lzy error", self.func, execution, rc)
+
+            raise LzyExecutionException("Execution error", self.func, execution, rc)
+
         self._log.info("Executed task %s for func %s with rc %s",
-                       execution.id()[:4], self.func.__name__, result.rc())
+                       execution.id()[:4], self.func.__name__, rc)
 
     def materialize(self) -> Any:
         self._log.info("Materializing function %s", self.func)

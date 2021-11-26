@@ -139,13 +139,15 @@ public class Run implements LzyCommand {
                 LOG.error("Failed to close stdin", e);
             }
         });
-        LOG.info("Run:: Task finished");
-        if (exit[0].getRc() != 0) {
-            System.err.print(exit[0].getDescription());
+        final int rc = exit[0].getRc();
+        final String description = exit[0].getDescription();
+        LOG.info("Run:: Task finished RC = {}, Description = {}", rc, description);
+        if (rc != 0) {
+            System.err.print(description);
         }
         communicationLatch.await(); // waiting for slots to finish communication
         destroyChannel(stdinChannel);
-        return exit[0].getRc();
+        return rc;
     }
 
     private Map<String, Map<String, String>> pipesConfig() throws IOException {

@@ -7,9 +7,5 @@ def raises() -> int:
 
 
 if __name__ == "__main__":
-    with LzyEnv(user="ArtoLord", private_key_path="/home/artolord/.ssh/public.pem"):
-        try:
-            raises()
-            exit(1)
-        except RuntimeError as e:
-            exit(0)
+    with LzyEnv(user="phil"):
+        raises()

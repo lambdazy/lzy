@@ -122,10 +122,11 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     public void flush() {
-        try {
-            Files.writeString(storage, "empty", StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        LOG.info("Force flush for slot " + this);
+        synchronized (OutFileSlot.this) {
+            ready = true;
+            state(Operations.SlotStatus.State.OPEN);
+            OutFileSlot.this.notifyAll();
         }
     }
 
