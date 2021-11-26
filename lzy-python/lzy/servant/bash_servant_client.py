@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -50,17 +51,27 @@ class BashExecution(Execution):
             raise ValueError('Execution has been already started')
         self._process = subprocess.Popen(
             ["bash", "-c", " ".join(self._cmd)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
             stdin=subprocess.PIPE,
             env=self._env
         )
+
+    @staticmethod
+    def _pipe_to_string(pipe):
+        if pipe is None:
+            return ""
+        return str(pipe, "utf8")
 
     def wait_for(self) -> ExecutionResult:
         if not self._process:
             raise ValueError('Execution has NOT been started')
         out, err = self._process.communicate()
-        return ExecutionResult(str(out, "utf8"), str(err, "utf8"), self._process.returncode)
+        return ExecutionResult(
+            BashExecution._pipe_to_string(out),
+            BashExecution._pipe_to_string(err),
+            self._process.returncode
+        )
 
 
 class BashServantClient(ServantClient, metaclass=Singleton):

@@ -203,36 +203,31 @@ public class LzyExecution {
 
             String command = zygote.fuze() + " " + arguments;
             LOG.info("Going to exec command " + command);
+            int rc = 0;
+            String resultDescription = "Success";
             try {
                 this.exec = session.exec(command);
+                stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
+                stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
+                    exec.getInputStream(),
+                    StandardCharsets.UTF_8
+                )));
+                stderrSlot.setStream(new LineNumberReader(new InputStreamReader(
+                    exec.getErrorStream(),
+                    StandardCharsets.UTF_8
+                )));
+                rc = exec.waitFor();
             } catch (EnvironmentInstallationException e) {
-                LOG.warn("Error during environment installation", e);
-                progress(Servant.ExecutionProgress.newBuilder()
-                    .setExit(Servant.ExecutionConcluded.newBuilder()
-                        .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc()).build())
-                    .build()
-                );
+                resultDescription = "Error during environment installation:\n" + e;
+                rc = ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc();
             } catch (LzyExecutionException e) {
-                LOG.warn("Error during task execution", e);
-                progress(Servant.ExecutionProgress.newBuilder()
-                    .setExit(Servant.ExecutionConcluded.newBuilder()
-                        .setRc(ReturnCodes.EXECUTION_ERROR.getRc()).build())
-                    .build()
-                );
+                resultDescription = "Error during task execution:\n" + e;
+                rc = ReturnCodes.EXECUTION_ERROR.getRc();
             }
 
-            stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
-            stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
-                exec.getInputStream(),
-                StandardCharsets.UTF_8
-            )));
-            stderrSlot.setStream(new LineNumberReader(new InputStreamReader(
-                exec.getErrorStream(),
-                StandardCharsets.UTF_8
-            )));
-            final int rc = exec.waitFor();
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
             if (rc != 0) {
+                resultDescription = "Failure";
                 Set.copyOf(slots.values()).stream()
                     .filter(s -> s instanceof OutFileSlot)
                     .map(s -> (OutFileSlot)s)
@@ -244,14 +239,22 @@ public class LzyExecution {
                     slots.wait();
                 }
             }
+            LOG.info("Result description: " + resultDescription);
             progress(Servant.ExecutionProgress.newBuilder()
-                .setExit(Servant.ExecutionConcluded.newBuilder().setRc(rc).build())
+                .setExit(Servant.ExecutionConcluded.newBuilder()
+                    .setRc(rc)
+                    .setDescription(resultDescription)
+                    .build())
                 .build()
             );
         } catch (InterruptedException e) {
-            LOG.warn("Exception during task execution", e);
+            final String exceptionDescription = "InterruptedException during task execution" + e;
+            LOG.warn(exceptionDescription);
             progress(Servant.ExecutionProgress.newBuilder()
-                .setExit(Servant.ExecutionConcluded.newBuilder().setRc(-1).build())
+                .setExit(Servant.ExecutionConcluded.newBuilder()
+                    .setRc(-1)
+                    .setDescription(exceptionDescription)
+                    .build())
                 .build()
             );
         }

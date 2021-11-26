@@ -4,7 +4,7 @@ from lzy.api import op, LzyEnv
 
 
 def install():
-    subprocess.check_call([sys.executable, "setup.py", "install"], cwd="/mnt/some_local_module")
+    subprocess.check_call([sys.executable, "setup.py", "install"], cwd="some_local_module")
 
 
 @op
@@ -15,5 +15,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     install()
-    with LzyEnv(user="ArtoLord", private_key_path="/home/artolord/.ssh/public.pem"):
-        exit(main())
+    with LzyEnv(user='phil'):
+        main()
