@@ -1,3 +1,15 @@
+resource "kubernetes_secret" "backoffice_secrets" {
+  metadata {
+    name = "backoffice-secrets"
+  }
+
+  data = {
+    private-key = var.backoffice-secrets-private-key
+  }
+
+  type = "Opaque"
+}
+
 resource "kubernetes_pod" "lzy_backoffice" {
   metadata {
     name   = "lzy-backoffice"

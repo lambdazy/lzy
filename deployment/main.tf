@@ -61,57 +61,6 @@ resource "azurerm_kubernetes_cluster" "main" {
   }
 }
 
-resource "random_password" "postgres_password" {
-  count   = 1
-  length  = 16
-  special = true
-}
-
-resource "kubernetes_secret" "postgres" {
-  metadata {
-    name = "postgres"
-  }
-
-  data = {
-    postgresql-postgres-password = random_password.postgres_password[0].result
-    postgresql-password          = random_password.postgres_password[0].result
-    password                     = random_password.postgres_password[0].result
-  }
-
-  type = "Opaque"
-}
-
-resource "helm_release" "lzy_server_db" {
-  name       = "postgres"
-  chart      = "postgresql"
-  repository = "https://charts.bitnami.com/bitnami"
-
-  set {
-    name  = "global.postgresql.postgresqlDatabase"
-    value = "serverDB"
-  }
-
-  set {
-    name  = "global.postgresql.postgresqlUsername"
-    value = "server"
-  }
-
-  set {
-    name  = "global.postgresql.existingSecret"
-    value = kubernetes_secret.postgres.metadata[0].name
-  }
-
-  set_sensitive {
-    name  = "global.postgresql.postgresqlPassword"
-    value = random_password.postgres_password[0].result
-  }
-
-  set {
-    name  = "global.postgresql.servicePort"
-    value = "5432"
-  }
-}
-
 resource "azurerm_public_ip" "lzy_kharon" {
   domain_name_label   = "kharon-lzy"
   name                = "lzy-kharon-public-ip"
@@ -135,18 +84,6 @@ resource "kubernetes_secret" "oauth_github" {
   data = {
     client-id     = var.oauth-github-client-id
     client-secret = var.oauth-github-client-secret
-  }
-
-  type = "Opaque"
-}
-
-resource "kubernetes_secret" "backoffice_secrets" {
-  metadata {
-    name = "backoffice-secrets"
-  }
-
-  data = {
-    private-key = var.backoffice-secrets-private-key
   }
 
   type = "Opaque"
