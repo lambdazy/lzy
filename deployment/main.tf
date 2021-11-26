@@ -15,12 +15,11 @@ terraform {
       version = "3.0.1"
     }
   }
-  backend "remote" {
-    organization = "lzy"
-
-    workspaces {
-      name = "lzy-testing-eu-north"
-    }
+  backend "azurerm" {
+    resource_group_name  = "lzy-testing-terraformstate"
+    storage_account_name = "lzytestingtfstatestorage"
+    container_name       = "terraformstate"
+    key                  = "dev.terraform.tfstate"
   }
 }
 
