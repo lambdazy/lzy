@@ -118,12 +118,20 @@ public class Run implements LzyCommand {
         });
 
         final Iterator<Servant.ExecutionProgress> executionProgress = kharon.start(taskSpec.build());
+        final Servant.ExecutionConcluded[] exit = new Servant.ExecutionConcluded[1];
+        exit[0] = Servant.ExecutionConcluded.newBuilder()
+            .setRc(-1)
+            .setDescription("Got no exit code from servant")
+            .build();
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
                 if (progress.hasDetach() && "/dev/stdin".equals(progress.getDetach().getSlot().getName())) {
                     LOG.info("Closing stdin");
                     System.in.close();
+                }
+                if (progress.hasExit()) {
+                    exit[0] = progress.getExit();
                 }
             } catch (InvalidProtocolBufferException e) {
                 LOG.warn("Unable to parse execution progress", e);
@@ -132,9 +140,12 @@ public class Run implements LzyCommand {
             }
         });
         LOG.info("Run:: Task finished");
+        if (exit[0].getRc() != 0) {
+            System.err.print(exit[0].getDescription());
+        }
         communicationLatch.await(); // waiting for slots to finish communication
         destroyChannel(stdinChannel);
-        return 0;
+        return exit[0].getRc();
     }
 
     private Map<String, Map<String, String>> pipesConfig() throws IOException {
