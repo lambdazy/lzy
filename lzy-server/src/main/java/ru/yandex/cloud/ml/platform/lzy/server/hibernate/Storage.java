@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.flywaydb.core.Flyway;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.DbConfig;
@@ -17,6 +18,12 @@ public class Storage implements DbStorage{
 
     @Inject
     public Storage(DbConfig config){
+
+        Flyway flyway = Flyway.configure()
+            .dataSource(config.getUrl(), config.getUsername(), config.getPassword())
+            .locations("classpath:db/migrations")
+            .load();
+        flyway.migrate();
         Configuration cfg = new Configuration();
         cfg.setProperty("hibernate.connection.url", config.getUrl());
         cfg.setProperty("hibernate.connection.username", config.getUsername());
