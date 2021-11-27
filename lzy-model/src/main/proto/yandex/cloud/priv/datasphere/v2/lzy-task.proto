@@ -18,11 +18,17 @@ message TaskCommand {
   }
 }
 
+message WhiteboardMeta {
+  string whiteboardId = 1;
+  repeated string dependencies = 2;
+  string opName = 3;
+}
+
 message TaskSpec {
   Auth auth = 1;
   Zygote zygote = 2;
   repeated SlotAssignment assignments = 3;
-  bool persistent = 4;
+  WhiteboardMeta whiteboardMeta = 4;
 }
 
 message TaskSignal {

@@ -18,13 +18,15 @@ import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.EmptyExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.S3ExecutionSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.servant.whiteboard.LocalWhiteboard;
-import ru.yandex.cloud.ml.platform.lzy.servant.whiteboard.Whiteboard;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardManager;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.impl.LocalWhiteboardManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
@@ -43,7 +45,6 @@ public class LzyExecution {
 
     @SuppressWarnings("FieldCanBeLocal")
     private final String taskId;
-    private final boolean persistent;
     private final AtomicZygote zygote;
     private final LineReaderSlot stdoutSlot;
     private final LineReaderSlot stderrSlot;
@@ -55,12 +56,13 @@ public class LzyExecution {
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
     private final ExecutionSnapshot executionSnapshot;
-    private final Whiteboard whiteboard = new LocalWhiteboard();
+    private final WhiteboardManager wbManager = new LocalWhiteboardManager();
+    private final WhiteboardMeta meta;
 
-    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, boolean persistent) {
+    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, @Nullable WhiteboardMeta meta) {
         this.taskId = taskId;
         this.zygote = zygote;
-        if (persistent) {
+        if (meta != null) {
             executionSnapshot = new S3ExecutionSnapshot(taskId);
         } else {
             executionSnapshot = new EmptyExecutionSnapshot();
@@ -69,7 +71,7 @@ public class LzyExecution {
         stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"), executionSnapshot);
         stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"), executionSnapshot);
         this.servantUri = servantUri;
-        this.persistent = persistent;
+        this.meta = meta;
     }
 
     public LzySlot configureSlot(Slot spec, String binding) {
@@ -82,9 +84,9 @@ public class LzyExecution {
             }
             try {
                 final LzySlot slot = createSlot(spec, binding);
-                if (persistent) {
+                if (meta != null) {
                     URI uri = executionSnapshot.getSlotUri(slot.definition());
-                    whiteboard.prepareToSaveData(slot.definition(), uri);
+                    wbManager.prepareToSaveData(meta.getWbId(), meta.getOperationName(), slot.definition(), uri);
                 }
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
@@ -113,8 +115,8 @@ public class LzyExecution {
                 slot.onState(Operations.SlotStatus.State.DESTROYED, () -> {
                     synchronized (slots) {
                         LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
-                        if (persistent) {
-                            whiteboard.commit(slot.definition());
+                        if (meta != null) {
+                            wbManager.commit(meta.getWbId(), meta.getOperationName(), slot.definition());
                         }
                         slots.remove(slot.name());
                         slots.notifyAll();
@@ -200,6 +202,11 @@ public class LzyExecution {
                 LOG.info("No environment provided, using SimpleBashConnector");
             }
 
+            if (meta != null) {
+                LOG.info("Saving dependencies to whiteboard with id " + meta.getWbId());
+                wbManager.addDependencies(meta.getWbId(), meta.getDependencies(), meta.getOperationName());
+            }
+
             String command = zygote.fuze() + " " + arguments;
             LOG.info("Going to exec command " + command);
             this.exec = session.exec(command);
@@ -275,6 +282,4 @@ public class LzyExecution {
     public Zygote zygote() {
         return zygote;
     }
-
-    public boolean persistent() { return persistent; }
 }

@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
+
+package yandex.cloud.priv.datasphere.v2;
+
+option go_package = "datasphere";
+option java_outer_classname = "Lzy";
+option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+
+service WhiteboardApi {
+  rpc PrepareToSave (PrepareCommand) returns (OperationStatus);
+  rpc Commit (CommitCommand) returns (OperationStatus);
+  rpc AddDependencies (DependenciesCommand) returns (OperationStatus);
+  rpc Whiteboard (WhiteboardCommand) returns (Whiteboard);
+}
+
+message PrepareCommand {
+  string wbId = 1;
+  string opName = 2;
+  Slot slot = 3;
+  string storageUri = 4;
+}
+
+message CommitCommand {
+  string wbId = 1;
+  string opName = 2;
+  Slot slot = 3;
+}
+
+message DependenciesCommand {
+  string wbId = 1;
+  string opName = 2;
+  repeated string dependencies = 3;
+}
+
+message WhiteboardCommand {
+  string wbId = 1;
+  UserCredentials auth = 2;
+}
+
+message OperationStatus {
+  Status status = 1;
+  string errorMessage = 2;
+
+  enum Status {
+    OK = 0;
+    FAILED = 1;
+  }
+}
+
+message StorageBinding {
+  string opName = 1;
+  string storageUri = 2;
+}
+
+message Relation {
+  string opName = 1;
+  repeated string dependencies = 2;
+}
+
+message Whiteboard {
+  repeated StorageBinding storageBindings = 1;
+  repeated Relation relations = 2;
+}

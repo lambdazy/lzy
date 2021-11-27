@@ -10,6 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -67,11 +68,12 @@ public class LzyServant extends LzyAgent {
                 return;
             }
             final String tid = request.getAuth().getTask().getTaskId();
+            final WhiteboardMeta meta = request.hasWhiteboardMeta() ? WhiteboardMeta.from(request.getWhiteboardMeta()) : null;
             currentExecution = new LzyExecution(
                 tid,
                 (AtomicZygote) gRPCConverter.from(request.getZygote()),
                 agentInternalAddress,
-                request.getPersistent()
+                meta
             );
 
             currentExecution.onProgress(progress -> {

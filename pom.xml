@@ -23,5 +23,6 @@
         <module>lzy-test</module>
         <module>lzy-python</module>
         <module>parent</module>
+        <module>lzy-whiteboard</module>
     </modules>
 </project>
