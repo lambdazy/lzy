@@ -22,15 +22,6 @@ export interface Task{
     tags: string[];
 }
 
-function generateTasks(tasks: Task[]){
-    return Array.from(tasks.map((t) =>
-        <Row>
-            <Col>{t.taskId}</Col>
-            <Col>{t.status}</Col>
-        </Row>
-    ))
-}
-
 async function fetchTasks(credentials: UserCredentials): Promise<Task[]>{
     const res = await axios.post(BACKEND_HOST()+"/tasks/get", {
         credentials
@@ -64,7 +55,7 @@ export function Tasks(props: {}){
     }
     const columns: GridColDef[] = [
         { field: 'id', headerName: 'Task id', width: 250 },
-        { field: 'fuse', headerName: 'Task command', width: 150 },
+        { field: 'description', headerName: 'Task command', width: 350 },
         { field: 'status', headerName: 'Status', width: 150 },
         { field: 'tags', headerName: 'Servant tags', width: 150 },
     ];
@@ -77,15 +68,6 @@ export function Tasks(props: {}){
     return (
         <>
         <Header />
-        <Popup closeOnDocumentClick modal open={openPopper.show} onClose={() => setOpenPopper({show: false, text: ""})}> 
-        <Container>
-            <Card style={{width: "70%"}}>
-                <CardContent>
-                    <p>{openPopper.text}</p>
-                </CardContent>
-            </Card>
-        </Container>
-        </Popup>
         <DataGrid autoHeight  columns={columns} rows={rows} onCellClick={(params: GridCellParams, event: MuiEvent<React.MouseEvent>) => {
             event.defaultMuiPrevented = true;
             if (params.colDef.field === "fuse"){

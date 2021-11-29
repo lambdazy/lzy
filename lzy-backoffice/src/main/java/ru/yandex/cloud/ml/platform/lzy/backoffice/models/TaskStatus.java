@@ -14,7 +14,8 @@ public class TaskStatus {
     private String servant;
     private String explanation;
     private String status;
-    private String fuse;
+    private String fuze;
+    private String description;
     private List<String> tags;
 
     public String getTaskId() {
@@ -57,12 +58,12 @@ public class TaskStatus {
         this.status = status;
     }
 
-    public String getFuse() {
-        return fuse;
+    public String getFuze() {
+        return fuze;
     }
 
-    public void setFuse(String fuse) {
-        this.fuse = fuse;
+    public void setFuze(String fuze) {
+        this.fuze = fuze;
     }
 
     public List<String> getTags() {
@@ -73,6 +74,14 @@ public class TaskStatus {
         this.tags = tags;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public static TaskStatus fromModel(Tasks.TaskStatus task){
         TaskStatus status = new TaskStatus();
         status.status = task.getStatus().name();
@@ -80,8 +89,9 @@ public class TaskStatus {
         status.servant = task.getServant();
         status.taskId = task.getTaskId();
         status.owner = task.getOwner();
-        status.fuse = task.getFuse();
-        status.tags = task.getProvisioning().getTagsList().stream().map(Operations.Provisioning.Tag::getTag).collect(Collectors.toList());
+        status.fuze = task.getZygote().getFuze();
+        status.tags = task.getZygote().getProvisioning().getTagsList().stream().map(Operations.Provisioning.Tag::getTag).collect(Collectors.toList());
+        status.description = task.getZygote().getDescription();
         return status;
     }
 }

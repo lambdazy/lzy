@@ -15,8 +15,6 @@ spec:
       imagePullPolicy: Always
       image: celdwind/lzy:lzy-backoffice-backend
       env:
-        - name: GRPC_HOST
-          value: "10.240.0.115"
         - name: GRPC_PORT
           value: "8888"
         - name: OAUTH_GITHUB_CLIENT_ID

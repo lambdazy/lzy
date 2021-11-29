@@ -371,13 +371,9 @@ public class LzyServer {
             try {
                 builder.setTaskId(task.tid().toString());
 
-                builder.setProvisioning(Operations.Provisioning.newBuilder()
-                        .addAllTags(((AtomicZygote)task.workload()).provisioning().tags().map(
-                                tag -> Operations.Provisioning.Tag.newBuilder().setTag(tag.tag()).build()
-                        ).collect(Collectors.toList()))
+                builder.setZygote(
+                        ((AtomicZygote)task.workload()).zygote()
                 );
-
-                builder.setFuse(((AtomicZygote)task.workload()).fuze());
 
                 builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
                 if (task.servant() != null) {

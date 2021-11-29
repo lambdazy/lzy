@@ -61,6 +61,10 @@ class Zygote(abc.ABC):
     def provisioning(self) -> Optional[Provisioning]:
         pass
 
+    @abc.abstractmethod
+    def description(self) -> Optional[str]:
+        pass
+
     def to_json(self) -> str:
         env = self.env()
         provisioning = self.provisioning()
@@ -72,5 +76,6 @@ class Zygote(abc.ABC):
             "provisioning": {"tags": [{"tag": tag} for tag in provisioning.tags()]} if provisioning else {},
             "slots": [
                 slot.to_dict() for slot in self.slots()
-            ]
+            ],
+            "description": self.description()
         }, sort_keys=True, indent=3)

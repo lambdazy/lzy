@@ -54,9 +54,7 @@ message TaskStatus {
 
   string explanation = 6;
 
-  Provisioning provisioning = 7;
-
-  string fuse = 8;
+  Zygote zygote = 7;
 
   enum Status {
     PREPARING = 0;
