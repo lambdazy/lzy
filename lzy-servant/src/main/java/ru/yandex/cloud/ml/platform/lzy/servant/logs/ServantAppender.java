@@ -19,6 +19,8 @@ import java.sql.Statement;
 import java.util.Date;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Plugin(
         name = "ServantAppender",
@@ -29,6 +31,7 @@ public class ServantAppender extends AbstractAppender {
     private final ConcurrentLinkedQueue<LogEvent> queue;
     private final String servantId;
     private BigInteger eventId = BigInteger.valueOf(0);
+    private final static Lock lock = new ReentrantLock();
 
     @Override
     public void append(LogEvent event) {
@@ -81,10 +84,16 @@ public class ServantAppender extends AbstractAppender {
             @PluginElement("Layout") Layout<? extends Serializable> layout,
             @PluginElement("Filter") final Filter filter,
             @PluginAttribute("servantId") String servantId
-            ){
-        if (instance == null){
-            instance = new ServantAppender(name, filter, servantId, layout);
+            ) {
+        lock.lock();
+        try{
+            if (instance == null) {
+                instance = new ServantAppender(name, filter, servantId, layout);
+            }
+            return instance;
         }
-        return instance;
+        finally {
+            lock.unlock();
+        }
     }
 }
