@@ -11,6 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 
 import java.net.URI;
 import java.util.Map;
@@ -24,11 +25,11 @@ public class LocalDockerTask extends LocalTask {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        boolean persistent,
+        WhiteboardMeta meta,
         ChannelsManager channels,
         URI serverURI
     ) {
-        super(owner, tid, workload, assignments, persistent, channels, serverURI);
+        super(owner, tid, workload, assignments, meta, channels, serverURI);
     }
 
     @Override
@@ -46,12 +47,13 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withEnv("BUCKET_NAME", "bucket-test")
-            .withEnv("ACCESS_KEY", "access_key")
-            .withEnv("SECRET_KEY", "secret_key")
-            .withEnv("REGION", "us-west-2")
-            .withEnv("SERVICE_ENDPOINT", "http://" + internalHost + ":8001")
-            .withEnv("PATH_STYLE_ACCESS_ENABLED", "true")
+            .withEnv("LZYWHITEBOARD", "http://" + internalHost + ":8999")
+            .withEnv("BUCKET_NAME", "lzy-bucket")
+            .withEnv("ACCESS_KEY", "access-key")
+            .withEnv("SECRET_KEY", "secret-key")
+            .withEnv("REGION", "ru-central1")
+            .withEnv("SERVICE_ENDPOINT", "storage.yandexcloud.net")
+            .withEnv("PATH_STYLE_ACCESS_ENABLED", "false")
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "

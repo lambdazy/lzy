@@ -120,6 +120,19 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             }
         }
 
+        default void getWhiteboard(String wbId) {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                    String.join(
+                            " ",
+                            mount() + "/sbin/whiteboard",
+                            wbId
+                    )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+        }
+
         default void destroyChannel(String channelName) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(

@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,11 +27,11 @@ public class LocalProcessTask extends LocalTask {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        boolean persistent,
+        WhiteboardMeta meta,
         ChannelsManager channels,
         URI serverURI
     ) {
-        super(owner, tid, workload, assignments, persistent, channels, serverURI);
+        super(owner, tid, workload, assignments, meta, channels, serverURI);
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -52,7 +53,14 @@ public class LocalProcessTask extends LocalTask {
                 Map.of(
                     "LZYTASK", tid.toString(),
                     "LZYTOKEN", token,
-                    "LZY_MOUNT", taskDir.getAbsolutePath()
+                    "LZY_MOUNT", taskDir.getAbsolutePath(),
+                    "LZYWHITEBOARD", "http://localhost:8999",
+                    "BUCKET_NAME", "lzy-bucket",
+                    "ACCESS_KEY", "access-key",
+                    "SECRET_KEY", "secret-key",
+                    "REGION", "ru-central1",
+                    "SERVICE_ENDPOINT", "storage.yandexcloud.net",
+                    "PATH_STYLE_ACCESS_ENABLED", "false"
                 )
             );
             process.getOutputStream().close();

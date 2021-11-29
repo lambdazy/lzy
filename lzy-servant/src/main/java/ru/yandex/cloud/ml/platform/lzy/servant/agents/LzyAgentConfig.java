@@ -4,8 +4,9 @@ import java.net.URI;
 import java.nio.file.Path;
 
 public class LzyAgentConfig {
-    private LzyAgentConfig(URI serverAddress, String agentName, String agentInternalName, String token, Path root, String tokenSign, String user, String task, int agentPort) {
+    private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentName, String agentInternalName, String token, Path root, String tokenSign, String user, String task, int agentPort) {
         this.serverAddress = serverAddress;
+        this.whiteboardAddress = whiteboardAddress;
         this.agentName = agentName;
         this.agentInternalName = agentInternalName;
         this.token = token;
@@ -17,6 +18,7 @@ public class LzyAgentConfig {
     }
 
     private final URI serverAddress;
+    private final URI whiteboardAddress;
     private final String agentName;
     private final String agentInternalName;
     private final String token;
@@ -32,6 +34,7 @@ public class LzyAgentConfig {
 
     public static class LzyAgentConfigBuilder {
         private URI serverAddress;
+        private URI whiteboardAddress;
         private String agentName;
         private String agentInternalName;
         private String token;
@@ -66,6 +69,11 @@ public class LzyAgentConfig {
             return this;
         }
 
+        public LzyAgentConfigBuilder whiteboardAddress(URI whiteboardAddress) {
+            this.whiteboardAddress = whiteboardAddress;
+            return this;
+        }
+
         public LzyAgentConfigBuilder task(String task) {
             this.task = task;
             return this;
@@ -87,12 +95,16 @@ public class LzyAgentConfig {
         }
 
         public LzyAgentConfig build() {
-            return new LzyAgentConfig(serverAddress, agentName, agentInternalName, token, root, tokenSign, user, task, agentPort);
+            return new LzyAgentConfig(serverAddress, whiteboardAddress, agentName, agentInternalName, token, root, tokenSign, user, task, agentPort);
         }
     }
 
     public URI getServerAddress() {
         return serverAddress;
+    }
+
+    public URI getWhiteboardAddress() {
+        return whiteboardAddress;
     }
 
     public String getAgentName() {

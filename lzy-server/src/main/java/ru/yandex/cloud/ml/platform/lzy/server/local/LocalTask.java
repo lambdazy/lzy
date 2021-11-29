@@ -6,6 +6,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 
 import java.net.URI;
 import java.util.Map;
@@ -15,8 +16,8 @@ public abstract class LocalTask extends BaseTask {
     private static final Logger LOG = LogManager.getLogger(LocalTask.class);
 
     LocalTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
-              boolean persistent, ChannelsManager channels, URI serverURI) {
-        super(owner, tid, workload, assignments, persistent, channels, serverURI);
+              WhiteboardMeta meta, ChannelsManager channels, URI serverURI) {
+        super(owner, tid, workload, assignments, meta, channels, serverURI);
     }
 
     @Override

@@ -22,6 +22,14 @@ public class WhiteboardMeta {
         return new WhiteboardMeta(UUID.fromString(meta.getWhiteboardId()), dependencies, meta.getOpName());
     }
 
+    public static Tasks.WhiteboardMeta to(WhiteboardMeta meta) {
+        return Tasks.WhiteboardMeta.newBuilder()
+                .setWhiteboardId(meta.getWbId().toString())
+                .addAllDependencies(meta.getDependencies())
+                .setOpName(meta.getOperationName())
+                .build();
+    }
+
     public UUID getWbId() {
         return wbId;
     }

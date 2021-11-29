@@ -10,11 +10,13 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
+import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.*;
 import java.util.function.Consumer;
@@ -29,7 +31,7 @@ public abstract class BaseTask implements Task {
     private final Map<Slot, String> assignments;
     private final ChannelsManager channels;
     protected final URI serverURI;
-    protected final boolean persistent;
+    @Nullable protected final WhiteboardMeta wbMeta;
 
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final Map<Slot, Channel> attachedSlots = new HashMap<>();
@@ -43,7 +45,7 @@ public abstract class BaseTask implements Task {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        boolean persistent,
+        @Nullable WhiteboardMeta wbMeta,
         ChannelsManager channels,
         URI serverURI
     ) {
@@ -51,7 +53,7 @@ public abstract class BaseTask implements Task {
         this.tid = tid;
         this.workload = workload;
         this.assignments = assignments;
-        this.persistent = persistent;
+        this.wbMeta = wbMeta;
         this.channels = channels;
         this.serverURI = serverURI;
     }
@@ -72,7 +74,7 @@ public abstract class BaseTask implements Task {
     }
 
     @Override
-    public boolean persistent() { return persistent; }
+    public WhiteboardMeta wbMeta() { return wbMeta; }
 
     @Override
     public void onProgress(Consumer<Servant.ExecutionProgress> listener) {
@@ -108,7 +110,9 @@ public abstract class BaseTask implements Task {
                     .build())
                 .build())
             .setZygote(gRPCConverter.to(workload));
-        builder.setPersistent(persistent);
+        if (wbMeta != null) {
+            builder.setWhiteboardMeta(WhiteboardMeta.to(wbMeta));
+        }
         assignments.forEach((slot, binding) ->
             builder.addAssignmentsBuilder()
                 .setSlot(gRPCConverter.to(slot))

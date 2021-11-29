@@ -30,6 +30,7 @@ public class Start implements LzyCommand {
         final LzyAgent agent = new LzyServant(
             LzyAgentConfig.builder()
                 .serverAddress(URI.create(serverAddress))
+                .whiteboardAddress(URI.create(System.getenv("LZYWHITEBOARD")))
                 .task(System.getenv("LZYTASK"))
                 .token(System.getenv("LZYTOKEN"))
                 .agentName(host)

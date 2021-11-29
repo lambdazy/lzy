@@ -14,23 +14,31 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
     private final LzyServerGrpc.LzyServerBlockingStub server;
+    private final WhiteboardApiGrpc.WhiteboardApiBlockingStub whiteboard;
     private final Server agentServer;
     private final String taskId;
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
         taskId = config.getTask();
+        URI whiteboardAddress = config.getWhiteboardAddress();
         final Impl impl = new Impl();
         final ManagedChannel channel = ManagedChannelBuilder
             .forAddress(serverAddress.getHost(), serverAddress.getPort())
             .usePlaintext()
             .build();
         server = LzyServerGrpc.newBlockingStub(channel);
+        final ManagedChannel channelWb = ManagedChannelBuilder
+                .forAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort())
+                .usePlaintext()
+                .build();
+        whiteboard = WhiteboardApiGrpc.newBlockingStub(channelWb);
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
     }
 
@@ -73,6 +81,7 @@ public class LzyServant extends LzyAgent {
                 tid,
                 (AtomicZygote) gRPCConverter.from(request.getZygote()),
                 agentInternalAddress,
+                whiteboard,
                 meta
             );
 

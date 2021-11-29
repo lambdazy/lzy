@@ -23,8 +23,10 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.impl.LocalWhiteboardManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.WhiteboardApiGrpc;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -56,12 +58,14 @@ public class LzyExecution {
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
     private final ExecutionSnapshot executionSnapshot;
-    private final WhiteboardManager wbManager = new LocalWhiteboardManager();
     private final WhiteboardMeta meta;
+    private final WhiteboardApiGrpc.WhiteboardApiBlockingStub whiteboard;
 
-    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, @Nullable WhiteboardMeta meta) {
+    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri,
+                        @Nullable WhiteboardApiGrpc.WhiteboardApiBlockingStub whiteboard, @Nullable WhiteboardMeta meta) {
         this.taskId = taskId;
         this.zygote = zygote;
+        this.whiteboard = whiteboard;
         if (meta != null) {
             executionSnapshot = new S3ExecutionSnapshot(taskId);
         } else {
@@ -86,7 +90,19 @@ public class LzyExecution {
                 final LzySlot slot = createSlot(spec, binding);
                 if (meta != null) {
                     URI uri = executionSnapshot.getSlotUri(slot.definition());
-                    wbManager.prepareToSaveData(meta.getWbId(), meta.getOperationName(), slot.definition(), uri);
+                    if (whiteboard == null) {
+                        throw new RuntimeException("LzyExecution::configureSlot whiteboard is null");
+                    }
+                    LzyWhiteboard.OperationStatus status =  whiteboard.prepareToSave(LzyWhiteboard.PrepareCommand
+                            .newBuilder()
+                            .setSlot(gRPCConverter.to(spec))
+                            .setOpName(meta.getOperationName())
+                            .setWbId(meta.getWbId().toString())
+                            .setStorageUri(uri.toString())
+                            .build());
+                    if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
+                        throw new RuntimeException("LzyExecution::configureSlot failed to save to whiteboard");
+                    }
                 }
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
@@ -116,7 +132,15 @@ public class LzyExecution {
                     synchronized (slots) {
                         LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
                         if (meta != null) {
-                            wbManager.commit(meta.getWbId(), meta.getOperationName(), slot.definition());
+                            LzyWhiteboard.OperationStatus status =  whiteboard.commit(LzyWhiteboard.CommitCommand
+                                    .newBuilder()
+                                    .setSlot(gRPCConverter.to(slot.definition()))
+                                    .setOpName(meta.getOperationName())
+                                    .setWbId(meta.getWbId().toString())
+                                    .build());
+                            if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
+                                throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");
+                            }
                         }
                         slots.remove(slot.name());
                         slots.notifyAll();
@@ -204,7 +228,18 @@ public class LzyExecution {
 
             if (meta != null) {
                 LOG.info("Saving dependencies to whiteboard with id " + meta.getWbId());
-                wbManager.addDependencies(meta.getWbId(), meta.getDependencies(), meta.getOperationName());
+                if (whiteboard == null) {
+                    throw new RuntimeException("LzyExecution::configureSlot whiteboard is null");
+                }
+                LzyWhiteboard.OperationStatus status =  whiteboard.addDependencies(LzyWhiteboard.DependenciesCommand
+                        .newBuilder()
+                        .setOpName(meta.getOperationName())
+                        .setWbId(meta.getWbId().toString())
+                        .addAllDependencies(meta.getDependencies())
+                        .build());
+                if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
+                    throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");
+                }
             }
 
             String command = zygote.fuze() + " " + arguments;

@@ -7,6 +7,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.util.Map;
@@ -22,7 +23,7 @@ public interface TasksManager {
         Task parent,
         Zygote workload,
         Map<Slot, String> assignments,
-        boolean persistent,
+        WhiteboardMeta meta,
         Authenticator token,
         Consumer<Servant.ExecutionProgress> progressTracker
     ) throws TaskException;

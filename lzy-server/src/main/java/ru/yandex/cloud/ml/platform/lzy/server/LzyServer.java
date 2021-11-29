@@ -16,6 +16,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -190,9 +191,9 @@ public class LzyServer {
 
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
-            final boolean persistent = request.getPersistent();
             final AtomicBoolean concluded = new AtomicBoolean(false);
-            Task task = tasks.start(uid, parent, workload, assignments, persistent, auth, progress -> {
+            final WhiteboardMeta wbMeta = request.hasWhiteboardMeta() ? WhiteboardMeta.from(request.getWhiteboardMeta()) : null;
+            Task task = tasks.start(uid, parent, workload, assignments, wbMeta, auth, progress -> {
                 if (concluded.get())
                     return;
                 responseObserver.onNext(progress);

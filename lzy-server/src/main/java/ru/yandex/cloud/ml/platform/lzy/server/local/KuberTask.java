@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,8 +28,8 @@ public class KuberTask extends BaseTask {
     public static final String DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE = "/app/resources/kubernetes/lzy-servant-pod-template.yaml";
 
     KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
-              boolean persistent, ChannelsManager channels, URI serverURI) {
-        super(owner, tid, workload, assignments, persistent, channels, serverURI);
+              WhiteboardMeta meta, ChannelsManager channels, URI serverURI) {
+        super(owner, tid, workload, assignments, meta, channels, serverURI);
     }
 
     @Override
@@ -54,6 +55,7 @@ public class KuberTask extends BaseTask {
             ).addEnvItem(
                 new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
             );
+            // TODO: add env variables for whiteboard
             final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
             servantPodDescription.getMetadata().setName(podName);
 

@@ -17,6 +17,7 @@ import java.util.Iterator;
 public class LzyKharon {
     private static final Logger LOG = LogManager.getLogger(LzyKharon.class);
     private final LzyServerGrpc.LzyServerBlockingStub server;
+    private final WhiteboardApiGrpc.WhiteboardApiBlockingStub whiteboard;
 
     private final TerminalSessionManager terminalManager;
     private final DataCarrier dataCarrier = new DataCarrier();
@@ -28,12 +29,14 @@ public class LzyKharon {
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
         options.addOption(new Option("s", "servant-proxy-port", true, "gRPC servant port setting"));
         options.addOption(new Option("z", "lzy-server-address", true, "Lzy server address [host:port]"));
+        options.addOption(new Option("w", "lzy-whiteboard-address", true, "Lzy whiteboard address [host:port]"));
     }
 
     public static String host;
     public static int port;
     public static int servantPort;
     public static URI serverAddress;
+    public static URI whiteboardAddress;
 
     private final Server kharonServer;
     private final Server kharonServantProxy;
@@ -53,19 +56,27 @@ public class LzyKharon {
         port = Integer.parseInt(parse.getOptionValue('p', "8899"));
         servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
         serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
+        whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
 
-        final LzyKharon kharon = new LzyKharon(serverAddress, host, port, servantPort);
+        final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, host, port, servantPort);
         kharon.start();
         kharon.awaitTermination();
     }
 
 
-    public LzyKharon(URI serverUri, String host, int port, int servantProxyPort) throws URISyntaxException {
+    public LzyKharon(URI serverUri, URI whiteboardUri, String host, int port, int servantProxyPort) throws URISyntaxException {
         final ManagedChannel serverChannel = ManagedChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
             .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
+
+        final ManagedChannel whiteboardChannel = ManagedChannelBuilder
+                .forAddress(whiteboardUri.getHost(), whiteboardUri.getPort())
+                .usePlaintext()
+                .build();
+        whiteboard = WhiteboardApiGrpc.newBlockingStub(whiteboardChannel);
+
         final URI servantProxyAddress = new URI("http", null, host, servantProxyPort, null, null, null);
         terminalManager = new TerminalSessionManager(server, servantProxyAddress);
 
@@ -188,6 +199,13 @@ public class LzyKharon {
         @Override
         public void channelsStatus(IAM.Auth request, StreamObserver<Channels.ChannelStatusList> responseObserver) {
             responseObserver.onNext(server.channelsStatus(request));
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void getWhiteboard(LzyWhiteboard.WhiteboardCommand request,
+                                  StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+            responseObserver.onNext(whiteboard.getWhiteboard(request));
             responseObserver.onCompleted();
         }
     }

@@ -6,14 +6,14 @@ import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
 package yandex.cloud.priv.datasphere.v2;
 
 option go_package = "datasphere";
-option java_outer_classname = "Lzy";
+option java_outer_classname = "LzyWhiteboard";
 option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service WhiteboardApi {
   rpc PrepareToSave (PrepareCommand) returns (OperationStatus);
   rpc Commit (CommitCommand) returns (OperationStatus);
   rpc AddDependencies (DependenciesCommand) returns (OperationStatus);
-  rpc Whiteboard (WhiteboardCommand) returns (Whiteboard);
+  rpc GetWhiteboard (WhiteboardCommand) returns (Whiteboard);
 }
 
 message PrepareCommand {

@@ -99,7 +99,13 @@ public class Run implements LzyCommand {
         taskSpec.setAuth(auth);
         taskSpec.setZygote(grpcZygote);
         if (localCmd.hasOption("persistent")) {
-            taskSpec.setPersistent(true);
+            taskSpec.setWhiteboardMeta(Tasks.WhiteboardMeta
+                    .newBuilder()
+                    .setWhiteboardId(UUID.randomUUID().toString())
+                    .addAllDependencies(new ArrayList<>())
+                    .setOpName("operation")
+                    .build()
+            );
         }
         zygote.slots().forEach(slot -> {
             LOG.info("Resolving slot " + slot.name());
