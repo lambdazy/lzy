@@ -3,8 +3,6 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.env.PropertySource;
-import io.micronaut.core.util.CollectionUtils;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.junit.After;
@@ -13,7 +11,7 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
@@ -22,8 +20,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import java.io.IOException;
 import java.io.StringReader;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
@@ -94,7 +90,7 @@ public class LzyDbAuthTest {
             Transaction tx = session.beginTransaction();
             for (User user: users) {
                 session.persist(user.getUserModel());
-                session.persist(new TokenModel("main", "-----BEGIN PUBLIC KEY-----\n" + user.publicKey + "\n-----END PUBLIC KEY-----", user.userId));
+                session.persist(new PublicKeyModel("main", "-----BEGIN PUBLIC KEY-----\n" + user.publicKey + "\n-----END PUBLIC KEY-----", user.userId));
             }
             tx.commit();
         }

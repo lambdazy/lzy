@@ -5,9 +5,9 @@ import java.io.Serializable;
 import java.util.Objects;
 
 @Entity
-@Table(name = "tokens")
-@IdClass(TokenModel.TokenPk.class)
-public class TokenModel {
+@Table(name = "public_keys")
+@IdClass(PublicKeyModel.PublicKeyPk.class)
+public class PublicKeyModel {
     @Id
     @Column(name="name")
     private String name;
@@ -51,25 +51,25 @@ public class TokenModel {
         this.user = user;
     }
 
-    public TokenModel(String name, String value, UserModel user) {
+    public PublicKeyModel(String name, String value, UserModel user) {
         this.name = name;
         this.value = value;
         this.userId = user.getUserId();
     }
 
-    public TokenModel(String name, String value, String userId) {
+    public PublicKeyModel(String name, String value, String userId) {
         this.name = name;
         this.value = value;
         this.userId = userId;
     }
 
-    public TokenModel() {}
+    public PublicKeyModel() {}
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (getClass() != o.getClass()) return false;
-        TokenModel token = (TokenModel) o;
+        PublicKeyModel token = (PublicKeyModel) o;
         return value.equals(token.value);
     }
 
@@ -78,22 +78,22 @@ public class TokenModel {
         return Objects.hash(value);
     }
 
-    public static class TokenPk implements Serializable{
+    public static class PublicKeyPk implements Serializable{
         protected String name;
         protected String userId;
 
-        public TokenPk(String name, String userId) {
+        public PublicKeyPk(String name, String userId) {
             this.name = name;
             this.userId = userId;
         }
 
-        public TokenPk() {}
+        public PublicKeyPk() {}
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
-            TokenPk tokenPk = (TokenPk) o;
+            PublicKeyPk tokenPk = (PublicKeyPk) o;
             return name.equals(tokenPk.name) && userId.equals(tokenPk.userId);
         }
 

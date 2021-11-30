@@ -44,9 +44,9 @@ public class Client {
         return LzyBackofficeGrpc.newStub(channel);
     }
 
-    public BackOffice.AddTokenResult addToken(AddPublicKeyRequest request){
+    public BackOffice.AddKeyResult addToken(AddPublicKeyRequest request){
         try {
-            return getBlockingStub().addToken(
+            return getBlockingStub().addKey(
                     request.toModel(credentials.createCreds())
             );
         }
@@ -154,9 +154,9 @@ public class Client {
     }
 
 
-    public BackOffice.ListTokensResponse listTokens(ListKeysRequest request){
+    public BackOffice.ListKeysResponse listTokens(ListKeysRequest request){
         try {
-            return getBlockingStub().listTokens(
+            return getBlockingStub().listKeys(
                     request.toModel(credentials.createCreds())
             );
         }
@@ -165,9 +165,9 @@ public class Client {
         }
     }
 
-    public BackOffice.DeleteTokenResponse deleteToken(DeletePublicKeyRequest request){
+    public BackOffice.DeleteKeyResponse deleteToken(DeletePublicKeyRequest request){
         try {
-            return getBlockingStub().deleteToken(
+            return getBlockingStub().deleteKey(
                     request.toModel(credentials.createCreds())
             );
         }

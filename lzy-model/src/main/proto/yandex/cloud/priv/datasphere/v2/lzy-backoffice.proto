@@ -10,9 +10,9 @@ option java_outer_classname = "BackOffice";
 option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service LzyBackoffice{
-  rpc AddToken(AddTokenRequest) returns (AddTokenResult);
-  rpc ListTokens(ListTokensRequest) returns (ListTokensResponse);
-  rpc DeleteToken(DeleteTokenRequest) returns (DeleteTokenResponse);
+  rpc AddKey(AddKeyRequest) returns (AddKeyResult);
+  rpc ListKeys(ListKeysRequest) returns (ListKeysResponse);
+  rpc DeleteKey(DeleteKeyRequest) returns (DeleteKeyResponse);
   rpc CreateUser(CreateUserRequest) returns (CreateUserResult);
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResult);
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
@@ -23,11 +23,11 @@ service LzyBackoffice{
   rpc GetTasks(GetTasksRequest) returns (GetTasksResponse);
 }
 
-message AddTokenRequest{
+message AddKeyRequest{
   UserCredentials backofficeCredentials = 1;
   BackofficeUserCredentials userCredentials = 2;
   string publicKey = 3;
-  string tokenName = 4;
+  string keyName = 4;
 }
 
 message User{
@@ -58,7 +58,7 @@ message DeleteUserResult {};
 
 message CreateUserResult {};
 
-message AddTokenResult{};
+message AddKeyResult{};
 
 message BackofficeUserCredentials{
   string user_id = 1; // Can contains Oauth token in future
@@ -120,7 +120,7 @@ message GetTasksRequest{
   BackofficeUserCredentials credentials = 2;
 }
 
-message ListTokensRequest {
+message ListKeysRequest {
   UserCredentials backofficeCredentials = 1;
   BackofficeUserCredentials credentials = 2;
 }
@@ -129,14 +129,14 @@ message GetTasksResponse{
   TasksList tasks = 1;
 }
 
-message ListTokensResponse {
-  repeated string tokenNames = 1;
+message ListKeysResponse {
+  repeated string keyNames = 1;
 }
 
-message DeleteTokenRequest {
+message DeleteKeyRequest {
   UserCredentials backofficeCredentials = 1;
   BackofficeUserCredentials credentials = 2;
-  string tokenName = 3;
+  string keyName = 3;
 }
 
-message DeleteTokenResponse {}
+message DeleteKeyResponse {}

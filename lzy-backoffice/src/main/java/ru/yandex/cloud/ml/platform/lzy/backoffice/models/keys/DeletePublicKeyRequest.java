@@ -26,11 +26,11 @@ public class DeletePublicKeyRequest {
         this.keyName = keyName;
     }
 
-    public BackOffice.DeleteTokenRequest toModel(IAM.UserCredentials credentials){
-        return BackOffice.DeleteTokenRequest.newBuilder()
+    public BackOffice.DeleteKeyRequest toModel(IAM.UserCredentials credentials){
+        return BackOffice.DeleteKeyRequest.newBuilder()
             .setBackofficeCredentials(credentials)
             .setCredentials(this.credentials.toModel())
-            .setTokenName(this.keyName)
+            .setKeyName(this.keyName)
             .build();
     }
 }

@@ -17,8 +17,8 @@ public class ListKeysRequest {
         this.credentials = credentials;
     }
 
-    public BackOffice.ListTokensRequest toModel(IAM.UserCredentials credentials){
-        return BackOffice.ListTokensRequest.newBuilder()
+    public BackOffice.ListKeysRequest toModel(IAM.UserCredentials credentials){
+        return BackOffice.ListKeysRequest.newBuilder()
             .setCredentials(this.credentials.toModel())
             .setBackofficeCredentials(credentials)
             .build();

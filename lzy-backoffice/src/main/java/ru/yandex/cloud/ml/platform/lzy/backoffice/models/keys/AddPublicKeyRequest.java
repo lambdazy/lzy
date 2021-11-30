@@ -35,12 +35,12 @@ public class AddPublicKeyRequest {
         this.userCredentials = userCredentials;
     }
 
-    public BackOffice.AddTokenRequest toModel(IAM.UserCredentials credentials){
-        return BackOffice.AddTokenRequest.newBuilder()
+    public BackOffice.AddKeyRequest toModel(IAM.UserCredentials credentials){
+        return BackOffice.AddKeyRequest.newBuilder()
                 .setPublicKey(publicKey)
                 .setUserCredentials(userCredentials.toModel())
                 .setBackofficeCredentials(credentials)
-                .setTokenName(keyName)
+                .setKeyName(keyName)
                 .build();
     }
 }
