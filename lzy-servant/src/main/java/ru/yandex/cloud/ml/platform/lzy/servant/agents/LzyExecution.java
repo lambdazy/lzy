@@ -14,6 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvironment;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashEnvironment;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.EmptyExecutionSnapshot;
@@ -195,16 +196,16 @@ public class LzyExecution {
             Environment session;
             if (zygote.env() instanceof PythonEnv) {
                 session = new CondaEnvironment((PythonEnv) zygote.env());
-                LOG.info("Conda environment is provided, using CondaEnvConnector");
+                LOG.info("Conda environment is provided, using CondaEnvironment");
             } else {
                 session = new SimpleBashEnvironment();
-                LOG.info("No environment provided, using SimpleBashConnector");
+                LOG.info("No environment provided, using SimpleBashEnvironment");
             }
 
             String command = zygote.fuze() + " " + arguments;
             LOG.info("Going to exec command " + command);
             int rc;
-            String resultDescription = "Success";
+            String resultDescription;
             try {
                 this.exec = session.exec(command);
                 stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
@@ -217,6 +218,7 @@ public class LzyExecution {
                     StandardCharsets.UTF_8
                 )));
                 rc = exec.waitFor();
+                resultDescription = (rc == 0) ? "Success" : "Failure";
             } catch (EnvironmentInstallationException e) {
                 resultDescription = "Error during environment installation:\n" + e;
                 rc = ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc();
@@ -227,11 +229,10 @@ public class LzyExecution {
 
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
             if (rc != 0) {
-                resultDescription = "Failure";
                 Set.copyOf(slots.values()).stream()
-                    .filter(s -> s instanceof OutFileSlot)
-                    .map(s -> (OutFileSlot)s)
-                    .forEach(OutFileSlot::flush);
+                    .filter(s -> s instanceof LzyOutputSlot)
+                    .map(s -> (LzyOutputSlot)s)
+                    .forEach(LzyOutputSlot::forceClose);
             }
             synchronized (slots) {
                 LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
