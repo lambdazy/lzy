@@ -8,34 +8,34 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.grpc.Client;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tokens.AddTokenRequest;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tokens.DeleteTokenRequest;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tokens.ListTokensRequest;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tokens.ListTokensResponse;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.keys.AddPublicKeyRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.keys.DeletePublicKeyRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.keys.ListKeysRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.keys.ListKeysResponse;
 
 import javax.validation.Valid;
 
 @ExecuteOn(TaskExecutors.IO)
-@Controller("tokens")
-public class TokensController {
+@Controller("public_keys")
+public class PublicKeysController {
     @Inject
     Client client;
 
     @Post("add")
-    public HttpResponse<?> add(@Valid @Body AddTokenRequest request){
+    public HttpResponse<?> add(@Valid @Body AddPublicKeyRequest request){
         client.addToken(request);
         return HttpResponse.ok();
     }
 
     @Post("delete")
-    public HttpResponse<?> delete(@Valid @Body DeleteTokenRequest request){
+    public HttpResponse<?> delete(@Valid @Body DeletePublicKeyRequest request){
         client.deleteToken(request);
         return HttpResponse.ok();
     }
 
     @Post("list")
-    public HttpResponse<ListTokensResponse> list(@Valid @Body ListTokensRequest request){
-        return HttpResponse.ok(ListTokensResponse.fromModel(client.listTokens(request)));
+    public HttpResponse<ListKeysResponse> list(@Valid @Body ListKeysRequest request){
+        return HttpResponse.ok(ListKeysResponse.fromModel(client.listTokens(request)));
     }
 
 

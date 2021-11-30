@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.backoffice.models.tokens;
+package ru.yandex.cloud.ml.platform.lzy.backoffice.models.keys;
 
 import io.micronaut.core.annotation.Introspected;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.UserCredentials;
@@ -6,25 +6,25 @@ import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Introspected
-public class AddTokenRequest {
+public class AddPublicKeyRequest {
     private UserCredentials userCredentials;
-    private String token;
-    private String tokenName;
+    private String publicKey;
+    private String keyName;
 
-    public String getTokenName() {
-        return tokenName;
+    public String getKeyName() {
+        return keyName;
     }
 
-    public void setTokenName(String tokenName) {
-        this.tokenName = tokenName;
+    public void setKeyName(String keyName) {
+        this.keyName = keyName;
     }
 
-    public String getToken() {
-        return token;
+    public String getPublicKey() {
+        return publicKey;
     }
 
-    public void setToken(String token) {
-        this.token = token;
+    public void setPublicKey(String publicKey) {
+        this.publicKey = publicKey;
     }
 
     public UserCredentials getUserCredentials() {
@@ -37,10 +37,10 @@ public class AddTokenRequest {
 
     public BackOffice.AddTokenRequest toModel(IAM.UserCredentials credentials){
         return BackOffice.AddTokenRequest.newBuilder()
-                .setPublicKey(token)
+                .setPublicKey(publicKey)
                 .setUserCredentials(userCredentials.toModel())
                 .setBackofficeCredentials(credentials)
-                .setTokenName(tokenName)
+                .setTokenName(keyName)
                 .build();
     }
 }

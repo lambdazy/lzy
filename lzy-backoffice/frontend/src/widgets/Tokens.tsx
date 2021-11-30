@@ -16,9 +16,9 @@ async function getTokens(credentials: UserCredentials | undefined | null): Promi
     if (!credentials)
         return [];
     return (await axios.post(
-        BACKEND_HOST() + "/tokens/list",
+        BACKEND_HOST() + "/public_keys/list",
         {credentials: credentials}
-    )).data.tokenNames;
+    )).data.keyNames;
 }
 
 interface State{
@@ -40,7 +40,7 @@ function Toolbar(props: ToolbarProps) {
         return;
       }
       selectionModel.forEach((param: string | number) => {
-        axios.post(BACKEND_HOST() + "/tokens/delete", {tokenName: param, credentials})
+        axios.post(BACKEND_HOST() + "/public_keys/delete", {keyName: param, credentials})
         .then(() => update())
       });
     };
@@ -54,7 +54,7 @@ function Toolbar(props: ToolbarProps) {
     let [tokenData, setTokenData] = useState<{name: string, value: string}>({name: "", value: ""});
 
     const handleAddToken = () => {
-        axios.post(BACKEND_HOST() + "/tokens/add", {tokenName: tokenData.name, token: tokenData.value, userCredentials: credentials})
+        axios.post(BACKEND_HOST() + "/public_keys/add", {keyName: tokenData.name, publicKey: tokenData.value, userCredentials: credentials})
         .then(() => {setOpen(false); update()})
     }
   
@@ -126,6 +126,8 @@ function TokensInternal(props: {}){
     const columns: GridColDef[] = [
         { field: 'id', headerName: 'Token name', width: 250 },
     ];
+
+    console.log(state.tokens)
 
     let rows: GridRowsProp = state.tokens.map((token) => {return {
         id: token
