@@ -34,7 +34,7 @@ public class CondaEnvironment implements Environment {
             final String stderr = IOUtils.toString(run.getErrorStream());
             LOG.info(stdout);
             LOG.error(stderr);
-            if (rc != 0) {
+            if (run.exitValue() != 0) {
                 throw new EnvironmentInstallationException(
                     String.format(
                         "Failed to update conda env\n\nSTDOUT: %s \n\nSTDERR: %s",

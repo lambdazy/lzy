@@ -84,7 +84,7 @@ class LzyExecutionException(Exception):
 
     def __str__(self):
         return f"Task {self.execution.id()[:4]} failed " \
-               f"for func {self.func.__name__} " \
+               f"in func {self.func.__name__} " \
                f"with rc {self.rc} " \
                f"and message: {self.message}"
 
@@ -135,9 +135,9 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         result = execution.wait_for()
         rc = result.rc()
         if rc:
-            if rc == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR:
+            if rc == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR.value:
                 raise LzyExecutionException("Failed to install environment on remote machine", self.func, execution, rc)
-            if rc == ReturnCode.EXECUTION_ERROR:
+            if rc == ReturnCode.EXECUTION_ERROR.value:
                 raise LzyExecutionException("Lzy error", self.func, execution, rc)
 
             raise LzyExecutionException("Execution error", self.func, execution, rc)

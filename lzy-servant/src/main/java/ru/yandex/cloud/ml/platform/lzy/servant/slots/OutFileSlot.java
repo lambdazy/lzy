@@ -121,8 +121,9 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         return localFileContents;
     }
 
-    public void flush() {
-        LOG.info("Force flush for slot " + this);
+    @Override
+    public void forceClose() {
+        LOG.info("Force close for slot " + this);
         synchronized (OutFileSlot.this) {
             ready = true;
             state(Operations.SlotStatus.State.OPEN);
