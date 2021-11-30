@@ -16,13 +16,13 @@ async function getTokens(credentials: UserCredentials | undefined | null): Promi
     if (!credentials)
         return [];
     return (await axios.post(
-        BACKEND_HOST() + "/public_keys/list",
+        BACKEND_HOST() + "/public_key/list",
         {credentials: credentials}
     )).data.keyNames;
 }
 
 interface State{
-    tokens: Token[] | undefined,
+    keys: Token[] | undefined,
     credentials: UserCredentials | undefined | null
 }
 
@@ -40,7 +40,7 @@ function Toolbar(props: ToolbarProps) {
         return;
       }
       selectionModel.forEach((param: string | number) => {
-        axios.post(BACKEND_HOST() + "/public_keys/delete", {keyName: param, credentials})
+        axios.post(BACKEND_HOST() + "/public_key/delete", {keyName: param, credentials})
         .then(() => update())
       });
     };
@@ -51,10 +51,10 @@ function Toolbar(props: ToolbarProps) {
     };
 
     let [open, setOpen] = useState<boolean>(false);
-    let [tokenData, setTokenData] = useState<{name: string, value: string}>({name: "", value: ""});
+    let [keyData, setKeyData] = useState<{name: string, value: string}>({name: "", value: ""});
 
-    const handleAddToken = () => {
-        axios.post(BACKEND_HOST() + "/public_keys/add", {keyName: tokenData.name, publicKey: tokenData.value, userCredentials: credentials})
+    const handleAddKey = () => {
+        axios.post(BACKEND_HOST() + "/public_key/add", {keyName: keyData.name, publicKey: keyData.value, userCredentials: credentials})
         .then(() => {setOpen(false); update()})
     }
   
@@ -84,7 +84,7 @@ function Toolbar(props: ToolbarProps) {
             label="Key name"
             fullWidth
             variant="standard"
-            onChange={(event) => {setTokenData({name: event.target.value, value: tokenData.value})}}
+            onChange={(event) => {setKeyData({name: event.target.value, value: keyData.value})}}
           />
           <TextField
             margin="dense"
@@ -93,12 +93,12 @@ function Toolbar(props: ToolbarProps) {
             fullWidth
             multiline
             variant="standard"
-            onChange={(event) => {setTokenData({name: tokenData.name, value: event.target.value})}}
+            onChange={(event) => {setKeyData({name: keyData.name, value: event.target.value})}}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => {setOpen(false)}}>Cancel</Button>
-          <Button onClick={handleAddToken}>Add</Button>
+          <Button onClick={handleAddKey}>Add</Button>
         </DialogActions>
       </Dialog>
       </div>
@@ -106,31 +106,31 @@ function Toolbar(props: ToolbarProps) {
 }
 
 
-function TokensInternal(props: {}){
+function KeysInternal(props: {}){
     let auth = useAuth();
     let alert = useAlert();
-    let [state, setState] = useState<State>({tokens: undefined, credentials: undefined});
+    let [state, setState] = useState<State>({keys: undefined, credentials: undefined});
     const [selectionModel, setSelectionModel] = useState<GridSelectionModel>([]);
     useEffect(() => {
         if (state.credentials === undefined)
-        auth.getCredentials().then(credentials => setState({credentials, tokens: state.tokens}))
+        auth.getCredentials().then(credentials => setState({credentials, keys: state.keys}))
         .catch(error => {alert.show(error.message, error.name, undefined, "danger");});
 
-        if (state.tokens === undefined)
-            getTokens(state.credentials).then((tokens) => {tokens ? setState({credentials: state.credentials,tokens}) : setState({credentials: state.credentials, tokens: []})})
+        if (state.keys === undefined)
+            getTokens(state.credentials).then((tokens) => {tokens ? setState({credentials: state.credentials,keys: tokens}) : setState({credentials: state.credentials, keys: []})})
             .catch(error => {alert.show(error.message, error.name, undefined, "danger");});
     })
-    if (state.credentials === undefined || state.tokens === undefined){
+    if (state.credentials === undefined || state.keys === undefined){
         return (<><p>Loading...</p></>);
     }
     const columns: GridColDef[] = [
-        { field: 'id', headerName: 'Token name', width: 250 },
+        { field: 'id', headerName: 'Key name', width: 250 },
     ];
 
-    console.log(state.tokens)
+    console.log(state.keys)
 
-    let rows: GridRowsProp = state.tokens.map((token) => {return {
-        id: token
+    let rows: GridRowsProp = state.keys.map((key) => {return {
+        id: key
     }});
 
     return (<DataGrid 
@@ -142,7 +142,7 @@ function TokensInternal(props: {}){
             toolbar: {
                 selectionModel,
                 credentials: state.credentials,
-                update: () => setState({credentials: state.credentials, tokens: undefined})
+                update: () => setState({credentials: state.credentials, keys: undefined})
             }
         }}
         selectionModel={selectionModel}
@@ -152,6 +152,6 @@ function TokensInternal(props: {}){
         rows={rows}></DataGrid>)
 }
 
-export function Tokens(props: {}){
-    return (<><Header /><TokensInternal /></>)
+export function Keys(props: {}){
+    return (<><Header /><KeysInternal /></>)
 }

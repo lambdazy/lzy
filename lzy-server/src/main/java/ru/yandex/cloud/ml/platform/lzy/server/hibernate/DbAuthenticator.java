@@ -140,7 +140,7 @@ public class DbAuthenticator implements Authenticator {
             }
 
             Security.addProvider(new BouncyCastleProvider());
-            for (TokenModel userToken: user.getTokens()) {
+            for (PublicKeyModel userToken: user.getPublicKeys()) {
                 try (StringReader keyReader = new StringReader(userToken.getValue())) {
                     if (checkToken(keyReader, token, tokenSign)) {
                         LOG.info("Successfully checked user token " + userId);

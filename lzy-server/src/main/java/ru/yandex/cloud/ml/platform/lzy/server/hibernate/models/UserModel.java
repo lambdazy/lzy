@@ -22,7 +22,7 @@ public class UserModel {
     private Set<TaskModel> tasks;
 
     @OneToMany(mappedBy = "user")
-    private Set<TokenModel> tokens;
+    private Set<PublicKeyModel> publicKeys;
 
     @ManyToMany(mappedBy = "users")
     private Set<UserRoleModel> roles = new HashSet<>();
@@ -78,8 +78,8 @@ public class UserModel {
         return tasks;
     }
 
-    public Set<TokenModel> getTokens() {
-        return tokens;
+    public Set<PublicKeyModel> getPublicKeys() {
+        return publicKeys;
     }
 
     public Set<UserRoleModel> getRoles() {

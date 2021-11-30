@@ -10,7 +10,7 @@ import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
@@ -31,7 +31,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     TasksManager tasks;
 
     @Override
-    public void addToken(BackOffice.AddTokenRequest request, StreamObserver<BackOffice.AddTokenResult> responseObserver){
+    public void addKey(BackOffice.AddKeyRequest request, StreamObserver<BackOffice.AddKeyResult> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
             authBackofficeUserCredentials(request.getUserCredentials());
@@ -47,11 +47,11 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                 responseObserver.onError(Status.INVALID_ARGUMENT.asException());
                 return;
             }
-            TokenModel token = new TokenModel(request.getTokenName(), request.getPublicKey(), user);
+            PublicKeyModel token = new PublicKeyModel(request.getKeyName(), request.getPublicKey(), user);
             try {
                 session.save(token);
                 tx.commit();
-                responseObserver.onNext(BackOffice.AddTokenResult.newBuilder().build());
+                responseObserver.onNext(BackOffice.AddKeyResult.newBuilder().build());
                 responseObserver.onCompleted();
             }
             catch (Exception e){
@@ -314,7 +314,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         responseObserver.onCompleted();
     }
 
-    public void listTokens(BackOffice.ListTokensRequest request, StreamObserver<BackOffice.ListTokensResponse> responseObserver){
+    public void listKeys(BackOffice.ListKeysRequest request, StreamObserver<BackOffice.ListKeysResponse> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
             authBackofficeUserCredentials(request.getCredentials());
@@ -326,9 +326,9 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
         try(Session session = storage.getSessionFactory().openSession()){
             UserModel user = session.find(UserModel.class, request.getCredentials().getUserId());
-            responseObserver.onNext(BackOffice.ListTokensResponse.newBuilder()
-                .addAllTokenNames(user.getTokens().stream().map(
-                    TokenModel::getName
+            responseObserver.onNext(BackOffice.ListKeysResponse.newBuilder()
+                .addAllKeyNames(user.getPublicKeys().stream().map(
+                    PublicKeyModel::getName
                 ).collect(Collectors.toList()))
                 .build());
             responseObserver.onCompleted();
@@ -336,7 +336,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     }
 
     @Override
-    public void deleteToken(BackOffice.DeleteTokenRequest request, StreamObserver<BackOffice.DeleteTokenResponse> responseObserver){
+    public void deleteKey(BackOffice.DeleteKeyRequest request, StreamObserver<BackOffice.DeleteKeyResponse> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
             authBackofficeUserCredentials(request.getCredentials());
@@ -349,14 +349,14 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         try(Session session = storage.getSessionFactory().openSession()){
             Transaction tx = session.beginTransaction();
             try {
-                TokenModel token = session.find(TokenModel.class, new TokenModel.TokenPk(request.getTokenName(), request.getCredentials().getUserId()));
+                PublicKeyModel token = session.find(PublicKeyModel.class, new PublicKeyModel.PublicKeyPk(request.getKeyName(), request.getCredentials().getUserId()));
                 if (token == null) {
                     responseObserver.onError(Status.NOT_FOUND.asException());
                     return;
                 }
                 session.delete(token);
                 tx.commit();
-                responseObserver.onNext(BackOffice.DeleteTokenResponse.newBuilder().build());
+                responseObserver.onNext(BackOffice.DeleteKeyResponse.newBuilder().build());
                 responseObserver.onCompleted();
             }
             catch (Exception e){

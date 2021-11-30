@@ -18,9 +18,9 @@ public class ListKeysResponse {
         this.keyNames = keyNames;
     }
 
-    public static ListKeysResponse fromModel(BackOffice.ListTokensResponse model){
+    public static ListKeysResponse fromModel(BackOffice.ListKeysResponse model){
         ListKeysResponse resp = new ListKeysResponse();
-        resp.keyNames = model.getTokenNamesList();
+        resp.keyNames = model.getKeyNamesList();
         return resp;
     }
 }

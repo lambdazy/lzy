@@ -16,8 +16,8 @@ import ru.yandex.cloud.ml.platform.lzy.backoffice.models.keys.ListKeysResponse;
 import javax.validation.Valid;
 
 @ExecuteOn(TaskExecutors.IO)
-@Controller("public_keys")
-public class PublicKeysController {
+@Controller("public_key")
+public class PublicKeyController {
     @Inject
     Client client;
 
