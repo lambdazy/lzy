@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.CredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.GrpcConfig;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.GetTasksRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth.CheckPermissionRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth.CheckSessionRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tokens.AddTokenRequest;

@@ -7,6 +7,7 @@ import { AddToken } from "./AddToken";
 import { AuthUser } from "./AuthUser";
 import { Readme } from "./Readme";
 import { Tasks } from "./Tasks";
+import { Tokens } from "./Tokens";
 
 export const MainRouter = () => (
   <main>
@@ -20,8 +21,8 @@ export const MainRouter = () => (
       <Route exact path="/" component={Readme} />
       <Route exact path="/login" component={LoginFormFC} />
       <Route exact path="/login_user" component={AuthUser} />
-      <PrivateRoute path="/add_token" exact>
-        <AddToken host={BACKEND_HOST()} />
+      <PrivateRoute path="/keys" exact>
+        <Tokens />
       </PrivateRoute>
       <Redirect to="/"/>
     </Switch>
