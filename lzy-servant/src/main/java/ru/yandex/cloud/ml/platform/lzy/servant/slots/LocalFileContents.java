@@ -26,14 +26,16 @@ public class LocalFileContents implements FileContents {
 
     @Override
     public int read(Pointer buf, long offset, long size) throws IOException {
-        final MappedByteBuffer map = channel.map(FileChannel.MapMode.READ_ONLY, offset, size);
-        buf.transferFrom(0, Pointer.wrap(buf.getRuntime(), map), 0, size);
-        return (int) size;
+        final long bytesToRead = Math.min(channel.size() - offset, size);
+        final MappedByteBuffer map = channel.map(FileChannel.MapMode.READ_ONLY, offset, bytesToRead);
+        buf.transferFrom(0, Pointer.wrap(buf.getRuntime(), map), 0, bytesToRead);
+        return (int) bytesToRead;
     }
 
     @Override
     public int write(Pointer buf, long offset, long size) throws IOException {
         int off = 0;
+        channel.position(offset);
         while (off < size) {
             int chunkSize = (int) Math.min(buffer.length, size - off);
             buf.get(off, buffer, 0, chunkSize);
