@@ -12,12 +12,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class CondaEnvConnector implements Connector {
-    private static final Logger LOG = LogManager.getLogger(CondaEnvConnector.class);
+public class CondaEnvironment implements Environment {
+    private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private final PythonEnv env;
     private final AtomicBoolean envInstalled = new AtomicBoolean(false);
 
-    public CondaEnvConnector(PythonEnv env) {
+    public CondaEnvironment(PythonEnv env) {
         this.env = env;
     }
 
@@ -34,7 +34,7 @@ public class CondaEnvConnector implements Connector {
             final String stderr = IOUtils.toString(run.getErrorStream());
             LOG.info(stdout);
             LOG.error(stderr);
-            if (rc > 0) {
+            if (rc != 0) {
                 throw new EnvironmentInstallationException(
                     String.format(
                         "Failed to update conda env\n\nSTDOUT: %s \n\nSTDERR: %s",

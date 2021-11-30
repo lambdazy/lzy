@@ -4,7 +4,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
 
 import java.io.IOException;
 
-public class SimpleBashConnector implements Connector {
+public class SimpleBashEnvironment implements Environment {
     @Override
     public Process exec(String command) throws LzyExecutionException {
         try {
