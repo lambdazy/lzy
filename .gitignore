@@ -161,6 +161,3 @@ lzy-python/*.egg-info
 **/*.env
 lzy-python/*.egg-info
 **/.vscode
-/lzy-python/test_tasks/some_local_module/build/
-/lzy-python/test_tasks/some_local_module/dist/
-/lzy-python/test_tasks/some_local_module/some_local_module.egg-info/
