@@ -8,8 +8,8 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.grpc.Client;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.GetTasksRequest;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.GetTasksResponse;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tasks.GetTasksRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tasks.GetTasksResponse;
 
 import javax.validation.Valid;
 
