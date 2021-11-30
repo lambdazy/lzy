@@ -105,7 +105,6 @@ public class Run implements LzyCommand {
             if (localCmd.hasOption('d')) {
                 final String depsFile = localCmd.getOptionValue('d');
                 LOG.info("Read dependencies from file " + depsFile);
-                //Slot name -> Channel ID
                 //noinspection unchecked
                 deps.addAll(objectMapper.readValue(new File(depsFile), List.class));
                 LOG.info("Dependencies: " +

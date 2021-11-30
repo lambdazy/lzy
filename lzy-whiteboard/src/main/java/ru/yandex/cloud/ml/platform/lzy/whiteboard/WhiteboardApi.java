@@ -120,8 +120,10 @@ public class WhiteboardApi {
 
         @Override
         public void prepareToSave(LzyWhiteboard.PrepareCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            System.out.println("WhiteboardApi::prepareToSave with opName " + request.getOpName() + " and " + request.getSlot().getName());
-            LOG.info("WhiteboardApi::prepareToSave with opName " + request.getOpName() + " and " + request.getSlot().getName());
+            LOG.info("WhiteboardApi::prepareToSave invoked with opName " + request.getOpName() +
+                    ", slotName " + request.getSlot().getName() +
+                    ", whiteboard id " + request.getWbId()
+            );
             storageBindings.putIfAbsent(UUID.fromString(request.getWbId()), new HashSet<>());
             storageBindings.computeIfPresent(UUID.fromString(request.getWbId()),
                     (k, v) -> {
@@ -138,8 +140,10 @@ public class WhiteboardApi {
 
         @Override
         public void commit(LzyWhiteboard.CommitCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            System.out.println("WhiteboardApi::commit with opName " + request.getOpName() + " and " + request.getSlot().getName() + " and " + request.getEmpty());
-            LOG.info("WhiteboardApi::commit with opName " + request.getOpName() + " and " + request.getSlot().getName() + " and " + request.getEmpty());
+            LOG.info("WhiteboardApi::commit invoked with opName " + request.getOpName() +
+                    ", slotName " + request.getSlot().getName() +
+                    ", whiteboard id " + request.getWbId()
+            );
             storageBindings.computeIfPresent(UUID.fromString(request.getWbId()),
                     (k, v) -> {
                         for (var sb : v) {
@@ -160,8 +164,9 @@ public class WhiteboardApi {
 
         @Override
         public void addDependencies(LzyWhiteboard.DependenciesCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            System.out.println("WhiteboardApi::addDependencies with opName " + request.getOpName());
-            LOG.info("WhiteboardApi::addDependencies with opName " + request.getOpName());
+            LOG.info("WhiteboardApi::addDependencies invoked with opName " + request.getOpName() +
+                    ", whiteboard id " + request.getWbId()
+            );
             dependencies.putIfAbsent(UUID.fromString(request.getWbId()), new HashSet<>());
             dependencies.computeIfPresent(UUID.fromString(request.getWbId()),
                     (k, v) -> {
@@ -180,7 +185,7 @@ public class WhiteboardApi {
         @Override
         public void getWhiteboard(LzyWhiteboard.WhiteboardCommand request,
                                   StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-            System.out.println("WhiteboardApi::getWhiteboard with opName ");
+            LOG.info("WhiteboardApi::getWhiteboard invoked with whiteboard id " + request.getWbId());
             List<LzyWhiteboard.StorageBinding> bindings = new ArrayList<>();
             for (var entry : storageBindings.get(UUID.fromString(request.getWbId()))) {
                 if (entry.slot.direction().equals(Slot.Direction.OUTPUT)) {
