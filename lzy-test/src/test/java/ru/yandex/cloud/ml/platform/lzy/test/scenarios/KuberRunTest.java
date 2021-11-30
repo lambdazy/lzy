@@ -18,7 +18,7 @@ public class KuberRunTest {
     private static final int DEFAULT_SERVANT_PORT = 9999;
     private static final String LZY_MOUNT = "/tmp/lzy";
     private static final String TEST_USER = "phil";
-    private static final String TEST_USER_KEY_PATH = "/Users/d-kruchinin/.ssh/test-private.pem";
+    private static final String TEST_USER_KEY_PATH = "/tmp/test-private.pem";
     private static final String SERVER_URL = "http://lzy-kharon.northeurope.cloudapp.azure.com:8899";
     private final LzyTerminalTestContext terminalContext = new LzyTerminalDockerContext();
     private LzyTerminalTestContext.Terminal terminal;
