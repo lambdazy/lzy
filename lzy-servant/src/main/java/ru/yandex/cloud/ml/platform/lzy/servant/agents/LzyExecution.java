@@ -18,9 +18,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.EmptyExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.S3ExecutionSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardManager;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.impl.LocalWhiteboardManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
@@ -137,6 +135,7 @@ public class LzyExecution {
                                     .setSlot(gRPCConverter.to(slot.definition()))
                                     .setOpName(meta.getOperationName())
                                     .setWbId(meta.getWbId().toString())
+                                    .setEmpty(executionSnapshot.isEmpty(spec))
                                     .build());
                             if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
                                 throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");

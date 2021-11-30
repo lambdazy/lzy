@@ -20,12 +20,14 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
     private static final int LZY_KHARON_SERVANT_PROXY_PORT = 8900;
 
     private final String serverAddress;
+    private final String whiteboardAddress;
     private Process lzyKharon;
     private ManagedChannel channel;
     private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
-    public LzyKharonProcessesContext(String serverAddress) {
+    public LzyKharonProcessesContext(String serverAddress, String whiteboardAddress) {
         this.serverAddress = serverAddress;
+        this.whiteboardAddress = whiteboardAddress;
     }
 
     @Override
@@ -57,7 +59,9 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
                                 "--servant-proxy-port",
                                 String.valueOf(LZY_KHARON_SERVANT_PROXY_PORT),
                                 "--lzy-server-address",
-                                serverAddress
+                                serverAddress,
+                                "--lzy-whiteboard-address",
+                                whiteboardAddress
                         },
                         new String[]{
                                 "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32"

@@ -1,25 +1,23 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class WhiteboardMeta {
     private final UUID wbId;
-    private final ArrayList<String> dependencies;
+    private final List<String> dependencies;
     private final String operationName;
 
-    WhiteboardMeta(UUID wbId, ArrayList<String> dependencies, String operationName) {
+    WhiteboardMeta(UUID wbId, List<String> dependencies, String operationName) {
         this.wbId = wbId;
         this.dependencies = dependencies;
         this.operationName = operationName;
     }
 
     public static WhiteboardMeta from(Tasks.WhiteboardMeta meta) {
-        ArrayList<String> dependencies = new ArrayList<>();
-        return new WhiteboardMeta(UUID.fromString(meta.getWhiteboardId()), dependencies, meta.getOpName());
+        return new WhiteboardMeta(UUID.fromString(meta.getWhiteboardId()), meta.getDependenciesList(), meta.getOpName());
     }
 
     public static Tasks.WhiteboardMeta to(WhiteboardMeta meta) {
@@ -34,7 +32,7 @@ public class WhiteboardMeta {
         return wbId;
     }
 
-    public ArrayList<String> getDependencies() {
+    public List<String> getDependencies() {
         return dependencies;
     }
 

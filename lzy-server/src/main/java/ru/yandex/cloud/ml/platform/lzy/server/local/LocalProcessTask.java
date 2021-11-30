@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
+import ru.yandex.qe.s3.util.Environment;
 
 public class LocalProcessTask extends LocalTask {
     private static final Logger LOG = LogManager.getLogger(LocalProcessTask.class);
@@ -55,12 +56,12 @@ public class LocalProcessTask extends LocalTask {
                     "LZYTOKEN", token,
                     "LZY_MOUNT", taskDir.getAbsolutePath(),
                     "LZYWHITEBOARD", "http://localhost:8999",
-                    "BUCKET_NAME", "lzy-bucket",
-                    "ACCESS_KEY", "access-key",
-                    "SECRET_KEY", "secret-key",
-                    "REGION", "ru-central1",
-                    "SERVICE_ENDPOINT", "storage.yandexcloud.net",
-                    "PATH_STYLE_ACCESS_ENABLED", "false"
+                    "BUCKET_NAME", Environment.getBucketName(),
+                    "ACCESS_KEY", Environment.getAccessKey(),
+                    "SECRET_KEY", Environment.getSecretKey(),
+                    "REGION", Environment.getRegion(),
+                    "SERVICE_ENDPOINT", Environment.getServiceEndpoint(),
+                    "PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled()
                 )
             );
             process.getOutputStream().close();

@@ -15,6 +15,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.qe.s3.util.Environment;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,8 +55,21 @@ public class KuberTask extends BaseTask {
                 new V1EnvVar().name("LZYTOKEN").value(token)
             ).addEnvItem(
                 new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
+            ).addEnvItem(
+                new V1EnvVar().name("BUCKET_NAME").value(Environment.getBucketName())
+            ).addEnvItem(
+                new V1EnvVar().name("ACCESS_KEY").value(Environment.getAccessKey())
+            ).addEnvItem(
+                new V1EnvVar().name("SECRET_KEY").value(Environment.getSecretKey())
+            ).addEnvItem(
+                new V1EnvVar().name("REGION").value(Environment.getRegion())
+            ).addEnvItem(
+                new V1EnvVar().name("SERVICE_ENDPOINT").value(Environment.getServiceEndpoint())
+            ).addEnvItem(
+                new V1EnvVar().name("PATH_STYLE_ACCESS_ENABLED").value(Environment.getPathStyleAccessEnabled())
+            ).addEnvItem(
+                new V1EnvVar().name("LZYWHITEBOARD").value(Environment.getLzyWhiteboard())
             );
-            // TODO: add env variables for whiteboard
             final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
             servantPodDescription.getMetadata().setName(podName);
 

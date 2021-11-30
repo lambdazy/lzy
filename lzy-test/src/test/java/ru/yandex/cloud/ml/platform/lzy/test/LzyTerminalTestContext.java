@@ -14,6 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -45,28 +46,47 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         ExecutionResult execute(Map<String, String> env, String... command);
 
         default ExecutionResult run(String zygoteName, String arguments, Map<String, String> bindings) {
+            return run(zygoteName, arguments, bindings, null);
+        }
+
+        default ExecutionResult run(String zygoteName, String arguments, Map<String, String> bindings, List<String> deps) {
             try {
                 final ExecutionResult bash = execute(
-                    Collections.emptyMap(),
-                    "bash",
-                    "-c",
-                    "echo '" + OBJECT_MAPPER.writeValueAsString(bindings) + "' > bindings.json"
+                        Collections.emptyMap(),
+                        "bash",
+                        "-c",
+                        "echo '" + OBJECT_MAPPER.writeValueAsString(bindings) + "' > bindings.json"
                 );
                 System.out.println(bash);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
+
+            try {
+                final ExecutionResult bash = execute(
+                        Collections.emptyMap(),
+                        "bash",
+                        "-c",
+                        "echo '" + OBJECT_MAPPER.writeValueAsString(deps) + "' > dependencies.json"
+                );
+                System.out.println(bash);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+
             final ExecutionResult execute = execute(
-                Collections.emptyMap(),
-                "/bin/bash",
-                "-c",
-                String.join(
-                    " ",
-                    mount() + "/bin/" + zygoteName,
-                    "-m",
-                    "bindings.json",
-                    arguments
-                )
+                    Collections.emptyMap(),
+                    "/bin/bash",
+                    "-c",
+                    String.join(
+                            " ",
+                            mount() + "/bin/" + zygoteName,
+                            "-m",
+                            "bindings.json",
+                            "-d",
+                            "dependencies.json",
+                            arguments
+                    )
             );
             LOGGER.info("\u001B[31m\nEXECUTED COMMAND: {}\u001B[30m", zygoteName);
             LOGGER.info("Stdout: {}", execute.stdout());
@@ -120,7 +140,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             }
         }
 
-        default void getWhiteboard(String wbId) {
+        default String getWhiteboard(String wbId) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(
                             " ",
@@ -131,6 +151,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
             }
+            return execute.stdout();
         }
 
         default void destroyChannel(String channelName) {

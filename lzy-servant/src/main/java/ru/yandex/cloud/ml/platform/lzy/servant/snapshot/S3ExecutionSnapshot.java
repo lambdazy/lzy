@@ -15,6 +15,7 @@ import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadState;
+import ru.yandex.qe.s3.util.Environment;
 
 import java.io.IOException;
 import java.io.PipedInputStream;
@@ -22,6 +23,7 @@ import java.io.PipedOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class S3ExecutionSnapshot implements ExecutionSnapshot {
@@ -55,6 +57,7 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
 
     private final String taskId;
     private final Map<Slot, StreamsWrapper> slotStream = new ConcurrentHashMap<>();
+    private final Set<Slot> nonEmpty = ConcurrentHashMap.newKeySet();
 
     public S3ExecutionSnapshot(String taskId) {
         this.taskId = taskId;
@@ -76,7 +79,7 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
 
     private StreamsWrapper createStreams(Slot slot) {
         PipedInputStream is = new PipedInputStream();
-        PipedOutputStream os = null;
+        PipedOutputStream os;
         try {
             os = new PipedOutputStream(is);
         } catch (IOException e) {
@@ -101,6 +104,7 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
         LOG.info("S3ExecutionSnapshot::onChunkInput invoked with slot " + slot.name());
         slotStream.computeIfAbsent(slot, this::createStreams);
         slotStream.get(slot).write(chunk);
+        nonEmpty.add(slot);
     }
 
     @Override
@@ -108,6 +112,13 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
         LOG.info("S3ExecutionSnapshot::onChunkOutput invoked with slot " + slot.name());
         slotStream.computeIfAbsent(slot, this::createStreams);
         slotStream.get(slot).write(chunk);
+        nonEmpty.add(slot);
+    }
+
+    @Override
+    public boolean isEmpty(Slot slot) {
+        LOG.info("S3ExecutionSnapshot::isEmpty invoked with slot " + slot.name());
+        return !nonEmpty.contains(slot);
     }
 
     @Override

@@ -27,6 +27,7 @@ message CommitCommand {
   string wbId = 1;
   string opName = 2;
   Slot slot = 3;
+  bool empty = 4;
 }
 
 message DependenciesCommand {

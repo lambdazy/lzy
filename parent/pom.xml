@@ -119,6 +119,7 @@
         <s3mock_2.13.version>0.2.6</s3mock_2.13.version>
         <mockito-inline.version>3.6.28</mockito-inline.version>
         <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
+        <commons-io.version>2.4</commons-io.version>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -848,6 +849,11 @@
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-core</artifactId>
                 <version>${aws-java-sdk-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons-io.version}</version>
             </dependency>
         </dependencies>
 

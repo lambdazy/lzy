@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import io.findify.s3mock.S3Mock;
+import ru.yandex.qe.s3.util.Environment;
 
 public class S3ExecutionSnapshotTest {
     private final String BUCKET_NAME = "bucket-test";

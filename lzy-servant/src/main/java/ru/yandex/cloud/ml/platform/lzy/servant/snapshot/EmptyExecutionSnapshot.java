@@ -5,7 +5,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -34,6 +33,11 @@ public class EmptyExecutionSnapshot implements ExecutionSnapshot {
     public void onChunkOutput(ByteString chunk, Slot slot) {
         // do nothing
         LOG.info("EmptyExecutionSnapshot::onChunkOutput invoked with slot " + slot.name());
+    }
+
+    @Override
+    public boolean isEmpty(Slot slot) {
+        return true;
     }
 
     @Override

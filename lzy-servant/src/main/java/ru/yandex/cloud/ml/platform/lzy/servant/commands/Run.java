@@ -32,7 +32,9 @@ public class Run implements LzyCommand {
 
     static {
         options.addOption(new Option("m", "mapping", true, "Slot-channel mapping"));
-        options.addOption(new Option("persistent", "persistent", false, "Task persistence"));
+        options.addOption(new Option("persistent", "persistent", true, "Task persistence"));
+        options.addOption(new Option("d", "dependencies", true, "Task dependencies"));
+        options.addOption(new Option("n", "name", true, "Task name"));
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -99,11 +101,26 @@ public class Run implements LzyCommand {
         taskSpec.setAuth(auth);
         taskSpec.setZygote(grpcZygote);
         if (localCmd.hasOption("persistent")) {
+            final List<String> deps = new ArrayList<>();
+            if (localCmd.hasOption('d')) {
+                final String depsFile = localCmd.getOptionValue('d');
+                LOG.info("Read dependencies from file " + depsFile);
+                //Slot name -> Channel ID
+                //noinspection unchecked
+                deps.addAll(objectMapper.readValue(new File(depsFile), List.class));
+                LOG.info("Dependencies: " +
+                        String.join(";\n", deps)
+                );
+            }
+            if (!localCmd.hasOption('n')) {
+                throw new RuntimeException("Task name must be set for persistent tasks");
+            }
+            String taskName = localCmd.getOptionValue('n');
             taskSpec.setWhiteboardMeta(Tasks.WhiteboardMeta
                     .newBuilder()
-                    .setWhiteboardId(UUID.randomUUID().toString())
-                    .addAllDependencies(new ArrayList<>())
-                    .setOpName("operation")
+                    .setWhiteboardId(localCmd.getOptionValue("persistent"))
+                    .addAllDependencies(deps)
+                    .setOpName(taskName)
                     .build()
             );
         }

@@ -12,6 +12,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.qe.s3.util.Environment;
 
 import java.net.URI;
 import java.util.Map;
@@ -48,12 +49,12 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
             .withEnv("LZYWHITEBOARD", "http://" + internalHost + ":8999")
-            .withEnv("BUCKET_NAME", "lzy-bucket")
-            .withEnv("ACCESS_KEY", "access-key")
-            .withEnv("SECRET_KEY", "secret-key")
-            .withEnv("REGION", "ru-central1")
-            .withEnv("SERVICE_ENDPOINT", "storage.yandexcloud.net")
-            .withEnv("PATH_STYLE_ACCESS_ENABLED", "false")
+            .withEnv("BUCKET_NAME", Environment.getBucketName())
+            .withEnv("ACCESS_KEY", Environment.getAccessKey())
+            .withEnv("SECRET_KEY", Environment.getSecretKey())
+            .withEnv("REGION", Environment.getRegion())
+            .withEnv("SERVICE_ENDPOINT", Environment.getServiceEndpoint())
+            .withEnv("PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled())
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "

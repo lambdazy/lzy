@@ -8,6 +8,10 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.io.IOUtils;
+import org.jose4j.json.internal.json_simple.JSONArray;
+import org.jose4j.json.internal.json_simple.JSONObject;
+import org.jose4j.json.internal.json_simple.parser.JSONParser;
+import org.jose4j.json.internal.json_simple.parser.ParseException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -22,6 +26,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -184,7 +189,7 @@ public class RunTest extends LzyBaseTest {
     }
 
     @Test
-    public void testTaskPersistent() throws IOException {
+    public void testTaskPersistent() throws IOException, ParseException {
         final S3Mock api = new S3Mock.Builder().withPort(8001).withInMemoryBackend().build();
         api.start();
 
@@ -217,13 +222,17 @@ public class RunTest extends LzyBaseTest {
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
                 .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
+        final UUID wbId = UUID.randomUUID();
+        final String taskName = "taskName";
+        final String arguments = "--persistent " + wbId + " -n " + taskName;
         final ExecutionResult result = terminal.run(
                 cat_to_file.getName(),
-                "--persistent",
+                arguments,
                 Map.of(
                         fileName.substring(LZY_MOUNT.length()), channelName,
                         fileOutName.substring(LZY_MOUNT.length()), channelOutName
-                )
+                ),
+                List.of("a", "b", "c")
         );
 
         //Assert
@@ -237,18 +246,36 @@ public class RunTest extends LzyBaseTest {
                 .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
                 .build();
 
-        List<S3ObjectSummary> objects = client.listObjects("bucket-test").getObjectSummaries();
+        List<S3ObjectSummary> objects = client.listObjects("lzy-bucket").getObjectSummaries();
         Assert.assertEquals(2, objects.size());
 
         for (var obj : objects) {
             String key = obj.getKey();
             String content = IOUtils.toString(
-                    client.getObject(new GetObjectRequest("bucket-test", key))
+                    client.getObject(new GetObjectRequest("lzy-bucket", key))
                             .getObjectContent(),
                     StandardCharsets.UTF_8
             );
             Assert.assertEquals(fileContent + "\n", content);
         }
+
+        String whiteboard = terminal.getWhiteboard(wbId.toString());
+        JSONObject jsonObject = (JSONObject) (new JSONParser()).parse(whiteboard);
+
+        JSONArray storageBindings = (JSONArray) jsonObject.get("storageBindings");
+        Assert.assertEquals(1, storageBindings.size());
+        JSONObject storageBinding = (JSONObject) storageBindings.get(0);
+        Assert.assertEquals(storageBinding.get("opName"), taskName);
+        Assert.assertTrue(storageBinding.get("storageUri").toString().length() > 0);
+
+        JSONArray relations = (JSONArray) jsonObject.get("relations");
+        Assert.assertEquals(1, relations.size());
+        JSONObject relation = (JSONObject) relations.get(0);
+        Assert.assertEquals(relation.get("opName"), taskName);
+        JSONArray dependencies = (JSONArray) relation.get("dependencies");
+        Assert.assertEquals(3, dependencies.size());
+        Assert.assertTrue(dependencies.contains("a") && dependencies.contains("b") && dependencies.contains("c"));
+
         api.shutdown();
     }
 }
