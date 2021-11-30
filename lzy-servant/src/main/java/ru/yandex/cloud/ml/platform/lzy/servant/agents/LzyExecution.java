@@ -10,9 +10,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvConnector;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.Connector;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashConnector;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvironment;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashEnvironment;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
@@ -192,18 +192,18 @@ public class LzyExecution {
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
                 .build()
             );
-            Connector session;
+            Environment session;
             if (zygote.env() instanceof PythonEnv) {
-                session = new CondaEnvConnector((PythonEnv) zygote.env());
+                session = new CondaEnvironment((PythonEnv) zygote.env());
                 LOG.info("Conda environment is provided, using CondaEnvConnector");
             } else {
-                session = new SimpleBashConnector();
+                session = new SimpleBashEnvironment();
                 LOG.info("No environment provided, using SimpleBashConnector");
             }
 
             String command = zygote.fuze() + " " + arguments;
             LOG.info("Going to exec command " + command);
-            int rc = 0;
+            int rc;
             String resultDescription = "Success";
             try {
                 this.exec = session.exec(command);
