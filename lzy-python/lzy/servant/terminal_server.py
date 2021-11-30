@@ -45,7 +45,7 @@ class TerminalServer:
              '-Djava.library.path=/usr/local/lib',
              f'-Dcustom.log.file={self._log_file}',
              '-classpath', TerminalServer.jar_path,
-             'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
+             'ru.yandex.cloud.ml.platform.lzy.servant.ls',
              '--lzy-address', self._url,
              '--lzy-mount', self._lzy_mount,
              '--private-key', self._private_key,
