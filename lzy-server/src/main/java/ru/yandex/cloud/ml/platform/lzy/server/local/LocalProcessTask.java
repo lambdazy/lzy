@@ -42,7 +42,7 @@ public class LocalProcessTask extends LocalTask {
             taskDir.mkdirs();
             taskDir.mkdir();
             final Process process = runJvm(
-                "lzy-servant/target/lzy-servant-1.0-SNAPSHOT-jar-with-dependencies.jar", taskDir,
+                "lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar", taskDir,
                 new String[]{
                     "-z", serverHost + ":" + serverPort,
                     "--host", servantHost,
