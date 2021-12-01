@@ -13,10 +13,12 @@ import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserRoleModel;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import javax.persistence.criteria.CriteriaQuery;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -80,9 +82,8 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
         try(Session session = storage.getSessionFactory().openSession()){
             Transaction tx = session.beginTransaction();
-            UserModel user = new UserModel(request.getUser().getUserId());
             try {
-                session.save(user);
+                createUser(session, request.getUser().getUserId());
                 tx.commit();
                 responseObserver.onNext(BackOffice.CreateUserResult.newBuilder().build());
                 responseObserver.onCompleted();
@@ -208,7 +209,8 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             try {
                 UserModel user = session.find(UserModel.class, request.getUserId());
                 if (user == null){
-                    user = new UserModel(
+                    user = createUser(
+                            session,
                             request.getUserId()
                     );
                     session.save(user);
@@ -380,6 +382,17 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         if (!auth.checkBackOfficeSession(UUID.fromString(credentials.getSessionId()), credentials.getUserId())){
             throw Status.PERMISSION_DENIED.asException();
         }
+    }
+
+    private UserModel createUser(Session session, String userId){
+        UserModel user = new UserModel(userId);
+        session.save(user);
+        UserRoleModel role = session.find(UserRoleModel.class, "user");
+        Set<UserModel> users = role.getUsers();
+        users.add(user);
+        role.setUsers(users);
+        session.save(role);
+        return user;
     }
 
 }
