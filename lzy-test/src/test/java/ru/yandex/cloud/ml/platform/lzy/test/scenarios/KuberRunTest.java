@@ -12,7 +12,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-@Ignore
+//@Ignore
 public class KuberRunTest {
     private static final int DEFAULT_TIMEOUT_SEC = 30;
     private static final int DEFAULT_SERVANT_PORT = 9999;
