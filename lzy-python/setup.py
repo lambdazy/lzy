@@ -119,8 +119,7 @@ setuptools.setup(
               'lzy/model', 'lzy/servant', 'lzy/api/pkg_info'],
     install_requires=[
         'cloudpickle==2.0.0',
-        'pyyaml',
-        'stackprinter'
+        'pyyaml'
     ],
     python_requires='>=3.7',
     cmdclass={

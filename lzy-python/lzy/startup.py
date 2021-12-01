@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 import cloudpickle
-import stackprinter
 import sys
 
 from lzy.api.lazy_op import LzyRemoteOp
@@ -21,7 +20,6 @@ def load_arg(path: Path) -> Any:
 
 
 def main():
-    stackprinter.set_excepthook(style='darkbg2')
     argv = sys.argv[1:]
     servant: ServantClient = BashServantClient()
 
