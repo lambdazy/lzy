@@ -17,6 +17,15 @@ Configuration:
       PatternLayout:
         pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
       servantId: ${sys:custom.log.servant_id}
+    Kafka:
+      name: Kafka
+      topic: server
+      syncSend: false
+      Property:
+        name: bootstrap.servers
+        value: ${sys:custom.log.}
+      PatternLayout:
+        Pattern: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}", "thread": "[%t]",  "level": "%-5level", "logger": "%logger{36}", "message": "%msg"}'
 
 
   Loggers:
