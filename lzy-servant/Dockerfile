@@ -2,9 +2,6 @@ FROM celdwind/lzy:lzy-servant-base
 
 RUN mkdir -p /var/log/servant
 
-### copy lzy-py sources
-COPY lzy-python/ lzy-python
-
 ### copy jar & resources
 COPY lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar app/app.jar
 COPY lzy-servant/src/main/resources/ app/resources
