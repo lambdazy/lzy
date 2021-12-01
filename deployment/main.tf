@@ -19,27 +19,26 @@ terraform {
     resource_group_name  = "lzy-testing-terraformstate"
     storage_account_name = "lzytestingtfstatestorage"
     container_name       = "terraformstate"
-    key                  = "dev.terraform.tfstate"
   }
 }
 
 resource "azurerm_resource_group" "test" {
-  name     = "lzy-testing-resources"
+  name     = "${var.installation_name}-resources"
   location = var.location
 }
 
 resource "azurerm_virtual_network" "test" {
-  name                = "lzy-testing-network"
+  name                = "${var.installation_name}-network"
   resource_group_name = azurerm_resource_group.test.name
   location            = azurerm_resource_group.test.location
   address_space       = ["10.0.0.0/16"]
 }
 
 resource "azurerm_kubernetes_cluster" "main" {
-  name                = var.cluster_name
+  name                = var.installation_name
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
-  dns_prefix          = var.dns_prefix
+  dns_prefix          = var.installation_name
 
   default_node_pool {
     name       = "agentpool"
@@ -62,7 +61,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 }
 
 resource "azurerm_public_ip" "lzy_kharon" {
-  domain_name_label   = "kharon-lzy"
+  domain_name_label   = "kharon-${var.installation_name}"
   name                = "lzy-kharon-public-ip"
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
@@ -90,7 +89,7 @@ resource "kubernetes_secret" "oauth_github" {
 }
 
 resource "azurerm_public_ip" "lzy_backoffice" {
-  domain_name_label   = "lzy-backoffice"
+  domain_name_label   = "backoffice-${var.installation_name}"
   name                = "lzy-backoffice-public-ip"
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name

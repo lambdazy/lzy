@@ -1,11 +1,5 @@
-variable "cluster_name" {
+variable "installation_name" {
   type = string
-  default = "lzy-testing"
-}
-
-variable "dns_prefix" {
-  type = string
-  default = "lzy-testing"
 }
 
 variable "agent_count" {
