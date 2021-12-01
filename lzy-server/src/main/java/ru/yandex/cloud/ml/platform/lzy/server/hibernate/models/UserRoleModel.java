@@ -36,6 +36,10 @@ public class UserRoleModel {
         return users;
     }
 
+    public void setUsers(Set<UserModel> users) {
+        this.users = users;
+    }
+
     public UserRoleModel(String roleName) {
         this.roleName = roleName;
     }
