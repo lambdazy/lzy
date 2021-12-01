@@ -130,13 +130,20 @@ public class LzyExecution {
                     synchronized (slots) {
                         LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
                         if (meta != null) {
-                            LzyWhiteboard.OperationStatus status =  whiteboard.commit(LzyWhiteboard.CommitCommand
+                            LzyWhiteboard.CommitCommand.Builder builder = LzyWhiteboard.CommitCommand
                                     .newBuilder()
                                     .setSlot(gRPCConverter.to(slot.definition()))
                                     .setFieldName(meta.getFieldName())
                                     .setWbId(meta.getWbId().toString())
-                                    .setEmpty(executionSnapshot.isEmpty(spec))
-                                    .build());
+                                    .setEmpty(executionSnapshot.isEmpty(spec));
+                            if (!spec.equals(Slot.STDOUT) && !spec.equals(Slot.STDERR) &&
+                                    slot.definition().direction().equals(Slot.Direction.OUTPUT)) {
+                                builder.setDependencies(LzyWhiteboard.Dependencies
+                                        .newBuilder()
+                                        .addAllDependencies(meta.getDependencies())
+                                        .build());
+                            }
+                            LzyWhiteboard.OperationStatus status =  whiteboard.commit(builder.build());
                             if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
                                 throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");
                             }
@@ -223,22 +230,6 @@ public class LzyExecution {
             } else {
                 session = new SimpleBashConnector();
                 LOG.info("No environment provided, using SimpleBashConnector");
-            }
-
-            if (meta != null) {
-                LOG.info("Saving dependencies to whiteboard with id " + meta.getWbId());
-                if (whiteboard == null) {
-                    throw new RuntimeException("LzyExecution::configureSlot whiteboard is null");
-                }
-                LzyWhiteboard.OperationStatus status =  whiteboard.addDependencies(LzyWhiteboard.DependenciesCommand
-                        .newBuilder()
-                        .setFieldName(meta.getFieldName())
-                        .setWbId(meta.getWbId().toString())
-                        .addAllDependencies(meta.getDependencies())
-                        .build());
-                if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
-                    throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");
-                }
             }
 
             String command = zygote.fuze() + " " + arguments;

@@ -154,26 +154,20 @@ public class WhiteboardApi {
                         }
                         return v;
                     });
-            final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
-                    .newBuilder()
-                    .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
-                    .build();
-            responseObserver.onNext(status);
-            responseObserver.onCompleted();
-        }
-
-        @Override
-        public void addDependencies(LzyWhiteboard.DependenciesCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            LOG.info("WhiteboardApi::addDependencies invoked with opName " + request.getFieldName() +
-                    ", whiteboard id " + request.getWbId()
-            );
-            dependencies.putIfAbsent(URI.create(request.getWbId()), new HashSet<>());
-            dependencies.computeIfPresent(URI.create(request.getWbId()),
-                    (k, v) -> {
-                        List<String> deps = request.getDependenciesList();
-                        v.add(new Dependency(request.getFieldName(), deps));
-                        return v;
-                    });
+            if (request.hasDependencies()) {
+                dependencies.putIfAbsent(URI.create(request.getWbId()), new HashSet<>());
+                dependencies.computeIfPresent(URI.create(request.getWbId()),
+                        (k, v) -> {
+                            List<String> deps = request.getDependencies().getDependenciesList();
+                            for (var dep : v) {
+                                if (dep.fieldName.equals(request.getFieldName())) {
+                                    return v;
+                                }
+                            }
+                            v.add(new Dependency(request.getFieldName(), deps));
+                            return v;
+                        });
+            }
             final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
                     .newBuilder()
                     .setStatus(LzyWhiteboard.OperationStatus.Status.OK)

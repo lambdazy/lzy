@@ -12,7 +12,6 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 service WhiteboardApi {
   rpc PrepareToSave (PrepareCommand) returns (OperationStatus);
   rpc Commit (CommitCommand) returns (OperationStatus);
-  rpc AddDependencies (DependenciesCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
   rpc GetWhiteboardId (GetWhiteboardIdCommand) returns (WhiteboardId);
 }
@@ -29,11 +28,10 @@ message CommitCommand {
   string fieldName = 2;
   Slot slot = 3;
   bool empty = 4;
+  Dependencies dependencies = 5;
 }
 
-message DependenciesCommand {
-  string wbId = 1;
-  string fieldName = 2;
+message Dependencies {
   repeated string dependencies = 3;
 }
 
