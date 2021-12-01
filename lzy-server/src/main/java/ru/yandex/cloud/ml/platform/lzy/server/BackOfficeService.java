@@ -8,6 +8,7 @@ import jakarta.inject.Inject;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;

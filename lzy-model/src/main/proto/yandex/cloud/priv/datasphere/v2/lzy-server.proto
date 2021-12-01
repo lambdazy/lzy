@@ -25,6 +25,8 @@ service LzyServer {
   rpc ChannelsStatus (Auth) returns (ChannelStatusList);
 
   rpc RegisterServant (AttachServant) returns (AttachStatus);
+
+  rpc CheckUserPermissions (CheckUserPermissionsRequest) returns (CheckUserPermissionsResponse);
 }
 
 message PublishRequest {
@@ -48,4 +50,14 @@ message AttachServant {
 }
 
 message AttachStatus {
+}
+
+message CheckUserPermissionsRequest {
+  string userId = 1;
+  string token = 2;
+  repeated string permissions = 3;
+}
+
+message CheckUserPermissionsResponse {
+  bool isOk = 1;
 }
