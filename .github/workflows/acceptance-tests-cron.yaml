@@ -26,7 +26,3 @@ jobs:
       - name: 'AC test'
         timeout-minutes: 45
         run: mvn install -Dtest=KuberRunTest -DfailIfNoTests=false
-
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v2
-        if: always()

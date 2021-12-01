@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
@@ -12,7 +11,6 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-//@Ignore
 public class KuberRunTest {
     private static final int DEFAULT_TIMEOUT_SEC = 30;
     private static final int DEFAULT_SERVANT_PORT = 9999;
