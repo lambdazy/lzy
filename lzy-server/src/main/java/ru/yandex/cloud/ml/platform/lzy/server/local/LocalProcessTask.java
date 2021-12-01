@@ -55,7 +55,7 @@ public class LocalProcessTask extends LocalTask {
                     "LZYTASK", tid.toString(),
                     "LZYTOKEN", token,
                     "LZY_MOUNT", taskDir.getAbsolutePath(),
-                    "LZYWHITEBOARD", "http://localhost:8999",
+                    "LZYWHITEBOARD", Environment.getLzyWhiteboard(),
                     "BUCKET_NAME", Environment.getBucketName(),
                     "ACCESS_KEY", Environment.getAccessKey(),
                     "SECRET_KEY", Environment.getSecretKey(),

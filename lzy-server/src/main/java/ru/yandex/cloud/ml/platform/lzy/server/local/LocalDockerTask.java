@@ -48,7 +48,7 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withEnv("LZYWHITEBOARD", "http://" + internalHost + ":8999")
+            .withEnv("LZYWHITEBOARD", Environment.getLzyWhiteboard())
             .withEnv("BUCKET_NAME", Environment.getBucketName())
             .withEnv("ACCESS_KEY", Environment.getAccessKey())
             .withEnv("SECRET_KEY", Environment.getSecretKey())
