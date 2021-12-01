@@ -23,6 +23,7 @@ export const Header = () => {
           <Nav className="me-auto">
             <Nav.Link href="/users">Users</Nav.Link>
             <Nav.Link href="/add_token">Add token</Nav.Link>
+            <Nav.Link href="/tasks">Tasks</Nav.Link>
           </Nav>
           <Navbar.Collapse className="justify-content-end">
               <Navbar.Text>
@@ -48,6 +49,8 @@ export const Header = () => {
           </Navbar.Collapse>
         </Container>
       </Navbar>
+
+      <ErrorAlert />
     </div>
   );
 };

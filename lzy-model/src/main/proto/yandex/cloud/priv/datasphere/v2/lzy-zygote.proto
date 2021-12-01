@@ -12,6 +12,7 @@ message Zygote {
     Provisioning provisioning = 2;
     string fuze = 3;
     repeated Slot slots = 4;
+    string description = 5;
 }
 
 message RegisteredZygote {
@@ -59,6 +60,8 @@ message SlotStatus {
         OPEN = 1;
         DESTROYED = 2;
         SUSPENDED = 3;
+        PREPARING = 4;
+        CLOSED = 5;
     }
 }
 

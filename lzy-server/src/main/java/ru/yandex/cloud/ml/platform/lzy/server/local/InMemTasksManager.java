@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
@@ -10,6 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -24,6 +26,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+@Singleton
 public class InMemTasksManager implements TasksManager {
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     protected final URI serverURI;
@@ -40,8 +43,8 @@ public class InMemTasksManager implements TasksManager {
 
     private final Map<String, Map<Slot, Channel>> userSlots = new ConcurrentHashMap<>();
 
-    public InMemTasksManager(URI serverURI, ChannelsManager channels) {
-        this.serverURI = serverURI;
+    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels) {
+        this.serverURI = URI.create(serverConfig.getServerUri());
         this.channels = channels;
     }
 

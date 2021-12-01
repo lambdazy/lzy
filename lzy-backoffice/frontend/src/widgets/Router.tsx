@@ -6,12 +6,16 @@ import { PrivateRoute } from "../logic/Auth";
 import { AddToken } from "./AddToken";
 import { AuthUser } from "./AuthUser";
 import { Readme } from "./Readme";
+import { Tasks } from "./Tasks";
 
 export const MainRouter = () => (
   <main>
     <Switch>
       <PrivateRoute path="/users" exact>
         <UserTableFC host={BACKEND_HOST()} />
+      </PrivateRoute>
+      <PrivateRoute path="/tasks" exact>
+        <Tasks/>
       </PrivateRoute>
       <Route exact path="/" component={Readme} />
       <Route exact path="/login" component={LoginFormFC} />

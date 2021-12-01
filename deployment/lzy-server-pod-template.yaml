@@ -16,7 +16,7 @@ spec:
       - name: AUTHENTICATOR
         value: "DbAuthenticator"
       - name: DATABASE_URL
-        value: "jdbc:postgresql://postgres-postgresql.default.svc.cluster.local:5432/serverDB"
+      value: "jdbc:postgresql://postgres-postgresql.default.svc.cluster.local:5432/serverDB"
       - name: DATABASE_USERNAME
         value: "server"
       - name: DATABASE_PASSWORD

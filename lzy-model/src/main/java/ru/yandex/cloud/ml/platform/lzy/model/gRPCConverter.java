@@ -141,8 +141,18 @@ public abstract class gRPCConverter {
         }
 
         @Override
+        public Operations.Zygote zygote() {
+            return operation;
+        }
+
+        @Override
         public String fuze() {
             return operation.getFuze();
+        }
+
+        @Override
+        public String description(){
+            return operation.getDescription();
         }
     }
 

@@ -61,3 +61,7 @@ class ZygotePythonFunc(Zygote, Generic[T]):
 
     def provisioning(self) -> Optional[Provisioning]:
         return self._provisioning
+    
+    def description(self) -> Optional[str]:
+        desk: Optional[str] = getattr(self._func, "__name__", repr(self._func))
+        return desk
