@@ -1,0 +1,50 @@
+resource "random_password" "lzy_server_db_password" {
+  count   = 1
+  length  = 16
+  special = true
+}
+
+resource "kubernetes_secret" "lzy_server_db" {
+  metadata {
+    name = "postgres"
+  }
+
+  data = {
+    postgresql-postgres-password = random_password.lzy_server_db_password[0].result
+    postgresql-password          = random_password.lzy_server_db_password[0].result
+    password                     = random_password.lzy_server_db_password[0].result
+  }
+
+  type = "Opaque"
+}
+
+resource "helm_release" "lzy_server_db" {
+  name       = "postgres"
+  chart      = "postgresql"
+  repository = "https://charts.bitnami.com/bitnami"
+
+  set {
+    name  = "global.postgresql.postgresqlDatabase"
+    value = "serverDB"
+  }
+
+  set {
+    name  = "global.postgresql.postgresqlUsername"
+    value = "server"
+  }
+
+  set {
+    name  = "global.postgresql.existingSecret"
+    value = kubernetes_secret.lzy_server_db.metadata[0].name
+  }
+
+  set_sensitive {
+    name  = "global.postgresql.postgresqlPassword"
+    value = random_password.lzy_server_db_password[0].result
+  }
+
+  set {
+    name  = "global.postgresql.servicePort"
+    value = "5432"
+  }
+}

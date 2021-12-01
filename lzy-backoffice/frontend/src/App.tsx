@@ -1,12 +1,9 @@
 import React from "react";
 import "./App.css";
-import { LoginForm } from "./widgets/LoginForm";
-import { UsersTable } from "./widgets/UsersTable";
-import Cookies from "universal-cookie";
 import { MainRouter } from "./widgets/Router";
-import { Header } from "./widgets/Header";
 import { ProvideAuth } from "./logic/Auth";
-import { ErrorAlert, ProvideAlert } from "./widgets/ErrorAlert";
+import { ProvideAlert } from "./widgets/ErrorAlert";
+import Cookies from "universal-cookie/es6";
 
 export const cookies = new Cookies();
 
@@ -16,7 +13,6 @@ class Main extends React.Component<{}, {}> {
       <div>
         <ProvideAuth>
           <ProvideAlert>
-            <ErrorAlert />
             <MainRouter />
           </ProvideAlert>
         </ProvideAuth>

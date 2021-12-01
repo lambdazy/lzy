@@ -133,4 +133,15 @@ public class Client {
             throw catchStatusException(e);
         }
     }
+
+    public BackOffice.GetTasksResponse getTasks(GetTasksRequest request){
+        try {
+            return getBlockingStub().getTasks(
+                    request.toModel(credentials.createCreds())
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
 }

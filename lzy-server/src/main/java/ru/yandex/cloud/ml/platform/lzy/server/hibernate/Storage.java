@@ -1,12 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
 
 import io.micronaut.context.annotation.Requires;
-import io.micronaut.context.annotation.Value;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.flywaydb.core.Flyway;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.DbConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 
 @Singleton

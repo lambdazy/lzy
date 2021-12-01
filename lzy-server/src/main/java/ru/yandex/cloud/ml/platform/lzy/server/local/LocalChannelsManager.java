@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
@@ -29,6 +30,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Singleton
 public class LocalChannelsManager implements ChannelsManager {
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     private final LockManager lockManager = new LocalLockManager();

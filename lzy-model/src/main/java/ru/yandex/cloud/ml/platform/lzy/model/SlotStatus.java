@@ -10,6 +10,8 @@ public interface SlotStatus {
     String user();
     UUID tid();
     Slot slot();
+
+    @Nullable
     URI connected();
 
     long pointer();

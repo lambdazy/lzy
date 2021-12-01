@@ -12,9 +12,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
-import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import javax.persistence.criteria.CriteriaQuery;
 import java.util.List;
@@ -28,6 +26,9 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
     @Inject
     Authenticator auth;
+
+    @Inject
+    TasksManager tasks;
 
     @Override
     public void addToken(BackOffice.AddTokenRequest request, StreamObserver<BackOffice.AddTokenResult> responseObserver){
@@ -291,6 +292,27 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             .setGranted(auth.hasPermission(request.getCredentials().getUserId(), request.getPermissionName()))
             .build()
         );
+        responseObserver.onCompleted();
+
+    }
+
+    @Override
+    public void getTasks(BackOffice.GetTasksRequest request, StreamObserver<BackOffice.GetTasksResponse> responseObserver){
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getCredentials());
+        }
+        catch (StatusException e){
+            responseObserver.onError(e);
+            return;
+        }
+
+        responseObserver.onNext(BackOffice.GetTasksResponse.newBuilder().setTasks(Tasks.TasksList.newBuilder().addAllTasks(tasks.ps()
+            .filter(t -> this.auth.canAccess(t, request.getCredentials().getUserId()))
+            .map(t -> LzyServer.Impl.taskStatus(t, tasks))
+            .collect(Collectors.toList())
+        )).build());
+
         responseObserver.onCompleted();
 
     }

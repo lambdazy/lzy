@@ -3,6 +3,7 @@ syntax = "proto3";
 package yandex.cloud.priv.datasphere.v2;
 
 import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-task.proto";
 
 option go_package = "datasphere";
 option java_outer_classname = "BackOffice";
@@ -17,6 +18,7 @@ service LzyBackoffice{
   rpc AuthUserSession(AuthUserSessionRequest) returns (AuthUserSessionResponse);
   rpc CheckSession(CheckSessionRequest) returns (CheckSessionResponse);
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+  rpc GetTasks(GetTasksRequest) returns (GetTasksResponse);
 }
 
 message AddTokenRequest{
@@ -109,4 +111,13 @@ message CheckPermissionRequest{
 
 message CheckPermissionResponse{
   bool granted = 1;
+}
+
+message GetTasksRequest{
+  UserCredentials backofficeCredentials = 1;
+  BackofficeUserCredentials credentials = 2;
+}
+
+message GetTasksResponse{
+  TasksList tasks = 1;
 }
