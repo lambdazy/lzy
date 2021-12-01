@@ -145,7 +145,23 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     String.join(
                             " ",
                             mount() + "/sbin/whiteboard",
+                            "getWhiteboard",
                             wbId
+                    )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+            return execute.stdout();
+        }
+
+        default String getWhiteboardId(String customId) {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                    String.join(
+                            " ",
+                            mount() + "/sbin/whiteboard",
+                            "getId",
+                            customId
                     )
             );
             if (execute.exitCode() != 0) {

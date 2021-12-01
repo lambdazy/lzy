@@ -21,12 +21,12 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.Exec
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -222,7 +222,11 @@ public class RunTest extends LzyBaseTest {
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
                 .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
-        final UUID wbId = UUID.randomUUID();
+        final String customId = "my-whiteboard";
+        final String wbIdJson = terminal.getWhiteboardId(customId);
+        JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
+        final URI wbId = URI.create((String) wbIdObject.get("wbId"));
+        Assert.assertEquals("test-user/my-whiteboard/0", wbId.toString());
         final String taskName = "taskName";
         final String arguments = "--persistent " + wbId + " -n " + taskName;
         final ExecutionResult result = terminal.run(

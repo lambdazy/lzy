@@ -31,7 +31,8 @@ service LzyKharon {
   rpc ChannelsStatus (Auth) returns (ChannelStatusList);
 
   // Whiteboard API
-  rpc GetWhiteboard (WhiteboardCommand) returns (Whiteboard);
+  rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
+  rpc GetWhiteboardId (GetWhiteboardIdCommand) returns (WhiteboardId);
 }
 
 message TerminalState {

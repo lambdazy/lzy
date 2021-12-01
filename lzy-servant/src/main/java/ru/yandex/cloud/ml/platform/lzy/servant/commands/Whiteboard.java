@@ -16,7 +16,7 @@ public class Whiteboard implements LzyCommand {
     @Override
     public int execute(CommandLine command) throws Exception {
         if (command.getArgs().length < 2)
-            throw new IllegalArgumentException("Please specify whiteboard id");
+            throw new IllegalArgumentException("Please specify whiteboard command");
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         if (!auth.hasUser()) {
             throw new IllegalArgumentException("Please provide user credentials");
@@ -27,13 +27,28 @@ public class Whiteboard implements LzyCommand {
                 .usePlaintext()
                 .build();
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
-        final LzyWhiteboard.Whiteboard whiteboard = server.getWhiteboard(LzyWhiteboard.WhiteboardCommand
-                .newBuilder()
-                .setWbId(command.getArgs()[1])
-                .setAuth(auth.getUser())
-                .build()
-        );
-        System.out.println(JsonFormat.printer().print(whiteboard));
+        switch (command.getArgs()[1]) {
+            case "getWhiteboard": {
+                final LzyWhiteboard.Whiteboard whiteboard = server.getWhiteboard(LzyWhiteboard.GetWhiteboardCommand
+                        .newBuilder()
+                        .setWbId(command.getArgs()[2])
+                        .setAuth(auth.getUser())
+                        .build()
+                );
+                System.out.println(JsonFormat.printer().print(whiteboard));
+                break;
+            }
+            case "getId": {
+                final LzyWhiteboard.WhiteboardId whiteboard = server.getWhiteboardId(LzyWhiteboard.GetWhiteboardIdCommand
+                        .newBuilder()
+                        .setCustomId(command.getArgs()[2])
+                        .setUserCredentials(auth.getUser())
+                        .build()
+                );
+                System.out.println(JsonFormat.printer().print(whiteboard));
+                break;
+            }
+        }
         return 0;
     }
 }

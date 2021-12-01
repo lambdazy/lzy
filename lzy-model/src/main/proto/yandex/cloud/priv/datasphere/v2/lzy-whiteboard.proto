@@ -13,7 +13,8 @@ service WhiteboardApi {
   rpc PrepareToSave (PrepareCommand) returns (OperationStatus);
   rpc Commit (CommitCommand) returns (OperationStatus);
   rpc AddDependencies (DependenciesCommand) returns (OperationStatus);
-  rpc GetWhiteboard (WhiteboardCommand) returns (Whiteboard);
+  rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
+  rpc GetWhiteboardId (GetWhiteboardIdCommand) returns (WhiteboardId);
 }
 
 message PrepareCommand {
@@ -36,7 +37,7 @@ message DependenciesCommand {
   repeated string dependencies = 3;
 }
 
-message WhiteboardCommand {
+message GetWhiteboardCommand {
   string wbId = 1;
   UserCredentials auth = 2;
 }
@@ -64,4 +65,13 @@ message Relation {
 message Whiteboard {
   repeated StorageBinding storageBindings = 1;
   repeated Relation relations = 2;
+}
+
+message GetWhiteboardIdCommand {
+  UserCredentials userCredentials = 1;
+  string customId = 2;
+}
+
+message WhiteboardId {
+  string wbId = 1;
 }

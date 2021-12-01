@@ -114,8 +114,8 @@ public class WhiteboardApi {
             }
         }
 
-        private final ConcurrentHashMap<UUID, Set<StorageBinding>> storageBindings = new ConcurrentHashMap<>();
-        private final ConcurrentHashMap<UUID, Set<Dependency>> dependencies = new ConcurrentHashMap<>();
+        private final ConcurrentHashMap<URI, Set<StorageBinding>> storageBindings = new ConcurrentHashMap<>();
+        private final ConcurrentHashMap<URI, Set<Dependency>> dependencies = new ConcurrentHashMap<>();
 
 
         @Override
@@ -124,8 +124,8 @@ public class WhiteboardApi {
                     ", slotName " + request.getSlot().getName() +
                     ", whiteboard id " + request.getWbId()
             );
-            storageBindings.putIfAbsent(UUID.fromString(request.getWbId()), new HashSet<>());
-            storageBindings.computeIfPresent(UUID.fromString(request.getWbId()),
+            storageBindings.putIfAbsent(URI.create(request.getWbId()), new HashSet<>());
+            storageBindings.computeIfPresent(URI.create(request.getWbId()),
                     (k, v) -> {
                         v.add(new StorageBinding(request.getFieldName(), gRPCConverter.from(request.getSlot()), request.getStorageUri()));
                         return v;
@@ -144,7 +144,7 @@ public class WhiteboardApi {
                     ", slotName " + request.getSlot().getName() +
                     ", whiteboard id " + request.getWbId()
             );
-            storageBindings.computeIfPresent(UUID.fromString(request.getWbId()),
+            storageBindings.computeIfPresent(URI.create(request.getWbId()),
                     (k, v) -> {
                         for (var sb : v) {
                             if (sb.slot.name().equals(request.getSlot().getName())) {
@@ -167,8 +167,8 @@ public class WhiteboardApi {
             LOG.info("WhiteboardApi::addDependencies invoked with opName " + request.getFieldName() +
                     ", whiteboard id " + request.getWbId()
             );
-            dependencies.putIfAbsent(UUID.fromString(request.getWbId()), new HashSet<>());
-            dependencies.computeIfPresent(UUID.fromString(request.getWbId()),
+            dependencies.putIfAbsent(URI.create(request.getWbId()), new HashSet<>());
+            dependencies.computeIfPresent(URI.create(request.getWbId()),
                     (k, v) -> {
                         List<String> deps = request.getDependenciesList();
                         v.add(new Dependency(request.getFieldName(), deps));
@@ -183,11 +183,11 @@ public class WhiteboardApi {
         }
 
         @Override
-        public void getWhiteboard(LzyWhiteboard.WhiteboardCommand request,
+        public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
                                   StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
             LOG.info("WhiteboardApi::getWhiteboard invoked with whiteboard id " + request.getWbId());
             List<LzyWhiteboard.StorageBinding> bindings = new ArrayList<>();
-            for (var entry : storageBindings.get(UUID.fromString(request.getWbId()))) {
+            for (var entry : storageBindings.get(URI.create(request.getWbId()))) {
                 if (entry.slot.direction().equals(Slot.Direction.OUTPUT)) {
                     if (!entry.isEmpty) {
                         bindings.add(StorageBinding.to(entry));
@@ -195,7 +195,7 @@ public class WhiteboardApi {
                 }
             }
             List<LzyWhiteboard.Relation> relations = new ArrayList<>();
-            for (var entry : dependencies.get(UUID.fromString(request.getWbId()))) {
+            for (var entry : dependencies.get(URI.create(request.getWbId()))) {
                 relations.add(Dependency.to(entry));
             }
             final LzyWhiteboard.Whiteboard whiteboard = LzyWhiteboard.Whiteboard
@@ -204,6 +204,24 @@ public class WhiteboardApi {
                     .addAllRelations(relations)
                     .build();
             responseObserver.onNext(whiteboard);
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void getWhiteboardId(LzyWhiteboard.GetWhiteboardIdCommand request,
+                                    StreamObserver<LzyWhiteboard.WhiteboardId> responseObserver) {
+            LOG.info("WhiteboardApi::getWhiteboardId invoked with user " + request.getUserCredentials().getUserId());
+            String id = request.getUserCredentials().getUserId() + "/" + request.getCustomId();
+            int i = 0;
+            while (storageBindings.containsKey(URI.create(id + "/" + i))) {
+                i++;
+            }
+            id = id + "/" + i;
+            final LzyWhiteboard.WhiteboardId whiteboardId = LzyWhiteboard.WhiteboardId
+                    .newBuilder()
+                    .setWbId(id)
+                    .build();
+            responseObserver.onNext(whiteboardId);
             responseObserver.onCompleted();
         }
     }
