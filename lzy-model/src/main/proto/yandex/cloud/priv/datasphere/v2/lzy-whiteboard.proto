@@ -18,21 +18,21 @@ service WhiteboardApi {
 
 message PrepareCommand {
   string wbId = 1;
-  string opName = 2;
+  string fieldName = 2;
   Slot slot = 3;
   string storageUri = 4;
 }
 
 message CommitCommand {
   string wbId = 1;
-  string opName = 2;
+  string fieldName = 2;
   Slot slot = 3;
   bool empty = 4;
 }
 
 message DependenciesCommand {
   string wbId = 1;
-  string opName = 2;
+  string fieldName = 2;
   repeated string dependencies = 3;
 }
 
@@ -52,12 +52,12 @@ message OperationStatus {
 }
 
 message StorageBinding {
-  string opName = 1;
+  string fieldName = 1;
   string storageUri = 2;
 }
 
 message Relation {
-  string opName = 1;
+  string fieldName = 1;
   repeated string dependencies = 2;
 }
 

@@ -119,7 +119,7 @@ public class Run implements LzyCommand {
                     .newBuilder()
                     .setWhiteboardId(localCmd.getOptionValue("persistent"))
                     .addAllDependencies(deps)
-                    .setOpName(taskName)
+                    .setFieldName(taskName)
                     .build()
             );
         }

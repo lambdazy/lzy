@@ -66,14 +66,14 @@ public class WhiteboardApi {
 
     public static class Impl extends WhiteboardApiGrpc.WhiteboardApiImplBase {
         private static class StorageBinding {
-            private final String operationName;
+            private final String fieldName;
             private final Slot slot;
             private final URI storageUri;
             private Status status;
             private boolean isEmpty = true;
 
-            private StorageBinding(String operationName, Slot slot, String storageUri) {
-                this.operationName = operationName;
+            private StorageBinding(String fieldName, Slot slot, String storageUri) {
+                this.fieldName = fieldName;
                 this.slot = slot;
                 this.storageUri = URI.create(storageUri);
                 status = Status.IN_PROGRESS;
@@ -86,7 +86,7 @@ public class WhiteboardApi {
             public static LzyWhiteboard.StorageBinding to(StorageBinding bindings) {
                 return LzyWhiteboard.StorageBinding
                         .newBuilder()
-                        .setOpName(bindings.operationName)
+                        .setFieldName(bindings.fieldName)
                         .setStorageUri(bindings.storageUri.toString())
                         .build();
             }
@@ -97,18 +97,18 @@ public class WhiteboardApi {
         }
 
         private static class Dependency {
-            private final String operationName;
+            private final String fieldName;
             private final ArrayList<String> dependencies = new ArrayList<>();
 
-            private Dependency(String operationName, List<String> deps) {
-                this.operationName = operationName;
+            private Dependency(String fieldName, List<String> deps) {
+                this.fieldName = fieldName;
                 this.dependencies.addAll(deps);
             }
 
             public static LzyWhiteboard.Relation to(Dependency dep) {
                 return LzyWhiteboard.Relation
                         .newBuilder()
-                        .setOpName(dep.operationName)
+                        .setFieldName(dep.fieldName)
                         .addAllDependencies(dep.dependencies)
                         .build();
             }
@@ -120,14 +120,14 @@ public class WhiteboardApi {
 
         @Override
         public void prepareToSave(LzyWhiteboard.PrepareCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            LOG.info("WhiteboardApi::prepareToSave invoked with opName " + request.getOpName() +
+            LOG.info("WhiteboardApi::prepareToSave invoked with opName " + request.getFieldName() +
                     ", slotName " + request.getSlot().getName() +
                     ", whiteboard id " + request.getWbId()
             );
             storageBindings.putIfAbsent(UUID.fromString(request.getWbId()), new HashSet<>());
             storageBindings.computeIfPresent(UUID.fromString(request.getWbId()),
                     (k, v) -> {
-                        v.add(new StorageBinding(request.getOpName(), gRPCConverter.from(request.getSlot()), request.getStorageUri()));
+                        v.add(new StorageBinding(request.getFieldName(), gRPCConverter.from(request.getSlot()), request.getStorageUri()));
                         return v;
                     });
             final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
@@ -140,7 +140,7 @@ public class WhiteboardApi {
 
         @Override
         public void commit(LzyWhiteboard.CommitCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            LOG.info("WhiteboardApi::commit invoked with opName " + request.getOpName() +
+            LOG.info("WhiteboardApi::commit invoked with opName " + request.getFieldName() +
                     ", slotName " + request.getSlot().getName() +
                     ", whiteboard id " + request.getWbId()
             );
@@ -164,14 +164,14 @@ public class WhiteboardApi {
 
         @Override
         public void addDependencies(LzyWhiteboard.DependenciesCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            LOG.info("WhiteboardApi::addDependencies invoked with opName " + request.getOpName() +
+            LOG.info("WhiteboardApi::addDependencies invoked with opName " + request.getFieldName() +
                     ", whiteboard id " + request.getWbId()
             );
             dependencies.putIfAbsent(UUID.fromString(request.getWbId()), new HashSet<>());
             dependencies.computeIfPresent(UUID.fromString(request.getWbId()),
                     (k, v) -> {
                         List<String> deps = request.getDependenciesList();
-                        v.add(new Dependency(request.getOpName(), deps));
+                        v.add(new Dependency(request.getFieldName(), deps));
                         return v;
                     });
             final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus

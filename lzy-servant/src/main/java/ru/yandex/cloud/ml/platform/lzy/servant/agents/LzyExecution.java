@@ -94,7 +94,7 @@ public class LzyExecution {
                     LzyWhiteboard.OperationStatus status =  whiteboard.prepareToSave(LzyWhiteboard.PrepareCommand
                             .newBuilder()
                             .setSlot(gRPCConverter.to(spec))
-                            .setOpName(meta.getOperationName())
+                            .setFieldName(meta.getFieldName())
                             .setWbId(meta.getWbId().toString())
                             .setStorageUri(uri.toString())
                             .build());
@@ -133,7 +133,7 @@ public class LzyExecution {
                             LzyWhiteboard.OperationStatus status =  whiteboard.commit(LzyWhiteboard.CommitCommand
                                     .newBuilder()
                                     .setSlot(gRPCConverter.to(slot.definition()))
-                                    .setOpName(meta.getOperationName())
+                                    .setFieldName(meta.getFieldName())
                                     .setWbId(meta.getWbId().toString())
                                     .setEmpty(executionSnapshot.isEmpty(spec))
                                     .build());
@@ -232,7 +232,7 @@ public class LzyExecution {
                 }
                 LzyWhiteboard.OperationStatus status =  whiteboard.addDependencies(LzyWhiteboard.DependenciesCommand
                         .newBuilder()
-                        .setOpName(meta.getOperationName())
+                        .setFieldName(meta.getFieldName())
                         .setWbId(meta.getWbId().toString())
                         .addAllDependencies(meta.getDependencies())
                         .build());

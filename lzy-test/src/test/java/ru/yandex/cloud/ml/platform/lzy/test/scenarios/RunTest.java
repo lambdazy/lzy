@@ -265,13 +265,13 @@ public class RunTest extends LzyBaseTest {
         JSONArray storageBindings = (JSONArray) jsonObject.get("storageBindings");
         Assert.assertEquals(1, storageBindings.size());
         JSONObject storageBinding = (JSONObject) storageBindings.get(0);
-        Assert.assertEquals(storageBinding.get("opName"), taskName);
+        Assert.assertEquals(storageBinding.get("fieldName"), taskName);
         Assert.assertTrue(storageBinding.get("storageUri").toString().length() > 0);
 
         JSONArray relations = (JSONArray) jsonObject.get("relations");
         Assert.assertEquals(1, relations.size());
         JSONObject relation = (JSONObject) relations.get(0);
-        Assert.assertEquals(relation.get("opName"), taskName);
+        Assert.assertEquals(relation.get("fieldName"), taskName);
         JSONArray dependencies = (JSONArray) relation.get("dependencies");
         Assert.assertEquals(3, dependencies.size());
         Assert.assertTrue(dependencies.contains("a") && dependencies.contains("b") && dependencies.contains("c"));

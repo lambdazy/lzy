@@ -21,7 +21,7 @@ message TaskCommand {
 message WhiteboardMeta {
   string whiteboardId = 1;
   repeated string dependencies = 2;
-  string opName = 3;
+  string fieldName = 3;
 }
 
 message TaskSpec {

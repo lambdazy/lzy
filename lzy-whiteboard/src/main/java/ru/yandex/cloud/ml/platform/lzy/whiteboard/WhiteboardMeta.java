@@ -8,23 +8,23 @@ import java.util.UUID;
 public class WhiteboardMeta {
     private final UUID wbId;
     private final List<String> dependencies;
-    private final String operationName;
+    private final String fieldName;
 
-    WhiteboardMeta(UUID wbId, List<String> dependencies, String operationName) {
+    WhiteboardMeta(UUID wbId, List<String> dependencies, String fieldName) {
         this.wbId = wbId;
         this.dependencies = dependencies;
-        this.operationName = operationName;
+        this.fieldName = fieldName;
     }
 
     public static WhiteboardMeta from(Tasks.WhiteboardMeta meta) {
-        return new WhiteboardMeta(UUID.fromString(meta.getWhiteboardId()), meta.getDependenciesList(), meta.getOpName());
+        return new WhiteboardMeta(UUID.fromString(meta.getWhiteboardId()), meta.getDependenciesList(), meta.getFieldName());
     }
 
     public static Tasks.WhiteboardMeta to(WhiteboardMeta meta) {
         return Tasks.WhiteboardMeta.newBuilder()
                 .setWhiteboardId(meta.getWbId().toString())
                 .addAllDependencies(meta.getDependencies())
-                .setOpName(meta.getOperationName())
+                .setFieldName(meta.getFieldName())
                 .build();
     }
 
@@ -36,7 +36,7 @@ public class WhiteboardMeta {
         return dependencies;
     }
 
-    public String getOperationName() {
-        return operationName;
+    public String getFieldName() {
+        return fieldName;
     }
 }
