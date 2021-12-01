@@ -1,5 +1,6 @@
 name: 'AC tests'
 on:
+  push:
   schedule:
     - cron: '0 0 * * *'
 
@@ -16,6 +17,11 @@ jobs:
           java-version: '11'
 
       - uses: docker-practice/actions-setup-docker@master
+
+      - name: 'Copy secret key'
+        env:
+          PRIVATE_KEY: ${{ secrets.TESTS_PRIVATE_SSH_KEY }}
+        run: touch /tmp/test-private.pem && echo "$PRIVATE_KEY" > /tmp/test-private.pem
 
       - name: 'AC test'
         timeout-minutes: 45
