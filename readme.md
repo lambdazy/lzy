@@ -90,14 +90,9 @@ pacman -Sy fuse2 inetutils
 
 ### Local run
 
-1. Run `ru.yandex.cloud.ml.platform.lzy.server.LzyServer`
-2. Run `ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon`
-3. Run `ru.yandex.cloud.ml.platform.lzy.servant.BashApi` with arguments:
-   1. `--lzy-address localhost:8899` (server address)
-   2. `--lzy-mount /tmp/lzy` (path for ʎzy FS)
-   3. `--host localhost` (host for terminal)
-   4. `--internal-host host.docker.internal` (docker support; **only for macOS**)
-   5. `terminal` (command name)
+1. Run [Server](lzy-server/readme.md)
+2. Run [Kharon](lzy-kharon/readme.md)
+3. Run [Terminal](lzy-servant/readme.md)
 4. Now ʎzy FS should be available at path `/tmp/lzy`
 ---
 **For python API:**
