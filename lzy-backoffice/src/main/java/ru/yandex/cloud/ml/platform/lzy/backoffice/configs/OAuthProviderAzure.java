@@ -7,7 +7,8 @@ import jakarta.inject.Singleton;
 
 @Requires(property = "azure-providers", value = "true")
 @Singleton
-public class OAuthProviderAzure implements OAuthSecretsProvider{
+public class OAuthProviderAzure implements OAuthSecretsProvider {
+
     @Inject
     GithubOAuthProviderAzure github;
 
@@ -17,7 +18,9 @@ public class OAuthProviderAzure implements OAuthSecretsProvider{
     }
 
     @Singleton
-    public class GithubOAuthProviderAzure implements OAuthSecretsProvider.GithubOAuthSecretsProvider{
+    public class GithubOAuthProviderAzure implements
+        OAuthSecretsProvider.GithubOAuthSecretsProvider {
+
         @Inject
         AzureSecretClient secrets;
 

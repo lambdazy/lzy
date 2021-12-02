@@ -3,7 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth;
 import io.micronaut.core.annotation.Introspected;
 
 @Introspected
-public class LoginRequest{
+public class LoginRequest {
+
     private String sessionId;
     private String provider;
     private String redirectUrl;

@@ -4,6 +4,7 @@ import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class GitHubGetUserResponse {
+
     private String login;
     private String id;
 

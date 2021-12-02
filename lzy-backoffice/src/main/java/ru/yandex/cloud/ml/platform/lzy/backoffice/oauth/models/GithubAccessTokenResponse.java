@@ -4,6 +4,7 @@ import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class GithubAccessTokenResponse {
+
     private String access_token;
     private String scope;
     private String token_type;

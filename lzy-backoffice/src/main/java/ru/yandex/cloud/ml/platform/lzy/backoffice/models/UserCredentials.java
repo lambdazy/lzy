@@ -5,8 +5,16 @@ import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 
 @Introspected
 public class UserCredentials {
+
     private String userId;
     private String sessionId;
+
+    public static UserCredentials fromModel(BackOffice.BackofficeUserCredentials model) {
+        UserCredentials creds = new UserCredentials();
+        creds.setUserId(model.getUserId());
+        creds.setSessionId(model.getSessionId());
+        return creds;
+    }
 
     public String getUserId() {
         return userId;
@@ -24,16 +32,10 @@ public class UserCredentials {
         this.sessionId = sessionId;
     }
 
-    public BackOffice.BackofficeUserCredentials toModel(){
+    public BackOffice.BackofficeUserCredentials toModel() {
         return BackOffice.BackofficeUserCredentials.newBuilder()
-                .setUserId(userId)
-                .setSessionId(sessionId)
-                .build();
-    }
-    public static UserCredentials fromModel(BackOffice.BackofficeUserCredentials model){
-        UserCredentials creds = new UserCredentials();
-        creds.setUserId(model.getUserId());
-        creds.setSessionId(model.getSessionId());
-        return creds;
+            .setUserId(userId)
+            .setSessionId(sessionId)
+            .build();
     }
 }

@@ -7,6 +7,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Introspected
 public class DeletePublicKeyRequest {
+
     UserCredentials credentials;
     private String keyName;
 
@@ -26,7 +27,7 @@ public class DeletePublicKeyRequest {
         this.keyName = keyName;
     }
 
-    public BackOffice.DeleteKeyRequest toModel(IAM.UserCredentials credentials){
+    public BackOffice.DeleteKeyRequest toModel(IAM.UserCredentials credentials) {
         return BackOffice.DeleteKeyRequest.newBuilder()
             .setBackofficeCredentials(credentials)
             .setCredentials(this.credentials.toModel())

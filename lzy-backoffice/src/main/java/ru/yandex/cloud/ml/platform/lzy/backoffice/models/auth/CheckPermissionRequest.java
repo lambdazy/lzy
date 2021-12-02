@@ -8,6 +8,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Introspected
 public class CheckPermissionRequest {
+
     private UserCredentials credentials;
     private String permissionName;
 
@@ -27,7 +28,7 @@ public class CheckPermissionRequest {
         this.permissionName = permissionName;
     }
 
-    public BackOffice.CheckPermissionRequest toModel(IAM.UserCredentials creds){
+    public BackOffice.CheckPermissionRequest toModel(IAM.UserCredentials creds) {
         return BackOffice.CheckPermissionRequest.newBuilder()
             .setPermissionName(permissionName)
             .setCredentials(credentials.toModel())
