@@ -22,7 +22,7 @@ export const Header = () => {
           </Navbar.Brand>
           <Nav className="me-auto">
             <Nav.Link href="/users">Users</Nav.Link>
-            <Nav.Link href="/add_token">Add token</Nav.Link>
+            <Nav.Link href="/keys">My keys</Nav.Link>
             <Nav.Link href="/tasks">Tasks</Nav.Link>
           </Nav>
           <Navbar.Collapse className="justify-content-end">

@@ -8,4 +8,5 @@ import java.util.stream.Stream;
 
 public interface LzyOutputSlot extends LzySlot {
     Stream<ByteString> readFromPosition(long offset) throws IOException;
+    void forceClose();
 }

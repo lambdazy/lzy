@@ -16,7 +16,7 @@ public class TaskModel {
     @Column(name = "token", nullable = false)
     private String token;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne()
     @JoinColumn(name="owner_id", nullable=false)
     private UserModel owner;
 

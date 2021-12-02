@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 

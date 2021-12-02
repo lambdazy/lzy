@@ -121,11 +121,13 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         return localFileContents;
     }
 
-    public void flush() {
-        try {
-            Files.writeString(storage, "empty", StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+    @Override
+    public void forceClose() {
+        LOG.info("Force close for slot " + this);
+        synchronized (OutFileSlot.this) {
+            ready = true;
+            state(Operations.SlotStatus.State.OPEN);
+            OutFileSlot.this.notifyAll();
         }
     }
 

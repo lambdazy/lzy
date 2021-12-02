@@ -9,7 +9,15 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.CredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.GrpcConfig;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tasks.GetTasksRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth.CheckPermissionRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth.CheckSessionRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.keys.AddPublicKeyRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.keys.DeletePublicKeyRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.keys.ListKeysRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.CreateUserRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.DeleteUserRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.ListUsersRequest;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 
@@ -36,9 +44,9 @@ public class Client {
         return LzyBackofficeGrpc.newStub(channel);
     }
 
-    public BackOffice.AddTokenResult addToken(AddTokenRequest request){
+    public BackOffice.AddKeyResult addToken(AddPublicKeyRequest request){
         try {
-            return getBlockingStub().addToken(
+            return getBlockingStub().addKey(
                     request.toModel(credentials.createCreds())
             );
         }
@@ -137,6 +145,29 @@ public class Client {
     public BackOffice.GetTasksResponse getTasks(GetTasksRequest request){
         try {
             return getBlockingStub().getTasks(
+                    request.toModel(credentials.createCreds())
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
+
+
+    public BackOffice.ListKeysResponse listTokens(ListKeysRequest request){
+        try {
+            return getBlockingStub().listKeys(
+                    request.toModel(credentials.createCreds())
+            );
+        }
+        catch (StatusRuntimeException e){
+            throw catchStatusException(e);
+        }
+    }
+
+    public BackOffice.DeleteKeyResponse deleteToken(DeletePublicKeyRequest request){
+        try {
+            return getBlockingStub().deleteKey(
                     request.toModel(credentials.createCreds())
             );
         }

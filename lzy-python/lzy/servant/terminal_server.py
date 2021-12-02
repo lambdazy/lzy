@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import time
@@ -21,12 +22,14 @@ class TerminalServer:
         self._terminal_log = None
         self._pcs = None
         self._already_started = False
+        self._log = logging.getLogger(str(self.__class__))
 
     def start(self):
         sbin_channel = Path(self._lzy_mount) / 'sbin' / 'channel'
         # using safe version instead of `exists()` because path can be not mounted
         self._already_started = self._check_exists_safe(sbin_channel)
         if self._already_started:
+            self._log.info("Using already started servant")
             return
 
         if not os.path.exists(os.path.expanduser(self._private_key)):
@@ -45,7 +48,7 @@ class TerminalServer:
              '-Djava.library.path=/usr/local/lib',
              f'-Dcustom.log.file={self._log_file}',
              '-classpath', TerminalServer.jar_path,
-             'ru.yandex.cloud.ml.platform.lzy.servant.ls',
+             'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
              '--lzy-address', self._url,
              '--lzy-mount', self._lzy_mount,
              '--private-key', self._private_key,

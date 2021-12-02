@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
@@ -9,10 +10,11 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvConnector;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.Connector;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashConnector;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvironment;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashEnvironment;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.EmptyExecutionSnapshot;
@@ -193,13 +195,13 @@ public class LzyExecution {
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
                 .build()
             );
-            Connector session;
+            Environment session;
             if (zygote.env() instanceof PythonEnv) {
-                session = new CondaEnvConnector((PythonEnv) zygote.env());
-                LOG.info("Conda environment is provided, using CondaEnvConnector");
+                session = new CondaEnvironment((PythonEnv) zygote.env());
+                LOG.info("Conda environment is provided, using CondaEnvironment");
             } else {
-                session = new SimpleBashConnector();
-                LOG.info("No environment provided, using SimpleBashConnector");
+                session = new SimpleBashEnvironment();
+                LOG.info("No environment provided, using SimpleBashEnvironment");
             }
 
             if (meta != null) {
@@ -209,24 +211,35 @@ public class LzyExecution {
 
             String command = zygote.fuze() + " " + arguments;
             LOG.info("Going to exec command " + command);
-            this.exec = session.exec(command);
+            int rc;
+            String resultDescription;
+            try {
+                this.exec = session.exec(command);
+                stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
+                stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
+                    exec.getInputStream(),
+                    StandardCharsets.UTF_8
+                )));
+                stderrSlot.setStream(new LineNumberReader(new InputStreamReader(
+                    exec.getErrorStream(),
+                    StandardCharsets.UTF_8
+                )));
+                rc = exec.waitFor();
+                resultDescription = (rc == 0) ? "Success" : "Failure";
+            } catch (EnvironmentInstallationException e) {
+                resultDescription = "Error during environment installation:\n" + e;
+                rc = ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc();
+            } catch (LzyExecutionException e) {
+                resultDescription = "Error during task execution:\n" + e;
+                rc = ReturnCodes.EXECUTION_ERROR.getRc();
+            }
 
-            stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
-            stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
-                exec.getInputStream(),
-                StandardCharsets.UTF_8
-            )));
-            stderrSlot.setStream(new LineNumberReader(new InputStreamReader(
-                exec.getErrorStream(),
-                StandardCharsets.UTF_8
-            )));
-            final int rc = exec.waitFor();
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
             if (rc != 0) {
                 Set.copyOf(slots.values()).stream()
-                    .filter(s -> s instanceof OutFileSlot)
-                    .map(s -> (OutFileSlot)s)
-                    .forEach(OutFileSlot::flush);
+                    .filter(s -> s instanceof LzyOutputSlot)
+                    .map(s -> (LzyOutputSlot)s)
+                    .forEach(LzyOutputSlot::forceClose);
             }
             synchronized (slots) {
                 LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
@@ -234,14 +247,22 @@ public class LzyExecution {
                     slots.wait();
                 }
             }
+            LOG.info("Result description: " + resultDescription);
             progress(Servant.ExecutionProgress.newBuilder()
-                .setExit(Servant.ExecutionConcluded.newBuilder().setRc(rc).build())
+                .setExit(Servant.ExecutionConcluded.newBuilder()
+                    .setRc(rc)
+                    .setDescription(resultDescription)
+                    .build())
                 .build()
             );
-        } catch (IOException | InterruptedException e) {
-            LOG.warn("Exception during task execution", e);
+        } catch (InterruptedException e) {
+            final String exceptionDescription = "InterruptedException during task execution" + e;
+            LOG.warn(exceptionDescription);
             progress(Servant.ExecutionProgress.newBuilder()
-                .setExit(Servant.ExecutionConcluded.newBuilder().setRc(-1).build())
+                .setExit(Servant.ExecutionConcluded.newBuilder()
+                    .setRc(-1)
+                    .setDescription(exceptionDescription)
+                    .build())
                 .build()
             );
         }

@@ -127,6 +127,7 @@ message SlotDetach {
 
 message ExecutionConcluded {
     int32 rc = 1;
+    string description = 2;
 }
 
 message ServantStatus {

@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -77,6 +78,8 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                     break;
                 }
             }
+        } catch (StatusRuntimeException e) {
+            LOG.error("InputSlotBase:: Failed openOutputSlot connection to servant " + connected, e);
         }
         finally {
             LOG.info("Opening slot {}", name());

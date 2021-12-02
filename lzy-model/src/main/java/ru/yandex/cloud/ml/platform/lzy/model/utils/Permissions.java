@@ -1,10 +1,11 @@
-package ru.yandex.cloud.ml.platform.lzy.server;
+package ru.yandex.cloud.ml.platform.lzy.model.utils;
 
 public enum Permissions {
     BACKOFFICE_INTERNAL("backoffice.internal.privateApi"),
     USERS_CREATE("backoffice.users.create"),
     USERS_DELETE("backoffice.users.delete"),
-    USERS_LIST("backoffice.users.list");
+    USERS_LIST("backoffice.users.list"),
+    WHITEBOARD_ALL("lzy.whiteboard.all");
 
     public final String name;
 
