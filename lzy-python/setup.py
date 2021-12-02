@@ -107,6 +107,14 @@ class Installer(install):
         super().run()
 
 
+def read_requirements() -> List[str]:
+    requirements = []
+    with open('requirements.txt', 'r') as file:
+        for line in file:
+            requirements.append(line.rstrip())
+    return requirements
+
+
 setuptools.setup(
     name='pylzy-nightly',
     version='0.0.2',
@@ -117,10 +125,7 @@ setuptools.setup(
     },
     packages=['lzy', 'lzy/api', 'lzy/api/whiteboard', 'lzy/api/_proxy',
               'lzy/model', 'lzy/servant', 'lzy/api/pkg_info'],
-    install_requires=[
-        'cloudpickle==2.0.0',
-        'pyyaml'
-    ],
+    requirements=read_requirements(),
     python_requires='>=3.7',
     cmdclass={
         'installer.py': Installer  # type: ignore
