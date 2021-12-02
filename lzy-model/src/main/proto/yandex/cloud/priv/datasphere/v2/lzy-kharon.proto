@@ -32,7 +32,8 @@ service LzyKharon {
 
   // Whiteboard API
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
-  rpc GetWhiteboardId (GetWhiteboardIdCommand) returns (WhiteboardId);
+  rpc CreateWhiteboard (CreateWhiteboardCommand) returns (WhiteboardId);
+  rpc FinalizeWhiteboard (FinalizeWhiteboardCommand) returns (OperationStatus);
 }
 
 message TerminalState {

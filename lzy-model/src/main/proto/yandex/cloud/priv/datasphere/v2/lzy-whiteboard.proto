@@ -13,7 +13,8 @@ service WhiteboardApi {
   rpc PrepareToSave (PrepareCommand) returns (OperationStatus);
   rpc Commit (CommitCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
-  rpc GetWhiteboardId (GetWhiteboardIdCommand) returns (WhiteboardId);
+  rpc CreateWhiteboard (CreateWhiteboardCommand) returns (WhiteboardId);
+  rpc FinalizeWhiteboard (FinalizeWhiteboardCommand) returns (OperationStatus);
 }
 
 message PrepareCommand {
@@ -63,13 +64,25 @@ message Relation {
 message Whiteboard {
   repeated StorageBinding storageBindings = 1;
   repeated Relation relations = 2;
+  WhiteboardStatus whiteboardStatus = 3;
+  enum WhiteboardStatus {
+    UNKNOWN = 0;
+    CREATED = 1;
+    FINALIZED = 2;
+    ERRORED = 3;
+  }
 }
 
-message GetWhiteboardIdCommand {
+message CreateWhiteboardCommand {
   UserCredentials userCredentials = 1;
   string customId = 2;
 }
 
 message WhiteboardId {
   string wbId = 1;
+}
+
+message FinalizeWhiteboardCommand {
+  string wbId = 1;
+  UserCredentials auth = 2;
 }

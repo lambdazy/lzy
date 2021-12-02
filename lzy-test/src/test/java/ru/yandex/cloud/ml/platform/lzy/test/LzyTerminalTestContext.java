@@ -145,7 +145,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     String.join(
                             " ",
                             mount() + "/sbin/whiteboard",
-                            "getWhiteboard",
+                            "get",
                             wbId
                     )
             );
@@ -155,12 +155,12 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String getWhiteboardId(String customId) {
+        default String createWhiteboard(String customId) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(
                             " ",
                             mount() + "/sbin/whiteboard",
-                            "getId",
+                            "create",
                             customId
                     )
             );
@@ -168,6 +168,20 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                 throw new RuntimeException(execute.stderr());
             }
             return execute.stdout();
+        }
+
+        default void finalizeWhiteboard(String wbId) {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                    String.join(
+                            " ",
+                            mount() + "/sbin/whiteboard",
+                            "finalize",
+                            wbId
+                    )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
         }
 
         default void destroyChannel(String channelName) {

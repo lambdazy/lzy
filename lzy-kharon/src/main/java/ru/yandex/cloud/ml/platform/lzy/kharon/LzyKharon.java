@@ -210,9 +210,16 @@ public class LzyKharon {
         }
 
         @Override
-        public void getWhiteboardId(LzyWhiteboard.GetWhiteboardIdCommand request,
+        public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
                                   StreamObserver<LzyWhiteboard.WhiteboardId> responseObserver) {
-            responseObserver.onNext(whiteboard.getWhiteboardId(request));
+            responseObserver.onNext(whiteboard.createWhiteboard(request));
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void finalizeWhiteboard(LzyWhiteboard.FinalizeWhiteboardCommand request,
+                                     StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            responseObserver.onNext(whiteboard.finalizeWhiteboard(request));
             responseObserver.onCompleted();
         }
     }

@@ -28,7 +28,7 @@ public class Whiteboard implements LzyCommand {
                 .build();
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
-            case "getWhiteboard": {
+            case "get": {
                 final LzyWhiteboard.Whiteboard whiteboard = server.getWhiteboard(LzyWhiteboard.GetWhiteboardCommand
                         .newBuilder()
                         .setWbId(command.getArgs()[2])
@@ -38,8 +38,18 @@ public class Whiteboard implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(whiteboard));
                 break;
             }
-            case "getId": {
-                final LzyWhiteboard.WhiteboardId whiteboard = server.getWhiteboardId(LzyWhiteboard.GetWhiteboardIdCommand
+            case "finalize": {
+                final LzyWhiteboard.OperationStatus operationStatus = server.finalizeWhiteboard(LzyWhiteboard.FinalizeWhiteboardCommand
+                        .newBuilder()
+                        .setWbId(command.getArgs()[2])
+                        .setAuth(auth.getUser())
+                        .build()
+                );
+                System.out.println(JsonFormat.printer().print(operationStatus));
+                break;
+            }
+            case "create": {
+                final LzyWhiteboard.WhiteboardId whiteboard = server.createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
                         .newBuilder()
                         .setCustomId(command.getArgs()[2])
                         .setUserCredentials(auth.getUser())

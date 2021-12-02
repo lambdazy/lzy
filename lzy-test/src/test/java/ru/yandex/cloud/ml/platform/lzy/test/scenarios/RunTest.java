@@ -223,10 +223,15 @@ public class RunTest extends LzyBaseTest {
         ForkJoinPool.commonPool()
                 .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
         final String customId = "my-whiteboard";
-        final String wbIdJson = terminal.getWhiteboardId(customId);
+        final String wbIdJson = terminal.createWhiteboard(customId);
         JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
         final URI wbId = URI.create((String) wbIdObject.get("wbId"));
-        Assert.assertEquals("test-user/my-whiteboard/0", wbId.toString());
+        Assert.assertEquals("test-user/my-whiteboard", wbId.toString());
+
+        String whiteboard = terminal.getWhiteboard(wbId.toString());
+        JSONObject wbJson = (JSONObject) (new JSONParser()).parse(whiteboard);
+        Assert.assertEquals("CREATED", wbJson.get("whiteboardStatus"));
+
         final String taskName = "taskName";
         final String arguments = "--persistent " + wbId + " -n " + taskName;
         final ExecutionResult result = terminal.run(
@@ -263,7 +268,7 @@ public class RunTest extends LzyBaseTest {
             Assert.assertEquals(fileContent + "\n", content);
         }
 
-        String whiteboard = terminal.getWhiteboard(wbId.toString());
+        whiteboard = terminal.getWhiteboard(wbId.toString());
         JSONObject jsonObject = (JSONObject) (new JSONParser()).parse(whiteboard);
 
         JSONArray storageBindings = (JSONArray) jsonObject.get("storageBindings");
@@ -280,6 +285,10 @@ public class RunTest extends LzyBaseTest {
         Assert.assertEquals(3, dependencies.size());
         Assert.assertTrue(dependencies.contains("a") && dependencies.contains("b") && dependencies.contains("c"));
 
+        terminal.finalizeWhiteboard(wbId.toString());
+        whiteboard = terminal.getWhiteboard(wbId.toString());
+        wbJson = (JSONObject) (new JSONParser()).parse(whiteboard);
+        Assert.assertEquals("FINALIZED", wbJson.get("whiteboardStatus"));
         api.shutdown();
     }
 }
