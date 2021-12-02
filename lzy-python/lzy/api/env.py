@@ -51,7 +51,7 @@ class LzyEnvBase(ABC):
         pass
 
     @abstractmethod
-    def generate_conda_env(self, namespace: dict[str, Tuple[str]] = None) -> Tuple[str, str]:
+    def generate_conda_env(self, namespace: dict[str, Tuple[str]]) -> Tuple[str, str]:
         pass
 
 
@@ -89,7 +89,7 @@ class LzyEnv(LzyEnvBase):
         self._yaml = yaml_path
         self._log = logging.getLogger(str(self.__class__))
 
-    def generate_conda_env(self, namespace: dict[str, Any] = None) -> Tuple[str, str]:
+    def generate_conda_env(self, namespace: dict[str, Any]) -> Tuple[str, str]:
         if self._yaml is None:
             if namespace is None:
                 return create_yaml(installed_packages=all_installed_packages())
