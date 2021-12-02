@@ -74,19 +74,21 @@ def select_modules(namespace: Dict[str, Any]) -> \
     dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
     # TODO: this doesn't work for custom modules installed by user, e.g. lzy-py
     # TODO: don't know why
-    packages_with_versions = {}
-    packages_without_versions = []
 
     distributions = packages_distributions()
+    packages_with_versions = {}
+    packages_without_versions = []
     for k, v in namespace.items():
-        if not isinstance(v, ModuleType):
-            continue
-        # get only parent name
-        parent_module = v.__name__.split('.')[0]
-        if parent_module not in distributions:
+        # try to get module name
+        parent_module = inspect.getmodule(v)
+        if parent_module is None:
             continue
 
-        dist_name = distributions[parent_module][0]
+        name = inspect.getmodule(v).__name__.split('.')[0]
+        if name not in distributions:
+            continue
+
+        dist_name = distributions[name][0]
         if dist_name in dist_versions:
             packages_with_versions[dist_name] = dist_versions[dist_name]
         else:
