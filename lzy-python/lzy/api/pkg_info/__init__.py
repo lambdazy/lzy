@@ -1,8 +1,13 @@
+import functools
+import inspect
 import sys
+import pkg_resources
+
+from types import ModuleType
 from typing import Any, Iterable, List, Tuple
 
-import pkg_resources
 import yaml
+from importlib_metadata import packages_distributions
 
 
 # https://stackoverflow.com/a/1883251
@@ -20,8 +25,10 @@ def to_str(source: Iterable[Any], delim: str = '.') -> str:
     return delim.join(map(str, source))
 
 
-def get_installed_packages():
-    exclude = {'lzy-py'}
+exclude = {'lzy-py'}
+
+
+def all_installed_packages() -> dict[str, Tuple[str]]:
     return {
         entry.project_name: entry.version.split('.')
         for entry in pkg_resources.working_set
@@ -36,8 +43,9 @@ _installed_versions = {
     # "3.10.0": "py310"
 }
 
-
-def get_python_env_as_yaml(name='default') -> Tuple[str, str]:
+def create_yaml(name: str = 'default',
+                installed_packages: dict[str, Tuple[str]] = None
+                ) -> Tuple[str, str]:
     # always use only first three numbers, otherwise conda won't find
     python_version = to_str(sys.version_info[:3])
     if python_version in _installed_versions:
@@ -51,7 +59,7 @@ def get_python_env_as_yaml(name='default') -> Tuple[str, str]:
     deps.append(
         {'pip': [f'{name}=={to_str(version)}'
                  for name, version in
-                 get_installed_packages().items()]}
+                 installed_packages.items()]}
     )
 
     conda_yaml = {
@@ -59,3 +67,30 @@ def get_python_env_as_yaml(name='default') -> Tuple[str, str]:
         'dependencies': deps
     }
     return name, yaml.dump(conda_yaml, sort_keys=False)
+
+
+def select_modules(namespace: dict[str, Any]) -> \
+        tuple[dict[str, Tuple[str]], tuple[str]]:
+    dist_versions = all_installed_packages()
+    # TODO: this doesn't work for custom modules installed by user, e.g. lzy-py
+    # TODO: don't know why
+    packages_with_versions = {}
+    packages_without_versions = []
+
+    distributions = packages_distributions()
+    for k, v in namespace.items():
+        if not isinstance(v, ModuleType):
+            continue
+        # get only parent name
+        parent_module = v.__name__.split('.')[0]
+        if parent_module not in distributions:
+            continue
+
+        dist_name = distributions[parent_module][0]
+        if dist_name in dist_versions:
+            packages_with_versions[dist_name] = dist_versions[dist_name]
+        else:
+            packages_without_versions.append(dist_name)
+
+    return packages_with_versions, tuple(packages_without_versions)
+
