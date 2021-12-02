@@ -7,6 +7,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Introspected
 public class DeleteUserRequest {
+
     private String userId;
     private UserCredentials deleterCredentials;
 
@@ -28,9 +29,9 @@ public class DeleteUserRequest {
 
     public BackOffice.DeleteUserRequest toModel(IAM.UserCredentials credentials) {
         return BackOffice.DeleteUserRequest.newBuilder()
-                .setUserId(userId)
-                .setBackofficeCredentials(credentials)
-                .setDeleterCredentials(deleterCredentials.toModel())
-                .build();
+            .setUserId(userId)
+            .setBackofficeCredentials(credentials)
+            .setDeleterCredentials(deleterCredentials.toModel())
+            .build();
     }
 }

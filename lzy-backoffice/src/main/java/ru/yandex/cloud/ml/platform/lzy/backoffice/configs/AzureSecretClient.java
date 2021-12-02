@@ -8,9 +8,6 @@ import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-
 import java.io.IOException;
 import java.io.StringReader;
 import java.security.InvalidKeyException;
@@ -18,14 +15,17 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.UUID;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 
 @Requires(property = "azure-providers", value = "true")
 @Singleton
-public class AzureSecretClient implements CredentialsProvider{
+public class AzureSecretClient implements CredentialsProvider {
+
     private final SecretClient secretClient;
 
-    AzureSecretClient(){
+    AzureSecretClient() {
         DefaultAzureCredential defaultCredential = new DefaultAzureCredentialBuilder()
             .build();
 
@@ -39,21 +39,21 @@ public class AzureSecretClient implements CredentialsProvider{
         return secretClient;
     }
 
-    public IAM.UserCredentials createCreds(){
+    public IAM.UserCredentials createCreds() {
         UUID uuid = UUID.randomUUID();
         String token;
 
-        try (StringReader reader = new StringReader(secretClient.getSecret("backofficeKey").getValue())){
+        try (StringReader reader = new StringReader(
+            secretClient.getSecret("backofficeKey").getValue())) {
             token = uuid + "." + Credentials.signToken(uuid, reader);
-        }
-        catch (NoSuchAlgorithmException | SignatureException | InvalidKeyException | InvalidKeySpecException | IOException e){
+        } catch (NoSuchAlgorithmException | SignatureException | InvalidKeyException | InvalidKeySpecException | IOException e) {
             e.printStackTrace();
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Corrupted backoffice token");
         }
 
         return IAM.UserCredentials.newBuilder()
-                .setToken(token)
-                .setUserId(secretClient.getSecret("backofficeUserId").getValue())
-                .build();
+            .setToken(token)
+            .setUserId(secretClient.getSecret("backofficeUserId").getValue())
+            .build();
     }
 }

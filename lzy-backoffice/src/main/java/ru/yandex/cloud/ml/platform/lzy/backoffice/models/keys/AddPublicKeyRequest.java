@@ -7,6 +7,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Introspected
 public class AddPublicKeyRequest {
+
     private UserCredentials userCredentials;
     private String publicKey;
     private String keyName;
@@ -35,12 +36,12 @@ public class AddPublicKeyRequest {
         this.userCredentials = userCredentials;
     }
 
-    public BackOffice.AddKeyRequest toModel(IAM.UserCredentials credentials){
+    public BackOffice.AddKeyRequest toModel(IAM.UserCredentials credentials) {
         return BackOffice.AddKeyRequest.newBuilder()
-                .setPublicKey(publicKey)
-                .setUserCredentials(userCredentials.toModel())
-                .setBackofficeCredentials(credentials)
-                .setKeyName(keyName)
-                .build();
+            .setPublicKey(publicKey)
+            .setUserCredentials(userCredentials.toModel())
+            .setBackofficeCredentials(credentials)
+            .setKeyName(keyName)
+            .build();
     }
 }

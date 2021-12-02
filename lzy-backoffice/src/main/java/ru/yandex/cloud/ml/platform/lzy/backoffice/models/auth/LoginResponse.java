@@ -4,6 +4,7 @@ import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class LoginResponse {
+
     private String redirectUrl;
 
     public String getRedirectUrl() {

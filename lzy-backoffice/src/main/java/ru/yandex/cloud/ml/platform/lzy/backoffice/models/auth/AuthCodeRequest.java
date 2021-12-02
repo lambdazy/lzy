@@ -1,10 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth;
 
 import io.micronaut.core.annotation.Introspected;
-import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 
 @Introspected
 public class AuthCodeRequest {
+
     private String code;
     private String state;
 

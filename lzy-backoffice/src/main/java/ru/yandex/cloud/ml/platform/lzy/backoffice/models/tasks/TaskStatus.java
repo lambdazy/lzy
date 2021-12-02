@@ -1,14 +1,14 @@
 package ru.yandex.cloud.ml.platform.lzy.backoffice.models.tasks;
 
 import io.micronaut.core.annotation.Introspected;
+import java.util.List;
+import java.util.stream.Collectors;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 @Introspected
 public class TaskStatus {
+
     private String taskId;
     private String owner;
     private String servant;
@@ -17,6 +17,20 @@ public class TaskStatus {
     private String fuze;
     private String description;
     private List<String> tags;
+
+    public static TaskStatus fromModel(Tasks.TaskStatus task) {
+        TaskStatus status = new TaskStatus();
+        status.status = task.getStatus().name();
+        status.explanation = task.getExplanation();
+        status.servant = task.getServant();
+        status.taskId = task.getTaskId();
+        status.owner = task.getOwner();
+        status.fuze = task.getZygote().getFuze();
+        status.tags = task.getZygote().getProvisioning().getTagsList().stream()
+            .map(Operations.Provisioning.Tag::getTag).collect(Collectors.toList());
+        status.description = task.getZygote().getDescription();
+        return status;
+    }
 
     public String getTaskId() {
         return taskId;
@@ -80,18 +94,5 @@ public class TaskStatus {
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public static TaskStatus fromModel(Tasks.TaskStatus task){
-        TaskStatus status = new TaskStatus();
-        status.status = task.getStatus().name();
-        status.explanation = task.getExplanation();
-        status.servant = task.getServant();
-        status.taskId = task.getTaskId();
-        status.owner = task.getOwner();
-        status.fuze = task.getZygote().getFuze();
-        status.tags = task.getZygote().getProvisioning().getTagsList().stream().map(Operations.Provisioning.Tag::getTag).collect(Collectors.toList());
-        status.description = task.getZygote().getDescription();
-        return status;
     }
 }
