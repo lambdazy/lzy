@@ -9,7 +9,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
-import ru.yandex.cloud.ml.platform.lzy.server.Permissions;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -140,7 +140,7 @@ public class DbAuthenticator implements Authenticator {
             }
 
             Security.addProvider(new BouncyCastleProvider());
-            for (TokenModel userToken: user.getTokens()) {
+            for (PublicKeyModel userToken: user.getPublicKeys()) {
                 try (StringReader keyReader = new StringReader(userToken.getValue())) {
                     if (checkToken(keyReader, token, tokenSign)) {
                         LOG.info("Successfully checked user token " + userId);

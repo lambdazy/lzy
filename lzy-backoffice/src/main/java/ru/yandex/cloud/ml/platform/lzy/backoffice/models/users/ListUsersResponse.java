@@ -1,10 +1,9 @@
-package ru.yandex.cloud.ml.platform.lzy.backoffice.models;
+package ru.yandex.cloud.ml.platform.lzy.backoffice.models.users;
 
 import io.micronaut.core.annotation.Introspected;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 
 import java.util.List;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Introspected

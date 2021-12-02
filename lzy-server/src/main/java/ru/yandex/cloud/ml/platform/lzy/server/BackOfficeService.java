@@ -8,14 +8,17 @@ import jakarta.inject.Inject;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TokenModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserRoleModel;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import javax.persistence.criteria.CriteriaQuery;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -31,7 +34,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     TasksManager tasks;
 
     @Override
-    public void addToken(BackOffice.AddTokenRequest request, StreamObserver<BackOffice.AddTokenResult> responseObserver){
+    public void addKey(BackOffice.AddKeyRequest request, StreamObserver<BackOffice.AddKeyResult> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
             authBackofficeUserCredentials(request.getUserCredentials());
@@ -47,11 +50,11 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                 responseObserver.onError(Status.INVALID_ARGUMENT.asException());
                 return;
             }
-            TokenModel token = new TokenModel(request.getTokenName(), request.getPublicKey(), user);
+            PublicKeyModel token = new PublicKeyModel(request.getKeyName(), request.getPublicKey(), user);
             try {
                 session.save(token);
                 tx.commit();
-                responseObserver.onNext(BackOffice.AddTokenResult.newBuilder().build());
+                responseObserver.onNext(BackOffice.AddKeyResult.newBuilder().build());
                 responseObserver.onCompleted();
             }
             catch (Exception e){
@@ -79,9 +82,8 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
         try(Session session = storage.getSessionFactory().openSession()){
             Transaction tx = session.beginTransaction();
-            UserModel user = new UserModel(request.getUser().getUserId());
             try {
-                session.save(user);
+                createUser(session, request.getUser().getUserId());
                 tx.commit();
                 responseObserver.onNext(BackOffice.CreateUserResult.newBuilder().build());
                 responseObserver.onCompleted();
@@ -207,7 +209,8 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             try {
                 UserModel user = session.find(UserModel.class, request.getUserId());
                 if (user == null){
-                    user = new UserModel(
+                    user = createUser(
+                            session,
                             request.getUserId()
                     );
                     session.save(user);
@@ -297,7 +300,24 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     }
 
     @Override
-    public void getTasks(BackOffice.GetTasksRequest request, StreamObserver<BackOffice.GetTasksResponse> responseObserver){
+    public void getTasks(BackOffice.GetTasksRequest request, StreamObserver<BackOffice.GetTasksResponse> responseObserver) {
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getCredentials());
+        } catch (StatusException e) {
+            responseObserver.onError(e);
+            return;
+        }
+        responseObserver.onNext(BackOffice.GetTasksResponse.newBuilder().setTasks(Tasks.TasksList.newBuilder().addAllTasks(tasks.ps()
+                .filter(t -> this.auth.canAccess(t, request.getCredentials().getUserId()))
+                .map(t -> LzyServer.Impl.taskStatus(t, tasks))
+                .collect(Collectors.toList())
+        )).build());
+
+        responseObserver.onCompleted();
+    }
+
+    public void listKeys(BackOffice.ListKeysRequest request, StreamObserver<BackOffice.ListKeysResponse> responseObserver){
         try {
             authBackofficeCredentials(request.getBackofficeCredentials());
             authBackofficeUserCredentials(request.getCredentials());
@@ -307,14 +327,46 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             return;
         }
 
-        responseObserver.onNext(BackOffice.GetTasksResponse.newBuilder().setTasks(Tasks.TasksList.newBuilder().addAllTasks(tasks.ps()
-            .filter(t -> this.auth.canAccess(t, request.getCredentials().getUserId()))
-            .map(t -> LzyServer.Impl.taskStatus(t, tasks))
-            .collect(Collectors.toList())
-        )).build());
+        try(Session session = storage.getSessionFactory().openSession()){
+            UserModel user = session.find(UserModel.class, request.getCredentials().getUserId());
+            responseObserver.onNext(BackOffice.ListKeysResponse.newBuilder()
+                .addAllKeyNames(user.getPublicKeys().stream().map(
+                    PublicKeyModel::getName
+                ).collect(Collectors.toList()))
+                .build());
+            responseObserver.onCompleted();
+        }
+    }
 
-        responseObserver.onCompleted();
+    @Override
+    public void deleteKey(BackOffice.DeleteKeyRequest request, StreamObserver<BackOffice.DeleteKeyResponse> responseObserver){
+        try {
+            authBackofficeCredentials(request.getBackofficeCredentials());
+            authBackofficeUserCredentials(request.getCredentials());
+        }
+        catch (StatusException e){
+            responseObserver.onError(e);
+            return;
+        }
 
+        try(Session session = storage.getSessionFactory().openSession()){
+            Transaction tx = session.beginTransaction();
+            try {
+                PublicKeyModel token = session.find(PublicKeyModel.class, new PublicKeyModel.PublicKeyPk(request.getKeyName(), request.getCredentials().getUserId()));
+                if (token == null) {
+                    responseObserver.onError(Status.NOT_FOUND.asException());
+                    return;
+                }
+                session.delete(token);
+                tx.commit();
+                responseObserver.onNext(BackOffice.DeleteKeyResponse.newBuilder().build());
+                responseObserver.onCompleted();
+            }
+            catch (Exception e){
+                tx.rollback();
+                responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            }
+        }
     }
 
     private void authBackofficeCredentials(IAM.UserCredentials credentials) throws StatusException {
@@ -330,6 +382,17 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         if (!auth.checkBackOfficeSession(UUID.fromString(credentials.getSessionId()), credentials.getUserId())){
             throw Status.PERMISSION_DENIED.asException();
         }
+    }
+
+    private UserModel createUser(Session session, String userId){
+        UserModel user = new UserModel(userId);
+        session.save(user);
+        UserRoleModel role = session.find(UserRoleModel.class, "user");
+        Set<UserModel> users = role.getUsers();
+        users.add(user);
+        role.setUsers(users);
+        session.save(role);
+        return user;
     }
 
 }

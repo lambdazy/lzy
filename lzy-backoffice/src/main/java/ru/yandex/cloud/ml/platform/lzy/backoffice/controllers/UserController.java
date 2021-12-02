@@ -8,7 +8,10 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.grpc.Client;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.CreateUserRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.DeleteUserRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.ListUsersRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.ListUsersResponse;
 
 import javax.validation.Valid;
 
@@ -17,12 +20,6 @@ import javax.validation.Valid;
 public class UserController {
     @Inject
     Client client;
-
-    @Post("add_token")
-    public HttpResponse<?> addToken(@Valid @Body AddTokenRequest request){
-        client.addToken(request);
-        return HttpResponse.ok();
-    }
 
     @Post("create")
     public HttpResponse<?> create(@Valid @Body CreateUserRequest request){

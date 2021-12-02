@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.configs.OAuthSecretsProvider;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.grpc.Client;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.*;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.auth.*;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.oauth.models.GitHubGetUserResponse;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.oauth.models.GithubAccessTokenRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.oauth.models.GithubAccessTokenResponse;

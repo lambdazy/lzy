@@ -1,4 +1,4 @@
-import { useContext, createContext, useState} from "react";
+import { useContext, createContext, useState, useEffect} from "react";
 import { cookies } from "../App";
 import { Route, Redirect } from "react-router-dom";
 import axios from "axios";
@@ -100,15 +100,19 @@ export function PrivateRoute(props: { children: any; [x: string]: any }) {
   let auth = useAuth();
   let {data, error} = useAsync({promiseFn: auth.getCredentials})
   let alert = useAlert();
+  
+  useEffect(() => {
+    if (error){
+      alert.show(error.message, error.name, () => {}, "danger");
+    }
+    else{
+      alert.close();
+    }
+  })
+
   if (data === undefined){
-    alert.show("Please wait", "Login", () => {}, "success");
-    return ( <> </>)
+    return ( <p>Loading...</p>)
   }
-  if (error){
-    alert.show(error.message, error.name, () => {}, "danger");
-    return ( <> </>)
-  }
-  alert.close()
   return (
     <Async promiseFn={auth.getCredentials}>
       <Async.Fulfilled>

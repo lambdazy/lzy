@@ -10,7 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class PyRunTest extends LzyBaseTest {
+public class PyApiTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before
@@ -64,5 +64,33 @@ public class PyRunTest extends LzyBaseTest {
         terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
         return condaPrefix;
+    }
+
+    @Test
+    public void testExecFail() {
+        //Arrange
+        String condaPrefix = prepareConda();
+        final String pyCommand = "python /lzy-python/examples/test_tasks/exec_fail.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+            condaPrefix + pyCommand);
+
+        //Assert
+        Assert.assertTrue(result.stderr().contains("LzyExecutionException"));
+    }
+
+    @Test
+    public void testEnvFail() {
+        //Arrange
+        String condaPrefix = prepareConda();
+        final String pyCommand = "python /lzy-python/examples/test_tasks/env_fail.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+            condaPrefix + pyCommand);
+
+        //Assert
+        Assert.assertTrue(result.stderr().contains("Failed to install environment on remote machine"));
     }
 }

@@ -3,8 +3,7 @@ import inspect
 import logging
 import os
 from abc import abstractmethod, ABC
-from pathlib import Path
-from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional, Union
+from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 from lzy.api.pkg_info import get_python_env_as_yaml
 from lzy.api.whiteboard.controller import WhiteboardController

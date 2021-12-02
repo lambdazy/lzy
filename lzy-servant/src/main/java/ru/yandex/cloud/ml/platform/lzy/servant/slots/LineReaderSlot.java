@@ -51,6 +51,11 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     }
 
     @Override
+    public void forceClose() {
+        reader.completeExceptionally(new RuntimeException("Force closed"));
+    }
+
+    @Override
     public synchronized Stream<ByteString> readFromPosition(long offset) throws IOException {
         if (offset != 0) {
             throw new EOFException();

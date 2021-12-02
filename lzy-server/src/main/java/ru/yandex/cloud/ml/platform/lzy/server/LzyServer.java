@@ -294,6 +294,30 @@ public class LzyServer {
         }
 
         @Override
+        public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request, StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
+            boolean res = checkAuth(IAM.Auth.newBuilder()
+                .setUser(IAM.UserCredentials.newBuilder()
+                    .setUserId(request.getUserId())
+                    .setToken(request.getToken())
+                    .build())
+                .build(), responseObserver);
+            if (!res) {
+                responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
+                responseObserver.onCompleted();
+                return;
+            }
+            for (String permission: request.getPermissionsList()) {
+                if (!auth.hasPermission(request.getUserId(), permission)){
+                    responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
+                    responseObserver.onCompleted();
+                    return;
+                }
+            }
+            responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(true).build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
         public void registerServant(Lzy.AttachServant request, StreamObserver<Lzy.AttachStatus> responseObserver) {
             LOG.info("Server::registerServant " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();

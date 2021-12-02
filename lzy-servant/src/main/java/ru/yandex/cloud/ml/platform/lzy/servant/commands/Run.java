@@ -140,6 +140,11 @@ public class Run implements LzyCommand {
         });
 
         final Iterator<Servant.ExecutionProgress> executionProgress = kharon.start(taskSpec.build());
+        final Servant.ExecutionConcluded[] exit = new Servant.ExecutionConcluded[1];
+        exit[0] = Servant.ExecutionConcluded.newBuilder()
+            .setRc(-1)
+            .setDescription("Got no exit code from servant")
+            .build();
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
@@ -147,16 +152,24 @@ public class Run implements LzyCommand {
                     LOG.info("Closing stdin");
                     System.in.close();
                 }
+                if (progress.hasExit()) {
+                    exit[0] = progress.getExit();
+                }
             } catch (InvalidProtocolBufferException e) {
                 LOG.warn("Unable to parse execution progress", e);
             } catch (IOException e) {
                 LOG.error("Failed to close stdin", e);
             }
         });
-        LOG.info("Run:: Task finished");
+        final int rc = exit[0].getRc();
+        final String description = exit[0].getDescription();
+        LOG.info("Run:: Task finished RC = {}, Description = {}", rc, description);
+        if (rc != 0) {
+            System.err.print(description);
+        }
         communicationLatch.await(); // waiting for slots to finish communication
         destroyChannel(stdinChannel);
-        return 0;
+        return rc;
     }
 
     private Map<String, Map<String, String>> pipesConfig() throws IOException {

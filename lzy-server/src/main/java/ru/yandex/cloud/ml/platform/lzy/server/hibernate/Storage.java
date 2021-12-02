@@ -32,7 +32,7 @@ public class Storage implements DbStorage{
         cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         cfg.addAnnotatedClass(UserModel.class);
         cfg.addAnnotatedClass(TaskModel.class);
-        cfg.addAnnotatedClass(TokenModel.class);
+        cfg.addAnnotatedClass(PublicKeyModel.class);
         cfg.addAnnotatedClass(UserRoleModel.class);
         cfg.addAnnotatedClass(PermissionModel.class);
         cfg.addAnnotatedClass(BackofficeSessionModel.class);

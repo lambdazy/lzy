@@ -14,15 +14,12 @@ SHELL ["/bin/bash", "-c"]
 # for future interactive shell sessions
 RUN conda init bash
 
-### copy lzy-py sources
-COPY lzy-python/ lzy-python
-
 COPY lzy-servant/create_env.sh /
 COPY lzy-servant/requirements.txt /
 COPY lzy-servant/prepare_envs.sh /
 RUN chmod a+rx /create_env.sh
 RUN chmod a+rx /prepare_envs.sh
-RUN ./prepare_envs.sh "lzy-python"
+RUN ./prepare_envs.sh
 
 ### deps
 RUN apt-get -y update --fix-missing
