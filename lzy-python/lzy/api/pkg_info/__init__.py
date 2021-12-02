@@ -84,7 +84,7 @@ def select_modules(namespace: Dict[str, Any]) -> \
         if parent_module is None:
             continue
 
-        name = inspect.getmodule(v).__name__.split('.')[0]
+        name = inspect.getmodule(v).__name__.split('.')[0] # type: ignore
         if name not in distributions:
             continue
 
