@@ -1,10 +1,15 @@
+resource "tls_private_key" "backoffice_key" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
 resource "kubernetes_secret" "backoffice_secrets" {
   metadata {
     name = "backoffice-secrets"
   }
 
   data = {
-    private-key = var.backoffice-secrets-private-key
+    private-key = tls_private_key.backoffice_key.private_key_pem
   }
 
   type = "Opaque"
