@@ -15,12 +15,10 @@ SHELL ["/bin/bash", "-c"]
 # for future interactive shell sessions
 RUN conda init bash
 
-COPY lzy-servant/create_env.sh /
 COPY lzy-servant/requirements.txt /
-COPY lzy-servant/prepare_envs.sh /
-RUN chmod a+rx /create_env.sh
-RUN chmod a+rx /prepare_envs.sh
-RUN ./prepare_envs.sh
+COPY lzy-servant/conda_prepare.sh /
+RUN chmod a+rx /conda_prepare.sh
+RUN ./conda_prepare.sh init
 
 ### deps
 RUN apt-get -y update --fix-missing
