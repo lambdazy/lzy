@@ -7,6 +7,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Introspected
 public class CheckSessionRequest {
+
     private String userId;
 
     @Nullable
@@ -28,12 +29,13 @@ public class CheckSessionRequest {
         this.sessionId = sessionId;
     }
 
-    public BackOffice.CheckSessionRequest toModel(IAM.UserCredentials credentials){
+    public BackOffice.CheckSessionRequest toModel(IAM.UserCredentials credentials) {
         BackOffice.CheckSessionRequest.Builder builder = BackOffice.CheckSessionRequest.newBuilder()
-                .setBackofficeCredentials(credentials)
-                .setSessionId(sessionId);
-        if (userId != null)
+            .setBackofficeCredentials(credentials)
+            .setSessionId(sessionId);
+        if (userId != null) {
             builder.setUserId(userId);
+        }
         return builder.build();
     }
 }

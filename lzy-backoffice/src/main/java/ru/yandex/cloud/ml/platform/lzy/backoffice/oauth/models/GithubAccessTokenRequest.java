@@ -4,6 +4,7 @@ import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class GithubAccessTokenRequest {
+
     private String client_id;
     private String client_secret;
     private String code;

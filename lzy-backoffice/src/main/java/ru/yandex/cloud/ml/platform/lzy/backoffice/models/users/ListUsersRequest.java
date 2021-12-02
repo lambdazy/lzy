@@ -7,6 +7,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Introspected
 public class ListUsersRequest {
+
     private UserCredentials credentials;
 
     public UserCredentials getCredentials() {
@@ -17,10 +18,10 @@ public class ListUsersRequest {
         this.credentials = credentials;
     }
 
-    public BackOffice.ListUsersRequest toModel(IAM.UserCredentials credentials){
+    public BackOffice.ListUsersRequest toModel(IAM.UserCredentials credentials) {
         return BackOffice.ListUsersRequest.newBuilder()
-                .setCallerCredentials(this.credentials.toModel())
-                .setBackofficeCredentials(credentials)
-                .build();
+            .setCallerCredentials(this.credentials.toModel())
+            .setBackofficeCredentials(credentials)
+            .build();
     }
 }
