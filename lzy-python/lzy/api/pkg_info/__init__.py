@@ -28,9 +28,9 @@ def to_str(source: Iterable[Any], delim: str = '.') -> str:
 exclude = {'lzy-py'}
 
 
-def all_installed_packages() -> Dict[str, Tuple[str]]:
+def all_installed_packages() -> Dict[str, Tuple[str, ...]]:
     return {
-        entry.project_name: entry.version.split('.')
+        entry.project_name: tuple(entry.version.split('.'))
         for entry in pkg_resources.working_set
         if entry.project_name not in exclude
     }
@@ -43,9 +43,9 @@ _installed_versions = {
     # "3.10.0": "py310"
 }
 
-def create_yaml(name: str = 'default',
-                installed_packages: Dict[str, Tuple[str]] = None
-                ) -> Tuple[str, str]:
+
+def create_yaml(installed_packages: Dict[str, Tuple[str, ...]],
+                name: str = 'default') -> Tuple[str, str]:
     # always use only first three numbers, otherwise conda won't find
     python_version = to_str(sys.version_info[:3])
     if python_version in _installed_versions:
@@ -71,7 +71,7 @@ def create_yaml(name: str = 'default',
 
 def select_modules(namespace: Dict[str, Any]) -> \
         Tuple[Dict[str, Tuple[str, ...]], Tuple[str, ...]]:
-    dist_versions = all_installed_packages()
+    dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
     # TODO: this doesn't work for custom modules installed by user, e.g. lzy-py
     # TODO: don't know why
     packages_with_versions = {}
