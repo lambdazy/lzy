@@ -3,7 +3,8 @@ import inspect
 import logging
 import os
 from abc import abstractmethod, ABC
-from typing import List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
+from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, \
+    Optional
 
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.api.whiteboard.controller import WhiteboardController
@@ -51,7 +52,7 @@ class LzyEnvBase(ABC):
         pass
 
     @abstractmethod
-    def generate_conda_env(self, namespace: dict[str, Tuple[str]]) -> Tuple[str, str]:
+    def generate_conda_env(self, namespace: Optional[Dict[str, Tuple[str]]]) -> Tuple[str, str]:
         pass
 
 
@@ -89,7 +90,7 @@ class LzyEnv(LzyEnvBase):
         self._yaml = yaml_path
         self._log = logging.getLogger(str(self.__class__))
 
-    def generate_conda_env(self, namespace: dict[str, Any]) -> Tuple[str, str]:
+    def generate_conda_env(self, namespace: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
         if self._yaml is None:
             if namespace is None:
                 return create_yaml(installed_packages=all_installed_packages())
@@ -170,8 +171,8 @@ class LzyEnv(LzyEnvBase):
             raise ValueError('Projection class should accept whiteboard dataclass as an init argument')
 
         # noinspection PyArgumentList
-        return map(lambda x: typ(**{wb_arg_name: x}),
-                   self._wb_repo.whiteboards(wb_arg_type))  # type: ignore
+        return map(lambda x: typ(**{wb_arg_name: x}), # type: ignore
+                   self._wb_repo.whiteboards(wb_arg_type))
 
     def run(self) -> None:
         if not self.already_exists():
