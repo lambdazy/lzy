@@ -4,7 +4,7 @@ import sys
 import pkg_resources
 
 from types import ModuleType
-from typing import Any, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 
 import yaml
 from importlib_metadata import packages_distributions
@@ -28,7 +28,7 @@ def to_str(source: Iterable[Any], delim: str = '.') -> str:
 exclude = {'lzy-py'}
 
 
-def all_installed_packages() -> dict[str, Tuple[str]]:
+def all_installed_packages() -> Dict[str, Tuple[str]]:
     return {
         entry.project_name: entry.version.split('.')
         for entry in pkg_resources.working_set
@@ -44,7 +44,7 @@ _installed_versions = {
 }
 
 def create_yaml(name: str = 'default',
-                installed_packages: dict[str, Tuple[str]] = None
+                installed_packages: Dict[str, Tuple[str]] = None
                 ) -> Tuple[str, str]:
     # always use only first three numbers, otherwise conda won't find
     python_version = to_str(sys.version_info[:3])
@@ -69,8 +69,8 @@ def create_yaml(name: str = 'default',
     return name, yaml.dump(conda_yaml, sort_keys=False)
 
 
-def select_modules(namespace: dict[str, Any]) -> \
-        tuple[dict[str, Tuple[str]], tuple[str]]:
+def select_modules(namespace: Dict[str, Any]) -> \
+        Tuple[Dict[str, Tuple[str, ...]], Tuple[str, ...]]:
     dist_versions = all_installed_packages()
     # TODO: this doesn't work for custom modules installed by user, e.g. lzy-py
     # TODO: don't know why
