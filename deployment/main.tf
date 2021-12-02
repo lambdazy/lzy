@@ -60,6 +60,26 @@ resource "azurerm_kubernetes_cluster" "main" {
   }
 }
 
+resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  name                  = "lzypool"
+  vm_size               = "Standard_D2_v2"
+  node_count            = var.lzy_count
+  node_labels           = {
+    type = "lzy"
+  }
+}
+
+resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  name                  = "cpupool"
+  vm_size               = "Standard_D2_v2"
+  node_count            = var.cpu_count
+  node_labels           = {
+    type = "cpu"
+  }
+}
+
 resource "azurerm_public_ip" "lzy_kharon" {
   domain_name_label   = "kharon-${var.installation_name}"
   name                = "lzy-kharon-public-ip"

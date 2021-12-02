@@ -7,6 +7,21 @@ variable "agent_count" {
   default = 10
 }
 
+variable "cpu_count" {
+  type = number
+  default = 7
+}
+
+variable "lzy_count" {
+  type = number
+  default = 5
+}
+
+variable "gpu_count" {
+  type = number
+  default = 3
+}
+
 variable location {
   default = "North Europe"
 }
