@@ -31,6 +31,18 @@ resource "kubernetes_pod" "lzy_server" {
         value = "server"
       }
       env {
+        name = "AGENTS_NAMES"
+        value = "backoffice"
+      }
+      env {
+        name = "AGENTS_PUBLIC_KEYS"
+        value = tls_private_key.backoffice_key.public_key_pem
+      }
+      env {
+        name = "AGENTS_ROLES"
+        value = "backoffice"
+      }
+      env {
         name = "DATABASE_PASSWORD"
         value_from {
           secret_key_ref {
