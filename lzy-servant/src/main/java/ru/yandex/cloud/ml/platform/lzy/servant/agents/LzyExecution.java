@@ -17,15 +17,12 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.EmptyExecutionSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.S3ExecutionSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
@@ -54,26 +51,16 @@ public class LzyExecution {
     private final Map<String, LzySlot> slots = new ConcurrentHashMap<>();
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
-    private final ExecutionSnapshot executionSnapshot;
-    private final SnapshotMeta meta;
-    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
+    private final Snapshotter snapshotter;
 
-    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri,
-                        @Nullable SnapshotApiGrpc.SnapshotApiBlockingStub snapshot,
-                        @Nullable SnapshotMeta meta) {
+    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, Snapshotter snapshotter) {
         this.taskId = taskId;
         this.zygote = zygote;
-        this.snapshot = snapshot;
-        if (meta != null) {
-            executionSnapshot = new S3ExecutionSnapshot(taskId);
-        } else {
-            executionSnapshot = new EmptyExecutionSnapshot();
-        }
-        stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"), executionSnapshot);
-        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"), executionSnapshot);
-        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"), executionSnapshot);
+        stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"), snapshotter.snapshot());
+        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"), snapshotter.snapshot());
+        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"), snapshotter.snapshot());
         this.servantUri = servantUri;
-        this.meta = meta;
+        this.snapshotter = snapshotter;
     }
 
     public LzySlot configureSlot(Slot spec, String binding) {
@@ -85,31 +72,8 @@ public class LzyExecution {
                 return slots.get(spec.name());
             }
             try {
+                snapshotter.prepare(spec);
                 final LzySlot slot = createSlot(spec, binding);
-                if (meta != null) {
-                    URI uri = executionSnapshot.getSlotUri(slot.definition());
-                    if (snapshot == null) {
-                        throw new RuntimeException("LzyExecution::configureSlot snapshot is null");
-                    }
-                    LzyWhiteboard.PrepareCommand.Builder builder = LzyWhiteboard.PrepareCommand
-                        .newBuilder()
-                        .setSnapshotId(meta.getSnapshotId())
-                        .setEntryId(meta.getEntryId(spec.name()))
-                        .setUri(uri.toString());
-                    if (spec.direction().equals(Slot.Direction.OUTPUT)) {
-                        zygote.slots()
-                            .filter(s -> s.direction().equals(Slot.Direction.INPUT))
-                            .forEach(s -> builder.setDependency(LzyWhiteboard.Dependency
-                                .newBuilder()
-                                .addDepEntryId(meta.getEntryId(s.name()))
-                                .build())
-                             );
-                    }
-                    LzyWhiteboard.OperationStatus status = snapshot.prepareToSave(builder.build());
-                    if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
-                        throw new RuntimeException("LzyExecution::configureSlot failed to save to snapshot");
-                    }
-                }
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
                     if (spec.name().startsWith("local://")) { // No scheme in slot name
@@ -137,18 +101,7 @@ public class LzyExecution {
                 slot.onState(Operations.SlotStatus.State.DESTROYED, () -> {
                     synchronized (slots) {
                         LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
-                        if (meta != null) {
-                            LzyWhiteboard.CommitCommand commitCommand = LzyWhiteboard.CommitCommand
-                                .newBuilder()
-                                .setSnapshotId(meta.getSnapshotId())
-                                .setEntryId(meta.getEntryId(spec.name()))
-                                .setEmpty(executionSnapshot.isEmpty(spec))
-                                .build();
-                            LzyWhiteboard.OperationStatus status = snapshot.commit(commitCommand);
-                            if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
-                                throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");
-                            }
-                        }
+                        snapshotter.commit(spec);
                         slots.remove(slot.name());
                         slots.notifyAll();
                     }
@@ -194,18 +147,19 @@ public class LzyExecution {
                 case FILE: {
                     switch (spec.direction()) {
                         case INPUT:
-                            return new InFileSlot(taskId, spec, executionSnapshot);
+                            return new InFileSlot(taskId, spec, snapshotter.snapshot());
                         case OUTPUT:
                             if (spec.name().startsWith("local://")) {
-                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()), executionSnapshot);
+                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()), snapshotter.snapshot());
                             }
-                            return new OutFileSlot(taskId, spec, executionSnapshot);
+                            return new OutFileSlot(taskId, spec, snapshotter.snapshot());
                     }
                     break;
                 }
                 case ARG:
                     arguments = binding;
-                    return new LzySlotBase(spec, executionSnapshot) {};
+                    return new LzySlotBase(spec, snapshotter.snapshot()) {
+                    };
             }
             throw new UnsupportedOperationException("Not implemented yet");
         } finally {
@@ -306,10 +260,6 @@ public class LzyExecution {
 
     public LzySlot slot(String name) {
         return slots.get(name);
-    }
-
-    public String taskId() {
-        return taskId;
     }
 
     public void signal(int sigValue) {

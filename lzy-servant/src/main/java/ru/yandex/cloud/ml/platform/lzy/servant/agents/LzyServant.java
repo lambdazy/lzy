@@ -10,6 +10,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
@@ -30,9 +32,9 @@ public class LzyServant extends LzyAgent {
         URI whiteboardAddress = config.getWhiteboardAddress();
         final Impl impl = new Impl();
         final ManagedChannel channel = ManagedChannelBuilder
-            .forAddress(serverAddress.getHost(), serverAddress.getPort())
-            .usePlaintext()
-            .build();
+                .forAddress(serverAddress.getHost(), serverAddress.getPort())
+                .usePlaintext()
+                .build();
         server = LzyServerGrpc.newBlockingStub(channel);
         final ManagedChannel channelWb = ManagedChannelBuilder
                 .forAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort())
@@ -76,15 +78,10 @@ public class LzyServant extends LzyAgent {
                 return;
             }
             final String tid = request.getAuth().getTask().getTaskId();
-            final SnapshotMeta meta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : null;
-            currentExecution = new LzyExecution(
-                tid,
-                (AtomicZygote) gRPCConverter.from(request.getZygote()),
-                agentInternalAddress,
-                snapshot,
-                meta
-            );
-
+            final SnapshotMeta meta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : SnapshotMeta.empty();
+            final AtomicZygote zygote = (AtomicZygote) gRPCConverter.from(request.getZygote());
+            final Snapshotter snapshotter = new SnapshotterImpl(tid, zygote, snapshot, meta);
+            currentExecution = new LzyExecution(tid, zygote, agentInternalAddress, snapshotter);
             currentExecution.onProgress(progress -> {
                 LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                 responseObserver.onNext(progress);
@@ -103,8 +100,8 @@ public class LzyServant extends LzyAgent {
 
             for (Tasks.SlotAssignment spec : request.getAssignmentsList()) {
                 final LzySlot lzySlot = currentExecution.configureSlot(
-                    gRPCConverter.from(spec.getSlot()),
-                    spec.getBinding()
+                        gRPCConverter.from(spec.getSlot()),
+                        spec.getBinding()
                 );
                 if (lzySlot instanceof LzyFileSlot) {
                     LOG.info("lzyFS::addSlot " + lzySlot.name());
@@ -128,7 +125,7 @@ public class LzyServant extends LzyAgent {
             final LzyOutputSlot slot = (LzyOutputSlot) currentExecution.slot(request.getSlot());
             try {
                 slot.readFromPosition(request.getOffset())
-                    .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
+                        .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
                 responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
                 responseObserver.onCompleted();
             } catch (IOException iae) {
@@ -138,8 +135,8 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void configureSlot(
-            Servant.SlotCommand request,
-            StreamObserver<Servant.SlotCommandStatus> responseObserver
+                Servant.SlotCommand request,
+                StreamObserver<Servant.SlotCommandStatus> responseObserver
         ) {
             LzyServant.this.configureSlot(currentExecution, request, responseObserver);
         }

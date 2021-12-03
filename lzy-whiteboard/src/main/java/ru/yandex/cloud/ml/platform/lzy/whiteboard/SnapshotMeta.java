@@ -3,11 +3,9 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
-import java.net.URI;
+import javax.annotation.Nullable;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class SnapshotMeta {
     private static class SlotMapping {
@@ -31,13 +29,14 @@ public class SnapshotMeta {
         return entryId.substring(0, entryId.indexOf("/"));
     }
 
+    @Nullable
     public String getEntryId(String slotName) {
         for (var entry : slotMappings) {
             if (entry.slotName.equals(slotName)) {
                 return entry.entryId;
             }
         }
-        throw new RuntimeException("No entryId was provided for given slot name " + slotName);
+        return null;
     }
 
     public static SnapshotMeta from(Tasks.SnapshotMeta meta) {
@@ -58,5 +57,9 @@ public class SnapshotMeta {
                     .build());
         }
         return builder.build();
+    }
+
+    public static SnapshotMeta empty() {
+        return new SnapshotMeta(Set.of());
     }
 }

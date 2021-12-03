@@ -9,7 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-public class EmptyExecutionSnapshot implements ExecutionSnapshot {
+public class DevNullExecutionSnapshot implements ExecutionSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
 
     @Override

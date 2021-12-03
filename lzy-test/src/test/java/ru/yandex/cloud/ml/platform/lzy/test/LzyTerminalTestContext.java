@@ -14,7 +14,6 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -46,7 +45,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         ExecutionResult execute(Map<String, String> env, String... command);
 
         default ExecutionResult run(String zygoteName, String arguments, Map<String, String> bindings) {
-            return run(zygoteName, arguments, bindings, null);
+            return run(zygoteName, arguments, bindings, Map.of());
         }
 
         default ExecutionResult run(String zygoteName, String arguments, Map<String, String> bindings, Map<String, String> mappings) {

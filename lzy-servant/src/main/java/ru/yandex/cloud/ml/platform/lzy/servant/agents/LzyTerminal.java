@@ -8,6 +8,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
@@ -143,7 +144,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     protected void onStartUp() {
         commandHandler = new CommandHandler();
         status.set(AgentStatus.PREPARING_EXECUTION);
-        currentExecution = new LzyExecution(null, null, agentInternalAddress, null, null);
+        currentExecution = new LzyExecution(null, null, agentInternalAddress, new Snapshotter.DevNullSnapshotter());
         status.set(AgentStatus.EXECUTING);
 
         Context.current().addListener(context -> {
