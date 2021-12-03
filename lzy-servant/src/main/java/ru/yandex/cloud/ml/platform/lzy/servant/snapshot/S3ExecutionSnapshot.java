@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class S3ExecutionSnapshot implements ExecutionSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
@@ -37,20 +38,18 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
 
     private static final Transmitter transmitter;
     private static final AmazonS3 client;
+
     static {
         BasicAWSCredentials credentials = new BasicAWSCredentials(ACCESS_KEY, SECRET_KEY);
         client = AmazonS3ClientBuilder.standard()
                 .withCredentials(new AWSStaticCredentialsProvider(credentials))
                 .withEndpointConfiguration(
                         new AmazonS3ClientBuilder.EndpointConfiguration(
-                                SERVICE_ENDPOINT,REGION
+                                SERVICE_ENDPOINT, REGION
                         )
                 )
                 .withPathStyleAccessEnabled(Boolean.parseBoolean(PATH_STYLE_ACCESS_ENABLED))
                 .build();
-        if (!client.doesBucketExistV2(BUCKET_NAME)) {
-            client.createBucket(BUCKET_NAME);
-        }
         AmazonTransmitterFactory factory = new AmazonTransmitterFactory(client);
         transmitter = factory.fixedPoolsTransmitter("transmitter", 10, 10);
     }
@@ -58,6 +57,7 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
     private final String taskId;
     private final Map<Slot, StreamsWrapper> slotStream = new ConcurrentHashMap<>();
     private final Set<Slot> nonEmpty = ConcurrentHashMap.newKeySet();
+    private final AtomicBoolean bucketInited = new AtomicBoolean(false);
 
     public S3ExecutionSnapshot(String taskId) {
         this.taskId = taskId;
@@ -70,6 +70,7 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
     @Override
     public URI getSlotUri(Slot slot) {
         try {
+            initBucket();
             return client.getUrl(BUCKET_NAME, generateKey(slot)).toURI();
         } catch (URISyntaxException e) {
             // never happens
@@ -90,6 +91,7 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
             }
             throw new RuntimeException("S3ExecutionSnapshot::createStreams exception while creating streams", e);
         }
+        initBucket();
         final ListenableFuture<UploadState> future = transmitter.upload(new UploadRequestBuilder()
                 .bucket(BUCKET_NAME)
                 .key(generateKey(slot))
@@ -97,6 +99,14 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
                 .stream(() -> is)
                 .build());
         return new StreamsWrapper(is, os, future);
+    }
+
+    private void initBucket() {
+        if (bucketInited.compareAndSet(false, true)) {
+            if (!client.doesBucketExistV2(BUCKET_NAME)) {
+                client.createBucket(BUCKET_NAME);
+            }
+        }
     }
 
     @Override
