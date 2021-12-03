@@ -101,9 +101,8 @@ public class Run implements LzyCommand {
         taskSpec.setZygote(grpcZygote);
         if (localCmd.hasOption('s')) {
             final String mappingsFile = localCmd.getOptionValue('s');
-            final Map<String, String> mappings = new HashMap<>();
             //noinspection unchecked
-            mappings.putAll(objectMapper.readValue(new File(mappingsFile), Map.class));
+            final Map<String, String> mappings = new HashMap<String, String>(objectMapper.readValue(new File(mappingsFile), Map.class));
             if (mappings.isEmpty()) {
                 throw new IllegalArgumentException("Persistent tasks require -s argument which points to non-empty mappings");
             }
