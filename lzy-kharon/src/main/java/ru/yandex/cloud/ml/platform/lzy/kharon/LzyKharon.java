@@ -17,7 +17,8 @@ import java.util.Iterator;
 public class LzyKharon {
     private static final Logger LOG = LogManager.getLogger(LzyKharon.class);
     private final LzyServerGrpc.LzyServerBlockingStub server;
-    private final WhiteboardApiGrpc.WhiteboardApiBlockingStub whiteboard;
+    private final WbApiGrpc.WbApiBlockingStub whiteboard;
+    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
 
     private final TerminalSessionManager terminalManager;
     private final DataCarrier dataCarrier = new DataCarrier();
@@ -30,6 +31,7 @@ public class LzyKharon {
         options.addOption(new Option("s", "servant-proxy-port", true, "gRPC servant port setting"));
         options.addOption(new Option("z", "lzy-server-address", true, "Lzy server address [host:port]"));
         options.addOption(new Option("w", "lzy-whiteboard-address", true, "Lzy whiteboard address [host:port]"));
+        options.addOption(new Option("lsa", "lzy-snapshot-address", true, "Lzy snapshot address [host:port]"));
     }
 
     public static String host;
@@ -37,6 +39,7 @@ public class LzyKharon {
     public static int servantPort;
     public static URI serverAddress;
     public static URI whiteboardAddress;
+    public static URI snapshotAddress;
 
     private final Server kharonServer;
     private final Server kharonServantProxy;
@@ -57,14 +60,15 @@ public class LzyKharon {
         servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
         serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
         whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
+        snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
 
-        final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, host, port, servantPort);
+        final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, snapshotAddress, host, port, servantPort);
         kharon.start();
         kharon.awaitTermination();
     }
 
 
-    public LzyKharon(URI serverUri, URI whiteboardUri, String host, int port, int servantProxyPort) throws URISyntaxException {
+    public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port, int servantProxyPort) throws URISyntaxException {
         final ManagedChannel serverChannel = ManagedChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
@@ -75,7 +79,13 @@ public class LzyKharon {
                 .forAddress(whiteboardUri.getHost(), whiteboardUri.getPort())
                 .usePlaintext()
                 .build();
-        whiteboard = WhiteboardApiGrpc.newBlockingStub(whiteboardChannel);
+        whiteboard = WbApiGrpc.newBlockingStub(whiteboardChannel);
+
+        final ManagedChannel snapshotChannel = ManagedChannelBuilder
+            .forAddress(snapshotUri.getHost(), snapshotUri.getPort())
+            .usePlaintext()
+            .build();
+        snapshot = SnapshotApiGrpc.newBlockingStub(snapshotChannel);
 
         final URI servantProxyAddress = new URI("http", null, host, servantProxyPort, null, null, null);
         terminalManager = new TerminalSessionManager(server, servantProxyAddress);
@@ -203,23 +213,37 @@ public class LzyKharon {
         }
 
         @Override
-        public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
-                                  StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-            responseObserver.onNext(whiteboard.getWhiteboard(request));
+        public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
+                                   StreamObserver<LzyWhiteboard.SnapshotId> responseObserver) {
+            responseObserver.onNext(snapshot.createSnapshot(request));
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
+                                     StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            responseObserver.onNext(snapshot.finalizeSnapshot(request));
             responseObserver.onCompleted();
         }
 
         @Override
         public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
-                                  StreamObserver<LzyWhiteboard.WhiteboardId> responseObserver) {
+                                     StreamObserver<LzyWhiteboard.WhiteboardId> responseObserver) {
             responseObserver.onNext(whiteboard.createWhiteboard(request));
             responseObserver.onCompleted();
         }
 
         @Override
-        public void finalizeWhiteboard(LzyWhiteboard.FinalizeWhiteboardCommand request,
-                                     StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            responseObserver.onNext(whiteboard.finalizeWhiteboard(request));
+        public void addLink(LzyWhiteboard.AddLinkCommand request,
+                            StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            responseObserver.onNext(whiteboard.addLink(request));
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
+                                  StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+            responseObserver.onNext(whiteboard.getWhiteboard(request));
             responseObserver.onCompleted();
         }
     }

@@ -13,7 +13,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
@@ -99,7 +99,7 @@ public class InMemTasksManager implements TasksManager {
 
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments,
-                      WhiteboardMeta wbMeta, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
+                      SnapshotMeta wbMeta, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
         final Task task = TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, wbMeta, channels, serverURI);
         tasks.put(task.tid(), task);
         if (parent != null) {

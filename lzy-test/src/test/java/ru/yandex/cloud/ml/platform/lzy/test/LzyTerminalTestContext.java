@@ -49,7 +49,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return run(zygoteName, arguments, bindings, null);
         }
 
-        default ExecutionResult run(String zygoteName, String arguments, Map<String, String> bindings, List<String> deps) {
+        default ExecutionResult run(String zygoteName, String arguments, Map<String, String> bindings, Map<String, String> mappings) {
             try {
                 final ExecutionResult bash = execute(
                         Collections.emptyMap(),
@@ -67,7 +67,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                         Collections.emptyMap(),
                         "bash",
                         "-c",
-                        "echo '" + OBJECT_MAPPER.writeValueAsString(deps) + "' > dependencies.json"
+                        "echo '" + OBJECT_MAPPER.writeValueAsString(mappings) + "' > mapping.json"
                 );
                 System.out.println(bash);
             } catch (JsonProcessingException e) {
@@ -83,8 +83,8 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                             mount() + "/bin/" + zygoteName,
                             "-m",
                             "bindings.json",
-                            "-d",
-                            "dependencies.json",
+                            "-s",
+                            "mapping.json",
                             arguments
                     )
             );
@@ -155,19 +155,61 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String createWhiteboard(String customId) {
+        default String createSnapshot() {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(
                             " ",
-                            mount() + "/sbin/whiteboard",
-                            "create",
-                            customId
+                            mount() + "/sbin/snapshot",
+                            "create"
                     )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
             }
             return execute.stdout();
+        }
+
+        default String createWhiteboard(String wbId) {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                    String.join(
+                            " ",
+                            mount() + "/sbin/whiteboard",
+                            "create",
+                            wbId
+                    )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+            return execute.stdout();
+        }
+
+        default void addLink(String wbId, Map<String, String> fieldMapping) {
+            try {
+                final ExecutionResult bash = execute(
+                        Collections.emptyMap(),
+                        "bash",
+                        "-c",
+                        "echo '" + OBJECT_MAPPER.writeValueAsString(fieldMapping) + "' > mapping.json"
+                );
+                System.out.println(bash);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                    String.join(
+                            " ",
+                            mount() + "/sbin/whiteboard",
+                            "link",
+                            wbId,
+                            "-m",
+                            "mapping.json"
+                    )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+            execute.stdout();
         }
 
         default void finalizeWhiteboard(String wbId) {

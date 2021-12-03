@@ -9,31 +9,72 @@ option go_package = "datasphere";
 option java_outer_classname = "LzyWhiteboard";
 option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
-service WhiteboardApi {
+service SnapshotApi {
+  rpc CreateSnapshot (CreateSnapshotCommand) returns (SnapshotId);
   rpc PrepareToSave (PrepareCommand) returns (OperationStatus);
   rpc Commit (CommitCommand) returns (OperationStatus);
-  rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
+  rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
+
+  // will go away
+  rpc GetAllLinks (GetAllLinksCommand) returns (GetAllLinksResponse);
+}
+
+service WbApi {
   rpc CreateWhiteboard (CreateWhiteboardCommand) returns (WhiteboardId);
-  rpc FinalizeWhiteboard (FinalizeWhiteboardCommand) returns (OperationStatus);
+  rpc AddLink (AddLinkCommand) returns (OperationStatus);
+  rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
+}
+
+message CreateSnapshotCommand {
+  UserCredentials userCredentials = 1;
+}
+
+message CreateWhiteboardCommand {
+  UserCredentials userCredentials = 1;
+  string snapshotId = 2;
+}
+
+message WhiteboardId {
+  string wbId = 1;
+}
+
+message SnapshotId {
+  string snapshotId = 1;
+}
+
+message Dependency {
+  repeated string depEntryId = 1;
 }
 
 message PrepareCommand {
-  string wbId = 1;
-  string fieldName = 2;
-  Slot slot = 3;
-  string storageUri = 4;
+  string snapshotId = 1;
+  string entryId = 2;
+  string uri = 3;
+  Auth auth = 4;
+  Dependency dependency = 5;
 }
 
 message CommitCommand {
-  string wbId = 1;
-  string fieldName = 2;
-  Slot slot = 3;
-  bool empty = 4;
-  Dependencies dependencies = 5;
+  string snapshotId = 1;
+  string entryId = 2;
+  bool empty = 3;
+  Auth auth = 4;
 }
 
-message Dependencies {
-  repeated string dependencies = 3;
+message AddLinkCommand {
+  string wbId = 1;
+  repeated FieldMapping mappings = 2;
+  UserCredentials auth = 3;
+}
+
+message FieldMapping {
+  string fieldName = 1;
+  string entryId = 2;
+}
+
+message SlotMapping {
+  string slotName = 1;
+  string entryId = 2;
 }
 
 message GetWhiteboardCommand {
@@ -73,16 +114,16 @@ message Whiteboard {
   }
 }
 
-message CreateWhiteboardCommand {
-  UserCredentials userCredentials = 1;
-  string customId = 2;
-}
-
-message WhiteboardId {
-  string wbId = 1;
-}
-
-message FinalizeWhiteboardCommand {
-  string wbId = 1;
+message FinalizeSnapshotCommand {
+  string snapshotId = 1;
   UserCredentials auth = 2;
+}
+
+message GetAllLinksCommand {
+  string snapshotId = 1;
+}
+
+message GetAllLinksResponse {
+  repeated StorageBinding storageBindings = 1;
+  repeated Relation relation = 2;
 }

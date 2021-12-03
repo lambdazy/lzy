@@ -5,7 +5,6 @@ import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.exceptions.NoSuchBeanException;
-import io.micronaut.core.util.CollectionUtils;
 import jakarta.inject.Inject;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
@@ -17,16 +16,14 @@ import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
@@ -201,8 +198,8 @@ public class LzyServer {
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
             final AtomicBoolean concluded = new AtomicBoolean(false);
-            final WhiteboardMeta wbMeta = request.hasWhiteboardMeta() ? WhiteboardMeta.from(request.getWhiteboardMeta()) : null;
-            Task task = tasks.start(uid, parent, workload, assignments, wbMeta, auth, progress -> {
+            final SnapshotMeta snapshotMeta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : null;
+            Task task = tasks.start(uid, parent, workload, assignments, snapshotMeta, auth, progress -> {
                 if (concluded.get())
                     return;
                 responseObserver.onNext(progress);

@@ -1,11 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
-import io.grpc.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -37,5 +36,5 @@ public interface Task {
         PREPARING, CONNECTED, RUNNING, SUSPENDED, FINISHED, DESTROYED;
     }
 
-    WhiteboardMeta wbMeta();
+    SnapshotMeta wbMeta();
 }

@@ -32,8 +32,7 @@ public class Run implements LzyCommand {
 
     static {
         options.addOption(new Option("m", "mapping", true, "Slot-channel mapping"));
-        options.addOption(new Option("persistent", "persistent", true, "Task persistence"));
-        options.addOption(new Option("d", "dependencies", true, "Task dependencies"));
+        options.addOption(new Option("s", "slot-mapping", true, "Slot-entryId mapping"));
         options.addOption(new Option("n", "name", true, "Task name"));
     }
 
@@ -100,28 +99,23 @@ public class Run implements LzyCommand {
         final Tasks.TaskSpec.Builder taskSpec = Tasks.TaskSpec.newBuilder();
         taskSpec.setAuth(auth);
         taskSpec.setZygote(grpcZygote);
-        if (localCmd.hasOption("persistent")) {
-            final List<String> deps = new ArrayList<>();
-            if (localCmd.hasOption('d')) {
-                final String depsFile = localCmd.getOptionValue('d');
-                LOG.info("Read dependencies from file " + depsFile);
-                //noinspection unchecked
-                deps.addAll(objectMapper.readValue(new File(depsFile), List.class));
-                LOG.info("Dependencies: " +
-                        String.join(";\n", deps)
-                );
+        if (localCmd.hasOption('s')) {
+            final String mappingsFile = localCmd.getOptionValue('s');
+            final Map<String, String> mappings = new HashMap<>();
+            //noinspection unchecked
+            mappings.putAll(objectMapper.readValue(new File(mappingsFile), Map.class));
+            if (mappings.isEmpty()) {
+                throw new IllegalArgumentException("Persistent tasks require -s argument which points to non-empty mappings");
             }
-            if (!localCmd.hasOption('n')) {
-                throw new RuntimeException("Task name must be set for persistent tasks");
-            }
-            String taskName = localCmd.getOptionValue('n');
-            taskSpec.setWhiteboardMeta(Tasks.WhiteboardMeta
+            final List<LzyWhiteboard.SlotMapping> slotMappings = new ArrayList<>();
+            for (var entry : mappings.entrySet()) {
+                slotMappings.add(LzyWhiteboard.SlotMapping
                     .newBuilder()
-                    .setWhiteboardId(localCmd.getOptionValue("persistent"))
-                    .addAllDependencies(deps)
-                    .setFieldName(taskName)
-                    .build()
-            );
+                    .setSlotName(entry.getKey())
+                    .setEntryId(entry.getValue())
+                    .build());
+            }
+            taskSpec.setSnapshotMeta(Tasks.SnapshotMeta.newBuilder().addAllMappings(slotMappings).build());
         }
         zygote.slots().forEach(slot -> {
             LOG.info("Resolving slot " + slot.name());

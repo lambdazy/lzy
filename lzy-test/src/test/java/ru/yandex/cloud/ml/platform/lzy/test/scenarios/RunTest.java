@@ -222,26 +222,35 @@ public class RunTest extends LzyBaseTest {
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
                 .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
-        final String customId = "my-whiteboard";
-        final String wbIdJson = terminal.createWhiteboard(customId);
+        final String spIdJson = terminal.createSnapshot();
+        JSONObject spIdObject = (JSONObject) (new JSONParser()).parse(spIdJson);
+        final String spId = (String) spIdObject.get("snapshotId");
+        Assert.assertNotNull(spId);
+
+        String wbIdJson = terminal.createWhiteboard(spId);
         JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
-        final URI wbId = URI.create((String) wbIdObject.get("wbId"));
-        Assert.assertEquals("test-user/my-whiteboard", wbId.toString());
+        final String wbId = (String) wbIdObject.get("wbId");
+        Assert.assertNotNull(wbId);
 
-        String whiteboard = terminal.getWhiteboard(wbId.toString());
-        JSONObject wbJson = (JSONObject) (new JSONParser()).parse(whiteboard);
-        Assert.assertEquals("CREATED", wbJson.get("whiteboardStatus"));
-
-        final String taskName = "taskName";
-        final String arguments = "--persistent " + wbId + " -n " + taskName;
+        final String firstEntryId = "firstEntryId";
+        final String secondEntryId = "secondEntryId";
+        final String stderrEntryId = "stderrEntryId";
+        final String stdoutEntryId = "stdoutEntryId";
+        final String stdinEntryId = "stdinEntryId";
         final ExecutionResult result = terminal.run(
                 cat_to_file.getName(),
-                arguments,
+                "",
                 Map.of(
                         fileName.substring(LZY_MOUNT.length()), channelName,
                         fileOutName.substring(LZY_MOUNT.length()), channelOutName
                 ),
-                List.of("a", "b", "c")
+                Map.of(
+                        fileName.substring(LZY_MOUNT.length()), spId + "/" + firstEntryId,
+                        fileOutName.substring(LZY_MOUNT.length()), spId + "/" + secondEntryId,
+                        "/dev/stderr", spId + "/" + stderrEntryId,
+                        "/dev/stdout", spId + "/" + stdoutEntryId,
+                        "/dev/stdin", spId + "/" + stdinEntryId
+                )
         );
 
         //Assert
@@ -268,27 +277,35 @@ public class RunTest extends LzyBaseTest {
             Assert.assertEquals(fileContent + "\n", content);
         }
 
-        whiteboard = terminal.getWhiteboard(wbId.toString());
+        terminal.addLink(wbId, Map.of(
+                localFileName, spId + "/" + firstEntryId,
+                localFileOutName, spId + "/" + secondEntryId
+        ));
+
+        terminal.finalizeWhiteboard(wbId);
+        String whiteboard = terminal.getWhiteboard(wbId);
         JSONObject jsonObject = (JSONObject) (new JSONParser()).parse(whiteboard);
 
         JSONArray storageBindings = (JSONArray) jsonObject.get("storageBindings");
-        Assert.assertEquals(1, storageBindings.size());
+        Assert.assertEquals(2, storageBindings.size());
         JSONObject storageBinding = (JSONObject) storageBindings.get(0);
-        Assert.assertEquals(storageBinding.get("fieldName"), taskName);
+        Assert.assertTrue(storageBinding.get("fieldName").equals(localFileOutName) ||
+                storageBinding.get("fieldName").equals(localFileName));
+        Assert.assertTrue(storageBinding.get("storageUri").toString().length() > 0);
+
+        storageBinding = (JSONObject) storageBindings.get(1);
+        Assert.assertTrue(storageBinding.get("fieldName").equals(localFileOutName) ||
+                storageBinding.get("fieldName").equals(localFileName));
         Assert.assertTrue(storageBinding.get("storageUri").toString().length() > 0);
 
         JSONArray relations = (JSONArray) jsonObject.get("relations");
         Assert.assertEquals(1, relations.size());
         JSONObject relation = (JSONObject) relations.get(0);
-        Assert.assertEquals(relation.get("fieldName"), taskName);
+        Assert.assertEquals(relation.get("fieldName"), localFileOutName);
         JSONArray dependencies = (JSONArray) relation.get("dependencies");
-        Assert.assertEquals(3, dependencies.size());
-        Assert.assertTrue(dependencies.contains("a") && dependencies.contains("b") && dependencies.contains("c"));
+        Assert.assertEquals(1, dependencies.size());
+        Assert.assertEquals(dependencies.get(0), localFileName);
 
-        terminal.finalizeWhiteboard(wbId.toString());
-        whiteboard = terminal.getWhiteboard(wbId.toString());
-        wbJson = (JSONObject) (new JSONParser()).parse(whiteboard);
-        Assert.assertEquals("FINALIZED", wbJson.get("whiteboardStatus"));
         api.shutdown();
     }
 }

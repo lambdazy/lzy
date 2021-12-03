@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-whiteboard.proto";
 
 package yandex.cloud.priv.datasphere.v2;
 
@@ -18,17 +19,15 @@ message TaskCommand {
   }
 }
 
-message WhiteboardMeta {
-  string whiteboardId = 1;
-  repeated string dependencies = 2;
-  string fieldName = 3;
+message SnapshotMeta {
+  repeated SlotMapping mappings = 1;
 }
 
 message TaskSpec {
   Auth auth = 1;
   Zygote zygote = 2;
   repeated SlotAssignment assignments = 3;
-  WhiteboardMeta whiteboardMeta = 4;
+  SnapshotMeta snapshotMeta = 4;
 }
 
 message TaskSignal {

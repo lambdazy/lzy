@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
-import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
@@ -10,7 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -31,7 +30,8 @@ public abstract class BaseTask implements Task {
     private final Map<Slot, String> assignments;
     private final ChannelsManager channels;
     protected final URI serverURI;
-    @Nullable protected final WhiteboardMeta wbMeta;
+    @Nullable
+    protected final SnapshotMeta snapshotMeta;
 
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final Map<Slot, Channel> attachedSlots = new HashMap<>();
@@ -45,7 +45,7 @@ public abstract class BaseTask implements Task {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        @Nullable WhiteboardMeta wbMeta,
+        @Nullable SnapshotMeta snapshotMeta,
         ChannelsManager channels,
         URI serverURI
     ) {
@@ -53,7 +53,7 @@ public abstract class BaseTask implements Task {
         this.tid = tid;
         this.workload = workload;
         this.assignments = assignments;
-        this.wbMeta = wbMeta;
+        this.snapshotMeta = snapshotMeta;
         this.channels = channels;
         this.serverURI = serverURI;
     }
@@ -74,7 +74,9 @@ public abstract class BaseTask implements Task {
     }
 
     @Override
-    public WhiteboardMeta wbMeta() { return wbMeta; }
+    public SnapshotMeta wbMeta() {
+        return snapshotMeta;
+    }
 
     @Override
     public void onProgress(Consumer<Servant.ExecutionProgress> listener) {
@@ -110,8 +112,8 @@ public abstract class BaseTask implements Task {
                     .build())
                 .build())
             .setZygote(gRPCConverter.to(workload));
-        if (wbMeta != null) {
-            builder.setWhiteboardMeta(WhiteboardMeta.to(wbMeta));
+        if (snapshotMeta != null) {
+            builder.setSnapshotMeta(SnapshotMeta.to(snapshotMeta));
         }
         assignments.forEach((slot, binding) ->
             builder.addAssignmentsBuilder()

@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
 import ru.yandex.qe.s3.util.Environment;
 
 import java.io.File;
@@ -29,7 +29,7 @@ public class KuberTask extends BaseTask {
     public static final String DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE = "/app/resources/kubernetes/lzy-servant-pod-template.yaml";
 
     KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
-              WhiteboardMeta meta, ChannelsManager channels, URI serverURI) {
+              SnapshotMeta meta, ChannelsManager channels, URI serverURI) {
         super(owner, tid, workload, assignments, meta, channels, serverURI);
     }
 

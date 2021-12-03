@@ -10,7 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -20,7 +20,7 @@ import java.net.URISyntaxException;
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
     private final LzyServerGrpc.LzyServerBlockingStub server;
-    private final WhiteboardApiGrpc.WhiteboardApiBlockingStub whiteboard;
+    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
     private final Server agentServer;
     private final String taskId;
 
@@ -38,7 +38,7 @@ public class LzyServant extends LzyAgent {
                 .forAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort())
                 .usePlaintext()
                 .build();
-        whiteboard = WhiteboardApiGrpc.newBlockingStub(channelWb);
+        snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
     }
 
@@ -76,12 +76,12 @@ public class LzyServant extends LzyAgent {
                 return;
             }
             final String tid = request.getAuth().getTask().getTaskId();
-            final WhiteboardMeta meta = request.hasWhiteboardMeta() ? WhiteboardMeta.from(request.getWhiteboardMeta()) : null;
+            final SnapshotMeta meta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : null;
             currentExecution = new LzyExecution(
                 tid,
                 (AtomicZygote) gRPCConverter.from(request.getZygote()),
                 agentInternalAddress,
-                whiteboard,
+                snapshot,
                 meta
             );
 

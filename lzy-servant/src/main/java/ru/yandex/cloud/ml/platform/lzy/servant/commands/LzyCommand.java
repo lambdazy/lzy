@@ -16,7 +16,8 @@ public interface LzyCommand {
         kill(new TasksStatus()),
         touch(new Touch()),
         status(new TerminalStatus()),
-        whiteboard(new Whiteboard());
+        whiteboard(new Whiteboard()),
+        snapshot(new Snapshot());
 
         private final LzyCommand command;
         Commands(LzyCommand command) {

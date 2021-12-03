@@ -20,13 +20,10 @@ import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.EmptyExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.S3ExecutionSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.WhiteboardApiGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -58,14 +55,15 @@ public class LzyExecution {
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
     private final ExecutionSnapshot executionSnapshot;
-    private final WhiteboardMeta meta;
-    private final WhiteboardApiGrpc.WhiteboardApiBlockingStub whiteboard;
+    private final SnapshotMeta meta;
+    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
 
     public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri,
-                        @Nullable WhiteboardApiGrpc.WhiteboardApiBlockingStub whiteboard, @Nullable WhiteboardMeta meta) {
+                        @Nullable SnapshotApiGrpc.SnapshotApiBlockingStub snapshot,
+                        @Nullable SnapshotMeta meta) {
         this.taskId = taskId;
         this.zygote = zygote;
-        this.whiteboard = whiteboard;
+        this.snapshot = snapshot;
         if (meta != null) {
             executionSnapshot = new S3ExecutionSnapshot(taskId);
         } else {
@@ -90,18 +88,26 @@ public class LzyExecution {
                 final LzySlot slot = createSlot(spec, binding);
                 if (meta != null) {
                     URI uri = executionSnapshot.getSlotUri(slot.definition());
-                    if (whiteboard == null) {
-                        throw new RuntimeException("LzyExecution::configureSlot whiteboard is null");
+                    if (snapshot == null) {
+                        throw new RuntimeException("LzyExecution::configureSlot snapshot is null");
                     }
-                    LzyWhiteboard.OperationStatus status =  whiteboard.prepareToSave(LzyWhiteboard.PrepareCommand
-                            .newBuilder()
-                            .setSlot(gRPCConverter.to(spec))
-                            .setFieldName(meta.getFieldName())
-                            .setWbId(meta.getWbId().toString())
-                            .setStorageUri(uri.toString())
-                            .build());
+                    LzyWhiteboard.PrepareCommand.Builder builder = LzyWhiteboard.PrepareCommand
+                        .newBuilder()
+                        .setSnapshotId(meta.getSnapshotId())
+                        .setEntryId(meta.getEntryId(spec.name()))
+                        .setUri(uri.toString());
+                    if (spec.direction().equals(Slot.Direction.OUTPUT)) {
+                        zygote.slots()
+                            .filter(s -> s.direction().equals(Slot.Direction.INPUT))
+                            .forEach(s -> builder.setDependency(LzyWhiteboard.Dependency
+                                .newBuilder()
+                                .addDepEntryId(meta.getEntryId(s.name()))
+                                .build())
+                             );
+                    }
+                    LzyWhiteboard.OperationStatus status = snapshot.prepareToSave(builder.build());
                     if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
-                        throw new RuntimeException("LzyExecution::configureSlot failed to save to whiteboard");
+                        throw new RuntimeException("LzyExecution::configureSlot failed to save to snapshot");
                     }
                 }
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
@@ -132,20 +138,13 @@ public class LzyExecution {
                     synchronized (slots) {
                         LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
                         if (meta != null) {
-                            LzyWhiteboard.CommitCommand.Builder builder = LzyWhiteboard.CommitCommand
-                                    .newBuilder()
-                                    .setSlot(gRPCConverter.to(slot.definition()))
-                                    .setFieldName(meta.getFieldName())
-                                    .setWbId(meta.getWbId().toString())
-                                    .setEmpty(executionSnapshot.isEmpty(spec));
-                            if (!spec.equals(Slot.STDOUT) && !spec.equals(Slot.STDERR) &&
-                                    slot.definition().direction().equals(Slot.Direction.OUTPUT)) {
-                                builder.setDependencies(LzyWhiteboard.Dependencies
-                                        .newBuilder()
-                                        .addAllDependencies(meta.getDependencies())
-                                        .build());
-                            }
-                            LzyWhiteboard.OperationStatus status =  whiteboard.commit(builder.build());
+                            LzyWhiteboard.CommitCommand commitCommand = LzyWhiteboard.CommitCommand
+                                .newBuilder()
+                                .setSnapshotId(meta.getSnapshotId())
+                                .setEntryId(meta.getEntryId(spec.name()))
+                                .setEmpty(executionSnapshot.isEmpty(spec))
+                                .build();
+                            LzyWhiteboard.OperationStatus status = snapshot.commit(commitCommand);
                             if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
                                 throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");
                             }

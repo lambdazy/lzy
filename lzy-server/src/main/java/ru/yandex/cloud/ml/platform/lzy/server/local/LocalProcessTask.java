@@ -5,7 +5,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardMeta;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,7 +28,7 @@ public class LocalProcessTask extends LocalTask {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        WhiteboardMeta meta,
+        SnapshotMeta meta,
         ChannelsManager channels,
         URI serverURI
     ) {
