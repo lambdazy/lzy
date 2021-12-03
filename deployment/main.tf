@@ -80,6 +80,91 @@ resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
   }
 }
 
+resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  name                  = "gpupool"
+  vm_size               = "Standard_NV12s_v3"
+  node_count            = var.gpu_count
+  enable_auto_scaling   = false
+  availability_zones    = []
+  node_labels           = {
+    type = "gpu"
+  }
+  node_taints           = [
+    "sku=gpu:NoSchedule"
+  ]
+}
+
+resource "kubernetes_namespace" "gpu_resources" {
+  metadata {
+    name = "gpu-resources"
+  }
+}
+
+resource "kubernetes_daemonset" "nvidia_plugin" {
+  metadata {
+    name      = "nvidia-device-plugin"
+    namespace = kubernetes_namespace.gpu_resources.metadata[0].name
+  }
+  spec {
+    selector {
+      match_labels = {
+        name : "nvidia-device-plugin-ds"
+      }
+    }
+    strategy {
+      type = "RollingUpdate"
+    }
+    template {
+      metadata {
+        annotations = {
+          "scheduler.alpha.kubernetes.io/critical-pod" = ""
+        }
+        labels      = {
+          name = "nvidia-device-plugin-ds"
+        }
+      }
+      spec {
+        toleration {
+          key      = "CriticalAddonsOnly"
+          operator = "Exists"
+        }
+        toleration {
+          key      = "nvidia.com/gpu"
+          operator = "Exists"
+          effect   = "NoSchedule"
+        }
+        toleration {
+          key      = "sku"
+          operator = "Equal"
+          value    = "gpu"
+          effect   = "NoSchedule"
+        }
+        container {
+          image = "mcr.microsoft.com/oss/nvidia/k8s-device-plugin:1.11"
+          name  = "nvidia-device-plugin"
+          security_context {
+            allow_privilege_escalation = false
+            capabilities {
+              drop = ["ALL"]
+            }
+          }
+          volume_mount {
+            mount_path = "/var/lib/kubelet/device-plugins"
+            name       = "device-plugin"
+          }
+        }
+        volume {
+          name = "device-plugin"
+          host_path {
+            path = "/var/lib/kubelet/device-plugins"
+          }
+        }
+      }
+    }
+  }
+}
+
 resource "azurerm_public_ip" "lzy_kharon" {
   domain_name_label   = "kharon-${var.installation_name}"
   name                = "lzy-kharon-public-ip"
