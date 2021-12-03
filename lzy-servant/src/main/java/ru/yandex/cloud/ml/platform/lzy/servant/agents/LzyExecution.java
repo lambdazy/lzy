@@ -56,9 +56,9 @@ public class LzyExecution {
     public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, Snapshotter snapshotter) {
         this.taskId = taskId;
         this.zygote = zygote;
-        stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"), snapshotter.snapshot());
-        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"), snapshotter.snapshot());
-        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"), snapshotter.snapshot());
+        stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"), snapshotter.snapshotProvider());
+        stdoutSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stdout"), snapshotter.snapshotProvider());
+        stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"), snapshotter.snapshotProvider());
         this.servantUri = servantUri;
         this.snapshotter = snapshotter;
     }
@@ -147,19 +147,18 @@ public class LzyExecution {
                 case FILE: {
                     switch (spec.direction()) {
                         case INPUT:
-                            return new InFileSlot(taskId, spec, snapshotter.snapshot());
+                            return new InFileSlot(taskId, spec, snapshotter.snapshotProvider());
                         case OUTPUT:
                             if (spec.name().startsWith("local://")) {
-                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()), snapshotter.snapshot());
+                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()), snapshotter.snapshotProvider());
                             }
-                            return new OutFileSlot(taskId, spec, snapshotter.snapshot());
+                            return new OutFileSlot(taskId, spec, snapshotter.snapshotProvider());
                     }
                     break;
                 }
                 case ARG:
                     arguments = binding;
-                    return new LzySlotBase(spec, snapshotter.snapshot()) {
-                    };
+                    return new LzySlotBase(spec, snapshotter.snapshotProvider()) {};
             }
             throw new UnsupportedOperationException("Not implemented yet");
         } finally {

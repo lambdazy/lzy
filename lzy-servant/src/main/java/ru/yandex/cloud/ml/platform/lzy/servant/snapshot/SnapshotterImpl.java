@@ -7,24 +7,33 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SnapshotterImpl implements Snapshotter {
+    private final Map<String, SlotSnapshot> slotSnapshots = new ConcurrentHashMap<>();
+    private final SlotSnapshotProvider snapshotProvider;
     private final Zygote zygote;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
     private final SnapshotMeta meta;
-    private final ExecutionSnapshot executionSnapshot;
 
     public SnapshotterImpl(String taskId, Zygote zygote, SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi, SnapshotMeta meta) {
         this.zygote = zygote;
         this.snapshotApi = snapshotApi;
         this.meta = meta;
-        executionSnapshot = new S3ExecutionSnapshot(taskId);
+        snapshotProvider = new SlotSnapshotProvider.Cached(slot -> {
+            if (meta.getEntryId(slot.name()) != null) {
+                return new S3SlotSnapshot(taskId, slot);
+            } else {
+                return new DevNullSlotSnapshot(slot);
+            }
+        });
     }
 
     @Override
     public void prepare(Slot slot) {
         if (meta.getEntryId(slot.name()) != null) {
-            final URI uri = executionSnapshot.getSlotUri(slot);
+            final URI uri = snapshotProvider().slotSnapshot(slot).uri();
             LzyWhiteboard.PrepareCommand.Builder builder = LzyWhiteboard.PrepareCommand
                     .newBuilder()
                     .setSnapshotId(meta.getSnapshotId())
@@ -53,7 +62,7 @@ public class SnapshotterImpl implements Snapshotter {
                     .newBuilder()
                     .setSnapshotId(meta.getSnapshotId())
                     .setEntryId(meta.getEntryId(slot.name()))
-                    .setEmpty(executionSnapshot.isEmpty(slot))
+                    .setEmpty(snapshotProvider().slotSnapshot(slot).isEmpty())
                     .build();
             LzyWhiteboard.OperationStatus status = snapshotApi.commit(commitCommand);
             if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
@@ -63,7 +72,7 @@ public class SnapshotterImpl implements Snapshotter {
     }
 
     @Override
-    public ExecutionSnapshot snapshot() {
-        return executionSnapshot;
+    public SlotSnapshotProvider snapshotProvider() {
+        return snapshotProvider;
     }
 }

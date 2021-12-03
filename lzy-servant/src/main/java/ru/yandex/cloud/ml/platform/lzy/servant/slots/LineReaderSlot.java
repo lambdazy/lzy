@@ -1,19 +1,17 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.LineNumberReader;
-import java.net.URI;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Spliterator;
@@ -30,8 +28,8 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private final CompletableFuture<LineNumberReader> reader = new CompletableFuture<>();
     private long offset = 0;
 
-    public LineReaderSlot(String tid, TextLinesOutSlot definition, ExecutionSnapshot snapshot) {
-        super(definition, snapshot);
+    public LineReaderSlot(String tid, TextLinesOutSlot definition, SlotSnapshotProvider snapshotProvider) {
+        super(definition, snapshotProvider);
         state(Operations.SlotStatus.State.OPEN);
         this.tid = tid;
     }
@@ -67,14 +65,14 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                 try {
                     line = reader.get().readLine();
                     if (line == null) {
-                        snapshot.onFinish(definition());
+                        snapshotProvider.slotSnapshot(definition()).onFinish();
                     }
                     return line != null;
                 }
                 catch (IOException | InterruptedException | ExecutionException e) {
                     LOG.warn("Unable to read line from reader", e);
                     line = null;
-                    snapshot.onFinish(definition());
+                    snapshotProvider.slotSnapshot(definition()).onFinish();
                     return false;
                 }
             }
@@ -87,7 +85,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                 LineReaderSlot.this.offset += bytes.size();
                 LOG.info("Send from slot {} data {}", name(), line);
                 line = null;
-                snapshot.onChunkOutput(bytes, definition());
+                snapshotProvider.slotSnapshot(definition()).onChunk(bytes);
                 return bytes;
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);

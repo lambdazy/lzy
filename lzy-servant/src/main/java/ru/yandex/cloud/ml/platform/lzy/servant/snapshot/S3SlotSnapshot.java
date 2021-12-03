@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class S3ExecutionSnapshot implements ExecutionSnapshot {
+public class S3SlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
     private static final String BUCKET_NAME = Environment.getBucketName();
     private static final String ACCESS_KEY = Environment.getAccessKey();
@@ -55,12 +55,14 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
     }
 
     private final String taskId;
+    private final Slot slot;
     private final Map<Slot, StreamsWrapper> slotStream = new ConcurrentHashMap<>();
     private final Set<Slot> nonEmpty = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean bucketInited = new AtomicBoolean(false);
 
-    public S3ExecutionSnapshot(String taskId) {
+    public S3SlotSnapshot(String taskId, Slot slot) {
         this.taskId = taskId;
+        this.slot = slot;
     }
 
     private String generateKey(Slot slot) {
@@ -68,7 +70,7 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
     }
 
     @Override
-    public URI getSlotUri(Slot slot) {
+    public URI uri() {
         try {
             initBucket();
             return client.getUrl(BUCKET_NAME, generateKey(slot)).toURI();
@@ -78,7 +80,7 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
         }
     }
 
-    private StreamsWrapper createStreams(Slot slot) {
+    private StreamsWrapper createStreams() {
         PipedInputStream is = new PipedInputStream();
         PipedOutputStream os;
         try {
@@ -110,29 +112,21 @@ public class S3ExecutionSnapshot implements ExecutionSnapshot {
     }
 
     @Override
-    public void onChunkInput(ByteString chunk, Slot slot) {
-        LOG.info("S3ExecutionSnapshot::onChunkInput invoked with slot " + slot.name());
-        slotStream.computeIfAbsent(slot, this::createStreams);
+    public void onChunk(ByteString chunk) {
+        LOG.info("S3ExecutionSnapshot::onChunk invoked with slot " + slot.name());
+        slotStream.computeIfAbsent(slot, slot -> createStreams());
         slotStream.get(slot).write(chunk);
         nonEmpty.add(slot);
     }
 
     @Override
-    public void onChunkOutput(ByteString chunk, Slot slot) {
-        LOG.info("S3ExecutionSnapshot::onChunkOutput invoked with slot " + slot.name());
-        slotStream.computeIfAbsent(slot, this::createStreams);
-        slotStream.get(slot).write(chunk);
-        nonEmpty.add(slot);
-    }
-
-    @Override
-    public boolean isEmpty(Slot slot) {
+    public boolean isEmpty() {
         LOG.info("S3ExecutionSnapshot::isEmpty invoked with slot " + slot.name());
         return !nonEmpty.contains(slot);
     }
 
     @Override
-    public void onFinish(Slot slot) {
+    public void onFinish() {
         LOG.info("S3ExecutionSnapshot::onFinish invoked with slot " + slot.name());
         slotStream.computeIfPresent(slot, (k, v) -> {
             v.close();

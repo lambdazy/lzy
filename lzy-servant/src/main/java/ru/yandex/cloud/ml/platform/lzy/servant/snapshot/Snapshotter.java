@@ -5,10 +5,10 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 public interface Snapshotter {
     void prepare(Slot slot);
     void commit(Slot slot);
-    ExecutionSnapshot snapshot();
+    SlotSnapshotProvider snapshotProvider();
 
     class DevNullSnapshotter implements Snapshotter {
-        private final ExecutionSnapshot snapshot = new DevNullExecutionSnapshot();
+        private final SlotSnapshotProvider snapshotProvider = new SlotSnapshotProvider.Cached(DevNullSlotSnapshot::new);
 
         @Override
         public void prepare(Slot slot) {
@@ -21,8 +21,8 @@ public interface Snapshotter {
         }
 
         @Override
-        public ExecutionSnapshot snapshot() {
-            return snapshot;
+        public SlotSnapshotProvider snapshotProvider() {
+            return snapshotProvider;
         }
     }
 }

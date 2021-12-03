@@ -10,19 +10,19 @@ import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
-import java.util.*;
-import java.util.concurrent.ForkJoinPool;
+import java.util.Iterator;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -31,17 +31,16 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     private final Path storage;
     private final String tid;
     private boolean ready;
-    private final List<Runnable> closeActions = new ArrayList<>();
 
-    protected OutFileSlot(String tid, Slot definition, Path storage, ExecutionSnapshot snapshot) {
-        super(definition, snapshot);
+    protected OutFileSlot(String tid, Slot definition, Path storage, SlotSnapshotProvider snapshotProvider) {
+        super(definition, snapshotProvider);
         this.tid = tid;
         this.storage = storage;
         ready = true;
     }
 
-    public OutFileSlot(String tid, Slot definition, ExecutionSnapshot snapshot) throws IOException {
-        super(definition, snapshot);
+    public OutFileSlot(String tid, Slot definition, SlotSnapshotProvider snapshotProvider) throws IOException {
+        super(definition, snapshotProvider);
         this.tid = tid;
         this.storage = Files.createTempFile("lzy", "file-slot");
         ready = false;
@@ -167,13 +166,13 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                     int read = channel.read(bb);
                     LOG.info("Slot {} hasNext read {}", name(), read);
                     if (read < 0) {
-                        snapshot.onFinish(definition());
+                        snapshotProvider.slotSnapshot(definition()).onFinish();
                     }
                     return read >= 0;
                 }
                 catch (IOException e) {
                     LOG.warn("Unable to read line from reader", e);
-                    snapshot.onFinish(definition());
+                    snapshotProvider.slotSnapshot(definition()).onFinish();
                     return false;
                 }
             }
@@ -183,7 +182,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                 bb.flip();
                 LOG.info("Send from slot {} data {}", name(), bb.toString());
                 ByteString chunk = ByteString.copyFrom(bb);
-                snapshot.onChunkOutput(chunk, definition());
+                snapshotProvider.slotSnapshot(definition()).onChunk(chunk);
                 return chunk;
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);
@@ -191,10 +190,6 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
 
     public void destroy() {
         super.destroy();
-        ForkJoinPool.commonPool().execute(() -> {
-            Thread.yield();
-            closeActions.forEach(Runnable::run);
-        });
     }
 
     @Override

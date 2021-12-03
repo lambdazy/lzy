@@ -9,11 +9,16 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-public class DevNullExecutionSnapshot implements ExecutionSnapshot {
+public class DevNullSlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
+    private final Slot slot;
+
+    public DevNullSlotSnapshot(Slot slot) {
+        this.slot = slot;
+    }
 
     @Override
-    public URI getSlotUri(Slot slot) {
+    public URI uri() {
         // do nothing
         try {
             return new URI("https://some_address");
@@ -24,24 +29,18 @@ public class DevNullExecutionSnapshot implements ExecutionSnapshot {
     }
 
     @Override
-    public void onChunkInput(ByteString chunk, Slot slot) {
+    public void onChunk(ByteString chunk) {
         // do nothing
-        LOG.info("EmptyExecutionSnapshot::onChunkInput invoked with slot " + slot.name());
+        LOG.info("EmptyExecutionSnapshot::onChunk invoked with slot " + slot.name());
     }
 
     @Override
-    public void onChunkOutput(ByteString chunk, Slot slot) {
-        // do nothing
-        LOG.info("EmptyExecutionSnapshot::onChunkOutput invoked with slot " + slot.name());
-    }
-
-    @Override
-    public boolean isEmpty(Slot slot) {
+    public boolean isEmpty() {
         return true;
     }
 
     @Override
-    public void onFinish(Slot slot) {
+    public void onFinish() {
         // do nothing
         LOG.info("EmptyExecutionSnapshot::onFinish invoked with slot " + slot.name());
     }

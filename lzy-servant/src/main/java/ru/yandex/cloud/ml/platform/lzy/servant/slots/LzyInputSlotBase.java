@@ -8,7 +8,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.ExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -25,8 +25,8 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private URI connected;
     private SlotController slotController;
 
-    LzyInputSlotBase(String tid, Slot definition, ExecutionSnapshot snapshot) {
-        super(definition, snapshot);
+    LzyInputSlotBase(String tid, Slot definition, SlotSnapshotProvider snapshotProvider) {
+        super(definition, snapshotProvider);
         this.tid = tid;
     }
 
@@ -64,7 +64,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                     try {
                         LOG.info("From {} chunk received {}", name(), chunk.toString(StandardCharsets.UTF_8));
                         onChunk(chunk);
-                        snapshot.onChunkInput(chunk, definition());
+                        snapshotProvider.slotSnapshot(definition()).onChunk(chunk);
                     } catch (IOException ioe) {
                         LOG.warn(
                             "Unable write chunk of data of size " + chunk.size() + " to input slot " + name(),
@@ -74,7 +74,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                         offset += chunk.size();
                     }
                 } else if (next.getControl() == Servant.Message.Controls.EOS) {
-                    snapshot.onFinish(definition());
+                    snapshotProvider.slotSnapshot(definition()).onFinish();
                     break;
                 }
             }
