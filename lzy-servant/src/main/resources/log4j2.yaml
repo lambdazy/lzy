@@ -19,13 +19,19 @@ Configuration:
       servantId: ${sys:custom.log.servant_id}
     Kafka:
       name: Kafka
-      topic: server
+      topic: servant
       syncSend: false
       Property:
-        name: bootstrap.servers
-        value: ${sys:custom.log.}
+        - name: bootstrap.servers
+          value: ${sys:custom.log.server}
+#        - name: security.protocol
+#          value: SASL_PLAINTEXT
+#        - name: sasl.jaas.config
+#          value: org.apache.kafka.common.security.plain.PlainLoginModule required serviceName="kafka" username="${sys:custom.log.username}" password="${sys:custom.log.password}";
+#        - name: sasl.mechanisms
+#          value: PLAIN
       PatternLayout:
-        Pattern: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}", "thread": "[%t]",  "level": "%-5level", "logger": "%logger{36}", "message": "%msg"}'
+        Pattern: '{"timestamp":"%d{UNIX}", "thread": "%t",  "level": "%-5level", "logger": "%logger{36}", "message": "%enc{%msg}", "servant": "${sys:custom.log.servant_id}"}'
 
 
   Loggers:

@@ -79,7 +79,8 @@ resource "kubernetes_pod" "lzy_server" {
   }
 
   depends_on = [
-    helm_release.lzy_server_db
+    helm_release.lzy_server_db,
+    kubernetes_pod.clickhouse
   ]
 }
 

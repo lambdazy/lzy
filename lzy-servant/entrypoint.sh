@@ -9,6 +9,9 @@ java \
 -Dcustom.log.file="$LOG_FILE" \
 -Dcustom.log.servant_id="$LZYTASK" \
 -Dcustom.log.appender="$LOGS_APPENDER" \
+-Dcustom.log.server="$LOGS_SERVER" \
+-Dcustom.log.username="$LOGS_USERNAME" \
+-Dcustom.log.password="$LOGS_PASSWORD" \
 -Dlog4j.configurationFile=/app/resources/log4j2.yaml \
 -XX:+HeapDumpOnOutOfMemoryError \
 -agentlib:jdwp=transport=dt_socket,server=y,suspend="$SUSPEND_DOCKER",address=*:"$DEBUG_PORT" \
