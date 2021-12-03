@@ -10,20 +10,20 @@ spec:
       image: celdwind/lzy:lzy-servant
       imagePullPolicy: Always
       env:
-        - name: LOGS_HOST
-          value: "10.240.2.173"
+        - name: LOGS_SERVER
+          value: "kafka.default.svc.cluster.local:9092"
         - name: LOGS_APPENDER
-          value: "DatabaseAppender"
-        - name: LOGS_USER
+          value: "Kafka"
+        - name: LOGS_USERNAME
           valueFrom:
             secretKeyRef:
-              name: logs
-              key: logs-user
+              name: kafka-servant
+              key: username
         - name: LOGS_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: logs
-              key: logs-password
+              name: kafka-servant
+              key: password
         - name: LOG_FILE
           value: "servant.log"
         - name: SUSPEND_DOCKER
@@ -54,4 +54,4 @@ spec:
                   - lzy-backoffice
           topologyKey: "kubernetes.io/hostname"
   hostNetwork: true
-  dnsPolicy: Default
+  dnsPolicy: ClusterFirstWithHostNet
