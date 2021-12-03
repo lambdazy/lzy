@@ -1,6 +1,5 @@
 name: 'AC tests'
 on:
-  push:
   schedule:
     - cron: '0 0 * * *'
 
