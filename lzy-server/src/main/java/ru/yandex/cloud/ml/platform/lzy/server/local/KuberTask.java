@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.qe.s3.util.Environment;
@@ -73,8 +74,16 @@ public class KuberTask extends BaseTask {
             final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
             servantPodDescription.getMetadata().setName(podName);
 
+            final String typeLabelValue;
             //TODO: run on GPU node if zygote requires GPU
-            // (((AtomicZygote)workload()).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));)
+            final boolean needGpu = ((AtomicZygote) workload()).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));
+            if (needGpu) {
+                typeLabelValue = "gpu";
+            } else {
+                typeLabelValue = "cpu";
+            }
+            final Map<String, String> nodeSelector = Map.of("type", typeLabelValue);
+            servantPodDescription.getSpec().setNodeSelector(nodeSelector);
 
             final CoreV1Api api = new CoreV1Api();
             final String namespace = "default";
