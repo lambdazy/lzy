@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,6 +37,11 @@ public class KuberRunTest {
             DEFAULT_TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
+    }
+
+    @After
+    public void tearDown() {
+        terminalContext.close();
     }
 
     @Test
