@@ -31,7 +31,7 @@ jobs:
         run: mvn clean install
 
       - name: 'install lzy-python'
-        run: cd lzy-python/ && pip install .
+        run: cd lzy-python/ && pip install -r requirements.txt && pip install .
 
       - name: 'python-test'
         timeout-minutes: 5
