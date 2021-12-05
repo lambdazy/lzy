@@ -1,6 +1,10 @@
 import os
 import platform
 import re
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+
 import setuptools
 import subprocess
 
@@ -107,6 +111,11 @@ class Installer(install):
         super().run()
 
 
+def read_version(path='version'):
+    with open(path) as file:
+        return file.read().rstrip()
+
+
 def read_requirements() -> List[str]:
     requirements = []
     with open('requirements.txt', 'r') as file:
@@ -115,9 +124,42 @@ def read_requirements() -> List[str]:
     return requirements
 
 
+@dataclass
+class PackageConf:
+    name: str
+
+    @property
+    def version(self):
+        return read_version()
+
+
+class DevPackageConf(PackageConf):
+    @property
+    def version(self):
+        return read_version() + '.dev' + datetime.today().strftime('%Y%m%d')
+
+
+conf_map = {
+    'refs/heads/main': PackageConf(name='pylzy'),
+    'refs/heads/dev': DevPackageConf(name='pylzy-nightly')
+}
+
+
+def _get_git_ref():
+    with open('HEAD') as git_head:
+        return git_head.readline().split()[-1]
+
+
+try:
+    print(_get_git_ref())
+    conf = conf_map[_get_git_ref()]
+except:
+    raise ValueError("Trying to install from other branches than master or dev")
+
+
 setuptools.setup(
-    name='pylzy-nightly',
-    version='0.0.2',
+    name=conf.name,
+    version=conf.version,
     author='ʎzy developers',
     include_package_data=True,
     package_data={

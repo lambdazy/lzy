@@ -1,0 +1,9 @@
+name: Test on pull request
+on:
+  push:
+    branches: [ master, dev ]
+  pull_request:
+
+jobs:
+  run-tests:
+    uses: lambda-zy/lzy/.github/workflows/run-tests.yml@main

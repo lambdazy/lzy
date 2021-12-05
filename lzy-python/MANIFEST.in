@@ -1,1 +1,3 @@
 include lzy/lzy-servant.jar
+include HEAD
+include version
