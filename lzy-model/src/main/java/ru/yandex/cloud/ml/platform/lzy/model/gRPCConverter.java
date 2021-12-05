@@ -5,11 +5,17 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import javax.annotation.Nullable;
 import java.net.URI;
+import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -102,6 +108,22 @@ public abstract class gRPCConverter {
         builder.setChannelId(channel.name());
         builder.setContentType(to(channel.contentType()));
         return builder.build();
+    }
+
+    public static LzyWhiteboard.Snapshot to(Snapshot snapshot) {
+        return LzyWhiteboard.Snapshot.newBuilder().setSnapshotId(snapshot.id().toString()).build();
+    }
+
+    public static LzyWhiteboard.WhiteboardField to(WhiteboardField field, List<WhiteboardField> dependent) {
+        return LzyWhiteboard.WhiteboardField.newBuilder()
+                .setFieldName(field.name())
+                .setStorageUri(field.entry().storage().toString())
+                .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()))
+                .build();
+    }
+
+    public static SnapshotEntry from (LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
+        return new SnapshotEntry.Impl(entry.getEntryId(), URI.create(entry.getStorageUri()), new HashSet<>(entry.getDependentEntryIdsList()), snapshot);
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {

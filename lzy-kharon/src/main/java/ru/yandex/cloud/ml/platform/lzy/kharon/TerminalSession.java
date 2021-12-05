@@ -5,7 +5,6 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcConstant;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 

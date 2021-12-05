@@ -1,7 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.stub.StreamObserver;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcConstant;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConstant;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc.LzyServerBlockingStub;

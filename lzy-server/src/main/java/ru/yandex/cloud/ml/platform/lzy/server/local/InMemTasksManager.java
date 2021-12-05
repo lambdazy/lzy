@@ -13,7 +13,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;

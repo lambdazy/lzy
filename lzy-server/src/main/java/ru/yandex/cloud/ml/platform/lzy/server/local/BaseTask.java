@@ -9,7 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;

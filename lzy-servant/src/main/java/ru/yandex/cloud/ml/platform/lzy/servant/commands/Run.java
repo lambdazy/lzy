@@ -103,9 +103,9 @@ public class Run implements LzyCommand {
             final String mappingsFile = localCmd.getOptionValue('s');
             //noinspection unchecked
             final Map<String, String> mappings = new HashMap<String, String>(objectMapper.readValue(new File(mappingsFile), Map.class));
-            final List<LzyWhiteboard.SlotMapping> slotMappings = new ArrayList<>();
+            final List<Tasks.SlotMapping> slotMappings = new ArrayList<>();
             for (var entry : mappings.entrySet()) {
-                slotMappings.add(LzyWhiteboard.SlotMapping
+                slotMappings.add(Tasks.SlotMapping
                     .newBuilder()
                     .setSlotName(entry.getKey())
                     .setEntryId(entry.getValue())

@@ -1,89 +1,54 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
-    enum WhiteboardStatus {
-        CREATED,
-        FINALIZED,
-        ERRORED
+    private final WhiteboardRepository whiteboardRepository;
+    private final SnapshotRepository snapshotRepository;
+
+    public WhiteboardApi(WhiteboardRepository whiteboardRepository, SnapshotRepository snapshotRepository) {
+        this.whiteboardRepository = whiteboardRepository;
+        this.snapshotRepository = snapshotRepository;
     }
-
-    private static LzyWhiteboard.Whiteboard.WhiteboardStatus to(WhiteboardStatus status) {
-        switch (status) {
-            case CREATED: {
-                return LzyWhiteboard.Whiteboard.WhiteboardStatus.CREATED;
-            }
-            case FINALIZED: {
-                return LzyWhiteboard.Whiteboard.WhiteboardStatus.FINALIZED;
-            }
-            case ERRORED: {
-                return LzyWhiteboard.Whiteboard.WhiteboardStatus.ERRORED;
-            }
-        }
-        return LzyWhiteboard.Whiteboard.WhiteboardStatus.UNKNOWN;
-    }
-
-    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
-
-    public WhiteboardApi(SnapshotApiGrpc.SnapshotApiBlockingStub snapshot) {
-        this.snapshot = snapshot;
-    }
-
-    private static class FieldMapping {
-        private final String fieldName;
-        private final String entryId;
-
-        private FieldMapping(String fieldName, String entryId) {
-            this.fieldName = fieldName;
-            this.entryId = entryId;
-        }
-
-        public static LzyWhiteboard.FieldMapping to(FieldMapping fm) {
-            return LzyWhiteboard.FieldMapping
-                    .newBuilder()
-                    .setFieldName(fm.fieldName)
-                    .setEntryId(fm.entryId)
-                    .build();
-        }
-
-        public static FieldMapping to(LzyWhiteboard.FieldMapping fm) {
-            return new FieldMapping(fm.getFieldName(), fm.getEntryId());
-        }
-    }
-
-    private final ConcurrentHashMap<URI, URI> snapshotBindings = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<URI, WhiteboardStatus> wbStatus = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<URI, Set<FieldMapping>> fieldMappings = new ConcurrentHashMap<>();
 
     @Override
-    public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request, StreamObserver<LzyWhiteboard.WhiteboardId> responseObserver) {
+    public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request, StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+        final SnapshotStatus snapshotStatus = snapshotRepository.resolveSnapshot(URI.create(request.getSnapshotId()));
+        if (snapshotStatus == null) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            return;
+        }
         URI wbId = URI.create(UUID.randomUUID().toString());
-        snapshotBindings.put(wbId, URI.create(request.getSnapshotId()));
-        wbStatus.put(wbId, WhiteboardStatus.CREATED);
-        final LzyWhiteboard.WhiteboardId id = LzyWhiteboard.WhiteboardId
+        whiteboardRepository.create(new Whiteboard.Impl(wbId, new HashSet<>(request.getFieldNamesList()), snapshotStatus.snapshot()));
+        final LzyWhiteboard.Whiteboard id = LzyWhiteboard.Whiteboard
                 .newBuilder()
-                .setWbId(wbId.toString())
+                .setId(wbId.toString())
                 .build();
         responseObserver.onNext(id);
         responseObserver.onCompleted();
     }
 
     @Override
-    public void addLink(LzyWhiteboard.AddLinkCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-        fieldMappings.putIfAbsent(URI.create(request.getWbId()), new HashSet<>());
-        fieldMappings.computeIfPresent(URI.create(request.getWbId()),
-                (k, v) -> {
-                    for (var entry : request.getMappingsList()) {
-                        v.add(FieldMapping.to(entry));
-                    }
-                    return v;
-                });
+    public void link(LzyWhiteboard.LinkCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        final WhiteboardStatus whiteboardStatus = whiteboardRepository.resolveWhiteboard(URI.create(request.getWhiteboardId()));
+        if (whiteboardStatus == null) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            return;
+        }
+        final SnapshotEntry snapshotEntry = snapshotRepository.resolveEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId());
+        if (snapshotEntry == null) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            return;
+        }
+        whiteboardRepository.add(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry, whiteboardStatus.whiteboard()));
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
                 .newBuilder()
                 .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
@@ -93,66 +58,21 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     }
 
     @Override
-    public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
-                              StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        LzyWhiteboard.GetAllLinksResponse response = snapshot.getAllLinks(LzyWhiteboard.GetAllLinksCommand
-                .newBuilder()
-                .setSnapshotId(snapshotBindings.get(URI.create(request.getWbId())).toString())
-                .build());
-        var fM = fieldMappings.get(URI.create(request.getWbId()));
-        List<LzyWhiteboard.StorageBinding> bindings = new ArrayList<>();
-        for (var binding : response.getStorageBindingsList()) {
-            String fieldName = null;
-            String uri = null;
-            for (var mapping : fM) {
-                if (mapping.entryId.equals(binding.getFieldName())) {
-                    fieldName = mapping.fieldName;
-                }
-            }
-            if (fieldName != null) {
-                bindings.add(LzyWhiteboard.StorageBinding
-                        .newBuilder()
-                        .setFieldName(fieldName)
-                        .setStorageUri(binding.getStorageUri())
-                        .build()
-                );
-            }
+    public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request, StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+        final WhiteboardStatus whiteboardStatus = whiteboardRepository.resolveWhiteboard(URI.create(request.getWhiteboardId()));
+        if (whiteboardStatus == null) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            return;
         }
-        List<LzyWhiteboard.Relation> relations = new ArrayList<>();
-        for (var relation : response.getRelationList()) {
-            String fieldName = null;
-            String uri = null;
-            for (var mapping : fM) {
-                if (mapping.entryId.equals(relation.getFieldName())) {
-                    fieldName = mapping.fieldName;
-                }
-            }
-            if (fieldName != null) {
-                var builder = LzyWhiteboard.Relation.newBuilder();
-                builder.setFieldName(fieldName);
-                var deps = new ArrayList<String>();
-                for (var dep : relation.getDependenciesList()) {
-                    String depFieldName = null;
-                    for (var mapping : fM) {
-                        if (mapping.entryId.equals(dep)) {
-                            depFieldName = mapping.fieldName;
-                        }
-                    }
-                    if (depFieldName != null) {
-                        deps.add(depFieldName);
-                    }
-                }
-                builder.addAllDependencies(deps);
-                relations.add(builder.build());
-            }
-        }
-        final LzyWhiteboard.Whiteboard whiteboard = LzyWhiteboard.Whiteboard
+        List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(whiteboardStatus.whiteboard())
+                .map(field -> gRPCConverter.to(field, whiteboardRepository.dependent(field).collect(Collectors.toList())))
+                .collect(Collectors.toList());
+        final LzyWhiteboard.Whiteboard result = LzyWhiteboard.Whiteboard
                 .newBuilder()
-                .addAllStorageBindings(bindings)
-                .addAllRelations(relations)
-                .setWhiteboardStatus(to(wbStatus.get(URI.create(request.getWbId()))))
+                .setSnapshot(gRPCConverter.to(whiteboardStatus.whiteboard().snapshot()))
+                .addAllFields(fields)
                 .build();
-        responseObserver.onNext(whiteboard);
+        responseObserver.onNext(result);
         responseObserver.onCompleted();
     }
 }
