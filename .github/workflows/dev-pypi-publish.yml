@@ -1,0 +1,17 @@
+name: Package dev pylzy-nightly package
+
+on:
+  schedule:
+    - cron: 59 23 * * * # run everyday on 23:59
+
+jobs:
+  run-tests:
+    uses: lambda-zy/lzy/.github/workflows/run-tests.yml@main
+
+  build-and-publish:
+    needs: run-tests
+    uses: lambda-zy/lzy/.github/workflows/build-pypi-publish.yml@main
+    with:
+      checkout_dev: true # checkout to dev branch before running
+    secrets:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
