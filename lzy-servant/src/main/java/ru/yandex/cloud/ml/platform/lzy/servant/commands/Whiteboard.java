@@ -10,6 +10,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 import java.net.URI;
 import java.util.*;
+import java.util.List;
 
 public class Whiteboard implements LzyCommand {
     private static final Options options = new Options();
