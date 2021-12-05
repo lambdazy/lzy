@@ -1,6 +1,5 @@
-package ru.yandex.cloud.ml.platform.lzy.whiteboard;
+package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import javax.annotation.Nullable;
@@ -50,7 +49,7 @@ public class SnapshotMeta {
     public static Tasks.SnapshotMeta to(SnapshotMeta meta) {
         Tasks.SnapshotMeta.Builder builder = Tasks.SnapshotMeta.newBuilder();
         for (var entry : meta.slotMappings) {
-            builder.addMappings(LzyWhiteboard.SlotMapping
+            builder.addMappings(Tasks.SlotMapping
                     .newBuilder()
                     .setSlotName(entry.slotName)
                     .setEntryId(entry.entryId)

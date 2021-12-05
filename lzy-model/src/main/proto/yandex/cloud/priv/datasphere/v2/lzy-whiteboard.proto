@@ -1,6 +1,5 @@
 syntax = "proto3";
 
-import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
 
 package yandex.cloud.priv.datasphere.v2;
@@ -10,76 +9,67 @@ option java_outer_classname = "LzyWhiteboard";
 option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service SnapshotApi {
-  rpc CreateSnapshot (CreateSnapshotCommand) returns (SnapshotId);
+  rpc CreateSnapshot (CreateSnapshotCommand) returns (Snapshot);
   rpc PrepareToSave (PrepareCommand) returns (OperationStatus);
   rpc Commit (CommitCommand) returns (OperationStatus);
   rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
-
-  // will go away
-  rpc GetAllLinks (GetAllLinksCommand) returns (GetAllLinksResponse);
 }
 
 service WbApi {
-  rpc CreateWhiteboard (CreateWhiteboardCommand) returns (WhiteboardId);
-  rpc AddLink (AddLinkCommand) returns (OperationStatus);
+  rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
+  rpc Link (LinkCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
 }
 
 message CreateSnapshotCommand {
-  UserCredentials userCredentials = 1;
+  Auth auth = 1;
 }
 
-message CreateWhiteboardCommand {
-  UserCredentials userCredentials = 1;
+message FinalizeSnapshotCommand {
+  Auth auth = 1;
   string snapshotId = 2;
 }
 
-message WhiteboardId {
-  string wbId = 1;
+message CreateWhiteboardCommand {
+  Auth auth = 1;
+  string snapshotId = 2;
+  repeated string fieldNames = 3;
 }
 
-message SnapshotId {
+message Snapshot {
   string snapshotId = 1;
+  //TODO: enrich me
 }
 
-message Dependency {
-  repeated string depEntryId = 1;
+message SnapshotEntry {
+  string entryId = 1;
+  string storageUri = 2;
+  repeated string dependentEntryIds = 3;
 }
 
 message PrepareCommand {
-  string snapshotId = 1;
-  string entryId = 2;
-  string uri = 3;
-  Auth auth = 4;
-  Dependency dependency = 5;
+  Auth auth = 1;
+  string snapshotId = 2;
+  SnapshotEntry entry = 3;
 }
 
 message CommitCommand {
-  string snapshotId = 1;
-  string entryId = 2;
-  bool empty = 3;
-  Auth auth = 4;
+  Auth auth = 1;
+  string snapshotId = 2;
+  string entryId = 3;
+  bool empty = 4;
 }
 
-message AddLinkCommand {
-  string wbId = 1;
-  repeated FieldMapping mappings = 2;
-  UserCredentials auth = 3;
-}
-
-message FieldMapping {
-  string fieldName = 1;
-  string entryId = 2;
-}
-
-message SlotMapping {
-  string slotName = 1;
-  string entryId = 2;
+message LinkCommand {
+  Auth auth = 1;
+  string whiteboardId = 2;
+  string fieldName = 3;
+  string entryId = 4;
 }
 
 message GetWhiteboardCommand {
-  string wbId = 1;
-  UserCredentials auth = 2;
+  Auth auth = 1;
+  string whiteboardId = 2;
 }
 
 message OperationStatus {
@@ -92,38 +82,29 @@ message OperationStatus {
   }
 }
 
-message StorageBinding {
+message WhiteboardField {
   string fieldName = 1;
   string storageUri = 2;
-}
+  repeated string dependentFieldNames = 3;
+  bool empty = 4;
+  Status status = 5;
 
-message Relation {
-  string fieldName = 1;
-  repeated string dependencies = 2;
-}
-
-message Whiteboard {
-  repeated StorageBinding storageBindings = 1;
-  repeated Relation relations = 2;
-  WhiteboardStatus whiteboardStatus = 3;
-  enum WhiteboardStatus {
-    UNKNOWN = 0;
-    CREATED = 1;
-    FINALIZED = 2;
-    ERRORED = 3;
+  enum Status {
+    IN_PROGRESS = 0;
+    FINISHED = 1;
   }
 }
 
-message FinalizeSnapshotCommand {
-  string snapshotId = 1;
-  UserCredentials auth = 2;
-}
+message Whiteboard {
+  string id = 1;
+  repeated WhiteboardField fields = 2;
+  Snapshot snapshot = 3;
+  WhiteboardStatus status = 4;
 
-message GetAllLinksCommand {
-  string snapshotId = 1;
-}
-
-message GetAllLinksResponse {
-  repeated StorageBinding storageBindings = 1;
-  repeated Relation relation = 2;
+  enum WhiteboardStatus {
+    UNKNOWN = 0;
+    CREATED = 1;
+    COMPLETED = 2;
+    ERRORED = 3;
+  }
 }

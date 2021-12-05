@@ -2,16 +2,13 @@ package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 import java.net.URI;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class SnapshotterImpl implements Snapshotter {
-    private final Map<String, SlotSnapshot> slotSnapshots = new ConcurrentHashMap<>();
     private final SlotSnapshotProvider snapshotProvider;
     private final Zygote zygote;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
@@ -34,21 +31,22 @@ public class SnapshotterImpl implements Snapshotter {
     public void prepare(Slot slot) {
         if (meta.getEntryId(slot.name()) != null) {
             final URI uri = snapshotProvider().slotSnapshot(slot).uri();
-            LzyWhiteboard.PrepareCommand.Builder builder = LzyWhiteboard.PrepareCommand
-                    .newBuilder()
-                    .setSnapshotId(meta.getSnapshotId())
+            final LzyWhiteboard.SnapshotEntry.Builder entryBuilder = LzyWhiteboard.SnapshotEntry.newBuilder()
                     .setEntryId(meta.getEntryId(slot.name()))
-                    .setUri(uri.toString());
+                    .setStorageUri(uri.toString());
             if (slot.direction().equals(Slot.Direction.OUTPUT)) {
                 zygote.slots()
                         .filter(s -> s.direction().equals(Slot.Direction.INPUT))
-                        .forEach(s -> builder.setDependency(LzyWhiteboard.Dependency
-                                .newBuilder()
-                                .addDepEntryId(meta.getEntryId(s.name()))
-                                .build())
+                        .forEach(s -> entryBuilder.addDependentEntryIds(meta.getEntryId(s.name()))
                         );
             }
-            LzyWhiteboard.OperationStatus status = snapshotApi.prepareToSave(builder.build());
+
+            LzyWhiteboard.PrepareCommand command = LzyWhiteboard.PrepareCommand
+                    .newBuilder()
+                    .setSnapshotId(meta.getSnapshotId())
+                    .setEntry(entryBuilder.build())
+                    .build();
+            LzyWhiteboard.OperationStatus status = snapshotApi.prepareToSave(command);
             if (status.getStatus().equals(LzyWhiteboard.OperationStatus.Status.FAILED)) {
                 throw new RuntimeException("LzyExecution::configureSlot failed to save to snapshot");
             }

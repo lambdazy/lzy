@@ -6,8 +6,6 @@ import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.lang3.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.LzySnapshot;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotApi;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardApi;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 

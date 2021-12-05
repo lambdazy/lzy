@@ -19,6 +19,11 @@ message TaskCommand {
   }
 }
 
+message SlotMapping {
+  string slotName = 1;
+  string entryId = 2;
+}
+
 message SnapshotMeta {
   repeated SlotMapping mappings = 1;
 }

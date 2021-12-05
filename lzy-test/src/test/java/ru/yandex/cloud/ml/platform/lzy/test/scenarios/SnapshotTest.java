@@ -17,6 +17,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
@@ -29,6 +30,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 public class SnapshotTest extends LzyBaseTest {
+    private static final int S3_PORT = FreePortFinder.find(8000, 9000);
     private LzyTerminalTestContext.Terminal terminal;
     private S3Mock api;
 
@@ -46,7 +48,7 @@ public class SnapshotTest extends LzyBaseTest {
                 TimeUnit.SECONDS
         );
 
-        api = new S3Mock.Builder().withPort(8001).withInMemoryBackend().build();
+        api = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
         api.start();
     }
 
@@ -125,7 +127,7 @@ public class SnapshotTest extends LzyBaseTest {
         final AmazonS3 client = AmazonS3ClientBuilder
                 .standard()
                 .withPathStyleAccessEnabled(true)
-                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://localhost:8001", "us-west-2"))
+                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://localhost:" + S3_PORT, "us-west-2"))
                 .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
                 .build();
 

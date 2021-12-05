@@ -31,12 +31,12 @@ service LzyKharon {
   rpc ChannelsStatus (Auth) returns (ChannelStatusList);
 
   // Whiteboard API
-  rpc CreateWhiteboard (CreateWhiteboardCommand) returns (WhiteboardId);
-  rpc AddLink (AddLinkCommand) returns (OperationStatus);
+  rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
+  rpc AddLink (LinkCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
 
   // Snapshot API
-  rpc CreateSnapshot (CreateSnapshotCommand) returns (SnapshotId);
+  rpc CreateSnapshot (CreateSnapshotCommand) returns (Snapshot);
   rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
 }
 
