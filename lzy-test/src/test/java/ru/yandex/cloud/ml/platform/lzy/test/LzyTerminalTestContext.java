@@ -14,6 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -168,13 +169,15 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String createWhiteboard(String wbId) {
+        default String createWhiteboard(String wbId, List<String> fieldNames) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(
                             " ",
                             mount() + "/sbin/whiteboard",
                             "create",
-                            wbId
+                            wbId,
+                            "-l",
+                            String.join(" ", fieldNames)
                     )
             );
             if (execute.exitCode() != 0) {
@@ -183,26 +186,17 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default void addLink(String wbId, Map<String, String> fieldMapping) {
-            try {
-                final ExecutionResult bash = execute(
-                        Collections.emptyMap(),
-                        "bash",
-                        "-c",
-                        "echo '" + OBJECT_MAPPER.writeValueAsString(fieldMapping) + "' > mapping.json"
-                );
-                System.out.println(bash);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+        default void link(String wbId, String fieldId, String entryId) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(
                             " ",
                             mount() + "/sbin/whiteboard",
                             "link",
                             wbId,
-                            "-m",
-                            "mapping.json"
+                            "-f",
+                            fieldId,
+                            "-e",
+                            entryId
                     )
             );
             if (execute.exitCode() != 0) {
