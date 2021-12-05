@@ -11,8 +11,8 @@ import java.util.stream.Stream;
 
 public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     private final Map<URI, SnapshotStatus> snapshots = new HashMap<>();
-    private final Map<URI, Map<String, SnapshotEntry.Impl>> entries = new HashMap<>();
     private final Map<URI, List<URI>> snapshotWhiteboardsMapping = new HashMap<>();
+    private final Map<URI, Map<String, SnapshotEntry>> entries = new HashMap<>();
 
     private final Map<URI, WhiteboardStatus> whiteboards = new HashMap<>();
     private final Map<URI, Map<String, WhiteboardField>> fields = new HashMap<>();
@@ -22,7 +22,6 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     public synchronized void create(Snapshot snapshot) {
         snapshots.putIfAbsent(snapshot.id(), new SnapshotStatus.Impl(snapshot, SnapshotStatus.State.CREATED));
         entries.putIfAbsent(snapshot.id(), new HashMap<>());
-        snapshotWhiteboardsMapping.putIfAbsent(snapshot.id(), new ArrayList<>());
     }
 
     @Override
@@ -35,10 +34,7 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         if (!snapshots.containsKey(entry.snapshot().id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + entry.snapshot().id());
         }
-        SnapshotEntry.Impl imp = entries.get(entry.snapshot().id()).getOrDefault(entry.id(), new SnapshotEntry.Impl(entry.id(), null, new HashSet<>(), entry.snapshot()));
-        imp.setDeps(entry.dependentEntryIds());
-        imp.setStorage(entry.storage());
-        entries.get(entry.snapshot().id()).put(entry.id(), imp);
+        entries.get(entry.snapshot().id()).put(entry.id(), entry);
     }
 
     @Override
@@ -46,8 +42,6 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         if (!snapshots.containsKey(snapshot.id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + snapshot.id());
         }
-        if (entries.get(snapshot.id()).get(id) == null)
-            entries.get(snapshot.id()).put(id, new SnapshotEntry.Impl(id, URI.create("aaa.ru"), new HashSet<>(), snapshot));
         return entries.get(snapshot.id()).get(id);
     }
 
@@ -56,11 +50,11 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         if (!snapshots.containsKey(entry.snapshot().id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + entry.snapshot().id());
         }
-        final Map<String, SnapshotEntry.Impl> entryMap = entries.get(entry.snapshot().id());
+        final Map<String, SnapshotEntry> entryMap = entries.get(entry.snapshot().id());
         if (!entryMap.containsKey(entry.id())) {
             throw new IllegalArgumentException("Entry is not found: " + entry.id());
         }
-        entryMap.put(entry.id(), (SnapshotEntry.Impl)entry);
+        entryMap.put(entry.id(), entry);
     }
 
     @Override
@@ -71,14 +65,6 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         }
         final SnapshotStatus.Impl snapshotStatus = new SnapshotStatus.Impl(snapshot, SnapshotStatus.State.FINALIZED);
         snapshots.put(snapshot.id(), snapshotStatus);
-        snapshotWhiteboardsMapping.get(snapshot.id()).forEach(uri -> {
-            final WhiteboardStatus prev = whiteboards.get(uri);
-            if (prev.whiteboard().fieldNames().size() == entryFieldMapping.get(prev.whiteboard().id()).size()) {
-                whiteboards.put(uri, new WhiteboardStatus.Impl(prev.whiteboard(), WhiteboardStatus.State.COMPLETED));
-            } else {
-                whiteboards.put(uri, new WhiteboardStatus.Impl(prev.whiteboard(), WhiteboardStatus.State.NOT_COMPLETED));
-            }
-        });
     }
 
     @Override
@@ -89,15 +75,11 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         }
         final SnapshotStatus.Impl snapshotStatus = new SnapshotStatus.Impl(snapshot, SnapshotStatus.State.ERRORED);
         snapshots.put(snapshot.id(), snapshotStatus);
-        snapshotWhiteboardsMapping.get(snapshot.id()).forEach(uri -> {
-            final WhiteboardStatus prev = whiteboards.get(uri);
-            whiteboards.put(uri, new WhiteboardStatus.Impl(prev.whiteboard(), WhiteboardStatus.State.ERRORED));
-        });
     }
 
     @Override
     public synchronized Stream<SnapshotEntry> entries(Snapshot snapshot) {
-        return entries.get(snapshot.id()).values().stream().map(entry -> (SnapshotEntry)entry);
+        return new ArrayList<>(entries.get(snapshot.id()).values()).stream();
     }
 
     @Override
@@ -106,7 +88,6 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         whiteboards.putIfAbsent(whiteboard.id(), whiteboardStatus);
         fields.putIfAbsent(whiteboard.id(), new HashMap<>());
         entryFieldMapping.putIfAbsent(whiteboard.id(), new HashMap<>());
-        snapshotWhiteboardsMapping.get(whiteboard.snapshot().id()).add(whiteboard.id());
     }
 
     @Override

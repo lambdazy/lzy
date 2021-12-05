@@ -42,21 +42,5 @@ public interface SnapshotEntry {
         public Snapshot snapshot() {
             return snapshot;
         }
-
-        public void setId(String id) {
-            this.id = id;
-        }
-
-        public void setStorage(URI storage) {
-            this.storage = storage;
-        }
-
-        public void setDeps(Set<String> deps) {
-            this.deps = deps;
-        }
-
-        public void setSnapshot(Snapshot snapshot) {
-            this.snapshot = snapshot;
-        }
     }
 }
