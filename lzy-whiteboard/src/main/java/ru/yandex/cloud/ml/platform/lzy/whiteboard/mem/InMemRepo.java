@@ -8,6 +8,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -113,6 +114,7 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         return field.entry().dependentEntryIds()
                 .stream()
                 .map(s -> entryFieldMapping.get(field.whiteboard().id()).get(s))
+                .filter(Objects::nonNull)
                 .map(s -> fields.get(field.whiteboard().id()).get(s))
                 .collect(Collectors.toList())
                 .stream();

@@ -10,6 +10,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 import java.net.URI;
 import java.util.Base64;
+import java.util.List;
 
 public class Whiteboard implements LzyCommand {
     private static final Options options = new Options();
@@ -17,6 +18,7 @@ public class Whiteboard implements LzyCommand {
     static {
         options.addOption(new Option("e", "entry", true, "Entry ID for mapping"));
         options.addOption(new Option("f", "field", true, "Whiteboard field for mapping"));
+        options.addOption(new Option("l", "fields list", true, "Whiteboard fields list"));
     }
 
     @Override
@@ -43,9 +45,14 @@ public class Whiteboard implements LzyCommand {
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
             case "create": {
+                if (!localCmd.hasOption('l')) {
+                    throw new IllegalArgumentException("Whiteboard fields list must be specified");
+                }
+                final List<String> fields = List.of(localCmd.getOptionValues('l'));
                 final LzyWhiteboard.Whiteboard whiteboardId = server.createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
                         .newBuilder()
                         .setSnapshotId(command.getArgs()[2])
+                        .addAllFieldNames(fields)
                         .setAuth(auth)
                         .build()
                 );

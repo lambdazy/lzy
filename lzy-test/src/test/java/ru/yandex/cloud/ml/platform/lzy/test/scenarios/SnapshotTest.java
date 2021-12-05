@@ -7,9 +7,9 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.google.protobuf.util.JsonFormat;
 import io.findify.s3mock.S3Mock;
 import org.apache.commons.io.IOUtils;
-import org.jose4j.json.internal.json_simple.JSONArray;
 import org.jose4j.json.internal.json_simple.JSONObject;
 import org.jose4j.json.internal.json_simple.parser.JSONParser;
 import org.jose4j.json.internal.json_simple.parser.ParseException;
@@ -17,10 +17,10 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -30,7 +30,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 public class SnapshotTest extends LzyBaseTest {
-    private static final int S3_PORT = FreePortFinder.find(8000, 9000);
+    private static final int S3_PORT = 8001;
     private LzyTerminalTestContext.Terminal terminal;
     private S3Mock api;
 
@@ -94,9 +94,9 @@ public class SnapshotTest extends LzyBaseTest {
         final String spId = (String) spIdObject.get("snapshotId");
         Assert.assertNotNull(spId);
 
-        String wbIdJson = terminal.createWhiteboard(spId);
+        String wbIdJson = terminal.createWhiteboard(spId, List.of(localFileName, localFileOutName));
         JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
-        final String wbId = (String) wbIdObject.get("wbId");
+        final String wbId = (String) wbIdObject.get("id");
         Assert.assertNotNull(wbId);
 
         final String firstEntryId = "firstEntryId";
@@ -144,33 +144,26 @@ public class SnapshotTest extends LzyBaseTest {
             Assert.assertEquals(fileContent + "\n", content);
         }
 
-        terminal.addLink(wbId, Map.of(
-                localFileName, spId + "/" + firstEntryId,
-                localFileOutName, spId + "/" + secondEntryId
-        ));
+        terminal.link(wbId, localFileName, spId + "/" + firstEntryId);
+        terminal.link(wbId, localFileOutName, spId + "/" + secondEntryId);
 
         terminal.finalizeWhiteboard(wbId);
         String whiteboard = terminal.getWhiteboard(wbId);
-        JSONObject jsonObject = (JSONObject) (new JSONParser()).parse(whiteboard);
 
-        JSONArray storageBindings = (JSONArray) jsonObject.get("storageBindings");
-        Assert.assertEquals(2, storageBindings.size());
-        JSONObject storageBinding = (JSONObject) storageBindings.get(0);
-        Assert.assertTrue(storageBinding.get("fieldName").equals(localFileOutName) ||
-                storageBinding.get("fieldName").equals(localFileName));
-        Assert.assertTrue(storageBinding.get("storageUri").toString().length() > 0);
+        LzyWhiteboard.Whiteboard.Builder builder = LzyWhiteboard.Whiteboard.newBuilder();
+        JsonFormat.parser().merge(whiteboard, builder);
+        LzyWhiteboard.Whiteboard wb = builder.build();
+        final List<LzyWhiteboard.WhiteboardField> fieldsList = wb.getFieldsList();
 
-        storageBinding = (JSONObject) storageBindings.get(1);
-        Assert.assertTrue(storageBinding.get("fieldName").equals(localFileOutName) ||
-                storageBinding.get("fieldName").equals(localFileName));
-        Assert.assertTrue(storageBinding.get("storageUri").toString().length() > 0);
+        Assert.assertEquals(spId, wb.getSnapshot().getSnapshotId());
+        Assert.assertEquals(2, fieldsList.size());
 
-        JSONArray relations = (JSONArray) jsonObject.get("relations");
-        Assert.assertEquals(1, relations.size());
-        JSONObject relation = (JSONObject) relations.get(0);
-        Assert.assertEquals(relation.get("fieldName"), localFileOutName);
-        JSONArray dependencies = (JSONArray) relation.get("dependencies");
-        Assert.assertEquals(1, dependencies.size());
-        Assert.assertEquals(dependencies.get(0), localFileName);
+        Assert.assertEquals(localFileOutName, fieldsList.get(0).getFieldName());
+        Assert.assertEquals(localFileName, fieldsList.get(1).getFieldName());
+
+        Assert.assertTrue(fieldsList.get(0).getStorageUri().length() > 0);
+        Assert.assertTrue(fieldsList.get(1).getStorageUri().length() > 0);
+
+        Assert.assertEquals(List.of(localFileName), fieldsList.get(0).getDependentFieldNamesList());
     }
 }
