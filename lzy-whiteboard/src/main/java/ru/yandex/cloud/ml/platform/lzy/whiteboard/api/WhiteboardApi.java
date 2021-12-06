@@ -1,9 +1,11 @@
-package ru.yandex.cloud.ml.platform.lzy.whiteboard;
+package ru.yandex.cloud.ml.platform.lzy.whiteboard.api;
 
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.net.URI;

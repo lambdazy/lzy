@@ -3,6 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.apache.commons.cli.*;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.WhiteboardApi;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.InMemRepo;
 
 import java.io.IOException;
