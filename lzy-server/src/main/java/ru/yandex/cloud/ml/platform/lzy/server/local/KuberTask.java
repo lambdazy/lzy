@@ -84,7 +84,6 @@ public class KuberTask extends BaseTask {
             servantPodDescription.getMetadata().setName(podName);
 
             final String typeLabelValue;
-            //TODO: run on GPU node if zygote requires GPU
             if (isNeedGpu()) {
                 typeLabelValue = "gpu";
                 servantPodDescription.getSpec().setTolerations(GPU_SERVANT_POD_TOLERATIONS);
