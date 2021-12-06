@@ -18,7 +18,7 @@ public class Whiteboard implements LzyCommand {
     static {
         options.addOption(new Option("e", "entry", true, "Entry ID for mapping"));
         options.addOption(new Option("f", "field", true, "Whiteboard field for mapping"));
-        options.addOption(new Option("l", "fields list", true, "Whiteboard fields list"));
+        options.addOption(new Option("l", "fields list", true, "Whiteboard fields comma-separated list"));
     }
 
     @Override
@@ -48,7 +48,7 @@ public class Whiteboard implements LzyCommand {
                 if (!localCmd.hasOption('l')) {
                     throw new IllegalArgumentException("Whiteboard fields list must be specified");
                 }
-                final List<String> fields = List.of(localCmd.getOptionValues('l'));
+                final List<String> fields = List.of(localCmd.getOptionValue('l').split(","));
                 final LzyWhiteboard.Whiteboard whiteboardId = server.createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
                         .newBuilder()
                         .setSnapshotId(command.getArgs()[2])

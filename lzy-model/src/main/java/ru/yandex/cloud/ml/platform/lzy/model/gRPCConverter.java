@@ -8,6 +8,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -122,8 +123,23 @@ public abstract class gRPCConverter {
                 .build();
     }
 
-    public static SnapshotEntry from (LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
+    public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
         return new SnapshotEntry.Impl(entry.getEntryId(), URI.create(entry.getStorageUri()), new HashSet<>(entry.getDependentEntryIdsList()), snapshot);
+    }
+
+    public static LzyWhiteboard.Whiteboard.WhiteboardStatus to(WhiteboardStatus.State state) {
+        switch (state) {
+            case CREATED:
+                return LzyWhiteboard.Whiteboard.WhiteboardStatus.CREATED;
+            case COMPLETED:
+                return LzyWhiteboard.Whiteboard.WhiteboardStatus.COMPLETED;
+            case NOT_COMPLETED:
+                return LzyWhiteboard.Whiteboard.WhiteboardStatus.NOT_COMPLETED;
+            case ERRORED:
+                return LzyWhiteboard.Whiteboard.WhiteboardStatus.ERRORED;
+            default:
+                throw new IllegalArgumentException("Unknown state: " + state);
+        }
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {
@@ -134,7 +150,8 @@ public abstract class gRPCConverter {
         }
 
         @Override
-        public void run() {}
+        public void run() {
+        }
 
         @Override
         public Slot[] input() {
@@ -173,7 +190,7 @@ public abstract class gRPCConverter {
         }
 
         @Override
-        public String description(){
+        public String description() {
             return operation.getDescription();
         }
     }
@@ -214,14 +231,16 @@ public abstract class gRPCConverter {
 
         @Override
         public boolean equals(Object obj) {
-            return obj instanceof Slot && ((Slot)obj).name().equals(s.getName());
+            return obj instanceof Slot && ((Slot) obj).name().equals(s.getName());
         }
     }
 
     private static class SlotStatusAdapter implements SlotStatus {
         private final Operations.SlotStatus slotStatus;
 
-        SlotStatusAdapter(Operations.SlotStatus slotStatus) {this.slotStatus = slotStatus;}
+        SlotStatusAdapter(Operations.SlotStatus slotStatus) {
+            this.slotStatus = slotStatus;
+        }
 
         @Nullable
         @Override
