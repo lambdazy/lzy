@@ -8,7 +8,7 @@ resource "kubernetes_pod" "lzy_kharon" {
   spec {
     container {
       name              = "lzy-kharon"
-      image             = "lzydock/lzy-kharon:master"
+      image             = var.kharon-image
       image_pull_policy = "Always"
       env {
         name = "LZY_HOST"

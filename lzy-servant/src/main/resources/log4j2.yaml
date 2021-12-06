@@ -12,27 +12,6 @@ Configuration:
       fileName: /var/log/servant/${sys:custom.log.file}
       PatternLayout:
         pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] [%t] %c{1} - %msg%n"
-#    ServantAppender:
-#      name: DatabaseAppender
-#      PatternLayout:
-#        pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
-#      servantId: ${sys:custom.log.servant_id}
-#    Kafka:
-#      name: Kafka
-#      topic: servant
-#      syncSend: false
-#      Property:
-#        - name: bootstrap.servers
-#          value: ${sys:custom.log.server}
-#        - name: security.protocol
-#          value: SASL_PLAINTEXT
-#        - name: sasl.jaas.config
-#          value: org.apache.kafka.common.security.plain.PlainLoginModule required serviceName="kafka" username="${sys:custom.log.username}" password="${sys:custom.log.password}";
-#        - name: sasl.mechanisms
-#          value: PLAIN
-#      PatternLayout:
-#        Pattern: '{"timestamp":"%d{UNIX}", "thread": "%t",  "level": "%-5level", "logger": "%logger{36}", "message": "%enc{%msg}", "servant": "${sys:custom.log.servant_id}"}'
-
 
   Loggers:
     Root:
