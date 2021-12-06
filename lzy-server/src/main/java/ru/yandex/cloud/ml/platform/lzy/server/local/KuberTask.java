@@ -130,6 +130,7 @@ public class KuberTask extends BaseTask {
                 }
                 final String phase = Objects.requireNonNull(queriedPod.get().getStatus()).getPhase();
                 LOG.info("KuberTask current phase: " + phase);
+                // TODO: handle "Failed" phase
                 if ("Succeeded".equals(phase) || "Failed".equals(phase)) {
                     api.deleteNamespacedPod(podName, namespace, null, null, null, null, null, null);
                     break;
