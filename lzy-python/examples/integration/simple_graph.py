@@ -15,7 +15,7 @@ def main():
         # noinspection PyTypeChecker
         return v + "" + str(a)
 
-    with LzyEnv(user="artolord", server_url="20.54.88.226:8899", private_key_path="/Users/artolord/.ssh/private.pem"):
+    with LzyEnv(user="test_user", server_url="localhost:8899"):
         s = str_gen()
         f = foo(2)
         b = bar(f, s)

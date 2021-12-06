@@ -8,7 +8,7 @@ resource "kubernetes_pod" "lzy_server" {
   spec {
     container {
       name              = "lzy-server"
-      image             = "lzydock/lzy-server:master"
+      image             = var.server-image
       image_pull_policy = "Always"
       env {
         name = "LZY_SERVER_HOST"
