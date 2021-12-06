@@ -27,6 +27,16 @@ public class KuberTask extends BaseTask {
     private static final Logger LOG = LoggerFactory.getLogger(KuberTask.class);
     public static final String LZY_SERVANT_POD_TEMPLATE_FILE_PROPERTY = "lzy.servant.pod.template.file";
     public static final String DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE = "/app/resources/kubernetes/lzy-servant-pod-template.yaml";
+    public static final V1Toleration GPU_SERVANT_POD_TOLERATION = new V1TolerationBuilder()
+            .withKey("sku")
+            .withOperator("Equal")
+            .withValue("gpu")
+            .withEffect("NoSchedule")
+            .build();
+    public static final List<V1Toleration> GPU_SERVANT_POD_TOLERATIONS = List.of(
+            GPU_SERVANT_POD_TOLERATION
+    );
+    public static final V1ResourceRequirements GPU_SERVANT_POD_RESOURCE = new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1")).build();
 
     KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
               SnapshotMeta meta, ChannelsManager channels, URI serverURI) {
@@ -78,18 +88,8 @@ public class KuberTask extends BaseTask {
             final boolean needGpu = ((AtomicZygote) workload()).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));
             if (needGpu) {
                 typeLabelValue = "gpu";
-
-                final V1Toleration toleration = new V1Toleration();
-                toleration.setKey("sku");
-                toleration.setOperator("Equal");
-                toleration.setValue("gpu");
-                toleration.setEffect("NoSchedule");
-                servantPodDescription.getSpec().setTolerations(List.of(
-                    toleration
-                ));
-
-                final V1ResourceRequirementsBuilder gpuReq = new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1"));
-                servantPodDescription.getSpec().getContainers().get(0).setResources(gpuReq.build());
+                servantPodDescription.getSpec().setTolerations(GPU_SERVANT_POD_TOLERATIONS);
+                servantPodDescription.getSpec().getContainers().get(0).setResources(GPU_SERVANT_POD_RESOURCE);
             } else {
                 typeLabelValue = "cpu";
             }
