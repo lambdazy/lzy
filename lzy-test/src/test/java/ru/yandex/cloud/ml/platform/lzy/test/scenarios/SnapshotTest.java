@@ -147,7 +147,7 @@ public class SnapshotTest extends LzyBaseTest {
         terminal.link(wbId, localFileName, spId + "/" + firstEntryId);
         terminal.link(wbId, localFileOutName, spId + "/" + secondEntryId);
 
-        terminal.finalizeWhiteboard(wbId);
+        terminal.finalizeSnapshot(spId);
         String whiteboard = terminal.getWhiteboard(wbId);
 
         LzyWhiteboard.Whiteboard.Builder builder = LzyWhiteboard.Whiteboard.newBuilder();
@@ -157,6 +157,7 @@ public class SnapshotTest extends LzyBaseTest {
 
         Assert.assertEquals(spId, wb.getSnapshot().getSnapshotId());
         Assert.assertEquals(2, fieldsList.size());
+        Assert.assertEquals(LzyWhiteboard.Whiteboard.WhiteboardStatus.COMPLETED, wb.getStatus());
 
         Assert.assertEquals(localFileOutName, fieldsList.get(0).getFieldName());
         Assert.assertEquals(localFileName, fieldsList.get(1).getFieldName());

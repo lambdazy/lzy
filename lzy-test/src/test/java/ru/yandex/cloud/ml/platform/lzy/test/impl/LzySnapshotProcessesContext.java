@@ -57,6 +57,7 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
                         },
                         new String[]{
                                 "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
+                                "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5006"
                         }
                 ).inheritIO().start();
             } catch (IOException e) {

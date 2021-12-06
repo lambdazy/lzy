@@ -105,6 +105,7 @@ message Whiteboard {
     UNKNOWN = 0;
     CREATED = 1;
     COMPLETED = 2;
-    ERRORED = 3;
+    NOT_COMPLETED = 3;
+    ERRORED = 4;
   }
 }

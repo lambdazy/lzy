@@ -7,6 +7,7 @@ public interface WhiteboardStatus {
     enum State {
         CREATED,
         COMPLETED,
+        NOT_COMPLETED,
         ERRORED
     }
 

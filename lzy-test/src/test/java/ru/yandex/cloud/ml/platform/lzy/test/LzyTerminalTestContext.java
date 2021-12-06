@@ -177,7 +177,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                             "create",
                             wbId,
                             "-l",
-                            String.join(" ", fieldNames)
+                            String.join(",", fieldNames)
                     )
             );
             if (execute.exitCode() != 0) {
@@ -205,13 +205,13 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             execute.stdout();
         }
 
-        default void finalizeWhiteboard(String wbId) {
+        default void finalizeSnapshot(String spId) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(
                             " ",
-                            mount() + "/sbin/whiteboard",
+                            mount() + "/sbin/snapshot",
                             "finalize",
-                            wbId
+                            spId
                     )
             );
             if (execute.exitCode() != 0) {

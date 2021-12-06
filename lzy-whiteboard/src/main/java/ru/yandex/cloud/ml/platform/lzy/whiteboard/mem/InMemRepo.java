@@ -5,16 +5,14 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     private final Map<URI, SnapshotStatus> snapshots = new HashMap<>();
     private final Map<URI, Map<String, SnapshotEntry>> entries = new HashMap<>();
+    private final Map<URI, List<URI>> snapshotWhiteboardsMapping = new HashMap<>();
 
     private final Map<URI, WhiteboardStatus> whiteboards = new HashMap<>();
     private final Map<URI, Map<String, WhiteboardField>> fields = new HashMap<>();
@@ -24,6 +22,7 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     public synchronized void create(Snapshot snapshot) {
         snapshots.putIfAbsent(snapshot.id(), new SnapshotStatus.Impl(snapshot, SnapshotStatus.State.CREATED));
         entries.putIfAbsent(snapshot.id(), new HashMap<>());
+        snapshotWhiteboardsMapping.putIfAbsent(snapshot.id(), new ArrayList<>());
     }
 
     @Override
@@ -67,6 +66,14 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         }
         final SnapshotStatus.Impl snapshotStatus = new SnapshotStatus.Impl(snapshot, SnapshotStatus.State.FINALIZED);
         snapshots.put(snapshot.id(), snapshotStatus);
+        snapshotWhiteboardsMapping.get(snapshot.id()).forEach(uri -> {
+            final WhiteboardStatus prev = whiteboards.get(uri);
+            if (prev.whiteboard().fieldNames().size() == entryFieldMapping.get(prev.whiteboard().id()).size()) {
+                whiteboards.put(uri, new WhiteboardStatus.Impl(prev.whiteboard(), WhiteboardStatus.State.COMPLETED));
+            } else {
+                whiteboards.put(uri, new WhiteboardStatus.Impl(prev.whiteboard(), WhiteboardStatus.State.NOT_COMPLETED));
+            }
+        });
     }
 
     @Override
@@ -77,6 +84,10 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         }
         final SnapshotStatus.Impl snapshotStatus = new SnapshotStatus.Impl(snapshot, SnapshotStatus.State.ERRORED);
         snapshots.put(snapshot.id(), snapshotStatus);
+        snapshotWhiteboardsMapping.get(snapshot.id()).forEach(uri -> {
+            final WhiteboardStatus prev = whiteboards.get(uri);
+            whiteboards.put(uri, new WhiteboardStatus.Impl(prev.whiteboard(), WhiteboardStatus.State.ERRORED));
+        });
     }
 
     @Override
@@ -90,6 +101,7 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         whiteboards.putIfAbsent(whiteboard.id(), whiteboardStatus);
         fields.putIfAbsent(whiteboard.id(), new HashMap<>());
         entryFieldMapping.putIfAbsent(whiteboard.id(), new HashMap<>());
+        snapshotWhiteboardsMapping.get(whiteboard.snapshot().id()).add(whiteboard.id());
     }
 
     @Override

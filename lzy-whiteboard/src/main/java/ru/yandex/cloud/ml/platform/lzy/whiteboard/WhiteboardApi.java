@@ -71,6 +71,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 .newBuilder()
                 .setSnapshot(gRPCConverter.to(whiteboardStatus.whiteboard().snapshot()))
                 .addAllFields(fields)
+                .setStatus(gRPCConverter.to(whiteboardStatus.state()))
                 .build();
         responseObserver.onNext(result);
         responseObserver.onCompleted();
