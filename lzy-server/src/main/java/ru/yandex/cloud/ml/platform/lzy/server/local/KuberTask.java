@@ -1,12 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
+import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.V1EnvVar;
-import io.kubernetes.client.openapi.models.V1Pod;
-import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.ClientBuilder;
 import io.kubernetes.client.util.Yaml;
 import org.slf4j.Logger;
@@ -79,6 +78,18 @@ public class KuberTask extends BaseTask {
             final boolean needGpu = ((AtomicZygote) workload()).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));
             if (needGpu) {
                 typeLabelValue = "gpu";
+
+                final V1Toleration toleration = new V1Toleration();
+                toleration.setKey("sku");
+                toleration.setOperator("Equal");
+                toleration.setValue("gpu");
+                toleration.setEffect("NoSchedule");
+                servantPodDescription.getSpec().setTolerations(List.of(
+                    toleration
+                ));
+
+                final V1ResourceRequirementsBuilder gpuReq = new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1"));
+                servantPodDescription.getSpec().getContainers().get(0).setResources(gpuReq.build());
             } else {
                 typeLabelValue = "cpu";
             }
