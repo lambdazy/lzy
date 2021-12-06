@@ -126,6 +126,10 @@
             <version>1.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>ru.yandex.clickhouse</groupId>
+            <artifactId>clickhouse-jdbc</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <resources>
@@ -135,6 +139,7 @@
                 <includes>
                     <include>**/*.yaml</include>
                     <include>db/migrations/**</include>
+                    <include>clickhouse/**</include>
                     <include>hibernate.cfg.xml</include>
                 </includes>
             </resource>

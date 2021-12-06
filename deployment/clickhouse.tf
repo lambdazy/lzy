@@ -46,12 +46,38 @@ resource "kubernetes_pod" "clickhouse" {
         }
       }
       env {
+        name = "CLICKHOUSE_DB"
+        value = "lzy"
+      }
+      env {
         name = "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT"
         value = "1"
       }
       port {
-        container_port = 9000
+        container_port = 8123
       }
     }
+    host_network = true
   }
+}
+
+resource "kubernetes_service" "clickhouse_service" {
+  metadata {
+    name        = "clickhouse-service"
+    annotations = {
+      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+    }
+  }
+  spec {
+    port {
+      port        = 8123
+      target_port = 8123
+    }
+    selector = {
+      app = "clickhouse"
+    }
+  }
+  depends_on = [
+    kubernetes_pod.clickhouse
+  ]
 }

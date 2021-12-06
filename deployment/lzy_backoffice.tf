@@ -25,7 +25,7 @@ resource "kubernetes_pod" "lzy_backoffice" {
   spec {
     container {
       name              = "lzy-backoffice-frontend"
-      image             = "celdwind/lzy:lzy-backoffice-frontend"
+      image             = "lzydock/lzy-backoffice-frontend:master"
       image_pull_policy = "Always"
       port {
         container_port = 80
@@ -33,7 +33,7 @@ resource "kubernetes_pod" "lzy_backoffice" {
     }
     container {
       name              = "lzy-backoffice-backend"
-      image             = "celdwind/lzy:lzy-backoffice-backend"
+      image             = "lzydock/lzy-backoffice-backend:master"
       image_pull_policy = "Always"
       env {
         name  = "GRPC_HOST"
