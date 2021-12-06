@@ -85,8 +85,7 @@ public class KuberTask extends BaseTask {
 
             final String typeLabelValue;
             //TODO: run on GPU node if zygote requires GPU
-            final boolean needGpu = ((AtomicZygote) workload()).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));
-            if (needGpu) {
+            if (isNeedGpu()) {
                 typeLabelValue = "gpu";
                 servantPodDescription.getSpec().setTolerations(GPU_SERVANT_POD_TOLERATIONS);
                 servantPodDescription.getSpec().getContainers().get(0).setResources(GPU_SERVANT_POD_RESOURCE);
@@ -146,5 +145,9 @@ public class KuberTask extends BaseTask {
             LOG.info("Destroying kuber task");
             state(State.DESTROYED);
         }
+    }
+
+    private boolean isNeedGpu() {
+        return ((AtomicZygote) workload()).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));
     }
 }
