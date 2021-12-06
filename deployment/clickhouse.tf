@@ -40,6 +40,7 @@ resource "kubernetes_pod" "clickhouse" {
       }
     }
     host_network = true
+    dns_policy   = "ClusterFirstWithHostNet"
   }
 }
 
