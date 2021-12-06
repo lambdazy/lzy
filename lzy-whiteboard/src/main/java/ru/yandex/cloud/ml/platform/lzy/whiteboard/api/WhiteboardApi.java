@@ -85,6 +85,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                         .setSnapshotId(wb.whiteboard().snapshot().id().toString())
                         .build())
                 .addAllFields(fields)
+                .setStatus(gRPCConverter.to(whiteboardStatus.state()))
                 .build();
     }
 }
