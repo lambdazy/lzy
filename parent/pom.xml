@@ -15,6 +15,7 @@
         <maven-dependency-plugin.version>3.0.0</maven-dependency-plugin.version>
         <maven-help-plugin.version>3.2.0</maven-help-plugin.version>
         <build-helper-maven-plugin.version>3.1.0</build-helper-maven-plugin.version>
+        <kafka.version>1.0.0</kafka.version>
 
         <nirvana-client.version>3.202</nirvana-client.version>
         <yql-jdbc.version>1.0.31</yql-jdbc.version>
@@ -849,6 +850,11 @@
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-core</artifactId>
                 <version>${aws-java-sdk-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${kafka.version}</version>
             </dependency>
             <dependency>
                 <groupId>commons-io</groupId>

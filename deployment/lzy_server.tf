@@ -8,7 +8,7 @@ resource "kubernetes_pod" "lzy_server" {
   spec {
     container {
       name              = "lzy-server"
-      image             = "celdwind/lzy:lzy-server"
+      image             = "lzydock/lzy-server:master"
       image_pull_policy = "Always"
       env {
         name = "LZY_SERVER_HOST"
@@ -29,6 +29,32 @@ resource "kubernetes_pod" "lzy_server" {
       env {
         name  = "DATABASE_USERNAME"
         value = "server"
+      }
+      env {
+        name = "CLICKHOUSE_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "CLICKHOUSE_USERNAME"
+        value_from {
+          secret_key_ref {
+            name = "clickhouse"
+            key = "username"
+          }
+        }
+      }
+      env {
+        name = "CLICKHOUSE_PASSWORD"
+        value_from {
+          secret_key_ref {
+            name = "clickhouse"
+            key = "password"
+          }
+        }
+      }
+      env {
+        name = "CLICKHOUSE_URL"
+        value = "jdbc:clickhouse://clickhouse-service.default.svc.cluster.local:8123/lzy"
       }
       env {
         name = "AGENTS_NAMES"

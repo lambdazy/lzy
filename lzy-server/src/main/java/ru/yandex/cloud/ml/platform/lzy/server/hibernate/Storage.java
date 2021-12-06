@@ -10,10 +10,20 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
+import ru.yandex.clickhouse.ClickHouseDataSource;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.ClickhouseConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.AgentsConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.DbConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
+
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 import java.util.Set;
 
@@ -26,13 +36,22 @@ public class Storage implements DbStorage{
     private final SessionFactory sessionFactory;
 
     @Inject
-    public Storage(DbConfig config, AgentsConfig agents){
+    public Storage(DbConfig config, AgentsConfig agents, ClickhouseConfig clickhouse){
 
         Flyway flyway = Flyway.configure()
             .dataSource(config.getUrl(), config.getUsername(), config.getPassword())
             .locations("classpath:db/migrations")
             .load();
         flyway.migrate();
+
+        if (clickhouse.isEnabled()){
+            try {
+                migrateClickhouse(clickhouse);
+            } catch (SQLException | URISyntaxException | IOException e) {
+                LOG.error("Cannot migrate clickhouse", e);
+            }
+        }
+
         Configuration cfg = new Configuration();
         cfg.setProperty("hibernate.connection.url", config.getUrl());
         cfg.setProperty("hibernate.connection.username", config.getUsername());
@@ -88,5 +107,16 @@ public class Storage implements DbStorage{
 
     public SessionFactory getSessionFactory() {
         return sessionFactory;
+    }
+
+    public void migrateClickhouse(ClickhouseConfig clickhouse) throws SQLException, URISyntaxException, IOException {
+        String url = String.format("%s?user=%s&password=%s",
+                clickhouse.getUrl(), clickhouse.getUsername(), clickhouse.getPassword());
+        ClickHouseDataSource dataSource = new ClickHouseDataSource(url);
+        Connection connection = dataSource.getConnection();
+        Statement stmt = connection.createStatement();
+        String text = Files.readString(Paths.get("/app/resources/clickhouse/migration.sql"));
+        stmt.executeUpdate(text);
+        stmt.closeOnCompletion();
     }
 }
