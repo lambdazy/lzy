@@ -23,6 +23,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     @Override
     public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request, StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+        //TODO: auth
         final SnapshotStatus snapshotStatus = snapshotRepository.resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
@@ -40,6 +41,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     @Override
     public void link(LzyWhiteboard.LinkCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        //TODO: auth
         final WhiteboardStatus whiteboardStatus = whiteboardRepository.resolveWhiteboard(URI.create(request.getWhiteboardId()));
         if (whiteboardStatus == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
@@ -61,6 +63,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     @Override
     public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request, StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+        //TODO: auth
         final WhiteboardStatus whiteboardStatus = whiteboardRepository.resolveWhiteboard(URI.create(request.getWhiteboardId()));
         if (whiteboardStatus == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());

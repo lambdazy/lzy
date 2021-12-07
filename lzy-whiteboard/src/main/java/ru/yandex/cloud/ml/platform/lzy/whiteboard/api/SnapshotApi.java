@@ -22,6 +22,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request, StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+        //TODO: auth
         URI snapshotId = URI.create(UUID.randomUUID().toString());
         repository.create(new Snapshot.Impl(snapshotId));
         final LzyWhiteboard.Snapshot result = LzyWhiteboard.Snapshot
@@ -34,6 +35,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void prepareToSave(LzyWhiteboard.PrepareCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        //TODO: auth
         final SnapshotStatus snapshotStatus = repository.resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
@@ -50,6 +52,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void commit(LzyWhiteboard.CommitCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        //TODO: auth
         final SnapshotStatus snapshotStatus = repository.resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
@@ -71,6 +74,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        //TODO: auth
         final SnapshotStatus snapshotStatus = repository.resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
