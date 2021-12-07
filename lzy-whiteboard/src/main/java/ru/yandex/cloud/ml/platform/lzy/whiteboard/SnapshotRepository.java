@@ -19,5 +19,5 @@ public interface SnapshotRepository {
     @Nullable
     SnapshotEntry resolveEntry(Snapshot snapshot, String id);
     void commit(SnapshotEntry entry);
-    Stream<SnapshotEntry> entries(Snapshot snapshot);
+    // Stream<SnapshotEntry> entries(Snapshot snapshot);
 }

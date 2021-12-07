@@ -91,10 +91,10 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         });
     }
 
-    @Override
-    public synchronized Stream<SnapshotEntry> entries(Snapshot snapshot) {
-        return new ArrayList<>(entries.get(snapshot.id()).values()).stream();
-    }
+//    @Override
+//    public synchronized Stream<SnapshotEntry> entries(Snapshot snapshot) {
+//        return new ArrayList<>(entries.get(snapshot.id()).values()).stream();
+//    }
 
     @Override
     public synchronized void create(Whiteboard whiteboard) {

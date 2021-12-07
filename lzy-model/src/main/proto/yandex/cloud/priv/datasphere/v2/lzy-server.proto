@@ -55,9 +55,8 @@ message AttachStatus {
 }
 
 message CheckUserPermissionsRequest {
-  string userId = 1;
-  string token = 2;
-  repeated string permissions = 3;
+  Auth auth = 1;
+  repeated string permissions = 2;
 }
 
 message CheckUserPermissionsResponse {
