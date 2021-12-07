@@ -292,19 +292,14 @@ public class LzyServer {
 
         @Override
         public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request, StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
-            boolean res = checkAuth(IAM.Auth.newBuilder()
-                .setUser(IAM.UserCredentials.newBuilder()
-                    .setUserId(request.getUserId())
-                    .setToken(request.getToken())
-                    .build())
-                .build(), responseObserver);
-            if (!res) {
+            IAM.Auth requestAuth = request.getAuth();
+            if (!checkAuth(requestAuth, responseObserver)) {
                 responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
                 responseObserver.onCompleted();
                 return;
             }
             for (String permission: request.getPermissionsList()) {
-                if (!auth.hasPermission(request.getUserId(), permission)){
+                if (!auth.hasPermission(resolveUser(requestAuth), permission)) {
                     responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
                     responseObserver.onCompleted();
                     return;
