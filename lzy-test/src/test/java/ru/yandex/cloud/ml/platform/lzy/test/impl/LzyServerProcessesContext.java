@@ -17,9 +17,14 @@ import java.util.concurrent.locks.LockSupport;
 public class LzyServerProcessesContext implements LzyServerTestContext {
     private static final long SERVER_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_SERVER_PORT = 7777;
+    private final TaskType type;
     private Process lzyServer;
     private ManagedChannel channel;
     protected LzyServerGrpc.LzyServerBlockingStub lzyServerClient;
+
+    public LzyServerProcessesContext(TaskType type) {
+        this.type = type;
+    }
 
     @Override
     public String address(boolean fromDocker) {
@@ -29,6 +34,11 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
         } else {
             return "http://localhost:" + LZY_SERVER_PORT;
         }
+    }
+
+    @Override
+    public TaskType type() {
+        return type;
     }
 
     @Override
@@ -62,7 +72,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                     },
                     new String[]{
                         "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
-                        "-Dlzy.server.task.type=local-docker"
+                        "-Dlzy.server.task.type=" + type.toString()
                     }
                 ).inheritIO().start();
             } catch (IOException e) {

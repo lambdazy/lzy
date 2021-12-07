@@ -1,0 +1,3 @@
+run-configurations:
+  local-process-run:
+    jar_path: ""
