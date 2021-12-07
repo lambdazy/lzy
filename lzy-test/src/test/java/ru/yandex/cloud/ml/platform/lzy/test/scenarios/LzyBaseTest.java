@@ -6,10 +6,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyKharonProcessesContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalDockerContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotProcessesContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.*;
 
 public class LzyBaseTest {
     protected static final int DEFAULT_TIMEOUT_SEC = 30;
@@ -23,13 +20,13 @@ public class LzyBaseTest {
 
     @Before
     public void setUp() {
-        serverContext = new LzyServerProcessesContext();
+        serverContext = new LzyServerProcessesContext(LzyServerTestContext.TaskType.PROCESS);
         serverContext.init();
         whiteboardContext = new LzySnapshotProcessesContext();
         whiteboardContext.init();
         kharonContext = new LzyKharonProcessesContext(serverContext.address(false), whiteboardContext.address(false));
         kharonContext.init();
-        terminalContext = new LzyTerminalDockerContext();
+        terminalContext = new LzyTerminalProcessesContext();
     }
 
     @After

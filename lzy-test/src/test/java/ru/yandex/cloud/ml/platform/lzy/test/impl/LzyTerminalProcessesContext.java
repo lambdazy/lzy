@@ -46,7 +46,7 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
             "-Djava.library.path=/usr/local/lib",
             "-Dlog4j.configurationFile=" + pathServantLog4jFile,
             "-Dcustom.log.file=terminal.log",
-            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:" + debugPort
+            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:" + debugPort
         };
         final Process process;
         try {
