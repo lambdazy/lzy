@@ -1,6 +1,7 @@
 import copyreg
 import inspect
 import logging
+import os
 from abc import abstractmethod, ABC
 from typing import Callable, Optional, Type, Tuple, Any, TypeVar, Generic
 
@@ -10,7 +11,7 @@ from lzy.model.env import PyEnv
 from lzy.model.zygote import Provisioning
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant_client import ServantClient
-from lzy.model.return_codes import ReturnCode
+from lzy.model.return_codes import ReturnCode, PyReturnCode
 
 T = TypeVar('T')
 
@@ -115,6 +116,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             self._log.info(f"Writing argument {arg_names[i]} to local slot {local_slot.name()}")
             with open(self._servant.get_slot_path(local_slot), 'wb') as handle:
                 cloudpickle.dump(self._args[i], handle)
+                handle.flush()
+                os.fsync(handle.fileno())
             self._log.info(
                 f"Written argument {arg_names[i]} to local slot {local_slot.name()}")
 
@@ -131,6 +134,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             self._log.info(f"Read result from {return_slot_path}")
         except Exception as e:
             self._log.error(f"Failed to read result from {return_slot_path}\n{e}")
+            raise LzyExecutionException("Return value deserialization failure", self.func, execution,
+                                        PyReturnCode.DESERIALIZATION_FAILURE)
 
         result = execution.wait_for()
         rc = result.rc()
