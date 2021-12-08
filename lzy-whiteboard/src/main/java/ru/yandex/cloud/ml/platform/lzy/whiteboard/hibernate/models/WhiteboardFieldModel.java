@@ -19,9 +19,9 @@ public class WhiteboardFieldModel {
     @Column(name = "entry_id")
     private String entryId;
 
-    @ManyToOne()
+    @ManyToOne
     @JoinColumn(name="wb_id", nullable=false, insertable = false, updatable = false)
-    private WhiteboardModel meta;
+    private WhiteboardModel whiteboardModel;
 
     public WhiteboardFieldModel(String wbId, String fieldName, String entryId) {
         this.wbId = wbId;
@@ -34,6 +34,14 @@ public class WhiteboardFieldModel {
 
     public String getFieldName() {
         return fieldName;
+    }
+
+    public String getEntryId() {
+        return entryId;
+    }
+
+    public String getSnapshotId() {
+        return whiteboardModel.getSnapshotId();
     }
 
     public static class WhiteboardFieldPk implements Serializable {

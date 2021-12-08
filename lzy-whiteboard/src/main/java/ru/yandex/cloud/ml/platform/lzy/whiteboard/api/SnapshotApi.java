@@ -29,13 +29,11 @@ import java.util.UUID;
 @Requires(property = "server.uri")
 public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     private static final Logger LOG = LogManager.getLogger(SnapshotApi.class);
-    private final SnapshotRepository repository;
     private final Authenticator auth;
+    private final SnapshotRepository repository;
 
     @Inject
-    ServerConfig serverConfig;
-
-    public SnapshotApi(SnapshotRepository repository) {
+    public SnapshotApi(ServerConfig serverConfig, SnapshotRepository repository) {
         URI uri = URI.create(serverConfig.getUri());
         final ManagedChannel serverChannel = ManagedChannelBuilder
                 .forAddress(uri.getHost(), uri.getPort())

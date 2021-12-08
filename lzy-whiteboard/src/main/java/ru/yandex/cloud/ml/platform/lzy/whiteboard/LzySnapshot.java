@@ -3,13 +3,16 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.exceptions.NoSuchBeanException;
+import jakarta.inject.Inject;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.WhiteboardApi;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.InMemRepo;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.SnapshotRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.WhiteboardRepositoryImpl;
@@ -28,6 +31,7 @@ public class LzySnapshot {
 
     static {
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
+        options.addOption(new Option("z", "lzy-server-address", true, "Lzy server address [host:port]"));
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -41,6 +45,7 @@ public class LzySnapshot {
             cliHelp.printHelp("lzy-snapshot", options);
             System.exit(-1);
         }
+        URI serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
         final String lzyWhiteboardHost;
         if (System.getenv().containsKey(LZY_SNAPSHOT_HOST_ENV)) {
             lzyWhiteboardHost = "http://" + System.getenv(LZY_SNAPSHOT_HOST_ENV);
@@ -52,23 +57,13 @@ public class LzySnapshot {
         try (ApplicationContext context = ApplicationContext.run(
             PropertySource.of(
                 Map.of(
-                  "snapshot.uri", snapshotURI.toString()
+                  "snapshot.uri", snapshotURI.toString(),
+                        "server.uri", serverAddress.toString()
                 )
             )
         )) {
-            SnapshotRepository spRepo;
-            WhiteboardRepository wbRepo;
-            try {
-                spRepo = context.getBean(SnapshotRepositoryImpl.class);
-                wbRepo = context.getBean(WhiteboardRepositoryImpl.class);
-            }
-            catch (NoSuchBeanException e){
-                LOG.info("LzySnapshot:: Running in inmemory mode");
-                spRepo = new InMemRepo();
-                wbRepo = (WhiteboardRepository) spRepo;
-            }
-            SnapshotApi spImpl = new SnapshotApi(spRepo);
-            WhiteboardApi wbImpl = new WhiteboardApi(wbRepo, spRepo);
+            SnapshotApi spImpl = context.getBean(SnapshotApi.class);
+            WhiteboardApi wbImpl = context.getBean(WhiteboardApi.class);
             ServerBuilder<?> builder = ServerBuilder.forPort(port)
                     .addService(wbImpl);
             builder.addService(spImpl);

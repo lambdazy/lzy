@@ -1,14 +1,19 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.mem;
 
+import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Singleton
+@Requires(missingBeans = DbStorage.class)
 public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     private final Map<URI, SnapshotStatus> snapshots = new HashMap<>();
     private final Map<URI, Map<String, SnapshotEntry>> entries = new HashMap<>();

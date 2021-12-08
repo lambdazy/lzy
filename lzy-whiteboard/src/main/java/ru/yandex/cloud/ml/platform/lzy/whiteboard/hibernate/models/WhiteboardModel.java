@@ -19,10 +19,6 @@ public class WhiteboardModel {
     @Column(name = "snapshot_id", nullable = false)
     private String snapshotId;
 
-    @ManyToOne()
-    @JoinColumn(name="snapshot_id", nullable=false, insertable = false, updatable = false)
-    private SnapshotModel snapshotModel;
-
     public WhiteboardModel(String wbId, WhiteboardStatus.State wbStatus, String snapshotId) {
         this.wbId = wbId;
         this.wbState = wbStatus;
