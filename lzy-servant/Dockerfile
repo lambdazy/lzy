@@ -9,6 +9,7 @@ RUN chmod -R 700 app/resources
 
 ### copy lzy-py sources & install
 COPY lzy-python/ lzy-python
+COPY lzy-servant/conda_prepare.sh ./conda_prepare.sh
 RUN ./conda_prepare.sh pylzy_install 'lzy-python'
 
 COPY lzy-servant/entrypoint.sh /

@@ -7,13 +7,10 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.logging.log4j.core.config.builder.api.*;
-import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Start;
-import ru.yandex.cloud.ml.platform.lzy.servant.logs.KafkaLogsAppender;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.KafkaLogsAppender;
 
 import java.util.Objects;
 
@@ -31,7 +28,11 @@ public class BashApi {
 
     public static void main(String[] args) throws Exception {
         if (Objects.equals(System.getenv("LOGS_APPENDER"), "Kafka")){
-            KafkaLogsAppender.generate();
+            Configurator.initialize(KafkaLogsAppender.generate(
+                "servant",
+                "{\"timestamp\":\"%d{UNIX}\", \"thread\": \"%t\",  \"level\": \"%-5level\", \"logger\": \"%logger{36}\", \"message\": \"%enc{%msg}{JSON}\", \"servant\": \"" + System.getenv("LZYTASK") + "\"}",
+                System.getenv("LOGS_SERVER")
+            ));
         }
         final CommandLineParser cliParser = new DefaultParser();
         final HelpFormatter cliHelp = new HelpFormatter();

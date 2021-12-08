@@ -10,6 +10,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
@@ -18,6 +20,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.*;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
@@ -51,6 +54,14 @@ public class LzyServant extends LzyAgent {
 
     @Override
     protected void onStartUp() {
+        UserEventLogger.log(new UserEvent(
+            "Servant startup",
+            Map.of(
+                "tid", taskId,
+                "address", agentAddress.toString()
+            ),
+            UserEvent.UserEventType.TaskStartUp
+        ));
         status.set(AgentStatus.REGISTERING);
         final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
         commandBuilder.setAuth(auth);
@@ -81,11 +92,39 @@ public class LzyServant extends LzyAgent {
             final SnapshotMeta meta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : SnapshotMeta.empty();
             final AtomicZygote zygote = (AtomicZygote) gRPCConverter.from(request.getZygote());
             final Snapshotter snapshotter = new SnapshotterImpl(tid, zygote, snapshot, meta);
+
+            UserEventLogger.log(new UserEvent(
+                "Servant execution preparing",
+                Map.of(
+                    "tid", request.getAuth().getTask().getTaskId(),
+                    "zygoteDescription", zygote.description()
+                ),
+                UserEvent.UserEventType.ExecutionPreparing
+            ));
+
             currentExecution = new LzyExecution(tid, zygote, agentInternalAddress, snapshotter);
             currentExecution.onProgress(progress -> {
                 LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
+                UserEventLogger.log(new UserEvent(
+                        "Servant execution progress",
+                        Map.of(
+                            "tid", request.getAuth().getTask().getTaskId(),
+                            "zygoteDescription", zygote.description(),
+                            "progress", JsonUtils.printRequest(progress)
+                        ),
+                        UserEvent.UserEventType.ExecutionProgress
+                ));
                 responseObserver.onNext(progress);
                 if (progress.hasExit()) {
+                    UserEventLogger.log(new UserEvent(
+                        "Servant execution exit",
+                        Map.of(
+                            "tid", request.getAuth().getTask().getTaskId(),
+                            "zygoteDescription", zygote.description(),
+                            "exitCode", String.valueOf(progress.getExit().getRc())
+                        ),
+                        UserEvent.UserEventType.ExecutionComplete
+                    ));
                     LOG.info("LzyServant::exit {}", agentAddress);
                     currentExecution = null;
                     responseObserver.onCompleted();
@@ -94,6 +133,15 @@ public class LzyServant extends LzyAgent {
             Context.current().addListener(context -> {
                 if (currentExecution != null) {
                     LOG.info("Execution terminated from server ");
+                    UserEventLogger.log(new UserEvent(
+                        "Servant task exit",
+                        Map.of(
+                            "tid", taskId,
+                            "address", agentAddress.toString(),
+                            "exitCode", String.valueOf(1)
+                        ),
+                        UserEvent.UserEventType.TaskStop
+                    ));
                     System.exit(1);
                 }
             }, Runnable::run);
@@ -167,6 +215,15 @@ public class LzyServant extends LzyAgent {
             LOG.info("Servant::stop {}", agentAddress);
             responseObserver.onNext(IAM.Empty.newBuilder().build());
             responseObserver.onCompleted();
+            UserEventLogger.log(new UserEvent(
+                    "Servant task exit",
+                    Map.of(
+                        "tid", taskId,
+                        "address", agentAddress.toString(),
+                        "exitCode", String.valueOf(1)
+                    ),
+                    UserEvent.UserEventType.TaskStop
+            ));
             System.exit(0);
         }
     }

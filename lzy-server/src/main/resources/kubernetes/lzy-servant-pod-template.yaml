@@ -7,7 +7,7 @@ metadata:
 spec:
   containers:
     - name: lzy-servant
-      image: lzydock/lzy-servant:master
+      image: lzydock/lzy-servant:dev
       imagePullPolicy: Always
       env:
         - name: LOGS_SERVER

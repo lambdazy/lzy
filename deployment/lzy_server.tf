@@ -57,6 +57,14 @@ resource "kubernetes_pod" "lzy_server" {
         value = "jdbc:clickhouse://clickhouse-service.default.svc.cluster.local:8123/lzy"
       }
       env {
+        name = "LOGS_KAFKA_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "LOGS_KAFKA_HOST"
+        value = "kafka.default.svc.cluster.local:9092"
+      }
+      env {
         name = "AGENTS_NAMES"
         value = "backoffice"
       }

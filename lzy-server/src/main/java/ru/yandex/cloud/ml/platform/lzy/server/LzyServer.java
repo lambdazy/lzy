@@ -9,9 +9,14 @@ import jakarta.inject.Inject;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.KafkaLogsAppender;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.KafkaLogsConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
@@ -30,7 +35,7 @@ import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
 
 public class LzyServer {
-    private static final Logger LOG = LogManager.getLogger(LzyServer.class);
+    private static Logger LOG;
 
     private static final Options options = new Options();
     static {
@@ -59,6 +64,16 @@ public class LzyServer {
             lzyServerHost = DEFAULT_LZY_SERVER_LOCALHOST;
         }
         URI serverURI = URI.create(lzyServerHost + ":" + port);
+
+        if (Objects.equals(System.getenv("LOGS_KAFKA_ENABLED"), "true")){
+            Configurator.initialize(KafkaLogsAppender.generate(
+                    "server",
+                    "{\"timestamp\":\"%d{UNIX}\", \"thread\": \"%t\",  \"level\": \"%-5level\", \"logger\": \"%logger{36}\", \"message\": \"%enc{%msg}{JSON}\"}",
+                    System.getenv("LOGS_KAFKA_HOST")
+            ));
+        }
+
+        LOG = LogManager.getLogger(LzyServer.class);
 
         try (ApplicationContext context = ApplicationContext.run(
             PropertySource.of(
@@ -210,6 +225,16 @@ public class LzyServer {
                         parent.signal(TasksManager.Signal.CHLD);
                 }
             });
+            UserEventLogger.log(
+                new UserEvent(
+                    "Task created",
+                    Map.of(
+                        "tid", task.tid().toString(),
+                        "uid", uid
+                    ),
+                    UserEvent.UserEventType.TaskCreate
+                )
+            );
             Context.current().addListener(ctxt -> {
                 concluded.set(true);
                 if (!EnumSet.of(FINISHED, DESTROYED).contains(task.state()))
