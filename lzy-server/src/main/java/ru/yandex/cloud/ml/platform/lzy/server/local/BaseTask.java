@@ -40,7 +40,7 @@ public abstract class BaseTask implements Task {
     private URI servantURI;
     private LzyServantBlockingStub servant;
 
-    BaseTask(
+    public BaseTask(
         String owner,
         UUID tid,
         Zygote workload,

@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.local;
+package ru.yandex.cloud.ml.platform.lzy.server.local.task;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
