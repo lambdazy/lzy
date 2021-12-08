@@ -22,6 +22,11 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
     private ManagedChannel channel;
     protected WbApiGrpc.WbApiBlockingStub lzyWhiteboardClient;
     protected SnapshotApiGrpc.SnapshotApiBlockingStub lzySnapshotClient;
+    private final String serverAddress;
+
+    public LzySnapshotProcessesContext(String serverAddress) {
+        this.serverAddress = serverAddress;
+    }
 
     @Override
     public String address(boolean fromDocker) {
@@ -53,7 +58,9 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
                         LzySnapshot.class.getCanonicalName(),
                         new String[]{
                                 "--port",
-                                String.valueOf(SNAPSHOT_PORT)
+                                String.valueOf(SNAPSHOT_PORT),
+                                "--lzy-server-address",
+                                serverAddress
                         },
                         new String[]{
                                 "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32"

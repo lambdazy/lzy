@@ -20,10 +20,6 @@ public class EntryDependenciesModel {
     @Column(name = "entry_id_to", nullable = false)
     private String entryIdTo;
 
-    @ManyToOne()
-    @JoinColumn(name="snapshot_id", nullable=false, insertable = false, updatable = false)
-    private SnapshotModel snapshotStatus;
-
     public EntryDependenciesModel(String snapshotId, String entryIdFrom, String entryIdTo) {
         this.snapshotId = snapshotId;
         this.entryIdFrom = entryIdFrom;

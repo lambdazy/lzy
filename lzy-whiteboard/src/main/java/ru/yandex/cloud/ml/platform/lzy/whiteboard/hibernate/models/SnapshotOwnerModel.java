@@ -12,10 +12,6 @@ public class SnapshotOwnerModel {
     @Column(name = "owner_id", nullable = false)
     private String ownerId;
 
-    @ManyToOne()
-    @JoinColumn(name="snapshot_id", nullable=false, insertable = false, updatable = false)
-    private SnapshotModel snapshotState;
-
     public SnapshotOwnerModel(String snapshotId, String ownerId) {
         this.snapshotId = snapshotId;
         this.ownerId = ownerId;
@@ -26,5 +22,9 @@ public class SnapshotOwnerModel {
 
     public String getOwnerId() {
         return ownerId;
+    }
+
+    public String getSnapshotId() {
+        return snapshotId;
     }
 }

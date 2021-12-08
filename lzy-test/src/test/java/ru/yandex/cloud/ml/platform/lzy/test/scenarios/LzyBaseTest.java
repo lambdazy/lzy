@@ -28,7 +28,7 @@ public class LzyBaseTest {
     public void setUp() {
         serverContext = new LzyServerProcessesContext();
         serverContext.init();
-        whiteboardContext = new LzySnapshotProcessesContext();
+        whiteboardContext = new LzySnapshotProcessesContext(serverContext.address(false));
         whiteboardContext.init();
         kharonContext = new LzyKharonProcessesContext(serverContext.address(false), whiteboardContext.address(false));
         kharonContext.init();

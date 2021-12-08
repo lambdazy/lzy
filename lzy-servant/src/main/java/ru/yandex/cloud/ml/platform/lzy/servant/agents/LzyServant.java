@@ -80,7 +80,7 @@ public class LzyServant extends LzyAgent {
             final String tid = request.getAuth().getTask().getTaskId();
             final SnapshotMeta meta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : SnapshotMeta.empty();
             final AtomicZygote zygote = (AtomicZygote) gRPCConverter.from(request.getZygote());
-            final Snapshotter snapshotter = new SnapshotterImpl(tid, zygote, snapshot, meta);
+            final Snapshotter snapshotter = new SnapshotterImpl(auth.getTask(), zygote, snapshot, meta);
             currentExecution = new LzyExecution(tid, zygote, agentInternalAddress, snapshotter);
             currentExecution.onProgress(progress -> {
                 LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));

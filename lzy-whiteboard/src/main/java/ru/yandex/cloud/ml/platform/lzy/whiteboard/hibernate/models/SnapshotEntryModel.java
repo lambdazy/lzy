@@ -28,10 +28,6 @@ public class SnapshotEntryModel {
     @Column(name = "state", nullable = false)
     private SnapshotEntryStatus.State entryState;
 
-    @ManyToOne()
-    @JoinColumn(name="snapshot_id", nullable=false, insertable = false, updatable = false)
-    private SnapshotModel snapshotState;
-
     public SnapshotEntryModel(String snapshotId, String entryId, String storageUri,
                               boolean emptyContent, SnapshotEntryStatus.State entryStatus) {
         this.snapshotId = snapshotId;
