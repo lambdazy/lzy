@@ -1,4 +1,4 @@
-name: 'AC tests'
+name: 'Cluster tests'
 on:
   schedule:
     - cron: '0 0 * * *'
