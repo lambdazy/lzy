@@ -13,10 +13,9 @@ import org.apache.logging.log4j.core.config.Configurator;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.KafkaLogsAppender;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.server.configs.KafkaLogsConfig;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.KafkaLogsAppender;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
@@ -229,8 +228,8 @@ public class LzyServer {
                 new UserEvent(
                     "Task created",
                     Map.of(
-                        "tid", task.tid().toString(),
-                        "uid", uid
+                        "task_id", task.tid().toString(),
+                        "user_idatu", uid
                     ),
                     UserEvent.UserEventType.TaskCreate
                 )

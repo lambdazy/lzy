@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.model.utils;
+package ru.yandex.cloud.ml.platform.lzy.model.logs;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

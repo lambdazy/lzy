@@ -10,7 +10,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.core.config.Configurator;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Start;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.KafkaLogsAppender;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.KafkaLogsAppender;
 
 import java.util.Objects;
 

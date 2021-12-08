@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.model.utils;
+package ru.yandex.cloud.ml.platform.lzy.model.logs;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.builder.api.*;

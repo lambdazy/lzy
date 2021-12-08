@@ -16,8 +16,8 @@ import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashEnvironment;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
@@ -206,8 +206,8 @@ public class LzyExecution {
                 UserEventLogger.log(new UserEvent(
                     "Servant execution start",
                     Map.of(
-                        "tid", taskId,
-                        "zygoteDescription", zygote.description()
+                        "task_id", taskId,
+                        "zygote_description", zygote.description()
                     ),
                     UserEvent.UserEventType.ExecutionStart
                 ));

@@ -10,8 +10,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
@@ -108,8 +108,8 @@ public class LzyServant extends LzyAgent {
                 UserEventLogger.log(new UserEvent(
                         "Servant execution progress",
                         Map.of(
-                            "tid", request.getAuth().getTask().getTaskId(),
-                            "zygoteDescription", zygote.description(),
+                            "task_id", request.getAuth().getTask().getTaskId(),
+                            "zygote_description", zygote.description(),
                             "progress", JsonUtils.printRequest(progress)
                         ),
                         UserEvent.UserEventType.ExecutionProgress
@@ -119,8 +119,8 @@ public class LzyServant extends LzyAgent {
                     UserEventLogger.log(new UserEvent(
                         "Servant execution exit",
                         Map.of(
-                            "tid", request.getAuth().getTask().getTaskId(),
-                            "zygoteDescription", zygote.description(),
+                            "task_id", request.getAuth().getTask().getTaskId(),
+                            "zygote_description", zygote.description(),
                             "exitCode", String.valueOf(progress.getExit().getRc())
                         ),
                         UserEvent.UserEventType.ExecutionComplete
@@ -136,7 +136,7 @@ public class LzyServant extends LzyAgent {
                     UserEventLogger.log(new UserEvent(
                         "Servant task exit",
                         Map.of(
-                            "tid", taskId,
+                            "task_id", taskId,
                             "address", agentAddress.toString(),
                             "exitCode", String.valueOf(1)
                         ),
@@ -218,7 +218,7 @@ public class LzyServant extends LzyAgent {
             UserEventLogger.log(new UserEvent(
                     "Servant task exit",
                     Map.of(
-                        "tid", taskId,
+                        "task_id", taskId,
                         "address", agentAddress.toString(),
                         "exitCode", String.valueOf(1)
                     ),
