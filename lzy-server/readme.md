@@ -9,7 +9,8 @@ module: `lzy-server`
 
 VM options:
 ```
--Djava.util.concurrent.ForkJoinPool.common.parallelism=32`
+-Djava.util.concurrent.ForkJoinPool.common.parallelism=32
+-Dlzy.server.task.type=local-docker
 ```
 
 Program arguments:

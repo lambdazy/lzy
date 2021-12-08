@@ -1,5 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
+import java.util.concurrent.atomic.AtomicBoolean;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
@@ -15,53 +20,65 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-public class CondaEnvironment implements Environment {
+public class CondaEnvironment extends BaseEnv {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private final PythonEnv env;
     private final AtomicBoolean envInstalled = new AtomicBoolean(false);
 
-    public CondaEnvironment(PythonEnv env) {
+    public CondaEnvironment(PythonEnv env, EnvConfig config) {
+        super(config);
         this.env = env;
     }
 
     private void installPyenv() throws EnvironmentInstallationException {
         try {
-            final File yaml = File.createTempFile("conda", "req.yaml");
-            try (FileWriter file = new FileWriter(yaml.getAbsolutePath())) {
+            final String yamlPath = "/tmp/resources/conda.yaml";
+            final String yamlBindPath = "/tmp/resources/conda.yaml";
+
+            try (FileWriter file = new FileWriter(yamlPath)) {
                 file.write(env.yaml());
             }
             // --prune removes packages not specified in yaml, so probably it has not to be there
-            final Process run = execInEnv("conda env update --file " + yaml.getAbsolutePath()); // + " --prune");
-            final int rc = run.waitFor();
-            final String stdout = IOUtils.toString(run.getInputStream());
-            final String stderr = IOUtils.toString(run.getErrorStream());
-            LOG.info(stdout);
-            LOG.error(stderr);
-            if (run.exitValue() != 0) {
+            final LzyProcess lzyProcess = execInEnv("conda env update --file " + yamlBindPath); // + " --prune");
+            final StringBuilder stdout = new StringBuilder();
+            final StringBuilder stderr = new StringBuilder();
+            try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.out()))) {
+                reader.lines().forEach(s -> {
+                    LOG.info(s);
+                    stdout.append(s);
+                });
+            }
+            try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.err()))) {
+                reader.lines().forEach(s -> {
+                    LOG.error(s);
+                    stderr.append(s);
+                });
+            }
+            final int rc = lzyProcess.waitFor();
+            if (rc != 0) {
                 throw new EnvironmentInstallationException(
                     String.format(
-                        "Failed to update conda env\n\nSTDOUT: %s \n\nSTDERR: %s",
-                        stdout, stderr
+                        "Failed to update conda env\n\nReturnCode: %s \n\nStdout: %s \n\nStderr: %s",
+                        rc, stdout, stderr
                     )
                 );
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException | LzyExecutionException e) {
             throw new EnvironmentInstallationException(e.getMessage());
         }
     }
 
-    private Process execInEnv(String command, String[] envp) throws IOException {
+    private LzyProcess execInEnv(String command, String[] envp)
+        throws IOException, EnvironmentInstallationException, LzyExecutionException {
         LOG.info("Executing command " + command);
-        return Runtime.getRuntime().exec(new String[]{
-            "bash", "-c",
-            "eval \"$(conda shell.bash hook)\" && " +
-                "conda activate " + env.name() + " && " +
-                command
-        }, envp);
+        return super.runProcess("bash", "-c",
+            "source /root/miniconda3/etc/profile.d/conda.sh && " +
+                "conda activate " + env.name() + " && " + command,
+            envp
+        );
     }
 
-    private Process execInEnv(String command) throws IOException {
+    private LzyProcess execInEnv(String command) throws IOException, EnvironmentInstallationException, LzyExecutionException {
         return execInEnv(command, null);
     }
 
@@ -82,17 +99,17 @@ public class CondaEnvironment implements Environment {
     }
 
     @Override
-    public Process exec(String command, String[] envp) throws LzyExecutionException {
+    public LzyProcess runProcess(String command, String[] envp) throws LzyExecutionException {
         assert envInstalled.get(): "Environment not prepared";
         try {
-            return execInEnv(command, envp);
-        } catch (IOException e) {
+            return execInEnv(String.join(" ", command), envp);
+        } catch (Exception e) {
             throw new LzyExecutionException(e);
         }
     }
 
     @Override
-    public Process exec(String command) throws LzyExecutionException {
-        return exec(command, null);
+    public LzyProcess runProcess(String command) throws LzyExecutionException {
+        return runProcess(command, null);
     }
 }

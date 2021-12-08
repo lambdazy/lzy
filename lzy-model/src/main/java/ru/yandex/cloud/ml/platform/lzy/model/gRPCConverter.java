@@ -1,5 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
+import java.net.URI;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.Context.ContextImpl;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.*;
@@ -44,7 +49,9 @@ public abstract class gRPCConverter {
         Operations.Env.Builder builder = Operations.Env.newBuilder();
         if (env instanceof PythonEnv) {
             builder.setPyenv(to((PythonEnv) env));
-        } // else if (env instanceof DockerEnv) {...}
+        } else if (env instanceof DockerEnv) {
+            builder.setDocker(to((DockerEnv) env));
+        }
         return builder.build();
     }
 
@@ -60,6 +67,12 @@ public abstract class gRPCConverter {
                 .setYaml(env.yaml())
                 .addAllLocalModules(localModules)
                 .build();
+    }
+
+    public static Operations.DockerEnv to(DockerEnv env) {
+        return Operations.DockerEnv.newBuilder() // TODO lindvv
+            .setUri(env.uri().toString())
+            .build();
     }
 
     public static Operations.Slot to(Slot slot) {
@@ -99,15 +112,22 @@ public abstract class gRPCConverter {
         return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
     }
 
-    private static Env envFrom(Operations.Env env) {
+    public static Env envFrom(Operations.Env env) {
         if (env.hasPyenv()) {
             return envFrom(env.getPyenv());
+        }
+        if (env.hasDocker()) {
+            return envFrom(env.getDocker());
         }
         return null;
     }
 
     private static PythonEnv envFrom(Operations.PythonEnv env) {
         return new PythonEnvAdapter(env);
+    }
+
+    private static DockerEnv envFrom(Operations.DockerEnv env) {
+        return new DockerEnvAdapter(env);
     }
 
 
@@ -408,6 +428,26 @@ public abstract class gRPCConverter {
         @Override
         public URI uri() {
             return URI.create("conda/" + name());
+        }
+    }
+
+    private static class DockerEnvAdapter implements DockerEnv {
+        private final Operations.DockerEnv env;
+
+        public DockerEnvAdapter(Operations.DockerEnv env) {
+            this.env = env;
+        }
+
+        // TODO lindvv
+
+        @Override
+        public URI uri() {
+            return URI.create(env.getUri());
+        }
+
+        @Override
+        public String name() {
+            return env.getName();
         }
     }
 }

@@ -1,8 +1,14 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import io.findify.s3mock.S3Mock;
 import org.junit.After;
 import org.junit.Before;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvConfig;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvConfig.MountDescription;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
@@ -28,6 +34,7 @@ public class LzyBaseTest {
 
     @Before
     public void setUp() {
+        createResourcesFolder();
         serverContext = new LzyServerProcessesContext();
         serverContext.init();
         whiteboardContext = new LzySnapshotProcessesContext(serverContext.address(false));
@@ -48,5 +55,16 @@ public class LzyBaseTest {
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();
+    }
+
+    private static void createResourcesFolder() {
+        final Path resourcesPath = Path.of("/tmp/resources/");
+        if (!Files.exists(resourcesPath)) {
+            try {
+                Files.createDirectories(resourcesPath);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

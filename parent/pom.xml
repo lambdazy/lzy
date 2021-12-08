@@ -125,6 +125,7 @@
         <c3po.version>5.6.3.Final</c3po.version>
         <org.json.verion>20211205</org.json.verion>
 
+        <docker.java.version>3.2.12</docker.java.version>
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
     </properties>
@@ -853,6 +854,11 @@
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-core</artifactId>
                 <version>${aws-java-sdk-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java</artifactId>
+                <version>${docker.java.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.kafka</groupId>

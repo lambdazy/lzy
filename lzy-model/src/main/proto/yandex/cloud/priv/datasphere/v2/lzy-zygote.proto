@@ -68,15 +68,9 @@ message SlotStatus {
 message Env {
     oneof env {
         PythonEnv pyenv = 1;
-//        ????????
-//        DockerEnv docker = 2;
+        DockerEnv docker = 2;
     }
 }
-
-//??????
-//message DockerEnv {
-//    string uri = 1;
-//}
 
 message LocalModule {
     string name = 1;
@@ -87,6 +81,11 @@ message PythonEnv {
     string name = 1;
     string yaml = 2;
     repeated LocalModule localModules = 3;
+}
+
+message DockerEnv {
+    string uri = 1;
+    string name = 2;
 }
 
 message Provisioning {
