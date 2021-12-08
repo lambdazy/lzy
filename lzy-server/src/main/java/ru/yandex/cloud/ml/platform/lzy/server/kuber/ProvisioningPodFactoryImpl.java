@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.local;
+package ru.yandex.cloud.ml.platform.lzy.server.kuber;
 
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.models.*;

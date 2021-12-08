@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.local;
+package ru.yandex.cloud.ml.platform.lzy.server.kuber.task;
 
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -14,6 +14,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.server.kuber.ProvisioningPodFactory;
+import ru.yandex.cloud.ml.platform.lzy.server.kuber.ProvisioningPodFactoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.BaseTask;
 import ru.yandex.qe.s3.util.Environment;
 
