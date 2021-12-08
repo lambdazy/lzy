@@ -34,7 +34,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     private static final V1ResourceRequirements GPU_SERVANT_POD_RESOURCE = new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1")).build();
 
     @Override
-    public V1Pod fillPodSpecWithProvisioning(Zygote workload, String token, UUID tid, URI serverURI) throws PodProviderException {
+    public V1Pod createServantPod(Zygote workload, String token, UUID tid, URI serverURI) throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
             Configuration.setDefaultApiClient(client);

@@ -36,7 +36,7 @@ public class KuberTask extends BaseTask {
     public void start(String token) {
         LOG.info("KuberTask::start {}", token);
         try {
-            V1Pod servantPodSpec = servantPodProvider.fillPodSpecWithProvisioning(
+            V1Pod servantPodSpec = servantPodProvider.createServantPod(
                 workload(), token, tid, serverURI
             );
             final CoreV1Api api = new CoreV1Api();
