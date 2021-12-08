@@ -57,7 +57,7 @@ public class LzyServant extends LzyAgent {
         UserEventLogger.log(new UserEvent(
             "Servant startup",
             Map.of(
-                "tid", taskId,
+                "task_id", taskId,
                 "address", agentAddress.toString()
             ),
             UserEvent.UserEventType.TaskStartUp
