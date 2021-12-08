@@ -83,7 +83,8 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         }
         final Map<String, String> nodeSelector = Map.of("type", typeLabelValue);
         podSpec.setNodeSelector(nodeSelector);
-        return null;
+
+        return pod;
     }
 
     private static boolean isNeedGpu(Zygote workload) {
