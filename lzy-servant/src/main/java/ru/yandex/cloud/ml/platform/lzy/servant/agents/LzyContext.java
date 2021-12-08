@@ -25,14 +25,13 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvironment;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.BaseEnvConfig;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvFactory;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashEnvironment;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
@@ -171,13 +170,11 @@ public class LzyContext {
         });
 
         try {
-            if (context.env() instanceof PythonEnv) {
-                env = new CondaEnvironment((PythonEnv) context.env(), credentials);
-                LOG.info("Conda environment is provided, using CondaEnvironment");
-            } else {
-                env = new SimpleBashEnvironment();
-                LOG.info("No environment provided, using SimpleBashEnvironment");
-            }
+            env = EnvFactory.create(
+                context.env(),
+                BaseEnvConfig.newBuilder().build(),
+                credentials
+            );
         } catch (EnvironmentInstallationException e) {
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
             Set.copyOf(slots.values()).stream()
@@ -207,13 +204,16 @@ public class LzyContext {
         LzyExecution execution = new LzyExecution(contextId, zygote, arguments);
         execution.onProgress(onProgress);
         execution.start(env);
-        stdinSlot.setStream(new OutputStreamWriter(execution.exec().getOutputStream(), StandardCharsets.UTF_8));
+        stdinSlot.setStream(new OutputStreamWriter(
+            execution.lzyProcess().in(),
+            StandardCharsets.UTF_8)
+        );
         stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
-            execution.exec().getInputStream(),
+            execution.lzyProcess().out(),
             StandardCharsets.UTF_8
         )));
         stderrSlot.setStream(new LineNumberReader(new InputStreamReader(
-            execution.exec().getErrorStream(),
+            execution.lzyProcess().err(),
             StandardCharsets.UTF_8
         )));
         int rc = execution.waitFor();

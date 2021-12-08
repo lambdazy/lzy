@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.4.2-devel-ubuntu20.04
+FROM ubuntu:xenial
 
 ### conda setup
 ENV PATH="/root/miniconda3/bin:$PATH"
@@ -15,17 +15,7 @@ SHELL ["/bin/bash", "-c"]
 # for future interactive shell sessions
 RUN conda init bash
 
-COPY lzy-servant/requirements.txt /
-COPY lzy-servant/conda_prepare.sh /
+COPY lzy-servant/docker/requirements.txt /
+COPY lzy-servant/docker/conda_prepare.sh /
 RUN chmod a+rx /conda_prepare.sh
 RUN ./conda_prepare.sh init
-
-### deps
-RUN apt-get -y update --fix-missing
-RUN apt-get install -y fuse lsof procps
-
-### java
-ENV DEBIAN_FRONTEND noninteractive
-RUN apt-get install -y openjdk-11-jdk
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64/
-RUN export JAVA_HOME

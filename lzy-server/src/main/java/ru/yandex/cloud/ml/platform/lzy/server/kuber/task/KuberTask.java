@@ -77,6 +77,18 @@ public class KuberTask extends BaseTask {
                 LOG.info("KuberTask:: {} pod current phase: {}", pod.getMetadata().getName(), phase);
                 // TODO: handle "Failed" phase
                 if ("Succeeded".equals(phase) || "Failed".equals(phase)) {
+                    final String servantLog = api.readNamespacedPodLog(podName, namespace,
+                        null,
+                        Boolean.FALSE,
+                        Boolean.TRUE,
+                        Integer.MAX_VALUE,
+                        null,
+                        Boolean.FALSE,
+                        Integer.MAX_VALUE,
+                        100,
+                        Boolean.FALSE);
+                    LOG.error("Servant exited with log:");
+                    LOG.error(servantLog);
                     api.deleteNamespacedPod(podName, namespace, null, null, null, null, null, null);
                     break;
                 } else if ("Running".equals(phase)) {

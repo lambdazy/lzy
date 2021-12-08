@@ -12,10 +12,10 @@ COPY lzy-python/ lzy-python
 COPY lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar lzy-python/lzy/lzy-servant.jar
 RUN ./conda_prepare.sh pylzy_install 'lzy-python'
 
-COPY lzy-servant/entrypoint.sh /
+COPY lzy-servant/docker/entrypoint.sh /entrypoint.sh
 RUN chmod a+rx /entrypoint.sh
 
-COPY lzy-servant/test_entrypoint.sh /
+COPY lzy-servant/docker/test_entrypoint.sh /
 RUN chmod a+rx /test_entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

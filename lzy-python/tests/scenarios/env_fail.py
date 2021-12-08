@@ -18,7 +18,7 @@ if __name__ == "__main__":
             '\n'.join([
                 "name: default",
                 "dependencies:",
-                "- python==3.7.7",
+                "- python==3.7.11",
                 "- pip",
                 "- pip:",
                 "  - kekreader==5653749",

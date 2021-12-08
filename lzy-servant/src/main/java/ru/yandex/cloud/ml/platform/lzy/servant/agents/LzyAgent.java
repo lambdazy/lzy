@@ -50,6 +50,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 public abstract class LzyAgent implements Closeable {
 
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);
+    private static final String LOG_DIR = "/tmp/log/";
     protected final URI serverAddress;
     protected final Path mount;
     protected final IAM.Auth auth;
@@ -165,7 +166,7 @@ public abstract class LzyAgent implements Closeable {
             final List<String> commandParts = new ArrayList<>();
             commandParts.add(System.getProperty("java.home") + "/bin/java");
             commandParts.add("-Xmx1g");
-            commandParts.add("-Dcustom.log.file=" + to.getFileName() + "_$(($RANDOM % 10000))");
+            commandParts.add("-Dcustom.log.file=" + LOG_DIR + to.getFileName() + "_$(($RANDOM % 10000))");
             if (logConfFile != null) {
                 commandParts.add("-Dlog4j.configurationFile=" + logConfFile);
             }

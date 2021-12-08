@@ -4,16 +4,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
@@ -23,56 +24,76 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
-public class CondaEnvironment implements Environment {
+public class CondaEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
-    private final PythonEnv env;
+    private final PythonEnv pythonEnv;
+    private final BaseEnvironment baseEnv;
     private final AtomicBoolean envInstalled = new AtomicBoolean(false);
     private final Lzy.GetS3CredentialsResponse credentials;
 
-    public CondaEnvironment(PythonEnv env, Lzy.GetS3CredentialsResponse credentials)
-        throws EnvironmentInstallationException {
-        this.env = env;
+    public CondaEnvironment(
+        PythonEnv pythonEnv,
+        BaseEnvironment baseEnv,
+        Lzy.GetS3CredentialsResponse credentials
+    ) throws EnvironmentInstallationException {
+        this.pythonEnv = pythonEnv;
+        this.baseEnv = baseEnv;
         this.credentials = credentials;
         prepare();
     }
 
+    @Override
+    public BaseEnvironment base() {
+        return baseEnv;
+    }
+
     private void installPyenv() throws EnvironmentInstallationException {
         try {
-            final File yaml = File.createTempFile("conda", "req.yaml");
-            try (FileWriter file = new FileWriter(yaml.getAbsolutePath())) {
-                file.write(env.yaml());
+            final String yamlPath = "/tmp/resources/conda.yaml";
+            final String yamlBindPath = "/tmp/resources/conda.yaml";
+
+            try (FileWriter file = new FileWriter(yamlPath)) {
+                file.write(pythonEnv.yaml());
             }
             // --prune removes packages not specified in yaml, so probably it has not to be there
-            final Process run = execInEnv("conda env update --file " + yaml.getAbsolutePath()); // + " --prune");
-            final int rc = run.waitFor();
-            final String stdout = IOUtils.toString(run.getInputStream());
-            final String stderr = IOUtils.toString(run.getErrorStream());
-            LOG.info(stdout);
-            LOG.error(stderr);
-            if (run.exitValue() != 0) {
+            final LzyProcess lzyProcess = execInEnv("conda env update --file " + yamlBindPath); // + " --prune");
+            final StringBuilder stdout = new StringBuilder();
+            final StringBuilder stderr = new StringBuilder();
+            try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.out()))) {
+                reader.lines().forEach(s -> {
+                    LOG.info(s);
+                    stdout.append(s);
+                });
+            }
+            try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.err()))) {
+                reader.lines().forEach(s -> {
+                    LOG.error(s);
+                    stderr.append(s);
+                });
+            }
+            final int rc = lzyProcess.waitFor();
+            if (rc != 0) {
                 throw new EnvironmentInstallationException(
                     String.format(
-                        "Failed to update conda env\n\nSTDOUT: %s \n\nSTDERR: %s",
-                        stdout, stderr
+                        "Failed to update conda env\n\nReturnCode: %s \n\nStdout: %s \n\nStderr: %s",
+                        rc, stdout, stderr
                     )
                 );
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException | LzyExecutionException e) {
             throw new EnvironmentInstallationException(e.getMessage());
         }
     }
 
-    private Process execInEnv(String command, String[] envp) throws IOException {
+    private LzyProcess execInEnv(String command, String[] envp)
+        throws LzyExecutionException, EnvironmentInstallationException {
         LOG.info("Executing command " + command);
-        return Runtime.getRuntime().exec(new String[] {
-            "bash", "-c",
-            "eval \"$(conda shell.bash hook)\" && "
-                + "conda activate " + env.name() + " && "
-                + command
-        }, envp);
+        String[] bashCmd = new String[]{"bash", "-c", "source /root/miniconda3/etc/profile.d/conda.sh && "
+                + "conda activate " + pythonEnv.name() + " && " + command};
+        return baseEnv.runProcess(bashCmd, envp);
     }
 
-    private Process execInEnv(String command) throws IOException {
+    private LzyProcess execInEnv(String command) throws LzyExecutionException, EnvironmentInstallationException {
         return execInEnv(command, null);
     }
 
@@ -103,7 +124,7 @@ public class CondaEnvironment implements Environment {
         List<String> envList = new ArrayList<>();
         try {
             LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
-            env.localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
+            pythonEnv.localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
             envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(localModules));
             if (credentials.hasAmazon()) {
                 envList.add("AMAZON=" + JsonFormat.printer().print(credentials.getAmazon()));
@@ -119,16 +140,25 @@ public class CondaEnvironment implements Environment {
     }
 
     @Override
-    public Process exec(String command) throws LzyExecutionException {
+    public LzyProcess runProcess(String... command) throws LzyExecutionException {
+        return runProcess(command, null);
+    }
+
+    @Override
+    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
         if (!envInstalled.get()) {
-            throw new RuntimeException("Environment not installed");
+            throw new RuntimeException("Conda environment not installed");
         }
         try {
             List<String> envList = getEnvironmentVariables();
             envList.addAll(getLocalModules());
-            return execInEnv(command, envList.toArray(String[]::new));
-        } catch (IOException e) {
+            if (envp != null) {
+                envList.addAll(Arrays.asList(envp));
+            }
+            return execInEnv(String.join(" ", command), envList.toArray(String[]::new));
+        } catch (Exception e) {
             throw new LzyExecutionException(e);
         }
     }
+
 }

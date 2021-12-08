@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.BaseEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.LocalModule;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
@@ -54,15 +55,22 @@ public abstract class GrpcConverter {
         return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
     }
 
-    private static Env from(Operations.Env env) {
+    public static Env from(Operations.Env env) {
         if (env.hasPyenv()) {
             return from(env.getPyenv());
+        }
+        if (env.hasDockerEnv()) {
+            // TODO (lindvv) 86682: envFrom(env.getBaseEnv());
         }
         return null;
     }
 
     private static PythonEnv from(Operations.PythonEnv env) {
         return new PythonEnvAdapter(env);
+    }
+
+    private static BaseEnv from(Operations.BaseEnv env) {
+        return new BaseEnvAdapter(env);
     }
 
     public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
@@ -112,7 +120,8 @@ public abstract class GrpcConverter {
         Operations.Env.Builder builder = Operations.Env.newBuilder();
         if (env instanceof PythonEnv) {
             builder.setPyenv(to((PythonEnv) env));
-        } // else if (env instanceof DockerEnv) {...}
+        }
+        // TODO (lindvv) 86682: builder.setBaseEnv();
         return builder.build();
     }
 
@@ -127,6 +136,12 @@ public abstract class GrpcConverter {
             .setName(env.name())
             .setYaml(env.yaml())
             .addAllLocalModules(localModules)
+            .build();
+    }
+
+    public static Operations.BaseEnv to(BaseEnv env) {
+        return Operations.BaseEnv.newBuilder()
+            .setName(env.name())
             .build();
     }
 
@@ -454,6 +469,24 @@ public abstract class GrpcConverter {
         @Override
         public URI uri() {
             return URI.create("conda/" + name());
+        }
+    }
+
+    private static class BaseEnvAdapter implements BaseEnv {
+        private final Operations.BaseEnv env;
+
+        public BaseEnvAdapter(Operations.BaseEnv env) {
+            this.env = env;
+        }
+
+        @Override
+        public URI uri() {
+            return URI.create("baseEnv/" + env.getName());
+        }
+
+        @Override
+        public String name() {
+            return env.getName();
         }
     }
 }

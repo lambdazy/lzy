@@ -45,34 +45,33 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
-            .withPrivilegedMode(
-                true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
-            .withEnv("USER", user)
-            .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)
-            .withEnv("DEBUG_PORT", Integer.toString(debugPort))
-            .withEnv("SUSPEND_DOCKER", "n")
-            .withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withCreateContainerCmdModifier(modifier)
-            .withCommand(commandGenerator.get());
+                .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
+                .withEnv("USER", user)
+                .withEnv("LOG_FILE", "/tmp/log/servant/terminal_" + uuid)
+                .withEnv("DEBUG_PORT", Integer.toString(debugPort))
+                .withEnv("SUSPEND_DOCKER", "n")
+                .withFileSystemBind("/tmp/log/servant/", "/tmp/log/servant/")
+                .withCreateContainerCmdModifier(modifier)
+                .withCommand(commandGenerator.get());
 
         if (private_key_path != null) {
             base.withFileSystemBind(private_key_path, private_key_path);
         }
 
-        final GenericContainer<?> servantContainer;
+        final GenericContainer<?> terminalContainer;
         if (SystemUtils.IS_OS_LINUX) {
-            servantContainer = base.withNetworkMode("host");
+            terminalContainer = base.withNetworkMode("host");
         } else {
-            servantContainer = base
-                .withFixedExposedPort(exposedPort, exposedPort)
-                .withFixedExposedPort(debugPort, debugPort) //to attach debugger
-                .withExposedPorts(exposedPort, debugPort);
+            terminalContainer = base
+                    .withFixedExposedPort(exposedPort, exposedPort)
+                    .withFixedExposedPort(debugPort, debugPort) //to attach debugger
+                    .withExposedPorts(exposedPort, debugPort);
         }
 
-        servantContainer.start();
-        servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
-        startedContainers.add(servantContainer);
-        return servantContainer;
+        terminalContainer.start();
+        terminalContainer.followOutput(new Slf4jLogConsumer(LOGGER));
+        startedContainers.add(terminalContainer);
+        return terminalContainer;
     }
 
     public Terminal createTerminal(

@@ -26,7 +26,7 @@ public class LzyExecution {
     private final AtomicZygote zygote;
     private final String arguments;
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
-    private Process exec;
+    private Environment.LzyProcess lzyProcess;
 
     public LzyExecution(String taskId, AtomicZygote zygote, String arguments) {
         this.taskId = taskId;
@@ -38,7 +38,7 @@ public class LzyExecution {
         final long startMillis = System.currentTimeMillis();
         if (zygote == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
-        } else if (exec != null) {
+        } else if (lzyProcess != null) {
             throw new IllegalStateException("LzyExecution has been already started");
         }
         final long envExecFinishMillis;
@@ -60,7 +60,7 @@ public class LzyExecution {
                     envExecStartMillis - startMillis
                 )
             );
-            this.exec = environment.exec(command);
+            this.lzyProcess = environment.runProcess(command);
             UserEventLogger.log(new UserEvent(
                 "Servant execution start",
                 Map.of(
@@ -105,7 +105,7 @@ public class LzyExecution {
 
     public int waitFor() {
         try {
-            int rc = exec.waitFor();
+            int rc = lzyProcess.waitFor();
             String resultDescription = (rc == 0) ? "Success" : "Failure";
             LOG.info("Result description: " + resultDescription);
             progress(Servant.ExecutionProgress.newBuilder()
@@ -116,8 +116,8 @@ public class LzyExecution {
                 .build()
             );
             return rc;
-        } catch (InterruptedException e) {
-            final String exceptionDescription = "InterruptedException during task execution" + e;
+        } catch (Exception e) {
+            final String exceptionDescription = "Exception during task execution" + e;
             LOG.warn(exceptionDescription);
             progress(Servant.ExecutionProgress.newBuilder()
                 .setExit(Servant.ExecutionConcluded.newBuilder()
@@ -131,11 +131,11 @@ public class LzyExecution {
     }
 
     public void signal(int sigValue) {
-        if (exec == null) {
+        if (lzyProcess == null) {
             LOG.warn("Attempt to kill not started process");
         }
         try {
-            Runtime.getRuntime().exec("kill -" + sigValue + " " + exec.pid());
+            lzyProcess.signal(sigValue);
         } catch (Exception e) {
             LOG.warn("Unable to send signal to process", e);
         }
@@ -146,7 +146,7 @@ public class LzyExecution {
         return zygote;
     }
 
-    public Process exec() {
-        return exec;
+    public Environment.LzyProcess lzyProcess() {
+        return lzyProcess;
     }
 }
