@@ -11,6 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.KuberUtils;
+import ru.yandex.cloud.ml.platform.lzy.server.kuber.PodProviderException;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProviderImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.BaseTask;
@@ -81,6 +82,8 @@ public class KuberTask extends BaseTask {
         } catch (ApiException e) {
             LOG.error("KuberTask:: API exception while pod creation. " + e);
             LOG.error(e.getResponseBody());
+        } catch (PodProviderException e) {
+            LOG.error("KuberTask:: Exception while creating servant pod spec");
         } finally {
             LOG.info("Destroying kuber task");
             state(State.DESTROYED);

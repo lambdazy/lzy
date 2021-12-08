@@ -34,13 +34,13 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     private static final V1ResourceRequirements GPU_SERVANT_POD_RESOURCE = new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1")).build();
 
     @Override
-    public V1Pod fillPodSpecWithProvisioning(Zygote workload, String token, UUID tid, URI serverURI) {
+    public V1Pod fillPodSpecWithProvisioning(Zygote workload, String token, UUID tid, URI serverURI) throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
             Configuration.setDefaultApiClient(client);
         } catch (IOException e) {
             LOG.error("IO error while finding Kubernetes config");
-            return null;
+            throw new PodProviderException("cannot load kuber api client", e);
         }
 
         final V1Pod pod;
@@ -53,7 +53,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             pod = (V1Pod) Yaml.load(file);
         } catch (IOException e) {
             LOG.error("IO error while loading yaml file {}", lzyServantPodTemplatePath);
-            return null;
+            throw new PodProviderException("cannot load servant yaml file", e);
         }
 
         Objects.requireNonNull(pod.getSpec());
@@ -62,8 +62,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         final Optional<V1Container> containerOptional = KuberUtils.findContainerByName(pod, LZY_SERVANT_CONTAINER_NAME);
         if (containerOptional.isEmpty()) {
             LOG.error("lzy servant pod spec doesn't contain {} container", LZY_SERVANT_CONTAINER_NAME);
-            // TODO: throw Exception
-            return null;
+            throw new PodProviderException("cannot find " + LZY_SERVANT_CONTAINER_NAME + " container in pod spec");
         }
         final V1Container container = containerOptional.get();
         addEnvVars(container, token, tid, serverURI);

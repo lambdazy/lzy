@@ -7,5 +7,5 @@ import java.net.URI;
 import java.util.UUID;
 
 public interface ServantPodProvider {
-    V1Pod fillPodSpecWithProvisioning(Zygote workload, String token, UUID tid, URI serverURI);
+    V1Pod fillPodSpecWithProvisioning(Zygote workload, String token, UUID tid, URI serverURI) throws PodProviderException;
 }
