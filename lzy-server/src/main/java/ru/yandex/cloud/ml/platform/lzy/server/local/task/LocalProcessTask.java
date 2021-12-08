@@ -23,7 +23,7 @@ import ru.yandex.qe.s3.util.Environment;
 public class LocalProcessTask extends LocalTask {
     private static final Logger LOG = LogManager.getLogger(LocalProcessTask.class);
 
-    LocalProcessTask(
+    public LocalProcessTask(
         String owner,
         UUID tid,
         Zygote workload,

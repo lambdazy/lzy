@@ -15,6 +15,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.DirectChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.EmptyController;
+import ru.yandex.cloud.ml.platform.lzy.server.task.InMemTasksManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 

@@ -7,7 +7,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.cloud.ml.platform.lzy.server.local.BaseTask;
+import ru.yandex.cloud.ml.platform.lzy.server.task.BaseTask;
 
 import java.net.URI;
 import java.util.Map;

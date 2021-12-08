@@ -14,6 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.server.task.BaseTask;
 import ru.yandex.qe.s3.util.Environment;
 
 import java.io.File;
@@ -30,7 +31,7 @@ public class KuberTask extends BaseTask {
 
     private final ProvisioningPodFactory provisioningPodFactory = new ProvisioningPodFactoryImpl();
 
-    KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
+    public KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
               SnapshotMeta meta, ChannelsManager channels, URI serverURI) {
         super(owner, tid, workload, assignments, meta, channels, serverURI);
     }
