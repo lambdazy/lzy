@@ -24,6 +24,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
@@ -154,12 +155,20 @@ public class SnapshotTest extends LzyBaseTest {
         Assert.assertEquals(2, fieldsList.size());
         Assert.assertEquals(LzyWhiteboard.Whiteboard.WhiteboardStatus.COMPLETED, wb.getStatus());
 
-        Assert.assertEquals(localFileOutName, fieldsList.get(0).getFieldName());
-        Assert.assertEquals(localFileName, fieldsList.get(1).getFieldName());
+        Assert.assertTrue(
+                (localFileName.equals(fieldsList.get(0).getFieldName()) && localFileOutName.equals(fieldsList.get(1).getFieldName())) ||
+                (localFileName.equals(fieldsList.get(1).getFieldName()) && localFileOutName.equals(fieldsList.get(0).getFieldName()))
+        );
 
         Assert.assertTrue(fieldsList.get(0).getStorageUri().length() > 0);
         Assert.assertTrue(fieldsList.get(1).getStorageUri().length() > 0);
 
-        Assert.assertEquals(List.of(localFileName), fieldsList.get(0).getDependentFieldNamesList());
+        if (localFileName.equals(fieldsList.get(0).getFieldName())) {
+            Assert.assertEquals(Collections.emptyList(), fieldsList.get(0).getDependentFieldNamesList());
+            Assert.assertEquals(List.of(localFileName), fieldsList.get(1).getDependentFieldNamesList());
+        } else {
+            Assert.assertEquals(Collections.emptyList(), fieldsList.get(1).getDependentFieldNamesList());
+            Assert.assertEquals(List.of(localFileName), fieldsList.get(0).getDependentFieldNamesList());
+        }
     }
 }

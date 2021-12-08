@@ -29,9 +29,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     private final Authenticator auth;
 
     @Inject
-    ServerConfig serverConfig;
-
-    public WhiteboardApi(WhiteboardRepository whiteboardRepository, SnapshotRepository snapshotRepository) {
+    public WhiteboardApi(ServerConfig serverConfig, WhiteboardRepository whiteboardRepository, SnapshotRepository snapshotRepository) {
         URI uri = URI.create(serverConfig.getUri());
         final ManagedChannel serverChannel = ManagedChannelBuilder
                 .forAddress(uri.getHost(), uri.getPort())
