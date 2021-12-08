@@ -6,6 +6,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import java.net.URI;
 import java.util.UUID;
 
-public interface ProvisioningPodFactory {
+public interface ServantPodProvider {
     V1Pod fillPodSpecWithProvisioning(Zygote workload, String token, UUID tid, URI serverURI);
 }

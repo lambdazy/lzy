@@ -6,7 +6,6 @@ import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.ClientBuilder;
 import io.kubernetes.client.util.Yaml;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
@@ -18,8 +17,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 
-public class ProvisioningPodFactoryImpl implements ProvisioningPodFactory {
-    private static final Logger LOG = LoggerFactory.getLogger(ProvisioningPodFactoryImpl.class);
+public class ServantPodProviderImpl implements ServantPodProvider {
+    private static final Logger LOG = LoggerFactory.getLogger(ServantPodProviderImpl.class);
     private static final String LZY_SERVANT_POD_TEMPLATE_FILE_PROPERTY = "lzy.servant.pod.template.file";
     private static final String DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE = "/app/resources/kubernetes/lzy-servant-pod-template.yaml";
     private static final String LZY_SERVANT_CONTAINER_NAME = "lzy-servant";
@@ -32,7 +31,7 @@ public class ProvisioningPodFactoryImpl implements ProvisioningPodFactory {
     private static final List<V1Toleration> GPU_SERVANT_POD_TOLERATIONS = List.of(
         GPU_SERVANT_POD_TOLERATION
     );
-    public static final V1ResourceRequirements GPU_SERVANT_POD_RESOURCE = new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1")).build();
+    private static final V1ResourceRequirements GPU_SERVANT_POD_RESOURCE = new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1")).build();
 
     @Override
     public V1Pod fillPodSpecWithProvisioning(Zygote workload, String token, UUID tid, URI serverURI) {
@@ -60,7 +59,7 @@ public class ProvisioningPodFactoryImpl implements ProvisioningPodFactory {
         Objects.requireNonNull(pod.getSpec());
         Objects.requireNonNull(pod.getMetadata());
 
-        final Optional<V1Container> containerOptional = findContainerByName(pod, LZY_SERVANT_CONTAINER_NAME);
+        final Optional<V1Container> containerOptional = KuberUtils.findContainerByName(pod, LZY_SERVANT_CONTAINER_NAME);
         if (containerOptional.isEmpty()) {
             LOG.error("lzy servant pod spec doesn't contain {} container", LZY_SERVANT_CONTAINER_NAME);
             // TODO: throw Exception
@@ -114,14 +113,5 @@ public class ProvisioningPodFactoryImpl implements ProvisioningPodFactory {
         ).addEnvItem(
             new V1EnvVar().name("LZYWHITEBOARD").value(Environment.getLzyWhiteboard())
         );
-    }
-
-    @NotNull
-    private static Optional<V1Container> findContainerByName(V1Pod servantPodDescription, String name) {
-        return Objects.requireNonNull(servantPodDescription.getSpec())
-            .getContainers()
-            .stream()
-            .filter(c -> name.equals(c.getName()))
-            .findFirst();
     }
 }
