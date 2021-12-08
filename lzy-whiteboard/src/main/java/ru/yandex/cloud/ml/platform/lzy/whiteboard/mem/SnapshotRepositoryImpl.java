@@ -147,7 +147,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             snapshotEntryModel = new SnapshotEntryModel(snapshotId, entryId,
                     entry.storage().toString(), true, SnapshotEntryStatus.State.IN_PROGRESS);
             List<EntryDependenciesModel> depModelList = new ArrayList<>();
-            entry.dependentEntryIds().forEach(id -> depModelList.add(new EntryDependenciesModel(snapshotId, entryId, id)));
+            entry.dependentEntryIds().forEach(id -> depModelList.add(new EntryDependenciesModel(snapshotId, id, entryId)));
             try {
                 session.save(snapshotEntryModel);
                 depModelList.forEach(session::save);
@@ -165,7 +165,8 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
         try (Session session = storage.getSessionFactory().openSession()) {
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
-            SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class, id);
+            SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
+                    new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
             if (snapshotModel == null || snapshotEntryModel == null) {
                 throw new SnapshotException(Status.NOT_FOUND.asException());
             }

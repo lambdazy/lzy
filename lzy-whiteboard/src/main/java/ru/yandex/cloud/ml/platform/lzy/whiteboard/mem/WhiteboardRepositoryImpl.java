@@ -20,6 +20,7 @@ import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Singleton
@@ -201,7 +202,16 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
             Snapshot snapshot = getSnapshot(field.whiteboard().snapshot().id().toString(), session);
             Whiteboard whiteboard = getWhiteboard(field.whiteboard().id().toString(), snapshot, session);
             List<WhiteboardFieldModel> wbFieldModelList = getFieldDependencies(field.whiteboard().id().toString(), field.name(), session);
-            return wbFieldModelList.stream().map(w -> getWhiteboardField(w, whiteboard, snapshot, session));
+            if (!wbFieldModelList.isEmpty()) {
+                System.out.println("WWWWWWWW1 " + field.name() + " " + wbFieldModelList.get(0).getFieldName());
+            }
+            List<WhiteboardField> result = wbFieldModelList.stream()
+                    .map(w -> getWhiteboardField(w, whiteboard, snapshot, session))
+                    .collect(Collectors.toList());
+            if (!result.isEmpty()) {
+                System.out.println("WWWWWWWW2 " + field.name() + " " + result.get(0).name());
+            }
+            return result.stream();
         }
     }
 
@@ -210,7 +220,10 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
         try (Session session = storage.getSessionFactory().openSession()) {
             Snapshot snapshot = getSnapshot(whiteboard.id().toString(), session);
             List<WhiteboardFieldModel> wbFieldModelList = getWhiteboardFields(whiteboard.id().toString(), session);
-            return wbFieldModelList.stream().map(w -> getWhiteboardField(w, whiteboard, snapshot, session));
+            List<WhiteboardField> result = wbFieldModelList.stream()
+                    .map(w -> getWhiteboardField(w, whiteboard, snapshot, session))
+                    .collect(Collectors.toList());
+            return result.stream();
         }
     }
 }
