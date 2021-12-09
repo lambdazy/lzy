@@ -36,7 +36,7 @@ class WhiteboardBashApi(WhiteboardApi):
         with request.urlopen(url) as req:
             return cloudpickle.load(req)
 
-    def resolve(self, wb_id: str, field_name: str, typ: Type[T]) -> T:
+    def resolve(self, wb_id: str, field_name: str, typ: Type[Any]) -> Any:
         out = BashServantClient._exec_bash(f"{self.__mount}/sbin/whiteboard", "resolve", wb_id, "-f", field_name)
         res = json.loads(out)
         return proxy(lambda: WhiteboardBashApi._get_from_s3(res['url']), typ)
@@ -66,7 +66,7 @@ class WhiteboardBashApi(WhiteboardApi):
             raise RuntimeError(f"Wrong command output format: {e}")
     
     @staticmethod
-    def _parse_wb_json(res: dict[str, Any]) -> WhiteboardDescription:
+    def _parse_wb_json(res: Dict[str, Any]) -> WhiteboardDescription:
         return WhiteboardDescription(
                 res['id'],
                 [WhiteboardFieldDescription(field['fieldName'], field.get('storageUri'), field.get('dependentFieldNames'), field['empty'], WhiteboardFieldStatus(field['satus'])) for field in res['fields']],

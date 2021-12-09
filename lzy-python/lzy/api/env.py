@@ -12,8 +12,8 @@ from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.terminal_server import TerminalServer
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
-from .buses import Bus
-from .lazy_op import LzyOp
+from lzy.api.buses import Bus
+from lzy.api.lazy_op import LzyOp
 
 T = TypeVar('T')
 
@@ -87,8 +87,8 @@ class LzyEnv(LzyEnvBase):
         else:
             self._terminal_server = None
             self._servant_client = None
-            self._whiteboard_api: WhiteboardApi = InMemWhiteboardApi()
-            self._snapshot_api: SnapshotApi = InMemSnapshotApi()
+            self._whiteboard_api = InMemWhiteboardApi()
+            self._snapshot_api = InMemSnapshotApi()
 
         self._ops: List[LzyOp] = []
         self._eager = eager
@@ -133,7 +133,10 @@ class LzyEnv(LzyEnvBase):
             return self._whiteboard_id
         if self._whiteboard_api is not None and self._whiteboard is not None:
             fields = dataclasses.fields(self._whiteboard)
-            self._whiteboard_id = self._whiteboard_api.create([field.name for field in fields], self.snapshot_id()).id
+            snapshot_id = self.snapshot_id()
+            if snapshot_id is None:
+                raise RuntimeError("Cannot create snapshot")
+            self._whiteboard_id = self._whiteboard_api.create([field.name for field in fields], snapshot_id).id
             return self._whiteboard_id
         return None
     
@@ -153,7 +156,7 @@ class LzyEnv(LzyEnvBase):
         try:
             self.run()
             if self._snapshot_id:
-                self._snapshot_api.finalize(self.snapshot_id())
+                self._snapshot_api.finalize(self._snapshot_id)
         finally:
             self.deactivate()
 
@@ -188,9 +191,9 @@ class LzyEnv(LzyEnvBase):
     def get_active(cls) -> Optional['LzyEnv']:
         return cls.instance
 
-    def get_whiteboard(self, id: str, typ: Type[T]) -> T:
+    def get_whiteboard(self, id: str, typ: Type[Any]) -> Any:
         if not dataclasses.is_dataclass(typ):
             raise ValueError("Whiteboard must be dataclass")
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
-        wb = self._whiteboard_api.get(self.whiteboard_id())
+        wb = self._whiteboard_api.get(id)
         return typ(**{field.field_name: self._whiteboard_api.resolve(id, field.field_name, field_types[field.field_name]) for field in wb.fields})
