@@ -75,7 +75,7 @@ public class LocalChannelsManager implements ChannelsManager {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
+            final ChannelEx channel = channels.get(ch.name());
             if (channel == null) {
                 throw new ChannelException("Channel " + ch.name() + " is not registered");
             }
@@ -111,7 +111,7 @@ public class LocalChannelsManager implements ChannelsManager {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
+            final ChannelEx channel = channels.get(ch.name());
             if (channel != null) {
                 channel.unbind(endpoint);
             } else {
@@ -182,7 +182,7 @@ public class LocalChannelsManager implements ChannelsManager {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
+            final ChannelEx channel = channels.get(ch.name());
             if (channel == null) {
                 return new SlotStatus[0];
             }
