@@ -12,6 +12,7 @@ from .buses import *
 from .env import LzyEnv
 from .lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
 from .utils import print_lzy_ops, infer_return_type, is_lazy_proxy, lazy_proxy
+from .whiteboard.api import UUIDEntryIdGenerator
 
 logging.root.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
@@ -71,7 +72,8 @@ def op_(provisioning: Provisioning, *, input_types=None, output_type=None):
                     raise RuntimeError("Cannot find servant")
                 lzy_op = LzyRemoteOp(servant, f, input_types, output_type,
                                      provisioning, PyEnv(env_name, yaml),
-                                     deployed=False, args=args)
+                                     deployed=False, args=args,
+                                     entry_id_generator=UUIDEntryIdGenerator(current_env.snapshot_id()))
             current_env.register_op(lzy_op)
             return lazy_proxy(lambda: lzy_op.materialize(), output_type,
                               {'_op': lzy_op})

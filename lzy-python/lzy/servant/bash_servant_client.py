@@ -5,7 +5,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Mapping
 
 from time import sleep
 
@@ -119,19 +119,28 @@ class BashServantClient(ServantClient, metaclass=Singleton):
             f.write(zygote.to_json())
         return self._exec_bash(f"{self._mount}/sbin/publish", zygote.name(), zygote_description_file)
 
-    def _execute_run(self, execution_id: str, zygote: Zygote, bindings: Bindings) -> Execution:
+    def _execute_run(self, execution_id: str, zygote: Zygote, bindings: Bindings, entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
         slots_mapping_file = tempfile.mktemp(prefix="lzy_slot_mapping_", suffix=".json", dir="/tmp/")
+        entry_id_mapping_file = tempfile.mktemp(prefix="entry_id_mapping_", suffix=".json", dir="/tmp/")
         with open(slots_mapping_file, 'w') as f:
             json_bindings = {
                 binding.remote_slot.name(): binding.channel.name for binding in bindings.bindings()
             }
+            json.dump(json_bindings, f, indent=3)
+        with open(entry_id_mapping_file, 'w') as f:
+            if entry_id_mapping:
+                json_bindings = {
+                    slot.name(): entry_id for slot, entry_id in entry_id_mapping.items()
+                }
+            else:
+                json_bindings = {}
             json.dump(json_bindings, f, indent=3)
 
         env = os.environ.copy()
         env['ZYGOTE'] = zygote.to_json()
 
         execution = BashExecution(execution_id, bindings, env, f"{self._mount}/sbin/run", "--mapping",
-                                  slots_mapping_file)
+                                  slots_mapping_file, "-s", entry_id_mapping_file)
         execution.start()
         return execution
 

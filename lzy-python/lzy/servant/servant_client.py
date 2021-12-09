@@ -2,6 +2,7 @@ import abc
 import logging
 import uuid
 from pathlib import Path
+from typing import Mapping, Optional
 
 from lzy.model.channel import Channel, Bindings, Binding
 from lzy.model.file_slots import create_slot
@@ -67,7 +68,7 @@ class ServantClient:
     def publish(self, zygote: Zygote):
         pass
 
-    def run(self, zygote: Zygote) -> Execution:
+    def run(self, zygote: Zygote, slots_to_entry_id: Optional[Mapping[Slot, str]]) -> Execution:
         execution_id = str(uuid.uuid4())
         self._log.info(f"Running zygote {zygote.name()}, execution id {execution_id}")
 
@@ -80,10 +81,10 @@ class ServantClient:
             self.touch(local_slot, channel)
             bindings.append(Binding(local_slot, slot, channel))
 
-        return self._execute_run(execution_id, zygote, Bindings(bindings))
+        return self._execute_run(execution_id, zygote, Bindings(bindings), slots_to_entry_id)
 
     @abc.abstractmethod
-    def _execute_run(self, execution_id: str, zygote: Zygote, bindings: Bindings) -> Execution:
+    def _execute_run(self, execution_id: str, zygote: Zygote, bindings: Bindings, entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
         pass
 
     def _zygote_path(self, zygote: Zygote) -> str:

@@ -6,6 +6,7 @@ from abc import abstractmethod, ABC
 from typing import Callable, Optional, Type, Tuple, Any, TypeVar, Generic
 
 import cloudpickle
+from lzy.api.whiteboard.api import EntryIdGenerator
 
 from lzy.model.env import PyEnv
 from lzy.model.zygote import Provisioning
@@ -54,6 +55,10 @@ class LzyOp(Generic[T], ABC):
     def is_materialized(self) -> bool:
         pass
 
+    @abstractmethod
+    def return_entry_id(self) -> Optional[str]:
+        pass
+
 
 class LzyLocalOp(LzyOp, Generic[T]):
     def __init__(self, func: Callable[..., T], input_types: Tuple[type, ...],
@@ -73,6 +78,9 @@ class LzyLocalOp(LzyOp, Generic[T]):
 
     def is_materialized(self) -> bool:
         return self._materialized
+    
+    def return_entry_id(self) -> Optional[str]:
+        return None
 
 
 class LzyExecutionException(Exception):
@@ -91,11 +99,15 @@ class LzyExecutionException(Exception):
 
 
 class LzyRemoteOp(LzyOp, Generic[T]):
-    def __init__(self, servant: ServantClient, func: Callable,
-                 input_types: Tuple[type, ...],
-                 output_type: Type[T], provisioning: Provisioning = None, env: PyEnv = None,
-                 deployed: bool = False,
-                 args: Tuple[Any, ...] = ()):
+    def __init__(
+        self, servant: ServantClient, func: Callable,
+        input_types: Tuple[type, ...],
+        output_type: Type[T], provisioning: Provisioning = None, env: PyEnv = None,
+        deployed: bool = False,
+        args: Tuple[Any, ...] = (),
+        entry_id_generator: Optional[EntryIdGenerator] = None,
+        return_entry_id: Optional[str] = None
+    ):
         super().__init__(func, input_types, output_type, args)
         self._deployed = deployed
         self._servant = servant
@@ -104,9 +116,14 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         if (not provisioning or not env) and not deployed:
             raise ValueError('Non-deployed ops must have provisioning and env')
         self._zygote = ZygotePythonFunc(func, input_types, output_type, self._servant.mount(), env, provisioning)
+        if entry_id_generator is not None:
+            self._return_entry_id: Optional[str] = entry_id_generator.generate(self._zygote.return_slot())
+        else:
+            self._return_entry_id = return_entry_id
 
     def execution_logic(self):
-        execution = self._servant.run(self._zygote)
+        bindings = {self._zygote.return_slot(): self._return_entry_id} if self._return_entry_id else None
+        execution = self._servant.run(self._zygote, bindings)
         arg_slots = self._zygote.arg_slots()
         arg_names = inspect.getfullargspec(self._func).args
         for i in range(len(self._args)):
@@ -174,20 +191,25 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
     @staticmethod
     def restore(servant: ServantClient, materialized: bool, materialization: Any,
+                return_entry_id: Optional[str],
                 input_types: Tuple[Type, ...], output_types: Type[T],
                 func: Callable, provisioning: Provisioning, env: PyEnv, *args: Tuple[Any, ...]):
-        op = LzyRemoteOp(servant, func, input_types, output_types, provisioning, env, deployed=False, args=args)
+        op = LzyRemoteOp(servant, func, input_types, output_types, provisioning, env, deployed=False, args=args, return_entry_id=return_entry_id)
         op._materialized = materialized
         op._materialization = materialization
         return op
 
     @staticmethod
-    def reducer(op) -> Any:
+    def reducer(op: 'LzyRemoteOp') -> Any:
         # noinspection PyProtectedMember
         return LzyRemoteOp.restore, (
-            op._servant_client, op.is_materialized(), op._materialization,
+            op._servant, op.is_materialized(), op._materialization,
+            op.return_entry_id(),
             op.input_types, op.return_type,
             op.func, op._provisioning, op._env, *op.args)
+    
+    def return_entry_id(self) -> Optional[str]:
+        return self._return_entry_id
 
 
 copyreg.dispatch_table[LzyRemoteOp] = LzyRemoteOp.reducer  # type: ignore
