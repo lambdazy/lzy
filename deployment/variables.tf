@@ -34,10 +34,6 @@ variable "oauth-github-client-secret" {
   type = string
 }
 
-variable "backoffice-secrets-private-key" {
-  type = string
-}
-
 variable "backoffice-frontend-image" {
   type = string
   default = "lzydock/lzy-backoffice-frontend:master"
