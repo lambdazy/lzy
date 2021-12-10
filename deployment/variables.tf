@@ -19,7 +19,7 @@ variable "lzy_count" {
 
 variable "gpu_count" {
   type = number
-  default = 2
+  default = 1
 }
 
 variable location {
