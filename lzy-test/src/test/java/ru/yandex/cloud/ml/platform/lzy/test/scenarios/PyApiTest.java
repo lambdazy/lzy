@@ -93,4 +93,15 @@ public class PyApiTest extends LzyBaseTest {
         //Assert
         Assert.assertTrue(result.stderr().contains("Failed to install environment on remote machine"));
     }
+
+    @Test
+    public void testSimpleWhiteboard() {
+        //Arrange
+        String condaPrefix = prepareConda();
+        final String pyCommand = "python /lzy-python/examples/integration/whiteboard_simple.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + pyCommand);
+    }
 }

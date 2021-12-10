@@ -27,6 +27,8 @@ service LzyServer {
   rpc RegisterServant (AttachServant) returns (AttachStatus);
 
   rpc CheckUserPermissions (CheckUserPermissionsRequest) returns (CheckUserPermissionsResponse);
+
+  rpc GetS3Credentials (GetS3CredentialsRequest) returns (GetS3CredentialsResponse);
 }
 
 message PublishRequest {
@@ -60,4 +62,13 @@ message CheckUserPermissionsRequest {
 
 message CheckUserPermissionsResponse {
   bool isOk = 1;
+}
+
+message GetS3CredentialsRequest {
+  Auth auth = 1;
+}
+
+message GetS3CredentialsResponse {
+  string access_token = 1;
+  string secret_token = 2;
 }

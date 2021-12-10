@@ -66,7 +66,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
     }
 
     private String generateKey(Slot slot) {
-        return "/task/" + taskId + "/slot/" + slot.name();
+        return "task" + taskId + "/slot" + slot.name();
     }
 
     @Override

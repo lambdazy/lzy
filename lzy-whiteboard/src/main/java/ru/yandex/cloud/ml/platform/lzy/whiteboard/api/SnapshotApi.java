@@ -1,7 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.api;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import io.netty.channel.local.LocalEventLoopGroup;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
@@ -15,6 +20,7 @@ import java.util.UUID;
 
 public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     private final SnapshotRepository repository;
+    private final static Logger LOG = LogManager.getLogger(SnapshotApi.class);
 
     public SnapshotApi(SnapshotRepository repository) {
         this.repository = repository;
@@ -35,6 +41,11 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void prepareToSave(LzyWhiteboard.PrepareCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        try {
+            LOG.info("SnapshotApi::prepareToSave " + JsonFormat.printer().print(request));
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error(e);
+        }
         //TODO: auth
         final SnapshotStatus snapshotStatus = repository.resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
@@ -52,6 +63,11 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void commit(LzyWhiteboard.CommitCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        try {
+            LOG.info("SnapshotApi::commit " + JsonFormat.printer().print(request));
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error(e);
+        }
         //TODO: auth
         final SnapshotStatus snapshotStatus = repository.resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {

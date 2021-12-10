@@ -17,6 +17,7 @@ public interface LzyCommand {
         touch(new Touch()),
         status(new TerminalStatus()),
         whiteboard(new Whiteboard()),
+        credentials(new Credentials()),
         snapshot(new Snapshot());
 
         private final LzyCommand command;

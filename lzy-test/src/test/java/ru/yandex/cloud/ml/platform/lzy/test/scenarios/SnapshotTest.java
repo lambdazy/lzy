@@ -30,9 +30,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 public class SnapshotTest extends LzyBaseTest {
-    private static final int S3_PORT = 8001;
     private LzyTerminalTestContext.Terminal terminal;
-    private S3Mock api;
 
     @Before
     public void setUp() {
@@ -47,15 +45,11 @@ public class SnapshotTest extends LzyBaseTest {
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
-
-        api = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
-        api.start();
     }
 
     @After
     public void tearDown() {
         super.tearDown();
-        api.shutdown();
     }
 
     @Test

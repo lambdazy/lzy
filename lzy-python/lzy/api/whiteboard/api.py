@@ -13,8 +13,8 @@ class SnapshotDescription:
 
 
 class WhiteboardFieldStatus(Enum):
-    IN_PROGRESS = 0
-    FINISHED = 1
+    IN_PROGRESS = "IN_PROGRESS"
+    FINISHED = "FINISHED"
 
 
 @dataclass
@@ -22,24 +22,22 @@ class WhiteboardFieldDescription:
     field_name: str
     storage_uri: Optional[str]
     dependent_field_names: Optional[List[str]]
-    is_empty: bool
-    status: Optional[WhiteboardFieldStatus]
 
 
 class WhiteboardStatus(Enum):
-    UNKNOWN = 0
-    CREATED = 1
-    COMPLETED = 2
-    NOT_COMPLETED = 3
-    ERRORED = 4
+    UNKNOWN = "UNKNOWN"
+    CREATED = "CREATED"
+    COMPLETED = "COMPLETED"
+    NOT_COMPLETED = "NOT_COMPLETED"
+    ERRORED = "ERRORED"
 
 
 @dataclass
 class WhiteboardDescription:
     id: str
     fields: List[WhiteboardFieldDescription]
-    snapshot: SnapshotDescription
-    status: WhiteboardStatus
+    snapshot: Optional[SnapshotDescription]
+    status: Optional[WhiteboardStatus]
 
 
 class SnapshotApi(ABC):
@@ -67,7 +65,7 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def resolve(self, wb_id: str, field_name: str, typ: Type[Any]) -> Any:
+    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         pass
 
 
@@ -88,7 +86,7 @@ class UUIDEntryIdGenerator(EntryIdGenerator):
 
 class InMemWhiteboardApi(WhiteboardApi):
 
-    def resolve(self, wb_id: str, field_name: str, typ: Type[Any]) -> Any:
+    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         return None
 
     def __init__(self) -> None:
@@ -98,7 +96,7 @@ class InMemWhiteboardApi(WhiteboardApi):
         wb_id = str(uuid.uuid1())
         self.__whiteboards[wb_id] = WhiteboardDescription(
             wb_id,
-            [WhiteboardFieldDescription(name, None, [], True, WhiteboardFieldStatus.IN_PROGRESS) for name in fields],
+            [WhiteboardFieldDescription(name, None, []) for name in fields],
             SnapshotDescription(snapshot_id=snapshot_id),
             WhiteboardStatus.CREATED
         )

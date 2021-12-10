@@ -8,6 +8,8 @@ from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, \
 
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.api.whiteboard.api import InMemSnapshotApi, InMemWhiteboardApi, SnapshotApi, WhiteboardApi
+from lzy.api.whiteboard.wb import wrap_whiteboard
+from lzy.api._proxy import proxy
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.terminal_server import TerminalServer
@@ -60,6 +62,35 @@ class LzyEnvBase(ABC):
         pass
 
 
+class WhiteboardExecutionContext:
+    def __init__(self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any):
+        self._snapshot_id: Optional[str] = None
+        self._whiteboard_id: Optional[str] = None
+        self.whiteboard_api = whiteboard_api
+        self.snapshot_api = snapshot_api
+        self.whiteboard = whiteboard
+
+    @property
+    def snapshot_id(self) -> Optional[str]:
+        if self._snapshot_id is not None:
+            return self._snapshot_id
+        self._snapshot_id = self.snapshot_api.create().snapshot_id
+        return self._snapshot_id
+
+    @property
+    def whiteboard_id(self) -> Optional[str]:
+        if self._whiteboard_id is not None:
+            return self._whiteboard_id
+        if self.whiteboard_api is not None and self.whiteboard is not None:
+            fields = dataclasses.fields(self.whiteboard)
+            snapshot_id = self.snapshot_id
+            if snapshot_id is None:
+                raise RuntimeError("Cannot create snapshot")
+            self._whiteboard_id = self.whiteboard_api.create([field.name for field in fields], snapshot_id).id
+            return self._whiteboard_id
+        return None
+
+
 class LzyEnv(LzyEnvBase):
     instance: Optional['LzyEnv'] = None
 
@@ -73,22 +104,24 @@ class LzyEnv(LzyEnvBase):
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
             raise ValueError('Whiteboard should be a dataclass')
 
-        self._snapshot_id: Optional[str] = None
-        self._whiteboard_id: Optional[str] = None
-        self._whiteboard = whiteboard
         self._local = local
         if not local:
             if not user:
                 raise ValueError("Username must be specified")
             self._terminal_server: Optional[TerminalServer] = TerminalServer(private_key_path, lzy_mount, server_url, user)
             self._servant_client: Optional[BashServantClient] = BashServantClient(lzy_mount)
-            self._whiteboard_api: WhiteboardApi = WhiteboardBashApi(lzy_mount)
-            self._snapshot_api: SnapshotApi = SnapshotBashApi(lzy_mount)
+            whiteboard_api: WhiteboardApi = WhiteboardBashApi(lzy_mount)
+            snapshot_api: SnapshotApi = SnapshotBashApi(lzy_mount)
         else:
             self._terminal_server = None
             self._servant_client = None
-            self._whiteboard_api = InMemWhiteboardApi()
-            self._snapshot_api = InMemSnapshotApi()
+            whiteboard_api = InMemWhiteboardApi()
+            snapshot_api = InMemSnapshotApi()
+
+        self._execution_context = WhiteboardExecutionContext(whiteboard_api, snapshot_api, whiteboard)
+
+        if self._execution_context.whiteboard is not None:
+            wrap_whiteboard(self._execution_context.whiteboard, self._execution_context.whiteboard_api, lambda: self.whiteboard_id())
 
         self._ops: List[LzyOp] = []
         self._eager = eager
@@ -129,22 +162,10 @@ class LzyEnv(LzyEnvBase):
             self._terminal_server.stop()
     
     def whiteboard_id(self) -> Optional[str]:
-        if self._whiteboard_id is not None:
-            return self._whiteboard_id
-        if self._whiteboard_api is not None and self._whiteboard is not None:
-            fields = dataclasses.fields(self._whiteboard)
-            snapshot_id = self.snapshot_id()
-            if snapshot_id is None:
-                raise RuntimeError("Cannot create snapshot")
-            self._whiteboard_id = self._whiteboard_api.create([field.name for field in fields], snapshot_id).id
-            return self._whiteboard_id
-        return None
+        return self._execution_context.whiteboard_id
     
     def snapshot_id(self) -> Optional[str]:
-        if self._snapshot_id is not None:
-            return self._snapshot_id
-        self._snapshot_id = self._snapshot_api.create().snapshot_id
-        return self._snapshot_id
+        return self._execution_context.snapshot_id
 
     def __enter__(self) -> 'LzyEnv':
         if self.already_exists():
@@ -155,8 +176,8 @@ class LzyEnv(LzyEnvBase):
     def __exit__(self, *_) -> None:
         try:
             self.run()
-            if self._snapshot_id:
-                self._snapshot_api.finalize(self._snapshot_id)
+            if self._execution_context._snapshot_id:
+                self._execution_context.snapshot_api.finalize(self._execution_context._snapshot_id)
         finally:
             self.deactivate()
 
@@ -182,8 +203,6 @@ class LzyEnv(LzyEnvBase):
     def run(self) -> None:
         if not self.already_exists():
             raise ValueError('Run operation on a non-entered environment')
-        if not self._ops:
-            raise ValueError('No registered ops')
         for wrapper in self._ops:
             wrapper.materialize()
 
@@ -195,5 +214,6 @@ class LzyEnv(LzyEnvBase):
         if not dataclasses.is_dataclass(typ):
             raise ValueError("Whiteboard must be dataclass")
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
-        wb = self._whiteboard_api.get(id)
-        return typ(**{field.field_name: self._whiteboard_api.resolve(id, field.field_name, field_types[field.field_name]) for field in wb.fields})
+        wb = self._execution_context.whiteboard_api.get(id)
+        return typ(**{field.field_name: self._execution_context.whiteboard_api.resolve(field.storage_uri, field_types[field.field_name]) for field in wb.fields})
+

@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 
 public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     private final Map<URI, SnapshotStatus> snapshots = new HashMap<>();
-    private final Map<URI, Map<String, SnapshotEntry>> entries = new HashMap<>();
+    private final Map<URI, Map<String, SnapshotEntry.Impl>> entries = new HashMap<>();
     private final Map<URI, List<URI>> snapshotWhiteboardsMapping = new HashMap<>();
 
     private final Map<URI, WhiteboardStatus> whiteboards = new HashMap<>();
@@ -35,7 +35,10 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         if (!snapshots.containsKey(entry.snapshot().id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + entry.snapshot().id());
         }
-        entries.get(entry.snapshot().id()).put(entry.id(), entry);
+        SnapshotEntry.Impl imp = entries.get(entry.snapshot().id()).getOrDefault(entry.id(), new SnapshotEntry.Impl(entry.id(), null, new HashSet<>(), entry.snapshot()));
+        imp.setDeps(entry.dependentEntryIds());
+        imp.setStorage(entry.storage());
+        entries.get(entry.snapshot().id()).put(entry.id(), imp);
     }
 
     @Override
@@ -43,6 +46,8 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         if (!snapshots.containsKey(snapshot.id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + snapshot.id());
         }
+        if (entries.get(snapshot.id()).get(id) == null)
+            entries.get(snapshot.id()).put(id, new SnapshotEntry.Impl(id, URI.create("aaa.ru"), new HashSet<>(), snapshot));
         return entries.get(snapshot.id()).get(id);
     }
 
@@ -51,11 +56,11 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         if (!snapshots.containsKey(entry.snapshot().id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + entry.snapshot().id());
         }
-        final Map<String, SnapshotEntry> entryMap = entries.get(entry.snapshot().id());
+        final Map<String, SnapshotEntry.Impl> entryMap = entries.get(entry.snapshot().id());
         if (!entryMap.containsKey(entry.id())) {
             throw new IllegalArgumentException("Entry is not found: " + entry.id());
         }
-        entryMap.put(entry.id(), entry);
+        entryMap.put(entry.id(), (SnapshotEntry.Impl)entry);
     }
 
     @Override
@@ -92,7 +97,7 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
 
     @Override
     public synchronized Stream<SnapshotEntry> entries(Snapshot snapshot) {
-        return new ArrayList<>(entries.get(snapshot.id()).values()).stream();
+        return entries.get(snapshot.id()).values().stream().map(entry -> (SnapshotEntry)entry);
     }
 
     @Override

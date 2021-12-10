@@ -29,6 +29,7 @@ service LzyKharon {
   rpc Channel (ChannelCommand) returns (ChannelStatus);
   rpc TasksStatus (Auth) returns (TasksList);
   rpc ChannelsStatus (Auth) returns (ChannelStatusList);
+  rpc GetS3Credentials (GetS3CredentialsRequest) returns (GetS3CredentialsResponse);
 
   // Whiteboard API
   rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);

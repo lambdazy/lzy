@@ -11,10 +11,10 @@ public interface SnapshotEntry {
     Snapshot snapshot();
 
     class Impl implements SnapshotEntry {
-        private final String id;
-        private final URI storage;
-        private final Set<String> deps;
-        private final Snapshot snapshot;
+        private String id;
+        private URI storage;
+        private Set<String> deps;
+        private Snapshot snapshot;
 
         public Impl(String id, URI storage, Set<String> deps, Snapshot snapshot) {
             this.id = id;
@@ -41,6 +41,22 @@ public interface SnapshotEntry {
         @Override
         public Snapshot snapshot() {
             return snapshot;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public void setStorage(URI storage) {
+            this.storage = storage;
+        }
+
+        public void setDeps(Set<String> deps) {
+            this.deps = deps;
+        }
+
+        public void setSnapshot(Snapshot snapshot) {
+            this.snapshot = snapshot;
         }
     }
 }
