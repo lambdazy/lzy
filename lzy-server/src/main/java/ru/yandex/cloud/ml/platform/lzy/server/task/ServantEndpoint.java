@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.local;
+package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;

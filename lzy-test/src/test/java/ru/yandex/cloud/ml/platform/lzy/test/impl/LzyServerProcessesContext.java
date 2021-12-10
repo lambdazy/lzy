@@ -72,7 +72,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                     },
                     new String[]{
                         "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
-                        "-Dlzy.server.task.type=" + type.toString()
+                        "-Dtasks.taskType=" + type.toString()
                     }
                 ).inheritIO().start();
             } catch (IOException e) {

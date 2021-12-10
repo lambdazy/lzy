@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
-public class ZygoteRepositoryImpl implements ZygoteRepository {
+public class InMemZygoteRepository implements ZygoteRepository {
     private final Map<String, Zygote> operations = new ConcurrentHashMap<>();
 
     @Override

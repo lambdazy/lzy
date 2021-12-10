@@ -18,10 +18,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
+
+import ru.yandex.cloud.ml.platform.lzy.server.configs.TasksConfig;
 import ru.yandex.qe.s3.util.Environment;
 
 public class LocalProcessTask extends LocalTask {
     private static final Logger LOG = LogManager.getLogger(LocalProcessTask.class);
+    private final TasksConfig.LocalProcessTaskConfig config;
 
     public LocalProcessTask(
         String owner,
@@ -30,9 +33,11 @@ public class LocalProcessTask extends LocalTask {
         Map<Slot, String> assignments,
         SnapshotMeta meta,
         ChannelsManager channels,
-        URI serverURI
+        URI serverURI,
+        TasksConfig.LocalProcessTaskConfig config
     ) {
         super(owner, tid, workload, assignments, meta, channels, serverURI);
+        this.config = config;
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -44,7 +49,7 @@ public class LocalProcessTask extends LocalTask {
             taskDir.mkdirs();
             taskDir.mkdir();
             final Process process = runJvm(
-                "lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar", taskDir,
+                config.servantJarPath(), taskDir,
                 new String[]{
                     "-z", serverHost + ":" + serverPort,
                     "--host", servantHost,

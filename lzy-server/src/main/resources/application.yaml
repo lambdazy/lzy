@@ -1,0 +1,4 @@
+tasks:
+  task-type: "local-process"
+  local-process:
+    servant-jar-path: "lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar"
