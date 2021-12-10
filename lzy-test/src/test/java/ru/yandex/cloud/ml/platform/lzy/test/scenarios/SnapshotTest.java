@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-public class SnapshotTest extends LzyBaseTest {
+public class SnapshotTest extends LzyBaseDockerTest {
     private static final int S3_PORT = 8001;
     private LzyTerminalTestContext.Terminal terminal;
     private S3Mock api;

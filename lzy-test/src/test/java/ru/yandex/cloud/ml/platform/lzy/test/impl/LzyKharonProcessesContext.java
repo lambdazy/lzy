@@ -46,14 +46,14 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
     }
 
     @Override
-    public synchronized void init() {
+    public synchronized void init(boolean fromDocker) {
         if (lzyKharonClient == null) {
             try {
                 lzyKharon = Utils.javaProcess(
                         LzyKharon.class.getCanonicalName(),
                         new String[]{
                                 "--host",
-                                outerHost(true),
+                                outerHost(fromDocker),
                                 "--port",
                                 String.valueOf(LZY_KHARON_PORT),
                                 "--servant-proxy-port",

@@ -14,7 +14,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-public class MultiSessionTest extends LzyBaseTest {
+public class MultiSessionTest extends LzyBaseDockerTest {
     @Before
     public void setUp() {
         super.setUp();
