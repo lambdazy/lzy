@@ -1,29 +1,13 @@
+variable "kubernetes_host" {}
+
+variable "kubernetes_client_certificate" {}
+
+variable "kubernetes_client_key" {}
+
+variable "kubernetes_cluster_ca_certificate" {}
+
 variable "installation_name" {
   type = string
-}
-
-variable "agent_count" {
-  type = number
-  default = 10
-}
-
-variable "cpu_count" {
-  type = number
-  default = 7
-}
-
-variable "lzy_count" {
-  type = number
-  default = 5
-}
-
-variable "gpu_count" {
-  type = number
-  default = 1
-}
-
-variable location {
-  default = "North Europe"
 }
 
 variable "oauth-github-client-id" {
@@ -33,6 +17,10 @@ variable "oauth-github-client-id" {
 variable "oauth-github-client-secret" {
   type = string
 }
+
+variable "kharon_public_ip" {}
+
+variable "backoffice_public_ip" {}
 
 variable "backoffice-frontend-image" {
   type = string
