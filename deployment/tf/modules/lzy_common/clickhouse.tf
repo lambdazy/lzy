@@ -48,7 +48,7 @@ resource "kubernetes_service" "clickhouse_service" {
   metadata {
     name        = "clickhouse-service"
     annotations = {
-      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+#      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
   }
   spec {
