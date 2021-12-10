@@ -1,9 +1,11 @@
-name: Run all tests
+name: 'Tests'
 on:
-  workflow_call:
+  push:
+    branches: [ master ]
+  pull_request:
 
 jobs:
-  all-tests:
+  maven-test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
