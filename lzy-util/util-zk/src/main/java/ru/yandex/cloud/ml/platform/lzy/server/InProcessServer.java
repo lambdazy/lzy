@@ -5,7 +5,6 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.micronaut.context.ApplicationContext;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 
 /**
  * InProcessServer that manages startup/shutdown of a service within the same process as the client is running. Used for unit testing purposes.

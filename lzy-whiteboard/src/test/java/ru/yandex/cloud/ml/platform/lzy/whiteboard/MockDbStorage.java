@@ -1,6 +1,6 @@
-package ru.yandex.cloud.ml.platform.lzy.test;
+package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 
-import io.micronaut.context.annotation.Replaces;;
+import io.micronaut.context.annotation.Replaces;
 import jakarta.inject.Singleton;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;

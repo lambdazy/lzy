@@ -120,11 +120,13 @@ public abstract class gRPCConverter {
                 .setFieldName(field.name())
                 .setStorageUri(field.entry().storage().toString())
                 .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()))
+                .setEmpty(field.entry().empty())
                 .build();
     }
 
     public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
-        return new SnapshotEntry.Impl(entry.getEntryId(), URI.create(entry.getStorageUri()), new HashSet<>(entry.getDependentEntryIdsList()), snapshot);
+        return new SnapshotEntry.Impl(entry.getEntryId(), URI.create(entry.getStorageUri()),
+                new HashSet<>(entry.getDependentEntryIdsList()), snapshot, true);
     }
 
     public static LzyWhiteboard.Whiteboard.WhiteboardStatus to(WhiteboardStatus.State state) {

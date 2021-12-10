@@ -21,8 +21,8 @@ public class SnapshotEntryModel {
     @Column(name = "storage_uri", nullable = false)
     private String storageUri;
 
-    @Column(name = "empty_content", nullable = false)
-    private boolean emptyContent;
+    @Column(name = "empty", nullable = false)
+    private boolean empty;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "state", nullable = false)
@@ -33,7 +33,7 @@ public class SnapshotEntryModel {
         this.snapshotId = snapshotId;
         this.entryId = entryId;
         this.storageUri = storageUri;
-        this.emptyContent = emptyContent;
+        this.empty = emptyContent;
         this.entryState = entryStatus;
     }
 
@@ -72,12 +72,12 @@ public class SnapshotEntryModel {
         this.entryId = entryId;
     }
 
-    public boolean isEmptyContent() {
-        return emptyContent;
+    public boolean isEmpty() {
+        return empty;
     }
 
-    public void setEmptyContent(boolean emptyContent) {
-        this.emptyContent = emptyContent;
+    public void setEmpty(boolean emptyContent) {
+        this.empty = emptyContent;
     }
 
     public static class SnapshotEntryPk implements Serializable {
@@ -89,7 +89,7 @@ public class SnapshotEntryModel {
             this.entryId = entryId;
         }
 
-        public SnapshotEntryPk() {};
+        public SnapshotEntryPk() {}
 
         @Override
         public boolean equals(Object o) {
