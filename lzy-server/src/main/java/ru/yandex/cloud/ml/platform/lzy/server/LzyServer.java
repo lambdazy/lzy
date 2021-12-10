@@ -12,8 +12,8 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
-import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
+import ru.yandex.cloud.ml.platform.lzy.server.task.ServantEndpoint;
+import ru.yandex.cloud.ml.platform.lzy.server.mem.InMemZygoteRepository;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
@@ -89,7 +89,7 @@ public class LzyServer {
     }
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
-        private final ZygoteRepository operations = new ZygoteRepositoryImpl();
+        private final ZygoteRepository operations = new InMemZygoteRepository();
 
         @Inject
         private ChannelsManager channels;

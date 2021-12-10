@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.task;
+package ru.yandex.cloud.ml.platform.lzy.server.mem;
 
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -8,12 +8,13 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
+import ru.yandex.cloud.ml.platform.lzy.server.task.TaskFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -32,8 +33,9 @@ public class InMemTasksManager implements TasksManager {
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     protected final URI serverURI;
     private final ChannelsManager channels;
-    private final Map<UUID, Task> tasks = new ConcurrentHashMap<>();
+    private final TaskFactory taskFactory;
 
+    private final Map<UUID, Task> tasks = new ConcurrentHashMap<>();
     private final Map<String, List<Task>> userTasks = new ConcurrentHashMap<>();
     private final Map<Task, Task> parents = new ConcurrentHashMap<>();
     private final Map<Task, String> owners = new ConcurrentHashMap<>();
@@ -41,12 +43,12 @@ public class InMemTasksManager implements TasksManager {
 
     private final Map<Task, List<Channel>> taskChannels = new ConcurrentHashMap<>();
     private final Map<String, List<Channel>> userChannels = new ConcurrentHashMap<>();
-
     private final Map<String, Map<Slot, Channel>> userSlots = new ConcurrentHashMap<>();
 
-    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels) {
+    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels, TaskFactory taskFactory) {
         this.serverURI = URI.create(serverConfig.getServerUri());
         this.channels = channels;
+        this.taskFactory = taskFactory;
     }
 
     @Override
@@ -101,7 +103,7 @@ public class InMemTasksManager implements TasksManager {
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments,
                       SnapshotMeta wbMeta, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer) {
-        final Task task = TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, wbMeta, channels, serverURI);
+        final Task task = taskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, wbMeta, channels, serverURI);
         tasks.put(task.tid(), task);
         if (parent != null) {
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);
