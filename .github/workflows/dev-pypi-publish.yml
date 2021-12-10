@@ -1,4 +1,4 @@
-name: Package dev pylzy-nightly package
+name: Publish dev pylzy-nightly package
 
 on:
   schedule:
