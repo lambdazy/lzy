@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
+package ru.yandex.cloud.ml.platform.lzy.test.scenarios.docker;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -13,6 +13,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import ru.yandex.cloud.ml.platform.lzy.test.scenarios.FileIOOperation;
+import ru.yandex.cloud.ml.platform.lzy.test.scenarios.LzyBaseDockerTest;
 
 public class MultiSessionTest extends LzyBaseDockerTest {
     @Before
@@ -21,16 +23,16 @@ public class MultiSessionTest extends LzyBaseDockerTest {
     }
 
     private Terminal createTerminal(int port, int debugPort, String user) {
-        final Terminal terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
+        final Terminal terminal = terminalContext().startTerminalAtPathAndPort(
+            defaultLzyMount(),
             port,
-            kharonContext.serverAddress(terminalContext.inDocker()),
+            kharonContext().serverAddress(terminalContext().inDocker()),
             debugPort,
             user,
             null);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            DEFAULT_TIMEOUT_SEC,
+            defaultTimeoutSec(),
             TimeUnit.SECONDS
         );
         return terminal;

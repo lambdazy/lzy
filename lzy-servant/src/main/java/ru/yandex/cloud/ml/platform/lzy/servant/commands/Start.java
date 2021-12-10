@@ -41,6 +41,7 @@ public class Start implements LzyCommand {
         );
 
         LOG.info("Starting servant at " + host + ":" + port + path);
+        Runtime.getRuntime().addShutdownHook(new Thread(agent::close));
 
         agent.start();
         agent.awaitTermination();

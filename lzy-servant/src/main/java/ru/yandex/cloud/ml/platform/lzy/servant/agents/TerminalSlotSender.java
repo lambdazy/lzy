@@ -1,12 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
@@ -15,9 +13,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
 
 
 public class TerminalSlotSender {

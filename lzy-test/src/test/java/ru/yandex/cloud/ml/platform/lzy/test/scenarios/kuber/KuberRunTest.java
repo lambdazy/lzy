@@ -1,37 +1,53 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
+package ru.yandex.cloud.ml.platform.lzy.test.scenarios.kuber;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class PyApiTest extends LzyBaseDockerTest {
+public class KuberRunTest {
+    private static final int DEFAULT_TIMEOUT_SEC = 30;
+    private static final int DEFAULT_SERVANT_PORT = 9999;
+    private static final String LZY_MOUNT = "/tmp/lzy";
+    private static final String TEST_USER = "phil";
+    private static final String TEST_USER_KEY_PATH = "/tmp/test-private.pem";
+    private static final String SERVER_URL = "http://lzy-kharon.northeurope.cloudapp.azure.com:8899";
+    private final LzyTerminalTestContext terminalContext = new LzyTerminalDockerContext();
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before
     public void setUp() {
-        super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                9999,
-                kharonContext.serverAddress(terminalContext.inDocker())
+            LZY_MOUNT,
+            DEFAULT_SERVANT_PORT,
+            SERVER_URL,
+            5006,
+            TEST_USER,
+            TEST_USER_KEY_PATH
         );
         terminal.waitForStatus(
-                AgentStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
-                TimeUnit.SECONDS
+            AgentStatus.EXECUTING,
+            DEFAULT_TIMEOUT_SEC,
+            TimeUnit.SECONDS
         );
+    }
+
+    @After
+    public void tearDown() {
+        terminalContext.close();
     }
 
     @Test
     public void testSimplePyGraph() {
         //Arrange
-        String condaPrefix = prepareConda();
+        final String condaPrefix = prepareConda();
         final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
 
         //Act
@@ -64,33 +80,5 @@ public class PyApiTest extends LzyBaseDockerTest {
         terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
         return condaPrefix;
-    }
-
-    @Test
-    public void testExecFail() {
-        //Arrange
-        String condaPrefix = prepareConda();
-        final String pyCommand = "python /lzy-python/examples/test_tasks/exec_fail.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
-            condaPrefix + pyCommand);
-
-        //Assert
-        Assert.assertTrue(result.stderr().contains("LzyExecutionException"));
-    }
-
-    @Test
-    public void testEnvFail() {
-        //Arrange
-        String condaPrefix = prepareConda();
-        final String pyCommand = "python /lzy-python/examples/test_tasks/env_fail.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
-            condaPrefix + pyCommand);
-
-        //Assert
-        Assert.assertTrue(result.stderr().contains("Failed to install environment on remote machine"));
     }
 }

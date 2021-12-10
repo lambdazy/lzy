@@ -11,13 +11,13 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import java.util.ArrayList;
 import java.util.List;
 
-class FileIOOperation implements AtomicZygote {
+public class FileIOOperation implements AtomicZygote {
     private final String operationName;
     private final List<TextLinesInSlot> inputs;
     private final List<TextLinesOutSlot> outputs;
     private final String command;
 
-    FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command) {
+    public FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command) {
         this.operationName = operationName;
         inputs = new ArrayList<>();
         outputs = new ArrayList<>();

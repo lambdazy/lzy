@@ -1,10 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
-import org.apache.commons.io.IOUtils;
-import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
-
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
@@ -15,14 +10,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
+import org.apache.commons.io.IOUtils;
+import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
 public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
+
     private final List<Process> servantProcesses = new ArrayList<>();
 
     @Override
-    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String privateKeyPath) {
+    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress,
+        int debugPort, String user, String privateKeyPath) {
         final String[] lzyArgs = {
             "--lzy-address",
             serverAddress,
@@ -47,7 +46,8 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
         };
         final Process process;
         try {
-            process = Utils.javaProcess(BashApi.class.getCanonicalName(), lzyArgs, systemArgs).inheritIO().start();
+            process = Utils.javaProcess(BashApi.class.getCanonicalName(), lzyArgs, systemArgs)
+                .inheritIO().start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -70,21 +70,30 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
 
             @Override
             public boolean pathExists(Path path) {
-                return Files.exists(path);
+                try {
+                    return new ProcessBuilder().command("ls", path.toString()).start().waitFor()
+                        == 0;
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             @Override
             public ExecutionResult execute(Map<String, String> env, String... command) {
                 try {
-                    final Process exec = Runtime.getRuntime().exec(command);
+                    final ProcessBuilder processBuilder = new ProcessBuilder().command(command);
+                    processBuilder.environment().putAll(env);
+                    final Process exec = processBuilder.start();
                     final OutputStreamWriter stdin = new OutputStreamWriter(
                         exec.getOutputStream(),
                         StandardCharsets.UTF_8
                     );
                     stdin.close();
 
-                    final String stdout = IOUtils.toString(exec.getInputStream(), StandardCharsets.UTF_8);
-                    final String stderr = IOUtils.toString(exec.getErrorStream(), StandardCharsets.UTF_8);
+                    final String stdout = IOUtils.toString(exec.getInputStream(),
+                        StandardCharsets.UTF_8);
+                    final String stderr = IOUtils.toString(exec.getErrorStream(),
+                        StandardCharsets.UTF_8);
                     final int rc = exec.waitFor();
                     return new ExecutionResult() {
                         @Override
@@ -112,9 +121,11 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
                 return Utils.waitFlagUp(() -> {
                     if (pathExists(Paths.get(mount + "/sbin/status"))) {
                         try {
-                            final Process bash = new ProcessBuilder("bash", mount + "/sbin/status").start();
+                            final Process bash = new ProcessBuilder("bash",
+                                mount + "/sbin/status").start();
                             bash.waitFor();
-                            final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
+                            final String stdout = IOUtils.toString(bash.getInputStream(),
+                                StandardCharsets.UTF_8);
                             final String parsedStatus = stdout.split("\n")[0];
                             return parsedStatus.equalsIgnoreCase(status.name());
                         } catch (InterruptedException | IOException e) {
