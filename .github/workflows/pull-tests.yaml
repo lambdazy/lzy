@@ -6,4 +6,4 @@ on:
 
 jobs:
   run-tests:
-    uses: lambda-zy/lzy/.github/workflows/pull-request-workflow.yml@master
+    uses: lambda-zy/lzy/.github/workflows/pull-request-workflow.yaml@master
