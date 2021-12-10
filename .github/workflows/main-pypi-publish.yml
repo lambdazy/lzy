@@ -1,0 +1,13 @@
+name: Publish release pylzy package
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'lzy-python/version' # TODO: replace with tag change?
+jobs:
+  build-and-publish:
+    uses: lambda-zy/lzy/.github/workflows/build-pypi-publish.yml@master
+    secrets:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}

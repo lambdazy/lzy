@@ -8,7 +8,7 @@ resource "kubernetes_pod" "lzy_server" {
   spec {
     container {
       name              = "lzy-server"
-      image             = "celdwind/lzy:lzy-server"
+      image             = var.server-image
       image_pull_policy = "Always"
       env {
         name = "LZY_SERVER_HOST"
@@ -29,6 +29,32 @@ resource "kubernetes_pod" "lzy_server" {
       env {
         name  = "DATABASE_USERNAME"
         value = "server"
+      }
+      env {
+        name = "CLICKHOUSE_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "CLICKHOUSE_USERNAME"
+        value_from {
+          secret_key_ref {
+            name = "clickhouse"
+            key = "username"
+          }
+        }
+      }
+      env {
+        name = "CLICKHOUSE_PASSWORD"
+        value_from {
+          secret_key_ref {
+            name = "clickhouse"
+            key = "password"
+          }
+        }
+      }
+      env {
+        name = "CLICKHOUSE_URL"
+        value = "jdbc:clickhouse://clickhouse-service.default.svc.cluster.local:8123/lzy"
       }
       env {
         name = "AGENTS_NAMES"
@@ -55,6 +81,9 @@ resource "kubernetes_pod" "lzy_server" {
         container_port = 8888
       }
     }
+    node_selector = {
+      type = "lzy"
+    }
     affinity {
       pod_anti_affinity {
         required_during_scheduling_ignored_during_execution {
@@ -74,12 +103,13 @@ resource "kubernetes_pod" "lzy_server" {
         }
       }
     }
-    host_network = true
-    dns_policy   = "ClusterFirstWithHostNet"
+    host_network  = true
+    dns_policy    = "ClusterFirstWithHostNet"
   }
 
   depends_on = [
-    helm_release.lzy_server_db
+    helm_release.lzy_server_db,
+    kubernetes_pod.clickhouse
   ]
 }
 

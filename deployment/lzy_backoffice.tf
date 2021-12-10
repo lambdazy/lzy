@@ -25,7 +25,7 @@ resource "kubernetes_pod" "lzy_backoffice" {
   spec {
     container {
       name              = "lzy-backoffice-frontend"
-      image             = "celdwind/lzy:lzy-backoffice-frontend"
+      image             = var.backoffice-frontend-image
       image_pull_policy = "Always"
       port {
         container_port = 80
@@ -33,7 +33,7 @@ resource "kubernetes_pod" "lzy_backoffice" {
     }
     container {
       name              = "lzy-backoffice-backend"
-      image             = "celdwind/lzy:lzy-backoffice-backend"
+      image             = var.backoffice-backend-image
       image_pull_policy = "Always"
       env {
         name  = "GRPC_HOST"
@@ -87,6 +87,9 @@ resource "kubernetes_pod" "lzy_backoffice" {
         }
       }
     }
+    node_selector = {
+      type = "lzy"
+    }
     affinity {
       pod_anti_affinity {
         required_during_scheduling_ignored_during_execution {
@@ -106,8 +109,8 @@ resource "kubernetes_pod" "lzy_backoffice" {
         }
       }
     }
-    host_network = true
-    dns_policy   = "ClusterFirstWithHostNet"
+    host_network  = true
+    dns_policy    = "ClusterFirstWithHostNet"
   }
 
   depends_on = [

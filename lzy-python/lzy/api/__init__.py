@@ -1,4 +1,5 @@
 import functools
+import inspect
 import logging
 from typing import Callable
 
@@ -10,7 +11,6 @@ from ._proxy import proxy
 from .buses import *
 from .env import LzyEnv
 from .lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
-from .pkg_info import get_python_env_as_yaml
 from .utils import print_lzy_ops, infer_return_type, is_lazy_proxy, lazy_proxy
 
 logging.root.setLevel(logging.INFO)
@@ -61,16 +61,17 @@ def op_(provisioning: Provisioning, *, input_types=None, output_type=None):
             if current_env.is_local():
                 lzy_op = LzyLocalOp(f, input_types, output_type, args)
             else:
-                env_name, yaml = current_env.generate_conda_env()
+                # we need specifib globals() for caller site to find all
+                # required modules
+                caller_globals = inspect.stack()[1].frame.f_globals
+                env_name, yaml = current_env.generate_conda_env(caller_globals)
+
                 servant = current_env.servant()
                 if not servant:
                     raise RuntimeError("Cannot find servant")
-                lzy_op = LzyRemoteOp(servant, f, input_types,
-                                     output_type,
-                                     provisioning,
-                                     PyEnv(env_name, yaml),
-                                     deployed=False,
-                                     args=args)
+                lzy_op = LzyRemoteOp(servant, f, input_types, output_type,
+                                     provisioning, PyEnv(env_name, yaml),
+                                     deployed=False, args=args)
             current_env.register_op(lzy_op)
             return lazy_proxy(lambda: lzy_op.materialize(), output_type,
                               {'_op': lzy_op})

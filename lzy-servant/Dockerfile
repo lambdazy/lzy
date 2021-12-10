@@ -1,4 +1,4 @@
-FROM celdwind/lzy:lzy-servant-base
+FROM lzydock/lzy-servant-base:master
 
 RUN mkdir -p /var/log/servant
 
@@ -9,11 +9,7 @@ RUN chmod -R 700 app/resources
 
 ### copy lzy-py sources & install
 COPY lzy-python/ lzy-python
-COPY lzy-servant/prepare_pylzy_envs.sh /
-COPY lzy-servant/install_pylzy.sh /
-RUN chmod a+rx /prepare_pylzy_envs.sh
-RUN chmod a+rx /install_pylzy.sh
-RUN ./prepare_pylzy_envs.sh lzy-python
+RUN ./conda_prepare.sh pylzy_install 'lzy-python'
 
 COPY lzy-servant/entrypoint.sh /
 RUN chmod a+rx /entrypoint.sh

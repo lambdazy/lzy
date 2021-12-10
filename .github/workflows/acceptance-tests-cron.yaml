@@ -1,7 +1,7 @@
-name: 'Tests'
+name: 'Cluster tests'
 on:
-  workflow_call:
-
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   maven-test:
@@ -15,23 +15,17 @@ jobs:
           distribution: 'adopt'
           java-version: '11'
 
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
-
       - uses: docker-practice/actions-setup-docker@master
 
       - name: 'build-base-image'
         timeout-minutes: 10
         run: docker build -t celdwind/lzy:lzy-servant-base -f lzy-servant/BaseDockerfile .
 
-      - name: 'java-test'
+      - name: 'Copy secret key'
+        env:
+          PRIVATE_KEY: ${{ secrets.TESTS_PRIVATE_SSH_KEY }}
+        run: touch /tmp/test-private.pem && echo "$PRIVATE_KEY" > /tmp/test-private.pem
+
+      - name: 'AC test'
         timeout-minutes: 45
-        run: mvn clean install
-
-      - name: 'install lzy-python'
-        run: cd lzy-python/ && pip install -r requirements.txt && pip install .
-
-      - name: 'python-test'
-        timeout-minutes: 5
-        run: cd lzy-python/ && python -m unittest discover tests/
+        run: mvn install -Dlzy.kharon.domain=kharon-lzy-prod.northeurope.cloudapp.azure.com -Dtest=KuberRunTest -DfailIfNoTests=false

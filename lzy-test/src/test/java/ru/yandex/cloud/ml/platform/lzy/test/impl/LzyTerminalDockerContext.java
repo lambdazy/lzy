@@ -36,7 +36,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     private final List<GenericContainer<?>> startedContainers = new ArrayList<>();
 
     @Override
-    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user) {
+    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String private_key_path) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         //noinspection deprecation
@@ -52,7 +52,12 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
                 + "--port " + port + " "
                 + "--lzy-mount " + mount + " "
                 + "--internal-host " + internalHost + " "
+                + "--private-key " + private_key_path + " "
                 + "terminal");
+
+        if (private_key_path != null) {
+            base.withFileSystemBind(private_key_path, private_key_path);
+        }
 
         final GenericContainer<?> servantContainer;
         if (SystemUtils.IS_OS_LINUX) {

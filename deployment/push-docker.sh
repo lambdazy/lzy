@@ -1,23 +1,31 @@
 #!/bin/bash
 
-if [[ $1 == "rebuild" ]]
+if [[ $# -lt 1 || -z $1 ]]
 then
-    if [[ $2 == "base" ]]
-        then
-            docker build -t celdwind/lzy:lzy-servant-base -f lzy-servant/BaseDockerfile .
-            docker push celdwind/lzy:lzy-servant-base
-    fi
-    mvn clean install -DskipTests
-    docker build -t celdwind/lzy:lzy-backoffice-backend lzy-backoffice/Dockerfile
-    docker build -t celdwind/lzy:lzy-backoffice-frontend lzy-backoffice/frontend/Dockerfile
+  echo "Usage: $0 <installation-tag> [rebuild [base]]"
+  exit
 fi
 
-docker tag lzy-server celdwind/lzy:lzy-server
-docker tag lzy-servant celdwind/lzy:lzy-servant
-docker tag lzy-kharon celdwind/lzy:lzy-kharon
+INSTALLATION=$1
 
-docker push celdwind/lzy:lzy-server
-docker push celdwind/lzy:lzy-servant
-docker push celdwind/lzy:lzy-kharon
-docker push celdwind/lzy:lzy-backoffice-backend
-docker push celdwind/lzy:lzy-backoffice-frontend
+if [[ $2 == "rebuild" ]]
+then
+    if [[ $3 == "base" ]]
+        then
+            docker build -t lzydock/lzy-servant-base:"$INSTALLATION" -f lzy-servant/BaseDockerfile .
+            docker push lzydock/lzy-servant-base:"$INSTALLATION"
+    fi
+    mvn clean install -DskipTests
+#    docker build -t lzydock/lzy-backoffice-backend:"$INSTALLATION" lzy-backoffice/Dockerfile
+#    docker build -t lzydock/lzy-backoffice-frontend:"$INSTALLATION" lzy-backoffice/frontend/Dockerfile
+fi
+
+docker tag lzy-server lzydock/lzy-server:"$INSTALLATION"
+docker tag lzy-servant lzydock/lzy-servant:"$INSTALLATION"
+docker tag lzy-kharon lzydock/lzy-kharon:"$INSTALLATION"
+
+docker push lzydock/lzy-server:"$INSTALLATION"
+docker push lzydock/lzy-servant:"$INSTALLATION"
+docker push lzydock/lzy-kharon:"$INSTALLATION"
+#docker push lzydock/lzy-backoffice-backend:"$INSTALLATION"
+#docker push lzydock/lzy-backoffice-frontend:"$INSTALLATION"

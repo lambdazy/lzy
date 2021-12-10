@@ -12,15 +12,9 @@ Configuration:
       fileName: /var/log/servant/${sys:custom.log.file}
       PatternLayout:
         pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] [%t] %c{1} - %msg%n"
-    ServantAppender:
-      name: DatabaseAppender
-      PatternLayout:
-        pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
-      servantId: ${sys:custom.log.servant_id}
-
 
   Loggers:
     Root:
       level: info
       AppenderRef:
-        - ref: ${sys:custom.log.appender:-LogFile}
+        - ref: LogFile

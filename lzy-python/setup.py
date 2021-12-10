@@ -1,115 +1,66 @@
-import os
-import platform
-import re
+from abc import ABC
+from datetime import datetime
+from typing import List
+
 import setuptools
-import subprocess
-
-from abc import ABC, abstractmethod
-from distutils.command.install import install
-from typing import Optional, List
-
-JAVA_VERSION_MIN = 11
+from setuptools import Distribution, Command
+from setuptools.command.install import install
+from setuptools.command.sdist import sdist
+from wheel.bdist_wheel import bdist_wheel  # type: ignore
 
 
-def is_mac() -> bool:
-    return platform.system() == "Darwin"
+class RunMixin(Command, ABC):
+    def initialize_options(self):
+        self.dev = None
+        super().initialize_options()
 
-
-class StageResult:
-    def __init__(self, result: bool, error_message: str = None):
-        self._error_message = error_message
-        self._result = result
-
-    def done(self) -> bool:
-        return self._result
-
-    def error_message(self) -> Optional[str]:
-        return f"\n\n########################################\n\n" \
-               f"FAILED TO INSTALL LZY\n\nREASON: {self._error_message}\n\n" \
-               f"########################################"
-
-
-class Stage(ABC):
-    @abstractmethod
-    def check(self) -> bool:
-        pass
-
-    @abstractmethod
-    def apply(self) -> StageResult:
-        pass
-
-    def run(self) -> StageResult:
-        if self.check():
-            return StageResult(True)
-        return self.apply()
-
-
-class JavaCheckStage(Stage):
-    _version_pattern = re.compile(r'"(\d+.\d+).*"')
-
-    def __init__(self):
-        super().__init__()
-        self._error = None
-        self._checked = False
-
-    def check(self) -> bool:
-        try:
-            out = str(subprocess.check_output(['java', '-version'],
-                                              stderr=subprocess.STDOUT))
-            
-            search = self._version_pattern.search(out)
-            if not search:
-                self._error = "Wrong java version"
-                return False
-            
-            version = int(float(search.groups()[0]))
-            if version < JAVA_VERSION_MIN:
-                self._error = "Java >= 11 is required"
-                return False
-            return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            self._error = "Java is required (>= 11)"
-            return False
-
-    def apply(self) -> StageResult:
-        if self._checked:
-            return StageResult(True)
-        # Do we really need to try to install Java here?
-        return StageResult(False, self._error)
-
-
-class FuseCheckStage(Stage):
-    def __init__(self):
-        super().__init__()
-        self._error = None
-
-    def check(self) -> bool:
-        if is_mac():
-            if os.path.isfile("/usr/local/lib/libosxfuse.dylib"):
-                return True
-            else:
-                self._error = "macFUSE lib is required https://osxfuse.github.io"
-                return False
-        # it is better to pass this stage if we are not sure
-        return True
-
-    def apply(self) -> StageResult:
-        return StageResult(False, self._error)
-
-
-class Installer(install):
     def run(self):
-        stages: List[Stage] = [JavaCheckStage(), FuseCheckStage()]
-        for s in stages:
-            result = s.run()
-            if not result.done():
-                raise ValueError(result.error_message())
+        self.set_distr_version_and_name(self.distribution, self.dev is not None)
         super().run()
+
+    def set_distr_version_and_name(self, distribution: Distribution,
+                                   is_dev: bool):
+        distribution.metadata.version = read_version()
+        if is_dev:
+            suffix = f".dev{datetime.today().strftime('%Y%m%d')}"
+            distribution.metadata.version += suffix  # type: ignore
+            distribution.metadata.name = 'pylzy-nightly'
+
+
+class _bdist_wheel(RunMixin, bdist_wheel):
+    user_options = bdist_wheel.user_options + [
+        ('dev', None, "Build nightly package")
+    ]
+
+
+class _sdist(RunMixin, sdist):
+    user_options = sdist.user_options + [
+        ('dev', None, "Build nightly package")
+    ]
+
+
+class _install(RunMixin, install):
+    user_options = install.user_options + [
+        ('dev', None, "Build nightly package")
+    ]
+
+
+def read_version(path='version'):
+    with open(path) as file:
+        return file.read().rstrip()
+
+
+def read_requirements() -> List[str]:
+    requirements = []
+    with open('requirements.txt', 'r') as file:
+        for line in file:
+            requirements.append(line.rstrip())
+    return requirements
 
 
 setuptools.setup(
-    name='pylzy-nightly',
-    version='0.0.2',
+    name='pylzy',
+    version=read_version(),
     author='ʎzy developers',
     include_package_data=True,
     package_data={
@@ -117,12 +68,10 @@ setuptools.setup(
     },
     packages=['lzy', 'lzy/api', 'lzy/api/whiteboard', 'lzy/api/_proxy',
               'lzy/model', 'lzy/servant', 'lzy/api/pkg_info'],
-    install_requires=[
-        'cloudpickle==2.0.0',
-        'pyyaml'
-    ],
     python_requires='>=3.7',
     cmdclass={
-        'installer.py': Installer  # type: ignore
+        'install': _install,
+        'bdist_wheel': _bdist_wheel,
+        'sdist': _sdist,
     }
 )
