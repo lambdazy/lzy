@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.model;
+package ru.yandex.cloud.ml.platform.lzy.model.utils;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;

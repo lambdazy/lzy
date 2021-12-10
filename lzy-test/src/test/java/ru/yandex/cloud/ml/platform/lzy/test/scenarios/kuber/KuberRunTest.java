@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
+package ru.yandex.cloud.ml.platform.lzy.test.scenarios.kuber;
 
 import org.junit.After;
 import org.junit.Assert;

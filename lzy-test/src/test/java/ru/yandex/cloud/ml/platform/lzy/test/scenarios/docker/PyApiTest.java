@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
+package ru.yandex.cloud.ml.platform.lzy.test.scenarios.docker;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -9,6 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import ru.yandex.cloud.ml.platform.lzy.test.scenarios.LzyBaseDockerTest;
 
 public class PyApiTest extends LzyBaseDockerTest {
     private LzyTerminalTestContext.Terminal terminal;
@@ -16,14 +17,14 @@ public class PyApiTest extends LzyBaseDockerTest {
     @Before
     public void setUp() {
         super.setUp();
-        terminal = terminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
+        terminal = terminalContext().startTerminalAtPathAndPort(
+                defaultLzyMount(),
                 9999,
-                kharonContext.serverAddress(terminalContext.inDocker())
+                kharonContext().serverAddress(terminalContext().inDocker())
         );
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
+                defaultTimeoutSec(),
                 TimeUnit.SECONDS
         );
     }

@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
+package ru.yandex.cloud.ml.platform.lzy.test.scenarios.processes;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -14,21 +14,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import ru.yandex.cloud.ml.platform.lzy.test.scenarios.FileIOOperation;
+import ru.yandex.cloud.ml.platform.lzy.test.scenarios.LzyBaseProcessTest;
 
-public class RunTest extends LzyBaseDockerTest {
+public class RunTest extends LzyBaseProcessTest {
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before
     public void setUp() {
         super.setUp();
-        terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
+        terminal = terminalContext().startTerminalAtPathAndPort(
+            defaultLzyMount(),
             9999,
-            kharonContext.serverAddress(terminalContext.inDocker())
+            kharonContext().serverAddress(terminalContext().inDocker())
         );
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            DEFAULT_TIMEOUT_SEC,
+            defaultTimeoutSec(),
             TimeUnit.SECONDS
         );
     }
@@ -37,10 +39,10 @@ public class RunTest extends LzyBaseDockerTest {
     public void testEcho42() {
         //Arrange
         final FileIOOperation echo42 = new FileIOOperation(
-                "echo42",
-                Collections.emptyList(),
-                Collections.emptyList(),
-                "echo 42"
+            "echo42",
+            Collections.emptyList(),
+            Collections.emptyList(),
+            "echo 42"
         );
 
         //Act
@@ -55,39 +57,37 @@ public class RunTest extends LzyBaseDockerTest {
     public void testReadSlotToStdout() {
         //Arrange
         final String fileContent = "fileContent";
-        final String fileName = "/tmp/lzy/kek/some_file.txt";
-        final String localFileName = "/tmp/lzy/lol/some_file.txt";
+        final String fileName = "/kek/some_file.txt";
+        final String localFileName = defaultLzyMount() + "/lol/some_file.txt";
         final String channelName = "channel1";
         final FileIOOperation cat = new FileIOOperation(
-                "cat_lzy",
-                List.of(fileName.substring(LZY_MOUNT.length())),
-                Collections.emptyList(),
-                "cat " + fileName
+            "cat_lzy",
+            List.of(fileName),
+            Collections.emptyList(),
+            "cat $(echo $LZY_MOUNT)/" + fileName
         );
 
         //Act
         terminal.createChannel(channelName);
         terminal.createSlot(localFileName, channelName, Utils.outFileSot());
         ForkJoinPool.commonPool()
-                .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
-        terminal.publish(cat.getName(), cat);
-        final ExecutionResult result = terminal.run(
-                cat.getName(),
-                "",
-                Map.of(fileName.substring(LZY_MOUNT.length()), channelName)
-        );
+            .execute(() -> terminal.execute("bash", "-c",
+                "echo " + fileContent + " > " + localFileName));
+        final ExecutionResult result = terminal.run(cat, Map.of(fileName, channelName), Map.of(),
+            "");
 
         //Assert
         Assert.assertEquals(fileContent + "\n", result.stdout());
         Assert.assertTrue(terminal.pathExists(Path.of(localFileName)));
-        Assert.assertEquals(fileContent + "\n", terminal.execute("bash", "-c", "cat " + localFileName).stdout());
+        Assert.assertEquals(fileContent + "\n",
+            terminal.execute("bash", "-c", "cat " + localFileName).stdout());
 
         //Act
         terminal.destroyChannel(channelName);
 
         //Assert
-        Assert.assertTrue(Utils.waitFlagUp(() ->
-                !terminal.pathExists(Path.of(localFileName)), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS));
+        Assert.assertTrue(Utils.waitFlagUp(() -> !terminal.pathExists(Path.of(localFileName)),
+            defaultTimeoutSec(), TimeUnit.SECONDS));
     }
 
     @Test
@@ -98,10 +98,10 @@ public class RunTest extends LzyBaseDockerTest {
         final String channelOutName = "channel2";
 
         final FileIOOperation echo_lzy = new FileIOOperation(
-                "echo_lzy",
-                Collections.emptyList(),
-                List.of(fileOutName.substring(LZY_MOUNT.length())),
-                "echo mama > " + fileOutName
+            "echo_lzy",
+            Collections.emptyList(),
+            List.of(fileOutName.substring(defaultLzyMount().length())),
+            "echo mama > " + fileOutName
         );
 
         //Act
@@ -111,13 +111,13 @@ public class RunTest extends LzyBaseDockerTest {
         terminal.publish(echo_lzy.getName(), echo_lzy);
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
-                .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
+            .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
         final ExecutionResult result = terminal.run(
-                echo_lzy.getName(),
-                "",
-                Map.of(
-                        fileOutName.substring(LZY_MOUNT.length()), channelOutName
-                )
+            echo_lzy.getName(),
+            "",
+            Map.of(
+                fileOutName.substring(defaultLzyMount().length()), channelOutName
+            )
         );
 
         //Assert
@@ -139,10 +139,10 @@ public class RunTest extends LzyBaseDockerTest {
         final String channelOutName = "channel2";
 
         final FileIOOperation cat_to_file = new FileIOOperation(
-                "cat_to_file_lzy",
-                List.of(fileName.substring(LZY_MOUNT.length())),
-                List.of(fileOutName.substring(LZY_MOUNT.length())),
-                "cat " + fileName + " > " + fileOutName
+            "cat_to_file_lzy",
+            List.of(fileName.substring(defaultLzyMount().length())),
+            List.of(fileOutName.substring(defaultLzyMount().length())),
+            "cat " + fileName + " > " + fileOutName
         );
 
         //Act
@@ -152,18 +152,19 @@ public class RunTest extends LzyBaseDockerTest {
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
 
         ForkJoinPool.commonPool()
-                .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
+            .execute(() -> terminal.execute("bash", "-c",
+                "echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file.getName(), cat_to_file);
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
-                .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
+            .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
         final ExecutionResult result = terminal.run(
-                cat_to_file.getName(),
-                "",
-                Map.of(
-                        fileName.substring(LZY_MOUNT.length()), channelName,
-                        fileOutName.substring(LZY_MOUNT.length()), channelOutName
-                )
+            cat_to_file.getName(),
+            "",
+            Map.of(
+                fileName.substring(defaultLzyMount().length()), channelName,
+                fileOutName.substring(defaultLzyMount().length()), channelOutName
+            )
         );
 
         //Assert

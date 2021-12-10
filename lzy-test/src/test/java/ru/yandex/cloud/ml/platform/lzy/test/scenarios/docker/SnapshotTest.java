@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
+package ru.yandex.cloud.ml.platform.lzy.test.scenarios.docker;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -26,6 +26,8 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
+import ru.yandex.cloud.ml.platform.lzy.test.scenarios.FileIOOperation;
+import ru.yandex.cloud.ml.platform.lzy.test.scenarios.LzyBaseDockerTest;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 import java.io.IOException;
@@ -42,14 +44,14 @@ public class SnapshotTest extends LzyBaseDockerTest {
     @Before
     public void setUp() {
         super.setUp();
-        terminal = terminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
+        terminal = terminalContext().startTerminalAtPathAndPort(
+                defaultLzyMount(),
                 9999,
-                kharonContext.serverAddress(terminalContext.inDocker())
+                kharonContext().serverAddress(terminalContext().inDocker())
         );
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
+                defaultTimeoutSec(),
                 TimeUnit.SECONDS
         );
     }
@@ -73,8 +75,8 @@ public class SnapshotTest extends LzyBaseDockerTest {
 
         final FileIOOperation cat_to_file = new FileIOOperation(
                 "cat_to_file_lzy",
-                List.of(fileName.substring(LZY_MOUNT.length())),
-                List.of(fileOutName.substring(LZY_MOUNT.length())),
+                List.of(fileName.substring(defaultLzyMount().length())),
+                List.of(fileOutName.substring(defaultLzyMount().length())),
                 "cat " + fileName + " > " + fileOutName
         );
 
@@ -109,12 +111,12 @@ public class SnapshotTest extends LzyBaseDockerTest {
                 cat_to_file.getName(),
                 "",
                 Map.of(
-                        fileName.substring(LZY_MOUNT.length()), channelName,
-                        fileOutName.substring(LZY_MOUNT.length()), channelOutName
+                        fileName.substring(defaultLzyMount().length()), channelName,
+                        fileOutName.substring(defaultLzyMount().length()), channelOutName
                 ),
                 Map.of(
-                        fileName.substring(LZY_MOUNT.length()), spId + "/" + firstEntryId,
-                        fileOutName.substring(LZY_MOUNT.length()), spId + "/" + secondEntryId,
+                        fileName.substring(defaultLzyMount().length()), spId + "/" + firstEntryId,
+                        fileOutName.substring(defaultLzyMount().length()), spId + "/" + secondEntryId,
                         "/dev/stderr", spId + "/" + stderrEntryId,
                         "/dev/stdout", spId + "/" + stdoutEntryId,
                         "/dev/stdin", spId + "/" + stdinEntryId
