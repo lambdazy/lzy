@@ -1,7 +1,7 @@
 resource "random_password" "lzy_server_db_password" {
   count   = 1
   length  = 16
-  special = true
+  special = false
 }
 
 resource "kubernetes_secret" "lzy_server_db" {
