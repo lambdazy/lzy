@@ -5,6 +5,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.lang3.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.TasksConfig;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
@@ -17,12 +18,12 @@ import java.util.concurrent.locks.LockSupport;
 public class LzyServerProcessesContext implements LzyServerTestContext {
     private static final long SERVER_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_SERVER_PORT = 7777;
-    private final TaskType type;
+    private final TasksConfig.TaskType type;
     private Process lzyServer;
     private ManagedChannel channel;
     protected LzyServerGrpc.LzyServerBlockingStub lzyServerClient;
 
-    public LzyServerProcessesContext(TaskType type) {
+    public LzyServerProcessesContext(TasksConfig.TaskType type) {
         this.type = type;
     }
 
@@ -37,7 +38,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
     }
 
     @Override
-    public TaskType type() {
+    public TasksConfig.TaskType type() {
         return type;
     }
 
@@ -72,7 +73,8 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                     },
                     new String[]{
                         "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
-                        "-Dtasks.taskType=" + type.toString()
+                        "-Dtasks.taskType=" + type.toString(),
+                        "-Dtasks.localProcess.servantJarPath=../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar"
                     }
                 ).inheritIO().start();
             } catch (IOException e) {

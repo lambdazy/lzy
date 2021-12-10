@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class LzyStartupTest extends LzyBaseTest {
+public class LzyStartupTest extends LzyBaseDockerTest {
     @Test
     public void testFuseWorks() {
         //Arrange

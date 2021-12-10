@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-public class RunTest extends LzyBaseTest {
+public class RunTest extends LzyBaseDockerTest {
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before

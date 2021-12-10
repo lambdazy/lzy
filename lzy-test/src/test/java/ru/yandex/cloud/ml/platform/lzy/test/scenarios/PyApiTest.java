@@ -10,7 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class PyApiTest extends LzyBaseTest {
+public class PyApiTest extends LzyBaseDockerTest {
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before

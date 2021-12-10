@@ -28,7 +28,15 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
-public class SnapshotTest extends LzyBaseTest {
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
+
+public class SnapshotTest extends LzyBaseDockerTest {
+    private static final int S3_PORT = 8001;
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before
