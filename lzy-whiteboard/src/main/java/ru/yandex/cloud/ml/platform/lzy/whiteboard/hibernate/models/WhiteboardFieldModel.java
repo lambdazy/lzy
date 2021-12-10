@@ -40,6 +40,10 @@ public class WhiteboardFieldModel {
         return entryId;
     }
 
+    public void setEntryId(String entryId) {
+        this.entryId = entryId;
+    }
+
     public String getSnapshotId() {
         return whiteboardModel.getSnapshotId();
     }

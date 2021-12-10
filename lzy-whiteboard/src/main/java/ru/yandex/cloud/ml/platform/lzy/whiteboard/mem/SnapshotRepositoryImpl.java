@@ -6,7 +6,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import org.hibernate.query.Query;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.exception.SnapshotException;
@@ -16,7 +15,6 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
 import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -73,18 +71,11 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             }
             snapshotModel.setSnapshotState(SnapshotStatus.State.FINALIZED);
 
-            String queryWhiteboardRequest = "SELECT w FROM WhiteboardModel w WHERE w.snapshotId = :spId";
-            Query<WhiteboardModel> queryWhiteboard = session.createQuery(queryWhiteboardRequest);
-            queryWhiteboard.setParameter("spId", snapshotId);
-            List<WhiteboardModel> resultListWhiteboard = queryWhiteboard.list();
+            List<WhiteboardModel> whiteboards = SessionHelper.getWhiteboardModels(snapshotId, session);
 
-            for (WhiteboardModel wbModel : resultListWhiteboard) {
-                String queryWhiteboardFieldRequest = "SELECT wf FROM WhiteboardFieldModel wf " +
-                        "LEFT JOIN SnapshotEntryModel em ON em.entryId = wf.entryId " +
-                        "WHERE wf.wbId = :wbId AND em.storageUri is NULL";
-                Query<WhiteboardFieldModel> queryWhiteboardField = session.createQuery(queryWhiteboardFieldRequest);
-                queryWhiteboardField.setParameter("wbId", wbModel.getWbId());
-                List<WhiteboardFieldModel> resultListWhiteboardField = queryWhiteboardField.list();
+            for (WhiteboardModel wbModel : whiteboards) {
+                List<WhiteboardFieldModel> resultListWhiteboardField =
+                        SessionHelper.getNotCompletedWhiteboardFields(wbModel.getWbId(), session);
                 if (resultListWhiteboardField.isEmpty()) {
                     wbModel.setWbState(WhiteboardStatus.State.COMPLETED);
                 } else {
@@ -94,7 +85,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
 
             try {
                 session.update(snapshotModel);
-                resultListWhiteboard.forEach(session::update);
+                whiteboards.forEach(session::update);
                 tx.commit();
             } catch (Exception e) {
                 tx.rollback();
@@ -114,10 +105,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             }
             snapshotModel.setSnapshotState(SnapshotStatus.State.ERRORED);
 
-            String queryWhiteboardRequest = "SELECT w FROM WhiteboardModel w WHERE w.snapshotId = :spId";
-            Query<WhiteboardModel> query = session.createQuery(queryWhiteboardRequest);
-            query.setParameter("spId", snapshotId);
-            List<WhiteboardModel> resultList = query.list();
+            List<WhiteboardModel> resultList = SessionHelper.getWhiteboardModels(snapshotId, session);
             resultList.forEach(wb -> wb.setWbState(WhiteboardStatus.State.ERRORED));
 
             try {
@@ -170,15 +158,10 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             if (snapshotModel == null || snapshotEntryModel == null) {
                 throw new SnapshotException(Status.NOT_FOUND.asException());
             }
-            String queryWhiteboardRequest = "SELECT d FROM EntryDependenciesModel d " +
-                    "WHERE d.entryIdTo = :entryId AND d.snapshotId = :spId";
-            Query<EntryDependenciesModel> query = session.createQuery(queryWhiteboardRequest);
-            query.setParameter("spId", snapshotId);
-            query.setParameter("entryId", id);
-            List<EntryDependenciesModel> resultList = query.list();
-            Set<String> dependentEntryIds = new HashSet<>();
-            resultList.forEach(dep -> dependentEntryIds.add(dep.getEntryIdFrom()));
-            return new SnapshotEntry.Impl(id, URI.create(snapshotEntryModel.getStorageUri()), dependentEntryIds, snapshot);
+
+            List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
+            return new SnapshotEntry.Impl(id, URI.create(snapshotEntryModel.getStorageUri()),
+                    Set.copyOf(dependentEntryIds), snapshot, snapshotEntryModel.isEmpty());
         }
     }
 
@@ -194,6 +177,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                 throw new SnapshotException(Status.NOT_FOUND.asException());
             }
             snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.FINISHED);
+            snapshotEntryModel.setEmpty(entry.empty());
             try {
                 session.update(snapshotEntryModel);
                 tx.commit();

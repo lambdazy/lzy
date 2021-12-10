@@ -9,18 +9,21 @@ public interface SnapshotEntry {
     URI storage();
     Set<String> dependentEntryIds();
     Snapshot snapshot();
+    boolean empty();
 
     class Impl implements SnapshotEntry {
         private final String id;
         private final URI storage;
         private final Set<String> deps;
         private final Snapshot snapshot;
+        private final boolean empty;
 
-        public Impl(String id, URI storage, Set<String> deps, Snapshot snapshot) {
+        public Impl(String id, URI storage, Set<String> deps, Snapshot snapshot, boolean empty) {
             this.id = id;
             this.storage = storage;
             this.deps = new HashSet<>(deps);
             this.snapshot = snapshot;
+            this.empty = empty;
         }
 
         @Override
@@ -41,6 +44,11 @@ public interface SnapshotEntry {
         @Override
         public Snapshot snapshot() {
             return snapshot;
+        }
+
+        @Override
+        public boolean empty() {
+            return empty;
         }
     }
 }

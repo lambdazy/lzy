@@ -9,11 +9,11 @@ import java.util.Objects;
 @IdClass(EntryDependenciesModel.EntryDependenciesPk.class)
 public class EntryDependenciesModel {
     @Id
-    @Column(name="snapshot_id", nullable = false)
+    @Column(name="snapshot_id")
     private String snapshotId;
 
     @Id
-    @Column(name = "entry_id_from", nullable = false)
+    @Column(name = "entry_id_from")
     private String entryIdFrom;
 
     @Id
