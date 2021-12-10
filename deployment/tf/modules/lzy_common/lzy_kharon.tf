@@ -74,11 +74,11 @@ resource "kubernetes_service" "lzy_kharon" {
   metadata {
     name        = "lzy-kharon-load-balancer"
     annotations = {
-      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+#      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
   }
   spec {
-    load_balancer_ip = azurerm_public_ip.lzy_kharon.ip_address
+    load_balancer_ip = var.kharon_public_ip
     type             = "LoadBalancer"
     port {
       port = 8899
@@ -89,7 +89,6 @@ resource "kubernetes_service" "lzy_kharon" {
   }
 
   depends_on = [
-    kubernetes_pod.lzy_kharon,
-    azurerm_public_ip.lzy_kharon
+    kubernetes_pod.lzy_kharon
   ]
 }

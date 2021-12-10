@@ -117,7 +117,7 @@ resource "kubernetes_service" "lzy_server" {
   metadata {
     name        = "lzy-server-service"
     annotations = {
-      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+#      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
   }
   spec {
