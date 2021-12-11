@@ -5,9 +5,15 @@ on:
     - cron: 59 23 * * * # run everyday on 23:59
 
 jobs:
+  acceptance-tests:
+    uses: lambda-zy/lzy/.github/workflows/acceptance-tests.yml@master
+    secrets:
+      TESTS_PRIVATE_SSH_KEY: ${{ secrets.TESTS_PRIVATE_SSH_KEY }}
+
   build-and-publish:
+    needs: acceptance-tests
     uses: lambda-zy/lzy/.github/workflows/build-pypi-publish.yml@master
     with:
-      dev: true # checkout to dev branch before running
+      dev: true # build nightly
     secrets:
-      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_NIGHTLY_TOKEN }}

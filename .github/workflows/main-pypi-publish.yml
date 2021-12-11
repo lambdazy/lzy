@@ -7,7 +7,13 @@ on:
     paths:
       - 'lzy-python/version' # TODO: replace with tag change?
 jobs:
+  acceptance-tests:
+    uses: lambda-zy/lzy/.github/workflows/acceptance-tests.yml@master
+    secrets:
+      TESTS_PRIVATE_SSH_KEY: ${{ secrets.TESTS_PRIVATE_SSH_KEY }}
+
   build-and-publish:
+    needs: acceptance-tests
     uses: lambda-zy/lzy/.github/workflows/build-pypi-publish.yml@master
     secrets:
-      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_RELEASE_TOKEN }}

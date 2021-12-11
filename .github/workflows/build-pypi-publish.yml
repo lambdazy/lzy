@@ -16,10 +16,10 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-        if: inputs.dev
-        with:
-          ref: 'dev'
+#      - uses: actions/checkout@v2
+#        if: inputs.dev
+#        with:
+#          ref: 'dev'
 
       - name: Set up Python
         uses: actions/setup-python@v2
