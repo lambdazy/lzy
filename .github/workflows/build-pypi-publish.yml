@@ -35,7 +35,7 @@ jobs:
         run: |
           cp .git/HEAD lzy-python/
           cd lzy-python/
-          python setup.py sdist ${{ inputs.dev && --dev }} bdist_wheel ${{ inputs.dev && --dev }}
+          python setup.py sdist ${{ inputs.dev && '--dev' }} bdist_wheel ${{ inputs.dev && '--dev' }}
 
       - name: Publish package
         uses: pypa/gh-action-pypi-publish@release/v1
