@@ -3,7 +3,7 @@ name: Publish release pylzy package
 on:
   push:
     branches:
-      - 'main'
+      - 'master'
     paths:
       - 'lzy-python/version' # TODO: replace with tag change?
 jobs:
