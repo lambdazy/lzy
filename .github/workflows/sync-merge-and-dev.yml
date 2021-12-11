@@ -1,0 +1,25 @@
+name: 'Sync master and dev'
+
+on:
+  schedule:
+    - cron:  '0 12,20 * * *' # run at 12:00 and 20:00 everyday
+
+jobs:
+  # TODO: find out when it gonna run. Probably it should be run in dev branch first
+  run-tests:
+    uses: lambda-zy/lzy/.github/workflows/pull-request-workflow.yaml@master
+
+  nightly-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Nightly Merge
+        uses: robotology/gh-action-nightly-merge@v1.3.1
+        with:
+          stable_branch: 'dev' # yea, dev is called stable here, because the action
+          development_branch: 'master' # merges stable branch into development, not the other way
+          allow_ff: true # fast-forward when possible, actually should be possible all the time
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
