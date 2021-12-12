@@ -22,7 +22,6 @@ public class MockDbStorage implements DbStorage {
         cfg.setProperty("hibernate.hbm2ddl.auto", "create");
         cfg.addAnnotatedClass(EntryDependenciesModel.class);
         cfg.addAnnotatedClass(WhiteboardFieldModel.class);
-        cfg.addAnnotatedClass(SnapshotOwnerModel.class);
         cfg.addAnnotatedClass(SnapshotEntryModel.class);
         cfg.addAnnotatedClass(WhiteboardModel.class);
         cfg.addAnnotatedClass(SnapshotModel.class);

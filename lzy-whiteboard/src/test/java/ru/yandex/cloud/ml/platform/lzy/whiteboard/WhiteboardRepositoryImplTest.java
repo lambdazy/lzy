@@ -8,7 +8,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.exception.WhiteboardException;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.WhiteboardRepositoryImpl;
@@ -39,7 +38,6 @@ public class WhiteboardRepositoryImplTest {
     private final String fieldNameSecond = "fieldNameSecond";
     private final String fieldNameThird = "fieldNameThird";
     private final String fieldNameFourth = "fieldNameFourth";
-    private final String ownerId = "ownerId";
     private final String storageUri = "storageUri";
 
     @Before
@@ -64,7 +62,7 @@ public class WhiteboardRepositoryImplTest {
     @Test
     public void testCreate() {
         impl.create(new Whiteboard.Impl(URI.create(wbId), Set.of(fieldNameFirst, fieldNameSecond),
-                new Snapshot.Impl(URI.create(snapshotId), URI.create(ownerId))));
+                new Snapshot.Impl(URI.create(snapshotId))));
 
         WhiteboardModel whiteboardModel;
         WhiteboardFieldModel firstWhiteboardField;
@@ -99,7 +97,6 @@ public class WhiteboardRepositoryImplTest {
             session.save(new WhiteboardModel(wbId, CREATED, snapshotId));
             session.save(new WhiteboardFieldModel(wbId, fieldNameFirst, null));
             session.save(new WhiteboardFieldModel(wbId, fieldNameSecond, entryIdSecond));
-            session.save(new SnapshotOwnerModel(snapshotId, ownerId));
             session.save(new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED));
             tx.commit();
         }
@@ -107,14 +104,13 @@ public class WhiteboardRepositoryImplTest {
         Assert.assertNotNull(whiteboardStatus);
         Assert.assertEquals(CREATED, whiteboardStatus.state());
         Assert.assertEquals(snapshotId, whiteboardStatus.whiteboard().snapshot().id().toString());
-        Assert.assertEquals(ownerId, whiteboardStatus.whiteboard().snapshot().ownerId().toString());
         Assert.assertTrue(whiteboardStatus.whiteboard().fieldNames().contains(fieldNameFirst)
                 && whiteboardStatus.whiteboard().fieldNames().contains(fieldNameSecond));
     }
 
     @Test
     public void testAddFieldNotDeclared() {
-        Assert.assertThrows(WhiteboardException.class,
+        Assert.assertThrows(RuntimeException.class,
                 () -> impl.add(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotId, wbId)));
     }
 
@@ -187,7 +183,7 @@ public class WhiteboardRepositoryImplTest {
                 new Whiteboard.Impl(
                         URI.create(wbId),
                         Set.of(fieldNameFirst, fieldNameSecond, fieldNameThird, fieldNameFourth),
-                        new Snapshot.Impl(URI.create(snapshotId), URI.create(ownerId))
+                        new Snapshot.Impl(URI.create(snapshotId))
                 )
         ).collect(Collectors.toList());
         Assert.assertEquals(4, whiteboardFieldList.size());
@@ -223,7 +219,7 @@ public class WhiteboardRepositoryImplTest {
 
     @Test
     public void testEmptyNotFound() {
-        Assert.assertThrows(WhiteboardException.class,
+        Assert.assertThrows(RuntimeException.class,
                 () -> impl.empty(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotId, wbId)));
     }
 
@@ -232,7 +228,6 @@ public class WhiteboardRepositoryImplTest {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             session.save(new WhiteboardModel(wbId, CREATED, snapshotId));
-            session.save(new SnapshotOwnerModel(snapshotId, ownerId));
             session.save(new WhiteboardFieldModel(wbId, fieldNameFirst, entryIdFirst));
             session.save(new WhiteboardFieldModel(wbId, fieldNameSecond, entryIdSecond));
             session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, storageUri, true, IN_PROGRESS));
@@ -246,7 +241,7 @@ public class WhiteboardRepositoryImplTest {
     private WhiteboardField createWhiteboardField(
             String fieldName, String entryId, String snapshotId, String wbId
     ) {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), URI.create(ownerId));
+        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId));
         return new WhiteboardField.Impl(fieldName, new SnapshotEntry.Impl(entryId, URI.create(storageUri), snapshot),
                 new Whiteboard.Impl(URI.create(wbId), Collections.emptySet(), snapshot));
     }
@@ -255,7 +250,6 @@ public class WhiteboardRepositoryImplTest {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             session.save(new WhiteboardModel(wbId, CREATED, snapshotId));
-            session.save(new SnapshotOwnerModel(snapshotId, ownerId));
             session.save(new WhiteboardFieldModel(wbId, fieldNameFirst, entryIdFirst));
             session.save(new WhiteboardFieldModel(wbId, fieldNameSecond, entryIdSecond));
             session.save(new WhiteboardFieldModel(wbId, fieldNameThird, entryIdThird));

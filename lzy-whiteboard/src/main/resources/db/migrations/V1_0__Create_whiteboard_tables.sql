@@ -9,11 +9,6 @@ CREATE TABLE whiteboard (
     wb_state      varchar(20)  NOT NULL
 );
 
-CREATE TABLE snapshot_owner (
-    snapshot_id  text   PRIMARY KEY REFERENCES snapshot (snapshot_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    owner_id     text   NOT NULL
-);
-
 CREATE TABLE snapshot_entry (
     snapshot_id  text         REFERENCES snapshot (snapshot_id) ON UPDATE CASCADE ON DELETE CASCADE,
     entry_id     text,

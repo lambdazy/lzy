@@ -63,7 +63,8 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
                                 serverAddress
                         },
                         new String[]{
-                                "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32"
+                                "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
+                                "-Dsnapshot.uri=http://localhost:8999"
                         }
                 ).inheritIO().start();
             } catch (IOException e) {

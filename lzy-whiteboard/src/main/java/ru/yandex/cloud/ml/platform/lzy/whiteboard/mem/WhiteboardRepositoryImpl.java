@@ -8,7 +8,6 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.exception.WhiteboardException;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
 
@@ -40,7 +39,7 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
                 tx.commit();
             } catch (Exception e) {
                 tx.rollback();
-                throw new WhiteboardException(e);
+                throw new RuntimeException(e);
             }
         }
     }
@@ -64,7 +63,7 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
             WhiteboardFieldModel wbModel = session.find(WhiteboardFieldModel.class,
                     new WhiteboardFieldModel.WhiteboardFieldPk(field.whiteboard().id().toString(), field.name()));
             if (wbModel == null) {
-                throw new WhiteboardException(Status.NOT_FOUND.asException());
+                throw new RuntimeException(Status.NOT_FOUND.asException());
             }
             wbModel.setEntryId(field.entry().id());
             try {
@@ -72,7 +71,7 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
                 tx.commit();
             } catch (Exception e) {
                 tx.rollback();
-                throw new WhiteboardException(e);
+                throw new RuntimeException(e);
             }
         }
     }
@@ -108,11 +107,11 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
             WhiteboardFieldModel wbModel = session.find(WhiteboardFieldModel.class,
                     new WhiteboardFieldModel.WhiteboardFieldPk(field.whiteboard().id().toString(), field.name()));
             if (wbModel == null) {
-                throw new WhiteboardException(Status.NOT_FOUND.asException());
+                throw new RuntimeException(Status.NOT_FOUND.asException());
             }
             SnapshotEntryModel entryModel = SessionHelper.resolveSnapshotEntry(wbModel, session);
             if (entryModel == null) {
-                throw new WhiteboardException(Status.NOT_FOUND.asException());
+                throw new RuntimeException(Status.NOT_FOUND.asException());
             }
             return entryModel.isEmpty();
         }
