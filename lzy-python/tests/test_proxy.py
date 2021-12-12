@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any
+from typing import Any, Optional
 from unittest import TestCase
 
 from lzy.api import LzyOp
@@ -101,6 +101,9 @@ class ProxyTests(TestCase):
 
             def is_materialized(self) -> bool:
                 return False
+
+            def return_entry_id(self) -> Optional[str]:
+                return None
 
         mock = LazyOpMock()
         prxy = lazy_proxy(lambda: mock.materialize(), str, {'_op': mock})
