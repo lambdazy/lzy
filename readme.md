@@ -1,4 +1,5 @@
-![](https://github.com/lambda-zy/lzy/actions/workflows/pull-request-workflow.yaml/badge.svg)
+[![Tests](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml/badge.svg)](https://github.com/lambda-zy/lzy/actions/workflows/pull-request-workflow.yaml)
+[![Cluster tests](https://github.com/lambda-zy/lzy/actions/workflows/acceptance-tests-cron.yaml/badge.svg)](https://github.com/lambda-zy/lzy/actions/workflows/acceptance-tests-cron.yaml)
 
 # ʎzy
 

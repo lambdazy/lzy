@@ -1,4 +1,4 @@
-name: 'AC tests'
+name: 'Cluster tests'
 on:
   schedule:
     - cron: '0 0 * * *'
@@ -28,4 +28,4 @@ jobs:
 
       - name: 'AC test'
         timeout-minutes: 45
-        run: mvn install -Dtest=KuberRunTest -DfailIfNoTests=false
+        run: mvn install -Dlzy.kharon.domain=kharon-lzy-prod.northeurope.cloudapp.azure.com -Dtest=KuberRunTest -DfailIfNoTests=false

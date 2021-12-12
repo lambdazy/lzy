@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.local;
+package ru.yandex.cloud.ml.platform.lzy.server.local.task;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +21,7 @@ import java.util.UUID;
 public class LocalDockerTask extends LocalTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(LocalDockerTask.class);
 
-    LocalDockerTask(
+    public LocalDockerTask(
         String owner,
         UUID tid,
         Zygote workload,

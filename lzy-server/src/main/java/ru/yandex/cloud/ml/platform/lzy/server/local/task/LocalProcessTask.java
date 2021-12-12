@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.local;
+package ru.yandex.cloud.ml.platform.lzy.server.local.task;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +23,7 @@ import ru.yandex.qe.s3.util.Environment;
 public class LocalProcessTask extends LocalTask {
     private static final Logger LOG = LogManager.getLogger(LocalProcessTask.class);
 
-    LocalProcessTask(
+    public LocalProcessTask(
         String owner,
         UUID tid,
         Zygote workload,
