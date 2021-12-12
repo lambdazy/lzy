@@ -19,7 +19,6 @@ def fun2(a: int) -> str:
 
 
 wb = SimpleWhiteboard()
-wb_id = ""
 with LzyEnv(user="test_user", server_url="localhost:8899", whiteboard=wb) as env:
     wb.a = fun1()
     wb.b = fun2(wb.a)
@@ -28,4 +27,3 @@ with LzyEnv(user="test_user", server_url="localhost:8899", whiteboard=wb) as env
 with LzyEnv(user="test_user", server_url="localhost:8899") as env:
     wb = env.get_whiteboard(wb_id, SimpleWhiteboard)
     print(wb.a, wb.b)
-

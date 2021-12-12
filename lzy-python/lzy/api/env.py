@@ -1,21 +1,19 @@
 import dataclasses
-import inspect
 import logging
 import os
 from abc import abstractmethod, ABC
-from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, \
-    Optional
+from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
+from lzy.api.buses import Bus
+from lzy.api.lazy_op import LzyOp
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
-from lzy.api.whiteboard.api import InMemSnapshotApi, InMemWhiteboardApi, SnapshotApi, WhiteboardApi
+from lzy.api.whiteboard.api import InMemSnapshotApi, InMemWhiteboardApi, \
+  SnapshotApi, WhiteboardApi
 from lzy.api.whiteboard.wb import wrap_whiteboard
-from lzy.api._proxy import proxy
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.terminal_server import TerminalServer
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
-from lzy.api.buses import Bus
-from lzy.api.lazy_op import LzyOp
 
 T = TypeVar('T')
 
@@ -160,10 +158,10 @@ class LzyEnv(LzyEnvBase):
         type(self).instance = None
         if self._terminal_server:
             self._terminal_server.stop()
-    
+
     def whiteboard_id(self) -> Optional[str]:
         return self._execution_context.whiteboard_id
-    
+
     def snapshot_id(self) -> Optional[str]:
         return self._execution_context.snapshot_id
 
@@ -213,7 +211,15 @@ class LzyEnv(LzyEnvBase):
     def get_whiteboard(self, id: str, typ: Type[Any]) -> Any:
         if not dataclasses.is_dataclass(typ):
             raise ValueError("Whiteboard must be dataclass")
+        # noinspection PyDataclass
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
         wb = self._execution_context.whiteboard_api.get(id)
-        return typ(**{field.field_name: self._execution_context.whiteboard_api.resolve(field.storage_uri, field_types[field.field_name]) for field in wb.fields})
+        whiteboard_dict = {
+            field.field_name: self._execution_context.whiteboard_api.resolve(
+                field.storage_uri, field_types[field.field_name]) for field in
+            wb.fields
+        }
+        instance = typ()
+        instance.__dict__.update(whiteboard_dict)
+        return instance
 

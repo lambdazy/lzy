@@ -1,23 +1,21 @@
-import io
+import json
+import logging
 import os
 from json.decoder import JSONDecodeError
 from typing import TypeVar
+from urllib import parse
 
 import cloudpickle
-
-from lzy.api.whiteboard.api import *
-from lzy.servant.bash_servant_client import BashServantClient, Singleton
-from urllib import request
-from lzy.api._proxy import proxy
-
-import json
-import logging
 import s3fs
-from urllib import parse
+
+from lzy.api._proxy import proxy
+from lzy.api.whiteboard.api import *
+from lzy.servant.bash_servant_client import BashServantClient
 
 
 class SnapshotBashApi(SnapshotApi):
     def __init__(self, mount_point: str) -> None:
+        super().__init__()
         self.__mount = mount_point
         self._log = logging.getLogger(str(self.__class__))
     
@@ -40,6 +38,7 @@ T = TypeVar('T')
 
 class WhiteboardBashApi(WhiteboardApi):
     def __init__(self, mount_point: str) -> None:
+        super().__init__()
         self.__mount = mount_point
         self._log = logging.getLogger(str(self.__class__))
 
@@ -57,7 +56,7 @@ class WhiteboardBashApi(WhiteboardApi):
         uri = parse.urlparse(url)
         fs = s3fs.S3FileSystem(key=access_token, secret=secret_token, client_kwargs={'endpoint_url': f"http://{uri.netloc}"})
         with fs.open(uri.path) as f:
-            cloudpickle.load(f)
+            return cloudpickle.load(f)
 
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")

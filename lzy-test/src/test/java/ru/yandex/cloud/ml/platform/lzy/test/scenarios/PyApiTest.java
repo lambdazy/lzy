@@ -103,5 +103,8 @@ public class PyApiTest extends LzyBaseTest {
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + pyCommand);
+
+        //Assert
+        Assert.assertTrue(result.stdout().contains("42 42"));
     }
 }
