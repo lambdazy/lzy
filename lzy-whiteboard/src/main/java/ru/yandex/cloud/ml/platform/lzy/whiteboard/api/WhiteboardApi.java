@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
@@ -42,7 +43,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     @Override
     public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request, StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        if (!auth.checkPermissions(request.getAuth())) {
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)){
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
@@ -61,7 +62,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     @Override
     public void link(LzyWhiteboard.LinkCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-        if (!auth.checkPermissions(request.getAuth())) {
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
@@ -86,7 +87,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     @Override
     public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request, StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        if (!auth.checkPermissions(request.getAuth())) {
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }

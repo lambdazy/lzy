@@ -3,10 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard.mem;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotOwnerModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
 
 import javax.annotation.Nullable;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -29,6 +26,7 @@ public class SessionHelper {
         return query.getResultList();
     }
 
+    @SuppressWarnings("unchecked")
     public static List<WhiteboardFieldModel> getNotCompletedWhiteboardFields(String whiteboardId, Session session) {
         String queryWhiteboardFieldRequest = "SELECT w FROM WhiteboardFieldModel w WHERE w.wbId = :wbId AND w.entryId is NULL";
         Query<WhiteboardFieldModel> queryWhiteboardField = session.createQuery(queryWhiteboardFieldRequest);
@@ -36,6 +34,7 @@ public class SessionHelper {
         return queryWhiteboardField.list();
     }
 
+    @SuppressWarnings("unchecked")
     public static List<SnapshotEntryModel> getEntryDependencies(SnapshotEntryModel snapshotEntryModel, Session session) {
         String queryEntryDependenciesRequest = "SELECT s2 FROM SnapshotEntryModel s1 " +
                 "JOIN EntryDependenciesModel e ON s1.entryId = e.entryIdTo " +
@@ -88,6 +87,7 @@ public class SessionHelper {
         return results.get(0);
     }
 
+    @SuppressWarnings("unchecked")
     public static List<WhiteboardFieldModel> getFieldDependencies(String wbId, String fieldName, Session session) {
         String queryFieldDependenciesRequest = "SELECT f1 FROM WhiteboardModel w " +
                 "JOIN WhiteboardFieldModel f1 ON w.wbId = f1.wbId " +
@@ -124,16 +124,16 @@ public class SessionHelper {
     @Nullable
     public static Snapshot getSnapshot(String spId, Session session) {
         CriteriaBuilder cb = session.getCriteriaBuilder();
-        CriteriaQuery<SnapshotOwnerModel> cr = cb.createQuery(SnapshotOwnerModel.class);
-        Root<SnapshotOwnerModel> root = cr.from(SnapshotOwnerModel.class);
+        CriteriaQuery<SnapshotModel> cr = cb.createQuery(SnapshotModel.class);
+        Root<SnapshotModel> root = cr.from(SnapshotModel.class);
         cr.select(root).where(cb.equal(root.get("snapshotId"), spId));
 
-        Query<SnapshotOwnerModel> query = session.createQuery(cr);
-        List<SnapshotOwnerModel> results = query.getResultList();
+        Query<SnapshotModel> query = session.createQuery(cr);
+        List<SnapshotModel> results = query.getResultList();
         if (results.isEmpty()) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId), URI.create(results.get(0).getOwnerId()));
+        return new Snapshot.Impl(URI.create(spId));
     }
 
     public static WhiteboardField getWhiteboardField(WhiteboardFieldModel wbFieldModel, Whiteboard whiteboard, Snapshot snapshot, Session session) {
@@ -142,11 +142,11 @@ public class SessionHelper {
 
     @Nullable
     public static Snapshot resolveSnapshot(String spId, Session session) {
-        SnapshotOwnerModel spOwnerModel = session.find(SnapshotOwnerModel.class, spId);
-        if (spOwnerModel == null) {
+        SnapshotModel spModel = session.find(SnapshotModel.class, spId);
+        if (spModel == null) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId), URI.create(spOwnerModel.getOwnerId()));
+        return new Snapshot.Impl(URI.create(spId));
     }
 
     @Nullable

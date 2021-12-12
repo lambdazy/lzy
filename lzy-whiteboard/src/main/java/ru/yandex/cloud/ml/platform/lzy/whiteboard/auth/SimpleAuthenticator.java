@@ -1,10 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.auth;
 
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions.WHITEBOARD_ALL;
 
 public class SimpleAuthenticator implements Authenticator {
     private final LzyServerGrpc.LzyServerBlockingStub server;
@@ -13,12 +12,12 @@ public class SimpleAuthenticator implements Authenticator {
         this.server = server;
     }
     @Override
-    public boolean checkPermissions(IAM.Auth auth) {
+    public boolean checkPermissions(IAM.Auth auth, Permissions permissions) {
         Lzy.CheckUserPermissionsResponse response = server.checkUserPermissions(
                 Lzy.CheckUserPermissionsRequest
                         .newBuilder()
                         .setAuth(auth)
-                        .addPermissions(WHITEBOARD_ALL.name)
+                        .addPermissions(permissions.name())
                         .build()
         );
         return response.getIsOk();
