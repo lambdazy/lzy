@@ -101,4 +101,20 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
             return result.stream();
         }
     }
+
+    @Override
+    public boolean empty(WhiteboardField field) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            WhiteboardFieldModel wbModel = session.find(WhiteboardFieldModel.class,
+                    new WhiteboardFieldModel.WhiteboardFieldPk(field.whiteboard().id().toString(), field.name()));
+            if (wbModel == null) {
+                throw new WhiteboardException(Status.NOT_FOUND.asException());
+            }
+            SnapshotEntryModel entryModel = SessionHelper.resolveSnapshotEntry(wbModel, session);
+            if (entryModel == null) {
+                throw new WhiteboardException(Status.NOT_FOUND.asException());
+            }
+            return entryModel.isEmpty();
+        }
+    }
 }

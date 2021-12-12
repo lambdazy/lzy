@@ -7,6 +7,7 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 
+import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -16,7 +17,7 @@ import java.util.stream.Stream;
 @Requires(missingBeans = DbStorage.class)
 public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     private final Map<URI, SnapshotStatus> snapshots = new HashMap<>();
-    private final Map<URI, Map<String, SnapshotEntry>> entries = new HashMap<>();
+    private final Map<URI, Map<String, SnapshotEntryStatus>> entries = new HashMap<>();
     private final Map<URI, List<URI>> snapshotWhiteboardsMapping = new HashMap<>();
 
     private final Map<URI, WhiteboardStatus> whiteboards = new HashMap<>();
@@ -36,11 +37,13 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     }
 
     @Override
-    public synchronized void prepare(SnapshotEntry entry) {
+    public synchronized void prepare(SnapshotEntry entry, List<String> dependentEntryIds) {
         if (!snapshots.containsKey(entry.snapshot().id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + entry.snapshot().id());
         }
-        entries.get(entry.snapshot().id()).put(entry.id(), entry);
+        SnapshotEntryStatus entryStatus = new SnapshotEntryStatus.Impl(
+                true, SnapshotEntryStatus.State.IN_PROGRESS, entry, Set.copyOf(dependentEntryIds));
+        entries.get(entry.snapshot().id()).put(entry.id(), entryStatus);
     }
 
     @Override
@@ -48,19 +51,32 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         if (!snapshots.containsKey(snapshot.id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + snapshot.id());
         }
+        return entries.get(snapshot.id()).get(id).entry();
+    }
+
+    @Nullable
+    @Override
+    public SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id) {
+        if (!snapshots.containsKey(snapshot.id())) {
+            throw new IllegalArgumentException("Snapshot is not found: " + snapshot.id());
+        }
         return entries.get(snapshot.id()).get(id);
     }
 
     @Override
-    public synchronized void commit(SnapshotEntry entry) {
+    public synchronized void commit(SnapshotEntry entry, boolean empty) {
         if (!snapshots.containsKey(entry.snapshot().id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + entry.snapshot().id());
         }
-        final Map<String, SnapshotEntry> entryMap = entries.get(entry.snapshot().id());
+        final Map<String, SnapshotEntryStatus> entryMap = entries.get(entry.snapshot().id());
         if (!entryMap.containsKey(entry.id())) {
             throw new IllegalArgumentException("Entry is not found: " + entry.id());
         }
-        entryMap.put(entry.id(), entry);
+        SnapshotEntryStatus entryStatus = new SnapshotEntryStatus.Impl(
+                empty, SnapshotEntryStatus.State.FINISHED, entry,
+                entries.get(entry.snapshot().id()).get(entry.id()).dependentEntryIds()
+        );
+        entryMap.put(entry.id(), entryStatus);
     }
 
     @Override
@@ -128,7 +144,8 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         if (!whiteboards.containsKey(field.whiteboard().id())) {
             throw new IllegalArgumentException("Whiteboard is not found: " + field.whiteboard().id());
         }
-        return field.entry().dependentEntryIds()
+        SnapshotEntryStatus entryStatus = entries.get(field.entry().snapshot().id()).get(field.entry().id());
+        return entryStatus.dependentEntryIds()
                 .stream()
                 .map(s -> entryFieldMapping.get(field.whiteboard().id()).get(s))
                 .filter(Objects::nonNull)
@@ -143,5 +160,14 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
             throw new IllegalArgumentException("Whiteboard is not found: " + whiteboard.id());
         }
         return new ArrayList<>(fields.get(whiteboard.id()).values()).stream();
+    }
+
+    @Override
+    public boolean empty(WhiteboardField field) {
+        SnapshotEntryStatus entryStatus = resolveEntryStatus(field.entry().snapshot(), field.entry().id());
+        if (entryStatus == null) {
+            throw new IllegalArgumentException("Snapshot entry is not found: " + field.entry().id());
+        }
+        return entryStatus.empty();
     }
 }
