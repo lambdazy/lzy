@@ -103,7 +103,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             return null;
         }
         List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(wb.whiteboard())
-                .map(field -> gRPCConverter.to(field, whiteboardRepository.dependent(field).collect(Collectors.toList())))
+                .filter(field -> field.entry() != null)
+                .map(field -> gRPCConverter.to(
+                        field, whiteboardRepository.dependent(field).collect(Collectors.toList()), whiteboardRepository.empty(field)))
                 .collect(Collectors.toList());
         return LzyWhiteboard.Whiteboard.newBuilder()
                 .setId(wb.whiteboard().id().toString())

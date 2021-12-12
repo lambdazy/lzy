@@ -22,7 +22,6 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.SimpleAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
@@ -77,7 +76,8 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
             return;
         }
-        repository.prepare(gRPCConverter.from(request.getEntry(), snapshotStatus.snapshot()));
+        repository.prepare(gRPCConverter.from(request.getEntry(), snapshotStatus.snapshot()),
+                request.getEntry().getDependentEntryIdsList());
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
                 .newBuilder()
                 .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
@@ -102,7 +102,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
             return;
         }
-        repository.commit(entry);
+        repository.commit(entry, request.getEmpty());
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
                 .newBuilder()
                 .setStatus(LzyWhiteboard.OperationStatus.Status.OK)

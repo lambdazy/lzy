@@ -106,11 +106,7 @@ public class SessionHelper {
         if (snapshotEntryModel == null) {
             return null;
         }
-        Set<String> entryIdsDeps = new HashSet<>();
-        List<SnapshotEntryModel> deps = getEntryDependencies(snapshotEntryModel, session);
-        deps.stream().forEach((d) -> entryIdsDeps.add(d.getEntryId()));
-        return new SnapshotEntry.Impl(snapshotEntryModel.getEntryId(),
-                URI.create(snapshotEntryModel.getStorageUri()), entryIdsDeps, snapshot, snapshotEntryModel.isEmpty());
+        return new SnapshotEntry.Impl(snapshotEntryModel.getEntryId(), URI.create(snapshotEntryModel.getStorageUri()), snapshot);
     }
 
     public static Whiteboard getWhiteboard(String wbId, Snapshot snapshot, Session session) {

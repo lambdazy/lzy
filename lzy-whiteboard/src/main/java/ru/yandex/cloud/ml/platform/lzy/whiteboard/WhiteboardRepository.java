@@ -16,4 +16,5 @@ public interface WhiteboardRepository {
     void add(WhiteboardField field);
     Stream<WhiteboardField> dependent(WhiteboardField field);
     Stream<WhiteboardField> fields(Whiteboard whiteboard);
+    boolean empty(WhiteboardField field);
 }

@@ -122,7 +122,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     }
 
     @Override
-    public void prepare(SnapshotEntry entry) {
+    public void prepare(SnapshotEntry entry, List<String> dependentEntryIds) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = entry.snapshot().id().toString();
@@ -135,7 +135,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             snapshotEntryModel = new SnapshotEntryModel(snapshotId, entryId,
                     entry.storage().toString(), true, SnapshotEntryStatus.State.IN_PROGRESS);
             List<EntryDependenciesModel> depModelList = new ArrayList<>();
-            entry.dependentEntryIds().forEach(id -> depModelList.add(new EntryDependenciesModel(snapshotId, id, entryId)));
+            dependentEntryIds.forEach(id -> depModelList.add(new EntryDependenciesModel(snapshotId, id, entryId)));
             try {
                 session.save(snapshotEntryModel);
                 depModelList.forEach(session::save);
@@ -152,21 +152,35 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     public SnapshotEntry resolveEntry(Snapshot snapshot, String id) {
         try (Session session = storage.getSessionFactory().openSession()) {
             String snapshotId = snapshot.id().toString();
-            SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
             SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
                     new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
-            if (snapshotModel == null || snapshotEntryModel == null) {
+            if (snapshotEntryModel == null) {
+                throw new SnapshotException(Status.NOT_FOUND.asException());
+            }
+            return new SnapshotEntry.Impl(id, URI.create(snapshotEntryModel.getStorageUri()), snapshot);
+        }
+    }
+
+    @Nullable
+    @Override
+    public SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            String snapshotId = snapshot.id().toString();
+            SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
+                    new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
+            if (snapshotEntryModel == null) {
                 throw new SnapshotException(Status.NOT_FOUND.asException());
             }
 
             List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
-            return new SnapshotEntry.Impl(id, URI.create(snapshotEntryModel.getStorageUri()),
-                    Set.copyOf(dependentEntryIds), snapshot, snapshotEntryModel.isEmpty());
+            SnapshotEntry entry = new SnapshotEntry.Impl(id, URI.create(snapshotEntryModel.getStorageUri()), snapshot);
+            return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(),snapshotEntryModel.getEntryState(),entry,
+                    Set.copyOf(dependentEntryIds));
         }
     }
 
     @Override
-    public void commit(SnapshotEntry entry) {
+    public void commit(SnapshotEntry entry, boolean empty) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = entry.snapshot().id().toString();
@@ -177,7 +191,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                 throw new SnapshotException(Status.NOT_FOUND.asException());
             }
             snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.FINISHED);
-            snapshotEntryModel.setEmpty(entry.empty());
+            snapshotEntryModel.setEmpty(empty);
             try {
                 session.update(snapshotEntryModel);
                 tx.commit();
