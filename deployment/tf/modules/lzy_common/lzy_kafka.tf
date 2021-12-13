@@ -36,7 +36,7 @@ resource "helm_release" "lzy_kafka" {
   repository = "https://charts.bitnami.com/bitnami"
 
   set {
-    name = "image.debug"
+    name  = "image.debug"
     value = "true"
   }
 }

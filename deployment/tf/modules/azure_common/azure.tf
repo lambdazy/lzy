@@ -50,7 +50,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
   name                  = "lzypool"
   vm_size               = "Standard_D2_v2"
   node_count            = var.lzy_count
-  node_labels           = {
+  node_labels = {
     type = "lzy"
   }
 }
@@ -60,7 +60,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
   name                  = "cpupool"
   vm_size               = "Standard_D2_v2"
   node_count            = var.cpu_count
-  node_labels           = {
+  node_labels = {
     type = "cpu"
   }
 }
@@ -72,10 +72,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
   node_count            = var.gpu_count
   enable_auto_scaling   = false
   availability_zones    = []
-  node_labels           = {
+  node_labels = {
     type = "gpu"
   }
-  node_taints           = [
+  node_taints = [
     "sku=gpu:NoSchedule"
   ]
 }

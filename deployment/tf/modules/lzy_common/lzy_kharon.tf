@@ -1,6 +1,6 @@
 resource "kubernetes_pod" "lzy_kharon" {
   metadata {
-    name   = "lzy-kharon"
+    name = "lzy-kharon"
     labels = {
       app : "lzy-kharon"
     }
@@ -28,7 +28,7 @@ resource "kubernetes_pod" "lzy_kharon" {
       port {
         container_port = 8900
       }
-      args              = [
+      args = [
         "--lzy-server-address",
         "http://$(LZY_SERVER_IP):8888",
         "--host",
@@ -49,7 +49,7 @@ resource "kubernetes_pod" "lzy_kharon" {
             match_expressions {
               key      = "app"
               operator = "In"
-              values   = [
+              values = [
                 "lzy-servant",
                 "lzy-server",
                 "lzy-kharon",
@@ -61,8 +61,8 @@ resource "kubernetes_pod" "lzy_kharon" {
         }
       }
     }
-    host_network  = true
-    dns_policy    = "ClusterFirstWithHostNet"
+    host_network = true
+    dns_policy   = "ClusterFirstWithHostNet"
   }
 
   depends_on = [
@@ -72,9 +72,9 @@ resource "kubernetes_pod" "lzy_kharon" {
 
 resource "kubernetes_service" "lzy_kharon" {
   metadata {
-    name        = "lzy-kharon-load-balancer"
+    name = "lzy-kharon-load-balancer"
     annotations = {
-#      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+      #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
   }
   spec {
@@ -83,7 +83,7 @@ resource "kubernetes_service" "lzy_kharon" {
     port {
       port = 8899
     }
-    selector         = {
+    selector = {
       app = "lzy-kharon"
     }
   }

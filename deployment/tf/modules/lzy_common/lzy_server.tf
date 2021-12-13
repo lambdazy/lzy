@@ -1,6 +1,6 @@
 resource "kubernetes_pod" "lzy_server" {
   metadata {
-    name   = "lzy-server"
+    name = "lzy-server"
     labels = {
       app = "lzy-server"
     }
@@ -31,7 +31,7 @@ resource "kubernetes_pod" "lzy_server" {
         value = "server"
       }
       env {
-        name = "CLICKHOUSE_ENABLED"
+        name  = "CLICKHOUSE_ENABLED"
         value = "true"
       }
       env {
@@ -39,7 +39,7 @@ resource "kubernetes_pod" "lzy_server" {
         value_from {
           secret_key_ref {
             name = "clickhouse"
-            key = "username"
+            key  = "username"
           }
         }
       }
@@ -48,24 +48,24 @@ resource "kubernetes_pod" "lzy_server" {
         value_from {
           secret_key_ref {
             name = "clickhouse"
-            key = "password"
+            key  = "password"
           }
         }
       }
       env {
-        name = "CLICKHOUSE_URL"
+        name  = "CLICKHOUSE_URL"
         value = "jdbc:clickhouse://clickhouse-service.default.svc.cluster.local:8123/lzy"
       }
       env {
-        name = "AGENTS_NAMES"
+        name  = "AGENTS_NAMES"
         value = "backoffice"
       }
       env {
-        name = "AGENTS_PUBLIC_KEYS"
+        name  = "AGENTS_PUBLIC_KEYS"
         value = tls_private_key.backoffice_key.public_key_pem
       }
       env {
-        name = "AGENTS_ROLES"
+        name  = "AGENTS_ROLES"
         value = "backoffice"
       }
       env {
@@ -91,7 +91,7 @@ resource "kubernetes_pod" "lzy_server" {
             match_expressions {
               key      = "app"
               operator = "In"
-              values   = [
+              values = [
                 "lzy-servant",
                 "lzy-server",
                 "lzy-kharon",
@@ -103,8 +103,8 @@ resource "kubernetes_pod" "lzy_server" {
         }
       }
     }
-    host_network  = true
-    dns_policy    = "ClusterFirstWithHostNet"
+    host_network = true
+    dns_policy   = "ClusterFirstWithHostNet"
   }
 
   depends_on = [
@@ -115,9 +115,9 @@ resource "kubernetes_pod" "lzy_server" {
 
 resource "kubernetes_service" "lzy_server" {
   metadata {
-    name        = "lzy-server-service"
+    name = "lzy-server-service"
     annotations = {
-#      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+      #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
   }
   spec {

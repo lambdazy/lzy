@@ -30,7 +30,7 @@ variable "gpu_count" {
   default = 1
 }
 
-variable location {
+variable "location" {
   type    = string
   default = "North Europe"
 }
