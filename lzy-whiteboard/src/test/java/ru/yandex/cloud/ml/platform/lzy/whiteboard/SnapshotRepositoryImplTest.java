@@ -185,13 +185,6 @@ public class SnapshotRepositoryImplTest {
     }
 
     @Test
-    public void testResolveEntryNotFound() {
-        Assert.assertThrows(RuntimeException.class, () -> impl.resolveEntry(
-                new Snapshot.Impl(URI.create(snapshotId)), entryIdFirst)
-        );
-    }
-
-    @Test
     public void testResolveEntryStatus() {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();

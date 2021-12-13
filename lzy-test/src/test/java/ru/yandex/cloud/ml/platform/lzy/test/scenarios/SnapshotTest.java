@@ -31,7 +31,6 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 public class SnapshotTest extends LzyBaseTest {
-    private static final int S3_PORT = FreePortFinder.find(8000, 9000);
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before

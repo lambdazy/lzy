@@ -18,14 +18,14 @@ public class SnapshotEntryModel {
     @Column(name = "entry_id", nullable = false)
     private String entryId;
 
-    @Column(name = "storage_uri", nullable = false)
+    @Column(name = "storage_uri")
     private String storageUri;
 
     @Column(name = "empty", nullable = false)
     private boolean empty;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "state", nullable = false)
+    @Column(name = "state")
     private SnapshotEntryStatus.State entryState;
 
     public SnapshotEntryModel(String snapshotId, String entryId, String storageUri,

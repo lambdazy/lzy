@@ -36,7 +36,6 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     private final SnapshotRepository repository;
     private final static Logger LOG = LogManager.getLogger(SnapshotApi.class);
     private final Authenticator auth;
-    private final SnapshotRepository repository;
 
     @Inject
     public SnapshotApi(ServerConfig serverConfig, SnapshotRepository repository) {
