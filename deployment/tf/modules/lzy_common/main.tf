@@ -3,10 +3,10 @@ terraform {
     kubernetes = {
       source = "hashicorp/kubernetes"
     }
-    helm       = {
+    helm = {
       source = "hashicorp/helm"
     }
-    random     = {
+    random = {
       source  = "hashicorp/random"
       version = "3.0.1"
     }
@@ -38,7 +38,7 @@ resource "kubernetes_daemonset" "nvidia_plugin" {
         annotations = {
           "scheduler.alpha.kubernetes.io/critical-pod" = ""
         }
-        labels      = {
+        labels = {
           name = "nvidia-device-plugin-ds"
         }
       }

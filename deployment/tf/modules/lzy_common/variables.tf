@@ -23,26 +23,26 @@ variable "kharon_public_ip" {}
 variable "backoffice_public_ip" {}
 
 variable "backoffice-frontend-image" {
-  type = string
+  type    = string
   default = "lzydock/lzy-backoffice-frontend:master"
 }
 
 variable "backoffice-backend-image" {
-  type = string
+  type    = string
   default = "lzydock/lzy-backoffice-backend:master"
 }
 
 variable "clickhouse-image" {
-  type = string
+  type    = string
   default = "clickhouse/clickhouse-server"
 }
 
 variable "kharon-image" {
-  type = string
+  type    = string
   default = "lzydock/lzy-kharon:master"
 }
 
 variable "server-image" {
-  type = string
+  type    = string
   default = "lzydock/lzy-server:master"
 }
