@@ -115,17 +115,18 @@ public abstract class gRPCConverter {
         return LzyWhiteboard.Snapshot.newBuilder().setSnapshotId(snapshot.id().toString()).build();
     }
 
-    public static LzyWhiteboard.WhiteboardField to(WhiteboardField field, List<WhiteboardField> dependent, boolean empty) {
+    public static LzyWhiteboard.WhiteboardField to(
+            WhiteboardField field, List<WhiteboardField> dependent, boolean empty, String storage) {
         return LzyWhiteboard.WhiteboardField.newBuilder()
                 .setFieldName(field.name())
-                .setStorageUri(field.entry().storage().toString())
+                .setStorageUri(storage)
                 .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()))
                 .setEmpty(empty)
                 .build();
     }
 
     public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
-        return new SnapshotEntry.Impl(entry.getEntryId(), URI.create(entry.getStorageUri()), snapshot);
+        return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
     }
 
     public static LzyWhiteboard.Whiteboard.WhiteboardStatus to(WhiteboardStatus.State state) {

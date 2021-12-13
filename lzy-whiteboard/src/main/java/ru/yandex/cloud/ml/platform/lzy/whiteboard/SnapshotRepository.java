@@ -17,7 +17,7 @@ public interface SnapshotRepository {
     void finalize(Snapshot snapshot);
     void error(Snapshot snapshot);
 
-    void prepare(SnapshotEntry entry, List<String> dependentEntryIds);
+    void prepare(SnapshotEntry entry, String storage, List<String> dependentEntryIds);
     @Nullable
     SnapshotEntry resolveEntry(Snapshot snapshot, String id);
     @Nullable

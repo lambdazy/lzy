@@ -217,32 +217,11 @@ public class WhiteboardRepositoryImplTest {
         Assert.assertTrue(firstFieldPresent && secondFieldPresent && thirdFieldPresent && fourthFieldPresent);
     }
 
-    @Test
-    public void testEmptyNotFound() {
-        Assert.assertThrows(RuntimeException.class,
-                () -> impl.empty(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotId, wbId)));
-    }
-
-    @Test
-    public void testEmpty() {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbId, CREATED, snapshotId));
-            session.save(new WhiteboardFieldModel(wbId, fieldNameFirst, entryIdFirst));
-            session.save(new WhiteboardFieldModel(wbId, fieldNameSecond, entryIdSecond));
-            session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, storageUri, true, IN_PROGRESS));
-            session.save(new SnapshotEntryModel(snapshotId, entryIdSecond, storageUri, false, IN_PROGRESS));
-            tx.commit();
-        }
-        Assert.assertTrue(impl.empty(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotId, wbId)));
-        Assert.assertFalse(impl.empty(createWhiteboardField(fieldNameSecond, entryIdSecond, snapshotId, wbId)));
-    }
-
     private WhiteboardField createWhiteboardField(
             String fieldName, String entryId, String snapshotId, String wbId
     ) {
         Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId));
-        return new WhiteboardField.Impl(fieldName, new SnapshotEntry.Impl(entryId, URI.create(storageUri), snapshot),
+        return new WhiteboardField.Impl(fieldName, new SnapshotEntry.Impl(entryId, snapshot),
                 new Whiteboard.Impl(URI.create(wbId), Collections.emptySet(), snapshot));
     }
 

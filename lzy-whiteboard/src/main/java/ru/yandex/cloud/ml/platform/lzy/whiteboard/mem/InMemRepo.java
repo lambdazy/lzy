@@ -37,12 +37,12 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     }
 
     @Override
-    public synchronized void prepare(SnapshotEntry entry, List<String> dependentEntryIds) {
+    public synchronized void prepare(SnapshotEntry entry, String storageUri, List<String> dependentEntryIds) {
         if (!snapshots.containsKey(entry.snapshot().id())) {
             throw new IllegalArgumentException("Snapshot is not found: " + entry.snapshot().id());
         }
-        SnapshotEntryStatus entryStatus = new SnapshotEntryStatus.Impl(
-                true, SnapshotEntryStatus.State.IN_PROGRESS, entry, Set.copyOf(dependentEntryIds));
+        SnapshotEntryStatus entryStatus = new SnapshotEntryStatus.Impl(true, SnapshotEntryStatus.State.IN_PROGRESS,
+                entry, Set.copyOf(dependentEntryIds), URI.create(storageUri));
         entries.get(entry.snapshot().id()).put(entry.id(), entryStatus);
     }
 
@@ -74,7 +74,8 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         }
         SnapshotEntryStatus entryStatus = new SnapshotEntryStatus.Impl(
                 empty, SnapshotEntryStatus.State.FINISHED, entry,
-                entries.get(entry.snapshot().id()).get(entry.id()).dependentEntryIds()
+                entries.get(entry.snapshot().id()).get(entry.id()).dependentEntryIds(),
+                entries.get(entry.snapshot().id()).get(entry.id()).storage()
         );
         entryMap.put(entry.id(), entryStatus);
     }
@@ -160,14 +161,5 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
             throw new IllegalArgumentException("Whiteboard is not found: " + whiteboard.id());
         }
         return new ArrayList<>(fields.get(whiteboard.id()).values()).stream();
-    }
-
-    @Override
-    public boolean empty(WhiteboardField field) {
-        SnapshotEntryStatus entryStatus = resolveEntryStatus(field.entry().snapshot(), field.entry().id());
-        if (entryStatus == null) {
-            throw new IllegalArgumentException("Snapshot entry is not found: " + field.entry().id());
-        }
-        return entryStatus.empty();
     }
 }

@@ -76,7 +76,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
             return;
         }
-        repository.prepare(gRPCConverter.from(request.getEntry(), snapshotStatus.snapshot()),
+        repository.prepare(gRPCConverter.from(request.getEntry(), snapshotStatus.snapshot()), request.getEntry().getStorageUri(),
                 request.getEntry().getDependentEntryIdsList());
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
                 .newBuilder()

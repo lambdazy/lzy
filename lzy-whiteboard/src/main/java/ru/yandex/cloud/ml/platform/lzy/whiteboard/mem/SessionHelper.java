@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.mem;
 
+import io.grpc.Status;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
@@ -106,7 +107,7 @@ public class SessionHelper {
         if (snapshotEntryModel == null) {
             return null;
         }
-        return new SnapshotEntry.Impl(snapshotEntryModel.getEntryId(), URI.create(snapshotEntryModel.getStorageUri()), snapshot);
+        return new SnapshotEntry.Impl(snapshotEntryModel.getEntryId(), snapshot);
     }
 
     public static Whiteboard getWhiteboard(String wbId, Snapshot snapshot, Session session) {
@@ -166,5 +167,20 @@ public class SessionHelper {
             return null;
         }
         return wbModel.getWbState();
+    }
+
+    @Nullable
+    public static SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id, Session session) {
+        String snapshotId = snapshot.id().toString();
+        SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
+                new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
+        if (snapshotEntryModel == null) {
+            return null;
+        }
+
+        List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
+        SnapshotEntry entry = new SnapshotEntry.Impl(id, snapshot);
+        return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(),snapshotEntryModel.getEntryState(), entry,
+                Set.copyOf(dependentEntryIds), URI.create(snapshotEntryModel.getStorageUri()));
     }
 }
