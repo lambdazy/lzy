@@ -3,9 +3,9 @@ name: Publish release pylzy package
 on:
   push:
     branches:
-      - 'master'
+      - master
     paths:
-      - './lzy-python/version' # TODO: replace with tag change?
+      - lzy-python/version # TODO: replace with tag change?
 
 jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
