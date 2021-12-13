@@ -4,6 +4,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.netty.channel.local.LocalEventLoopGroup;
@@ -12,8 +14,9 @@ import org.apache.logging.log4j.Logger;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
@@ -33,9 +36,9 @@ import java.util.UUID;
 @Singleton
 @Requires(property = "server.uri")
 public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
-    private final SnapshotRepository repository;
-    private final static Logger LOG = LogManager.getLogger(SnapshotApi.class);
+    private static final Logger LOG = LogManager.getLogger(SnapshotApi.class);
     private final Authenticator auth;
+    private final SnapshotRepository repository;
 
     @Inject
     public SnapshotApi(ServerConfig serverConfig, SnapshotRepository repository) {
