@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 
+import java.util.HashSet;
 import java.util.Set;
 
 public interface SnapshotEntryStatus {
@@ -18,7 +19,7 @@ public interface SnapshotEntryStatus {
             this.empty = empty;
             this.status = status;
             this.entry = entry;
-            this.deps = deps;
+            this.deps = new HashSet<>(deps);
         }
 
         public boolean empty() {
