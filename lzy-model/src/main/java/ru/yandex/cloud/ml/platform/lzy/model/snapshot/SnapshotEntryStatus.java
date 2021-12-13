@@ -48,6 +48,7 @@ public interface SnapshotEntryStatus {
         }
     }
 
+    // CREATED --> created but not assigned to storage and slots
     // IN_PROGRESS --> started saving data
     // FINISHED --> finished saving data
     enum State {

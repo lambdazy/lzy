@@ -75,13 +75,12 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         final WhiteboardStatus whiteboardStatus = whiteboardRepository.resolveWhiteboard(URI.create(request.getWhiteboardId()));
         if (whiteboardStatus == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Cannot found whiteboard " + request.getWhiteboardId()).asException());
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find whiteboard " + request.getWhiteboardId()).asException());
             return;
         }
-        final SnapshotEntry snapshotEntry = snapshotRepository.resolveEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId());
+        SnapshotEntry snapshotEntry = snapshotRepository.resolveEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId());
         if (snapshotEntry == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Cannot found snapshot entry " + request.getEntryId()).asException());
-            return;
+            snapshotEntry = snapshotRepository.createEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId());
         }
         whiteboardRepository.add(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry, whiteboardStatus.whiteboard()));
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus

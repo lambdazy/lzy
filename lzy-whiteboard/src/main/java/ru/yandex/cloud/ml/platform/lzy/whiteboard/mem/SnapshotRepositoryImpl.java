@@ -132,6 +132,9 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                 if (!snapshotEntryModel.isEmpty()){
                     throw Status.INVALID_ARGUMENT.withDescription("Preparing non-empty entry").asRuntimeException();
                 }
+                if (!snapshotEntryModel.getEntryState().equals(SnapshotEntryStatus.State.CREATED)){
+                    throw Status.INVALID_ARGUMENT.withDescription("Preparing already prepared entry").asRuntimeException();
+                }
                 snapshotEntryModel.setStorageUri(storageUri);
                 snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.IN_PROGRESS);
                 snapshotEntryModel.setEmpty(true);
@@ -158,19 +161,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
                     new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
             if (snapshotEntryModel == null) {
-                Transaction tx = session.beginTransaction();
-                try {
-                    snapshotEntryModel = new SnapshotEntryModel();
-                    snapshotEntryModel.setSnapshotId(snapshotId);
-                    snapshotEntryModel.setEntryId(id);
-                    snapshotEntryModel.setEmpty(true);
-                    session.save(snapshotEntryModel);
-                }
-                catch (Exception e){
-                    tx.rollback();
-                    throw e;
-                }
-                tx.commit();
+                return null;
             }
             return new SnapshotEntry.Impl(id, snapshot);
         }
@@ -204,6 +195,29 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                 tx.rollback();
                 throw new RuntimeException(e);
             }
+        }
+    }
+
+    @Override
+    public SnapshotEntry createEntry(Snapshot snapshot, String id) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+
+                SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
+                        new SnapshotEntryModel.SnapshotEntryPk(snapshot.id().toString(), id));
+                if (snapshotEntryModel != null) {
+                    throw Status.ALREADY_EXISTS.withDescription("Creating existing entry").asRuntimeException();
+                }
+                snapshotEntryModel = new SnapshotEntryModel(snapshot.id().toString(), id, null, true, SnapshotEntryStatus.State.CREATED);
+                session.save(snapshotEntryModel);
+                tx.commit();
+            }
+            catch (Exception e){
+                tx.rollback();
+                throw e;
+            }
+            return new SnapshotEntry.Impl(id, snapshot);
         }
     }
 }
