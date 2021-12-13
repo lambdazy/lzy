@@ -5,21 +5,49 @@ on:
     - cron:  '0 12,20 * * *' # run at 12:00 and 20:00 everyday
 
 jobs:
-  # TODO: find out when it gonna run. Probably it should be run in dev branch first
-  run-tests:
-    uses: lambda-zy/lzy/.github/workflows/pull-request-workflow.yaml@master
-
   nightly-merge:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
+      - run: git checkout dev
+      - run: git rev-parse --abbrev-ref HEAD
 
-      - name: Nightly Merge
-        uses: robotology/gh-action-nightly-merge@v1.3.1
-        with:
-          stable_branch: 'dev' # yea, dev is called stable here, because the action
-          development_branch: 'master' # merges stable branch into development, not the other way
-          allow_ff: true # fast-forward when possible, actually should be possible all the time
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #### <- TODO: replace with call or even action in future: .github/workflows/reusable/pull-request-workflow.yaml
+#      - uses: actions/setup-java@v2
+#        with:
+#          distribution: 'adopt'
+#          java-version: '11'
+#
+#      - uses: actions/setup-python@v2
+#        with:
+#          python-version: '3.8'
+#
+#      - name: 'build-base-image'
+#        timeout-minutes: 10
+#        id: docker_build
+#        uses: docker/build-push-action@v2
+#        with:
+#          push: false
+#          context: ./
+#          file: ./lzy-servant/BaseDockerfile
+#          tags: celdwind/lzy:lzy-servant-base
+#
+#      - name: 'java-test'
+#        timeout-minutes: 45
+#        run: mvn clean install
+#
+#      - name: 'install lzy-python'
+#        run: cd lzy-python/ && pip install -r requirements.txt && pip install .
+#
+#      - name: 'python-test'
+#        timeout-minutes: 5
+#        run: cd lzy-python/ && python -m unittest discover tests/
+      #### <- TODO: replace with call or even action in future: .github/workflows/reusable/pull-request-workflow.yaml
+
+      - name: Merge
+        run: |
+          git checkout master
+          git merge --ff-only dev
+          git push origin master

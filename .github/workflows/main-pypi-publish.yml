@@ -5,15 +5,72 @@ on:
     branches:
       - 'master'
     paths:
-      - 'lzy-python/version' # TODO: replace with tag change?
-jobs:
-  acceptance-tests:
-    uses: lambda-zy/lzy/.github/workflows/acceptance-tests.yml@master
-    secrets:
-      TESTS_PRIVATE_SSH_KEY: ${{ secrets.TESTS_PRIVATE_SSH_KEY }}
+      - './lzy-python/version' # TODO: replace with tag change?
 
+jobs:
+  #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
+  acceptance-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: '11'
+
+      - name: 'build-base-image'
+        timeout-minutes: 10
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          push: false
+          context: ./
+          file: ./lzy-servant/BaseDockerfile
+          tags: celdwind/lzy:lzy-servant-base
+
+      - name: 'Copy secret key'
+        env:
+          PRIVATE_KEY: ${{ secrets.TESTS_PRIVATE_SSH_KEY }}
+        run: touch /tmp/test-private.pem && echo "$PRIVATE_KEY" > /tmp/test-private.pem
+
+      - name: 'AC test'
+        timeout-minutes: 45
+        run: mvn install -Dlzy.kharon.domain=kharon-lzy-prod.northeurope.cloudapp.azure.com -Dtest=KuberRunTest -DfailIfNoTests=false
+  #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
+
+
+  #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml
   build-and-publish:
-    needs: acceptance-tests
-    uses: lambda-zy/lzy/.github/workflows/build-pypi-publish.yml@master
-    secrets:
-      PYPI_API_TOKEN: ${{ secrets.PYPI_API_RELEASE_TOKEN }}
+    needs: acceptance-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install wheel
+
+      - name: Build package
+        run: |
+          cd lzy-python/
+          pip install -r requirements.txt
+          python setup.py sdist bdist_wheel
+          cd ..
+
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+          packages_dir: ./lzy-python/dist
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
+  #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml

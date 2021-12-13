@@ -19,11 +19,15 @@ jobs:
         with:
           python-version: '3.8'
 
-      - uses: docker-practice/actions-setup-docker@master
-
       - name: 'build-base-image'
         timeout-minutes: 10
-        run: docker build -t celdwind/lzy:lzy-servant-base -f lzy-servant/BaseDockerfile .
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          push: false
+          context: ./
+          file: ./lzy-servant/BaseDockerfile
+          tags: celdwind/lzy:lzy-servant-base
 
       - name: 'java-test'
         timeout-minutes: 45

@@ -3,7 +3,7 @@ name: Lint python
 on:
   pull_request:
     paths:
-      - 'lzy-python/lzy/*'
+      - 'lzy-python/lzy/**'
 
 jobs:
   mypy:
