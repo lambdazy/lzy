@@ -96,8 +96,8 @@ public class LzyServant extends LzyAgent {
             UserEventLogger.log(new UserEvent(
                 "Servant execution preparing",
                 Map.of(
-                    "tid", request.getAuth().getTask().getTaskId(),
-                    "zygoteDescription", zygote.description()
+                    "task_id", request.getAuth().getTask().getTaskId(),
+                    "zygote_description", zygote.description()
                 ),
                 UserEvent.UserEventType.ExecutionPreparing
             ));
@@ -121,7 +121,7 @@ public class LzyServant extends LzyAgent {
                         Map.of(
                             "task_id", request.getAuth().getTask().getTaskId(),
                             "zygote_description", zygote.description(),
-                            "exitCode", String.valueOf(progress.getExit().getRc())
+                            "exit_code", String.valueOf(progress.getExit().getRc())
                         ),
                         UserEvent.UserEventType.ExecutionComplete
                     ));
@@ -138,7 +138,7 @@ public class LzyServant extends LzyAgent {
                         Map.of(
                             "task_id", taskId,
                             "address", agentAddress.toString(),
-                            "exitCode", String.valueOf(1)
+                            "exit_code", String.valueOf(1)
                         ),
                         UserEvent.UserEventType.TaskStop
                     ));
@@ -220,7 +220,7 @@ public class LzyServant extends LzyAgent {
                     Map.of(
                         "task_id", taskId,
                         "address", agentAddress.toString(),
-                        "exitCode", String.valueOf(1)
+                        "exit_code", String.valueOf(1)
                     ),
                     UserEvent.UserEventType.TaskStop
             ));
