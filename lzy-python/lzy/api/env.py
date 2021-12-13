@@ -219,7 +219,4 @@ class LzyEnv(LzyEnvBase):
                 field.storage_uri, field_types[field.field_name]) for field in
             wb.fields
         }
-        instance = typ()
-        instance.__dict__.update(whiteboard_dict)
-        return instance
-
+        return typ(**whiteboard_dict)

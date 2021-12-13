@@ -4,7 +4,8 @@ from lzy.api.whiteboard.api import WhiteboardApi
 import dataclasses
 
 
-def wrap_whiteboard(instance: Any, whiteboard_api: WhiteboardApi, whiteboard_id_getter: Callable[[], Optional[str]]):
+def wrap_whiteboard(instance: Any, whiteboard_api: WhiteboardApi,
+                    whiteboard_id_getter: Callable[[], Optional[str]]):
 
     from lzy.api import is_lazy_proxy
 
@@ -27,4 +28,4 @@ def wrap_whiteboard(instance: Any, whiteboard_api: WhiteboardApi, whiteboard_id_
             raise RuntimeError("Cannot get entry_id from op")
         object.__setattr__(self, key, value)
 
-    type(instance).__setattr__ = types.MethodType(__setattr__, instance)
+    type(instance).__setattr__ = __setattr__
