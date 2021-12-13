@@ -117,7 +117,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     }
 
     @Override
-    public void prepare(SnapshotEntry entry, List<String> dependentEntryIds) {
+    public void prepare(SnapshotEntry entry, String storageUri, List<String> dependentEntryIds) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = entry.snapshot().id().toString();
@@ -128,7 +128,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                 throw new RuntimeException(Status.INVALID_ARGUMENT.asException());
             }
             snapshotEntryModel = new SnapshotEntryModel(snapshotId, entryId,
-                    entry.storage().toString(), true, SnapshotEntryStatus.State.IN_PROGRESS);
+                    storageUri, true, SnapshotEntryStatus.State.IN_PROGRESS);
             List<EntryDependenciesModel> depModelList = new ArrayList<>();
             dependentEntryIds.forEach(id -> depModelList.add(new EntryDependenciesModel(snapshotId, id, entryId)));
             try {
@@ -152,7 +152,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             if (snapshotEntryModel == null) {
                 throw new RuntimeException(Status.NOT_FOUND.asException());
             }
-            return new SnapshotEntry.Impl(id, URI.create(snapshotEntryModel.getStorageUri()), snapshot);
+            return new SnapshotEntry.Impl(id, snapshot);
         }
     }
 
@@ -160,17 +160,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     @Override
     public SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id) {
         try (Session session = storage.getSessionFactory().openSession()) {
-            String snapshotId = snapshot.id().toString();
-            SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
-                    new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
-            if (snapshotEntryModel == null) {
-                throw new RuntimeException(Status.NOT_FOUND.asException());
-            }
-
-            List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
-            SnapshotEntry entry = new SnapshotEntry.Impl(id, URI.create(snapshotEntryModel.getStorageUri()), snapshot);
-            return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(),snapshotEntryModel.getEntryState(),entry,
-                    Set.copyOf(dependentEntryIds));
+            return SessionHelper.resolveEntryStatus(snapshot, id, session);
         }
     }
 

@@ -157,16 +157,14 @@ public class SnapshotRepositoryImplTest {
                     false, FINISHED));
             tx.commit();
         }
-        SnapshotEntry snapshotEntry = new SnapshotEntry.Impl(entryIdFirst, URI.create(storageUri),
-                new Snapshot.Impl(URI.create(snapshotId)));
-        Assert.assertThrows(RuntimeException.class, () -> impl.prepare(snapshotEntry, Collections.emptyList()));
+        SnapshotEntry snapshotEntry = new SnapshotEntry.Impl(entryIdFirst, new Snapshot.Impl(URI.create(snapshotId)));
+        Assert.assertThrows(RuntimeException.class, () -> impl.prepare(snapshotEntry, storageUri, Collections.emptyList()));
     }
 
     @Test
     public void testPrepareEntry() {
-        SnapshotEntry snapshotEntry = new SnapshotEntry.Impl(entryIdFirst, URI.create(storageUri),
-                new Snapshot.Impl(URI.create(snapshotId)));
-        impl.prepare(snapshotEntry, List.of(entryIdSecond, entryIdThird));
+        SnapshotEntry snapshotEntry = new SnapshotEntry.Impl(entryIdFirst, new Snapshot.Impl(URI.create(snapshotId)));
+        impl.prepare(snapshotEntry, storageUri, List.of(entryIdSecond, entryIdThird));
         SnapshotEntryModel snapshotEntryModel;
         EntryDependenciesModel entryDependenciesFirst;
         EntryDependenciesModel entryDependenciesSecond;
@@ -214,15 +212,14 @@ public class SnapshotRepositoryImplTest {
         Assert.assertNotNull(snapshotEntryStatus);
         Assert.assertEquals(snapshotId, snapshotEntryStatus.entry().snapshot().id().toString());
         Assert.assertEquals(entryIdFirst, snapshotEntryStatus.entry().id());
-        Assert.assertEquals(storageUri, snapshotEntryStatus.entry().storage().toString());
+        Assert.assertEquals(storageUri, snapshotEntryStatus.storage().toString());
         Assert.assertTrue(snapshotEntryStatus.dependentEntryIds().contains(entryIdSecond)
                 && snapshotEntryStatus.dependentEntryIds().contains(entryIdThird));
     }
 
     @Test
     public void testCommitNotFound() {
-        Assert.assertThrows(RuntimeException.class, () -> impl.commit(
-                new SnapshotEntry.Impl(UUID.randomUUID().toString(), URI.create(UUID.randomUUID().toString()),
+        Assert.assertThrows(RuntimeException.class, () -> impl.commit(new SnapshotEntry.Impl(UUID.randomUUID().toString(),
                 new Snapshot.Impl(URI.create(UUID.randomUUID().toString()))), true)
         );
     }
@@ -235,8 +232,7 @@ public class SnapshotRepositoryImplTest {
                     true, SnapshotEntryStatus.State.IN_PROGRESS));
             tx.commit();
         }
-        impl.commit(new SnapshotEntry.Impl(entryIdFirst, URI.create(storageUri),
-                new Snapshot.Impl(URI.create(snapshotId))), false);
+        impl.commit(new SnapshotEntry.Impl(entryIdFirst, new Snapshot.Impl(URI.create(snapshotId))), false);
         SnapshotEntryModel snapshotEntryModel;
         try (Session session = storage.getSessionFactory().openSession()) {
             snapshotEntryModel = session.find(SnapshotEntryModel.class,

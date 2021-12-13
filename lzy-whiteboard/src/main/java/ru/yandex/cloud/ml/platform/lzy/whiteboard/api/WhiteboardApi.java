@@ -42,7 +42,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     @Override
     public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request, StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)){
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
@@ -99,8 +99,21 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(whiteboardStatus.whiteboard())
                 .filter(field -> field.entry() != null)
-                .map(field -> gRPCConverter.to(
-                        field, whiteboardRepository.dependent(field).collect(Collectors.toList()), whiteboardRepository.empty(field)))
+                .map(field -> {
+                        SnapshotEntryStatus entryStatus = whiteboardRepository.resolveEntryStatus(
+                            field.entry().snapshot(), field.entry().id()
+                        );
+                        if (entryStatus == null) {
+                            return null;
+                        }
+                        return gRPCConverter.to(
+                            field,
+                            whiteboardRepository.dependent(field).collect(Collectors.toList()),
+                            entryStatus.empty(),
+                            entryStatus.storage().toString()
+                        );
+                    }
+                )
                 .collect(Collectors.toList());
         final LzyWhiteboard.Whiteboard result = LzyWhiteboard.Whiteboard
                 .newBuilder()

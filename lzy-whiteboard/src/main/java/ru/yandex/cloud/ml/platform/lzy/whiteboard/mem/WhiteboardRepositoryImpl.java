@@ -14,6 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
 import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -92,7 +93,7 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
     @Override
     public Stream<WhiteboardField> fields(Whiteboard whiteboard) {
         try (Session session = storage.getSessionFactory().openSession()) {
-            Snapshot snapshot = SessionHelper.getSnapshot(whiteboard.id().toString(), session);
+            Snapshot snapshot = SessionHelper.getSnapshot(whiteboard.snapshot().id().toString(), session);
             List<WhiteboardFieldModel> wbFieldModelList = SessionHelper.getWhiteboardFields(whiteboard.id().toString(), session);
             List<WhiteboardField> result = wbFieldModelList.stream()
                     .map(w -> SessionHelper.getWhiteboardField(w, whiteboard, snapshot, session))
@@ -101,19 +102,11 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
         }
     }
 
+    @Nullable
     @Override
-    public boolean empty(WhiteboardField field) {
+    public SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id) {
         try (Session session = storage.getSessionFactory().openSession()) {
-            WhiteboardFieldModel wbModel = session.find(WhiteboardFieldModel.class,
-                    new WhiteboardFieldModel.WhiteboardFieldPk(field.whiteboard().id().toString(), field.name()));
-            if (wbModel == null) {
-                throw new RuntimeException(Status.NOT_FOUND.asException());
-            }
-            SnapshotEntryModel entryModel = SessionHelper.resolveSnapshotEntry(wbModel, session);
-            if (entryModel == null) {
-                throw new RuntimeException(Status.NOT_FOUND.asException());
-            }
-            return entryModel.isEmpty();
+            return SessionHelper.resolveEntryStatus(snapshot, id, session);
         }
     }
 }
