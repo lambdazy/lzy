@@ -7,17 +7,13 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 
 public class EmptyController implements ChannelController {
     @Override
-    public void executeBind(
-        ChannelGraph channelGraph, Endpoint slot
-    ) throws ChannelException {
-        throw new ChannelException("Destroyed channel");
+    public void executeBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException {
+        throw new ChannelException("Destroyed channel for slot: " + slot.uri());
     }
 
     @Override
-    public void executeUnBind(
-        ChannelGraph channelGraph, Endpoint slot
-    ) throws ChannelException {
-        throw new ChannelException("Destroyed channel");
+    public void executeUnBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException {
+        throw new ChannelException("Destroyed channel for slot: " + slot.uri());
     }
 
     @Override

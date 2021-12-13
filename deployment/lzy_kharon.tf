@@ -39,6 +39,9 @@ resource "kubernetes_pod" "lzy_kharon" {
         "8900"
       ]
     }
+    node_selector = {
+      type = "lzy"
+    }
     affinity {
       pod_anti_affinity {
         required_during_scheduling_ignored_during_execution {
@@ -58,8 +61,8 @@ resource "kubernetes_pod" "lzy_kharon" {
         }
       }
     }
-    host_network = true
-    dns_policy   = "ClusterFirstWithHostNet"
+    host_network  = true
+    dns_policy    = "ClusterFirstWithHostNet"
   }
 
   depends_on = [

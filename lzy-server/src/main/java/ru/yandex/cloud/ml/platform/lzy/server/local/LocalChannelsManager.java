@@ -15,6 +15,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.DirectChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.EmptyController;
+import ru.yandex.cloud.ml.platform.lzy.server.task.InMemTasksManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 
@@ -74,7 +75,7 @@ public class LocalChannelsManager implements ChannelsManager {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
+            final ChannelEx channel = channels.get(ch.name());
             if (channel == null) {
                 throw new ChannelException("Channel " + ch.name() + " is not registered");
             }
@@ -110,7 +111,7 @@ public class LocalChannelsManager implements ChannelsManager {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
+            final ChannelEx channel = channels.get(ch.name());
             if (channel != null) {
                 channel.unbind(endpoint);
             } else {
@@ -154,18 +155,24 @@ public class LocalChannelsManager implements ChannelsManager {
     @Override
     public void unbindAll(UUID sessionId) {
         LOG.info("LocalChannelsRepository::unbindAll sessionId=" + sessionId);
-        for (ChannelEx channel: channels.values()) {
-            final Set<Endpoint> servantEndpoints = channel
-                .bound()
-                .filter(endpoint -> endpoint.sessionId().equals(sessionId))
-                .collect(Collectors.toSet());
+        for (ChannelEx channel : channels.values()) {
+            final Lock lock = lockManager.getOrCreate(channel.name());
+            lock.lock();
+            try {
+                final Set<Endpoint> servantEndpoints = channel
+                        .bound()
+                        .filter(endpoint -> endpoint.sessionId().equals(sessionId))
+                        .collect(Collectors.toSet());
 
-            for (Endpoint endpoint: servantEndpoints) {
-                try {
-                    channel.unbind(endpoint);
-                } catch (ChannelException e) {
-                    LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);
+                for (Endpoint endpoint : servantEndpoints) {
+                    try {
+                        channel.unbind(endpoint);
+                    } catch (ChannelException e) {
+                        LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);
+                    }
                 }
+            } finally {
+                lock.unlock();
             }
         }
     }
@@ -175,7 +182,7 @@ public class LocalChannelsManager implements ChannelsManager {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = ch instanceof ChannelEx ? (ChannelEx) ch : channels.get(ch.name());
+            final ChannelEx channel = channels.get(ch.name());
             if (channel == null) {
                 return new SlotStatus[0];
             }

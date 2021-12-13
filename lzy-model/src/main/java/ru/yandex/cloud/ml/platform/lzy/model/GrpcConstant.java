@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.model.grpc;
+package ru.yandex.cloud.ml.platform.lzy.model;
 
 import io.grpc.Context;
 import io.grpc.Metadata;

@@ -214,7 +214,7 @@ public class LzyKharon {
 
         @Override
         public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
-                                   StreamObserver<LzyWhiteboard.SnapshotId> responseObserver) {
+                                   StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
             responseObserver.onNext(snapshot.createSnapshot(request));
             responseObserver.onCompleted();
         }
@@ -228,15 +228,15 @@ public class LzyKharon {
 
         @Override
         public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
-                                     StreamObserver<LzyWhiteboard.WhiteboardId> responseObserver) {
+                                     StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
             responseObserver.onNext(whiteboard.createWhiteboard(request));
             responseObserver.onCompleted();
         }
 
         @Override
-        public void addLink(LzyWhiteboard.AddLinkCommand request,
+        public void addLink(LzyWhiteboard.LinkCommand request,
                             StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            responseObserver.onNext(whiteboard.addLink(request));
+            responseObserver.onNext(whiteboard.link(request));
             responseObserver.onCompleted();
         }
 

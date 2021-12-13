@@ -28,9 +28,9 @@ public class Snapshot implements LzyCommand {
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
             case "create": {
-                final LzyWhiteboard.SnapshotId snapshotId = server.createSnapshot(LzyWhiteboard.CreateSnapshotCommand
+                final LzyWhiteboard.Snapshot snapshotId = server.createSnapshot(LzyWhiteboard.CreateSnapshotCommand
                         .newBuilder()
-                        .setUserCredentials(auth.getUser())
+                        .setAuth(auth)
                         .build()
                 );
                 System.out.println(JsonFormat.printer().print(snapshotId));
@@ -40,7 +40,7 @@ public class Snapshot implements LzyCommand {
                 final LzyWhiteboard.OperationStatus operationStatus = server.finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand
                         .newBuilder()
                         .setSnapshotId(command.getArgs()[2])
-                        .setAuth(auth.getUser())
+                        .setAuth(auth)
                         .build()
                 );
                 System.out.println(JsonFormat.printer().print(operationStatus));

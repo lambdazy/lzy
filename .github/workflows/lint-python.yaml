@@ -2,7 +2,7 @@ name: Lint python
 
 on:
   pull_request:
-    pathes:
+    paths:
       - 'lzy-python/lzy/*'
 
 jobs:

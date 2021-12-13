@@ -134,6 +134,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
             @Override
             public void close() throws IOException {
+                LOG.info("Closing file {} for slot {}", storage.toString(), name());
                 InFileSlot.this.suspend();
                 channel.close();
             }

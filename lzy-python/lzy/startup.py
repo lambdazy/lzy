@@ -47,6 +47,8 @@ def main():
     print(f'Writing result to file {result_path}')
     with open(result_path, 'wb') as out_handle:
         cloudpickle.dump(result, out_handle)
+        out_handle.flush()
+        os.fsync(out_handle.fileno())
 
 
 if __name__ == "__main__":

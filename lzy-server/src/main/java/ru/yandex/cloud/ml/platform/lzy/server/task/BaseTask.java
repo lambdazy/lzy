@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.local;
+package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -6,10 +6,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
-import ru.yandex.cloud.ml.platform.lzy.server.task.PreparingSlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
-import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -40,7 +38,7 @@ public abstract class BaseTask implements Task {
     private URI servantURI;
     private LzyServantBlockingStub servant;
 
-    BaseTask(
+    public BaseTask(
         String owner,
         UUID tid,
         Zygote workload,
@@ -126,7 +124,7 @@ public abstract class BaseTask implements Task {
         LOG.info("Server is attached to servant {}", servantURI);
         try {
             progressIt.forEachRemaining(progress -> {
-                LOG.info("LocalTask::Progress " + JsonUtils.printRequest(progress));
+                LOG.info("BaseTask::Progress " + JsonUtils.printRequest(progress));
                 this.progress(progress);
                 switch (progress.getStatusCase()) {
                     case STARTED:

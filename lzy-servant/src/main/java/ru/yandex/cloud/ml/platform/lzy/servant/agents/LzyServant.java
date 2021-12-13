@@ -14,7 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -91,7 +91,7 @@ public class LzyServant extends LzyAgent {
             final String tid = request.getAuth().getTask().getTaskId();
             final SnapshotMeta meta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : SnapshotMeta.empty();
             final AtomicZygote zygote = (AtomicZygote) gRPCConverter.from(request.getZygote());
-            final Snapshotter snapshotter = new SnapshotterImpl(tid, zygote, snapshot, meta);
+            final Snapshotter snapshotter = new SnapshotterImpl(auth.getTask(), zygote, snapshot, meta);
 
             UserEventLogger.log(new UserEvent(
                 "Servant execution preparing",
@@ -101,7 +101,6 @@ public class LzyServant extends LzyAgent {
                 ),
                 UserEvent.UserEventType.ExecutionPreparing
             ));
-
             currentExecution = new LzyExecution(tid, zygote, agentInternalAddress, snapshotter);
             currentExecution.onProgress(progress -> {
                 LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));

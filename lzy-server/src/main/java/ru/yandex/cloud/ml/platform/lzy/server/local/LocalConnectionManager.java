@@ -5,7 +5,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
 import io.grpc.stub.MetadataUtils;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcConstant;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConstant;
 import ru.yandex.cloud.ml.platform.lzy.server.ConnectionManager;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 

@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.local;
+package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -12,8 +12,9 @@ import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
@@ -124,7 +125,7 @@ public class InMemTasksManager implements TasksManager {
             }
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
             if (task.servant() != null) {
-                LOG.info("LocalTaskManager::unbindAll");
+                LOG.info("InMemTaskManager::unbindAll");
                 channels.unbindAll(task.tid());
             }
             taskChannels.remove(task);

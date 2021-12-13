@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.local;
+package ru.yandex.cloud.ml.platform.lzy.server.local.task;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.qe.s3.util.Environment;
 
 import java.net.URI;
@@ -21,7 +21,7 @@ import java.util.UUID;
 public class LocalDockerTask extends LocalTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(LocalDockerTask.class);
 
-    LocalDockerTask(
+    public LocalDockerTask(
         String owner,
         UUID tid,
         Zygote workload,

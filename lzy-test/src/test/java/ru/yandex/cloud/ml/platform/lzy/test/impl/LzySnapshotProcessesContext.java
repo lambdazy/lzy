@@ -6,8 +6,6 @@ import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.lang3.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.LzySnapshot;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotApi;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardApi;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
@@ -24,6 +22,11 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
     private ManagedChannel channel;
     protected WbApiGrpc.WbApiBlockingStub lzyWhiteboardClient;
     protected SnapshotApiGrpc.SnapshotApiBlockingStub lzySnapshotClient;
+    private final String serverAddress;
+
+    public LzySnapshotProcessesContext(String serverAddress) {
+        this.serverAddress = serverAddress;
+    }
 
     @Override
     public String address(boolean fromDocker) {
@@ -55,10 +58,13 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
                         LzySnapshot.class.getCanonicalName(),
                         new String[]{
                                 "--port",
-                                String.valueOf(SNAPSHOT_PORT)
+                                String.valueOf(SNAPSHOT_PORT),
+                                "--lzy-server-address",
+                                serverAddress
                         },
                         new String[]{
                                 "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
+                                "-Dsnapshot.uri=http://localhost:8999"
                         }
                 ).inheritIO().start();
             } catch (IOException e) {

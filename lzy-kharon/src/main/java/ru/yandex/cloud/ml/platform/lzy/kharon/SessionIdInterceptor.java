@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 import io.grpc.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcConstant;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConstant;
 
 public class SessionIdInterceptor implements ServerInterceptor {
     private static final Logger LOG = LogManager.getLogger(SessionIdInterceptor.class);

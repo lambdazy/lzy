@@ -5,11 +5,18 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import javax.annotation.Nullable;
 import java.net.URI;
+import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -104,6 +111,39 @@ public abstract class gRPCConverter {
         return builder.build();
     }
 
+    public static LzyWhiteboard.Snapshot to(Snapshot snapshot) {
+        return LzyWhiteboard.Snapshot.newBuilder().setSnapshotId(snapshot.id().toString()).build();
+    }
+
+    public static LzyWhiteboard.WhiteboardField to(
+            WhiteboardField field, List<WhiteboardField> dependent, boolean empty, String storage) {
+        return LzyWhiteboard.WhiteboardField.newBuilder()
+                .setFieldName(field.name())
+                .setStorageUri(storage)
+                .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()))
+                .setEmpty(empty)
+                .build();
+    }
+
+    public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
+        return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
+    }
+
+    public static LzyWhiteboard.Whiteboard.WhiteboardStatus to(WhiteboardStatus.State state) {
+        switch (state) {
+            case CREATED:
+                return LzyWhiteboard.Whiteboard.WhiteboardStatus.CREATED;
+            case COMPLETED:
+                return LzyWhiteboard.Whiteboard.WhiteboardStatus.COMPLETED;
+            case NOT_COMPLETED:
+                return LzyWhiteboard.Whiteboard.WhiteboardStatus.NOT_COMPLETED;
+            case ERRORED:
+                return LzyWhiteboard.Whiteboard.WhiteboardStatus.ERRORED;
+            default:
+                throw new IllegalArgumentException("Unknown state: " + state);
+        }
+    }
+
     private static class AtomicZygoteAdapter implements AtomicZygote {
         private final Operations.Zygote operation;
 
@@ -112,7 +152,8 @@ public abstract class gRPCConverter {
         }
 
         @Override
-        public void run() {}
+        public void run() {
+        }
 
         @Override
         public Slot[] input() {
@@ -151,7 +192,7 @@ public abstract class gRPCConverter {
         }
 
         @Override
-        public String description(){
+        public String description() {
             return operation.getDescription();
         }
     }
@@ -192,14 +233,16 @@ public abstract class gRPCConverter {
 
         @Override
         public boolean equals(Object obj) {
-            return obj instanceof Slot && ((Slot)obj).name().equals(s.getName());
+            return obj instanceof Slot && ((Slot) obj).name().equals(s.getName());
         }
     }
 
     private static class SlotStatusAdapter implements SlotStatus {
         private final Operations.SlotStatus slotStatus;
 
-        SlotStatusAdapter(Operations.SlotStatus slotStatus) {this.slotStatus = slotStatus;}
+        SlotStatusAdapter(Operations.SlotStatus slotStatus) {
+            this.slotStatus = slotStatus;
+        }
 
         @Nullable
         @Override

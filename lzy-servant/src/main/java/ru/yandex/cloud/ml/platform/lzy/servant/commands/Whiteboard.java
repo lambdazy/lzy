@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -9,18 +8,18 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
-import java.io.File;
 import java.net.URI;
-import java.util.*;
+import java.util.Base64;
+import java.util.List;
 
 public class Whiteboard implements LzyCommand {
     private static final Options options = new Options();
 
     static {
-        options.addOption(new Option("m", "mapping", true, "Field name <-> entryId mapping"));
+        options.addOption(new Option("e", "entry", true, "Entry ID for mapping"));
+        options.addOption(new Option("f", "field", true, "Whiteboard field for mapping"));
+        options.addOption(new Option("l", "fields list", true, "Whiteboard fields comma-separated list"));
     }
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public int execute(CommandLine command) throws Exception {
@@ -46,39 +45,32 @@ public class Whiteboard implements LzyCommand {
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
             case "create": {
-                final LzyWhiteboard.WhiteboardId whiteboardId = server.createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
+                if (!localCmd.hasOption('l')) {
+                    throw new IllegalArgumentException("Whiteboard fields list must be specified");
+                }
+                final List<String> fields = List.of(localCmd.getOptionValue('l').split(","));
+                final LzyWhiteboard.Whiteboard whiteboardId = server.createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
                         .newBuilder()
                         .setSnapshotId(command.getArgs()[2])
-                        .setUserCredentials(auth.getUser())
+                        .addAllFieldNames(fields)
+                        .setAuth(auth)
                         .build()
                 );
                 System.out.println(JsonFormat.printer().print(whiteboardId));
                 break;
             }
             case "link": {
-                final Map<String, String> mapping = new HashMap<>();
-                if (localCmd.hasOption('m')) {
-                    final String mappingFile = localCmd.getOptionValue('m');
-                    //noinspection unchecked
-                    mapping.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
+                if (!localCmd.hasOption('e') || !localCmd.hasOption('f')) {
+                    throw new IllegalArgumentException("Add link command requires entry ID and whiteboard field");
                 }
-                if (!localCmd.hasOption('m') || mapping.isEmpty()) {
-                    throw new IllegalArgumentException("Add link command requires -m argument that points to non-empty mappings");
-                }
-                final List<LzyWhiteboard.FieldMapping> fmList = new ArrayList<>();
-                for (var entry : mapping.entrySet()) {
-                    fmList.add(LzyWhiteboard.FieldMapping
-                            .newBuilder()
-                            .setFieldName(entry.getKey())
-                            .setEntryId(entry.getValue())
-                            .build()
-                    );
-                }
-                final LzyWhiteboard.OperationStatus operationStatus = server.addLink(LzyWhiteboard.AddLinkCommand
+                final String entryId = localCmd.getOptionValue('e');
+                final String wbField = localCmd.getOptionValue('f');
+                final LzyWhiteboard.OperationStatus operationStatus = server.addLink(LzyWhiteboard.LinkCommand
                         .newBuilder()
-                        .setWbId(command.getArgs()[2])
-                        .setAuth(auth.getUser())
-                        .addAllMappings(fmList)
+                        .setWhiteboardId(command.getArgs()[2])
+                        .setAuth(auth)
+                        .setEntryId(entryId)
+                        .setFieldName(wbField)
                         .build()
                 );
                 System.out.println(JsonFormat.printer().print(operationStatus));
@@ -87,8 +79,8 @@ public class Whiteboard implements LzyCommand {
             case "get": {
                 final LzyWhiteboard.Whiteboard whiteboard = server.getWhiteboard(LzyWhiteboard.GetWhiteboardCommand
                         .newBuilder()
-                        .setWbId(command.getArgs()[2])
-                        .setAuth(auth.getUser())
+                        .setWhiteboardId(command.getArgs()[2])
+                        .setAuth(auth)
                         .build()
                 );
                 System.out.println(JsonFormat.printer().print(whiteboard));

@@ -1,0 +1,33 @@
+package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
+
+public interface WhiteboardStatus {
+    Whiteboard whiteboard();
+    State state();
+
+    enum State {
+        CREATED,
+        COMPLETED,
+        NOT_COMPLETED,
+        ERRORED
+    }
+
+    class Impl implements WhiteboardStatus {
+        private final Whiteboard whiteboard;
+        private final State state;
+
+        public Impl(Whiteboard whiteboard, State state) {
+            this.whiteboard = whiteboard;
+            this.state = state;
+        }
+
+        @Override
+        public Whiteboard whiteboard() {
+            return whiteboard;
+        }
+
+        @Override
+        public State state() {
+            return state;
+        }
+    }
+}
