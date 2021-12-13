@@ -7,20 +7,27 @@ import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.net.URI;
+import java.util.HashSet;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.SimpleAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
-
-import java.net.URI;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
 @Singleton
 @Requires(property = "server.uri")
@@ -106,7 +113,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(wb.whiteboard())
                 .filter(field -> field.entry() != null)
                 .map(field -> {
-                        SnapshotEntryStatus entryStatus = whiteboardRepository.resolveEntryStatus(
+                        SnapshotEntryStatus entryStatus = snapshotRepository.resolveEntryStatus(
                             field.entry().snapshot(), field.entry().id()
                         );
                         if (entryStatus == null) {

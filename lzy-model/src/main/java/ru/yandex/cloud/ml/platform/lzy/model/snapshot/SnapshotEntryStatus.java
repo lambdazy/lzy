@@ -51,6 +51,7 @@ public interface SnapshotEntryStatus {
     // IN_PROGRESS --> started saving data
     // FINISHED --> finished saving data
     enum State {
+        CREATED,
         IN_PROGRESS,
         FINISHED
     }

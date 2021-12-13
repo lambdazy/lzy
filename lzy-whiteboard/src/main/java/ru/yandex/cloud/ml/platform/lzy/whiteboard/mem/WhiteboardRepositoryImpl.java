@@ -4,19 +4,21 @@ import io.grpc.Status;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
-
-import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardModel;
 
 @Singleton
 @Requires(beans = DbStorage.class)
@@ -99,14 +101,6 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
                     .map(w -> SessionHelper.getWhiteboardField(w, whiteboard, snapshot, session))
                     .collect(Collectors.toList());
             return result.stream();
-        }
-    }
-
-    @Nullable
-    @Override
-    public SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id) {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            return SessionHelper.resolveEntryStatus(snapshot, id, session);
         }
     }
 }
