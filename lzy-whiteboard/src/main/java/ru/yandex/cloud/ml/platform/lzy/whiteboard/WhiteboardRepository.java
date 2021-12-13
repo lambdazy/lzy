@@ -14,6 +14,4 @@ public interface WhiteboardRepository {
     void add(WhiteboardField field);
     Stream<WhiteboardField> dependent(WhiteboardField field);
     Stream<WhiteboardField> fields(Whiteboard whiteboard);
-    @Nullable
-    SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id);
 }

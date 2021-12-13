@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
 import io.micronaut.context.annotation.Replaces;;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
@@ -10,6 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 
 @Singleton
 @Replaces(Storage.class)
+@Requires(env = "test")
 public class MockDbStorage implements DbStorage {
     private final SessionFactory sessionFactory;
 

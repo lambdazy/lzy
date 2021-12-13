@@ -40,6 +40,7 @@ public class SnapshotterImpl implements Snapshotter {
             if (slot.direction().equals(Slot.Direction.OUTPUT)) {
                 zygote.slots()
                         .filter(s -> s.direction().equals(Slot.Direction.INPUT))
+                        .filter(s -> meta.getEntryId(s.name()) != null)
                         .forEach(s -> entryBuilder.addDependentEntryIds(meta.getEntryId(s.name()))
                         );
             }

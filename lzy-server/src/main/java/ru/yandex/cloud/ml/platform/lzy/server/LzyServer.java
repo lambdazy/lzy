@@ -17,6 +17,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.qe.s3.util.Environment;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -334,6 +335,24 @@ public class LzyServer {
                 }
                 connectionManager.shutdownConnection(sessionId);
             });
+        }
+
+        @Override
+        public void getS3Credentials(Lzy.GetS3CredentialsRequest request, StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+            LOG.info("Server::getS3Credentials " + JsonUtils.printRequest(request));
+            final IAM.Auth auth = request.getAuth();
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                return;
+            }
+
+            responseObserver.onNext(
+                Lzy.GetS3CredentialsResponse.newBuilder()
+                .setAccessToken(Environment.getAccessKey())
+                .setSecretToken(Environment.getSecretKey())
+                .build()
+            );
+            responseObserver.onCompleted();
         }
 
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {

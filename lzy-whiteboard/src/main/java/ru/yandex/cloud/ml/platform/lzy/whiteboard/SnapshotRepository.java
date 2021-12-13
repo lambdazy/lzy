@@ -23,5 +23,6 @@ public interface SnapshotRepository {
     @Nullable
     SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id);
     void commit(SnapshotEntry entry, boolean empty);
+    SnapshotEntry createEntry(Snapshot snapshot, String id);
     // Stream<SnapshotEntry> entries(Snapshot snapshot);
 }

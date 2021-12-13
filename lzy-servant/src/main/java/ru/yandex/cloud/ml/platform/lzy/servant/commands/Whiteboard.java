@@ -9,7 +9,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 import java.net.URI;
-import java.util.Base64;
+import java.util.*;
 import java.util.List;
 
 public class Whiteboard implements LzyCommand {

@@ -246,6 +246,13 @@ public class LzyKharon {
             responseObserver.onNext(whiteboard.getWhiteboard(request));
             responseObserver.onCompleted();
         }
+
+        @Override
+        public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
+                                  StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+            responseObserver.onNext(server.getS3Credentials(request));
+            responseObserver.onCompleted();
+        }
     }
 
     private class KharonServantProxyService extends LzyServantGrpc.LzyServantImplBase {

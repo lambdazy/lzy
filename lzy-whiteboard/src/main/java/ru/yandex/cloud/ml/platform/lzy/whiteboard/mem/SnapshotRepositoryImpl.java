@@ -124,11 +124,22 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             String entryId = entry.id();
             SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
                     new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
-            if (snapshotEntryModel != null) {
-                throw new RuntimeException(Status.INVALID_ARGUMENT.asException());
+            if (snapshotEntryModel == null) {
+                snapshotEntryModel = new SnapshotEntryModel(snapshotId, entryId,
+                        storageUri, true, SnapshotEntryStatus.State.IN_PROGRESS);
             }
-            snapshotEntryModel = new SnapshotEntryModel(snapshotId, entryId,
-                    storageUri, true, SnapshotEntryStatus.State.IN_PROGRESS);
+            else {
+                if (!snapshotEntryModel.isEmpty()){
+                    throw Status.INVALID_ARGUMENT.withDescription("Preparing non-empty entry").asRuntimeException();
+                }
+                if (!snapshotEntryModel.getEntryState().equals(SnapshotEntryStatus.State.CREATED)){
+                    throw Status.INVALID_ARGUMENT.withDescription("Preparing already prepared entry").asRuntimeException();
+                }
+                snapshotEntryModel.setStorageUri(storageUri);
+                snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.IN_PROGRESS);
+                snapshotEntryModel.setEmpty(true);
+            }
+
             List<EntryDependenciesModel> depModelList = new ArrayList<>();
             dependentEntryIds.forEach(id -> depModelList.add(new EntryDependenciesModel(snapshotId, id, entryId)));
             try {
@@ -150,7 +161,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
                     new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
             if (snapshotEntryModel == null) {
-                throw new RuntimeException(Status.NOT_FOUND.asException());
+                return null;
             }
             return new SnapshotEntry.Impl(id, snapshot);
         }
@@ -184,6 +195,29 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                 tx.rollback();
                 throw new RuntimeException(e);
             }
+        }
+    }
+
+    @Override
+    public SnapshotEntry createEntry(Snapshot snapshot, String id) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+
+                SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
+                        new SnapshotEntryModel.SnapshotEntryPk(snapshot.id().toString(), id));
+                if (snapshotEntryModel != null) {
+                    throw Status.ALREADY_EXISTS.withDescription("Creating existing entry").asRuntimeException();
+                }
+                snapshotEntryModel = new SnapshotEntryModel(snapshot.id().toString(), id, null, true, SnapshotEntryStatus.State.CREATED);
+                session.save(snapshotEntryModel);
+                tx.commit();
+            }
+            catch (Exception e){
+                tx.rollback();
+                throw e;
+            }
+            return new SnapshotEntry.Impl(id, snapshot);
         }
     }
 }

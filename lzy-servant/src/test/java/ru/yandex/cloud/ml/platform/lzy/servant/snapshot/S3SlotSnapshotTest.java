@@ -75,7 +75,7 @@ public class S3SlotSnapshotTest {
     }
 
     private String getKey(String taskId, String slotName) {
-        return "/task/" + taskId + "/slot/" + slotName;
+        return "task/" + taskId + "/slot/" + slotName;
     }
 
     private String getObjectContent(String key) throws IOException {

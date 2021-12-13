@@ -186,9 +186,7 @@ public class SnapshotRepositoryImplTest {
 
     @Test
     public void testResolveEntryNotFound() {
-        Assert.assertThrows(RuntimeException.class, () -> impl.resolveEntry(
-                new Snapshot.Impl(URI.create(snapshotId)), entryIdFirst)
-        );
+        Assert.assertNull(impl.resolveEntry(new Snapshot.Impl(URI.create(snapshotId)), entryIdFirst));
     }
 
     @Test
