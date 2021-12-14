@@ -1,20 +1,20 @@
 resource "kubernetes_pod" "clickhouse" {
   metadata {
-    name   = "clickhouse"
+    name = "clickhouse"
     labels = {
       app = "clickhouse"
     }
   }
   spec {
     container {
-      name              = "clickhouse"
-      image             = var.clickhouse-image
+      name  = "clickhouse"
+      image = var.clickhouse-image
       env {
         name = "CLICKHOUSE_USER"
         value_from {
           secret_key_ref {
             name = "clickhouse"
-            key = "username"
+            key  = "username"
           }
         }
       }
@@ -23,16 +23,16 @@ resource "kubernetes_pod" "clickhouse" {
         value_from {
           secret_key_ref {
             name = "clickhouse"
-            key = "password"
+            key  = "password"
           }
         }
       }
       env {
-        name = "CLICKHOUSE_DB"
+        name  = "CLICKHOUSE_DB"
         value = "lzy"
       }
       env {
-        name = "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT"
+        name  = "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT"
         value = "1"
       }
       port {
@@ -46,9 +46,9 @@ resource "kubernetes_pod" "clickhouse" {
 
 resource "kubernetes_service" "clickhouse_service" {
   metadata {
-    name        = "clickhouse-service"
+    name = "clickhouse-service"
     annotations = {
-      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+      #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
   }
   spec {

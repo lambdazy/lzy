@@ -1,24 +1,9 @@
 terraform {
   required_providers {
-    azurerm    = {
+    azurerm = {
       source  = "hashicorp/azurerm"
       version = "2.85.0"
     }
-    kubernetes = {
-      source = "hashicorp/kubernetes"
-    }
-    helm       = {
-      source = "hashicorp/helm"
-    }
-    random     = {
-      source  = "hashicorp/random"
-      version = "3.0.1"
-    }
-  }
-  backend "azurerm" {
-    resource_group_name  = "lzy-testing-terraformstate"
-    storage_account_name = "lzytestingtfstatestorage"
-    container_name       = "terraformstate"
   }
 }
 
@@ -65,7 +50,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
   name                  = "lzypool"
   vm_size               = "Standard_D2_v2"
   node_count            = var.lzy_count
-  node_labels           = {
+  node_labels = {
     type = "lzy"
   }
 }
@@ -75,7 +60,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
   name                  = "cpupool"
   vm_size               = "Standard_D2_v2"
   node_count            = var.cpu_count
-  node_labels           = {
+  node_labels = {
     type = "cpu"
   }
 }
@@ -87,83 +72,14 @@ resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
   node_count            = var.gpu_count
   enable_auto_scaling   = false
   availability_zones    = []
-  node_labels           = {
+  node_labels = {
     type = "gpu"
   }
-  node_taints           = [
+  node_taints = [
     "sku=gpu:NoSchedule"
   ]
 }
 
-resource "kubernetes_namespace" "gpu_resources" {
-  metadata {
-    name = "gpu-resources"
-  }
-}
-
-resource "kubernetes_daemonset" "nvidia_plugin" {
-  metadata {
-    name      = "nvidia-device-plugin"
-    namespace = kubernetes_namespace.gpu_resources.metadata[0].name
-  }
-  spec {
-    selector {
-      match_labels = {
-        name : "nvidia-device-plugin-ds"
-      }
-    }
-    strategy {
-      type = "RollingUpdate"
-    }
-    template {
-      metadata {
-        annotations = {
-          "scheduler.alpha.kubernetes.io/critical-pod" = ""
-        }
-        labels      = {
-          name = "nvidia-device-plugin-ds"
-        }
-      }
-      spec {
-        toleration {
-          key      = "CriticalAddonsOnly"
-          operator = "Exists"
-        }
-        toleration {
-          key      = "nvidia.com/gpu"
-          operator = "Exists"
-          effect   = "NoSchedule"
-        }
-        toleration {
-          key      = "sku"
-          operator = "Equal"
-          value    = "gpu"
-          effect   = "NoSchedule"
-        }
-        container {
-          image = "mcr.microsoft.com/oss/nvidia/k8s-device-plugin:1.11"
-          name  = "nvidia-device-plugin"
-          security_context {
-            allow_privilege_escalation = false
-            capabilities {
-              drop = ["ALL"]
-            }
-          }
-          volume_mount {
-            mount_path = "/var/lib/kubelet/device-plugins"
-            name       = "device-plugin"
-          }
-        }
-        volume {
-          name = "device-plugin"
-          host_path {
-            path = "/var/lib/kubelet/device-plugins"
-          }
-        }
-      }
-    }
-  }
-}
 
 resource "azurerm_public_ip" "lzy_kharon" {
   domain_name_label   = "kharon-${var.installation_name}"
@@ -180,19 +96,6 @@ resource "azurerm_role_assignment" "test" {
   principal_id         = azurerm_kubernetes_cluster.main.identity[0].principal_id
 }
 
-resource "kubernetes_secret" "oauth_github" {
-  metadata {
-    name = "oauth-github"
-  }
-
-  data = {
-    client-id     = var.oauth-github-client-id
-    client-secret = var.oauth-github-client-secret
-  }
-
-  type = "Opaque"
-}
-
 resource "azurerm_public_ip" "lzy_backoffice" {
   domain_name_label   = "backoffice-${var.installation_name}"
   name                = "lzy-backoffice-public-ip"
@@ -200,4 +103,17 @@ resource "azurerm_public_ip" "lzy_backoffice" {
   resource_group_name = azurerm_resource_group.test.name
   sku                 = "Standard"
   allocation_method   = "Static"
+}
+
+module "lzy_common" {
+  source                            = "../lzy_common"
+  kubernetes_host                   = azurerm_kubernetes_cluster.main.kube_config[0].host
+  kubernetes_client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate)
+  kubernetes_client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key)
+  kubernetes_cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate)
+  kharon_public_ip                  = azurerm_public_ip.lzy_kharon.ip_address
+  backoffice_public_ip              = azurerm_public_ip.lzy_backoffice.ip_address
+  installation_name                 = var.installation_name
+  oauth-github-client-id            = var.oauth-github-client-id
+  oauth-github-client-secret        = var.oauth-github-client-secret
 }

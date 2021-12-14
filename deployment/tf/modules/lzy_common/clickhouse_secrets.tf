@@ -1,7 +1,7 @@
 resource "random_password" "clickhouse_user_password" {
-  length = 16
+  length  = 16
   special = false
-  count = 1
+  count   = 1
 }
 
 resource "kubernetes_secret" "clickhouse_secret" {

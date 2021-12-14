@@ -17,7 +17,7 @@ resource "kubernetes_secret" "backoffice_secrets" {
 
 resource "kubernetes_pod" "lzy_backoffice" {
   metadata {
-    name   = "lzy-backoffice"
+    name = "lzy-backoffice"
     labels = {
       app = "lzy-backoffice"
     }
@@ -97,7 +97,7 @@ resource "kubernetes_pod" "lzy_backoffice" {
             match_expressions {
               key      = "app"
               operator = "In"
-              values   = [
+              values = [
                 "lzy-servant",
                 "lzy-server",
                 "lzy-kharon",
@@ -109,8 +109,8 @@ resource "kubernetes_pod" "lzy_backoffice" {
         }
       }
     }
-    host_network  = true
-    dns_policy    = "ClusterFirstWithHostNet"
+    host_network = true
+    dns_policy   = "ClusterFirstWithHostNet"
   }
 
   depends_on = [
@@ -121,15 +121,15 @@ resource "kubernetes_pod" "lzy_backoffice" {
 
 resource "kubernetes_service" "lzy_backoffice" {
   metadata {
-    name        = "lzy-backoffice-service"
+    name = "lzy-backoffice-service"
     annotations = {
-      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+      #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
   }
   spec {
-    load_balancer_ip = azurerm_public_ip.lzy_backoffice.ip_address
+    load_balancer_ip = var.backoffice_public_ip
     type             = "LoadBalancer"
-    selector         = {
+    selector = {
       app : "lzy-backoffice"
     }
     port {
@@ -143,7 +143,6 @@ resource "kubernetes_service" "lzy_backoffice" {
   }
 
   depends_on = [
-    kubernetes_pod.lzy_backoffice,
-    azurerm_public_ip.lzy_backoffice
+    kubernetes_pod.lzy_backoffice
   ]
 }
