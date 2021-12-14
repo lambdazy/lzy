@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 public abstract class BaseTask implements Task {
     private static final Logger LOG = LogManager.getLogger(BaseTask.class);
 
-    private final String owner;
+    protected final String owner;
     protected final UUID tid;
     private final Zygote workload;
     private final Map<Slot, String> assignments;

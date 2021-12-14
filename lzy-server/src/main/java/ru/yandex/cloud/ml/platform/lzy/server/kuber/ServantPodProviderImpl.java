@@ -34,7 +34,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     private static final V1ResourceRequirements GPU_SERVANT_POD_RESOURCE = new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1")).build();
 
     @Override
-    public V1Pod createServantPod(Zygote workload, String token, UUID tid, URI serverURI) throws PodProviderException {
+    public V1Pod createServantPod(Zygote workload, String token, UUID tid, URI serverURI, String uid) throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
             Configuration.setDefaultApiClient(client);
@@ -65,7 +65,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             throw new PodProviderException("cannot find " + LZY_SERVANT_CONTAINER_NAME + " container in pod spec");
         }
         final V1Container container = containerOptional.get();
-        addEnvVars(container, token, tid, serverURI);
+        addEnvVars(container, token, tid, serverURI, uid);
 
         final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
         pod.getMetadata().setName(podName);
@@ -91,7 +91,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         return ((AtomicZygote) workload).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));
     }
 
-    private void addEnvVars(V1Container container, String token, UUID tid, URI serverURI) {
+    private void addEnvVars(V1Container container, String token, UUID tid, URI serverURI, String uid) {
         container.addEnvItem(
             new V1EnvVar().name("LZYTASK").value(tid.toString())
         ).addEnvItem(
@@ -99,7 +99,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         ).addEnvItem(
             new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
         ).addEnvItem(
-            new V1EnvVar().name("BUCKET_NAME").value(Environment.getBucketName())
+            new V1EnvVar().name("BUCKET_NAME").value(uid)
         ).addEnvItem(
             new V1EnvVar().name("ACCESS_KEY").value(Environment.getAccessKey())
         ).addEnvItem(
