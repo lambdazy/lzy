@@ -1,40 +1,44 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
+package ru.yandex.cloud.ml.platform.lzy.test.scenarios.processes;
 
 import org.junit.After;
 import org.junit.Before;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.TasksConfig;
-import ru.yandex.cloud.ml.platform.lzy.test.*;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTest;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyKharonProcessesContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotProcessesContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalProcessesContext;
 
-public class LzyBaseDockerTest implements LzyTest {
+public class LzyBaseProcessTest implements LzyTest {
     private static final int DEFAULT_TIMEOUT_SEC = 30;
     private static final int DEFAULT_SERVANT_PORT = 9999;
-    private static final String DEFAULT_LZY_MOUNT = "/tmp/lzy";
+    private static final String LZY_MOUNT = "/tmp/lzy";
 
     private LzyTerminalTestContext terminalContext;
-    private LzyServerTestContext ser;
-    private LzyKharonTestContext kharonCo;
+    private LzyServerTestContext serverContext;
+    private LzyKharonTestContext kharonContext;
     private LzySnapshotTestContext whiteboardContext;
 
     @Before
     public void setUp() {
-        ser = new LzyServerProcessesContext(TasksConfig.TaskType.LOCAL_DOCKER);
-        ser.init();
-        whiteboardContext = new LzySnapshotProcessesContext();
+        serverContext = new LzyServerProcessesContext(TasksConfig.TaskType.LOCAL_PROCESS);
+        serverContext.init();
+        whiteboardContext = new LzySnapshotProcessesContext(serverContext.address(false));
         whiteboardContext.init();
-        kharonCo = new LzyKharonProcessesContext(ser.address(false), whiteboardContext.address(false));
-        kharonCo.init(true);
-        terminalContext = new LzyTerminalDockerContext();
+        kharonContext = new LzyKharonProcessesContext(serverContext.address(false), whiteboardContext.address(false));
+        kharonContext.init(false);
+        terminalContext = new LzyTerminalProcessesContext();
     }
 
     @After
     public void tearDown() {
         terminalContext.close();
-        kharonCo.close();
-        ser.close();
+        kharonContext.close();
+        serverContext.close();
         whiteboardContext.close();
     }
 
@@ -45,12 +49,12 @@ public class LzyBaseDockerTest implements LzyTest {
 
     @Override
     public LzyServerTestContext serverContext() {
-        return ser;
+        return serverContext;
     }
 
     @Override
     public LzyKharonTestContext kharonContext() {
-        return kharonCo;
+        return kharonContext;
     }
 
     @Override
@@ -60,7 +64,7 @@ public class LzyBaseDockerTest implements LzyTest {
 
     @Override
     public String defaultLzyMount() {
-        return DEFAULT_LZY_MOUNT;
+        return LZY_MOUNT;
     }
 
     @Override

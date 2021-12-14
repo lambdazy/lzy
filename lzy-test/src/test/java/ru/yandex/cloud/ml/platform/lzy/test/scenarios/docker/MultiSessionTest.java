@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import ru.yandex.cloud.ml.platform.lzy.test.scenarios.FileIOOperation;
-import ru.yandex.cloud.ml.platform.lzy.test.scenarios.LzyBaseDockerTest;
 
 public class MultiSessionTest extends LzyBaseDockerTest {
     @Before

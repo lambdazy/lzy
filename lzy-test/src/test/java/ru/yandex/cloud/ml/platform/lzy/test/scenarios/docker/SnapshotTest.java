@@ -27,18 +27,9 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import ru.yandex.cloud.ml.platform.lzy.test.scenarios.FileIOOperation;
-import ru.yandex.cloud.ml.platform.lzy.test.scenarios.LzyBaseDockerTest;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
-
 public class SnapshotTest extends LzyBaseDockerTest {
-    private static final int S3_PORT = 8001;
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before
@@ -134,13 +125,13 @@ public class SnapshotTest extends LzyBaseDockerTest {
                 .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
                 .build();
 
-        List<S3ObjectSummary> objects = client.listObjects(terminalContext.TEST_USER).getObjectSummaries();
+        List<S3ObjectSummary> objects = client.listObjects(terminalContext().TEST_USER).getObjectSummaries();
         Assert.assertEquals(2, objects.size());
 
         for (var obj : objects) {
             String key = obj.getKey();
             String content = IOUtils.toString(
-                    client.getObject(new GetObjectRequest(terminalContext.TEST_USER, key))
+                    client.getObject(new GetObjectRequest(terminalContext().TEST_USER, key))
                             .getObjectContent(),
                     StandardCharsets.UTF_8
             );

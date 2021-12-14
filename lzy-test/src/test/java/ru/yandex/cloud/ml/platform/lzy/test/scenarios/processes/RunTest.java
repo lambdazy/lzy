@@ -15,9 +15,9 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import ru.yandex.cloud.ml.platform.lzy.test.scenarios.FileIOOperation;
-import ru.yandex.cloud.ml.platform.lzy.test.scenarios.LzyBaseProcessTest;
 
 public class RunTest extends LzyBaseProcessTest {
+
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before
@@ -93,31 +93,29 @@ public class RunTest extends LzyBaseProcessTest {
     @Test
     public void testWriteToSlot() {
         //Arrange
-        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
-        final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
+        final String fileOutName = "/kek/some_file_out.txt";
+        final String localFileOutName = defaultLzyMount() + "/lol/some_file_out.txt";
         final String channelOutName = "channel2";
 
         final FileIOOperation echo_lzy = new FileIOOperation(
             "echo_lzy",
             Collections.emptyList(),
-            List.of(fileOutName.substring(defaultLzyMount().length())),
-            "echo mama > " + fileOutName
+            List.of(fileOutName),
+            "echo mama > $(echo $LZY_MOUNT)/" + fileOutName
         );
 
         //Act
         terminal.createChannel(channelOutName);
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
 
-        terminal.publish(echo_lzy.getName(), echo_lzy);
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
             .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
         final ExecutionResult result = terminal.run(
-            echo_lzy.getName(),
-            "",
-            Map.of(
-                fileOutName.substring(defaultLzyMount().length()), channelOutName
-            )
+            echo_lzy,
+            Map.of(fileOutName, channelOutName),
+            Map.of(),
+            ""
         );
 
         //Assert
@@ -130,19 +128,19 @@ public class RunTest extends LzyBaseProcessTest {
     public void testReadWrite() {
         //Arrange
         final String fileContent = "fileContent";
-        final String fileName = "/tmp/lzy/kek/some_file.txt";
-        final String localFileName = "/tmp/lzy/lol/some_file.txt";
+        final String fileName = "/kek/some_file.txt";
+        final String localFileName = defaultLzyMount() + "/lol/some_file.txt";
         final String channelName = "channel1";
 
-        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
-        final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
+        final String fileOutName = "/kek/some_file_out.txt";
+        final String localFileOutName = defaultLzyMount() + "/lol/some_file_out.txt";
         final String channelOutName = "channel2";
 
         final FileIOOperation cat_to_file = new FileIOOperation(
             "cat_to_file_lzy",
-            List.of(fileName.substring(defaultLzyMount().length())),
-            List.of(fileOutName.substring(defaultLzyMount().length())),
-            "cat " + fileName + " > " + fileOutName
+            List.of(fileName),
+            List.of(fileOutName),
+            "cat $(echo $LZY_MOUNT)/" + fileName + " > $(echo $LZY_MOUNT)/" + fileOutName
         );
 
         //Act
@@ -154,17 +152,17 @@ public class RunTest extends LzyBaseProcessTest {
         ForkJoinPool.commonPool()
             .execute(() -> terminal.execute("bash", "-c",
                 "echo " + fileContent + " > " + localFileName));
-        terminal.publish(cat_to_file.getName(), cat_to_file);
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
             .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
         final ExecutionResult result = terminal.run(
-            cat_to_file.getName(),
-            "",
+            cat_to_file,
             Map.of(
-                fileName.substring(defaultLzyMount().length()), channelName,
-                fileOutName.substring(defaultLzyMount().length()), channelOutName
-            )
+                fileName, channelName,
+                fileOutName, channelOutName
+            ),
+            Map.of(),
+            ""
         );
 
         //Assert

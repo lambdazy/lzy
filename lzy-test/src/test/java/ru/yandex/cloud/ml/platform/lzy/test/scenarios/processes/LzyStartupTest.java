@@ -1,25 +1,23 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios.processes;
 
 import io.grpc.StatusRuntimeException;
-import org.junit.Assert;
-import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal;
-import ru.yandex.cloud.ml.platform.lzy.test.scenarios.LzyBaseDockerTest;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.PublishRequest;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.junit.Assert;
+import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.PublishRequest;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations.RegisteredZygote;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations.Zygote;
 
-public class LzyStartupTest extends LzyBaseDockerTest {
+public class LzyStartupTest extends LzyBaseProcessTest {
 
     @Test
     public void testFuseWorks() {
