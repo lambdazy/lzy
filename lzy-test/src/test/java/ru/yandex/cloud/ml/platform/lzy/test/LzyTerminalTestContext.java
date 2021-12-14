@@ -22,9 +22,10 @@ public interface LzyTerminalTestContext extends AutoCloseable {
     ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     Logger LOGGER = LoggerFactory.getLogger(LzyTerminalTestContext.class);
     int DEFAULT_TIMEOUT_SEC = 30;
+    String TEST_USER = "test-user";
 
     default Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress) {
-        return startTerminalAtPathAndPort(path, port, serverAddress, 5006, "test-user", null);
+        return startTerminalAtPathAndPort(path, port, serverAddress, 5006, TEST_USER, null);
     }
     Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort, String user, String privateKeyPath);
 

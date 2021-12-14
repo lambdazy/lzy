@@ -8,7 +8,13 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.protobuf.util.JsonFormat;
-import io.findify.s3mock.S3Mock;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.IOUtils;
 import org.jose4j.json.internal.json_simple.JSONObject;
 import org.jose4j.json.internal.json_simple.parser.JSONParser;
@@ -21,14 +27,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
 
 public class SnapshotTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
@@ -126,13 +124,13 @@ public class SnapshotTest extends LzyBaseTest {
                 .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
                 .build();
 
-        List<S3ObjectSummary> objects = client.listObjects("lzy-bucket").getObjectSummaries();
+        List<S3ObjectSummary> objects = client.listObjects(terminalContext.TEST_USER).getObjectSummaries();
         Assert.assertEquals(2, objects.size());
 
         for (var obj : objects) {
             String key = obj.getKey();
             String content = IOUtils.toString(
-                    client.getObject(new GetObjectRequest("lzy-bucket", key))
+                    client.getObject(new GetObjectRequest(terminalContext.TEST_USER, key))
                             .getObjectContent(),
                     StandardCharsets.UTF_8
             );
