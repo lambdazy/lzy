@@ -56,17 +56,18 @@ public class LocalProcessTask extends LocalTask {
                     "-p", String.valueOf(servantPort),
                     "-m", taskDir.getAbsolutePath()
                 },
-                Map.of(
-                    "LZYTASK", tid.toString(),
-                    "LZYTOKEN", token,
-                    "LZY_MOUNT", taskDir.getAbsolutePath(),
-                    "LZYWHITEBOARD", Environment.getLzyWhiteboard(),
-                    "BUCKET_NAME", owner,
-                    "ACCESS_KEY", Environment.getAccessKey(),
-                    "SECRET_KEY", Environment.getSecretKey(),
-                    "REGION", Environment.getRegion(),
-                    "SERVICE_ENDPOINT", Environment.getServiceEndpoint(),
-                    "PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled()
+                Map.ofEntries(
+                    Map.entry("LZYTASK", tid.toString()),
+                    Map.entry("LZYTOKEN", token),
+                    Map.entry("LZY_MOUNT", taskDir.getAbsolutePath()),
+                    Map.entry("LZYWHITEBOARD", Environment.getLzyWhiteboard()),
+                    Map.entry("BUCKET_NAME", owner),
+                    Map.entry("ACCESS_KEY", Environment.getAccessKey()),
+                    Map.entry("SECRET_KEY", Environment.getSecretKey()),
+                    Map.entry("REGION", Environment.getRegion()),
+                    Map.entry("SERVICE_ENDPOINT", Environment.getServiceEndpoint()),
+                    Map.entry("PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled()),
+                    Map.entry("LOGS_PATH", "/tmp/logs")
                 )
             );
             process.getOutputStream().close();
