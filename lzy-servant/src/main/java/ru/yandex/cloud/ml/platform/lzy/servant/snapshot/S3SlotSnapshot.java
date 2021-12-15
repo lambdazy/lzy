@@ -51,6 +51,8 @@ public class S3SlotSnapshot implements SlotSnapshot {
 
     static {
         if (Environment.useS3Proxy()){
+            LOG.info("Using s3 proxy");
+            System.err.println("Using s3 proxy");
             proxy = createProxy();
             client = AmazonS3ClientBuilder
                 .standard()
@@ -62,6 +64,8 @@ public class S3SlotSnapshot implements SlotSnapshot {
             transmitter = factory.fixedPoolsTransmitter("transmitter", 10, 10);
         }
         else{
+            System.err.println("Using real s3 server at address: " + Environment.getServiceEndpoint());
+            LOG.info("Using real s3 server at address: " + Environment.getServiceEndpoint());
             proxy = null;
             BasicAWSCredentials credentials = new BasicAWSCredentials(ACCESS_KEY, SECRET_KEY);
             client = AmazonS3ClientBuilder.standard()

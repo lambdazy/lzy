@@ -37,6 +37,7 @@ public class LocalDockerTask extends LocalTask {
     protected void runServantAndWaitFor(String serverHost, int serverPort, String servantHost, int servantPort, UUID tid, String token) {
         final String updatedServerHost = SystemUtils.IS_OS_LINUX ? serverHost : serverHost.replace("localhost", "host.docker.internal");
         final String internalHost = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
+        LOGGER.info("Servant s3 service endpoint id " + Environment.getServiceEndpoint());
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         final int debugPort = FreePortFinder.find(5000, 6000);
         //noinspection deprecation

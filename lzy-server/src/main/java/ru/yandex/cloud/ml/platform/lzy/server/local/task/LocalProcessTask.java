@@ -40,6 +40,7 @@ public class LocalProcessTask extends LocalTask {
             taskDir.delete();
             taskDir.mkdirs();
             taskDir.mkdir();
+            LOG.info("Servant s3 service endpoint id " + Environment.getServiceEndpoint());
             HashMap<String, String> envs = new HashMap<>(Map.of(
                     "LZYTASK", tid.toString(),
                     "LZYTOKEN", token,

@@ -40,15 +40,15 @@ public class Environment {
     }
 
     public static String getS3ProxyProvider() {
-        return System.getenv("S3_PROXY_PROVIDER");
+        return System.getenv("S3_PROXY_PROVIDER") != null ? System.getenv("S3_PROXY_PROVIDER"): "azureblob";
     }
 
     public static String getS3ProxyIdentity() {
-        return System.getenv("S3_PROXY_IDENTITY");
+        return System.getenv("S3_PROXY_IDENTITY")  != null ? System.getenv("S3_PROXY_IDENTITY"): "";
     }
 
     public static String getS3ProxyCredentials() {
-        return System.getenv("S3_PROXY_CREDENTIALS");
+        return System.getenv("S3_PROXY_CREDENTIALS")  != null ? System.getenv("S3_PROXY_CREDENTIALS"): "";
     }
 
 
