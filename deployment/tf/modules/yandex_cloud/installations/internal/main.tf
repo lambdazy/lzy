@@ -12,7 +12,6 @@ terraform {
   }
 }
 
-
 module "common" {
   source                     = "../../common"
   installation_name          = "lzy-yc-internal"
@@ -20,4 +19,6 @@ module "common" {
   folder_id                  = "b1gsbp7ts9oepodda5a1" //lzy
   oauth-github-client-id     = "86be13043c9f96e17372"
   oauth-github-client-secret = "276612ba3cad5b137ac274ccc86740f6cd9a0e76"
+  network_id                 = "enps564p8bp649d38qgh" //cloud-ml-dev-nets
+  subnet_id                  = "e9brt77u0kenestd9232" //cloud-ml-dev-nets-ru-central1-a
 }

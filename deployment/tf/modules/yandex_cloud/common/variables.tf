@@ -34,7 +34,19 @@ variable "cloud_id" {
   type = string
 }
 
+variable "folder_id" {
+  type = string
+}
+
 variable "location" {
   type    = string
   default = "ru-central1-a"
+}
+
+variable "network_id" {
+  type = string
+}
+
+variable "subnet_id" {
+  type = string
 }
