@@ -9,6 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -54,7 +55,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
     public synchronized void init() {
         if (lzyServerClient == null) {
             try {
-                lzyServer = Utils.javaProcess(
+                ProcessBuilder builder = Utils.javaProcess(
                     LzyServer.class.getCanonicalName(),
                     new String[]{
                         "--port",
@@ -64,7 +65,15 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                         "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
                         "-Dlzy.server.task.type=local-docker"
                     }
-                ).inheritIO().start();
+                );
+                Map<String, String> env = builder.environment();
+                env.put("ACCESS_KEY", "access-key");
+                env.put("SECRET_KEY", "secret-key");
+                env.put("REGION", "us-west-2");
+                env.put("SERVICE_ENDPOINT", "http://host.docker.internal:8001");
+                env.put("LZYWHITEBOARD", "http://host.docker.internal:8999");
+                env.put("PATH_STYLE_ACCESS_ENABLED", "true");
+                lzyServer = builder.inheritIO().start();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

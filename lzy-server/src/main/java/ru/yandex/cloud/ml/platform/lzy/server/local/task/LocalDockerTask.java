@@ -12,7 +12,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.qe.s3.util.Environment;
 
 import java.net.URI;
 import java.util.Map;
@@ -48,13 +47,13 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withEnv("LZYWHITEBOARD", Environment.getLzyWhiteboard())
+            .withEnv("LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"))
+            .withEnv("PATH_STYLE_ACCESS_ENABLED", System.getenv("PATH_STYLE_ACCESS_ENABLED"))
             .withEnv("BUCKET_NAME", owner)
-            .withEnv("ACCESS_KEY", Environment.getAccessKey())
-            .withEnv("SECRET_KEY", Environment.getSecretKey())
-            .withEnv("REGION", Environment.getRegion())
-            .withEnv("SERVICE_ENDPOINT", Environment.getServiceEndpoint())
-            .withEnv("PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled())
+            .withEnv("ACCESS_KEY", System.getenv("ACCESS_KEY"))
+            .withEnv("SECRET_KEY", System.getenv("SECRET_KEY"))
+            .withEnv("REGION", System.getenv("REGION"))
+            .withEnv("SERVICE_ENDPOINT", System.getenv("SERVICE_ENDPOINT"))
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "

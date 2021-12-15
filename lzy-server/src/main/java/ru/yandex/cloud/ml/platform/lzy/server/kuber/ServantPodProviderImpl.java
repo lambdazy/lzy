@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.qe.s3.util.Environment;
 
 import java.io.File;
 import java.io.IOException;
@@ -101,17 +100,17 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         ).addEnvItem(
             new V1EnvVar().name("BUCKET_NAME").value(uid)
         ).addEnvItem(
-            new V1EnvVar().name("ACCESS_KEY").value(Environment.getAccessKey())
+            new V1EnvVar().name("ACCESS_KEY").value(System.getenv("ACCESS_KEY"))
         ).addEnvItem(
-            new V1EnvVar().name("SECRET_KEY").value(Environment.getSecretKey())
+            new V1EnvVar().name("SECRET_KEY").value(System.getenv("SECRET_KEY"))
         ).addEnvItem(
-            new V1EnvVar().name("REGION").value(Environment.getRegion())
+            new V1EnvVar().name("REGION").value(System.getenv("REGION"))
         ).addEnvItem(
-            new V1EnvVar().name("SERVICE_ENDPOINT").value(Environment.getServiceEndpoint())
+            new V1EnvVar().name("SERVICE_ENDPOINT").value(System.getenv("SERVICE_ENDPOINT"))
         ).addEnvItem(
-            new V1EnvVar().name("PATH_STYLE_ACCESS_ENABLED").value(Environment.getPathStyleAccessEnabled())
+            new V1EnvVar().name("LZYWHITEBOARD").value(System.getenv("LZYWHITEBOARD"))
         ).addEnvItem(
-            new V1EnvVar().name("LZYWHITEBOARD").value(Environment.getLzyWhiteboard())
+            new V1EnvVar().name("PATH_STYLE_ACCESS_ENABLED").value(System.getenv("PATH_STYLE_ACCESS_ENABLED"))
         );
     }
 }

@@ -9,8 +9,6 @@ import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.google.protobuf.ByteString;
 import org.apache.commons.io.IOUtils;
 import org.junit.*;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 
@@ -18,36 +16,32 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import io.findify.s3mock.S3Mock;
-import ru.yandex.qe.s3.util.Environment;
+import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
+import ru.yandex.qe.s3.transfer.Transmitter;
 
 public class S3SlotSnapshotTest {
     private final String SERVICE_ENDPOINT = "http://localhost:8001";
+    private final String BUCKET = "lzy-bucket";
 
     private final S3Mock api = new S3Mock.Builder().withPort(8001).withInMemoryBackend().build();
-    private final MockedStatic<Environment> environment = Mockito.mockStatic(Environment.class);
     private final AmazonS3 client = AmazonS3ClientBuilder
             .standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(new EndpointConfiguration(SERVICE_ENDPOINT, "us-west-2"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
+    private final Transmitter transmitter = (new AmazonTransmitterFactory(client))
+            .fixedPoolsTransmitter("transmitter", 10, 10);
+
 
     @Before
     public void setUp() {
         api.start();
-
-        environment.when(Environment::getBucketName).thenReturn("bucket-test");
-        environment.when(Environment::getAccessKey).thenReturn("access-key");
-        environment.when(Environment::getSecretKey).thenReturn("secret-key");
-        environment.when(Environment::getRegion).thenReturn("us-west-2");
-        environment.when(Environment::getServiceEndpoint).thenReturn(SERVICE_ENDPOINT);
-        environment.when(Environment::getPathStyleAccessEnabled).thenReturn("true");
     }
 
     @After
     public void tearDown() {
         api.shutdown();
-        environment.close();
     }
 
     private Slot slotForName(String name) {
@@ -80,7 +74,7 @@ public class S3SlotSnapshotTest {
 
     private String getObjectContent(String key) throws IOException {
         return IOUtils.toString(
-                client.getObject(new GetObjectRequest("bucket-test", key))
+                client.getObject(new GetObjectRequest(BUCKET, key))
                         .getObjectContent(),
                 StandardCharsets.UTF_8
         );
@@ -90,11 +84,11 @@ public class S3SlotSnapshotTest {
     public void testMultipleSnapshots() throws IOException {
         SlotSnapshotProvider snapshotProvider = new SlotSnapshotProvider.Cached(slot -> {
             if (slot.name().equals("first") || slot.name().equals("second")) {
-                return new S3SlotSnapshot("first-task-id", slot);
+                return new S3SlotSnapshot("first-task-id", BUCKET, slot, transmitter, client);
             } else if (slot.name().equals("third") || slot.name().equals("fourth")) {
-                return new S3SlotSnapshot("second-task-id", slot);
+                return new S3SlotSnapshot("second-task-id", BUCKET, slot, transmitter, client);
             } else if (slot.name().equals("fifth")) {
-                return new S3SlotSnapshot("third-task-id", slot);
+                return new S3SlotSnapshot("third-task-id", BUCKET, slot, transmitter, client);
             } else {
                 throw new RuntimeException("Unknown slot: " + slot.name());
             }

@@ -17,7 +17,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.qe.s3.util.Environment;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -348,8 +347,8 @@ public class LzyServer {
 
             responseObserver.onNext(
                 Lzy.GetS3CredentialsResponse.newBuilder()
-                .setAccessToken(Environment.getAccessKey())
-                .setSecretToken(Environment.getSecretKey())
+                .setAccessToken(System.getenv("ACCESS_KEY"))
+                .setSecretToken(System.getenv("SECRET_KEY"))
                 .build()
             );
             responseObserver.onCompleted();

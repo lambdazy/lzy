@@ -1,5 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +17,9 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.transmitter.LzyTransmitterConfig;
+import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
+import ru.yandex.qe.s3.transfer.Transmitter;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -25,10 +32,14 @@ public class LzyServant extends LzyAgent {
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
     private final Server agentServer;
     private final String taskId;
+    private final String bucket;
+    private final AmazonS3 client;
+    private final Transmitter transmitter;
 
-    public LzyServant(LzyAgentConfig config) throws URISyntaxException {
+    public LzyServant(LzyAgentConfig config, LzyTransmitterConfig transmitterConfig) throws URISyntaxException {
         super(config);
         taskId = config.getTask();
+        bucket = config.getBucket();
         URI whiteboardAddress = config.getWhiteboardAddress();
         final Impl impl = new Impl();
         final ManagedChannel channel = ManagedChannelBuilder
@@ -42,6 +53,19 @@ public class LzyServant extends LzyAgent {
                 .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
+        BasicAWSCredentials credentials = new BasicAWSCredentials(transmitterConfig.getAccess(),
+                transmitterConfig.getSecret());
+        client = AmazonS3ClientBuilder.standard()
+                .withCredentials(new AWSStaticCredentialsProvider(credentials))
+                .withEndpointConfiguration(
+                        new AmazonS3ClientBuilder.EndpointConfiguration(
+                                transmitterConfig.getEndpoint(), transmitterConfig.getRegion()
+                        )
+                )
+                .withPathStyleAccessEnabled(transmitterConfig.isPathStyleAccessEnabled())
+                .build();
+        AmazonTransmitterFactory factory = new AmazonTransmitterFactory(client);
+        transmitter = factory.fixedPoolsTransmitter("transmitter", 10, 10);
     }
 
     @Override
@@ -80,7 +104,7 @@ public class LzyServant extends LzyAgent {
             final String tid = request.getAuth().getTask().getTaskId();
             final SnapshotMeta meta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : SnapshotMeta.empty();
             final AtomicZygote zygote = (AtomicZygote) gRPCConverter.from(request.getZygote());
-            final Snapshotter snapshotter = new SnapshotterImpl(auth.getTask(), zygote, snapshot, meta);
+            final Snapshotter snapshotter = new SnapshotterImpl(auth.getTask(), bucket, zygote, snapshot, meta, transmitter, client);
             currentExecution = new LzyExecution(tid, zygote, agentInternalAddress, snapshotter);
             currentExecution.onProgress(progress -> {
                 LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));

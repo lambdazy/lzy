@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
-import ru.yandex.qe.s3.util.Environment;
 
 public class LocalProcessTask extends LocalTask {
     private static final Logger LOG = LogManager.getLogger(LocalProcessTask.class);
@@ -55,13 +54,13 @@ public class LocalProcessTask extends LocalTask {
                     "LZYTASK", tid.toString(),
                     "LZYTOKEN", token,
                     "LZY_MOUNT", taskDir.getAbsolutePath(),
-                    "LZYWHITEBOARD", Environment.getLzyWhiteboard(),
+                    "LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"),
+                    "PATH_STYLE_ACCESS_ENABLED", System.getenv("PATH_STYLE_ACCESS_ENABLED"),
                     "BUCKET_NAME", owner,
-                    "ACCESS_KEY", Environment.getAccessKey(),
-                    "SECRET_KEY", Environment.getSecretKey(),
-                    "REGION", Environment.getRegion(),
-                    "SERVICE_ENDPOINT", Environment.getServiceEndpoint(),
-                    "PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled()
+                    "ACCESS_KEY", System.getenv("ACCESS_KEY"),
+                    "SECRET_KEY", System.getenv("SECRET_KEY"),
+                    "REGION", System.getenv("REGION"),
+                    "SERVICE_ENDPOINT", System.getenv("SERVICE_ENDPOINT")
                 )
             );
             process.getOutputStream().close();
