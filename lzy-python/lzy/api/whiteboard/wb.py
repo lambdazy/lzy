@@ -28,4 +28,4 @@ def wrap_whiteboard(instance: Any, whiteboard_api: WhiteboardApi,
             raise RuntimeError("Cannot get entry_id from op")
         object.__setattr__(self, key, value)
 
-    type(instance).__setattr__ = __setattr__
+    type(instance).__setattr__ = __setattr__  # type: ignore

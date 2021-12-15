@@ -17,7 +17,7 @@ public class SimpleAuthenticator implements Authenticator {
                 Lzy.CheckUserPermissionsRequest
                         .newBuilder()
                         .setAuth(auth)
-                        .addPermissions(permissions.name())
+                        .addPermissions(permissions.name)
                         .build()
         );
         return response.getIsOk();

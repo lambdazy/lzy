@@ -112,6 +112,14 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             new V1EnvVar().name("PATH_STYLE_ACCESS_ENABLED").value(Environment.getPathStyleAccessEnabled())
         ).addEnvItem(
             new V1EnvVar().name("LZYWHITEBOARD").value(Environment.getLzyWhiteboard())
+        ).addEnvItem(
+                new V1EnvVar().name("USE_S3_PROXY").value(String.valueOf(Environment.useS3Proxy()))
+        ).addEnvItem(
+                new V1EnvVar().name("S3_PROXY_PROVIDER").value(String.valueOf(Environment.getS3ProxyProvider()))
+        ).addEnvItem(
+                new V1EnvVar().name("S3_PROXY_IDENTITY").value(String.valueOf(Environment.getS3ProxyIdentity()))
+        ).addEnvItem(
+                new V1EnvVar().name("S3_PROXY_CREDENTIALS").value(String.valueOf(Environment.getS3ProxyCredentials()))
         );
     }
 }

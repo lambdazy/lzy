@@ -216,7 +216,7 @@ class LzyEnv(LzyEnvBase):
         wb = self._execution_context.whiteboard_api.get(id)
         whiteboard_dict = {
             field.field_name: self._execution_context.whiteboard_api.resolve(
-                field.storage_uri, field_types[field.field_name]) for field in
+                field.storage_uri, field_types[field.field_name]) for field in  # type: ignore
             wb.fields
         }
         return typ(**whiteboard_dict)

@@ -17,9 +17,9 @@ public class KuberRunTest {
     private static final int DEFAULT_SERVANT_PORT = 9999;
     private static final String LZY_MOUNT = "/tmp/lzy";
     private static final String TEST_USER = "phil";
-    private static final String TEST_USER_KEY_PATH = "/tmp/test-private.pem";
+    private static final String TEST_USER_KEY_PATH = "/Users/artolord/.ssh/private.pem";
     private static final String LZY_KHARON_DOMAIN_PROPERTY = "lzy.kharon.domain";
-    private static final String DEFAULT_LZY_KHARON_DOMAIN = "kharon-lzy-prod.northeurope.cloudapp.azure.com";
+    private static final String DEFAULT_LZY_KHARON_DOMAIN = "kharon-lzy-testing-2.northeurope.cloudapp.azure.com";
     private final String LZY_KHARON_DOMAIN = System.getProperty(LZY_KHARON_DOMAIN_PROPERTY, DEFAULT_LZY_KHARON_DOMAIN);
     private final String SERVER_URL = String.format("http://%s:8899", LZY_KHARON_DOMAIN);
     private final LzyTerminalTestContext terminalContext = new LzyTerminalDockerContext();
@@ -75,6 +75,20 @@ public class KuberRunTest {
 
         //Assert
         Assert.assertEquals("1", Utils.lastLine(result.stdout()));
+    }
+
+    @Test
+    public void testSimpleWhiteboard() {
+        //Arrange
+        String condaPrefix = prepareConda();
+        final String pyCommand = "python /lzy-python/examples/integration/whiteboard_simple.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + pyCommand);
+
+        //Assert
+        Assert.assertTrue(result.stdout().contains("42 42"));
     }
 
     private String prepareConda() {
