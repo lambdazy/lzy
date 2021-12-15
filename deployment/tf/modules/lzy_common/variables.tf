@@ -38,3 +38,5 @@ variable "server-image" {
   type    = string
   default = "lzydock/lzy-server:master"
 }
+
+variable "cluster_id" {}

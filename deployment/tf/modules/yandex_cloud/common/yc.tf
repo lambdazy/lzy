@@ -62,23 +62,42 @@ resource "yandex_kubernetes_cluster" "main" {
   service_account_id = yandex_iam_service_account.sa.id
 }
 
-//resource "yandex_kubernetes_node_group" "lzy" {
-//  cluster_id = yandex_kubernetes_cluster.main.id
-//  name       = "lzypool"
-//  labels = {
-//    "type" = "lzy"
-//  }
-//
-//  instance_template {
-//    platform_id = "standard-v2"
-//  }
-//
-//  scale_policy {
-//    fixed_scale {
-//      size = var.lzy_count
-//    }
-//  }
-//}
+resource "yandex_kubernetes_node_group" "lzy" {
+  cluster_id = yandex_kubernetes_cluster.main.id
+  name       = "lzypool"
+  labels = {
+    "type" = "lzy"
+  }
+
+  instance_template {
+    platform_id = "standard-v2"
+
+    network_interface {
+      nat                = true
+      subnet_ids         = [var.subnet_id]
+    }
+
+    resources {
+      memory = 2
+      cores  = 2
+    }
+
+    boot_disk {
+      type = "network-hdd"
+      size = 64
+    }
+
+    scheduling_policy {
+      preemptible = false
+    }
+  }
+
+  scale_policy {
+    fixed_scale {
+      size = var.lzy_count
+    }
+  }
+}
 
 module "lzy_common" {
   source                            = "../../lzy_common"
@@ -87,4 +106,5 @@ module "lzy_common" {
   installation_name                 = var.installation_name
   oauth-github-client-id            = var.oauth-github-client-id
   oauth-github-client-secret        = var.oauth-github-client-secret
+  cluster_id = yandex_kubernetes_cluster.main.id
 }

@@ -39,4 +39,5 @@ resource "helm_release" "lzy_kafka" {
     name  = "image.debug"
     value = "true"
   }
+  depends_on = [var.cluster_id]
 }

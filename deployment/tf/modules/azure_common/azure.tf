@@ -112,4 +112,5 @@ module "lzy_common" {
   installation_name                 = var.installation_name
   oauth-github-client-id            = var.oauth-github-client-id
   oauth-github-client-secret        = var.oauth-github-client-secret
+  cluster_id = azurerm_kubernetes_cluster.main.id
 }
