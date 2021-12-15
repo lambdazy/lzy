@@ -13,10 +13,7 @@ import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import ru.yandex.qe.s3.util.Environment;
 
@@ -43,15 +40,7 @@ public class LocalProcessTask extends LocalTask {
             taskDir.delete();
             taskDir.mkdirs();
             taskDir.mkdir();
-            final Process process = runJvm(
-                "lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar", taskDir,
-                new String[]{
-                    "-z", serverHost + ":" + serverPort,
-                    "--host", servantHost,
-                    "-p", String.valueOf(servantPort),
-                    "-m", taskDir.getAbsolutePath()
-                },
-                Map.of(
+            HashMap<String, String> envs = new HashMap<>(Map.of(
                     "LZYTASK", tid.toString(),
                     "LZYTOKEN", token,
                     "LZY_MOUNT", taskDir.getAbsolutePath(),
@@ -62,7 +51,20 @@ public class LocalProcessTask extends LocalTask {
                     "REGION", Environment.getRegion(),
                     "SERVICE_ENDPOINT", Environment.getServiceEndpoint(),
                     "PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled()
-                )
+            ));
+            envs.put("USE_S3_PROXY", String.valueOf(Environment.useS3Proxy()));
+            envs.put("S3_PROXY_PROVIDER", Environment.getS3ProxyProvider());
+            envs.put("S3_PROXY_IDENTITY", Environment.getS3ProxyIdentity());
+            envs.put("S3_PROXY_CREDENTIALS", Environment.getS3ProxyCredentials());
+            final Process process = runJvm(
+                "lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar", taskDir,
+                new String[]{
+                    "-z", serverHost + ":" + serverPort,
+                    "--host", servantHost,
+                    "-p", String.valueOf(servantPort),
+                    "-m", taskDir.getAbsolutePath()
+                },
+                envs
             );
             process.getOutputStream().close();
             ForkJoinPool.commonPool().execute(() -> {

@@ -1,11 +1,14 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.cli.CommandLine;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 
 import java.io.FileReader;
 import java.io.IOException;

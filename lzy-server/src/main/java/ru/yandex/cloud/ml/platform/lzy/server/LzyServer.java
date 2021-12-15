@@ -293,6 +293,7 @@ public class LzyServer {
 
         @Override
         public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request, StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
+            LOG.info("Server::checkPermissions " + JsonUtils.printRequest(request));
             IAM.Auth requestAuth = request.getAuth();
             if (!checkAuth(requestAuth, responseObserver)) {
                 responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
@@ -303,6 +304,7 @@ public class LzyServer {
                 if (!auth.hasPermission(resolveUser(requestAuth), permission)) {
                     responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
                     responseObserver.onCompleted();
+                    LOG.info("User " + resolveUser(requestAuth) + " does not have permission " + permission);
                     return;
                 }
             }
@@ -350,6 +352,10 @@ public class LzyServer {
                 Lzy.GetS3CredentialsResponse.newBuilder()
                 .setAccessToken(Environment.getAccessKey())
                 .setSecretToken(Environment.getSecretKey())
+                .setUseS3Proxy(Environment.useS3Proxy())
+                .setS3ProxyCredentials(Environment.getS3ProxyCredentials())
+                .setS3ProxyIdentity(Environment.getS3ProxyIdentity())
+                .setS3ProxyProvider(Environment.getS3ProxyProvider())
                 .build()
             );
             responseObserver.onCompleted();

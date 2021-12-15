@@ -55,6 +55,10 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("REGION", Environment.getRegion())
             .withEnv("SERVICE_ENDPOINT", Environment.getServiceEndpoint())
             .withEnv("PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled())
+            .withEnv("USE_S3_PROXY", String.valueOf(Environment.useS3Proxy()))
+            .withEnv("S3_PROXY_PROVIDER", Environment.getS3ProxyProvider())
+            .withEnv("S3_PROXY_IDENTITY", Environment.getS3ProxyIdentity())
+            .withEnv("S3_PROXY_CREDENTIALS", Environment.getS3ProxyCredentials())
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "

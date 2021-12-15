@@ -4,18 +4,17 @@ import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.gaul.s3proxy.S3Proxy;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.S3SlotSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.io.Closeable;
 import java.net.URI;
@@ -26,6 +25,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
     private final Server agentServer;
     private final ManagedChannel channel;
+    private S3Proxy proxy = null;
     private final LzyKharonGrpc.LzyKharonStub kharon;
     private final LzyKharonGrpc.LzyKharonBlockingStub kharonBlockingStub;
     private CommandHandler commandHandler;
@@ -154,6 +154,15 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             }
         }, Runnable::run);
 
+        Lzy.GetS3CredentialsResponse response = kharonBlockingStub.getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder().setAuth(auth).build());
+        if (response.getUseS3Proxy()){
+            proxy = S3SlotSnapshot.createProxy(
+                response.getS3ProxyProvider(),
+                response.getS3ProxyIdentity(),
+                response.getS3ProxyCredentials()
+            );
+        }
+
         currentExecution.onProgress(progress -> {
             LOG.info("LzyTerminal::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
             if (progress.hasAttach()) {
@@ -188,6 +197,13 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         super.close();
         commandHandler.onCompleted();
         channel.shutdown();
+        if (proxy != null){
+            try {
+                proxy.stop();
+            } catch (Exception e) {
+                LOG.error(e);
+            }
+        }
     }
 
     private class Impl extends LzyServantGrpc.LzyServantImplBase {

@@ -12,9 +12,9 @@ CREATE TABLE whiteboard (
 CREATE TABLE snapshot_entry (
     snapshot_id  text         REFERENCES snapshot (snapshot_id) ON UPDATE CASCADE ON DELETE CASCADE,
     entry_id     text,
-    storage_uri  text         NOT NULL,
+    storage_uri  text,
     empty        boolean      NOT NULL,
-    state        varchar(20)  NOT NULL,
+    state        varchar(20),
     PRIMARY KEY (snapshot_id, entry_id)
 );
 
