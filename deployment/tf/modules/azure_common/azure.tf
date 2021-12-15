@@ -50,7 +50,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
   name                  = "lzypool"
   vm_size               = "Standard_D2_v2"
   node_count            = var.lzy_count
-  node_labels = {
+  node_labels           = {
     type = "lzy"
   }
 }
@@ -60,7 +60,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
   name                  = "cpupool"
   vm_size               = "Standard_D2_v2"
   node_count            = var.cpu_count
-  node_labels = {
+  node_labels           = {
     type = "cpu"
   }
 }
@@ -72,10 +72,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
   node_count            = var.gpu_count
   enable_auto_scaling   = false
   availability_zones    = []
-  node_labels = {
+  node_labels           = {
     type = "gpu"
   }
-  node_taints = [
+  node_taints           = [
     "sku=gpu:NoSchedule"
   ]
 }
@@ -106,11 +106,17 @@ resource "azurerm_public_ip" "lzy_backoffice" {
 }
 
 module "lzy_common" {
-  source                            = "../lzy_common"
-  kharon_public_ip                  = azurerm_public_ip.lzy_kharon.ip_address
-  backoffice_public_ip              = azurerm_public_ip.lzy_backoffice.ip_address
-  installation_name                 = var.installation_name
-  oauth-github-client-id            = var.oauth-github-client-id
-  oauth-github-client-secret        = var.oauth-github-client-secret
+  source                                         = "../lzy_common"
+  kharon_public_ip                               = azurerm_public_ip.lzy_kharon.ip_address
+  backoffice_public_ip                           = azurerm_public_ip.lzy_backoffice.ip_address
+  kharon_load_balancer_necessary_annotations     = {
+    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+  }
+  backoffice_load_balancer_necessary_annotations = {
+    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+  }
+  installation_name                              = var.installation_name
+  oauth-github-client-id                         = var.oauth-github-client-id
+  oauth-github-client-secret                     = var.oauth-github-client-secret
   cluster_id = azurerm_kubernetes_cluster.main.id
 }

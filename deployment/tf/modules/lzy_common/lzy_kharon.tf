@@ -73,9 +73,7 @@ resource "kubernetes_pod" "lzy_kharon" {
 resource "kubernetes_service" "lzy_kharon" {
   metadata {
     name = "lzy-kharon-load-balancer"
-    annotations = {
-      #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
-    }
+    annotations = var.kharon_load_balancer_necessary_annotations
   }
   spec {
     load_balancer_ip = var.kharon_public_ip

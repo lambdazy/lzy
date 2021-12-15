@@ -14,6 +14,16 @@ variable "kharon_public_ip" {}
 
 variable "backoffice_public_ip" {}
 
+variable "kharon_load_balancer_necessary_annotations" {
+  type = map(string)
+  default = {}
+}
+
+variable "backoffice_load_balancer_necessary_annotations" {
+  type = map(string)
+  default = {}
+}
+
 variable "backoffice-frontend-image" {
   type    = string
   default = "lzydock/lzy-backoffice-frontend:master"

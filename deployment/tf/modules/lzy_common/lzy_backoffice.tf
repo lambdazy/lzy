@@ -122,9 +122,7 @@ resource "kubernetes_pod" "lzy_backoffice" {
 resource "kubernetes_service" "lzy_backoffice" {
   metadata {
     name = "lzy-backoffice-service"
-    annotations = {
-      #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
-    }
+    annotations = var.backoffice_load_balancer_necessary_annotations
   }
   spec {
     load_balancer_ip = var.backoffice_public_ip
