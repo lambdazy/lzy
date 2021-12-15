@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
@@ -129,6 +130,7 @@ public class Run implements LzyCommand {
                 .build();
         });
 
+        final long startTimeMillis = System.currentTimeMillis();
         final Iterator<Servant.ExecutionProgress> executionProgress = kharon.start(taskSpec.build());
         final Servant.ExecutionConcluded[] exit = new Servant.ExecutionConcluded[1];
         exit[0] = Servant.ExecutionConcluded.newBuilder()
@@ -153,6 +155,8 @@ public class Run implements LzyCommand {
         });
         final int rc = exit[0].getRc();
         final String description = exit[0].getDescription();
+        final long finishTimeMillis = System.currentTimeMillis();
+        LOG.info("Metric \"Time from Task start to Task finish\": {} millis", finishTimeMillis - startTimeMillis);
         LOG.info("Run:: Task finished RC = {}, Description = {}", rc, description);
         if (rc != 0) {
             System.err.print(description);
