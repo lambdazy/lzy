@@ -7,6 +7,8 @@ terraform {
   }
 }
 
+data "yandex_client_config" "client" {}
+
 resource "yandex_iam_service_account" "sa" {
   name        = "k8s-sa"
   description = "service account to manage Lzy K8s"
@@ -80,10 +82,6 @@ resource "yandex_kubernetes_cluster" "main" {
 
 module "lzy_common" {
   source                            = "../../lzy_common"
-  kubernetes_host                   = yandex_kubernetes_cluster.main.master.external_v4_endpoint
-  kubernetes_client_certificate     = base64decode(yandex_kubernetes_cluster.main.kube_config[0].client_certificate)
-  kubernetes_client_key             = base64decode(yandex_kubernetes_cluster.main.kube_config[0].client_key)
-  kubernetes_cluster_ca_certificate = base64decode(yandex_kubernetes_cluster.main.master.cluster_ca_certificate)
   kharon_public_ip                  = yandex_vpc_address.lzy_kharon.external_ipv4_address.0.address
   backoffice_public_ip              = yandex_vpc_address.lzy_backoffice.external_ipv4_address.0.address
   installation_name                 = var.installation_name
