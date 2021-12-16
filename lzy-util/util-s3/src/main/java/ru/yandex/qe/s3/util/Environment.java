@@ -5,34 +5,33 @@ import org.apache.commons.lang3.SystemUtils;
 import java.util.Objects;
 
 public class Environment {
-    private final static String internalHost = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
-
     public static String getBucketName() {
-        return System.getenv("BUCKET_NAME") != null ? System.getenv("BUCKET_NAME") : "lzy-bucket";
+        return System.getenv("BUCKET_NAME") != null ? System.getenv("BUCKET_NAME") : "";
     }
 
     public static String getAccessKey() {
-        return System.getenv("ACCESS_KEY") != null ? System.getenv("ACCESS_KEY") : "access-key";
+        return System.getenv("ACCESS_KEY") != null ? System.getenv("ACCESS_KEY") : "";
     }
 
     public static String getSecretKey() {
-        return System.getenv("SECRET_KEY") != null ? System.getenv("SECRET_KEY") : "secret-key";
+        return System.getenv("SECRET_KEY") != null ? System.getenv("SECRET_KEY") : "";
     }
 
     public static String getRegion() {
-        return System.getenv("REGION") != null ? System.getenv("REGION") : "us-west-2";
+        return System.getenv("REGION") != null ? System.getenv("REGION") : "";
     }
 
     public static String getServiceEndpoint() {
-        return System.getenv("SERVICE_ENDPOINT") != null ? System.getenv("SERVICE_ENDPOINT") : "http://" + internalHost +":8001";
+        return System.getenv("SERVICE_ENDPOINT") != null ? System.getenv("SERVICE_ENDPOINT") : "";
     }
 
     public static String getPathStyleAccessEnabled() {
-        return System.getenv("PATH_STYLE_ACCESS_ENABLED") != null ? System.getenv("PATH_STYLE_ACCESS_ENABLED") : "true";
+        return System.getenv("PATH_STYLE_ACCESS_ENABLED") != null ?
+                System.getenv("PATH_STYLE_ACCESS_ENABLED") : "";
     }
 
     public static String getLzyWhiteboard() {
-        return System.getenv("LZYWHITEBOARD") != null ? System.getenv("LZYWHITEBOARD") : "http://" + internalHost +":8999";
+        return System.getenv("LZYWHITEBOARD") != null ? System.getenv("LZYWHITEBOARD") : "";
     }
 
     public static boolean useS3Proxy() {
