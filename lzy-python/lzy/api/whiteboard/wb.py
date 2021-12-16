@@ -1,7 +1,7 @@
-import types
-from typing import Any, Dict, Callable, Optional
-from lzy.api.whiteboard.api import WhiteboardApi
 import dataclasses
+from typing import Any, Dict, Callable, Optional
+
+from lzy.api.whiteboard.api import WhiteboardApi
 
 
 def wrap_whiteboard(instance: Any, whiteboard_api: WhiteboardApi,
@@ -28,4 +28,5 @@ def wrap_whiteboard(instance: Any, whiteboard_api: WhiteboardApi,
             raise RuntimeError("Cannot get entry_id from op")
         object.__setattr__(self, key, value)
 
+    setattr(instance, 'id', whiteboard_id_getter())
     type(instance).__setattr__ = __setattr__  # type: ignore
