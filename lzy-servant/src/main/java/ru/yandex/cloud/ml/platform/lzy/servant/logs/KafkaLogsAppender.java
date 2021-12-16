@@ -22,8 +22,17 @@ public class KafkaLogsAppender {
         properties.addAttribute("value", System.getenv("LOGS_SERVER"));
         kafka.addComponent(properties);
         builder.add(kafka);
+        AppenderComponentBuilder files
+                = builder.newAppender("File", "File");
+        files.addAttribute("fileName", "/var/log/servant/servant.log");
+        LayoutComponentBuilder filesLayout
+                = builder.newLayout("PatternLayout");
+        jsonLayout.addAttribute("pattern","%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] [%t] %c{1} - %msg%n");
+        files.add(filesLayout);
+        builder.add(files);
         RootLoggerComponentBuilder rootLogger = builder.newRootLogger(Level.INFO);
         rootLogger.add(builder.newAppenderRef("Kafka"));
+        rootLogger.add(builder.newAppenderRef("File"));
         builder.add(rootLogger);
         Configurator.initialize(builder.build());
     }

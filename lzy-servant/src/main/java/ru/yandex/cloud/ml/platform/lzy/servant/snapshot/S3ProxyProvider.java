@@ -18,8 +18,10 @@ public class S3ProxyProvider {
     private static final Logger LOG = LogManager.getLogger(S3ProxyProvider.class);
 
     public S3ProxyProvider(){
-        if (Environment.useS3Proxy())
+        if (Environment.useS3Proxy()) {
+            LOG.info("Creating S3 proxy");
             proxy = createProxy();
+        }
     }
 
     public S3ProxyProvider(Lzy.GetS3CredentialsResponse response){
@@ -28,6 +30,7 @@ public class S3ProxyProvider {
     }
 
     public void stop() throws Exception {
+        LOG.info("Stopping S3 proxy");
         if (proxy != null){
             proxy.stop();
         }
@@ -54,7 +57,7 @@ public class S3ProxyProvider {
 
         S3Proxy proxy = S3Proxy.builder()
                 .blobStore(context.getBlobStore())
-                .endpoint(URI.create("http://127.0.0.1:8080"))
+                .endpoint(URI.create("http://127.0.0.1:2392"))
                 .build();
 
         try {
