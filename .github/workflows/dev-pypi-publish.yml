@@ -11,6 +11,9 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2 # TODO: should it run in master or in dev?
+        with:
+          fetch-depth: 0
+
       - run: git checkout dev
 
       - uses: actions/setup-java@v2
@@ -44,6 +47,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
       - run: git checkout dev
 
       - name: Set up Python
