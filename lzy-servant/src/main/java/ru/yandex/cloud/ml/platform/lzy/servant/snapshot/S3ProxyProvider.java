@@ -19,16 +19,12 @@ public class S3ProxyProvider {
 
     public S3ProxyProvider(){
         if (Environment.useS3Proxy())
-            synchronized (proxy) {
-                proxy = createProxy();
-            }
+            proxy = createProxy();
     }
 
     public S3ProxyProvider(Lzy.GetS3CredentialsResponse response){
         if (response.getUseS3Proxy())
-            synchronized (proxy) {
-                proxy = createProxy(response.getS3ProxyProvider(), response.getS3ProxyIdentity(), response.getS3ProxyCredentials());
-            }
+            proxy = createProxy(response.getS3ProxyProvider(), response.getS3ProxyIdentity(), response.getS3ProxyCredentials());
     }
 
     public void stop() throws Exception {

@@ -50,7 +50,7 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
             .withEnv("LZYWHITEBOARD", Environment.getLzyWhiteboard())
-            .withEnv("BUCKET_NAME", owner)
+            .withEnv("BUCKET_NAME", Environment.getBucketName())
             .withEnv("ACCESS_KEY", Environment.getAccessKey())
             .withEnv("SECRET_KEY", Environment.getSecretKey())
             .withEnv("REGION", Environment.getRegion())

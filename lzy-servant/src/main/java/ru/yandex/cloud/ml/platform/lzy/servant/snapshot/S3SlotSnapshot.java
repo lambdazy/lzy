@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class S3SlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
-    private static final String BUCKET_NAME = "lzy-bucket";
+    private static final String BUCKET_NAME = Environment.getBucketName();
     private static final String ACCESS_KEY = Environment.getAccessKey();
     private static final String SECRET_KEY = Environment.getSecretKey();
     private static final String REGION = Environment.getRegion();
