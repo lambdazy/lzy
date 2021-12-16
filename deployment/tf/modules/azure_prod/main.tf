@@ -7,9 +7,14 @@ terraform {
   }
 }
 
+provider "azurerm" {
+  features {}
+}
+
 module "azure_common" {
   source                     = "../azure_common"
   installation_name          = "lzy-prod"
-  oauth-github-client-id     = "86be13043c9f96e17372"
-  oauth-github-client-secret = "276612ba3cad5b137ac274ccc86740f6cd9a0e76"
+  oauth-github-client-id     = var.github-client-id
+  oauth-github-client-secret = var.github-secret
+  s3-postfics = "prod"
 }

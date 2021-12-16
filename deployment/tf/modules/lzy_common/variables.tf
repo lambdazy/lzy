@@ -46,3 +46,37 @@ variable "server-image" {
   type    = string
   default = "lzydock/lzy-server:master"
 }
+
+variable "whiteboard-image" {
+  type = string
+  default = "lzydock/lzy-whiteboard:master"
+}
+
+variable "s3-bucket-name" {
+  type = string
+}
+
+variable "s3-access-key" {
+  type = string
+}
+
+variable "s3-secret-key" {
+  type = string
+}
+
+variable "s3-service-endpoint" {
+  type = string
+}
+
+variable "s3-use-proxy" {
+  type = string
+}
+
+variable "s3-proxy-provider" {
+  type = string
+}
+
+variable "azure-resource-group" {
+  type = string
+  default = ""
+}

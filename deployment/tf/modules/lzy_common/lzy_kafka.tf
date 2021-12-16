@@ -39,4 +39,6 @@ resource "helm_release" "lzy_kafka" {
     name  = "image.debug"
     value = "true"
   }
+
+  depends_on = [kubernetes_secret.lzy_kafka_clickhouse]
 }
