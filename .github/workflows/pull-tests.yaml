@@ -32,9 +32,13 @@ jobs:
           file: ./lzy-servant/BaseDockerfile
           tags: celdwind/lzy:lzy-servant-base
 
+      - name: 'update-apt'
+        timeout-minutes: 5
+        run: sudo apt-get -y update --fix-missing
+
       - name: 'install-fuse'
         timeout-minutes: 5
-        run: sudo apt-get install -y fuse
+        run: sudo apt-get install -y fuse lsof procps
 
       - name: 'java-test'
         timeout-minutes: 45
