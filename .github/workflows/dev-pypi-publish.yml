@@ -39,7 +39,7 @@ jobs:
 
       - name: 'AC test'
         timeout-minutes: 45
-        run: mvn install -Dlzy.kharon.domain=kharon-lzy-prod.northeurope.cloudapp.azure.com -Dtest=KuberRunTest -DfailIfNoTests=false
+        run: mvn install -Dlzy.kharon.domain=api.lzy.ai -Dtest=KuberRunTest -DfailIfNoTests=false
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
 
 
