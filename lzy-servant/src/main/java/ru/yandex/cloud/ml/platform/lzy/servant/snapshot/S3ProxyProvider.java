@@ -39,7 +39,7 @@ public class S3ProxyProvider {
 
     public static S3Proxy createProxy(String provider, String identity, String credentials) {
         Properties properties = new Properties();
-        properties.setProperty("s3proxy.endpoint", "http://127.0.0.1:2392");
+        properties.setProperty("s3proxy.endpoint", "http://127.0.0.1:8080");
         properties.setProperty("s3proxy.authorization", "aws-v2-or-v4");
         properties.setProperty("s3proxy.identity", "local-identity");
         properties.setProperty("s3proxy.credential", "local-credential");
