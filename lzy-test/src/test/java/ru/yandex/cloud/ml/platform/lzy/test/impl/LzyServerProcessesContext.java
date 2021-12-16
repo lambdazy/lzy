@@ -70,8 +70,17 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                 env.put("ACCESS_KEY", "access-key");
                 env.put("SECRET_KEY", "secret-key");
                 env.put("REGION", "us-west-2");
-                env.put("SERVICE_ENDPOINT", "http://host.docker.internal:8001");
-                env.put("LZYWHITEBOARD", "http://host.docker.internal:8999");
+                String serviceEndpoint;
+                String lzywhiteboard;
+                if (!SystemUtils.IS_OS_LINUX) {
+                    serviceEndpoint = "http://host.docker.internal:8001";
+                    lzywhiteboard = "http://host.docker.internal:8999";
+                } else {
+                    serviceEndpoint = "http://localhost:8001";
+                    lzywhiteboard = "http://localhost:8999";
+                }
+                env.put("SERVICE_ENDPOINT", serviceEndpoint);
+                env.put("LZYWHITEBOARD", lzywhiteboard);
                 env.put("PATH_STYLE_ACCESS_ENABLED", "true");
                 lzyServer = builder.inheritIO().start();
             } catch (IOException e) {
