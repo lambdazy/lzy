@@ -482,10 +482,12 @@ public class LzyServer {
         }
 
         private String resolveUser(IAM.Auth auth) {
+            LOG.info("Resolving user for auth " + JsonUtils.printRequest(auth));
             return auth.hasUser() ? auth.getUser().getUserId() : this.auth.userForTask(resolveTask(auth));
         }
 
         private Task resolveTask(IAM.Auth auth) {
+
             return auth.hasTask() ? tasks.task(UUID.fromString(auth.getTask().getTaskId())) : null;
         }
     }

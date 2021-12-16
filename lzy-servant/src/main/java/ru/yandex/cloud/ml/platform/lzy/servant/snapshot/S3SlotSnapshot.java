@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class S3SlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
-    private static final String BUCKET_NAME = Environment.getBucketName();
+    private static final String BUCKET_NAME = "lzy-bucket";
     private static final String ACCESS_KEY = Environment.getAccessKey();
     private static final String SECRET_KEY = Environment.getSecretKey();
     private static final String REGION = Environment.getRegion();
@@ -47,80 +47,19 @@ public class S3SlotSnapshot implements SlotSnapshot {
     private static final Transmitter transmitter;
     private static final AmazonS3 client;
 
-    private static final S3Proxy proxy;
-
     static {
-        if (Environment.useS3Proxy()){
-            LOG.info("Using s3 proxy");
-            System.err.println("Using s3 proxy");
-            proxy = createProxy();
-            client = AmazonS3ClientBuilder
-                .standard()
-                .withEndpointConfiguration(
-                    new AwsClientBuilder.EndpointConfiguration("http://127.0.0.1:" + proxy.getPort(),
-                        Regions.US_EAST_1.getName()))
-                .build();
-            AmazonTransmitterFactory factory = new AmazonTransmitterFactory(client);
-            transmitter = factory.fixedPoolsTransmitter("transmitter", 10, 10);
-        }
-        else{
-            System.err.println("Using real s3 server at address: " + Environment.getServiceEndpoint());
-            LOG.info("Using real s3 server at address: " + Environment.getServiceEndpoint());
-            proxy = null;
-            BasicAWSCredentials credentials = new BasicAWSCredentials(ACCESS_KEY, SECRET_KEY);
-            client = AmazonS3ClientBuilder.standard()
-                .withCredentials(new AWSStaticCredentialsProvider(credentials))
-                .withEndpointConfiguration(
-                    new AmazonS3ClientBuilder.EndpointConfiguration(
-                        SERVICE_ENDPOINT, REGION
-                    )
+        BasicAWSCredentials credentials = new BasicAWSCredentials(ACCESS_KEY, SECRET_KEY);
+        client = AmazonS3ClientBuilder.standard()
+            .withCredentials(new AWSStaticCredentialsProvider(credentials))
+            .withEndpointConfiguration(
+                new AmazonS3ClientBuilder.EndpointConfiguration(
+                    SERVICE_ENDPOINT, REGION
                 )
-                .withPathStyleAccessEnabled(Boolean.parseBoolean(PATH_STYLE_ACCESS_ENABLED))
-                .build();
-            AmazonTransmitterFactory factory = new AmazonTransmitterFactory(client);
-            transmitter = factory.fixedPoolsTransmitter("transmitter", 10, 10);
-        }
-    }
-
-    public static S3Proxy createProxy(){
-        return createProxy(Environment.getS3ProxyProvider(), Environment.getS3ProxyIdentity(), Environment.getS3ProxyCredentials());
-    }
-
-    public static S3Proxy createProxy(String provider, String identity, String credentials) {
-        Properties properties = new Properties();
-        properties.setProperty("s3proxy.endpoint", "http://127.0.0.1:8080");
-        properties.setProperty("s3proxy.authorization", "aws-v2-or-v4");
-        properties.setProperty("s3proxy.identity", "local-identity");
-        properties.setProperty("s3proxy.credential", "local-credential");
-        properties.setProperty("jclouds.provider", provider);
-        properties.setProperty("jclouds.identity", identity);
-        properties.setProperty("jclouds.credential", credentials);
-
-        BlobStoreContext context = ContextBuilder
-            .newBuilder(provider)
-            .overrides(properties)
-            .build(BlobStoreContext.class);
-
-        S3Proxy proxy = S3Proxy.builder()
-            .blobStore(context.getBlobStore())
-            .endpoint(URI.create("http://127.0.0.1:8080"))
+            )
+            .withPathStyleAccessEnabled(Boolean.parseBoolean(PATH_STYLE_ACCESS_ENABLED))
             .build();
-
-        try {
-            proxy.start();
-        } catch (Exception e) {
-            LOG.error(e);
-            System.exit(1);
-        }
-        while (!proxy.getState().equals(AbstractLifeCycle.STARTED)) {
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                LOG.error(e);
-                System.exit(1);
-            }
-        }
-        return proxy;
+        AmazonTransmitterFactory factory = new AmazonTransmitterFactory(client);
+        transmitter = factory.fixedPoolsTransmitter("transmitter", 10, 10);
     }
 
     private final String taskId;

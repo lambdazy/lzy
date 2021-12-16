@@ -120,7 +120,7 @@ module "lzy_common" {
   s3-access-key = azurerm_storage_account.main_s3.name
   s3-secret-key = azurerm_storage_account.main_s3.primary_access_key
   s3-use-proxy = "true"
-  s3-service-endpoint = azurerm_storage_account.main_s3.primary_blob_endpoint
+  s3-service-endpoint = "http://127.0.0.1:8080"
   s3-proxy-provider = "azureblob"
   whiteboard-image = var.whiteboard-image
   server-image = var.server-image
