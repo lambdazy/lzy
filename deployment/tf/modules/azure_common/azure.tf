@@ -129,5 +129,4 @@ module "lzy_common" {
   backoffice-frontend-image = var.backoffice-frontend-image
   clickhouse-image = var.clickhouse-image
   azure-resource-group = azurerm_resource_group.test.name
-  lzy-ai-cert-enabled =
 }
