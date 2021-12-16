@@ -121,7 +121,7 @@ resource "kubernetes_pod" "lzy_backoffice" {
 
 resource "kubernetes_service" "lzy_backoffice" {
   metadata {
-    name = "lzy-backoffice-service"
+    name        = "lzy-backoffice-service"
     annotations = var.backoffice_load_balancer_necessary_annotations
   }
   spec {

@@ -102,8 +102,8 @@ resource "kubernetes_cluster_role" "server_pods_operations" {
   }
   rule {
     api_groups = [""]
-    resources = ["pods"]
-    verbs = ["get","watch","list","create","delete"]
+    resources  = ["pods"]
+    verbs      = ["get", "watch", "list", "create", "delete"]
   }
 }
 
@@ -117,8 +117,8 @@ resource "kubernetes_cluster_role_binding" "server_pods_operations" {
     name      = "server-pods-operations"
   }
   subject {
-    kind = "ServiceAccount"
-    name = "default"
-    namespace: "default"
+    kind      = "ServiceAccount"
+    name      = "default"
+    namespace = "default"
   }
 }

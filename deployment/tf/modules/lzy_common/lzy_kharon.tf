@@ -72,7 +72,7 @@ resource "kubernetes_pod" "lzy_kharon" {
 
 resource "kubernetes_service" "lzy_kharon" {
   metadata {
-    name = "lzy-kharon-load-balancer"
+    name        = "lzy-kharon-load-balancer"
     annotations = var.kharon_load_balancer_necessary_annotations
   }
   spec {
