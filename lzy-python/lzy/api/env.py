@@ -221,5 +221,5 @@ class LzyEnv(LzyEnvBase):
         }
         # noinspection PyArgumentList
         result = typ(**whiteboard_dict)
-        setattr(result, 'id', wid)
+        setattr(result, 'id', lambda: wid)
         return result
