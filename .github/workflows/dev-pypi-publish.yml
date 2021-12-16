@@ -44,6 +44,7 @@ jobs:
 
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml
   build-and-publish:
+    needs: acceptance-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
