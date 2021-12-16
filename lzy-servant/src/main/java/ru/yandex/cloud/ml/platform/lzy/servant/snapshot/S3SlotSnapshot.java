@@ -1,21 +1,16 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import com.amazonaws.auth.BasicAWSCredentials;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
-import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadState;
-import ru.yandex.qe.s3.util.Environment;
 
 import java.io.IOException;
 import java.io.PipedInputStream;
