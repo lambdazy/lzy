@@ -5,6 +5,7 @@ import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.protobuf.util.JsonFormat;
@@ -26,7 +27,6 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
-import ru.yandex.qe.s3.util.Environment;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 public class SnapshotTest extends LzyBaseTest {
@@ -125,13 +125,16 @@ public class SnapshotTest extends LzyBaseTest {
                 .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
                 .build();
 
-        List<S3ObjectSummary> objects = client.listObjects(Environment.getBucketName()).getObjectSummaries();
+        List<Bucket> bucketList = client.listBuckets();
+        Assert.assertEquals(1, bucketList.size());
+        String bucketName = bucketList.get(0).getName();
+        List<S3ObjectSummary> objects = client.listObjects(bucketName).getObjectSummaries();
         Assert.assertEquals(2, objects.size());
 
         for (var obj : objects) {
             String key = obj.getKey();
             String content = IOUtils.toString(
-                    client.getObject(new GetObjectRequest(Environment.getBucketName(), key))
+                    client.getObject(new GetObjectRequest(bucketName, key))
                             .getObjectContent(),
                     StandardCharsets.UTF_8
             );

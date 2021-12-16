@@ -64,7 +64,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             throw new PodProviderException("cannot find " + LZY_SERVANT_CONTAINER_NAME + " container in pod spec");
         }
         final V1Container container = containerOptional.get();
-        addEnvVars(container, token, tid, serverURI, Environment.getBucketName());
+        addEnvVars(container, token, tid, serverURI, System.getenv("BUCKET_NAME"));
 
         final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
         pod.getMetadata().setName(podName);
