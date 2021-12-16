@@ -208,15 +208,17 @@ class LzyEnv(LzyEnvBase):
     def get_active(cls) -> Optional['LzyEnv']:
         return cls.instance
 
-    def get_whiteboard(self, id: str, typ: Type[Any]) -> Any:
+    def get_whiteboard(self, wid: str, typ: Type[Any]) -> Any:
         if not dataclasses.is_dataclass(typ):
             raise ValueError("Whiteboard must be dataclass")
         # noinspection PyDataclass
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
-        wb = self._execution_context.whiteboard_api.get(id)
+        wb = self._execution_context.whiteboard_api.get(wid)
         whiteboard_dict = {
             field.field_name: self._execution_context.whiteboard_api.resolve(
                 field.storage_uri, field_types[field.field_name]) for field in  # type: ignore
             wb.fields
         }
-        return typ(**whiteboard_dict)
+        # noinspection PyArgumentList
+        result = typ(**whiteboard_dict)
+        return result

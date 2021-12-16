@@ -64,7 +64,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             throw new PodProviderException("cannot find " + LZY_SERVANT_CONTAINER_NAME + " container in pod spec");
         }
         final V1Container container = containerOptional.get();
-        addEnvVars(container, token, tid, serverURI, uid);
+        addEnvVars(container, token, tid, serverURI, Environment.getBucketName());
 
         final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
         pod.getMetadata().setName(podName);
@@ -90,7 +90,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         return ((AtomicZygote) workload).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));
     }
 
-    private void addEnvVars(V1Container container, String token, UUID tid, URI serverURI, String uid) {
+    private void addEnvVars(V1Container container, String token, UUID tid, URI serverURI, String bucketName) {
         container.addEnvItem(
             new V1EnvVar().name("LZYTASK").value(tid.toString())
         ).addEnvItem(
@@ -98,7 +98,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         ).addEnvItem(
             new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
         ).addEnvItem(
-            new V1EnvVar().name("BUCKET_NAME").value(uid)
+            new V1EnvVar().name("BUCKET_NAME").value(bucketName)
         ).addEnvItem(
             new V1EnvVar().name("ACCESS_KEY").value(System.getenv("ACCESS_KEY"))
         ).addEnvItem(

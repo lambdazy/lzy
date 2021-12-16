@@ -26,6 +26,7 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
+import ru.yandex.qe.s3.util.Environment;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 public class SnapshotTest extends LzyBaseTest {
@@ -124,13 +125,13 @@ public class SnapshotTest extends LzyBaseTest {
                 .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
                 .build();
 
-        List<S3ObjectSummary> objects = client.listObjects(terminalContext.TEST_USER).getObjectSummaries();
+        List<S3ObjectSummary> objects = client.listObjects(Environment.getBucketName()).getObjectSummaries();
         Assert.assertEquals(2, objects.size());
 
         for (var obj : objects) {
             String key = obj.getKey();
             String content = IOUtils.toString(
-                    client.getObject(new GetObjectRequest(terminalContext.TEST_USER, key))
+                    client.getObject(new GetObjectRequest(Environment.getBucketName(), key))
                             .getObjectContent(),
                     StandardCharsets.UTF_8
             );

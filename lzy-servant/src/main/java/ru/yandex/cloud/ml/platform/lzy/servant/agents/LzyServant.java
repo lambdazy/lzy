@@ -14,6 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.S3ProxyProvider;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
@@ -35,6 +36,7 @@ public class LzyServant extends LzyAgent {
     private final String bucket;
     private final AmazonS3 client;
     private final Transmitter transmitter;
+    private S3ProxyProvider proxy;
 
     public LzyServant(LzyAgentConfig config, LzyTransmitterConfig transmitterConfig) throws URISyntaxException {
         super(config);
@@ -75,6 +77,7 @@ public class LzyServant extends LzyAgent {
 
     @Override
     protected void onStartUp() {
+        proxy = new S3ProxyProvider();
         status.set(AgentStatus.REGISTERING);
         final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
         commandBuilder.setAuth(auth);
@@ -83,6 +86,18 @@ public class LzyServant extends LzyAgent {
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
+    }
+
+    @Override
+    public void close() {
+        super.close();
+        if (proxy != null){
+            try {
+                proxy.stop();
+            } catch (Exception e) {
+                LOG.error(e);
+            }
+        }
     }
 
     @Override
