@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - lzy-python/version # TODO: replace with tag change?
+  workflow_dispatch:
 
 jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
