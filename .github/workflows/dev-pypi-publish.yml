@@ -2,7 +2,7 @@ name: Publish dev pylzy-nightly package
 
 on:
   schedule:
-    - cron: 59 20 * * * # run everyday on 23:59 Moscow Time: UTC+3
+    - cron: '59 20 * * *' # run everyday on 23:59 Moscow Time: UTC+3
   workflow_dispatch:
 
 jobs:
