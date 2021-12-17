@@ -41,10 +41,12 @@ public class KuberTask extends BaseTask {
             );
             final CoreV1Api api = new CoreV1Api();
             final String namespace = "default";
+            final long sendTaskMillis = System.currentTimeMillis();
             final V1Pod pod = api.createNamespacedPod(namespace, servantPodSpec, null, null, null);
+            LOG.info("Created servant pod in Kuber: {}", pod);
             Objects.requireNonNull(pod.getMetadata());
 
-            LOG.info("Created servant pod in Kuber: {}", pod);
+            boolean metricLogged = true;
             while (true) {
                 //noinspection BusyWait
                 Thread.sleep(2000); // sleep for 2 second
@@ -75,6 +77,12 @@ public class KuberTask extends BaseTask {
                 if ("Succeeded".equals(phase) || "Failed".equals(phase)) {
                     api.deleteNamespacedPod(podName, namespace, null, null, null, null, null, null);
                     break;
+                } else {
+                    if (metricLogged) {
+                        final long taskRunningMillis = System.currentTimeMillis();
+                        LOG.info("Metric \"Time from send KuberTask to Servant Running status\": {} millis", taskRunningMillis - sendTaskMillis);
+                        metricLogged = false;
+                    }
                 }
             }
         } catch (InterruptedException e) {
