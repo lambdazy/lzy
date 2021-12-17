@@ -2,7 +2,7 @@ name: 'Sync master and dev'
 
 on:
   schedule:
-    - cron:  '0 12,20 * * *' # run at 12:00 and 20:00 everyday
+    - cron:  '0 9,17 * * *' # run at 12:00 and 20:00 Moscow Time: UTC+3 everyday
 
   workflow_dispatch:
 
