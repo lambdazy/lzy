@@ -79,5 +79,4 @@ jobs:
           packages_dir: ./lzy-python/dist
           user: __token__
           password: ${{ secrets.PYPI_API_NIGHTLY_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml
