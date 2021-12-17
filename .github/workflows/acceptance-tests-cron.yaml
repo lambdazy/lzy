@@ -2,6 +2,7 @@ name: 'Cron cluster tests'
 on:
   schedule:
     - cron: '0 21 * * *' # 24:00 Moscow Time: UTC+3
+  workflow_dispatch:
 
 jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
