@@ -38,6 +38,12 @@ public class S3ProxyProvider {
     }
 
     public static S3Proxy createProxy(String provider, String identity, String credentials) {
+        if (provider.equals("azureblob")) {
+            //https://github.com/gaul/s3proxy/issues/96
+            System.setProperty("com.amazonaws.services.s3.disablePutObjectMD5Validation", "true");
+            System.setProperty("com.amazonaws.services.s3.disableGetObjectMD5Validation", "true");
+        }
+
         Properties properties = new Properties();
         properties.setProperty("s3proxy.endpoint", "http://127.0.0.1:8080");
         properties.setProperty("s3proxy.authorization", "aws-v2-or-v4");
