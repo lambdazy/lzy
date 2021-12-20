@@ -169,11 +169,14 @@ public class LzyExecution {
     }
 
     public void start() {
+        final long startMillis = System.currentTimeMillis();
         if (zygote == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
         } else if (exec != null) {
             throw new IllegalStateException("LzyExecution has been already started");
         }
+        final long envExecFinishMillis;
+        final long slotsClosedMillis;
         try {
             progress(Servant.ExecutionProgress.newBuilder()
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
@@ -192,7 +195,9 @@ public class LzyExecution {
             LOG.info("Going to exec command " + command);
             int rc;
             String resultDescription;
+            final long envExecStartMillis = System.currentTimeMillis();
             try {
+                LOG.info("Metric \"Time from LzyExecution::start to Environment::exec\": {} millis", envExecStartMillis - startMillis);
                 this.exec = session.exec(command);
                 stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
                 stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
@@ -219,6 +224,9 @@ public class LzyExecution {
             } catch (LzyExecutionException e) {
                 resultDescription = "Error during task execution:\n" + e;
                 rc = ReturnCodes.EXECUTION_ERROR.getRc();
+            } finally {
+                envExecFinishMillis = System.currentTimeMillis();
+                LOG.info("Metric \"env execution time\": {} millis", envExecFinishMillis - envExecStartMillis);
             }
 
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
@@ -234,6 +242,8 @@ public class LzyExecution {
                     slots.wait();
                 }
             }
+            slotsClosedMillis = System.currentTimeMillis();
+            LOG.info("Metric \"Time from env exec finished to slots closed\": {} millis", slotsClosedMillis - envExecFinishMillis);
             LOG.info("Result description: " + resultDescription);
             progress(Servant.ExecutionProgress.newBuilder()
                 .setExit(Servant.ExecutionConcluded.newBuilder()
@@ -242,6 +252,8 @@ public class LzyExecution {
                     .build())
                 .build()
             );
+            final long finishMillis = System.currentTimeMillis();
+            LOG.info("\"Metric \"Time from slots closed to LzyExecution::start finish\": {} millis", finishMillis - slotsClosedMillis);
         } catch (InterruptedException e) {
             final String exceptionDescription = "InterruptedException during task execution" + e;
             LOG.warn(exceptionDescription);

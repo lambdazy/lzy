@@ -92,6 +92,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+            final long executeMillis = System.currentTimeMillis();
             status.set(AgentStatus.PREPARING_EXECUTION);
             LOG.info("LzyServant::execute " + JsonUtils.printRequest(request));
             if (currentExecution != null) {
@@ -168,6 +169,8 @@ public class LzyServant extends LzyAgent {
                 }
             }
 
+            final long startExecutionMillis = System.currentTimeMillis();
+            LOG.info("Metric \"Time from task LzyServant::execution to LzyExecution::start\": {} millis", startExecutionMillis - executeMillis);
             currentExecution.start();
             status.set(AgentStatus.EXECUTING);
         }
