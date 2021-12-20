@@ -52,6 +52,7 @@ public abstract class LzyAgent implements Closeable {
     protected final SlotConnectionManager slotConnectionManager = new SlotConnectionManager();
 
     protected LzyAgent(LzyAgentConfig config) throws URISyntaxException {
+        final long start = System.currentTimeMillis();
         this.mount = config.getRoot();
         this.serverAddress = config.getServerAddress();
 
@@ -66,6 +67,8 @@ public abstract class LzyAgent implements Closeable {
             config.getAgentInternalName(),
             config.getAgentPort(), null, null, null
         );
+        final long finish = System.currentTimeMillis();
+        LOG.info("Metric \"LzyAgent {} construct time\": {} millis", this.getClass().getSimpleName(), finish - start);
     }
 
     abstract protected void onStartUp();
