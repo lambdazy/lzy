@@ -4,7 +4,7 @@ import java.net.URI;
 import java.nio.file.Path;
 
 public class LzyAgentConfig {
-    private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentName, String agentInternalName, String token, Path root, String tokenSign, String user, String task, int agentPort) {
+    private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentName, String agentInternalName, String token, Path root, String tokenSign, String user, String task, int agentPort, String bucket) {
         this.serverAddress = serverAddress;
         this.whiteboardAddress = whiteboardAddress;
         this.agentName = agentName;
@@ -15,6 +15,7 @@ public class LzyAgentConfig {
         this.user = user;
         this.task = task;
         this.agentPort = agentPort;
+        this.bucket = bucket;
     }
 
     private final URI serverAddress;
@@ -26,10 +27,15 @@ public class LzyAgentConfig {
     private final String tokenSign;
     private final String user;
     private final String task;
+    private final String bucket;
     private final int agentPort;
 
     public static LzyAgentConfigBuilder builder() {
         return new LzyAgentConfigBuilder();
+    }
+
+    public String getBucket() {
+        return bucket;
     }
 
     public static class LzyAgentConfigBuilder {
@@ -42,6 +48,7 @@ public class LzyAgentConfig {
         private String tokenSign;
         private String user;
         private String task;
+        private String bucket;
         private int agentPort;
 
         public LzyAgentConfigBuilder agentInternalName(String agentInternalName) {
@@ -79,6 +86,11 @@ public class LzyAgentConfig {
             return this;
         }
 
+        public LzyAgentConfigBuilder bucket(String bucket) {
+            this.bucket = bucket;
+            return this;
+        }
+
         public LzyAgentConfigBuilder token(String token) {
             this.token = token;
             return this;
@@ -95,7 +107,7 @@ public class LzyAgentConfig {
         }
 
         public LzyAgentConfig build() {
-            return new LzyAgentConfig(serverAddress, whiteboardAddress, agentName, agentInternalName, token, root, tokenSign, user, task, agentPort);
+            return new LzyAgentConfig(serverAddress, whiteboardAddress, agentName, agentInternalName, token, root, tokenSign, user, task, agentPort, bucket);
         }
     }
 

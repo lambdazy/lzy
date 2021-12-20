@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.qe.s3.util.Environment;
 
 import java.io.File;
 import java.io.IOException;
@@ -65,7 +64,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             throw new PodProviderException("cannot find " + LZY_SERVANT_CONTAINER_NAME + " container in pod spec");
         }
         final V1Container container = containerOptional.get();
-        addEnvVars(container, token, tid, serverURI, uid);
+        addEnvVars(container, token, tid, serverURI, System.getenv("BUCKET_NAME"));
 
         final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
         pod.getMetadata().setName(podName);
@@ -91,7 +90,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         return ((AtomicZygote) workload).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));
     }
 
-    private void addEnvVars(V1Container container, String token, UUID tid, URI serverURI, String uid) {
+    private void addEnvVars(V1Container container, String token, UUID tid, URI serverURI, String bucketName) {
         container.addEnvItem(
             new V1EnvVar().name("LZYTASK").value(tid.toString())
         ).addEnvItem(
@@ -99,19 +98,27 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         ).addEnvItem(
             new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
         ).addEnvItem(
-            new V1EnvVar().name("BUCKET_NAME").value(uid)
+            new V1EnvVar().name("BUCKET_NAME").value(bucketName)
         ).addEnvItem(
-            new V1EnvVar().name("ACCESS_KEY").value(Environment.getAccessKey())
+            new V1EnvVar().name("ACCESS_KEY").value(System.getenv("ACCESS_KEY"))
         ).addEnvItem(
-            new V1EnvVar().name("SECRET_KEY").value(Environment.getSecretKey())
+            new V1EnvVar().name("SECRET_KEY").value(System.getenv("SECRET_KEY"))
         ).addEnvItem(
-            new V1EnvVar().name("REGION").value(Environment.getRegion())
+            new V1EnvVar().name("REGION").value(System.getenv("REGION"))
         ).addEnvItem(
-            new V1EnvVar().name("SERVICE_ENDPOINT").value(Environment.getServiceEndpoint())
+            new V1EnvVar().name("SERVICE_ENDPOINT").value(System.getenv("SERVICE_ENDPOINT"))
         ).addEnvItem(
-            new V1EnvVar().name("PATH_STYLE_ACCESS_ENABLED").value(Environment.getPathStyleAccessEnabled())
+            new V1EnvVar().name("PATH_STYLE_ACCESS_ENABLED").value(System.getenv("PATH_STYLE_ACCESS_ENABLED"))
         ).addEnvItem(
-            new V1EnvVar().name("LZYWHITEBOARD").value(Environment.getLzyWhiteboard())
+            new V1EnvVar().name("LZYWHITEBOARD").value(System.getenv("LZYWHITEBOARD"))
+        ).addEnvItem(
+                new V1EnvVar().name("USE_S3_PROXY").value(String.valueOf(Objects.equals(System.getenv("USE_S3_PROXY"), "true")))
+        ).addEnvItem(
+                new V1EnvVar().name("S3_PROXY_PROVIDER").value(System.getenv("S3_PROXY_PROVIDER"))
+        ).addEnvItem(
+                new V1EnvVar().name("S3_PROXY_IDENTITY").value(System.getenv("S3_PROXY_IDENTITY"))
+        ).addEnvItem(
+                new V1EnvVar().name("S3_PROXY_CREDENTIALS").value(System.getenv("S3_PROXY_CREDENTIALS"))
         );
     }
 }

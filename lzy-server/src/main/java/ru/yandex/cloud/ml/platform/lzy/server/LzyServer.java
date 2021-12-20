@@ -17,7 +17,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.qe.s3.util.Environment;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -293,6 +292,7 @@ public class LzyServer {
 
         @Override
         public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request, StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
+            LOG.info("Server::checkPermissions " + JsonUtils.printRequest(request));
             IAM.Auth requestAuth = request.getAuth();
             if (!checkAuth(requestAuth, responseObserver)) {
                 responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
@@ -303,6 +303,7 @@ public class LzyServer {
                 if (!auth.hasPermission(resolveUser(requestAuth), permission)) {
                     responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
                     responseObserver.onCompleted();
+                    LOG.info("User " + resolveUser(requestAuth) + " does not have permission " + permission);
                     return;
                 }
             }
@@ -348,8 +349,12 @@ public class LzyServer {
 
             responseObserver.onNext(
                 Lzy.GetS3CredentialsResponse.newBuilder()
-                .setAccessToken(Environment.getAccessKey())
-                .setSecretToken(Environment.getSecretKey())
+                .setAccessToken(System.getenv("ACCESS_KEY"))
+                .setSecretToken(System.getenv("SECRET_KEY"))
+                .setUseS3Proxy(Objects.equals(System.getenv("USE_S3_PROXY"), "true"))
+                .setS3ProxyCredentials(System.getenv("S3_PROXY_CREDENTIALS") != null ? System.getenv("S3_PROXY_CREDENTIALS") : "")
+                .setS3ProxyIdentity(System.getenv("S3_PROXY_IDENTITY") != null ? System.getenv("S3_PROXY_IDENTITY") : "")
+                .setS3ProxyProvider(System.getenv("S3_PROXY_PROVIDER") != null ? System.getenv("S3_PROXY_PROVIDER") : "")
                 .build()
             );
             responseObserver.onCompleted();
@@ -476,6 +481,7 @@ public class LzyServer {
         }
 
         private String resolveUser(IAM.Auth auth) {
+            LOG.info("Resolving user for auth " + JsonUtils.printRequest(auth));
             return auth.hasUser() ? auth.getUser().getUserId() : this.auth.userForTask(resolveTask(auth));
         }
 

@@ -13,12 +13,8 @@ import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ForkJoinPool;
-import ru.yandex.qe.s3.util.Environment;
 
 public class LocalProcessTask extends LocalTask {
     private static final Logger LOG = LogManager.getLogger(LocalProcessTask.class);
@@ -43,6 +39,23 @@ public class LocalProcessTask extends LocalTask {
             taskDir.delete();
             taskDir.mkdirs();
             taskDir.mkdir();
+            LOG.info("Servant s3 service endpoint id " + System.getenv("SERVICE_ENDPOINT"));
+            HashMap<String, String> envs = new HashMap<>(Map.of(
+                    "LZYTASK", tid.toString(),
+                    "LZYTOKEN", token,
+                    "LZY_MOUNT", taskDir.getAbsolutePath(),
+                    "LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"),
+                    "BUCKET_NAME", owner,
+                    "ACCESS_KEY", System.getenv("ACCESS_KEY"),
+                    "SECRET_KEY", System.getenv("SECRET_KEY"),
+                    "REGION", System.getenv("REGION"),
+                    "SERVICE_ENDPOINT", System.getenv("SERVICE_ENDPOINT"),
+                    "PATH_STYLE_ACCESS_ENABLED", System.getenv("PATH_STYLE_ACCESS_ENABLED")
+            ));
+            envs.put("USE_S3_PROXY", String.valueOf(Objects.equals(System.getenv("USE_S3_PROXY"), "true")));
+            envs.put("S3_PROXY_PROVIDER", System.getenv("S3_PROXY_PROVIDER"));
+            envs.put("S3_PROXY_IDENTITY", System.getenv("S3_PROXY_IDENTITY"));
+            envs.put("S3_PROXY_CREDENTIALS", System.getenv("S3_PROXY_CREDENTIALS"));
             final Process process = runJvm(
                 "lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar", taskDir,
                 new String[]{
@@ -51,18 +64,7 @@ public class LocalProcessTask extends LocalTask {
                     "-p", String.valueOf(servantPort),
                     "-m", taskDir.getAbsolutePath()
                 },
-                Map.of(
-                    "LZYTASK", tid.toString(),
-                    "LZYTOKEN", token,
-                    "LZY_MOUNT", taskDir.getAbsolutePath(),
-                    "LZYWHITEBOARD", Environment.getLzyWhiteboard(),
-                    "BUCKET_NAME", owner,
-                    "ACCESS_KEY", Environment.getAccessKey(),
-                    "SECRET_KEY", Environment.getSecretKey(),
-                    "REGION", Environment.getRegion(),
-                    "SERVICE_ENDPOINT", Environment.getServiceEndpoint(),
-                    "PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled()
-                )
+                envs
             );
             process.getOutputStream().close();
             ForkJoinPool.commonPool().execute(() -> {

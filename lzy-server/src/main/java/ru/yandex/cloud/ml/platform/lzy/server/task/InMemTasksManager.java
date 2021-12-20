@@ -137,6 +137,7 @@ public class InMemTasksManager implements TasksManager {
 
     @Override
     public Task task(UUID tid) {
+        LOG.info("Resolving task tid=" + tid);
         return tasks.get(tid);
     }
 

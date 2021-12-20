@@ -23,9 +23,11 @@ fi
 docker tag lzy-server lzydock/lzy-server:"$INSTALLATION"
 docker tag lzy-servant lzydock/lzy-servant:"$INSTALLATION"
 docker tag lzy-kharon lzydock/lzy-kharon:"$INSTALLATION"
+docker tag lzy-whiteboard lzydock/lzy-whiteboard:"$INSTALLATION"
 
 docker push lzydock/lzy-server:"$INSTALLATION"
 docker push lzydock/lzy-servant:"$INSTALLATION"
 docker push lzydock/lzy-kharon:"$INSTALLATION"
+docker push lzydock/lzy-whiteboard:"$INSTALLATION"
 #docker push lzydock/lzy-backoffice-backend:"$INSTALLATION"
 #docker push lzydock/lzy-backoffice-frontend:"$INSTALLATION"

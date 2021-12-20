@@ -77,6 +77,20 @@ public class KuberRunTest {
         Assert.assertEquals("1", Utils.lastLine(result.stdout()));
     }
 
+    @Test
+    public void testSimpleWhiteboard() {
+        //Arrange
+        String condaPrefix = prepareConda();
+        final String pyCommand = "python /lzy-python/examples/integration/whiteboard_simple.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + pyCommand);
+
+        //Assert
+        Assert.assertTrue(result.stdout().contains("42 42"));
+    }
+
     private String prepareConda() {
         String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
                 "conda activate default && ";

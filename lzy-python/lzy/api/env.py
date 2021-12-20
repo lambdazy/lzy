@@ -96,7 +96,7 @@ class LzyEnv(LzyEnvBase):
     def __init__(self, eager: bool = False, whiteboard: Any = None,
                  buses: List[Tuple[Callable, Bus]] = [], local: bool = False, user: str = None,
                  yaml_path: str = None, private_key_path: str = '~/.ssh/id_rsa',
-                 server_url: str = 'lzy-kharon.northeurope.cloudapp.azure.com:8899',
+                 server_url: str = 'api.lzy.ai:8899',
                  lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy")):
         super().__init__()
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
@@ -208,15 +208,17 @@ class LzyEnv(LzyEnvBase):
     def get_active(cls) -> Optional['LzyEnv']:
         return cls.instance
 
-    def get_whiteboard(self, id: str, typ: Type[Any]) -> Any:
+    def get_whiteboard(self, wid: str, typ: Type[Any]) -> Any:
         if not dataclasses.is_dataclass(typ):
             raise ValueError("Whiteboard must be dataclass")
         # noinspection PyDataclass
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
-        wb = self._execution_context.whiteboard_api.get(id)
+        wb = self._execution_context.whiteboard_api.get(wid)
         whiteboard_dict = {
             field.field_name: self._execution_context.whiteboard_api.resolve(
-                field.storage_uri, field_types[field.field_name]) for field in
+                field.storage_uri, field_types[field.field_name]) for field in  # type: ignore
             wb.fields
         }
-        return typ(**whiteboard_dict)
+        # noinspection PyArgumentList
+        result = typ(**whiteboard_dict)
+        return result

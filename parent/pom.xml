@@ -121,6 +121,7 @@
         <mockito-inline.version>3.6.28</mockito-inline.version>
         <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
         <commons-io.version>2.4</commons-io.version>
+        <s3proxy.version>1.7.1</s3proxy.version>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -860,6 +861,17 @@
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
                 <version>${commons-io.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.gaul</groupId>
+                <artifactId>s3proxy</artifactId>
+                <exclusions>
+                    <exclusion>
+                        <groupId>ch.qos.logback</groupId>
+                        <artifactId>logback-classic</artifactId>
+                    </exclusion>
+                </exclusions>
+                <version>${s3proxy.version}</version>
             </dependency>
         </dependencies>
 

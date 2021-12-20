@@ -70,4 +70,8 @@ message GetS3CredentialsRequest {
 message GetS3CredentialsResponse {
   string access_token = 1;
   string secret_token = 2;
+  bool useS3Proxy = 3;
+  string s3ProxyCredentials = 4;
+  string s3ProxyProvider = 5;
+  string s3ProxyIdentity = 6;
 }

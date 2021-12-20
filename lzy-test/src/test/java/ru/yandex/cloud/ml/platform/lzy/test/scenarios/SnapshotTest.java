@@ -5,6 +5,7 @@ import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.protobuf.util.JsonFormat;
@@ -124,13 +125,16 @@ public class SnapshotTest extends LzyBaseTest {
                 .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
                 .build();
 
-        List<S3ObjectSummary> objects = client.listObjects(terminalContext.TEST_USER).getObjectSummaries();
+        List<Bucket> bucketList = client.listBuckets();
+        Assert.assertEquals(1, bucketList.size());
+        String bucketName = bucketList.get(0).getName();
+        List<S3ObjectSummary> objects = client.listObjects(bucketName).getObjectSummaries();
         Assert.assertEquals(2, objects.size());
 
         for (var obj : objects) {
             String key = obj.getKey();
             String content = IOUtils.toString(
-                    client.getObject(new GetObjectRequest(terminalContext.TEST_USER, key))
+                    client.getObject(new GetObjectRequest(bucketName, key))
                             .getObjectContent(),
                     StandardCharsets.UTF_8
             );

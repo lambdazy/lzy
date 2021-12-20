@@ -51,8 +51,8 @@ class WhiteboardBashApi(WhiteboardApi):
             res = json.loads(out)
             access_token = res['accessToken']
             secret_token = res['secretToken']
-            os.environ['S3_ACCESS_TOKEN'] = access_token
-            os.environ['S3_SECRET_TOKEN'] = secret_token
+            os.environ['S3_ACCESS_TOKEN'] = access_token  # type: ignore
+            os.environ['S3_SECRET_TOKEN'] = secret_token  # type: ignore
         uri = parse.urlparse(url)
         fs = s3fs.S3FileSystem(key=access_token, secret=secret_token, client_kwargs={'endpoint_url': f"http://{uri.netloc}"})
         with fs.open(uri.path) as f:

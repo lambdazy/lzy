@@ -1,4 +1,5 @@
-resource "kubernetes_pod" "clickhouse" {
+
+resource "kubernetes_deployment" "clickhouse" {
   metadata {
     name = "clickhouse"
     labels = {
@@ -6,41 +7,56 @@ resource "kubernetes_pod" "clickhouse" {
     }
   }
   spec {
-    container {
-      name  = "clickhouse"
-      image = var.clickhouse-image
-      env {
-        name = "CLICKHOUSE_USER"
-        value_from {
-          secret_key_ref {
-            name = "clickhouse"
-            key  = "username"
-          }
-        }
-      }
-      env {
-        name = "CLICKHOUSE_PASSWORD"
-        value_from {
-          secret_key_ref {
-            name = "clickhouse"
-            key  = "password"
-          }
-        }
-      }
-      env {
-        name  = "CLICKHOUSE_DB"
-        value = "lzy"
-      }
-      env {
-        name  = "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT"
-        value = "1"
-      }
-      port {
-        container_port = 8123
+    selector {
+      match_labels = {
+        app = "clickhouse"
       }
     }
-    host_network = true
-    dns_policy   = "ClusterFirstWithHostNet"
+    template {
+      metadata {
+        name = "clickhouse"
+        labels = {
+          app = "clickhouse"
+        }
+      }
+      spec {
+        container {
+          name  = "clickhouse"
+          image = var.clickhouse-image
+          env {
+            name = "CLICKHOUSE_USER"
+            value_from {
+              secret_key_ref {
+                name = "clickhouse"
+                key  = "username"
+              }
+            }
+          }
+          env {
+            name = "CLICKHOUSE_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = "clickhouse"
+                key  = "password"
+              }
+            }
+          }
+          env {
+            name  = "CLICKHOUSE_DB"
+            value = "lzy"
+          }
+          env {
+            name  = "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT"
+            value = "1"
+          }
+          port {
+            container_port = 8123
+          }
+        }
+        host_network = true
+        dns_policy   = "ClusterFirstWithHostNet"
+      }
+    }
   }
 }
 
@@ -61,6 +77,6 @@ resource "kubernetes_service" "clickhouse_service" {
     }
   }
   depends_on = [
-    kubernetes_pod.clickhouse
+    kubernetes_deployment.clickhouse
   ]
 }
