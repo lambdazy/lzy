@@ -60,7 +60,10 @@ public class CondaEnvironment implements Environment {
     @Override
     public Process exec(String command) throws EnvironmentInstallationException, LzyExecutionException {
         if (envInstalled.compareAndSet(false, true)) {
+            final long pyEnvInstallStart = System.currentTimeMillis();
             installPyenv();
+            final long pyEnvInstallFinish = System.currentTimeMillis();
+            LOG.info("Metric \"Time for installing py env millis\": {} millis", pyEnvInstallFinish - pyEnvInstallStart);
         }
         try {
            return execInEnv(command);
