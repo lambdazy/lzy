@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
