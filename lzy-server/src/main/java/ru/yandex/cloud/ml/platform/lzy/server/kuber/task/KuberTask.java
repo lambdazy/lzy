@@ -77,7 +77,8 @@ public class KuberTask extends BaseTask {
                 if ("Succeeded".equals(phase) || "Failed".equals(phase)) {
                     api.deleteNamespacedPod(podName, namespace, null, null, null, null, null, null);
                     break;
-                } else {
+                } else if ("Running".equals(phase)) {
+                    // It's necessary to log metric only 1 time
                     if (metricLogged) {
                         final long taskRunningMillis = System.currentTimeMillis();
                         LOG.info("Metric \"Time from send KuberTask to Servant Running status\": {} millis", taskRunningMillis - sendTaskMillis);
@@ -88,10 +89,9 @@ public class KuberTask extends BaseTask {
         } catch (InterruptedException e) {
             throw new RuntimeException("KuberTask:: Exception while execution. " + e);
         } catch (ApiException e) {
-            LOG.error("KuberTask:: API exception while pod creation. " + e);
-            LOG.error(e.getResponseBody());
+            throw new RuntimeException("KuberTask:: API exception while kubernetes pod creation", e);
         } catch (PodProviderException e) {
-            LOG.error("KuberTask:: Exception while creating servant pod spec");
+            throw new RuntimeException("KuberTask:: Exception while creating servant pod spec", e);
         } finally {
             LOG.info("Destroying kuber task");
             state(State.DESTROYED);
