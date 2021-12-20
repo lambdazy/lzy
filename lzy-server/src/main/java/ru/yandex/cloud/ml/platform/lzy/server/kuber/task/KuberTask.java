@@ -46,7 +46,7 @@ public class KuberTask extends BaseTask {
             LOG.info("Created servant pod in Kuber: {}", pod);
             Objects.requireNonNull(pod.getMetadata());
 
-            boolean metricLogged = true;
+            boolean metricLogged = false;
             while (true) {
                 //noinspection BusyWait
                 Thread.sleep(2000); // sleep for 2 second
@@ -79,10 +79,10 @@ public class KuberTask extends BaseTask {
                     break;
                 } else if ("Running".equals(phase)) {
                     // It's necessary to log metric only 1 time
-                    if (metricLogged) {
+                    if (!metricLogged) {
                         final long taskRunningMillis = System.currentTimeMillis();
                         LOG.info("Metric \"Time from send KuberTask to Servant Running status\": {} millis", taskRunningMillis - sendTaskMillis);
-                        metricLogged = false;
+                        metricLogged = true;
                     }
                 }
             }
