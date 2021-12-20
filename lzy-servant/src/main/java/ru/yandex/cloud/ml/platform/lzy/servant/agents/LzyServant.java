@@ -34,6 +34,7 @@ public class LzyServant extends LzyAgent {
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
+        final long start = System.currentTimeMillis();
         taskId = config.getTask();
         bucket = config.getBucket();
         URI whiteboardAddress = config.getWhiteboardAddress();
@@ -50,6 +51,8 @@ public class LzyServant extends LzyAgent {
         snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
         storage = initStorage();
+        final long finish = System.currentTimeMillis();
+        LOG.info("Metric \"Time from agent construct finish to LzyServant construct finish\": {} millis", finish - start);
        }
 
     private SnapshotStorage initStorage(){
@@ -64,6 +67,7 @@ public class LzyServant extends LzyAgent {
 
     @Override
     protected void onStartUp() {
+        final long start = System.currentTimeMillis();
         UserEventLogger.log(new UserEvent(
             "Servant startup",
             Map.of(
@@ -80,6 +84,8 @@ public class LzyServant extends LzyAgent {
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
+        final long finish = System.currentTimeMillis();
+        LOG.info("Metric \"LzyServant startUp time\": {} millis", finish - start);
     }
 
     @Override
@@ -172,11 +178,14 @@ public class LzyServant extends LzyAgent {
             final long startExecutionMillis = System.currentTimeMillis();
             LOG.info("Metric \"Time from task LzyServant::execution to LzyExecution::start\": {} millis", startExecutionMillis - executeMillis);
             currentExecution.start();
+            final long finishExecutionMillis = System.currentTimeMillis();
+            LOG.info("Metric \"Execution time\": {} millis", finishExecutionMillis - startExecutionMillis);
             status.set(AgentStatus.EXECUTING);
         }
 
         @Override
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+            final long start = System.currentTimeMillis();
             LOG.info("LzyServant::openOutputSlot " + JsonUtils.printRequest(request));
             if (currentExecution == null || currentExecution.slot(request.getSlot()) == null) {
                 LOG.info("Not found slot: " + request.getSlot());
@@ -192,6 +201,8 @@ public class LzyServant extends LzyAgent {
             } catch (IOException iae) {
                 responseObserver.onError(iae);
             }
+            final long finish = System.currentTimeMillis();
+            LOG.info("Metric \"LzyServant openOutputSlot time\": {} millis", finish - start);
         }
 
         @Override
