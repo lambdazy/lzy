@@ -4,6 +4,7 @@ import jnr.ffi.Pointer;
 import jnr.ffi.types.mode_t;
 import jnr.ffi.types.off_t;
 import jnr.ffi.types.size_t;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.ErrorCodes;
@@ -65,6 +66,17 @@ public class LzyFS extends FuseStubFS {
         for (String root : roots) {
             children.put(Paths.get("/", root), new HashSet<>());
         }
+    }
+
+    @Override
+    public void mount(Path mountPoint, boolean blocking, boolean debug, String[] fuseOpts) {
+        super.mount(mountPoint, blocking, debug, ArrayUtils.addAll(
+            new String[]{
+                "-o",
+                "negative_timeout=0,attr_timeout=0,ac_attr_timeout=0,entry_timeout=0,direct_io,noauto_cache"
+            },
+            fuseOpts)
+        );
     }
 
     public static Set<String> roots() {
@@ -234,7 +246,7 @@ public class LzyFS extends FuseStubFS {
                 stat.st_ctim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(ctime));
             }
             stat.st_mode.set(0640 | slot.mtype());
-            stat.st_size.set(slot.size());
+            stat.st_size.set(4096); //set page size & disable caches
         }
         else return -ErrorCodes.ENOENT();
 
