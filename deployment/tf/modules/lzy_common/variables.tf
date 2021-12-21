@@ -56,6 +56,7 @@ variable "whiteboard-image" {
 
 variable "s3-bucket-name" {
   type = string
+  default = "lzy-bucket"
 }
 
 variable "s3-access-key" {
@@ -72,10 +73,12 @@ variable "s3-service-endpoint" {
 
 variable "s3-use-proxy" {
   type = string
+  default = "false"
 }
 
 variable "s3-proxy-provider" {
   type = string
+  default = ""
 }
 
 variable "azure-resource-group" {

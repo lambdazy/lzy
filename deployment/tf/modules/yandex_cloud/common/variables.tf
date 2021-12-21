@@ -50,3 +50,7 @@ variable "network_id" {
 variable "subnet_id" {
   type = string
 }
+
+variable "YC_TOKEN" {
+  description = "YC IAM token"
+}
