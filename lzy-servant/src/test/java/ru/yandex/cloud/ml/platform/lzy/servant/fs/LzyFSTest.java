@@ -24,12 +24,12 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
 
 public class LzyFSTest {
     private static final String LZY_MOUNT = "/tmp/lzy";
-    private LzyFS lzyFS;
+    private LzyFSManager lzyFS;
 
     @Before
     public void setUp() {
-        lzyFS = new LzyFS();
-        lzyFS.mount(Path.of("/tmp/lzy"), false, false);
+        lzyFS = new LzyFsManagerImpl();
+        lzyFS.mount(Path.of("/tmp/lzy"));
     }
 
     @After
