@@ -1,7 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.fs;
 
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -27,7 +29,7 @@ public class LzyFSTest {
     @Before
     public void setUp() {
         lzyFS = new LzyFS();
-        lzyFS.mount(Path.of("/tmp/lzy"));
+        lzyFS.mount(Path.of("/tmp/lzy"), false, false);
     }
 
     @After
@@ -41,6 +43,8 @@ public class LzyFSTest {
         //Arrange
         final CountDownLatch latch = new CountDownLatch(1);
         final String slotPath = "/test_in_slot";
+        final Path tempFile = Files.createTempFile("lzy", "test-file-slot");
+        final OutputStream stream = Files.newOutputStream(tempFile);
         final InFileSlot slot = new InFileSlot("tid", new Slot() {
             @Override
             public String name() {
@@ -61,8 +65,9 @@ public class LzyFSTest {
             public DataSchema contentType() {
                 return null;
             }
-        }, new Cached(DevNullSlotSnapshot::new));
+        }, tempFile, new Cached(DevNullSlotSnapshot::new));
         lzyFS.addSlot(slot);
+        stream.write(ByteString.copyFromUtf8("kek\n").toByteArray());
 
         //Act
         ForkJoinPool.commonPool().execute(() -> {
@@ -79,6 +84,7 @@ public class LzyFSTest {
             }
             latch.countDown();
         });
+        stream.write(ByteString.copyFromUtf8("kek\n").toByteArray());
         Thread.sleep(300000);
         slot.state(State.OPEN);
 
