@@ -121,11 +121,6 @@ module "lzy_common" {
   installation_name                 = var.installation_name
   oauth-github-client-id            = var.oauth-github-client-id
   oauth-github-client-secret        = var.oauth-github-client-secret
-  cluster_id                        = azurerm_kubernetes_cluster.main.id
-  kubernetes_host                   = azurerm_kubernetes_cluster.main.kube_config.0.host
-  kubernetes_client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate)
-  kubernetes_client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key)
-  kubernetes_cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate)
   s3-bucket-name                    = "lzy-bucket"
   storage-provider                  = "azure"
   azure-connection-string           = azurerm_storage_account.main_s3.primary_connection_string
@@ -133,7 +128,6 @@ module "lzy_common" {
   server-image                      = var.server-image
   kharon-image                      = var.kharon-image
   backoffice-backend-image          = var.backoffice-backend-image
-  backoffice-frontend-image         = var.backoffice-frontend-image
   clickhouse-image                  = var.clickhouse-image
   azure-resource-group              = azurerm_resource_group.test.name
   ssl-enabled                       = var.ssl-enabled
