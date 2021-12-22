@@ -6,6 +6,7 @@ from typing import Any
 
 import cloudpickle
 import sys
+import time
 
 from lzy.api.lazy_op import LzyRemoteOp
 from lzy.api.utils import lazy_proxy
@@ -16,6 +17,10 @@ from lzy.servant.servant_client import ServantClient
 
 def load_arg(path: Path) -> Any:
     with open(path, 'rb') as f:
+        # Wait for slot become open
+        while f.read(1) is None:
+            time.sleep(0)  # Thread.yield
+        f.seek(0)
         return cloudpickle.load(f)
 
 
