@@ -1,20 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.fs;
 
-import jnr.ffi.Pointer;
-import jnr.ffi.types.mode_t;
-import jnr.ffi.types.off_t;
-import jnr.ffi.types.size_t;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.serce.jnrfuse.ErrorCodes;
-import ru.serce.jnrfuse.FuseFillDir;
-import ru.serce.jnrfuse.FuseStubFS;
-import ru.serce.jnrfuse.struct.FileStat;
-import ru.serce.jnrfuse.struct.FuseFileInfo;
-import ru.serce.jnrfuse.struct.Statvfs;
-import ru.serce.jnrfuse.struct.Timespec;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -33,7 +18,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import jnr.ffi.Pointer;
+import jnr.ffi.types.mode_t;
+import jnr.ffi.types.off_t;
+import jnr.ffi.types.size_t;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.serce.jnrfuse.ErrorCodes;
+import ru.serce.jnrfuse.FuseFillDir;
+import ru.serce.jnrfuse.FuseStubFS;
+import ru.serce.jnrfuse.struct.FileStat;
+import ru.serce.jnrfuse.struct.FuseFileInfo;
+import ru.serce.jnrfuse.struct.Statvfs;
+import ru.serce.jnrfuse.struct.Timespec;
 
+@SuppressWarnings("FieldMayBeFinal")
 public class LzyFS extends FuseStubFS {
     private static final Logger LOG = LogManager.getLogger(LzyFS.class);
 
@@ -61,8 +60,11 @@ public class LzyFS extends FuseStubFS {
     }
 
     public LzyFS() {
-        children.put(Path.of("/"), roots);
-        roots.addAll(roots());
+    }
+
+    public LzyFS(Set<String> roots) {
+        children.put(Path.of("/"), new HashSet<>(roots));
+        this.roots.addAll(roots);
         for (String root : roots) {
             children.put(Paths.get("/", root), new HashSet<>());
         }
@@ -70,23 +72,12 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public void mount(Path mountPoint, boolean blocking, boolean debug, String[] fuseOpts) {
-        super.mount(mountPoint, blocking, debug, ArrayUtils.addAll(
-            new String[]{
-                "-o",
-                "negative_timeout=0,attr_timeout=0,ac_attr_timeout=0,entry_timeout=0,direct_io,noauto_cache"
-            },
-            fuseOpts)
-        );
+        super.mount(mountPoint, blocking, debug, fuseOpts);
     }
 
-    public static Set<String> roots() {
-        return Set.of("sbin", "bin", "dev");
-    }
-
-    public void addScript(LzyScript exec, boolean isSystem) {
-        Path execPath = Paths.get(isSystem ? "/sbin" : "/bin").resolve(exec.location());
-        if (executables.put(execPath, exec) == null)
-            addPath(execPath);
+    public void addScript(LzyScript script, Path path) {
+        if (executables.put(path, script) == null)
+            addPath(path);
     }
 
     public void addSlot(LzyFileSlot slot) {
