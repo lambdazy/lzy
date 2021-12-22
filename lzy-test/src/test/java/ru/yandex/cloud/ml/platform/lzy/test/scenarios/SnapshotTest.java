@@ -68,7 +68,7 @@ public class SnapshotTest extends LzyBaseTest {
                 "cat_to_file_lzy",
                 List.of(fileName.substring(LZY_MOUNT.length())),
                 List.of(fileOutName.substring(LZY_MOUNT.length())),
-                "cat " + fileName + " > " + fileOutName
+                "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName
         );
 
         //Act
@@ -82,7 +82,7 @@ public class SnapshotTest extends LzyBaseTest {
         terminal.publish(cat_to_file.getName(), cat_to_file);
         final LzyTerminalTestContext.Terminal.ExecutionResult[] result1 = new LzyTerminalTestContext.Terminal.ExecutionResult[1];
         ForkJoinPool.commonPool()
-                .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
+                .execute(() -> result1[0] = terminal.execute("bash", "-c", "/tmp/lzy/sbin/cat " + localFileOutName));
         final String spIdJson = terminal.createSnapshot();
         JSONObject spIdObject = (JSONObject) (new JSONParser()).parse(spIdJson);
         final String spId = (String) spIdObject.get("snapshotId");
