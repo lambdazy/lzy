@@ -10,6 +10,6 @@ Configuration:
 
   Loggers:
     Root:
-      level: trace
+      level: info
       AppenderRef:
         ref: Console

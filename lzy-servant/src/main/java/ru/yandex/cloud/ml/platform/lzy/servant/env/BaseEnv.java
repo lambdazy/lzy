@@ -5,6 +5,7 @@ import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
+import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.model.BindOptions;
 import com.github.dockerjava.api.model.BindPropagation;
 import com.github.dockerjava.api.model.Frame;
@@ -47,7 +48,7 @@ public class BaseEnv implements Environment {
         final List<Mount> dockerMounts = new ArrayList<>();
         dockerMounts.add(
             new Mount()
-                .withSource("/tmp/servant/lzy")
+                .withSource("/tmp/lzy")
                 .withTarget("/tmp/lzy")
                 .withType(MountType.BIND)
                 .withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED))
@@ -62,6 +63,18 @@ public class BaseEnv implements Environment {
         final HostConfig hostConfig = new HostConfig();
         hostConfig.withMounts(dockerMounts);
 
+        LOG.info("Pulling image {} ...", defaultImage());
+        final var pullingImage = DOCKER
+            .pullImageCmd(defaultImage())
+            .exec(new PullImageResultCallback());
+        try {
+            pullingImage.awaitCompletion();
+        } catch (InterruptedException e) {
+            LOG.error("Pulling image {} was interrupted", defaultImage());
+            throw new RuntimeException(e);
+        }
+        LOG.info("Pulling image {} done", defaultImage());
+
         final CreateContainerCmd createContainerCmd = DOCKER.createContainerCmd(defaultImage())
             .withHostConfig(hostConfig)
             .withAttachStdout(true)
@@ -70,11 +83,11 @@ public class BaseEnv implements Environment {
         container = createContainerCmd
             .withTty(true)
             .exec();
-        LOG.info("Created container id = {}", container.getId());
+        LOG.info("Created env container, id = {}", container.getId());
 
-        LOG.info("Starting container with id = " + container.getId());
+        LOG.info("Starting env container with id {} ...", container.getId());
         DOCKER.startContainerCmd(container.getId()).exec();
-        LOG.info("Started container with id = " + container.getId());
+        LOG.info("Starting env container with id {} done", container.getId());
     }
 
     @Override

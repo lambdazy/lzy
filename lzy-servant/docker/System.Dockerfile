@@ -1,14 +1,11 @@
-FROM nvidia/cuda:11.4.2-devel-ubuntu20.04
+FROM docker:dind
 
 ### deps
-RUN apt-get -y update --fix-missing
-RUN apt-get install -y fuse lsof procps
+RUN apk update
+RUN apk add fuse lsof procps ca-certificates curl bash tar
 
 ### java
-ENV DEBIAN_FRONTEND noninteractive
-RUN apt-get install -y openjdk-11-jdk
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64/
-RUN export JAVA_HOME
+RUN apk --no-cache add openjdk11 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 
 RUN mkdir -p /var/log/servant
 

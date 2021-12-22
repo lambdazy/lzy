@@ -30,6 +30,9 @@ public class BashApi {
     }
 
     public static void main(String[] args) throws Exception {
+//        if (Objects.equals(System.getenv("LOGS_APPENDER"), "Kafka")){
+//            KafkaLogsAppender.generate();
+//        }
         final CommandLineParser cliParser = new DefaultParser();
         final HelpFormatter cliHelp = new HelpFormatter();
         String commandStr = "lzy";
