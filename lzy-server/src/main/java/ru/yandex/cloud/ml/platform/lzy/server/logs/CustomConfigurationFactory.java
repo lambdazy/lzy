@@ -11,8 +11,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.utils.KafkaLogsConfiguration;
 
 import java.util.Objects;
 
-@Plugin(name = "CustomConfigurationFactory", category = "ConfigurationFactory")
-@Order(10)
 public class CustomConfigurationFactory extends ConfigurationFactory {
 
     public static final String[] SUFFIXES = new String[] {".yaml", ".yml", "*"};
