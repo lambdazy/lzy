@@ -62,7 +62,7 @@ public class RunTest extends LzyBaseTest {
                 "cat_lzy",
                 List.of(fileName.substring(LZY_MOUNT.length())),
                 Collections.emptyList(),
-                "cat " + fileName
+                "/tmp/lzy/sbin/cat " + fileName
         );
 
         //Act
@@ -80,7 +80,7 @@ public class RunTest extends LzyBaseTest {
         //Assert
         Assert.assertEquals(fileContent + "\n", result.stdout());
         Assert.assertTrue(terminal.pathExists(Path.of(localFileName)));
-        Assert.assertEquals(fileContent + "\n", terminal.execute("bash", "-c", "cat " + localFileName).stdout());
+        Assert.assertEquals(fileContent + "\n", terminal.execute("bash", "-c", "/tmp/lzy/sbin/cat " + localFileName).stdout());
 
         //Act
         terminal.destroyChannel(channelName);
@@ -111,7 +111,7 @@ public class RunTest extends LzyBaseTest {
         terminal.publish(echo_lzy.getName(), echo_lzy);
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
-                .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
+                .execute(() -> result1[0] = terminal.execute("bash", "-c", "/tmp/lzy/sbin/cat " + localFileOutName));
         final ExecutionResult result = terminal.run(
                 echo_lzy.getName(),
                 "",
@@ -142,7 +142,7 @@ public class RunTest extends LzyBaseTest {
                 "cat_to_file_lzy",
                 List.of(fileName.substring(LZY_MOUNT.length())),
                 List.of(fileOutName.substring(LZY_MOUNT.length())),
-                "cat " + fileName + " > " + fileOutName
+                "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName
         );
 
         //Act
@@ -156,7 +156,7 @@ public class RunTest extends LzyBaseTest {
         terminal.publish(cat_to_file.getName(), cat_to_file);
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
-                .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
+                .execute(() -> result1[0] = terminal.execute("bash", "-c", "/tmp/lzy/sbin/cat " + localFileOutName));
         final ExecutionResult result = terminal.run(
                 cat_to_file.getName(),
                 "",
