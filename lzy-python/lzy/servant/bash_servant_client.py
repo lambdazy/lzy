@@ -5,10 +5,11 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional, Mapping
+from typing import Any, Dict, Optional, Mapping, Union
 
 from time import sleep
 
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials
 from lzy.model.channel import Channel, Bindings
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
@@ -118,6 +119,14 @@ class BashServantClient(ServantClient, metaclass=Singleton):
         with open(zygote_description_file, 'w') as f:
             f.write(zygote.to_json())
         return self._exec_bash(f"{self._mount}/sbin/publish", zygote.name(), zygote_description_file)
+
+    def get_credentials(self, typ: ServantClient.CredentialsTypes) -> Union[AzureCredentials, AmazonCredentials]:
+        self._log.info(f"Getting credentials for {typ}")
+        out = self._exec_bash(f"{self._mount}/sbin/credentials", typ.value)
+        data: dict = json.loads(out)
+        if "azure" in data:
+            return AzureCredentials(data["azure"]["connectionString"])
+        return AmazonCredentials(data["amazon"]["endpoint"], data["amazon"]["accessToken"], data["amazon"]["secretToken"])
 
     def _execute_run(self, execution_id: str, zygote: Zygote, bindings: Bindings, entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
         slots_mapping_file = tempfile.mktemp(prefix="lzy_slot_mapping_", suffix=".json", dir="/tmp/")

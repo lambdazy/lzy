@@ -67,11 +67,19 @@ message GetS3CredentialsRequest {
   Auth auth = 1;
 }
 
+message AzureCredentials {
+  string connectionString = 1;
+}
+
+message AmazonCredentials {
+  string endpoint = 1;
+  string accessToken = 2;
+  string secretToken = 3;
+}
+
 message GetS3CredentialsResponse {
-  string access_token = 1;
-  string secret_token = 2;
-  bool useS3Proxy = 3;
-  string s3ProxyCredentials = 4;
-  string s3ProxyProvider = 5;
-  string s3ProxyIdentity = 6;
+  oneof credentials {
+    AmazonCredentials amazon = 1;
+    AzureCredentials azure = 2;
+  }
 }

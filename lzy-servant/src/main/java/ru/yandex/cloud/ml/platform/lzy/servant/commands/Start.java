@@ -7,7 +7,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.transmitter.LzyTransmitterConfig;
 
 import java.net.URI;
 import java.nio.file.Path;
@@ -39,13 +38,6 @@ public class Start implements LzyCommand {
                 .agentInternalName(internalHost)
                 .agentPort(port)
                 .root(path)
-                .build(),
-            LzyTransmitterConfig.builder()
-                .access(System.getenv("ACCESS_KEY"))
-                .secret(System.getenv("SECRET_KEY"))
-                .endpoint(System.getenv("SERVICE_ENDPOINT"))
-                .region(System.getenv("REGION"))
-                .pathStyleAccessEnabled(System.getenv("PATH_STYLE_ACCESS_ENABLED"))
                 .build()
         );
 

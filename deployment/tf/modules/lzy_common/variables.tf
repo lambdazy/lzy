@@ -56,27 +56,36 @@ variable "s3-bucket-name" {
   type = string
 }
 
-variable "s3-access-key" {
+variable "amazon-access-key" {
   type = string
+  default = ""
 }
 
-variable "s3-secret-key" {
+variable "amazon-secret-key" {
   type = string
+  default = ""
 }
 
-variable "s3-service-endpoint" {
+variable "amazon-service-endpoint" {
   type = string
+  default = ""
 }
 
-variable "s3-use-proxy" {
+variable "azure-connection-string" {
   type = string
+  default = ""
 }
 
-variable "s3-proxy-provider" {
+variable "storage-provider" {
   type = string
+  default = "amazon"
 }
 
 variable "azure-resource-group" {
   type = string
   default = ""
+}
+
+variable "servant-image" {
+  type    = string
 }

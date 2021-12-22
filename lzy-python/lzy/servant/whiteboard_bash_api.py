@@ -1,16 +1,12 @@
 import json
 import logging
-import os
 from json.decoder import JSONDecodeError
-from typing import TypeVar
-from urllib import parse
-
-import cloudpickle
-import s3fs
 
 from lzy.api._proxy import proxy
 from lzy.api.whiteboard.api import *
 from lzy.servant.bash_servant_client import BashServantClient
+from lzy.servant.servant_client import ServantClient
+from lzy.servant.whiteboard_storage import WhiteboardStorage
 
 
 class SnapshotBashApi(SnapshotApi):
@@ -37,30 +33,17 @@ T = TypeVar('T')
 
 
 class WhiteboardBashApi(WhiteboardApi):
-    def __init__(self, mount_point: str) -> None:
+    def __init__(self, mount_point: str, client: ServantClient) -> None:
         super().__init__()
         self.__mount = mount_point
+        self.__client = client
         self._log = logging.getLogger(str(self.__class__))
-
-    def _get_from_s3(self, url: str) -> Any:
-        access_token = os.getenv("S3_ACCESS_TOKEN", None)
-        secret_token = os.getenv("S3_SECRET_TOKEN", None)
-        if not access_token or not secret_token:
-            out = BashServantClient._exec_bash(f"{self.__mount}/sbin/credentials", "s3")
-            self._log.info(f"Resolved creds {out}")
-            res = json.loads(out)
-            access_token = res['accessToken']
-            secret_token = res['secretToken']
-            os.environ['S3_ACCESS_TOKEN'] = access_token  # type: ignore
-            os.environ['S3_SECRET_TOKEN'] = secret_token  # type: ignore
-        uri = parse.urlparse(url)
-        fs = s3fs.S3FileSystem(key=access_token, secret=secret_token, client_kwargs={'endpoint_url': f"http://{uri.netloc}"})
-        with fs.open(uri.path) as f:
-            return cloudpickle.load(f)
+        self.__credentials = client.get_credentials(ServantClient.CredentialsTypes.S3)
+        self.__whiteboard_storage = WhiteboardStorage.create(self.__credentials)
 
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
-        return proxy(lambda: self._get_from_s3(field_url), field_type)
+        return proxy(lambda: self.__whiteboard_storage.read(field_url), field_type)
     
     def create(self, fields: List[str], snapshot_id: str) -> WhiteboardDescription:
         logging.info(f"Creating whiteboard for snapshot {snapshot_id} with fields {fields}")
