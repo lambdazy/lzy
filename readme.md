@@ -32,7 +32,7 @@ Then copy content of `~/.ssh/public.pem` to form on [site](http://lzy.northeurop
 
 ### Running
 
-Just decorate your python functions with `@op` and run them within `LzyEnv` block!
+Just decorate your python functions with `@op` and run them within `LzyEnv` block! **Type annotations are required.**
 
 ```python
 from dataclasses import dataclass
@@ -76,6 +76,33 @@ if __name__ == '__main__':
         result = predict(model, np.array([9, 1]))
     print(result)
 
+```
+
+You can also save execution results using whiteboards. Just declare a dataclass and pass it as a `whiteboard` argument to the `LzyEnv`:
+
+```python
+@dataclass
+class GraphResult:
+    dataset: DataSet = None
+    model: CatBoostClassifier = None
+
+
+if __name__ == '__main__':
+    wb = GraphResult()
+    with LzyEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem", whiteboard=wb):
+        wb.dataset = dataset()
+        wb.model = learn(wb.dataset)
+        result = predict(wb.model, np.array([9, 1]))
+        wb_id = wb.id()
+    print(wb_id)
+```
+
+And then load them back!
+
+```python
+with LzyEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem") as env:
+    wb = env.get_whiteboard(wb_id, GraphResult)
+    print(wb.model)
 ```
 
 ## Development
