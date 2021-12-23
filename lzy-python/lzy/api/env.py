@@ -224,8 +224,7 @@ class LzyEnv(LzyEnvBase):
             wb.fields
         }
         # noinspection PyArgumentList
-        result = typ(**whiteboard_dict)
-        return result
+        return typ(**whiteboard_dict)
 
     def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
         return self._execution_context.whiteboard_api.getAll()

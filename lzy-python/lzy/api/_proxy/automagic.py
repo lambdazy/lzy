@@ -1,5 +1,5 @@
 import functools
-from typing import Type, Callable, TypeVar
+from typing import Any, Type, Callable, TypeVar
 
 
 def caster(f):
@@ -84,8 +84,9 @@ def collect_attributes(cls):
 T = TypeVar('T')
 
 
+# TODO: LazyProxy type?
 def proxy(origin_getter: Callable[[], T], t: Type[T],
-          cls_attrs=None, obj_attrs=None):
+          cls_attrs=None, obj_attrs=None) -> Any:
     """
     Function which returns proxy on object, i.e. object which looks like original,
     but lazy and created by calling given callback at the last moment
@@ -127,4 +128,5 @@ def proxy(origin_getter: Callable[[], T], t: Type[T],
             return setattr(create_and_cache(type(self), origin_getter), item,
                            value)
 
-    return Pearl()
+    return Pearl() # type: ignore
+

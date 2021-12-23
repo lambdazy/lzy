@@ -3,7 +3,6 @@ import inspect
 import sys
 import pkg_resources
 
-from types import ModuleType
 from typing import Any, Dict, Iterable, List, Tuple
 
 import yaml
