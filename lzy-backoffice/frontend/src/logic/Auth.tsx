@@ -16,7 +16,7 @@ export async function login(provider: Providers, sessionId: string): Promise<str
     console.log(provider)
     const res = await axios.post(
         BACKEND_HOST() + "/auth/login",
-        { sessionId, provider: provider.toString(), redirectUrl: "http://" + window.location.host + "/login_user" }
+        { sessionId, provider: provider.toString(), redirectUrl: window.location.protocol + "//" + window.location.host + "/login_user" }
     );
     return res.data.redirectUrl;
 }

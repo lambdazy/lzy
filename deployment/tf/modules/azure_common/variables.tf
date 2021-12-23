@@ -72,3 +72,22 @@ variable "whiteboard-image" {
 variable "s3-postfics" {
   type = string
 }
+variable "ssl-enabled" {
+  type = bool
+  default = false
+}
+
+variable "ssl-cert" {
+  type = string
+  default = ""
+}
+
+variable "ssl-cert-key" {
+  type = string
+  default = ""
+}
+
+variable "ssl-keystore-password" {
+  type = string
+  default = ""
+}
