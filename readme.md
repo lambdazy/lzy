@@ -17,10 +17,12 @@ The system is based on the following principle: a computing cluster is represent
 
 ### Installation
 
-`pip install pylzy-nightly`
+`pip install pylzy` or 
+
+`pip install pylzy-nightly` for preview version
 
 ### Generating keys
-To access lzy, you must generate RSA public and private key, and then add them to [site](http://lzy.northeurope.cloudapp.azure.com/add_token).
+To access lzy, you must generate RSA public and private key, and then add them to [site](http://lzy.ai/add_token).
 
 To generate RSA keys with openssl, run commands:
 ```shell
@@ -28,7 +30,7 @@ $ openssl genrsa -out ~/.ssh/private.pem 2048
 $ openssl rsa -in ~/.ssh/private.pem -outform PEM -pubout -out ~/.ssh/public.pem
 ```
 
-Then copy content of `~/.ssh/public.pem` to form on [site](http://lzy.northeurope.cloudapp.azure.com/add_token).
+Then copy content of `~/.ssh/public.pem` to form on [site](http://lzy.ai/add_token).
 
 ### Running
 
