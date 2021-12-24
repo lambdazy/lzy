@@ -217,4 +217,5 @@ module "lzy_common" {
   s3-bucket-name = "lzy-bucket-internal"
 
   backoffice-frontend-image = var.backoffice-frontend-image
+  servant-image = var.servant-image
 }
