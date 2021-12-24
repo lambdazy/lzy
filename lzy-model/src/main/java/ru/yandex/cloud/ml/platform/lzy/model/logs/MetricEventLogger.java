@@ -7,6 +7,6 @@ public class MetricEventLogger {
     private final static Logger LOG = LogManager.getLogger("MetricEventLogs");
 
     public static void log(MetricEvent event){
-        LOG.info(String.format("{\"event\": %s }", event.toJson()));
+        LOG.info(String.format("{\"metric\": %s }", event.toJson()));
     }
 }
