@@ -9,7 +9,7 @@ Configuration:
         Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
     File:
       name: LogFile
-      fileName: /tmp/logs/servant/${sys:custom.log.file}
+      fileName: ${sys:custom.log.file}
       PatternLayout:
         pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] [%t] %c{1} - %msg%n"
 

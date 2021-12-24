@@ -25,7 +25,7 @@ spec:
               name: kafka-servant
               key: password
         - name: LOG_FILE
-          value: "servant.log"
+          value: "/var/log/servant/servant.log"
         - name: SUSPEND_DOCKER
           value: n
         - name: DEBUG_PORT
