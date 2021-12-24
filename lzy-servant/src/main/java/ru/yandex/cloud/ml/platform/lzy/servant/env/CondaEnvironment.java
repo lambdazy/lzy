@@ -4,12 +4,15 @@ import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CondaEnvironment implements Environment {
@@ -63,7 +66,13 @@ public class CondaEnvironment implements Environment {
             final long pyEnvInstallStart = System.currentTimeMillis();
             installPyenv();
             final long pyEnvInstallFinish = System.currentTimeMillis();
-            LOG.info("Metric \"Time for installing py env millis\": {} millis", pyEnvInstallFinish - pyEnvInstallStart);
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "time for installing py env millis",
+                    Map.of(),
+                    pyEnvInstallFinish - pyEnvInstallStart
+                )
+            );
         }
         try {
            return execInEnv(command);

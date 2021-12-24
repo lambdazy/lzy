@@ -12,10 +12,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -25,6 +22,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
@@ -68,7 +67,15 @@ public abstract class LzyAgent implements Closeable {
             config.getAgentPort(), null, null, null
         );
         final long finish = System.currentTimeMillis();
-        LOG.info("Metric \"LzyAgent {} construct time\": {} millis", this.getClass().getSimpleName(), finish - start);
+        MetricEventLogger.log(
+            new MetricEvent(
+                "LzyAgent construct time",
+                Map.of(
+                    "agent_type", this.getClass().getSimpleName()
+                ),
+                finish - start
+            )
+        );
     }
 
     abstract protected void onStartUp();

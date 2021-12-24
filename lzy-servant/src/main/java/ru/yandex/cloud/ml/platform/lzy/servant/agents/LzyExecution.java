@@ -8,6 +8,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvironment;
@@ -197,7 +199,13 @@ public class LzyExecution {
             String resultDescription;
             final long envExecStartMillis = System.currentTimeMillis();
             try {
-                LOG.info("Metric \"Time from LzyExecution::start to Environment::exec\": {} millis", envExecStartMillis - startMillis);
+                MetricEventLogger.log(
+                    new MetricEvent(
+                        "time from LzyExecution::start to Environment::exec",
+                        Map.of(),
+                        envExecStartMillis - startMillis
+                    )
+                );
                 this.exec = session.exec(command);
                 stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
                 stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
@@ -226,7 +234,13 @@ public class LzyExecution {
                 rc = ReturnCodes.EXECUTION_ERROR.getRc();
             } finally {
                 envExecFinishMillis = System.currentTimeMillis();
-                LOG.info("Metric \"env execution time\": {} millis", envExecFinishMillis - envExecStartMillis);
+                MetricEventLogger.log(
+                    new MetricEvent(
+                        "env execution time",
+                        Map.of(),
+                        envExecFinishMillis - envExecStartMillis
+                    )
+                );
             }
 
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
@@ -243,7 +257,13 @@ public class LzyExecution {
                 }
             }
             slotsClosedMillis = System.currentTimeMillis();
-            LOG.info("Metric \"Time from env exec finished to slots closed\": {} millis", slotsClosedMillis - envExecFinishMillis);
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "time from env exec finished to slots closed",
+                    Map.of(),
+                    slotsClosedMillis - envExecFinishMillis
+                )
+            );
             LOG.info("Result description: " + resultDescription);
             progress(Servant.ExecutionProgress.newBuilder()
                 .setExit(Servant.ExecutionConcluded.newBuilder()
@@ -253,7 +273,13 @@ public class LzyExecution {
                 .build()
             );
             final long finishMillis = System.currentTimeMillis();
-            LOG.info("\"Metric \"Time from slots closed to LzyExecution::start finish\": {} millis", finishMillis - slotsClosedMillis);
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "time from slots closed to LzyExecution::start finish",
+                    Map.of(),
+                    finishMillis - slotsClosedMillis
+                )
+            );
         } catch (InterruptedException e) {
             final String exceptionDescription = "InterruptedException during task execution" + e;
             LOG.warn(exceptionDescription);
