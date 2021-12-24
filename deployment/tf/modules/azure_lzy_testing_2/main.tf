@@ -19,4 +19,7 @@ module "azure_common" {
   s3-postfics                = "testing2"
   gpu_count                  = 0
   server-image               = "lzydock/lzy-server:testing-2"
+  whiteboard-image           = "lzydock/lzy-whiteboard:testing-2"
+  kharon-image               = "lzydock/lzy-kharon:testing-2"
+  servant-image              = "lzydock/lzy-servant:testing-2"
 }
