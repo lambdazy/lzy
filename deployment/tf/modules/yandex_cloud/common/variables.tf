@@ -56,7 +56,7 @@ variable "YC_TOKEN" {
 }
 
 variable "backoffice-frontend-image" {
-  type = string
+  type    = string
   default = ""
 }
 
