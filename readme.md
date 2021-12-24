@@ -17,10 +17,12 @@ The system is based on the following principle: a computing cluster is represent
 
 ### Installation
 
-`pip install pylzy-nightly`
+`pip install pylzy` or 
+
+`pip install pylzy-nightly` for preview version
 
 ### Generating keys
-To access lzy, you must generate RSA public and private key, and then add them to [site](http://lzy.northeurope.cloudapp.azure.com/add_token).
+To access lzy, you must generate RSA public and private key, and then add them to [site](http://lzy.ai/keys).
 
 To generate RSA keys with openssl, run commands:
 ```shell
@@ -28,11 +30,11 @@ $ openssl genrsa -out ~/.ssh/private.pem 2048
 $ openssl rsa -in ~/.ssh/private.pem -outform PEM -pubout -out ~/.ssh/public.pem
 ```
 
-Then copy content of `~/.ssh/public.pem` to form on [site](http://lzy.northeurope.cloudapp.azure.com/add_token).
+Then copy content of `~/.ssh/public.pem` to form on [site](http://lzy.ai/keys).
 
 ### Running
 
-Just decorate your python functions with `@op` and run them within `LzyEnv` block!
+Just decorate your python functions with `@op` and run them within `LzyEnv` block! **Type annotations are required.**
 
 ```python
 from dataclasses import dataclass
@@ -76,6 +78,33 @@ if __name__ == '__main__':
         result = predict(model, np.array([9, 1]))
     print(result)
 
+```
+
+You can also save execution results using whiteboards. Just declare a dataclass and pass it as a `whiteboard` argument to the `LzyEnv`:
+
+```python
+@dataclass
+class GraphResult:
+    dataset: DataSet = None
+    model: CatBoostClassifier = None
+
+
+if __name__ == '__main__':
+    wb = GraphResult()
+    with LzyEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem", whiteboard=wb):
+        wb.dataset = dataset()
+        wb.model = learn(wb.dataset)
+        result = predict(wb.model, np.array([9, 1]))
+        wb_id = wb.id()
+    print(wb_id)
+```
+
+And then load them back!
+
+```python
+with LzyEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem") as env:
+    wb = env.get_whiteboard(wb_id, GraphResult)
+    print(wb.model)
 ```
 
 ## Development

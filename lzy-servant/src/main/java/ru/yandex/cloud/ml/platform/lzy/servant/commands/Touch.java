@@ -3,15 +3,24 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import org.apache.commons.cli.*;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
-
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
+import yandex.cloud.priv.datasphere.v2.lzy.Channels;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 public class Touch implements LzyCommand {
     private static final Options options = new Options();
@@ -50,8 +59,8 @@ public class Touch implements LzyCommand {
                     throw new IllegalArgumentException("Slot path must be in lzy-fs: " + lzyFsRoot);
                 }
                 final Path relativePath = lzyFsRoot.relativize(originalPath);
-                if (LzyFS.roots().stream().anyMatch(p -> relativePath.startsWith("/" + p))) {
-                    throw new IllegalArgumentException("System paths: " + LzyFS.roots() + " are prohibited for slots declaration");
+                if (LzyFSManager.roots().stream().anyMatch(p -> relativePath.startsWith("/" + p))) {
+                    throw new IllegalArgumentException("System paths: " + LzyFSManager.roots() + " are prohibited for slots declaration");
                 }
 
                 slotBuilder.setName("/" + relativePath);

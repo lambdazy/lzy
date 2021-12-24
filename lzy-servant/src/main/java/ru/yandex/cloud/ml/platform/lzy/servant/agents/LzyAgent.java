@@ -6,28 +6,10 @@ import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.*;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -36,13 +18,34 @@ import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFsManagerImpl;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyScript;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 public abstract class LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);
     protected final URI serverAddress;
     protected final Path mount;
     protected final IAM.Auth auth;
-    protected final LzyFS lzyFS;
+    protected final LzyFSManager lzyFS;
     protected final URI agentAddress;
     protected final URI agentInternalAddress;
     protected final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
@@ -52,10 +55,9 @@ public abstract class LzyAgent implements Closeable {
         this.mount = config.getRoot();
         this.serverAddress = config.getServerAddress();
 
-        this.lzyFS = new LzyFS();
-        createFsDirectories();
+        this.lzyFS = new LzyFsManagerImpl();
         LOG.info("Mounting LZY FS: " + mount);
-        this.lzyFS.mount(mount, false, false);
+        this.lzyFS.mount(mount);
         //this.lzyFS.mount(mount, false, true);
 
         auth = getAuth(config);
@@ -125,14 +127,6 @@ public abstract class LzyAgent implements Closeable {
 
     public void awaitTermination() throws InterruptedException {
         server().awaitTermination();
-    }
-
-    private void createFsDirectories() {
-        try {
-            Files.createDirectories(mount);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override

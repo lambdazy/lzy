@@ -3,6 +3,7 @@ import inspect
 import logging
 import os
 from abc import abstractmethod, ABC
+import time
 from typing import Callable, Optional, Type, Tuple, Any, TypeVar, Generic
 
 import cloudpickle
@@ -149,6 +150,10 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         # noinspection PyBroadException
         try:
             with open(return_slot_path, 'rb') as handle:
+                # Wait for slot become open
+                while handle.read(1) is None:
+                    time.sleep(0)  # Thread.yield
+                handle.seek(0)
                 self._materialization = cloudpickle.load(handle)
             self._log.info(f"Read result from {return_slot_path}")
         except Exception as e:
