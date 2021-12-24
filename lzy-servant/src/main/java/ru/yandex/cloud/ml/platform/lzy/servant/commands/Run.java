@@ -11,6 +11,8 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.*;
@@ -155,7 +157,13 @@ public class Run implements LzyCommand {
         final int rc = exit[0].getRc();
         final String description = exit[0].getDescription();
         final long finishTimeMillis = System.currentTimeMillis();
-        LOG.info("Metric \"Time from Task start to Task finish\": {} millis", finishTimeMillis - startTimeMillis);
+        MetricEventLogger.log(
+            new MetricEvent(
+                "time from Task start to Task finish",
+                Map.of(),
+                finishTimeMillis - startTimeMillis
+            )
+        );
         LOG.info("Run:: Task finished RC = {}, Description = {}", rc, description);
         if (rc != 0) {
             System.err.print(description);

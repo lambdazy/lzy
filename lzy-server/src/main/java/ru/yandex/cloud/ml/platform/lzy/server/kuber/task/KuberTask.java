@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.KuberUtils;
@@ -81,7 +83,13 @@ public class KuberTask extends BaseTask {
                     // It's necessary to log metric only 1 time
                     if (!metricLogged) {
                         final long taskRunningMillis = System.currentTimeMillis();
-                        LOG.info("Metric \"Time from send KuberTask to Servant Running status\": {} millis", taskRunningMillis - sendTaskMillis);
+                        MetricEventLogger.log(
+                            new MetricEvent(
+                                "time from send KuberTask to Servant Running status",
+                                Map.of(),
+                                taskRunningMillis - sendTaskMillis
+                            )
+                        );
                         metricLogged = true;
                     }
                 }

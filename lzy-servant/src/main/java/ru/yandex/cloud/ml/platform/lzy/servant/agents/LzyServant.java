@@ -7,6 +7,8 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
@@ -52,7 +54,13 @@ public class LzyServant extends LzyAgent {
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
         storage = initStorage();
         final long finish = System.currentTimeMillis();
-        LOG.info("Metric \"Time from agent construct finish to LzyServant construct finish\": {} millis", finish - start);
+        MetricEventLogger.log(
+            new MetricEvent(
+                "time from agent construct finish to LzyServant construct finish",
+                Map.of(),
+                finish - start
+            )
+        );
        }
 
     private SnapshotStorage initStorage(){
@@ -85,7 +93,13 @@ public class LzyServant extends LzyAgent {
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
         final long finish = System.currentTimeMillis();
-        LOG.info("Metric \"LzyServant startUp time\": {} millis", finish - start);
+        MetricEventLogger.log(
+            new MetricEvent(
+                "LzyServant startUp time",
+                Map.of(),
+                finish - start
+            )
+        );
     }
 
     @Override
@@ -176,10 +190,22 @@ public class LzyServant extends LzyAgent {
             }
 
             final long startExecutionMillis = System.currentTimeMillis();
-            LOG.info("Metric \"Time from task LzyServant::execution to LzyExecution::start\": {} millis", startExecutionMillis - executeMillis);
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "time from task LzyServant::execution to LzyExecution::start",
+                    Map.of(),
+                    startExecutionMillis - executeMillis
+                )
+            );
             currentExecution.start();
             final long finishExecutionMillis = System.currentTimeMillis();
-            LOG.info("Metric \"Execution time\": {} millis", finishExecutionMillis - startExecutionMillis);
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "execution time",
+                    Map.of(),
+                    finishExecutionMillis - startExecutionMillis
+                )
+            );
             status.set(AgentStatus.EXECUTING);
         }
 
@@ -202,7 +228,13 @@ public class LzyServant extends LzyAgent {
                 responseObserver.onError(iae);
             }
             final long finish = System.currentTimeMillis();
-            LOG.info("Metric \"LzyServant openOutputSlot time\": {} millis", finish - start);
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "LzyServant openOutputSlot time",
+                    Map.of(),
+                    finish - start
+                )
+            );
         }
 
         @Override
