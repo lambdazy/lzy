@@ -54,3 +54,7 @@ variable "subnet_id" {
 variable "YC_TOKEN" {
   description = "YC IAM token"
 }
+
+variable "backoffice-frontend-image" {
+  default = ""
+}

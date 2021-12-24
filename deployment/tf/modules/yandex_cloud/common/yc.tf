@@ -214,4 +214,7 @@ module "lzy_common" {
   s3-access-key       = yandex_iam_service_account_static_access_key.sa-static-key.access_key
   s3-secret-key       = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
   s3-service-endpoint = "storage.yandexcloud.net"
+  s3-bucket-name = "lzy-bucket-internal"
+
+  backoffice-frontend-image = var.backoffice-frontend-image
 }
