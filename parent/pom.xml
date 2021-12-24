@@ -122,6 +122,7 @@
         <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
         <commons-io.version>2.4</commons-io.version>
         <s3proxy.version>1.7.1</s3proxy.version>
+        <c3po.version>5.6.3.Final</c3po.version>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -861,6 +862,11 @@
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
                 <version>${commons-io.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate</groupId>
+                <artifactId>hibernate-c3p0</artifactId>
+                <version>${c3po.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.gaul</groupId>
