@@ -7,6 +7,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
@@ -24,8 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class S3SlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
-    private final AmazonS3 client;
-    private final Transmitter transmitter;
+    private final SnapshotStorage storage;
 
     private final String taskId;
     private final String bucket;
@@ -34,12 +34,11 @@ public class S3SlotSnapshot implements SlotSnapshot {
     private final Set<Slot> nonEmpty = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean bucketInited = new AtomicBoolean(false);
 
-    public S3SlotSnapshot(String taskId, String bucket, Slot slot, Transmitter transmitter, AmazonS3 client) {
+    public S3SlotSnapshot(String taskId, String bucket, Slot slot, SnapshotStorage storage) {
         this.bucket = bucket;
         this.taskId = taskId;
         this.slot = slot;
-        this.transmitter = transmitter;
-        this.client = client;
+        this.storage = storage;
     }
 
     private String generateKey(Slot slot) {
@@ -49,13 +48,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
 
     @Override
     public URI uri() {
-        try {
-            initBucket();
-            return client.getUrl(bucket, generateKey(slot)).toURI();
-        } catch (URISyntaxException e) {
-            // never happens
-            throw new RuntimeException(e);
-        }
+        return storage.getURI(bucket, generateKey(slot));
     }
 
     private StreamsWrapper createStreams() {
@@ -72,7 +65,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
             throw new RuntimeException("S3ExecutionSnapshot::createStreams exception while creating streams", e);
         }
         initBucket();
-        final ListenableFuture<UploadState> future = transmitter.upload(new UploadRequestBuilder()
+        final ListenableFuture<UploadState> future = storage.transmitter().upload(new UploadRequestBuilder()
                 .bucket(bucket)
                 .key(generateKey(slot))
                 .metadata(Metadata.empty())
@@ -83,8 +76,8 @@ public class S3SlotSnapshot implements SlotSnapshot {
 
     private void initBucket() {
         if (bucketInited.compareAndSet(false, true)) {
-            if (!client.doesBucketExistV2(bucket)) {
-                client.createBucket(bucket);
+            if (!storage.isBucketExist(bucket)) {
+                storage.createBucket(bucket);
             }
         }
     }

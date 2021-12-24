@@ -4,6 +4,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
@@ -19,14 +20,14 @@ public class SnapshotterImpl implements Snapshotter {
     private final IAM.TaskCredentials taskCred;
 
     public SnapshotterImpl(IAM.TaskCredentials taskCred, String bucket, Zygote zygote, SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
-                           SnapshotMeta meta, Transmitter transmitter, AmazonS3 client) {
+                           SnapshotMeta meta, SnapshotStorage storage) {
         this.zygote = zygote;
         this.snapshotApi = snapshotApi;
         this.meta = meta;
         this.taskCred = taskCred;
         snapshotProvider = new SlotSnapshotProvider.Cached(slot -> {
             if (meta.getEntryId(slot.name()) != null) {
-                return new S3SlotSnapshot(taskCred.getTaskId(), bucket, slot, transmitter, client);
+                return new S3SlotSnapshot(taskCred.getTaskId(), bucket, slot, storage);
             } else {
                 return new DevNullSlotSnapshot(slot);
             }

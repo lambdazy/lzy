@@ -45,12 +45,7 @@ public class LocalProcessTask extends LocalTask {
                     "LZYTOKEN", token,
                     "LZY_MOUNT", taskDir.getAbsolutePath(),
                     "LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"),
-                    "BUCKET_NAME", owner,
-                    "ACCESS_KEY", System.getenv("ACCESS_KEY"),
-                    "SECRET_KEY", System.getenv("SECRET_KEY"),
-                    "REGION", System.getenv("REGION"),
-                    "SERVICE_ENDPOINT", System.getenv("SERVICE_ENDPOINT"),
-                    "PATH_STYLE_ACCESS_ENABLED", System.getenv("PATH_STYLE_ACCESS_ENABLED")
+                    "BUCKET_NAME", owner
             ));
             envs.put("USE_S3_PROXY", String.valueOf(Objects.equals(System.getenv("USE_S3_PROXY"), "true")));
             envs.put("S3_PROXY_PROVIDER", System.getenv("S3_PROXY_PROVIDER"));

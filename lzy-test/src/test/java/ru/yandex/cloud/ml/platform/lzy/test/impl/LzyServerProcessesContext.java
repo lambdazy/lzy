@@ -67,9 +67,9 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                     }
                 );
                 Map<String, String> env = builder.environment();
-                env.put("ACCESS_KEY", "access-key");
-                env.put("SECRET_KEY", "secret-key");
-                env.put("REGION", "us-west-2");
+                env.put("STORAGE_AMAZON_ACCESS_TOKEN", "access-key");
+                env.put("STORAGE_AMAZON_SECRET_TOKEN", "secret-key");
+                env.put("STORAGE_AMAZON_ENABLED", "true");
                 String serviceEndpoint;
                 String lzywhiteboard;
                 if (!SystemUtils.IS_OS_LINUX) {
@@ -79,9 +79,8 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                     serviceEndpoint = "http://localhost:8001";
                     lzywhiteboard = "http://localhost:8999";
                 }
-                env.put("SERVICE_ENDPOINT", serviceEndpoint);
+                env.put("STORAGE_AMAZON_ENDPOINT", serviceEndpoint);
                 env.put("LZYWHITEBOARD", lzywhiteboard);
-                env.put("PATH_STYLE_ACCESS_ENABLED", "true");
                 lzyServer = builder.inheritIO().start();
             } catch (IOException e) {
                 throw new RuntimeException(e);

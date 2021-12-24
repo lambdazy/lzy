@@ -1,9 +1,11 @@
 import abc
 import logging
 import uuid
+from enum import Enum
 from pathlib import Path
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Union
 
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials
 from lzy.model.channel import Channel, Bindings, Binding
 from lzy.model.file_slots import create_slot
 from lzy.model.slot import Slot, Direction
@@ -41,6 +43,10 @@ class Execution:
 
 
 class ServantClient:
+
+    class CredentialsTypes(Enum):
+        S3 = "s3"
+
     def __init__(self):
         self._log = logging.getLogger(str(self.__class__))
 
@@ -85,6 +91,10 @@ class ServantClient:
 
     @abc.abstractmethod
     def _execute_run(self, execution_id: str, zygote: Zygote, bindings: Bindings, entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
+        pass
+
+    @abc.abstractmethod
+    def get_credentials(self, typ: CredentialsTypes) -> Union[AzureCredentials, AmazonCredentials]:
         pass
 
     def _zygote_path(self, zygote: Zygote) -> str:
