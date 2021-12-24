@@ -13,9 +13,12 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
 import io.findify.s3mock.S3Mock;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.AmazonSnapshotStorage;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
 import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
 import ru.yandex.qe.s3.transfer.Transmitter;
 
@@ -24,14 +27,13 @@ public class S3SlotSnapshotTest {
     private final String BUCKET = "lzy-bucket";
 
     private final S3Mock api = new S3Mock.Builder().withPort(8001).withInMemoryBackend().build();
+    private final SnapshotStorage storage = new AmazonSnapshotStorage("", "", URI.create(SERVICE_ENDPOINT), "transmitter", 10, 10);
     private final AmazonS3 client = AmazonS3ClientBuilder
             .standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(new EndpointConfiguration(SERVICE_ENDPOINT, "us-west-2"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
-    private final Transmitter transmitter = (new AmazonTransmitterFactory(client))
-            .fixedPoolsTransmitter("transmitter", 10, 10);
 
 
     @Before
@@ -84,11 +86,11 @@ public class S3SlotSnapshotTest {
     public void testMultipleSnapshots() throws IOException {
         SlotSnapshotProvider snapshotProvider = new SlotSnapshotProvider.Cached(slot -> {
             if (slot.name().equals("first") || slot.name().equals("second")) {
-                return new S3SlotSnapshot("first-task-id", BUCKET, slot, transmitter, client);
+                return new S3SlotSnapshot("first-task-id", BUCKET, slot, storage);
             } else if (slot.name().equals("third") || slot.name().equals("fourth")) {
-                return new S3SlotSnapshot("second-task-id", BUCKET, slot, transmitter, client);
+                return new S3SlotSnapshot("second-task-id", BUCKET, slot, storage);
             } else if (slot.name().equals("fifth")) {
-                return new S3SlotSnapshot("third-task-id", BUCKET, slot, transmitter, client);
+                return new S3SlotSnapshot("third-task-id", BUCKET, slot, storage);
             } else {
                 throw new RuntimeException("Unknown slot: " + slot.name());
             }

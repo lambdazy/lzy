@@ -59,26 +59,29 @@ variable "s3-bucket-name" {
   default = "lzy-bucket"
 }
 
-variable "s3-access-key" {
-  type = string
-}
-
-variable "s3-secret-key" {
-  type = string
-}
-
-variable "s3-service-endpoint" {
-  type = string
-}
-
-variable "s3-use-proxy" {
-  type = string
-  default = "false"
-}
-
-variable "s3-proxy-provider" {
+variable "amazon-access-key" {
   type = string
   default = ""
+}
+
+variable "amazon-secret-key" {
+  type = string
+  default = ""
+}
+
+variable "amazon-service-endpoint" {
+  type = string
+  default = ""
+}
+
+variable "azure-connection-string" {
+  type = string
+  default = ""
+}
+
+variable "storage-provider" {
+  type = string
+  default = "amazon"
 }
 
 variable "azure-resource-group" {
@@ -86,4 +89,6 @@ variable "azure-resource-group" {
   default = ""
 }
 
-variable "cluster_id" {}
+variable "servant-image" {
+  type    = string
+}

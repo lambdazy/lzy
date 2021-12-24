@@ -88,41 +88,55 @@ resource "kubernetes_deployment" "server" {
             name = "BUCKET_NAME"
             value = var.s3-bucket-name
           }
-          env {
-            name = "ACCESS_KEY"
-            value = var.s3-access-key
+          dynamic env {
+            for_each = var.storage-provider == "amazon" ? [1] : []
+            content {
+              name = "STORAGE_AMAZON_ACCESS_TOKEN"
+              value = var.amazon-access-key
+            }
           }
-          env {
-            name = "SECRET_KEY"
-            value = var.s3-secret-key
+          dynamic env {
+            for_each = var.storage-provider == "amazon" ? [1] : []
+            content {
+              name = "STORAGE_AMAZON_SECRET_TOKEN"
+              value = var.amazon-secret-key
+            }
           }
-          env {
-            name = "REGION"
-            value = "us-west-2"
+          dynamic env {
+            for_each = var.storage-provider == "amazon" ? [1] : []
+            content {
+              name = "STORAGE_AMAZON_ENDPOINT"
+              value = var.amazon-service-endpoint
+            }
           }
-          env {
-            name = "SERVICE_ENDPOINT"
-            value = var.s3-service-endpoint
+          dynamic env {
+            for_each = var.storage-provider == "azure" ? [1] : []
+            content {
+              name = "STORAGE_AZURE_CONNECTION_STRING"
+              value = var.azure-connection-string
+            }
           }
-          env {
-            name = "USE_S3_PROXY"
-            value = var.s3-use-proxy
+          dynamic env {
+            for_each = var.storage-provider == "azure" ? [1] : []
+            content {
+              name = "STORAGE_AZURE_ENABLED"
+              value = "true"
+            }
           }
-          env {
-            name = "S3_PROXY_PROVIDER"
-            value = var.s3-proxy-provider
-          }
-          env {
-            name = "S3_PROXY_IDENTITY"
-            value = var.s3-access-key
-          }
-          env {
-            name = "S3_PROXY_CREDENTIALS"
-            value = var.s3-secret-key
+          dynamic env {
+            for_each = var.storage-provider == "amazon" ? [1] : []
+            content {
+              name = "STORAGE_AMAZON_ENABLED"
+              value = "true"
+            }
           }
           env {
             name = "LZYWHITEBOARD"
             value = "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:8999"
+          }
+          env {
+            name = "SERVANT_IMAGE"
+            value = var.servant-image
           }
 
           env {

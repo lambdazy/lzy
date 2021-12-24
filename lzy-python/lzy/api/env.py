@@ -108,7 +108,7 @@ class LzyEnv(LzyEnvBase):
                 raise ValueError("Username must be specified")
             self._terminal_server: Optional[TerminalServer] = TerminalServer(private_key_path, lzy_mount, server_url, user)
             self._servant_client: Optional[BashServantClient] = BashServantClient(lzy_mount)
-            whiteboard_api: WhiteboardApi = WhiteboardBashApi(lzy_mount)
+            whiteboard_api: WhiteboardApi = WhiteboardBashApi(lzy_mount, self._servant_client)
             snapshot_api: SnapshotApi = SnapshotBashApi(lzy_mount)
         else:
             self._terminal_server = None

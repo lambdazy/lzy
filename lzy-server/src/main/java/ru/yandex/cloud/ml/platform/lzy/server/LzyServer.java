@@ -15,6 +15,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
@@ -104,6 +105,9 @@ public class LzyServer {
 
         @Inject
         private Authenticator auth;
+
+        @Inject
+        private StorageConfigs storageConfigs;
 
         @Override
         public void publish(Lzy.PublishRequest request, StreamObserver<Operations.RegisteredZygote> responseObserver) {
@@ -359,16 +363,24 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
+            Lzy.GetS3CredentialsResponse.Builder builder = Lzy.GetS3CredentialsResponse.newBuilder();
+            if (storageConfigs.getAmazon().isEnabled()){
+                builder.setAmazon(
+                    Lzy.AmazonCredentials.newBuilder()
+                        .setAccessToken(storageConfigs.getAmazon().getAccessToken())
+                        .setSecretToken(storageConfigs.getAmazon().getSecretToken())
+                        .setEndpoint(storageConfigs.getAmazon().getEndpoint())
+                );
+            }
+            else if (storageConfigs.getAzure().isEnabled()){
+                builder.setAzure(
+                    Lzy.AzureCredentials.newBuilder()
+                        .setConnectionString(storageConfigs.getAzure().getConnectionString())
+                );
+            }
 
             responseObserver.onNext(
-                Lzy.GetS3CredentialsResponse.newBuilder()
-                .setAccessToken(System.getenv("ACCESS_KEY"))
-                .setSecretToken(System.getenv("SECRET_KEY"))
-                .setUseS3Proxy(Objects.equals(System.getenv("USE_S3_PROXY"), "true"))
-                .setS3ProxyCredentials(System.getenv("S3_PROXY_CREDENTIALS") != null ? System.getenv("S3_PROXY_CREDENTIALS") : "")
-                .setS3ProxyIdentity(System.getenv("S3_PROXY_IDENTITY") != null ? System.getenv("S3_PROXY_IDENTITY") : "")
-                .setS3ProxyProvider(System.getenv("S3_PROXY_PROVIDER") != null ? System.getenv("S3_PROXY_PROVIDER") : "")
-                .build()
+                builder.build()
             );
             responseObserver.onCompleted();
         }

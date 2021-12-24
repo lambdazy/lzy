@@ -57,6 +57,8 @@ public class ServantPodProviderImpl implements ServantPodProvider {
 
         Objects.requireNonNull(pod.getSpec());
         Objects.requireNonNull(pod.getMetadata());
+        if (System.getenv("SERVANT_IMAGE") != null)
+            pod.getSpec().getContainers().get(0).setImage(System.getenv("SERVANT_IMAGE"));
 
         final Optional<V1Container> containerOptional = KuberUtils.findContainerByName(pod, LZY_SERVANT_CONTAINER_NAME);
         if (containerOptional.isEmpty()) {
@@ -100,25 +102,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         ).addEnvItem(
             new V1EnvVar().name("BUCKET_NAME").value(bucketName)
         ).addEnvItem(
-            new V1EnvVar().name("ACCESS_KEY").value(System.getenv("ACCESS_KEY"))
-        ).addEnvItem(
-            new V1EnvVar().name("SECRET_KEY").value(System.getenv("SECRET_KEY"))
-        ).addEnvItem(
-            new V1EnvVar().name("REGION").value(System.getenv("REGION"))
-        ).addEnvItem(
-            new V1EnvVar().name("SERVICE_ENDPOINT").value(System.getenv("SERVICE_ENDPOINT"))
-        ).addEnvItem(
-            new V1EnvVar().name("PATH_STYLE_ACCESS_ENABLED").value(System.getenv("PATH_STYLE_ACCESS_ENABLED"))
-        ).addEnvItem(
             new V1EnvVar().name("LZYWHITEBOARD").value(System.getenv("LZYWHITEBOARD"))
-        ).addEnvItem(
-                new V1EnvVar().name("USE_S3_PROXY").value(String.valueOf(Objects.equals(System.getenv("USE_S3_PROXY"), "true")))
-        ).addEnvItem(
-                new V1EnvVar().name("S3_PROXY_PROVIDER").value(System.getenv("S3_PROXY_PROVIDER"))
-        ).addEnvItem(
-                new V1EnvVar().name("S3_PROXY_IDENTITY").value(System.getenv("S3_PROXY_IDENTITY"))
-        ).addEnvItem(
-                new V1EnvVar().name("S3_PROXY_CREDENTIALS").value(System.getenv("S3_PROXY_CREDENTIALS"))
         );
     }
 }

@@ -124,11 +124,8 @@ module "lzy_common" {
   kubernetes_client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key)
   kubernetes_cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate)
   s3-bucket-name = "lzy-bucket"
-  s3-access-key = azurerm_storage_account.main_s3.name
-  s3-secret-key = azurerm_storage_account.main_s3.primary_access_key
-  s3-use-proxy = "true"
-  s3-service-endpoint = "http://127.0.0.1:8080"
-  s3-proxy-provider = "azureblob"
+  storage-provider = "azure"
+  azure-connection-string = azurerm_storage_account.main_s3.primary_connection_string
   whiteboard-image = var.whiteboard-image
   server-image = var.server-image
   kharon-image = var.kharon-image
@@ -136,4 +133,5 @@ module "lzy_common" {
   backoffice-frontend-image = var.backoffice-frontend-image
   clickhouse-image = var.clickhouse-image
   azure-resource-group = azurerm_resource_group.test.name
+  servant-image = var.servant-image
 }

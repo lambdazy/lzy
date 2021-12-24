@@ -51,15 +51,6 @@ public class LocalDockerTask extends LocalTask {
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
             .withEnv("LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"))
             .withEnv("BUCKET_NAME", owner)
-            .withEnv("ACCESS_KEY", System.getenv("ACCESS_KEY"))
-            .withEnv("SECRET_KEY", System.getenv("SECRET_KEY"))
-            .withEnv("REGION", System.getenv("REGION"))
-            .withEnv("SERVICE_ENDPOINT", System.getenv("SERVICE_ENDPOINT"))
-            .withEnv("PATH_STYLE_ACCESS_ENABLED", System.getenv("PATH_STYLE_ACCESS_ENABLED"))
-            .withEnv("USE_S3_PROXY", String.valueOf(Objects.equals(System.getenv("USE_S3_PROXY"), "true")))
-            .withEnv("S3_PROXY_PROVIDER", System.getenv("S3_PROXY_PROVIDER"))
-            .withEnv("S3_PROXY_IDENTITY", System.getenv("S3_PROXY_IDENTITY"))
-            .withEnv("S3_PROXY_CREDENTIALS", System.getenv("S3_PROXY_CREDENTIALS"))
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "
