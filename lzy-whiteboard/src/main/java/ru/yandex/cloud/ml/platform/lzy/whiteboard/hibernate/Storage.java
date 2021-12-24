@@ -28,6 +28,7 @@ public class Storage implements DbStorage {
         cfg.setProperty("hibernate.connection.username", config.getUsername());
         cfg.setProperty("hibernate.connection.password", config.getPassword());
         cfg.setProperty("hibernate.connection.driver_class", "org.postgresql.Driver");
+        cfg.setProperty("hibernate.connection.provider_class", "org.hibernate.connection.C3P0ConnectionProvider");
         cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         cfg.addAnnotatedClass(EntryDependenciesModel.class);
         cfg.addAnnotatedClass(WhiteboardFieldModel.class);
