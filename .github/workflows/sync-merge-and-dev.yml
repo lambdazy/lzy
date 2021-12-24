@@ -2,7 +2,9 @@ name: 'Sync master and dev'
 
 on:
   schedule:
-    - cron:  '0 12,20 * * *' # run at 12:00 and 20:00 everyday
+    - cron:  '0 9,17 * * *' # run at 12:00 and 20:00 Moscow Time: UTC+3 everyday
+
+  workflow_dispatch:
 
 jobs:
   nightly-merge:
@@ -11,6 +13,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
       - run: git checkout dev
       - run: git rev-parse --abbrev-ref HEAD
 
@@ -50,4 +55,9 @@ jobs:
         run: |
           git checkout master
           git merge --ff-only dev
-          git push origin master
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}

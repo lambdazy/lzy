@@ -45,6 +45,11 @@ variable "backoffice-backend-image" {
   default = "lzydock/lzy-backoffice-backend:master"
 }
 
+variable "servant-image" {
+  type    = string
+  default = "lzydock/lzy-servant:master"
+}
+
 variable "clickhouse-image" {
   type    = string
   default = "clickhouse/clickhouse-server"
@@ -63,4 +68,7 @@ variable "server-image" {
 variable "whiteboard-image" {
   type = string
   default = "lzydock/lzy-whiteboard:master"
+}
+variable "s3-postfics" {
+  type = string
 }

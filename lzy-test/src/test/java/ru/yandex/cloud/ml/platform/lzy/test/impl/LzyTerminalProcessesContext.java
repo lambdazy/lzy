@@ -46,8 +46,11 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
         };
         final Process process;
         try {
-            process = Utils.javaProcess(BashApi.class.getCanonicalName(), lzyArgs, systemArgs)
-                .inheritIO().start();
+            final ProcessBuilder processBuilder = Utils.javaProcess(
+                    BashApi.class.getCanonicalName(), lzyArgs, systemArgs)
+                .inheritIO();
+            processBuilder.environment().put("LZY_MOUNT", mount);
+            process = processBuilder.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -83,6 +86,7 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
                 try {
                     final ProcessBuilder processBuilder = new ProcessBuilder().command(command);
                     processBuilder.environment().putAll(env);
+                    processBuilder.environment().put("LZY_MOUNT", mount);
                     final Process exec = processBuilder.start();
                     final OutputStreamWriter stdin = new OutputStreamWriter(
                         exec.getOutputStream(),

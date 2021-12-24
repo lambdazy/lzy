@@ -9,6 +9,6 @@ public interface LzyServerTestContext extends AutoCloseable {
 
     LzyServerGrpc.LzyServerBlockingStub client();
 
-    void init();
+    void init(boolean fromDocker);
     void close();
 }

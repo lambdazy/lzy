@@ -1,35 +1,60 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import io.grpc.*;
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
+
+import io.grpc.Context;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.exceptions.NoSuchBeanException;
 import jakarta.inject.Inject;
-import org.apache.commons.cli.*;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.*;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.server.task.ServantEndpoint;
-import ru.yandex.cloud.ml.platform.lzy.server.mem.InMemZygoteRepository;
-import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
-import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.qe.s3.util.Environment;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
-
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
-
-import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
-import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
+import ru.yandex.cloud.ml.platform.lzy.server.mem.InMemZygoteRepository;
+import ru.yandex.cloud.ml.platform.lzy.server.task.ServantEndpoint;
+import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
+import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
+import yandex.cloud.priv.datasphere.v2.lzy.Channels;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 public class LzyServer {
     private static final Logger LOG = LogManager.getLogger(LzyServer.class);
@@ -103,6 +128,9 @@ public class LzyServer {
 
         @Inject
         private Authenticator auth;
+
+        @Inject
+        private StorageConfigs storageConfigs;
 
         @Override
         public void publish(Lzy.PublishRequest request, StreamObserver<Operations.RegisteredZygote> responseObserver) {
@@ -212,6 +240,16 @@ public class LzyServer {
                         parent.signal(TasksManager.Signal.CHLD);
                 }
             });
+            UserEventLogger.log(
+                new UserEvent(
+                    "Task created",
+                    Map.of(
+                        "task_id", task.tid().toString(),
+                        "user_idatu", uid
+                    ),
+                    UserEvent.UserEventType.TaskCreate
+                )
+            );
             Context.current().addListener(ctxt -> {
                 concluded.set(true);
                 if (!EnumSet.of(FINISHED, DESTROYED).contains(task.state()))
@@ -348,16 +386,24 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
+            Lzy.GetS3CredentialsResponse.Builder builder = Lzy.GetS3CredentialsResponse.newBuilder();
+            if (storageConfigs.getAmazon().isEnabled()){
+                builder.setAmazon(
+                    Lzy.AmazonCredentials.newBuilder()
+                        .setAccessToken(storageConfigs.getAmazon().getAccessToken())
+                        .setSecretToken(storageConfigs.getAmazon().getSecretToken())
+                        .setEndpoint(storageConfigs.getAmazon().getEndpoint())
+                );
+            }
+            else if (storageConfigs.getAzure().isEnabled()){
+                builder.setAzure(
+                    Lzy.AzureCredentials.newBuilder()
+                        .setConnectionString(storageConfigs.getAzure().getConnectionString())
+                );
+            }
 
             responseObserver.onNext(
-                Lzy.GetS3CredentialsResponse.newBuilder()
-                .setAccessToken(Environment.getAccessKey())
-                .setSecretToken(Environment.getSecretKey())
-                .setUseS3Proxy(Environment.useS3Proxy())
-                .setS3ProxyCredentials(Environment.getS3ProxyCredentials())
-                .setS3ProxyIdentity(Environment.getS3ProxyIdentity())
-                .setS3ProxyProvider(Environment.getS3ProxyProvider())
-                .build()
+                builder.build()
             );
             responseObserver.onCompleted();
         }
@@ -483,6 +529,7 @@ public class LzyServer {
         }
 
         private String resolveUser(IAM.Auth auth) {
+            LOG.info("Resolving user for auth " + JsonUtils.printRequest(auth));
             return auth.hasUser() ? auth.getUser().getUserId() : this.auth.userForTask(resolveTask(auth));
         }
 

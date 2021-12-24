@@ -11,7 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotProcessesContext;
 
 public class LzyBaseDockerTest implements LzyTest {
-    public static final int S3_PORT = 8001;
+    private static final int S3_PORT = 8001;
     private static final int DEFAULT_TIMEOUT_SEC = 30;
     private static final int DEFAULT_SERVANT_PORT = 9999;
     private static final String DEFAULT_LZY_MOUNT = "/tmp/lzy";
@@ -25,7 +25,7 @@ public class LzyBaseDockerTest implements LzyTest {
     @Before
     public void setUp() {
         serverContext = new LzyServerProcessesContext(TasksConfig.TaskType.LOCAL_DOCKER);
-        serverContext.init();
+        serverContext.init(true);
         whiteboardContext = new LzySnapshotProcessesContext(serverContext.address(false));
         whiteboardContext.init();
         kharonContext = new LzyKharonProcessesContext(serverContext.address(false), whiteboardContext.address(false));
@@ -77,5 +77,10 @@ public class LzyBaseDockerTest implements LzyTest {
     @Override
     public int defaultTimeoutSec() {
         return DEFAULT_TIMEOUT_SEC;
+    }
+
+    @Override
+    public int s3Port() {
+        return S3_PORT;
     }
 }

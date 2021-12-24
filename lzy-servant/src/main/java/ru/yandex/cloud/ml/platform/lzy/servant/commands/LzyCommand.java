@@ -18,7 +18,8 @@ public interface LzyCommand {
         status(new TerminalStatus()),
         whiteboard(new Whiteboard()),
         credentials(new Credentials()),
-        snapshot(new Snapshot());
+        snapshot(new Snapshot()),
+        cat(new Cat());
 
         private final LzyCommand command;
         Commands(LzyCommand command) {

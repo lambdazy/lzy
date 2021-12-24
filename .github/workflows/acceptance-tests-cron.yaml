@@ -1,7 +1,8 @@
 name: 'Cron cluster tests'
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 21 * * *' # 24:00 Moscow Time: UTC+3
+  workflow_dispatch:
 
 jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
@@ -11,7 +12,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
-      - run: git checkout dev # run acceptance on dev branch
+        with:
+          ref: dev # run acceptance-test on dev branch
 
       - uses: actions/setup-java@v2
         with:
@@ -35,6 +37,6 @@ jobs:
 
       - name: 'AC test'
         timeout-minutes: 45
-        run: mvn install -Dlzy.kharon.domain=kharon-lzy-prod.northeurope.cloudapp.azure.com -Dtest=KuberRunTest -DfailIfNoTests=false
+        run: mvn install -Dlzy.kharon.domain=api.lzy.ai -Dtest=KuberRunTest -DfailIfNoTests=false
 
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml

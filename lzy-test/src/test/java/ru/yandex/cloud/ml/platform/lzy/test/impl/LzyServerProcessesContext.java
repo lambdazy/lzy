@@ -10,6 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -29,7 +30,6 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
 
     @Override
     public String address(boolean fromDocker) {
-        init();
         if (!SystemUtils.IS_OS_LINUX && fromDocker) {
             return "http://host.docker.internal:" + LZY_SERVER_PORT;
         } else {
@@ -44,7 +44,6 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
 
     @Override
     public LzyServerGrpc.LzyServerBlockingStub client() {
-        init();
         return lzyServerClient;
     }
 
@@ -62,10 +61,10 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
         }
     }
 
-    public synchronized void init() {
+    public synchronized void init(boolean fromDocker) {
         if (lzyServerClient == null) {
             try {
-                lzyServer = Utils.javaProcess(
+                ProcessBuilder builder = Utils.javaProcess(
                     LzyServer.class.getCanonicalName(),
                     new String[]{
                         "--port",
@@ -76,7 +75,23 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                         "-Dtasks.taskType=" + type.toString(),
                         "-Dtasks.localProcess.servantJarPath=../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar"
                     }
-                ).inheritIO().start();
+                );
+                Map<String, String> env = builder.environment();
+                env.put("STORAGE_AMAZON_ACCESS_TOKEN", "access-key");
+                env.put("STORAGE_AMAZON_SECRET_TOKEN", "secret-key");
+                env.put("STORAGE_AMAZON_ENABLED", "true");
+                String serviceEndpoint;
+                String lzywhiteboard;
+                if (!SystemUtils.IS_OS_LINUX && fromDocker) {
+                    serviceEndpoint = "http://host.docker.internal:8001";
+                    lzywhiteboard = "http://host.docker.internal:8999";
+                } else {
+                    serviceEndpoint = "http://localhost:8001";
+                    lzywhiteboard = "http://localhost:8999";
+                }
+                env.put("STORAGE_AMAZON_ENDPOINT", serviceEndpoint);
+                env.put("LZYWHITEBOARD", lzywhiteboard);
+                lzyServer = builder.inheritIO().start();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

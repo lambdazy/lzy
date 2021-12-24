@@ -17,7 +17,6 @@ import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 
 import ru.yandex.cloud.ml.platform.lzy.server.configs.TasksConfig;
-import ru.yandex.qe.s3.util.Environment;
 
 public class LocalProcessTask extends LocalTask {
     private static final Logger LOG = LogManager.getLogger(LocalProcessTask.class);
@@ -45,23 +44,14 @@ public class LocalProcessTask extends LocalTask {
             taskDir.delete();
             taskDir.mkdirs();
             taskDir.mkdir();
-            LOG.info("Servant s3 service endpoint id " + Environment.getServiceEndpoint());
+            LOG.info("Servant s3 service endpoint id " + System.getenv("SERVICE_ENDPOINT"));
             HashMap<String, String> envs = new HashMap<>(Map.of(
                     "LZYTASK", tid.toString(),
                     "LZYTOKEN", token,
                     "LZY_MOUNT", taskDir.getAbsolutePath(),
-                    "LZYWHITEBOARD", Environment.getLzyWhiteboard(),
-                    "BUCKET_NAME", owner,
-                    "ACCESS_KEY", Environment.getAccessKey(),
-                    "SECRET_KEY", Environment.getSecretKey(),
-                    "REGION", Environment.getRegion(),
-                    "SERVICE_ENDPOINT", Environment.getServiceEndpoint(),
-                    "PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled()
+                    "LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"),
+                    "BUCKET_NAME", owner
             ));
-            envs.put("USE_S3_PROXY", String.valueOf(Environment.useS3Proxy()));
-            envs.put("S3_PROXY_PROVIDER", Environment.getS3ProxyProvider());
-            envs.put("S3_PROXY_IDENTITY", Environment.getS3ProxyIdentity());
-            envs.put("S3_PROXY_CREDENTIALS", Environment.getS3ProxyCredentials());
             final Process process = runJvm(
                 config.servantJarPath(), taskDir,
                 new String[]{

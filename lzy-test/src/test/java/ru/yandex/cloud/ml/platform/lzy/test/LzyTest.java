@@ -9,5 +9,5 @@ public interface LzyTest {
     String defaultLzyMount();
     int defaultServantPort();
     int defaultTimeoutSec();
-
+    int s3Port();
 }

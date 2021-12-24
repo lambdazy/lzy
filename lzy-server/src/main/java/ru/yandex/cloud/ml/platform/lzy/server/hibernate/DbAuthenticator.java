@@ -43,6 +43,9 @@ public class DbAuthenticator implements Authenticator {
         LOG.info("checkTask tid=" + tid);
         try (Session session = storage.getSessionFactory().openSession()) {
             TaskModel taskModel = session.find(TaskModel.class, UUID.fromString(tid));
+            if (taskModel == null){
+                return false;
+            }
             return taskModel.getToken().equals(token);
         }
     }
@@ -64,8 +67,14 @@ public class DbAuthenticator implements Authenticator {
 
     @Override
     public String userForTask(Task task) {
+        if (task == null)
+            return null;
+        LOG.info("User for task tid=" + task.tid());
         try (Session session = storage.getSessionFactory().openSession()) {
             TaskModel taskModel = session.find(TaskModel.class, task.tid());
+            if (taskModel == null){
+                return null;
+            }
             return taskModel.getOwner().getUserId();
         }
     }

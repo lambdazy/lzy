@@ -12,10 +12,10 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.qe.s3.util.Environment;
 
 import java.net.URI;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public class LocalDockerTask extends LocalTask {
@@ -37,7 +37,7 @@ public class LocalDockerTask extends LocalTask {
     protected void runServantAndWaitFor(String serverHost, int serverPort, String servantHost, int servantPort, UUID tid, String token) {
         final String updatedServerHost = SystemUtils.IS_OS_LINUX ? serverHost : serverHost.replace("localhost", "host.docker.internal");
         final String internalHost = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
-        LOGGER.info("Servant s3 service endpoint id " + Environment.getServiceEndpoint());
+        LOGGER.info("Servant s3 service endpoint id " + System.getenv("SERVICE_ENDPOINT"));
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         final int debugPort = FreePortFinder.find(5000, 6000);
         //noinspection deprecation
@@ -49,17 +49,8 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withEnv("LZYWHITEBOARD", Environment.getLzyWhiteboard())
+            .withEnv("LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"))
             .withEnv("BUCKET_NAME", owner)
-            .withEnv("ACCESS_KEY", Environment.getAccessKey())
-            .withEnv("SECRET_KEY", Environment.getSecretKey())
-            .withEnv("REGION", Environment.getRegion())
-            .withEnv("SERVICE_ENDPOINT", Environment.getServiceEndpoint())
-            .withEnv("PATH_STYLE_ACCESS_ENABLED", Environment.getPathStyleAccessEnabled())
-            .withEnv("USE_S3_PROXY", String.valueOf(Environment.useS3Proxy()))
-            .withEnv("S3_PROXY_PROVIDER", Environment.getS3ProxyProvider())
-            .withEnv("S3_PROXY_IDENTITY", Environment.getS3ProxyIdentity())
-            .withEnv("S3_PROXY_CREDENTIALS", Environment.getS3ProxyCredentials())
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "

@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - lzy-python/version # TODO: replace with tag change?
+  workflow_dispatch:
 
 jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
@@ -14,6 +15,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v2
         with:
@@ -37,7 +40,7 @@ jobs:
 
       - name: 'AC test'
         timeout-minutes: 45
-        run: mvn install -Dlzy.kharon.domain=kharon-lzy-prod.northeurope.cloudapp.azure.com -Dtest=KuberRunTest -DfailIfNoTests=false
+        run: mvn install -Dlzy.kharon.domain=api.lzy.ai -Dtest=KuberRunTest -DfailIfNoTests=false
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
 
 
@@ -72,5 +75,4 @@ jobs:
           packages_dir: ./lzy-python/dist
           user: __token__
           password: ${{ secrets.PYPI_API_RELEASE_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml

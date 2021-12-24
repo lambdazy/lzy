@@ -3,6 +3,14 @@ package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.flywaydb.core.Flyway;
@@ -11,21 +19,15 @@ import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import ru.yandex.clickhouse.ClickHouseDataSource;
-import ru.yandex.cloud.ml.platform.lzy.server.configs.ClickhouseConfig;
-import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.AgentsConfig;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.ClickhouseConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.DbConfig;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
-
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
-
-import java.util.Set;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PermissionModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserRoleModel;
 
 @Singleton
 @Requires(property = "database.url")

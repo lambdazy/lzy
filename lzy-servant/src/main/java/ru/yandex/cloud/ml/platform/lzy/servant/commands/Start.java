@@ -33,6 +33,7 @@ public class Start implements LzyCommand {
                 .whiteboardAddress(URI.create(System.getenv("LZYWHITEBOARD")))
                 .task(System.getenv("LZYTASK"))
                 .token(System.getenv("LZYTOKEN"))
+                .bucket(System.getenv("BUCKET_NAME"))
                 .agentName(host)
                 .agentInternalName(internalHost)
                 .agentPort(port)

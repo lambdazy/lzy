@@ -64,7 +64,7 @@ public class RunTest extends LzyBaseProcessTest {
             "cat_lzy",
             List.of(fileName),
             Collections.emptyList(),
-            "cat $(echo $LZY_MOUNT)/" + fileName
+            "$(echo $LZY_MOUNT)/sbin/cat $(echo $LZY_MOUNT)/" + fileName
         );
 
         //Act
@@ -80,7 +80,7 @@ public class RunTest extends LzyBaseProcessTest {
         Assert.assertEquals(fileContent + "\n", result.stdout());
         Assert.assertTrue(terminal.pathExists(Path.of(localFileName)));
         Assert.assertEquals(fileContent + "\n",
-            terminal.execute("bash", "-c", "cat " + localFileName).stdout());
+            terminal.execute("bash", "-c", "$(echo $LZY_MOUNT)/sbin/cat " + localFileName).stdout());
 
         //Act
         terminal.destroyChannel(channelName);
@@ -110,7 +110,8 @@ public class RunTest extends LzyBaseProcessTest {
 
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
-            .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
+            .execute(() -> result1[0] = terminal.execute("bash", "-c",
+                "$(echo $LZY_MOUNT)/sbin/cat " + localFileOutName));
         final ExecutionResult result = terminal.run(
             echo_lzy,
             Map.of(fileOutName, channelOutName),
@@ -140,7 +141,8 @@ public class RunTest extends LzyBaseProcessTest {
             "cat_to_file_lzy",
             List.of(fileName),
             List.of(fileOutName),
-            "cat $(echo $LZY_MOUNT)/" + fileName + " > $(echo $LZY_MOUNT)/" + fileOutName
+            "$(echo $LZY_MOUNT)/sbin/cat $(echo $LZY_MOUNT)/" + fileName + " > $(echo $LZY_MOUNT)/"
+                + fileOutName
         );
 
         //Act
@@ -154,7 +156,8 @@ public class RunTest extends LzyBaseProcessTest {
                 "echo " + fileContent + " > " + localFileName));
         final ExecutionResult[] result1 = new ExecutionResult[1];
         ForkJoinPool.commonPool()
-            .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
+            .execute(() -> result1[0] = terminal.execute("bash", "-c",
+                "$(echo $LZY_MOUNT)/sbin/cat " + localFileOutName));
         final ExecutionResult result = terminal.run(
             cat_to_file,
             Map.of(

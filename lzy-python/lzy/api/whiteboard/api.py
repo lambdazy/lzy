@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Type
+from typing import Dict, List, Optional, Any, Type, TypeVar
 from dataclasses import dataclass
 from enum import Enum
 import uuid

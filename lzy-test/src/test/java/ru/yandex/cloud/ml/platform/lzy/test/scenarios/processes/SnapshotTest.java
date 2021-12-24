@@ -1,10 +1,11 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios.docker;
+package ru.yandex.cloud.ml.platform.lzy.test.scenarios.processes;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.protobuf.util.JsonFormat;
@@ -29,21 +30,22 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import ru.yandex.cloud.ml.platform.lzy.test.scenarios.FileIOOperation;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
-public class SnapshotTest extends LzyBaseDockerTest {
+public class SnapshotTest extends LzyBaseProcessTest {
+
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before
     public void setUp() {
         super.setUp();
         terminal = terminalContext().startTerminalAtPathAndPort(
-                defaultLzyMount(),
-                9999,
-                kharonContext().serverAddress(terminalContext().inDocker())
+            defaultLzyMount(),
+            9999,
+            kharonContext().serverAddress(terminalContext().inDocker())
         );
         terminal.waitForStatus(
-                AgentStatus.EXECUTING,
-                defaultTimeoutSec(),
-                TimeUnit.SECONDS
+            AgentStatus.EXECUTING,
+            defaultTimeoutSec(),
+            TimeUnit.SECONDS
         );
     }
 
@@ -56,19 +58,19 @@ public class SnapshotTest extends LzyBaseDockerTest {
     public void testTaskPersistent() throws IOException, ParseException {
         //Arrange
         final String fileContent = "fileContent";
-        final String fileName = "/tmp/lzy/kek/some_file.txt";
-        final String localFileName = "/tmp/lzy/lol/some_file.txt";
+        final String fileName =  "/kek/some_file.txt";
+        final String localFileName = defaultLzyMount() + "/lol/some_file.txt";
         final String channelName = "channel1";
 
-        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
-        final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
+        final String fileOutName = "/kek/some_file_out.txt";
+        final String localFileOutName = defaultLzyMount() + "/lol/some_file_out.txt";
         final String channelOutName = "channel2";
 
         final FileIOOperation cat_to_file = new FileIOOperation(
-                "cat_to_file_lzy",
-                List.of(fileName.substring(defaultLzyMount().length())),
-                List.of(fileOutName.substring(defaultLzyMount().length())),
-                "cat " + fileName + " > " + fileOutName
+            "cat_to_file_lzy",
+            List.of(fileName),
+            List.of(fileOutName),
+            "$(echo $LZY_MOUNT)/sbin/cat $(echo $LZY_MOUNT)/" + fileName + " > $(echo $LZY_MOUNT)/" + fileOutName
         );
 
         //Act
@@ -78,11 +80,12 @@ public class SnapshotTest extends LzyBaseDockerTest {
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
 
         ForkJoinPool.commonPool()
-                .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
-        terminal.publish(cat_to_file.getName(), cat_to_file);
+            .execute(() -> terminal.execute("bash", "-c",
+                "echo " + fileContent + " > " + localFileName));
         final LzyTerminalTestContext.Terminal.ExecutionResult[] result1 = new LzyTerminalTestContext.Terminal.ExecutionResult[1];
         ForkJoinPool.commonPool()
-                .execute(() -> result1[0] = terminal.execute("bash", "-c", "cat " + localFileOutName));
+            .execute(() -> result1[0] = terminal.execute("bash", "-c",
+                "$(echo $LZY_MOUNT)/sbin/cat " + localFileOutName));
         final String spIdJson = terminal.createSnapshot();
         JSONObject spIdObject = (JSONObject) (new JSONParser()).parse(spIdJson);
         final String spId = (String) spIdObject.get("snapshotId");
@@ -99,19 +102,19 @@ public class SnapshotTest extends LzyBaseDockerTest {
         final String stdoutEntryId = "stdoutEntryId";
         final String stdinEntryId = "stdinEntryId";
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.run(
-                cat_to_file.getName(),
-                "",
-                Map.of(
-                        fileName.substring(defaultLzyMount().length()), channelName,
-                        fileOutName.substring(defaultLzyMount().length()), channelOutName
-                ),
-                Map.of(
-                        fileName.substring(defaultLzyMount().length()), spId + "/" + firstEntryId,
-                        fileOutName.substring(defaultLzyMount().length()), spId + "/" + secondEntryId,
-                        "/dev/stderr", spId + "/" + stderrEntryId,
-                        "/dev/stdout", spId + "/" + stdoutEntryId,
-                        "/dev/stdin", spId + "/" + stdinEntryId
-                )
+            cat_to_file,
+            Map.of(
+                fileName, channelName,
+                fileOutName, channelOutName
+            ),
+            Map.of(
+                fileName, spId + "/" + firstEntryId,
+                fileOutName, spId + "/" + secondEntryId,
+                "/dev/stderr", spId + "/" + stderrEntryId,
+                "/dev/stdout", spId + "/" + stdoutEntryId,
+                "/dev/stdin", spId + "/" + stdinEntryId
+            ),
+            ""
         );
 
         //Assert
@@ -119,21 +122,25 @@ public class SnapshotTest extends LzyBaseDockerTest {
         Assert.assertEquals(0, result.exitCode());
 
         final AmazonS3 client = AmazonS3ClientBuilder
-                .standard()
-                .withPathStyleAccessEnabled(true)
-                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://localhost:" + S3_PORT, "us-west-2"))
-                .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
-                .build();
+            .standard()
+            .withPathStyleAccessEnabled(true)
+            .withEndpointConfiguration(
+                new AwsClientBuilder.EndpointConfiguration("http://localhost:" + s3Port(),
+                    "us-west-2"))
+            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+            .build();
 
-        List<S3ObjectSummary> objects = client.listObjects(terminalContext().TEST_USER).getObjectSummaries();
+        List<Bucket> bucketList = client.listBuckets();
+        Assert.assertEquals(1, bucketList.size());
+        String bucketName = bucketList.get(0).getName();
+        List<S3ObjectSummary> objects = client.listObjects(bucketName).getObjectSummaries();
         Assert.assertEquals(2, objects.size());
 
         for (var obj : objects) {
             String key = obj.getKey();
             String content = IOUtils.toString(
-                    client.getObject(new GetObjectRequest(terminalContext().TEST_USER, key))
-                            .getObjectContent(),
-                    StandardCharsets.UTF_8
+                client.getObject(new GetObjectRequest(bucketName, key)).getObjectContent(),
+                StandardCharsets.UTF_8
             );
             Assert.assertEquals(fileContent + "\n", content);
         }
@@ -154,19 +161,25 @@ public class SnapshotTest extends LzyBaseDockerTest {
         Assert.assertEquals(LzyWhiteboard.Whiteboard.WhiteboardStatus.COMPLETED, wb.getStatus());
 
         Assert.assertTrue(
-                (localFileName.equals(fieldsList.get(0).getFieldName()) && localFileOutName.equals(fieldsList.get(1).getFieldName())) ||
-                (localFileName.equals(fieldsList.get(1).getFieldName()) && localFileOutName.equals(fieldsList.get(0).getFieldName()))
+            (localFileName.equals(fieldsList.get(0).getFieldName()) && localFileOutName.equals(
+                fieldsList.get(1).getFieldName())) ||
+                (localFileName.equals(fieldsList.get(1).getFieldName()) && localFileOutName.equals(
+                    fieldsList.get(0).getFieldName()))
         );
 
         Assert.assertTrue(fieldsList.get(0).getStorageUri().length() > 0);
         Assert.assertTrue(fieldsList.get(1).getStorageUri().length() > 0);
 
         if (localFileName.equals(fieldsList.get(0).getFieldName())) {
-            Assert.assertEquals(Collections.emptyList(), fieldsList.get(0).getDependentFieldNamesList());
-            Assert.assertEquals(List.of(localFileName), fieldsList.get(1).getDependentFieldNamesList());
+            Assert.assertEquals(Collections.emptyList(),
+                fieldsList.get(0).getDependentFieldNamesList());
+            Assert.assertEquals(List.of(localFileName),
+                fieldsList.get(1).getDependentFieldNamesList());
         } else {
-            Assert.assertEquals(Collections.emptyList(), fieldsList.get(1).getDependentFieldNamesList());
-            Assert.assertEquals(List.of(localFileName), fieldsList.get(0).getDependentFieldNamesList());
+            Assert.assertEquals(Collections.emptyList(),
+                fieldsList.get(1).getDependentFieldNamesList());
+            Assert.assertEquals(List.of(localFileName),
+                fieldsList.get(0).getDependentFieldNamesList());
         }
     }
 }

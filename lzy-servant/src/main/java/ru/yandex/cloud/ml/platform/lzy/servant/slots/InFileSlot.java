@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import jnr.ffi.Pointer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.serce.jnrfuse.ErrorCodes;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -22,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.concurrent.ForkJoinPool;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
 
 public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private static final Logger LOG = LogManager.getLogger(InFileSlot.class);
@@ -111,11 +113,13 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
     @Override
     public FileContents open(FuseFileInfo fi) throws IOException {
-        waitForState(Operations.SlotStatus.State.OPEN);
         final SeekableByteChannel channel = Files.newByteChannel(storage);
         return new FileContents() {
             @Override
             public int read(Pointer buf, long offset, long size) throws IOException {
+                if (state() != State.OPEN) {
+                    return -ErrorCodes.EAGAIN();
+                }
                 final byte[] bytes = new byte[(int) size];
                 channel.position(offset);
                 final ByteBuffer bb = ByteBuffer.wrap(bytes);

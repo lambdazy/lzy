@@ -66,6 +66,7 @@ setuptools.setup(
     package_data={
         'lzy': ['lzy/lzy-servant.jar']
     },
+    install_requires=read_requirements(),
     packages=['lzy', 'lzy/api', 'lzy/api/whiteboard', 'lzy/api/_proxy',
               'lzy/model', 'lzy/servant', 'lzy/api/pkg_info'],
     python_requires='>=3.7',
