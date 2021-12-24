@@ -142,7 +142,7 @@ public abstract class LzyAgent implements Closeable {
             final List<String> commandParts = new ArrayList<>();
             commandParts.add(System.getProperty("java.home") + "/bin/java");
             commandParts.add("-Xmx1g");
-            commandParts.add("-Dcustom.log.file=" + to.getFileName() + "_$(($RANDOM % 10000))");
+            commandParts.add("-Dcustom.log.file=/var/log/servant/" + to.getFileName() + "_$(($RANDOM % 10000))");
             if (logConfFile != null) {
                 commandParts.add("-Dlog4j.configurationFile=" + logConfFile);
             }
