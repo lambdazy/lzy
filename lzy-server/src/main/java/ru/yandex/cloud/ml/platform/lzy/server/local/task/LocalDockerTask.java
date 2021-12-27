@@ -45,7 +45,7 @@ public class LocalDockerTask extends LocalTask {
             .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but is is easier for testing
             .withEnv("LZYTASK", tid.toString())
             .withEnv("LZYTOKEN", token)
-            .withEnv("LOG_FILE", "servant_start_" + uuid)
+            .withEnv("LOG_FILE", "/var/log/servant/servant_start_" + uuid)
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
