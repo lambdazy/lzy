@@ -1,11 +1,3 @@
-variable "kubernetes_host" {}
-
-variable "kubernetes_client_certificate" {}
-
-variable "kubernetes_client_key" {}
-
-variable "kubernetes_cluster_ca_certificate" {}
-
 variable "installation_name" {
   type = string
 }
@@ -21,6 +13,16 @@ variable "oauth-github-client-secret" {
 variable "kharon_public_ip" {}
 
 variable "backoffice_public_ip" {}
+
+variable "kharon_load_balancer_necessary_annotations" {
+  type    = map(string)
+  default = {}
+}
+
+variable "backoffice_load_balancer_necessary_annotations" {
+  type    = map(string)
+  default = {}
+}
 
 variable "backoffice-frontend-image" {
   type    = string
@@ -48,64 +50,65 @@ variable "server-image" {
 }
 
 variable "whiteboard-image" {
-  type = string
+  type    = string
   default = "lzydock/lzy-whiteboard:master"
 }
 
 variable "s3-bucket-name" {
-  type = string
+  type    = string
+  default = "lzy-bucket"
 }
 
 variable "amazon-access-key" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "amazon-secret-key" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "amazon-service-endpoint" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "azure-connection-string" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "storage-provider" {
-  type = string
+  type    = string
   default = "amazon"
 }
 
 variable "azure-resource-group" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "ssl-enabled" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "ssl-cert" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "ssl-cert-key" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "ssl-keystore-password" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "servant-image" {
-  type    = string
+  type = string
 }

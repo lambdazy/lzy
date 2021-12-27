@@ -66,28 +66,28 @@ variable "server-image" {
 }
 
 variable "whiteboard-image" {
-  type = string
+  type    = string
   default = "lzydock/lzy-whiteboard:master"
 }
 variable "s3-postfics" {
   type = string
 }
 variable "ssl-enabled" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "ssl-cert" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "ssl-cert-key" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "ssl-keystore-password" {
-  type = string
+  type    = string
   default = ""
 }

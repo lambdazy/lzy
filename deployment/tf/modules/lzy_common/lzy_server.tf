@@ -85,57 +85,57 @@ resource "kubernetes_deployment" "server" {
             value = "backoffice"
           }
           env {
-            name = "BUCKET_NAME"
+            name  = "BUCKET_NAME"
             value = var.s3-bucket-name
           }
-          dynamic env {
+          dynamic "env" {
             for_each = var.storage-provider == "amazon" ? [1] : []
             content {
-              name = "STORAGE_AMAZON_ACCESS_TOKEN"
+              name  = "STORAGE_AMAZON_ACCESS_TOKEN"
               value = var.amazon-access-key
             }
           }
-          dynamic env {
+          dynamic "env" {
             for_each = var.storage-provider == "amazon" ? [1] : []
             content {
-              name = "STORAGE_AMAZON_SECRET_TOKEN"
+              name  = "STORAGE_AMAZON_SECRET_TOKEN"
               value = var.amazon-secret-key
             }
           }
-          dynamic env {
+          dynamic "env" {
             for_each = var.storage-provider == "amazon" ? [1] : []
             content {
-              name = "STORAGE_AMAZON_ENDPOINT"
+              name  = "STORAGE_AMAZON_ENDPOINT"
               value = var.amazon-service-endpoint
             }
           }
-          dynamic env {
+          dynamic "env" {
             for_each = var.storage-provider == "azure" ? [1] : []
             content {
-              name = "STORAGE_AZURE_CONNECTION_STRING"
+              name  = "STORAGE_AZURE_CONNECTION_STRING"
               value = var.azure-connection-string
             }
           }
-          dynamic env {
+          dynamic "env" {
             for_each = var.storage-provider == "azure" ? [1] : []
             content {
-              name = "STORAGE_AZURE_ENABLED"
+              name  = "STORAGE_AZURE_ENABLED"
               value = "true"
             }
           }
-          dynamic env {
+          dynamic "env" {
             for_each = var.storage-provider == "amazon" ? [1] : []
             content {
-              name = "STORAGE_AMAZON_ENABLED"
+              name  = "STORAGE_AMAZON_ENABLED"
               value = "true"
             }
           }
           env {
-            name = "LZYWHITEBOARD"
+            name  = "LZYWHITEBOARD"
             value = "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:8999"
           }
           env {
-            name = "SERVANT_IMAGE"
+            name  = "SERVANT_IMAGE"
             value = var.servant-image
           }
 

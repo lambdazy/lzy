@@ -90,11 +90,10 @@ resource "kubernetes_deployment" "kharon" {
 }
 
 resource "kubernetes_service" "lzy_kharon" {
+  count = var.backoffice_public_ip != "" ? 1 : 0
   metadata {
-    name = "lzy-kharon-load-balancer"
-    annotations = {
-       "service.beta.kubernetes.io/azure-load-balancer-resource-group" = var.azure-resource-group
-    }
+    name        = "lzy-kharon-load-balancer"
+    annotations = var.kharon_load_balancer_necessary_annotations
   }
   spec {
     load_balancer_ip = var.kharon_public_ip

@@ -5,7 +5,7 @@ resource "kubernetes_secret" "real-certs" {
   }
 
   data = {
-    cert = var.ssl-cert
+    cert     = var.ssl-cert
     cert-key = var.ssl-cert-key
   }
 
@@ -19,7 +19,7 @@ resource "kubernetes_secret" "fake-certs" {
   }
 
   data = {
-    cert = ""
+    cert     = ""
     cert-key = ""
   }
 

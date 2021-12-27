@@ -31,11 +31,11 @@ resource "kubernetes_deployment" "whiteboard" {
             value = "jdbc:postgresql://whiteboard-postgresql.default.svc.cluster.local:5432/${kubernetes_secret.whiteboard_db.data.database-name}"
           }
           env {
-            name  = "DATABASE_USERNAME"
+            name = "DATABASE_USERNAME"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.whiteboard_db.metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
@@ -49,7 +49,7 @@ resource "kubernetes_deployment" "whiteboard" {
             }
           }
           env {
-            name = "SERVER_URI"
+            name  = "SERVER_URI"
             value = kubernetes_service.lzy_server.spec[0].cluster_ip
           }
           port {
@@ -104,7 +104,7 @@ resource "kubernetes_service" "whiteboard" {
   }
   spec {
     port {
-      protocol = "TCP"
+      protocol    = "TCP"
       port        = 8999
       target_port = 8999
     }
