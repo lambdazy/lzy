@@ -4,6 +4,7 @@ from json.decoder import JSONDecodeError
 
 from lzy.api._proxy import proxy
 from lzy.api.whiteboard.api import *
+from lzy.api.whiteboard.credentials import StorageCredentials
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.whiteboard_storage import WhiteboardStorage
@@ -38,12 +39,20 @@ class WhiteboardBashApi(WhiteboardApi):
         self.__mount = mount_point
         self.__client = client
         self._log = logging.getLogger(str(self.__class__))
-        self.__credentials = client.get_credentials(ServantClient.CredentialsTypes.S3)
-        self.__whiteboard_storage = WhiteboardStorage.create(self.__credentials)
+        self.__credentials: Optional[StorageCredentials] = None
+        self.__whiteboard_storage: Optional[WhiteboardStorage] = None
+
+    @property
+    def _whiteboard_storage(self) -> WhiteboardStorage:
+        if not self.__credentials:
+            self.__credentials = self.__client.get_credentials(ServantClient.CredentialsTypes.S3)
+        if not self.__whiteboard_storage:
+            self.__whiteboard_storage = WhiteboardStorage.create(self.__credentials)
+        return self.__whiteboard_storage
 
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
-        return proxy(lambda: self.__whiteboard_storage.read(field_url), field_type)
+        return proxy(lambda: self._whiteboard_storage.read(field_url), field_type)
     
     def create(self, fields: List[str], snapshot_id: str) -> WhiteboardDescription:
         logging.info(f"Creating whiteboard for snapshot {snapshot_id} with fields {fields}")

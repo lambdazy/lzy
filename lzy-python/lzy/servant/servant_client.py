@@ -5,7 +5,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Mapping, Optional, Union
 
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials
 from lzy.model.channel import Channel, Bindings, Binding
 from lzy.model.file_slots import create_slot
 from lzy.model.slot import Slot, Direction
@@ -94,7 +94,7 @@ class ServantClient:
         pass
 
     @abc.abstractmethod
-    def get_credentials(self, typ: CredentialsTypes) -> Union[AzureCredentials, AmazonCredentials]:
+    def get_credentials(self, typ: CredentialsTypes) -> StorageCredentials:
         pass
 
     def _zygote_path(self, zygote: Zygote) -> str:
