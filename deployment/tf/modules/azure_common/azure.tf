@@ -50,7 +50,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
   name                  = "lzypool"
   vm_size               = "Standard_D2_v2"
   node_count            = var.lzy_count
-  node_labels           = {
+  node_labels = {
     type = "lzy"
   }
 }
@@ -60,7 +60,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
   name                  = "cpupool"
   vm_size               = "Standard_D2_v2"
   node_count            = var.cpu_count
-  node_labels           = {
+  node_labels = {
     type = "cpu"
   }
 }
@@ -72,10 +72,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
   node_count            = var.gpu_count
   enable_auto_scaling   = false
   availability_zones    = []
-  node_labels           = {
+  node_labels = {
     type = "gpu"
   }
-  node_taints           = [
+  node_taints = [
     "sku=gpu:NoSchedule"
   ]
 }
@@ -106,32 +106,32 @@ resource "azurerm_public_ip" "lzy_backoffice" {
 }
 
 module "lzy_common" {
-  source                                         = "../lzy_common"
-  kharon_public_ip                               = azurerm_public_ip.lzy_kharon.ip_address
-  backoffice_public_ip                           = azurerm_public_ip.lzy_backoffice.ip_address
-  kharon_load_balancer_necessary_annotations     = {
+  source               = "../lzy_common"
+  kharon_public_ip     = azurerm_public_ip.lzy_kharon.ip_address
+  backoffice_public_ip = azurerm_public_ip.lzy_backoffice.ip_address
+  kharon_load_balancer_necessary_annotations = {
     "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
   }
   backoffice_load_balancer_necessary_annotations = {
     "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
   }
-  installation_name                              = var.installation_name
-  oauth-github-client-id                         = var.oauth-github-client-id
-  oauth-github-client-secret                     = var.oauth-github-client-secret
-  cluster_id = azurerm_kubernetes_cluster.main.id
+  installation_name                 = var.installation_name
+  oauth-github-client-id            = var.oauth-github-client-id
+  oauth-github-client-secret        = var.oauth-github-client-secret
+  cluster_id                        = azurerm_kubernetes_cluster.main.id
   kubernetes_host                   = azurerm_kubernetes_cluster.main.kube_config.0.host
   kubernetes_client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate)
   kubernetes_client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key)
   kubernetes_cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate)
-  s3-bucket-name = "lzy-bucket"
-  storage-provider = "azure"
-  azure-connection-string = azurerm_storage_account.main_s3.primary_connection_string
-  whiteboard-image = var.whiteboard-image
-  server-image = var.server-image
-  kharon-image = var.kharon-image
-  backoffice-backend-image = var.backoffice-backend-image
-  backoffice-frontend-image = var.backoffice-frontend-image
-  clickhouse-image = var.clickhouse-image
-  azure-resource-group = azurerm_resource_group.test.name
-  servant-image = var.servant-image
+  s3-bucket-name                    = "lzy-bucket"
+  storage-provider                  = "azure"
+  azure-connection-string           = azurerm_storage_account.main_s3.primary_connection_string
+  whiteboard-image                  = var.whiteboard-image
+  server-image                      = var.server-image
+  kharon-image                      = var.kharon-image
+  backoffice-backend-image          = var.backoffice-backend-image
+  backoffice-frontend-image         = var.backoffice-frontend-image
+  clickhouse-image                  = var.clickhouse-image
+  azure-resource-group              = azurerm_resource_group.test.name
+  servant-image                     = var.servant-image
 }

@@ -66,7 +66,7 @@ variable "server-image" {
 }
 
 variable "whiteboard-image" {
-  type = string
+  type    = string
   default = "lzydock/lzy-whiteboard:master"
 }
 variable "s3-postfics" {

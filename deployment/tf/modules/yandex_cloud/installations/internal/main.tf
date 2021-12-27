@@ -23,4 +23,6 @@ module "common" {
   subnet_id                  = "e9brt77u0kenestd9232" //cloud-ml-dev-nets-ru-central1-a
   YC_TOKEN                   = ""
   backoffice-frontend-image  = "lzydock/lzy-backoffice-frontend:yandex"
+
+  gpu_count = 0
 }

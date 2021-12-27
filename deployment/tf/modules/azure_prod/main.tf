@@ -16,5 +16,5 @@ module "azure_common" {
   installation_name          = "lzy-prod"
   oauth-github-client-id     = var.github-client-id
   oauth-github-client-secret = var.github-secret
-  s3-postfics = "prod"
+  s3-postfics                = "prod"
 }

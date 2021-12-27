@@ -50,45 +50,45 @@ variable "server-image" {
 }
 
 variable "whiteboard-image" {
-  type = string
+  type    = string
   default = "lzydock/lzy-whiteboard:master"
 }
 
 variable "s3-bucket-name" {
-  type = string
+  type    = string
   default = "lzy-bucket"
 }
 
 variable "amazon-access-key" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "amazon-secret-key" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "amazon-service-endpoint" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "azure-connection-string" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "storage-provider" {
-  type = string
+  type    = string
   default = "amazon"
 }
 
 variable "azure-resource-group" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "servant-image" {
-  type    = string
+  type = string
 }

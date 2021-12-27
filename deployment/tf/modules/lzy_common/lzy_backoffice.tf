@@ -17,7 +17,7 @@ resource "kubernetes_secret" "backoffice_secrets" {
 
 resource "kubernetes_deployment" "lzy_backoffice" {
   metadata {
-    name   = "lzy-backoffice"
+    name = "lzy-backoffice"
     labels = {
       app = "lzy-backoffice"
     }
@@ -33,7 +33,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
     }
     template {
       metadata {
-        name   = "lzy-backoffice"
+        name = "lzy-backoffice"
         labels = {
           app = "lzy-backoffice"
         }
@@ -113,7 +113,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
                 match_expressions {
                   key      = "app"
                   operator = "In"
-                  values   = [
+                  values = [
                     "lzy-servant",
                     "lzy-server",
                     "lzy-kharon",

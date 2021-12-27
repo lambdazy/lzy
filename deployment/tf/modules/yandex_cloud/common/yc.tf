@@ -43,25 +43,6 @@ resource "yandex_resourcemanager_folder_iam_binding" "editor" {
   ]
 }
 
-resource "yandex_vpc_address" "lzy_kharon" {
-  count = 0
-  name  = "kharon"
-
-  external_ipv4_address {
-    zone_id = var.location
-  }
-}
-
-resource "yandex_vpc_address" "lzy_backoffice" {
-  count = 0
-  name  = "backoffice"
-
-  external_ipv4_address {
-    zone_id = var.location
-  }
-}
-
-
 resource "yandex_kubernetes_cluster" "main" {
   name        = var.installation_name
   description = "Main k8s cluster"
@@ -162,7 +143,6 @@ resource "yandex_kubernetes_node_group" "cpu" {
 
 
 resource "yandex_kubernetes_node_group" "gpu" {
-  count      = 0
   cluster_id = yandex_kubernetes_cluster.main.id
   name       = "gpupool"
   node_labels = {
@@ -209,12 +189,11 @@ module "lzy_common" {
   installation_name          = var.installation_name
   oauth-github-client-id     = var.oauth-github-client-id
   oauth-github-client-secret = var.oauth-github-client-secret
-  cluster_id                 = yandex_kubernetes_cluster.main.id
 
-  s3-access-key       = yandex_iam_service_account_static_access_key.sa-static-key.access_key
-  s3-secret-key       = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
-  s3-service-endpoint = "storage.yandexcloud.net"
-  s3-bucket-name      = "lzy-bucket-internal"
+  amazon-access-key       = yandex_iam_service_account_static_access_key.sa-static-key.access_key
+  amazon-secret-key       = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
+  amazon-service-endpoint = "storage.yandexcloud.net"
+  s3-bucket-name          = "lzy-bucket-internal"
 
   backoffice-frontend-image = var.backoffice-frontend-image
   servant-image             = var.servant-image
