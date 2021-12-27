@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, Mapping, Union
 
 from time import sleep
 
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials
 from lzy.model.channel import Channel, Bindings
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
@@ -120,7 +120,7 @@ class BashServantClient(ServantClient, metaclass=Singleton):
             f.write(zygote.to_json())
         return self._exec_bash(f"{self._mount}/sbin/publish", zygote.name(), zygote_description_file)
 
-    def get_credentials(self, typ: ServantClient.CredentialsTypes) -> Union[AzureCredentials, AmazonCredentials]:
+    def get_credentials(self, typ: ServantClient.CredentialsTypes) -> StorageCredentials:
         self._log.info(f"Getting credentials for {typ}")
         out = self._exec_bash(f"{self._mount}/sbin/credentials", typ.value)
         data: dict = json.loads(out)
