@@ -133,5 +133,9 @@ module "lzy_common" {
   backoffice-frontend-image         = var.backoffice-frontend-image
   clickhouse-image                  = var.clickhouse-image
   azure-resource-group              = azurerm_resource_group.test.name
+  ssl-enabled = var.ssl-enabled
+  ssl-cert = var.ssl-cert
+  ssl-cert-key = var.ssl-cert-key
+  ssl-keystore-password = var.ssl-keystore-password
   servant-image                     = var.servant-image
 }

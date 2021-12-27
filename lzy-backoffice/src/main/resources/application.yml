@@ -1,9 +1,17 @@
 micronaut:
   application:
     name: lzyBackoffice
+  ssl:
+    key-store:
+      path: file:/app/keystore.jks
+      type: JKS
+    enabled: false
   server:
+    port: 8080
     cors:
       enabled: true
+    ssl:
+      port: 8443
 grpc:
   host: 127.0.0.1
   port: 8888
