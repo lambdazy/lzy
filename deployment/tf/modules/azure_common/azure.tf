@@ -46,6 +46,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
+  count = var.lzy_count != 0 ? 1 : 0
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   name                  = "lzypool"
   vm_size               = "Standard_D2_v2"
@@ -56,6 +57,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
+  count = var.cpu_count != 0 ? 1 : 0
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   name                  = "cpupool"
   vm_size               = "Standard_D2_v2"
@@ -66,6 +68,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
+  count = var.gpu_count != 0 ? 1 : 0
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   name                  = "gpupool"
   vm_size               = "Standard_NV12s_v3"

@@ -55,11 +55,6 @@ variable "YC_TOKEN" {
   description = "YC IAM token"
 }
 
-variable "backoffice-frontend-image" {
-  type    = string
-  default = ""
-}
-
 variable "servant-image" {
   type    = string
   default = "lzydock/lzy-servant:master"

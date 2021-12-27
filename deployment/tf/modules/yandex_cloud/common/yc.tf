@@ -66,6 +66,7 @@ resource "yandex_kubernetes_cluster" "main" {
 }
 
 resource "yandex_kubernetes_node_group" "lzy" {
+  count = var.lzy_count != 0 ? 1 : 0
   cluster_id = yandex_kubernetes_cluster.main.id
   name       = "lzypool"
   node_labels = {
@@ -104,6 +105,7 @@ resource "yandex_kubernetes_node_group" "lzy" {
 }
 
 resource "yandex_kubernetes_node_group" "cpu" {
+  count = var.cpu_count != 0 ? 1 : 0
   cluster_id = yandex_kubernetes_cluster.main.id
   name       = "cpupool"
   node_labels = {
@@ -143,6 +145,7 @@ resource "yandex_kubernetes_node_group" "cpu" {
 
 
 resource "yandex_kubernetes_node_group" "gpu" {
+  count = var.gpu_count != 0 ? 1 : 0
   cluster_id = yandex_kubernetes_cluster.main.id
   name       = "gpupool"
   node_labels = {
@@ -192,9 +195,8 @@ module "lzy_common" {
 
   amazon-access-key       = yandex_iam_service_account_static_access_key.sa-static-key.access_key
   amazon-secret-key       = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
-  amazon-service-endpoint = "storage.yandexcloud.net"
+  amazon-service-endpoint = "https://storage.yandexcloud.net"
   s3-bucket-name          = "lzy-bucket-internal"
 
-  backoffice-frontend-image = var.backoffice-frontend-image
   servant-image             = var.servant-image
 }
