@@ -17,11 +17,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SessionHelper {
-    public static List<WhiteboardModel> getWhiteboardModels(String snapshotId, Session session) {
+    public static List<WhiteboardModel> getWhiteboardModels(@Nullable String snapshotId, Session session) {
         CriteriaBuilder cb = session.getCriteriaBuilder();
         CriteriaQuery<WhiteboardModel> cr = cb.createQuery(WhiteboardModel.class);
         Root<WhiteboardModel> root = cr.from(WhiteboardModel.class);
-        cr.select(root).where(cb.equal(root.get("snapshotId"), snapshotId));
+        if (snapshotId != null) {
+            cr.select(root).where(cb.equal(root.get("snapshotId"), snapshotId));
+        }
 
         Query<WhiteboardModel> query = session.createQuery(cr);
         return query.getResultList();

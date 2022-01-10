@@ -19,6 +19,7 @@ service WbApi {
   rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
   rpc Link (LinkCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
+  rpc Whiteboards (WhiteboardsCommand) returns (WhiteboardsInfo);
 }
 
 message CreateSnapshotCommand {
@@ -95,17 +96,30 @@ message WhiteboardField {
   }
 }
 
+enum WhiteboardStatus {
+  UNKNOWN = 0;
+  CREATED = 1;
+  COMPLETED = 2;
+  NOT_COMPLETED = 3;
+  ERRORED = 4;
+}
+
 message Whiteboard {
   string id = 1;
   repeated WhiteboardField fields = 2;
   Snapshot snapshot = 3;
   WhiteboardStatus status = 4;
+}
 
-  enum WhiteboardStatus {
-    UNKNOWN = 0;
-    CREATED = 1;
-    COMPLETED = 2;
-    NOT_COMPLETED = 3;
-    ERRORED = 4;
-  }
+message WhiteboardsCommand {
+  Auth auth = 1;
+}
+
+message WhiteboardInfo {
+  string id = 1;
+  WhiteboardStatus whiteboardStatus = 2;
+}
+
+message WhiteboardsInfo {
+  repeated WhiteboardInfo whiteboards = 1;
 }

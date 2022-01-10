@@ -73,6 +73,17 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
     }
 
     @Override
+    public List<WhiteboardInfo> whiteboards() {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            List<WhiteboardModel> wbModelList = SessionHelper.getWhiteboardModels(null, session);
+            List<WhiteboardInfo> result = wbModelList.stream()
+                    .map(wbModel -> new WhiteboardInfo.Impl(URI.create(wbModel.getWbId()), wbModel.getWbState()))
+                    .collect(Collectors.toList());
+            return result;
+        }
+    }
+
+    @Override
     public void add(WhiteboardField field) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();

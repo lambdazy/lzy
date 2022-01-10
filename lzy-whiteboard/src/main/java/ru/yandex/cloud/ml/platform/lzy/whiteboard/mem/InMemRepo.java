@@ -149,6 +149,14 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     }
 
     @Override
+    public List<WhiteboardInfo> whiteboards() {
+        return whiteboards.entrySet()
+                .stream()
+                .map(entry -> new WhiteboardInfo.Impl(entry.getKey(), entry.getValue().state()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public synchronized void add(WhiteboardField field) {
         if (!whiteboards.containsKey(field.whiteboard().id())) {
             throw new IllegalArgumentException("Whiteboard is not found: " + field.whiteboard().id());

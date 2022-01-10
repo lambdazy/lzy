@@ -8,8 +8,10 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
@@ -24,10 +26,14 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardInfo;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+
+import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
 public class SnapshotTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
@@ -50,6 +56,18 @@ public class SnapshotTest extends LzyBaseTest {
     @After
     public void tearDown() {
         super.tearDown();
+    }
+
+    private String createSnapshot() throws ParseException {
+        final String spIdJson = terminal.createSnapshot();
+        JSONObject spIdObject = (JSONObject) (new JSONParser()).parse(spIdJson);
+        return (String) spIdObject.get("snapshotId");
+    }
+
+    private String createWhiteboard(String spId, List<String> fileNames) throws ParseException {
+        String wbIdJson = terminal.createWhiteboard(spId, fileNames);
+        JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
+        return (String) wbIdObject.get("id");
     }
 
     @Test
@@ -83,14 +101,10 @@ public class SnapshotTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal.ExecutionResult[] result1 = new LzyTerminalTestContext.Terminal.ExecutionResult[1];
         ForkJoinPool.commonPool()
                 .execute(() -> result1[0] = terminal.execute("bash", "-c", "/tmp/lzy/sbin/cat " + localFileOutName));
-        final String spIdJson = terminal.createSnapshot();
-        JSONObject spIdObject = (JSONObject) (new JSONParser()).parse(spIdJson);
-        final String spId = (String) spIdObject.get("snapshotId");
+        final String spId = createSnapshot();
         Assert.assertNotNull(spId);
 
-        String wbIdJson = terminal.createWhiteboard(spId, List.of(localFileName, localFileOutName));
-        JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
-        final String wbId = (String) wbIdObject.get("id");
+        final String wbId = createWhiteboard(spId, List.of(localFileName, localFileOutName));
         Assert.assertNotNull(wbId);
 
         final String firstEntryId = "firstEntryId";
@@ -154,7 +168,7 @@ public class SnapshotTest extends LzyBaseTest {
 
         Assert.assertEquals(spId, wb.getSnapshot().getSnapshotId());
         Assert.assertEquals(2, fieldsList.size());
-        Assert.assertEquals(LzyWhiteboard.Whiteboard.WhiteboardStatus.COMPLETED, wb.getStatus());
+        Assert.assertEquals(LzyWhiteboard.WhiteboardStatus.COMPLETED, wb.getStatus());
 
         Assert.assertTrue(
                 (localFileName.equals(fieldsList.get(0).getFieldName()) && localFileOutName.equals(fieldsList.get(1).getFieldName())) ||
@@ -171,5 +185,40 @@ public class SnapshotTest extends LzyBaseTest {
             Assert.assertEquals(Collections.emptyList(), fieldsList.get(1).getDependentFieldNamesList());
             Assert.assertEquals(List.of(localFileName), fieldsList.get(0).getDependentFieldNamesList());
         }
+    }
+
+    @Test
+    public void testWhiteboardsResolving() throws ParseException, InvalidProtocolBufferException {
+        final String spIdFirst = createSnapshot();
+        Assert.assertNotNull(spIdFirst);
+
+        final String spIdSecond = createSnapshot();
+        Assert.assertNotNull(spIdSecond);
+
+        final String wbIdFirst = createWhiteboard(spIdFirst, List.of("fileNameX", "fileNameY"));
+        Assert.assertNotNull(wbIdFirst);
+
+        final String wbIdSecond = createWhiteboard(spIdFirst, List.of("fileNameZ", "fileNameW"));
+        Assert.assertNotNull(wbIdSecond);
+
+        final String wbIdThird = createWhiteboard(spIdSecond, List.of("fileNameA", "fileNameB"));
+        Assert.assertNotNull(wbIdThird);
+
+        String whiteboards = terminal.getAllWhiteboards();
+        LzyWhiteboard.WhiteboardsInfo.Builder builder = LzyWhiteboard.WhiteboardsInfo.newBuilder();
+        JsonFormat.parser().merge(whiteboards, builder);
+        LzyWhiteboard.WhiteboardsInfo wbInfo = builder.build();
+
+        List<LzyWhiteboard.WhiteboardInfo> wbInfoList = wbInfo.getWhiteboardsList();
+        Assert.assertEquals(3, wbInfoList.size());
+        Assert.assertTrue(wbInfoList.contains(
+                to(new WhiteboardInfo.Impl(URI.create(wbIdFirst), WhiteboardStatus.State.CREATED)))
+        );
+        Assert.assertTrue(wbInfoList.contains(
+                to(new WhiteboardInfo.Impl(URI.create(wbIdSecond), WhiteboardStatus.State.CREATED)))
+        );
+        Assert.assertTrue(wbInfoList.contains(
+                to(new WhiteboardInfo.Impl(URI.create(wbIdThird), WhiteboardStatus.State.CREATED)))
+        );
     }
 }
