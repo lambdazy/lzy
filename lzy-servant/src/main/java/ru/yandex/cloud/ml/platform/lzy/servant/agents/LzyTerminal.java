@@ -5,6 +5,7 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.GRPCUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
@@ -69,7 +70,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                 if (slot instanceof LzyOutputSlot) {
                                     slotSender.connect((LzyOutputSlot) slot, slotUri);
                                 } else if (slot instanceof LzyInputSlot) {
-                                    ((LzyInputSlot) slot).connect(slotUri, kharonBlockingStub::openOutputSlot);
+                                    ((LzyInputSlot) slot).connect(slotUri,  GRPCUtils.callWithRetry(() -> kharonBlockingStub::openOutputSlot));
                                 }
                             });
 
@@ -113,7 +114,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                 }
             };
 
-            responseObserver = kharon.attachTerminal(supplier);
+            responseObserver =  GRPCUtils.callWithRetry(() -> kharon.attachTerminal(supplier));
 
             status.set(AgentStatus.REGISTERING);
             responseObserver.onNext(TerminalState.newBuilder()

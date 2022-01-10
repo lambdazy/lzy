@@ -25,6 +25,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.GRPCUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
@@ -104,7 +105,7 @@ public abstract class LzyAgent implements Closeable {
         for (LzyCommand.Commands command : LzyCommand.Commands.values()) {
             publishTool(null, Paths.get(command.name()), command.name());
         }
-        final Operations.ZygoteList zygotes = lzyServerApi().zygotes(auth);
+        final Operations.ZygoteList zygotes = GRPCUtils.callWithRetry(() -> lzyServerApi().zygotes(auth));
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
             publishTool(
                 zygote.getWorkload(),
@@ -273,7 +274,7 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public void update(IAM.Auth request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
-        final Operations.ZygoteList zygotes = lzyServerApi().zygotes(auth);
+        final Operations.ZygoteList zygotes = GRPCUtils.callWithRetry(() -> lzyServerApi().zygotes(auth));
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
             publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());
         }

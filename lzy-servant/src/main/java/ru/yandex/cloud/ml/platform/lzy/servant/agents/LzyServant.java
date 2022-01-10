@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.GRPCUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
@@ -53,7 +54,7 @@ public class LzyServant extends LzyAgent {
        }
 
     private SnapshotStorage initStorage(){
-        Lzy.GetS3CredentialsResponse resp = server.getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder().setAuth(auth).build());
+        Lzy.GetS3CredentialsResponse resp = GRPCUtils.callWithRetry(() -> server.getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder().setAuth(auth).build()));
         return SnapshotStorage.create(resp);
     }
 
@@ -77,8 +78,7 @@ public class LzyServant extends LzyAgent {
         commandBuilder.setAuth(auth);
         commandBuilder.setServantURI(agentAddress.toString());
         commandBuilder.setSessionId(taskId);
-        //noinspection ResultOfMethodCallIgnored
-        server.registerServant(commandBuilder.build());
+        GRPCUtils.callWithRetry(() -> server.registerServant(commandBuilder.build()));
         status.set(AgentStatus.REGISTERED);
     }
 
