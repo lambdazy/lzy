@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import java.util.Map;
 
 public class BaseEvent {
+    public static final ObjectWriter DEFAULT_OBJECT_WRITER = new ObjectMapper().writer().withDefaultPrettyPrinter();
+
     protected final String description;
     protected final Map<String, String> tags;
 
@@ -24,9 +26,8 @@ public class BaseEvent {
     }
 
     public String toJson() {
-        ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
         try {
-            return ow.writeValueAsString(this);
+            return DEFAULT_OBJECT_WRITER.writeValueAsString(this);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             return "{\"error\":\"Cannot convert event to json\"}";
