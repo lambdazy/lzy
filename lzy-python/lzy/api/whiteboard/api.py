@@ -33,6 +33,12 @@ class WhiteboardStatus(Enum):
 
 
 @dataclass
+class WhiteboardInfo:
+    id: str
+    status: WhiteboardStatus
+
+
+@dataclass
 class WhiteboardDescription:
     id: str
     fields: List[WhiteboardFieldDescription]
@@ -66,6 +72,10 @@ class WhiteboardApi(ABC):
 
     @abstractmethod
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
+        pass
+
+    @abstractmethod
+    def getAll(self) -> List[WhiteboardInfo]:
         pass
 
 
