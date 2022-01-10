@@ -15,6 +15,10 @@ The system is based on the following principle: a computing cluster is represent
 
 ## Quick start
 
+### Requirements
+* fuse ([macFuse](https://osxfuse.github.io) for macos)
+* java version >= 11
+
 ### Installation
 
 `pip install pylzy` or 
