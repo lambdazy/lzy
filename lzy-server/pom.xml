@@ -137,6 +137,7 @@
                 <filtering>true</filtering>
                 <includes>
                     <include>**/*.yaml</include>
+                    <include>c3p0.properties</include>
                     <include>db/migrations/**</include>
                     <include>clickhouse/**</include>
                     <include>hibernate.cfg.xml</include>
