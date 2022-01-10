@@ -57,7 +57,7 @@ public class LzyServant extends LzyAgent {
         MetricEventLogger.log(
             new MetricEvent(
                 "time from agent construct finish to LzyServant construct finish",
-                Map.of(),
+                Map.of("task_id", taskId),
                 finish - start
             )
         );
@@ -96,7 +96,7 @@ public class LzyServant extends LzyAgent {
         MetricEventLogger.log(
             new MetricEvent(
                 "LzyServant startUp time",
-                Map.of(),
+                Map.of("task_id", taskId),
                 finish - start
             )
         );
@@ -193,7 +193,7 @@ public class LzyServant extends LzyAgent {
             MetricEventLogger.log(
                 new MetricEvent(
                     "time from task LzyServant::execution to LzyExecution::start",
-                    Map.of(),
+                    Map.of("task_id", taskId),
                     startExecutionMillis - executeMillis
                 )
             );
@@ -202,7 +202,7 @@ public class LzyServant extends LzyAgent {
             MetricEventLogger.log(
                 new MetricEvent(
                     "execution time",
-                    Map.of(),
+                    Map.of("task_id", taskId),
                     finishExecutionMillis - startExecutionMillis
                 )
             );
@@ -231,7 +231,7 @@ public class LzyServant extends LzyAgent {
             MetricEventLogger.log(
                 new MetricEvent(
                     "LzyServant openOutputSlot time",
-                    Map.of(),
+                    Map.of("task_id", taskId),
                     finish - start
                 )
             );
