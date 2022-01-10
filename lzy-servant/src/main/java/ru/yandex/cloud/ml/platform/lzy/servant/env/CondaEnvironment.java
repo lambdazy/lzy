@@ -69,7 +69,7 @@ public class CondaEnvironment implements Environment {
             MetricEventLogger.log(
                 new MetricEvent(
                     "time for installing py env millis",
-                    Map.of(),
+                    Map.of("metric_type", "task_metric"),
                     pyEnvInstallFinish - pyEnvInstallStart
                 )
             );

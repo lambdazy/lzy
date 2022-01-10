@@ -71,7 +71,8 @@ public abstract class LzyAgent implements Closeable {
             new MetricEvent(
                 "LzyAgent construct time",
                 Map.of(
-                    "agent_type", this.getClass().getSimpleName()
+                    "agent_type", this.getClass().getSimpleName(),
+                    "metric_type", "system_metric"
                 ),
                 finish - start
             )

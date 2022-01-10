@@ -57,7 +57,10 @@ public class LzyServant extends LzyAgent {
         MetricEventLogger.log(
             new MetricEvent(
                 "time from agent construct finish to LzyServant construct finish",
-                Map.of("task_id", taskId),
+                Map.of(
+                    "task_id", taskId,
+                    "metric_type", "system_metric"
+                ),
                 finish - start
             )
         );
@@ -96,7 +99,10 @@ public class LzyServant extends LzyAgent {
         MetricEventLogger.log(
             new MetricEvent(
                 "LzyServant startUp time",
-                Map.of("task_id", taskId),
+                Map.of(
+                    "task_id", taskId,
+                    "metric_type", "system_metric"
+                ),
                 finish - start
             )
         );
@@ -193,7 +199,10 @@ public class LzyServant extends LzyAgent {
             MetricEventLogger.log(
                 new MetricEvent(
                     "time from task LzyServant::execution to LzyExecution::start",
-                    Map.of("task_id", taskId),
+                    Map.of(
+                        "task_id", taskId,
+                        "metric_type", "system_metric"
+                    ),
                     startExecutionMillis - executeMillis
                 )
             );
@@ -202,7 +211,10 @@ public class LzyServant extends LzyAgent {
             MetricEventLogger.log(
                 new MetricEvent(
                     "execution time",
-                    Map.of("task_id", taskId),
+                    Map.of(
+                        "task_id", taskId,
+                        "metric_type", "task_metric"
+                    ),
                     finishExecutionMillis - startExecutionMillis
                 )
             );
@@ -231,7 +243,10 @@ public class LzyServant extends LzyAgent {
             MetricEventLogger.log(
                 new MetricEvent(
                     "LzyServant openOutputSlot time",
-                    Map.of("task_id", taskId),
+                    Map.of(
+                        "task_id", taskId,
+                        "metric_type", "system_metric"
+                    ),
                     finish - start
                 )
             );

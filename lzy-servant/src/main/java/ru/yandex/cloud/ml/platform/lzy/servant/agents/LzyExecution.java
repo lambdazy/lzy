@@ -202,7 +202,7 @@ public class LzyExecution {
                 MetricEventLogger.log(
                     new MetricEvent(
                         "time from LzyExecution::start to Environment::exec",
-                        Map.of(),
+                        Map.of("metric_type", "system_metric"),
                         envExecStartMillis - startMillis
                     )
                 );
@@ -237,7 +237,7 @@ public class LzyExecution {
                 MetricEventLogger.log(
                     new MetricEvent(
                         "env execution time",
-                        Map.of(),
+                        Map.of("metric_type", "task_metric"),
                         envExecFinishMillis - envExecStartMillis
                     )
                 );
@@ -260,7 +260,7 @@ public class LzyExecution {
             MetricEventLogger.log(
                 new MetricEvent(
                     "time from env exec finished to slots closed",
-                    Map.of(),
+                    Map.of("metric_type", "system_metric"),
                     slotsClosedMillis - envExecFinishMillis
                 )
             );
@@ -276,7 +276,7 @@ public class LzyExecution {
             MetricEventLogger.log(
                 new MetricEvent(
                     "time from slots closed to LzyExecution::start finish",
-                    Map.of(),
+                    Map.of("metric_type", "system_metric"),
                     finishMillis - slotsClosedMillis
                 )
             );

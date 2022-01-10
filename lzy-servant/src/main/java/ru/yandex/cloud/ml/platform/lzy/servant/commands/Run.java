@@ -160,7 +160,7 @@ public class Run implements LzyCommand {
         MetricEventLogger.log(
             new MetricEvent(
                 "time from Task start to Task finish",
-                Map.of(),
+                Map.of("metric_type", "task_metric"),
                 finishTimeMillis - startTimeMillis
             )
         );
