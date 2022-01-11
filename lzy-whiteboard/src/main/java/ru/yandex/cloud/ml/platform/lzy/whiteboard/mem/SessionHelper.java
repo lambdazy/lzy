@@ -29,8 +29,8 @@ public class SessionHelper {
 
     @SuppressWarnings("unchecked")
     public static List<WhiteboardModel> getWhiteboardModelsByOwner(String uid, Session session) {
-        String queryWhiteboardModelRequest = "SELECT w FROM WhiteboardModel w JOIN SnapshotOwnerModel s " +
-                "ON w.snapshotId = s.spId WHERE s.uid = :uid";
+        String queryWhiteboardModelRequest = "SELECT w FROM WhiteboardModel w JOIN SnapshotModel s " +
+                "ON w.snapshotId = s.snapshotId WHERE s.uid = :uid";
         Query<WhiteboardModel> queryWhiteboardModel = session.createQuery(queryWhiteboardModelRequest);
         queryWhiteboardModel.setParameter("uid", uid);
         return queryWhiteboardModel.list();

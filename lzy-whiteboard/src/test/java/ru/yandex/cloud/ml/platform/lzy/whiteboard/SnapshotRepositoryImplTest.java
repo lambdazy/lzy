@@ -63,17 +63,14 @@ public class SnapshotRepositoryImplTest {
     @Test
     public void testCreate(){
         SnapshotModel snapshotModel;
-        SnapshotOwnerModel snapshotOwnerModel;
         Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId));
         impl.create(snapshot, snapshotOwner);
         try (Session session = storage.getSessionFactory().openSession()) {
             snapshotModel = session.find(SnapshotModel.class, snapshotId);
-            snapshotOwnerModel = session.find(SnapshotOwnerModel.class, snapshotId);
         }
         Assert.assertNotNull(snapshotModel);
         Assert.assertEquals(State.CREATED, snapshotModel.getSnapshotState());
-        Assert.assertNotNull(snapshotOwnerModel);
-        Assert.assertEquals(snapshotOwner.toString(), snapshotOwnerModel.getUid());
+        Assert.assertEquals(snapshotOwner.toString(), snapshotModel.getUid());
     }
 
     @Test
@@ -101,7 +98,7 @@ public class SnapshotRepositoryImplTest {
     public void testFinalizeSnapshot() {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
-            session.save(new SnapshotModel(snapshotId, State.CREATED));
+            session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
             session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId));
             session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId));
             String fieldNameFirst = "fieldNameFirst";
@@ -137,7 +134,7 @@ public class SnapshotRepositoryImplTest {
     public void testErrorSnapshot() {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
-            session.save(new SnapshotModel(snapshotId, State.CREATED));
+            session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
             session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId));
             session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId));
             tx.commit();
@@ -200,7 +197,7 @@ public class SnapshotRepositoryImplTest {
     public void testResolveEntryStatus() {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
-            session.save(new SnapshotModel(snapshotId, State.CREATED));
+            session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
             session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, storageUri,
                     false, FINISHED));
             session.save(new SnapshotEntryModel(UUID.randomUUID().toString(), entryIdSecond, storageUri,

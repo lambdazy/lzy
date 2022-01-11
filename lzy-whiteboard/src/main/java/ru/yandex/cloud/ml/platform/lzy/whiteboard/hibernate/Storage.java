@@ -35,7 +35,6 @@ public class Storage implements DbStorage {
         cfg.addAnnotatedClass(SnapshotEntryModel.class);
         cfg.addAnnotatedClass(WhiteboardModel.class);
         cfg.addAnnotatedClass(SnapshotModel.class);
-        cfg.addAnnotatedClass(SnapshotOwnerModel.class);
         this.sessionFactory = cfg.buildSessionFactory();
     }
 

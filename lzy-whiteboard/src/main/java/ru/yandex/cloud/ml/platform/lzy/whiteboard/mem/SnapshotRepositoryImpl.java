@@ -33,11 +33,9 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             }
 
             Transaction tx = session.beginTransaction();
-            snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED);
-            SnapshotOwnerModel snapshotOwnerModel = new SnapshotOwnerModel(snapshotId, uid.toString());
+            snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED, uid.toString());
             try {
                 session.save(snapshotStatus);
-                session.save(snapshotOwnerModel);
                 tx.commit();
             }
             catch (Exception e) {

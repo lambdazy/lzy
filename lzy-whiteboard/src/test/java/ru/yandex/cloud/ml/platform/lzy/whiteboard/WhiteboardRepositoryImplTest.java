@@ -108,7 +108,7 @@ public class WhiteboardRepositoryImplTest {
             session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst));
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, entryIdSecond));
-            session.save(new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.CREATED));
+            session.save(new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.CREATED, snapshotOwnerFirst));
             tx.commit();
         }
         WhiteboardStatus whiteboardStatus = impl.resolveWhiteboard(URI.create(wbIdFirst));
@@ -235,17 +235,17 @@ public class WhiteboardRepositoryImplTest {
             session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst));
             session.save(new WhiteboardModel(wbIdSecond, COMPLETED, snapshotIdFirst));
             session.save(new WhiteboardModel(wbIdThird, COMPLETED, snapshotIdSecond));
-            session.save(new SnapshotOwnerModel(snapshotIdFirst, snapshotOwnerFirst));
-            session.save(new SnapshotOwnerModel(snapshotIdSecond, snapshotOwnerSecond));
+            session.save(new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.FINALIZED, snapshotOwnerFirst));
+            session.save(new SnapshotModel(snapshotIdSecond, SnapshotStatus.State.FINALIZED, snapshotOwnerSecond));
             tx.commit();
         }
         List<WhiteboardInfo> resultFirstUser = impl.whiteboards(URI.create(snapshotOwnerFirst));
         Assert.assertEquals(2, resultFirstUser.size());
         Assert.assertTrue(
-                resultFirstUser.get(0).id().equals(URI.create(wbIdFirst)) && resultFirstUser.get(0).state().equals(CREATED) &&
-                        resultFirstUser.get(1).id().equals(URI.create(wbIdSecond)) && resultFirstUser.get(1).state().equals(COMPLETED) ||
-                        resultFirstUser.get(1).id().equals(URI.create(wbIdFirst)) && resultFirstUser.get(1).state().equals(CREATED) &&
-                        resultFirstUser.get(0).id().equals(URI.create(wbIdSecond)) && resultFirstUser.get(0).state().equals(COMPLETED)
+            resultFirstUser.get(0).id().equals(URI.create(wbIdFirst)) && resultFirstUser.get(0).state().equals(CREATED) &&
+                    resultFirstUser.get(1).id().equals(URI.create(wbIdSecond)) && resultFirstUser.get(1).state().equals(COMPLETED) ||
+                    resultFirstUser.get(1).id().equals(URI.create(wbIdFirst)) && resultFirstUser.get(1).state().equals(CREATED) &&
+                    resultFirstUser.get(0).id().equals(URI.create(wbIdSecond)) && resultFirstUser.get(0).state().equals(COMPLETED)
         );
         List<WhiteboardInfo> resultSecondUser = impl.whiteboards(URI.create(snapshotOwnerSecond));
         Assert.assertEquals(1, resultSecondUser.size());
