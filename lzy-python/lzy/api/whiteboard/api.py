@@ -35,7 +35,7 @@ class WhiteboardStatus(Enum):
 @dataclass
 class WhiteboardInfo:
     id: str
-    status: WhiteboardStatus
+    status: Optional[WhiteboardStatus]
 
 
 @dataclass
