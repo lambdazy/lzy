@@ -1,23 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.api;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import io.netty.channel.local.LocalEventLoopGroup;
+import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import io.micronaut.context.annotation.Requires;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
-import io.micronaut.context.annotation.Requires;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
@@ -43,9 +35,10 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Inject
     public SnapshotApi(ServerConfig serverConfig, SnapshotRepository repository) {
         URI uri = URI.create(serverConfig.getUri());
-        final ManagedChannel serverChannel = ManagedChannelBuilder
+        final ManagedChannel serverChannel = ChannelBuilder
                 .forAddress(uri.getHost(), uri.getPort())
                 .usePlaintext()
+                .enableRetry(LzyServerGrpc.SERVICE_NAME)
                 .build();
         auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel));
         this.repository = repository;

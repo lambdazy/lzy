@@ -1,9 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -24,11 +24,12 @@ public class SlotConnectionManager {
         private final SlotController controller;
         private final ManagedChannel channel;
 
-        Connection(URI uri, ControllerCreator controllerCreator) {
-            channel = ManagedChannelBuilder
-                .forAddress(uri.getHost(), uri.getPort())
-                .usePlaintext()
-                .build();
+        Connection(URI uri, String serviceName, ControllerCreator controllerCreator) {
+            channel = ChannelBuilder
+                    .forAddress(uri.getHost(), uri.getPort())
+                    .usePlaintext()
+                    .enableRetry(serviceName)
+                    .build();
             controller = controllerCreator.create(channel);
         }
     }
@@ -41,7 +42,7 @@ public class SlotConnectionManager {
         SlotController create(ManagedChannel channel);
     }
 
-    public synchronized SlotController getOrCreate(String slotName, URI slotUri, ControllerCreator controllerCreator) {
+    public synchronized SlotController getOrCreate(String slotName, URI slotUri, String serviceName, ControllerCreator controllerCreator) {
         LOG.info("Create connection to " + slotUri);
         final URI uri = getOnlyHostPortURI(slotUri);
 
@@ -52,7 +53,7 @@ public class SlotConnectionManager {
                 return connections.get(slotUri).controller;
             }
 
-            final Connection connection = new Connection(uri, controllerCreator);
+            final Connection connection = new Connection(uri, serviceName, controllerCreator);
             connections.put(slotUri, connection);
             if (!connectedChannels.containsKey(slotName)) {
                 connectedChannels.put(slotName, Collections.singletonList(slotUri));

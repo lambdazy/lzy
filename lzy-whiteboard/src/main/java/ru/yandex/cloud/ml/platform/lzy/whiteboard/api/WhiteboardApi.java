@@ -1,28 +1,14 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.api;
 
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.net.URI;
-import java.util.HashSet;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import io.micronaut.context.annotation.Requires;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
@@ -34,7 +20,9 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
 import java.net.URI;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -47,9 +35,10 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     @Inject
     public WhiteboardApi(ServerConfig serverConfig, WhiteboardRepository whiteboardRepository, SnapshotRepository snapshotRepository) {
         URI uri = URI.create(serverConfig.getUri());
-        final ManagedChannel serverChannel = ManagedChannelBuilder
+        final ManagedChannel serverChannel = ChannelBuilder
                 .forAddress(uri.getHost(), uri.getPort())
                 .usePlaintext()
+                .enableRetry(LzyServerGrpc.SERVICE_NAME)
                 .build();
         auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel));
         this.whiteboardRepository = whiteboardRepository;

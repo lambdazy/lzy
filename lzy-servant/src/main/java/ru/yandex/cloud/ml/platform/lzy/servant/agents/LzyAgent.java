@@ -254,7 +254,7 @@ public abstract class LzyAgent implements Closeable {
             case CONNECT:
                 final Servant.ConnectSlotCommand connect = request.getConnect();
                 final URI slotUri = URI.create(connect.getSlotUri());
-                final SlotController slotController = slotConnectionManager.getOrCreate(slot.name(), slotUri, channel -> {
+                final SlotController slotController = slotConnectionManager.getOrCreate(slot.name(), slotUri, LzyServantGrpc.SERVICE_NAME, channel -> {
                     final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(channel);
                     return stub::openOutputSlot;
                 });
