@@ -34,7 +34,6 @@ public class KafkaLogsConfiguration extends YamlConfiguration {
                 .build();
             final Property[] properties = {Property.createProperty("bootstrap.servers", serverHost)};
             Appender appender = KafkaAppender.newBuilder()
-                .setSyncSend(false)
                 .setLayout(layout)
                 .setTopic("servant")
                 .setPropertyArray(properties)
