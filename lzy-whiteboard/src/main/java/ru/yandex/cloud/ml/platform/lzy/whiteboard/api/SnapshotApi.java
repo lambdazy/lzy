@@ -6,6 +6,8 @@ import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import java.net.URI;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
@@ -36,9 +38,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     public SnapshotApi(ServerConfig serverConfig, SnapshotRepository repository) {
         URI uri = URI.create(serverConfig.getUri());
         final ManagedChannel serverChannel = ChannelBuilder
-            .forAddress(uri.getHost(), uri.getPort())
-            .usePlaintext()
-            .enableRetry(LzyServerGrpc.SERVICE_NAME)
+                .forAddress(uri.getHost(), uri.getPort())
+                .usePlaintext()
+                .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
         auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel));
         this.repository = repository;

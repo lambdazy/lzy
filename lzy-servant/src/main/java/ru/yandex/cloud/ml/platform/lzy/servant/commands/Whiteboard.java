@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import java.net.URI;
 import java.util.Base64;
 import java.util.List;
@@ -47,9 +48,9 @@ public class Whiteboard implements LzyCommand {
         }
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final ManagedChannel serverCh = ChannelBuilder
-            .forAddress(serverAddr.getHost(), serverAddr.getPort())
-            .usePlaintext()
-            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                .forAddress(serverAddr.getHost(), serverAddr.getPort())
+                .usePlaintext()
+                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {

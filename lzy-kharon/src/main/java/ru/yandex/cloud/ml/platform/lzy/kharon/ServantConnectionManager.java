@@ -28,10 +28,10 @@ public class ServantConnectionManager {
         Connection(URI uri) {
             LOG.info("Creating connection for uri " + uri);
             channel = ChannelBuilder
-                .forAddress(uri.getHost(), uri.getPort())
-                .usePlaintext()
-                .enableRetry(LzyServantGrpc.SERVICE_NAME)
-                .build();
+                    .forAddress(uri.getHost(), uri.getPort())
+                    .usePlaintext()
+                    .enableRetry(LzyServantGrpc.SERVICE_NAME)
+                    .build();
             stub = LzyServantGrpc.newBlockingStub(channel);
         }
 

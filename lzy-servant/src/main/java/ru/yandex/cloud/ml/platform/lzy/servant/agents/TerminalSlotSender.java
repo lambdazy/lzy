@@ -13,6 +13,9 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
+import java.io.IOException;
+import java.net.URI;
+
 
 public class TerminalSlotSender {
 
