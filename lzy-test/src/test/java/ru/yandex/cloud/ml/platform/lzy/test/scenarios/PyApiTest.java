@@ -106,5 +106,6 @@ public class PyApiTest extends LzyBaseTest {
 
         //Assert
         Assert.assertTrue(result.stdout().contains("42 42"));
+        Assert.assertTrue(result.stdout().contains("COMPLETED"));
     }
 }
