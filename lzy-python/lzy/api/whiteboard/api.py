@@ -118,6 +118,9 @@ class InMemWhiteboardApi(WhiteboardApi):
     def get(self, wb_id: str) -> WhiteboardDescription:
         return self.__whiteboards[wb_id]
 
+    def getAll(self) -> List[WhiteboardInfo]:
+        return [WhiteboardInfo(wb.id, wb.status) for wb in self.__whiteboards]
+
 
 class InMemSnapshotApi(SnapshotApi):
     def create(self) -> SnapshotDescription:
