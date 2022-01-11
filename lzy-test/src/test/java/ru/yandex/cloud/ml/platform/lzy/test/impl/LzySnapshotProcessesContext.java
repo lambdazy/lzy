@@ -84,9 +84,9 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
             }
 
             channel = ChannelBuilder
-                .forAddress("localhost", SNAPSHOT_PORT)
-                .usePlaintext()
-                .enableRetry(WbApiGrpc.SERVICE_NAME)
+                    .forAddress("localhost", SNAPSHOT_PORT)
+                    .usePlaintext()
+                    .enableRetry(WbApiGrpc.SERVICE_NAME)
                 .build();
             lzyWhiteboardClient = WbApiGrpc.newBlockingStub(channel)
                 .withWaitForReady()

@@ -40,9 +40,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     public SnapshotApi(ServerConfig serverConfig, SnapshotRepository repository) {
         URI uri = URI.create(serverConfig.getUri());
         final ManagedChannel serverChannel = ChannelBuilder
-            .forAddress(uri.getHost(), uri.getPort())
-            .usePlaintext()
-            .enableRetry(LzyServerGrpc.SERVICE_NAME)
+                .forAddress(uri.getHost(), uri.getPort())
+                .usePlaintext()
+                .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
         auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel));
         this.repository = repository;

@@ -17,6 +17,10 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
+import java.net.URI;
+import java.util.Base64;
+import java.util.List;
+
 public class Whiteboard implements LzyCommand {
 
     private static final Options options = new Options();
@@ -48,9 +52,9 @@ public class Whiteboard implements LzyCommand {
         }
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final ManagedChannel serverCh = ChannelBuilder
-            .forAddress(serverAddr.getHost(), serverAddr.getPort())
-            .usePlaintext()
-            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                .forAddress(serverAddr.getHost(), serverAddr.getPort())
+                .usePlaintext()
+                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
