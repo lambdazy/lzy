@@ -119,7 +119,7 @@ class InMemWhiteboardApi(WhiteboardApi):
         return self.__whiteboards[wb_id]
 
     def getAll(self) -> List[WhiteboardInfo]:
-        return [WhiteboardInfo(wb.id, wb.status) for wb in self.__whiteboards]
+        return [WhiteboardInfo(wb.id, wb.status) for key, wb in self.__whiteboards.items()]
 
 
 class InMemSnapshotApi(SnapshotApi):
