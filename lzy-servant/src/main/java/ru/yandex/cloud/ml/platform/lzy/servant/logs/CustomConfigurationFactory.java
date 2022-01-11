@@ -23,7 +23,15 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
                 configurationSource,
                 Objects.equals(System.getenv("LOGS_APPENDER"), "Kafka"),
                 System.getenv("LOGS_SERVER"),
-                "{\"timestamp\":\"%d{UNIX}\", \"thread\": \"%t\",  \"level\": \"%-5level\", \"logger\": \"%logger{36}\", \"message\": \"%enc{%msg}{JSON}\", \"servant\": \"" + System.getenv("LZYTASK") + "\"}"
+                "{" +
+                        "\"timestamp\":\"%d{UNIX}\", " +
+                        "\"thread\": \"%t\", " +
+                        "\"level\": \"%-5level\", " +
+                        "\"logger\": \"%logger{36}\", " +
+                        "\"message\": \"%enc{%msg}{JSON}\", " +
+                        "\"servant\": \"" + System.getenv("LZYTASK") + "\", " +
+                        "\"exception\": \"%enc{%ex}{JSON}\"" +
+                        "}"
         );
     }
 
