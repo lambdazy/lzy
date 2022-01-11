@@ -50,14 +50,12 @@ public class Touch implements LzyCommand {
         }
 
         final ManagedChannel terminalCh = ChannelBuilder
-            .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
-            .usePlaintext()
-            .enableRetry(LzyServantGrpc.SERVICE_NAME)
-            .build();
-        final LzyServantGrpc.LzyServantBlockingStub terminal = LzyServantGrpc
-            .newBlockingStub(terminalCh);
-        final Servant.CreateSlotCommand.Builder createCommandBuilder = Servant.CreateSlotCommand
-            .newBuilder();
+                .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
+                .usePlaintext()
+                .enableRetry(LzyServantGrpc.SERVICE_NAME)
+                .build();
+        final LzyServantGrpc.LzyServantBlockingStub terminal = LzyServantGrpc.newBlockingStub(terminalCh);
+        final Servant.CreateSlotCommand.Builder createCommandBuilder = Servant.CreateSlotCommand.newBuilder();
         if (localCmd.hasOption('s')) {
             final Operations.Slot.Builder slotBuilder = Operations.Slot.newBuilder();
             {
@@ -85,18 +83,17 @@ public class Touch implements LzyCommand {
                 final IAM.Auth auth = IAM.Auth
                     .parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
                 final ManagedChannel serverCh = ChannelBuilder
-                    .forAddress(serverAddr.getHost(), serverAddr.getPort())
-                    .usePlaintext()
-                    .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                    .build();
-                final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc
-                    .newBlockingStub(serverCh);
+                        .forAddress(serverAddr.getHost(), serverAddr.getPort())
+                        .usePlaintext()
+                        .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                        .build();
+                final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
 
                 final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
-                    .setAuth(auth)
-                    .setChannelName(channelName)
-                    .setState(Channels.ChannelState.newBuilder().build())
-                    .build();
+                        .setAuth(auth)
+                        .setChannelName(channelName)
+                        .setState(Channels.ChannelState.newBuilder().build())
+                        .build();
                 final Channels.ChannelStatus channelStatus = server.channel(channelReq);
                 slotBuilder.setContentType(channelStatus.getChannel().getContentType());
                 switch (slotDefinition) {
@@ -131,7 +128,7 @@ public class Touch implements LzyCommand {
         createCommandBuilder.setChannelId(channelName);
 
         final Servant.SlotCommandStatus status = terminal.configureSlot(
-            Servant.SlotCommand.newBuilder().setCreate(createCommandBuilder.build()).build()
+                Servant.SlotCommand.newBuilder().setCreate(createCommandBuilder.build()).build()
         );
         System.out.println(JsonFormat.printer().print(status));
         return 0;

@@ -99,9 +99,9 @@ public class Run implements LzyCommand {
             //noinspection unchecked
             bindings.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
             LOG.info("Bindings: " +
-                bindings.entrySet().stream()
-                    .map(e -> e.getKey() + " -> " + e.getValue())
-                    .collect(Collectors.joining(";\n"))
+                    bindings.entrySet().stream()
+                            .map(e -> e.getKey() + " -> " + e.getValue())
+                            .collect(Collectors.joining(";\n"))
             );
         }
 
@@ -113,18 +113,18 @@ public class Run implements LzyCommand {
         auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         {
             final ManagedChannel serverCh = ChannelBuilder
-                .forAddress(serverAddr.getHost(), serverAddr.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                .build();
+                    .forAddress(serverAddr.getHost(), serverAddr.getPort())
+                    .usePlaintext()
+                    .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                    .build();
             kharon = LzyKharonGrpc.newBlockingStub(serverCh);
         }
         {
             final ManagedChannel servant = ChannelBuilder
-                .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
-                .usePlaintext()
-                .enableRetry(LzyServantGrpc.SERVICE_NAME)
-                .build();
+                    .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
+                    .usePlaintext()
+                    .enableRetry(LzyServantGrpc.SERVICE_NAME)
+                    .build();
             this.servant = LzyServantGrpc.newBlockingStub(servant);
         }
 
@@ -143,10 +143,10 @@ public class Run implements LzyCommand {
             final List<Tasks.SlotMapping> slotMappings = new ArrayList<>();
             for (var entry : mappings.entrySet()) {
                 slotMappings.add(Tasks.SlotMapping
-                    .newBuilder()
-                    .setSlotName(entry.getKey())
-                    .setEntryId(entry.getValue())
-                    .build());
+                        .newBuilder()
+                        .setSlotName(entry.getKey())
+                        .setEntryId(entry.getValue())
+                        .build());
             }
             taskSpec.setSnapshotMeta(
                 Tasks.SnapshotMeta.newBuilder().addAllMappings(slotMappings).build());
@@ -163,9 +163,9 @@ public class Run implements LzyCommand {
                 binding = "channel:" + resolveChannel(slot);
             }
             taskSpec.addAssignmentsBuilder()
-                .setSlot(gRPCConverter.to(slot))
-                .setBinding(binding)
-                .build();
+                    .setSlot(gRPCConverter.to(slot))
+                    .setBinding(binding)
+                    .build();
         });
 
         final long startTimeMillis = System.currentTimeMillis();
@@ -173,9 +173,9 @@ public class Run implements LzyCommand {
             .start(taskSpec.build());
         final Servant.ExecutionConcluded[] exit = new Servant.ExecutionConcluded[1];
         exit[0] = Servant.ExecutionConcluded.newBuilder()
-            .setRc(-1)
-            .setDescription("Got no exit code from servant")
-            .build();
+                .setRc(-1)
+                .setDescription("Got no exit code from servant")
+                .build();
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
@@ -197,11 +197,11 @@ public class Run implements LzyCommand {
         final String description = exit[0].getDescription();
         final long finishTimeMillis = System.currentTimeMillis();
         MetricEventLogger.log(
-            new MetricEvent(
-                "time from Task start to Task finish",
-                Map.of("metric_type", "task_metric"),
-                finishTimeMillis - startTimeMillis
-            )
+                new MetricEvent(
+                        "time from Task start to Task finish",
+                        Map.of("metric_type", "task_metric"),
+                        finishTimeMillis - startTimeMillis
+                )
         );
         LOG.info("Run:: Task finished RC = {}, Description = {}", rc, description);
         if (rc != 0) {
@@ -215,8 +215,8 @@ public class Run implements LzyCommand {
     private Map<String, Map<String, String>> pipesConfig() throws IOException {
         final Process p = Runtime.getRuntime().exec("lsof -p " + pid + " -a -d0,1,2 -F ftidn");
         final InputStreamReader inputStreamReader = new InputStreamReader(
-            p.getInputStream(),
-            StandardCharsets.UTF_8
+                p.getInputStream(),
+                StandardCharsets.UTF_8
         );
         String[] fdNames = new String[]{"stdin", "stdout", "stderr"};
         final Map<String, Map<String, String>> pipeMappings = new HashMap<>();
@@ -224,10 +224,10 @@ public class Run implements LzyCommand {
             String line;
             String name = null;
             final Map<Character, String> namesMappings = Map.of(
-                't', "type",
-                'd', "device",
-                'i', "node",
-                'n', "name"
+                    't', "type",
+                    'd', "device",
+                    'i', "node",
+                    'n', "name"
             );
             while ((line = lineNumberReader.readLine()) != null) {
                 if (line.isEmpty()) {
@@ -248,7 +248,7 @@ public class Run implements LzyCommand {
                         }
                     default:
                         pipeMappings.computeIfAbsent(name, n -> new HashMap<>())
-                            .put(namesMappings.getOrDefault(line.charAt(0), "unknown"),
+                                .put(namesMappings.getOrDefault(line.charAt(0), "unknown"),
                                 line.substring(1));
                         break;
                 }
@@ -341,38 +341,38 @@ public class Run implements LzyCommand {
                 }
                 default:
                     throw new IllegalArgumentException(
-                        MessageFormat.format("Illegal slot found: {0}", slot.name())
+                            MessageFormat.format("Illegal slot found: {0}", slot.name())
                     );
             }
         } else {
             throw new IllegalArgumentException(
-                MessageFormat.format("Slot {0} assignment is not specified", slot.name())
+                    MessageFormat.format("Slot {0} assignment is not specified", slot.name())
             );
         }
     }
 
     private void createSlotByProto(
-        String name,
-        boolean pipe,
-        String channelId,
-        String slotName,
-        Slot slotProto
+            String name,
+            boolean pipe,
+            String channelId,
+            String slotName,
+            Slot slotProto
     ) {
         try {
             final Operations.Slot slotDeclaration = Operations.Slot
                 .newBuilder(gRPCConverter.to(slotProto))
-                .setName(slotName)
-                .build();
+                    .setName(slotName)
+                    .build();
             //noinspection ResultOfMethodCallIgnored
             servant.configureSlot(Servant.SlotCommand.newBuilder()
-                .setSlot(name)
-                .setCreate(Servant.CreateSlotCommand.newBuilder()
-                    .setSlot(slotDeclaration)
-                    .setIsPipe(pipe)
-                    .setChannelId(channelId)
+                    .setSlot(name)
+                    .setCreate(Servant.CreateSlotCommand.newBuilder()
+                            .setSlot(slotDeclaration)
+                            .setIsPipe(pipe)
+                            .setChannelId(channelId)
+                            .build()
+                    )
                     .build()
-                )
-                .build()
             );
         } catch (Exception e) {
             LOG.warn("Unable to create slot: " + slotName, e);
@@ -382,21 +382,21 @@ public class Run implements LzyCommand {
     private void destroyChannel(String channelName) {
         //noinspection ResultOfMethodCallIgnored
         kharon.channel(Channels.ChannelCommand.newBuilder()
-            .setAuth(auth)
-            .setChannelName(channelName)
-            .setDestroy(Channels.ChannelDestroy.newBuilder().build())
-            .build()
+                .setAuth(auth)
+                .setChannelName(channelName)
+                .setDestroy(Channels.ChannelDestroy.newBuilder().build())
+                .build()
         );
     }
 
     private String createChannel(Slot slot, String channelName) {
         final Channels.ChannelStatus channel = kharon.channel(Channels.ChannelCommand.newBuilder()
-            .setAuth(auth)
-            .setChannelName(channelName)
-            .setCreate(Channels.ChannelCreate.newBuilder()
-                .setContentType(gRPCConverter.to(slot.contentType()))
-                .build())
-            .build()
+                .setAuth(auth)
+                .setChannelName(channelName)
+                .setCreate(Channels.ChannelCreate.newBuilder()
+                        .setContentType(gRPCConverter.to(slot.contentType()))
+                        .build())
+                .build()
         );
         return channel.getChannel().getChannelId();
     }

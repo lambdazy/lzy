@@ -2,6 +2,13 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
+import org.apache.commons.lang3.SystemUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.LzySnapshot;
+import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
+
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -84,9 +91,9 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
             }
 
             channel = ChannelBuilder
-                .forAddress("localhost", SNAPSHOT_PORT)
-                .usePlaintext()
-                .enableRetry(WbApiGrpc.SERVICE_NAME)
+                    .forAddress("localhost", SNAPSHOT_PORT)
+                    .usePlaintext()
+                    .enableRetry(WbApiGrpc.SERVICE_NAME)
                 .build();
             lzyWhiteboardClient = WbApiGrpc.newBlockingStub(channel)
                 .withWaitForReady()
