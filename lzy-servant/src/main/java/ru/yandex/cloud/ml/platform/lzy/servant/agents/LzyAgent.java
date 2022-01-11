@@ -12,10 +12,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -26,6 +23,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.GRPCUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
@@ -53,6 +52,7 @@ public abstract class LzyAgent implements Closeable {
     protected final SlotConnectionManager slotConnectionManager = new SlotConnectionManager();
 
     protected LzyAgent(LzyAgentConfig config) throws URISyntaxException {
+        final long start = System.currentTimeMillis();
         this.mount = config.getRoot();
         this.serverAddress = config.getServerAddress();
 
@@ -66,6 +66,17 @@ public abstract class LzyAgent implements Closeable {
         agentInternalAddress = config.getAgentInternalName() == null ? agentAddress : new URI("http", null,
             config.getAgentInternalName(),
             config.getAgentPort(), null, null, null
+        );
+        final long finish = System.currentTimeMillis();
+        MetricEventLogger.log(
+            new MetricEvent(
+                "LzyAgent construct time",
+                Map.of(
+                    "agent_type", this.getClass().getSimpleName(),
+                    "metric_type", "system_metric"
+                ),
+                finish - start
+            )
         );
     }
 

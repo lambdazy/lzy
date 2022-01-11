@@ -8,6 +8,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.GRPCUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
@@ -35,6 +37,7 @@ public class LzyServant extends LzyAgent {
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
+        final long start = System.currentTimeMillis();
         taskId = config.getTask();
         bucket = config.getBucket();
         URI whiteboardAddress = config.getWhiteboardAddress();
@@ -51,6 +54,17 @@ public class LzyServant extends LzyAgent {
         snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
         storage = initStorage();
+        final long finish = System.currentTimeMillis();
+        MetricEventLogger.log(
+            new MetricEvent(
+                "time from agent construct finish to LzyServant construct finish",
+                Map.of(
+                    "task_id", taskId,
+                    "metric_type", "system_metric"
+                ),
+                finish - start
+            )
+        );
        }
 
     private SnapshotStorage initStorage(){
@@ -65,6 +79,7 @@ public class LzyServant extends LzyAgent {
 
     @Override
     protected void onStartUp() {
+        final long start = System.currentTimeMillis();
         UserEventLogger.log(new UserEvent(
             "Servant startup",
             Map.of(
@@ -80,6 +95,17 @@ public class LzyServant extends LzyAgent {
         commandBuilder.setSessionId(taskId);
         GRPCUtils.callWithRetry(() -> server.registerServant(commandBuilder.build()));
         status.set(AgentStatus.REGISTERED);
+        final long finish = System.currentTimeMillis();
+        MetricEventLogger.log(
+            new MetricEvent(
+                "LzyServant startUp time",
+                Map.of(
+                    "task_id", taskId,
+                    "metric_type", "system_metric"
+                ),
+                finish - start
+            )
+        );
     }
 
     @Override
@@ -92,6 +118,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+            final long executeMillis = System.currentTimeMillis();
             status.set(AgentStatus.PREPARING_EXECUTION);
             LOG.info("LzyServant::execute " + JsonUtils.printRequest(request));
             if (currentExecution != null) {
@@ -168,12 +195,35 @@ public class LzyServant extends LzyAgent {
                 }
             }
 
+            final long startExecutionMillis = System.currentTimeMillis();
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "time from task LzyServant::execution to LzyExecution::start",
+                    Map.of(
+                        "task_id", taskId,
+                        "metric_type", "system_metric"
+                    ),
+                    startExecutionMillis - executeMillis
+                )
+            );
             currentExecution.start();
+            final long finishExecutionMillis = System.currentTimeMillis();
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "execution time",
+                    Map.of(
+                        "task_id", taskId,
+                        "metric_type", "task_metric"
+                    ),
+                    finishExecutionMillis - startExecutionMillis
+                )
+            );
             status.set(AgentStatus.EXECUTING);
         }
 
         @Override
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+            final long start = System.currentTimeMillis();
             LOG.info("LzyServant::openOutputSlot " + JsonUtils.printRequest(request));
             if (currentExecution == null || currentExecution.slot(request.getSlot()) == null) {
                 LOG.info("Not found slot: " + request.getSlot());
@@ -189,6 +239,17 @@ public class LzyServant extends LzyAgent {
             } catch (IOException iae) {
                 responseObserver.onError(iae);
             }
+            final long finish = System.currentTimeMillis();
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "LzyServant openOutputSlot time",
+                    Map.of(
+                        "task_id", taskId,
+                        "metric_type", "system_metric"
+                    ),
+                    finish - start
+                )
+            );
         }
 
         @Override

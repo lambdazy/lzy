@@ -11,6 +11,8 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.*;
@@ -129,6 +131,7 @@ public class Run implements LzyCommand {
                 .build();
         });
 
+        final long startTimeMillis = System.currentTimeMillis();
         final Iterator<Servant.ExecutionProgress> executionProgress = kharon.start(taskSpec.build());
         final Servant.ExecutionConcluded[] exit = new Servant.ExecutionConcluded[1];
         exit[0] = Servant.ExecutionConcluded.newBuilder()
@@ -153,6 +156,14 @@ public class Run implements LzyCommand {
         });
         final int rc = exit[0].getRc();
         final String description = exit[0].getDescription();
+        final long finishTimeMillis = System.currentTimeMillis();
+        MetricEventLogger.log(
+            new MetricEvent(
+                "time from Task start to Task finish",
+                Map.of("metric_type", "task_metric"),
+                finishTimeMillis - startTimeMillis
+            )
+        );
         LOG.info("Run:: Task finished RC = {}, Description = {}", rc, description);
         if (rc != 0) {
             System.err.print(description);
