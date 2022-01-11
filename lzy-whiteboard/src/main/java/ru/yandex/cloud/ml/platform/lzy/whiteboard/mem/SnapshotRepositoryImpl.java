@@ -24,13 +24,20 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     DbStorage storage;
 
     @Override
-    public void create(Snapshot snapshot) throws RuntimeException {
+    public void create(Snapshot snapshot, URI uid) throws RuntimeException {
         try (Session session = storage.getSessionFactory().openSession()){
-            Transaction tx = session.beginTransaction();
             String snapshotId = snapshot.id().toString();
-            SnapshotModel snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED);
+            SnapshotModel snapshotStatus = session.find(SnapshotModel.class, snapshotId);
+            if (snapshotStatus != null) {
+                return;
+            }
+
+            Transaction tx = session.beginTransaction();
+            snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED);
+            SnapshotOwnerModel snapshotOwnerModel = new SnapshotOwnerModel(snapshotId, uid.toString());
             try {
                 session.save(snapshotStatus);
+                session.save(snapshotOwnerModel);
                 tx.commit();
             }
             catch (Exception e) {

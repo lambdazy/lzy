@@ -155,7 +155,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             return;
         }
 
-        List<WhiteboardInfo> wbInfoList = whiteboardRepository.whiteboards();
+        List<WhiteboardInfo> wbInfoList = whiteboardRepository.whiteboards(URI.create(request.getAuth().getUser().getUserId()));
         final LzyWhiteboard.WhiteboardsInfo response = LzyWhiteboard.WhiteboardsInfo
                 .newBuilder()
                 .addAllWhiteboards(wbInfoList.stream().map(gRPCConverter::to).collect(Collectors.toList()))

@@ -38,6 +38,7 @@ public class SnapshotRepositoryImplTest {
     private String entryIdSecond;
     private String entryIdThird;
     private final String storageUri = "storageUri";
+    private URI snapshotOwner;
 
     @Before
     public void setUp() {
@@ -51,6 +52,7 @@ public class SnapshotRepositoryImplTest {
         entryIdFirst = UUID.randomUUID().toString();
         entryIdSecond = UUID.randomUUID().toString();
         entryIdThird = UUID.randomUUID().toString();
+        snapshotOwner = URI.create(UUID.randomUUID().toString());
     }
 
     @After
@@ -61,22 +63,35 @@ public class SnapshotRepositoryImplTest {
     @Test
     public void testCreate(){
         SnapshotModel snapshotModel;
+        SnapshotOwnerModel snapshotOwnerModel;
         Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId));
-        impl.create(snapshot);
+        impl.create(snapshot, snapshotOwner);
         try (Session session = storage.getSessionFactory().openSession()) {
             snapshotModel = session.find(SnapshotModel.class, snapshotId);
+            snapshotOwnerModel = session.find(SnapshotOwnerModel.class, snapshotId);
         }
         Assert.assertNotNull(snapshotModel);
         Assert.assertEquals(State.CREATED, snapshotModel.getSnapshotState());
+        Assert.assertNotNull(snapshotOwnerModel);
+        Assert.assertEquals(snapshotOwner.toString(), snapshotOwnerModel.getUid());
     }
 
     @Test
     public void testResolveSnapshotNotNull() {
-        impl.create(new Snapshot.Impl(URI.create(snapshotId)));
+        URI newSnapshotOwner = URI.create(UUID.randomUUID().toString());
+        impl.create(new Snapshot.Impl(URI.create(snapshotId)), newSnapshotOwner);
 
         SnapshotStatus snapshotStatus = impl.resolveSnapshot(URI.create(snapshotId));
+        SnapshotOwnerModel snapshotOwnerModel;
+        try (Session session = storage.getSessionFactory().openSession()) {
+            snapshotOwnerModel = session.find(SnapshotOwnerModel.class, snapshotId);
+        }
+
         Assert.assertNotNull(snapshotStatus);
         Assert.assertEquals(State.CREATED, snapshotStatus.state());
+
+        Assert.assertNotNull(snapshotOwnerModel);
+        Assert.assertEquals(snapshotOwner.toString(), snapshotOwnerModel.getUid());
     }
 
     @Test

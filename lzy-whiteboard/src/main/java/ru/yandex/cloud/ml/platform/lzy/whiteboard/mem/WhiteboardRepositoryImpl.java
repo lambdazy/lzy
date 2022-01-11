@@ -73,9 +73,9 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
     }
 
     @Override
-    public List<WhiteboardInfo> whiteboards() {
+    public List<WhiteboardInfo> whiteboards(URI uid) {
         try (Session session = storage.getSessionFactory().openSession()) {
-            List<WhiteboardModel> wbModelList = SessionHelper.getWhiteboardModels(null, session);
+            List<WhiteboardModel> wbModelList = SessionHelper.getWhiteboardModelsByOwner(uid.toString(), session);
             List<WhiteboardInfo> result = wbModelList.stream()
                     .map(wbModel -> new WhiteboardInfo.Impl(URI.create(wbModel.getWbId()), wbModel.getWbState()))
                     .collect(Collectors.toList());

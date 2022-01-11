@@ -17,16 +17,23 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SessionHelper {
-    public static List<WhiteboardModel> getWhiteboardModels(@Nullable String snapshotId, Session session) {
+    public static List<WhiteboardModel> getWhiteboardModels(String snapshotId, Session session) {
         CriteriaBuilder cb = session.getCriteriaBuilder();
         CriteriaQuery<WhiteboardModel> cr = cb.createQuery(WhiteboardModel.class);
         Root<WhiteboardModel> root = cr.from(WhiteboardModel.class);
-        if (snapshotId != null) {
-            cr.select(root).where(cb.equal(root.get("snapshotId"), snapshotId));
-        }
+        cr.select(root).where(cb.equal(root.get("snapshotId"), snapshotId));
 
         Query<WhiteboardModel> query = session.createQuery(cr);
         return query.getResultList();
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<WhiteboardModel> getWhiteboardModelsByOwner(String uid, Session session) {
+        String queryWhiteboardModelRequest = "SELECT w FROM WhiteboardModel w JOIN SnapshotOwnerModel s " +
+                "ON w.snapshotId = s.spId WHERE s.uid = :uid";
+        Query<WhiteboardModel> queryWhiteboardModel = session.createQuery(queryWhiteboardModelRequest);
+        queryWhiteboardModel.setParameter("uid", uid);
+        return queryWhiteboardModel.list();
     }
 
     @SuppressWarnings("unchecked")
