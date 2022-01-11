@@ -21,7 +21,14 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
             configurationSource,
             Objects.equals(System.getenv("KAFKA_LOGS_ENABLED"), "true"),
             System.getenv("KAFKA_LOGS_HOST"),
-            "{\"timestamp\":\"%d{UNIX}\", \"thread\": \"%t\",  \"level\": \"%-5level\", \"logger\": \"%logger{36}\", \"message\": \"%enc{%msg}{JSON}\"}"
+            "{" +
+                    "\"timestamp\":\"%d{UNIX}\"," +
+                    " \"thread\": \"%t\"," +
+                    "  \"level\": \"%-5level\"," +
+                    " \"logger\": \"%logger{36}\"," +
+                    " \"message\": \"%enc{%msg}{JSON}\"," +
+                    " \"exception\": \"%enc{%ex}{JSON}\"" +
+                    "}"
         );
     }
 
