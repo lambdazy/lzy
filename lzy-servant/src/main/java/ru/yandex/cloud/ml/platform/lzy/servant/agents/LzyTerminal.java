@@ -5,6 +5,7 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
@@ -32,10 +33,11 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         super(config);
         final LzyTerminal.Impl impl = new Impl();
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
-        channel = ManagedChannelBuilder
-            .forAddress(serverAddress.getHost(), serverAddress.getPort())
-            .usePlaintext()
-            .build();
+        channel = ChannelBuilder
+                .forAddress(serverAddress.getHost(), serverAddress.getPort())
+                .usePlaintext()
+                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                .build();
         kharon = LzyKharonGrpc.newStub(channel);
         kharonBlockingStub = LzyKharonGrpc.newBlockingStub(channel);
     }
@@ -74,24 +76,24 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                             });
 
                             CommandHandler.this.onNext(TerminalState.newBuilder()
-                                .setCommandId(commandId)
-                                .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
-                                    .setRc(Servant.SlotCommandStatus.RC.newBuilder()
-                                        .setCodeValue(0)
-                                        .build())
-                                    .build())
-                                .build());
+                                    .setCommandId(commandId)
+                                    .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
+                                            .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                                    .setCodeValue(0)
+                                                    .build())
+                                            .build())
+                                    .build());
                             return;
                         }
 
                         final Servant.SlotCommandStatus slotCommandStatus = configureSlot(
-                            currentExecution,
-                            slotCommand
+                                currentExecution,
+                                slotCommand
                         );
                         final TerminalState terminalState = TerminalState.newBuilder()
-                            .setCommandId(commandId)
-                            .setSlotStatus(slotCommandStatus)
-                            .build();
+                                .setCommandId(commandId)
+                                .setSlotStatus(slotCommandStatus)
+                                .build();
                         LOG.info("CommandHandler::onNext " + JsonUtils.printRequest(terminalState));
                         CommandHandler.this.onNext(terminalState);
                     } catch (StatusException e) {
@@ -117,10 +119,10 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
             status.set(AgentStatus.REGISTERING);
             responseObserver.onNext(TerminalState.newBuilder()
-                .setAttachTerminal(AttachTerminal.newBuilder()
-                    .setAuth(auth.getUser())
-                    .build())
-                .build());
+                    .setAttachTerminal(AttachTerminal.newBuilder()
+                            .setAuth(auth.getUser())
+                            .build())
+                    .build());
             status.set(AgentStatus.REGISTERED);
         }
 
@@ -156,13 +158,13 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             LOG.info("LzyTerminal::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
             if (progress.hasAttach()) {
                 final TerminalState terminalState = TerminalState.newBuilder()
-                    .setAttach(progress.getAttach())
-                    .build();
+                        .setAttach(progress.getAttach())
+                        .build();
                 commandHandler.onNext(terminalState);
             } else if (progress.hasDetach()) {
                 final TerminalState terminalState = TerminalState.newBuilder()
-                    .setDetach(progress.getDetach())
-                    .build();
+                        .setDetach(progress.getDetach())
+                        .build();
                 commandHandler.onNext(terminalState);
             } else {
                 LOG.info("Skipping to send progress from terminal to server :" + JsonUtils.printRequest(progress));
@@ -191,8 +193,8 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
         @Override
         public void configureSlot(
-            Servant.SlotCommand request,
-            StreamObserver<Servant.SlotCommandStatus> responseObserver
+                Servant.SlotCommand request,
+                StreamObserver<Servant.SlotCommandStatus> responseObserver
         ) {
             LOG.info("LzyTerminal configureSlot " + JsonUtils.printRequest(request));
             LzyTerminal.this.configureSlot(currentExecution, request, responseObserver);

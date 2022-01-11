@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
@@ -41,14 +42,16 @@ public class LzyServant extends LzyAgent {
         bucket = config.getBucket();
         URI whiteboardAddress = config.getWhiteboardAddress();
         final Impl impl = new Impl();
-        final ManagedChannel channel = ManagedChannelBuilder
+        final ManagedChannel channel = ChannelBuilder
                 .forAddress(serverAddress.getHost(), serverAddress.getPort())
                 .usePlaintext()
+                .enableRetry(LzyServerGrpc.SERVICE_NAME)
                 .build();
         server = LzyServerGrpc.newBlockingStub(channel);
-        final ManagedChannel channelWb = ManagedChannelBuilder
+        final ManagedChannel channelWb = ChannelBuilder
                 .forAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort())
                 .usePlaintext()
+                .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
                 .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
