@@ -11,7 +11,7 @@ import java.util.List;
 
 
 public interface SnapshotRepository {
-    void create(Snapshot snapshot, URI uid);
+    void create(Snapshot snapshot);
     @Nullable
     SnapshotStatus resolveSnapshot(URI id);
     void finalize(Snapshot snapshot);

@@ -143,7 +143,7 @@ public class SessionHelper {
         if (results.isEmpty()) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId));
+        return new Snapshot.Impl(URI.create(spId), URI.create(results.get(0).getUid()));
     }
 
     public static WhiteboardField getWhiteboardField(WhiteboardFieldModel wbFieldModel, Whiteboard whiteboard, Snapshot snapshot, Session session) {
@@ -156,7 +156,7 @@ public class SessionHelper {
         if (spModel == null) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId));
+        return new Snapshot.Impl(URI.create(spId), URI.create(spModel.getUid()));
     }
 
     @Nullable

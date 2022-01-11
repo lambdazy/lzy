@@ -27,9 +27,9 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     private final Map<URI, Map<String, String>> entryFieldMapping = new HashMap<>();
 
     @Override
-    public synchronized void create(Snapshot snapshot, URI uid) {
+    public synchronized void create(Snapshot snapshot) {
         snapshots.putIfAbsent(snapshot.id(), new SnapshotStatus.Impl(snapshot, SnapshotStatus.State.CREATED));
-        snapshotToOwner.putIfAbsent(snapshot.id(), uid);
+        snapshotToOwner.putIfAbsent(snapshot.id(), snapshot.uid());
         entries.putIfAbsent(snapshot.id(), new HashMap<>());
         entriesStatuses.putIfAbsent(snapshot.id(), new HashMap<>());
         snapshotWhiteboardsMapping.putIfAbsent(snapshot.id(), new ArrayList<>());

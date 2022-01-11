@@ -73,7 +73,7 @@ public class WhiteboardRepositoryImplTest {
     @Test
     public void testCreate() {
         impl.create(new Whiteboard.Impl(URI.create(wbIdFirst), Set.of(fieldNameFirst, fieldNameSecond),
-                new Snapshot.Impl(URI.create(snapshotIdFirst))));
+                new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst))));
 
         WhiteboardModel whiteboardModel;
         WhiteboardFieldModel firstWhiteboardField;
@@ -194,7 +194,7 @@ public class WhiteboardRepositoryImplTest {
                 new Whiteboard.Impl(
                         URI.create(wbIdFirst),
                         Set.of(fieldNameFirst, fieldNameSecond, fieldNameThird, fieldNameFourth),
-                        new Snapshot.Impl(URI.create(snapshotIdFirst))
+                        new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst))
                 )
         ).collect(Collectors.toList());
         Assert.assertEquals(4, whiteboardFieldList.size());
@@ -261,7 +261,7 @@ public class WhiteboardRepositoryImplTest {
     private WhiteboardField createWhiteboardField(
             String fieldName, String entryId, String snapshotId, String wbId
     ) {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId));
+        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), URI.create(snapshotOwnerFirst));
         return new WhiteboardField.Impl(fieldName, new SnapshotEntry.Impl(entryId, snapshot),
                 new Whiteboard.Impl(URI.create(wbId), Collections.emptySet(), snapshot));
     }

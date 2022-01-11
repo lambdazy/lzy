@@ -24,7 +24,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     DbStorage storage;
 
     @Override
-    public void create(Snapshot snapshot, URI uid) throws RuntimeException {
+    public void create(Snapshot snapshot) throws RuntimeException {
         try (Session session = storage.getSessionFactory().openSession()){
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotStatus = session.find(SnapshotModel.class, snapshotId);
@@ -33,7 +33,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             }
 
             Transaction tx = session.beginTransaction();
-            snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED, uid.toString());
+            snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED, snapshot.uid().toString());
             try {
                 session.save(snapshotStatus);
                 tx.commit();
@@ -53,7 +53,8 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             if (snapshotModel == null) {
                 return null;
             }
-            return new SnapshotStatus.Impl(new Snapshot.Impl(id), snapshotModel.getSnapshotState());
+            return new SnapshotStatus.Impl(new Snapshot.Impl(id, URI.create(snapshotModel.getUid())),
+                    snapshotModel.getSnapshotState());
         }
     }
 
