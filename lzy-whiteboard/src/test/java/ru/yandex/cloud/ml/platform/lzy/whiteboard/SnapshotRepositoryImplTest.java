@@ -78,20 +78,12 @@ public class SnapshotRepositoryImplTest {
 
     @Test
     public void testResolveSnapshotNotNull() {
-        URI newSnapshotOwner = URI.create(UUID.randomUUID().toString());
-        impl.create(new Snapshot.Impl(URI.create(snapshotId)), newSnapshotOwner);
+        impl.create(new Snapshot.Impl(URI.create(snapshotId)), snapshotOwner);
 
         SnapshotStatus snapshotStatus = impl.resolveSnapshot(URI.create(snapshotId));
-        SnapshotOwnerModel snapshotOwnerModel;
-        try (Session session = storage.getSessionFactory().openSession()) {
-            snapshotOwnerModel = session.find(SnapshotOwnerModel.class, snapshotId);
-        }
 
         Assert.assertNotNull(snapshotStatus);
         Assert.assertEquals(State.CREATED, snapshotStatus.state());
-
-        Assert.assertNotNull(snapshotOwnerModel);
-        Assert.assertEquals(snapshotOwner.toString(), snapshotOwnerModel.getUid());
     }
 
     @Test
