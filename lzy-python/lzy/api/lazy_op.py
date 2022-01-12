@@ -110,7 +110,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             if not local_slot:
                 raise RuntimeError(f"Slot {slot.name} not binded")
             self._log.info(
-                f"Writing argument {name} to local slot {local_slot.name()}")
+                f"Writing argument {name} to local slot {local_slot.name}")
 
             with open(self._servant.get_slot_path(local_slot), 'wb') as handle:
                 cloudpickle.dump(arg, handle)
@@ -118,7 +118,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 os.fsync(handle.fileno())
 
             self._log.info(
-                f"Written argument {name} to local slot {local_slot.name()}")
+                f"Written argument {name} to local slot {local_slot.name}")
 
         return_local_slot = execution.bindings().local_slot(
             self._zygote.return_slot())

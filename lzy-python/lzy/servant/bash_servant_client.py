@@ -93,7 +93,7 @@ class BashServantClient(ServantClient):
         return self._mount
 
     def get_slot_path(self, slot: Slot) -> Path:
-        return self.mount().joinpath(slot.name().lstrip(os.path.sep))
+        return self.mount().joinpath(slot.name.lstrip(os.path.sep))
 
     def create_channel(self, channel: Channel):
         self._log.info(f"Creating channel {channel.name}")
@@ -104,7 +104,7 @@ class BashServantClient(ServantClient):
         return self._exec_bash(f"{self.mount()}/sbin/channel", "destroy", channel.name)
 
     def touch(self, slot: Slot, channel: Channel):
-        self._log.info(f"Creating slot {slot.name()} dir:{slot.direction()} channel:{channel.name}")
+        self._log.info(f"Creating slot {slot.name} dir:{slot.direction} channel:{channel.name}")
         slot_description_file = tempfile.mktemp(prefix="lzy_slot_", suffix=".json", dir="/tmp/")
 
         with open(slot_description_file, 'w') as f:
@@ -116,7 +116,7 @@ class BashServantClient(ServantClient):
             "--slot",
             slot_description_file
         )
-        if slot.direction() == Direction.OUTPUT:
+        if slot.direction == Direction.OUTPUT:
             while not self.get_slot_path(slot).exists():
                 sleep(0.1)
         return result
@@ -147,13 +147,15 @@ class BashServantClient(ServantClient):
                                                 suffix=".json", dir="/tmp/")
         with open(slots_mapping_file, 'w') as f:
             json_bindings = {
-                binding.remote_slot.name(): binding.channel.name for binding in bindings.bindings()
+                binding.remote_slot.name: binding.channel.name for binding in
+                bindings.bindings()
             }
             json.dump(json_bindings, f, indent=3)
         with open(entry_id_mapping_file, 'w') as f:
             if entry_id_mapping:
                 json_bindings = {
-                    slot.name(): entry_id for slot, entry_id in entry_id_mapping.items()
+                    slot.name: entry_id for slot, entry_id in
+                    entry_id_mapping.items()
                 }
             else:
                 json_bindings = {}

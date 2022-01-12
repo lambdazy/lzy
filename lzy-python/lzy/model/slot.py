@@ -1,4 +1,5 @@
-import abc
+from dataclasses import dataclass
+from abc import ABC, abstractmethod
 import json
 from enum import Enum
 
@@ -33,46 +34,39 @@ class DataSchema:
         return "not implemented yet"
 
 
-class Slot:
-    @abc.abstractmethod
-    def name(self) -> str:
-        pass
+@dataclass(frozen=True)
+class Slot(ABC):
+    name: str
 
-    @abc.abstractmethod
-    def media(self) -> Media:
-        pass
-
-    @abc.abstractmethod
+    @property
+    @abstractmethod
     def direction(self) -> Direction:
         pass
 
-    @abc.abstractmethod
-    def content_type(self) -> DataSchema:
+    @property
+    @abstractmethod
+    def media(self) -> Media:
         pass
 
-    def __hash__(self):
-        return hash(self.name())
-
-    def __eq__(self, other):
-        if isinstance(other, Slot):
-            return self.name() == other.name()
-        return False
+    @property
+    def content_type(self) -> DataSchema:
+        return DataSchema()
 
     def to_dict(self):
         return {
-            "name": self.name(),
-            "media": self.media().to_json(),
-            "direction": self.direction().to_json(),
-            "contentType": self.content_type().to_json()
+            "name": self.name,
+            "media": self.media.to_json(),
+            "direction": self.direction.to_json(),
+            "contentType": self.content_type.to_json()
         }
 
     def to_json(self):
         return json.dumps(
             {
                 # "name": "",  # FIXME: this is for touch
-                "media": self.media().to_json(),
-                "direction": self.direction().to_json(),
-                "contentType": self.content_type().to_json()
+                "media": self.media.to_json(),
+                "direction": self.direction.to_json(),
+                "contentType": self.content_type.to_json()
             },
             sort_keys=True,
             indent=3

@@ -1,44 +1,34 @@
-from lzy.model.slot import Slot, DataSchema, Direction, Media
+from abc import ABC
+from dataclasses import dataclass
+
+from lzy.model.slot import Media, Slot, Direction
 
 
-class InFileSlot(Slot):
-    def __init__(self, name: str):
-        super().__init__()
-        self._name = name
-
-    def name(self) -> str:
-        return self._name
-
+@dataclass(frozen=True)
+class FileSlot(Slot, ABC):
+    @property
     def media(self) -> Media:
         return Media.FILE
 
+
+@dataclass(frozen=True)
+class InFileSlot(FileSlot):
+    @property
     def direction(self) -> Direction:
         return Direction.INPUT
 
-    def content_type(self) -> DataSchema:
-        return DataSchema()
 
-
-class OutFileSlot(Slot):
-    def __init__(self, name: str):
-        super().__init__()
-        self._name = name
-
-    def name(self) -> str:
-        return self._name
-
-    def media(self) -> Media:
-        return Media.FILE
-
+@dataclass(frozen=True)
+class OutFileSlot(FileSlot):
+    @property
     def direction(self) -> Direction:
         return Direction.OUTPUT
 
-    def content_type(self) -> DataSchema:
-        return DataSchema()
-
 
 def create_slot(name: str, direction: Direction) -> Slot:
-    return {
-        Direction.INPUT: InFileSlot(name),
-        Direction.OUTPUT: OutFileSlot(name)
-    }[direction]
+    if direction == Direction.INPUT:
+        return InFileSlot(name)
+    elif direction == Direction.OUTPUT:
+        return OutFileSlot(name)
+    else:
+        raise ValueError(f"Cannot create fileslot for direction: {direction}")
