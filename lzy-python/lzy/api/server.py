@@ -9,15 +9,15 @@ import base64
 
 # mb dataclass
 class Channel:
-    def __init__(self, id: int, input: Path, output: Path):
-        self.input = Path(input)
+    def __init__(self, _id: int, _input: Path, output: Path):
+        self.input = Path(_input)
         self.output = Path(output)
-        self.id = id
+        self.id = _id
 
 
 class FileChannel(Channel):
-    def __init__(self, id: int, filepath: Path):
-        super().__init__(id, filepath, filepath)
+    def __init__(self, _id: int, filepath: Path):
+        super().__init__(_id, filepath, filepath)
 
 
 class Server:
@@ -50,10 +50,10 @@ class Server:
 
         # file which will be used for simulating list channel request
         # from servant to server
-        id = len(self._channels)
+        _id = len(self._channels)
         with self._channels_file.open(mode='a') as chnl:
-            chnl.write(f'{id}: {path.absolute()}\n')
-        self._channels.append(FileChannel(id, path))
+            chnl.write(f'{_id}: {path.absolute()}\n')
+        self._channels.append(FileChannel(_id, path))
         return self._channels[-1]
 
     def _make_tmp(self):
