@@ -28,6 +28,15 @@ public class SessionHelper {
     }
 
     @SuppressWarnings("unchecked")
+    public static List<WhiteboardModel> getWhiteboardModelsByOwner(String uid, Session session) {
+        String queryWhiteboardModelRequest = "SELECT w FROM WhiteboardModel w JOIN SnapshotModel s " +
+                "ON w.snapshotId = s.snapshotId WHERE s.uid = :uid";
+        Query<WhiteboardModel> queryWhiteboardModel = session.createQuery(queryWhiteboardModelRequest);
+        queryWhiteboardModel.setParameter("uid", uid);
+        return queryWhiteboardModel.list();
+    }
+
+    @SuppressWarnings("unchecked")
     public static List<WhiteboardFieldModel> getNotCompletedWhiteboardFields(String whiteboardId, Session session) {
         String queryWhiteboardFieldRequest = "SELECT w FROM WhiteboardFieldModel w WHERE w.wbId = :wbId AND w.entryId is NULL";
         Query<WhiteboardFieldModel> queryWhiteboardField = session.createQuery(queryWhiteboardFieldRequest);
@@ -134,7 +143,7 @@ public class SessionHelper {
         if (results.isEmpty()) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId));
+        return new Snapshot.Impl(URI.create(spId), URI.create(results.get(0).getUid()));
     }
 
     public static WhiteboardField getWhiteboardField(WhiteboardFieldModel wbFieldModel, Whiteboard whiteboard, Snapshot snapshot, Session session) {
@@ -147,7 +156,7 @@ public class SessionHelper {
         if (spModel == null) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId));
+        return new Snapshot.Impl(URI.create(spId), URI.create(spModel.getUid()));
     }
 
     @Nullable

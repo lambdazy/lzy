@@ -38,6 +38,7 @@ public class SnapshotRepositoryImplTest {
     private String entryIdSecond;
     private String entryIdThird;
     private final String storageUri = "storageUri";
+    private URI snapshotOwner;
 
     @Before
     public void setUp() {
@@ -51,6 +52,7 @@ public class SnapshotRepositoryImplTest {
         entryIdFirst = UUID.randomUUID().toString();
         entryIdSecond = UUID.randomUUID().toString();
         entryIdThird = UUID.randomUUID().toString();
+        snapshotOwner = URI.create(UUID.randomUUID().toString());
     }
 
     @After
@@ -61,20 +63,22 @@ public class SnapshotRepositoryImplTest {
     @Test
     public void testCreate(){
         SnapshotModel snapshotModel;
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId));
+        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner);
         impl.create(snapshot);
         try (Session session = storage.getSessionFactory().openSession()) {
             snapshotModel = session.find(SnapshotModel.class, snapshotId);
         }
         Assert.assertNotNull(snapshotModel);
         Assert.assertEquals(State.CREATED, snapshotModel.getSnapshotState());
+        Assert.assertEquals(snapshotOwner.toString(), snapshotModel.getUid());
     }
 
     @Test
     public void testResolveSnapshotNotNull() {
-        impl.create(new Snapshot.Impl(URI.create(snapshotId)));
+        impl.create(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
 
         SnapshotStatus snapshotStatus = impl.resolveSnapshot(URI.create(snapshotId));
+
         Assert.assertNotNull(snapshotStatus);
         Assert.assertEquals(State.CREATED, snapshotStatus.state());
     }
@@ -87,14 +91,14 @@ public class SnapshotRepositoryImplTest {
 
     @Test
     public void testFinalizeSnapshotNotFound() {
-        Assert.assertThrows(RuntimeException.class, () -> impl.finalize(new Snapshot.Impl(URI.create(snapshotId))));
+        Assert.assertThrows(RuntimeException.class, () -> impl.finalize(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner)));
     }
 
     @Test
     public void testFinalizeSnapshot() {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
-            session.save(new SnapshotModel(snapshotId, State.CREATED));
+            session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
             session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId));
             session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId));
             String fieldNameFirst = "fieldNameFirst";
@@ -107,7 +111,7 @@ public class SnapshotRepositoryImplTest {
             session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameFourth, UUID.randomUUID().toString()));
             tx.commit();
         }
-        impl.finalize(new Snapshot.Impl(URI.create(snapshotId)));
+        impl.finalize(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
         SnapshotModel snapshotModel;
         WhiteboardModel whiteboardModelFirst;
         WhiteboardModel whiteboardModelSecond;
@@ -123,19 +127,19 @@ public class SnapshotRepositoryImplTest {
 
     @Test
     public void testErrorSnapshotNotFound() {
-        Assert.assertThrows(RuntimeException.class, () -> impl.error(new Snapshot.Impl(URI.create(snapshotId))));
+        Assert.assertThrows(RuntimeException.class, () -> impl.error(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner)));
     }
 
     @Test
     public void testErrorSnapshot() {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
-            session.save(new SnapshotModel(snapshotId, State.CREATED));
+            session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
             session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId));
             session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId));
             tx.commit();
         }
-        impl.error(new Snapshot.Impl(URI.create(snapshotId)));
+        impl.error(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
         SnapshotModel snapshotModel;
         WhiteboardModel whiteboardModelFirst;
         WhiteboardModel whiteboardModelSecond;
@@ -157,13 +161,13 @@ public class SnapshotRepositoryImplTest {
                     false, FINISHED));
             tx.commit();
         }
-        SnapshotEntry snapshotEntry = new SnapshotEntry.Impl(entryIdFirst, new Snapshot.Impl(URI.create(snapshotId)));
+        SnapshotEntry snapshotEntry = new SnapshotEntry.Impl(entryIdFirst, new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
         Assert.assertThrows(RuntimeException.class, () -> impl.prepare(snapshotEntry, storageUri, Collections.emptyList()));
     }
 
     @Test
     public void testPrepareEntry() {
-        SnapshotEntry snapshotEntry = new SnapshotEntry.Impl(entryIdFirst, new Snapshot.Impl(URI.create(snapshotId)));
+        SnapshotEntry snapshotEntry = new SnapshotEntry.Impl(entryIdFirst, new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
         impl.prepare(snapshotEntry, storageUri, List.of(entryIdSecond, entryIdThird));
         SnapshotEntryModel snapshotEntryModel;
         EntryDependenciesModel entryDependenciesFirst;
@@ -186,14 +190,14 @@ public class SnapshotRepositoryImplTest {
 
     @Test
     public void testResolveEntryNotFound() {
-        Assert.assertNull(impl.resolveEntry(new Snapshot.Impl(URI.create(snapshotId)), entryIdFirst));
+        Assert.assertNull(impl.resolveEntry(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner), entryIdFirst));
     }
 
     @Test
     public void testResolveEntryStatus() {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
-            session.save(new SnapshotModel(snapshotId, State.CREATED));
+            session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
             session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, storageUri,
                     false, FINISHED));
             session.save(new SnapshotEntryModel(UUID.randomUUID().toString(), entryIdSecond, storageUri,
@@ -205,7 +209,7 @@ public class SnapshotRepositoryImplTest {
             tx.commit();
         }
         SnapshotEntryStatus snapshotEntryStatus = impl.resolveEntryStatus(
-                new Snapshot.Impl(URI.create(snapshotId)), entryIdFirst
+                new Snapshot.Impl(URI.create(snapshotId), snapshotOwner), entryIdFirst
         );
         Assert.assertNotNull(snapshotEntryStatus);
         Assert.assertEquals(snapshotId, snapshotEntryStatus.entry().snapshot().id().toString());
@@ -218,7 +222,7 @@ public class SnapshotRepositoryImplTest {
     @Test
     public void testCommitNotFound() {
         Assert.assertThrows(RuntimeException.class, () -> impl.commit(new SnapshotEntry.Impl(UUID.randomUUID().toString(),
-                new Snapshot.Impl(URI.create(UUID.randomUUID().toString()))), true)
+                new Snapshot.Impl(URI.create(UUID.randomUUID().toString()), snapshotOwner)), true)
         );
     }
 
@@ -230,7 +234,7 @@ public class SnapshotRepositoryImplTest {
                     true, SnapshotEntryStatus.State.IN_PROGRESS));
             tx.commit();
         }
-        impl.commit(new SnapshotEntry.Impl(entryIdFirst, new Snapshot.Impl(URI.create(snapshotId))), false);
+        impl.commit(new SnapshotEntry.Impl(entryIdFirst, new Snapshot.Impl(URI.create(snapshotId), snapshotOwner)), false);
         SnapshotEntryModel snapshotEntryModel;
         try (Session session = storage.getSessionFactory().openSession()) {
             snapshotEntryModel = session.find(SnapshotEntryModel.class,
