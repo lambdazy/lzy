@@ -118,6 +118,12 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
             @Override
             public int read(Pointer buf, long offset, long size) throws IOException {
                 if (state() != State.OPEN) {
+                    try {
+                        //to avoid non-stop retries which take CPU
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     return -ErrorCodes.EAGAIN();
                 }
                 final byte[] bytes = new byte[(int) size];
