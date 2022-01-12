@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.backoffice.grpc;
 
 import io.grpc.Channel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
@@ -18,6 +17,7 @@ import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tasks.GetTasksRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.CreateUserRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.DeleteUserRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.ListUsersRequest;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 
@@ -34,8 +34,8 @@ public class Client {
     Client(GrpcConfig config) {
         System.out.println("Starting channel on " + config.getHost() + ":" + config.getPort());
 
-        channel = ManagedChannelBuilder.forAddress(config.getHost(), config.getPort())
-            .usePlaintext().build();
+        channel = ChannelBuilder.forAddress(config.getHost(), config.getPort())
+            .usePlaintext().enableRetry(LzyBackofficeGrpc.SERVICE_NAME).build();
     }
 
     public LzyBackofficeGrpc.LzyBackofficeBlockingStub getBlockingStub() {
