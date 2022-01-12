@@ -16,12 +16,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
@@ -38,6 +33,8 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
+
+import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
