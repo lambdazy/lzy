@@ -8,7 +8,7 @@ from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.api.whiteboard.api import InMemSnapshotApi, InMemWhiteboardApi, \
-  SnapshotApi, WhiteboardApi
+    SnapshotApi, WhiteboardApi, WhiteboardInfo
 from lzy.api.whiteboard.wb import wrap_whiteboard
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
@@ -41,6 +41,10 @@ class LzyEnvBase(ABC):
 
     @abstractmethod
     def get_whiteboard(self, id: str, typ: Type[T]) -> T:
+        pass
+
+    @abstractmethod
+    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
         pass
 
     @abstractmethod
@@ -222,3 +226,6 @@ class LzyEnv(LzyEnvBase):
         # noinspection PyArgumentList
         result = typ(**whiteboard_dict)
         return result
+
+    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
+        return self._execution_context.whiteboard_api.getAll()

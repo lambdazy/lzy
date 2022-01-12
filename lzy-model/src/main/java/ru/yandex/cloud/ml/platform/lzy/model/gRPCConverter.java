@@ -5,10 +5,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -129,19 +126,26 @@ public abstract class gRPCConverter {
         return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
     }
 
-    public static LzyWhiteboard.Whiteboard.WhiteboardStatus to(WhiteboardStatus.State state) {
+    public static LzyWhiteboard.WhiteboardStatus to(WhiteboardStatus.State state) {
         switch (state) {
             case CREATED:
-                return LzyWhiteboard.Whiteboard.WhiteboardStatus.CREATED;
+                return LzyWhiteboard.WhiteboardStatus.CREATED;
             case COMPLETED:
-                return LzyWhiteboard.Whiteboard.WhiteboardStatus.COMPLETED;
+                return LzyWhiteboard.WhiteboardStatus.COMPLETED;
             case NOT_COMPLETED:
-                return LzyWhiteboard.Whiteboard.WhiteboardStatus.NOT_COMPLETED;
+                return LzyWhiteboard.WhiteboardStatus.NOT_COMPLETED;
             case ERRORED:
-                return LzyWhiteboard.Whiteboard.WhiteboardStatus.ERRORED;
+                return LzyWhiteboard.WhiteboardStatus.ERRORED;
             default:
                 throw new IllegalArgumentException("Unknown state: " + state);
         }
+    }
+
+    public static LzyWhiteboard.WhiteboardInfo to(WhiteboardInfo wbInfo) {
+        return LzyWhiteboard.WhiteboardInfo.newBuilder()
+                .setId(wbInfo.id().toString())
+                .setWhiteboardStatus(to(wbInfo.state()))
+                .build();
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {

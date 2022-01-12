@@ -52,7 +52,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             return;
         }
         URI snapshotId = URI.create(UUID.randomUUID().toString());
-        repository.create(new Snapshot.Impl(snapshotId));
+        repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId())));
         final LzyWhiteboard.Snapshot result = LzyWhiteboard.Snapshot
             .newBuilder()
             .setSnapshotId(snapshotId.toString())

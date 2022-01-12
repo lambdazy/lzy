@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
@@ -19,7 +20,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
@@ -156,12 +156,28 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             .collect(Collectors.toList());
         return LzyWhiteboard.Whiteboard.newBuilder()
             .setId(wb.whiteboard().id().toString())
-            .setStatus(gRPCConverter.to(wb.state()))
+            .setStatus(to(wb.state()))
             .setSnapshot(LzyWhiteboard.Snapshot.newBuilder()
                 .setSnapshotId(wb.whiteboard().snapshot().id().toString())
                 .build())
             .addAllFields(fields)
-            .setStatus(gRPCConverter.to(wb.state()))
+            .setStatus(to(wb.state()))
             .build();
+    }
+
+    @Override
+    public void whiteboards(LzyWhiteboard.WhiteboardsCommand request, StreamObserver<LzyWhiteboard.WhiteboardsInfo> responseObserver) {
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
+
+        List<WhiteboardInfo> wbInfoList = whiteboardRepository.whiteboards(URI.create(request.getAuth().getUser().getUserId()));
+        final LzyWhiteboard.WhiteboardsInfo response = LzyWhiteboard.WhiteboardsInfo
+                .newBuilder()
+                .addAllWhiteboards(wbInfoList.stream().map(gRPCConverter::to).collect(Collectors.toList()))
+                .build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
     }
 }

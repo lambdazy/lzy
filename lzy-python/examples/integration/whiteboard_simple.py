@@ -26,4 +26,5 @@ with LzyEnv(user="test_user", server_url="localhost:8899", whiteboard=wb):
 
 with LzyEnv(user="test_user", server_url="localhost:8899") as env:
     wb = env.get_whiteboard(wb_id, SimpleWhiteboard)
-    print(wb.a, wb.b)
+    wbInfo = env.get_all_whiteboards_info()
+    print(wb.a, wb.b, wbInfo[0].status)
