@@ -16,7 +16,12 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
@@ -49,9 +54,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         SnapshotRepository snapshotRepository) {
         URI uri = URI.create(serverConfig.getUri());
         final ManagedChannel serverChannel = ChannelBuilder
-                .forAddress(uri.getHost(), uri.getPort())
-                .usePlaintext()
-                .enableRetry(LzyServerGrpc.SERVICE_NAME)
+            .forAddress(uri.getHost(), uri.getPort())
+            .usePlaintext()
+            .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
         auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel));
         this.whiteboardRepository = whiteboardRepository;

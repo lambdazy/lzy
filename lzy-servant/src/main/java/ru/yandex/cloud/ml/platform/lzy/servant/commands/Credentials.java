@@ -27,9 +27,9 @@ public class Credentials implements LzyCommand {
 
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final ManagedChannel serverCh = ChannelBuilder
-                .forAddress(serverAddr.getHost(), serverAddr.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+            .forAddress(serverAddr.getHost(), serverAddr.getPort())
+            .usePlaintext()
+            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
         LzyKharonGrpc.LzyKharonBlockingStub kharon = LzyKharonGrpc.newBlockingStub(serverCh);
 

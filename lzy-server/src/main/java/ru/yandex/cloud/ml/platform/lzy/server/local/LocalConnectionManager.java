@@ -4,11 +4,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.stub.MetadataUtils;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConstant;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.server.ConnectionManager;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,10 +25,10 @@ public class LocalConnectionManager implements ConnectionManager {
 
         Connection(URI uri, UUID sessionId) {
             channel = ChannelBuilder
-                    .forAddress(uri.getHost(), uri.getPort())
-                    .usePlaintext()
-                    .enableRetry(LzyServantGrpc.SERVICE_NAME)
-                    .build();
+                .forAddress(uri.getHost(), uri.getPort())
+                .usePlaintext()
+                .enableRetry(LzyServantGrpc.SERVICE_NAME)
+                .build();
 
             final Metadata metadata = new Metadata();
             metadata.put(GrpcConstant.SESSION_ID_METADATA_KEY, sessionId.toString());
