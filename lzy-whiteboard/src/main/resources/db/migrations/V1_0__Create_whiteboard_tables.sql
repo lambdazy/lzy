@@ -1,7 +1,6 @@
 CREATE TABLE snapshot (
     snapshot_id     text          PRIMARY KEY,
-    snapshot_state  varchar(20)   NOT NULL,
-    uid             text          NOT NULL
+    snapshot_state  varchar(20)   NOT NULL
 );
 
 CREATE TABLE whiteboard (
