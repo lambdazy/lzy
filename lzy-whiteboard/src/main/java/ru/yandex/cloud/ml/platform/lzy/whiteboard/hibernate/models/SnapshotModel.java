@@ -15,9 +15,13 @@ public class SnapshotModel {
     @Column(name = "snapshot_state", nullable = false)
     private SnapshotStatus.State snapshotState;
 
-    public SnapshotModel(String snapshotId, SnapshotStatus.State snapshotState) {
+    @Column(name = "uid", nullable = false)
+    private String uid;
+
+    public SnapshotModel(String snapshotId, SnapshotStatus.State snapshotState, String uid) {
         this.snapshotId = snapshotId;
         this.snapshotState = snapshotState;
+        this.uid = uid;
     }
 
     public SnapshotModel() {
@@ -33,5 +37,9 @@ public class SnapshotModel {
 
     public SnapshotStatus.State getSnapshotState() {
         return snapshotState;
+    }
+
+    public String getUid() {
+        return uid;
     }
 }

@@ -86,6 +86,15 @@ public class Whiteboard implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(whiteboard));
                 break;
             }
+            case "getAll": {
+                final LzyWhiteboard.WhiteboardsInfo whiteboardsInfo = server.whiteboards(LzyWhiteboard.WhiteboardsCommand
+                        .newBuilder()
+                        .setAuth(auth)
+                        .build()
+                );
+                System.out.println(JsonFormat.printer().print(whiteboardsInfo));
+                break;
+            }
         }
         return 0;
     }

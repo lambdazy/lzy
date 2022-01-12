@@ -20,6 +20,7 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     private final Map<URI, Map<String, SnapshotEntry>> entries = new HashMap<>();
     private final Map<URI, Map<String, SnapshotEntryStatus>> entriesStatuses = new HashMap<>();
     private final Map<URI, List<URI>> snapshotWhiteboardsMapping = new HashMap<>();
+    private final Map<URI, URI> snapshotToOwner = new HashMap<>();
 
     private final Map<URI, WhiteboardStatus> whiteboards = new HashMap<>();
     private final Map<URI, Map<String, WhiteboardField>> fields = new HashMap<>();
@@ -28,6 +29,7 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     @Override
     public synchronized void create(Snapshot snapshot) {
         snapshots.putIfAbsent(snapshot.id(), new SnapshotStatus.Impl(snapshot, SnapshotStatus.State.CREATED));
+        snapshotToOwner.putIfAbsent(snapshot.id(), snapshot.uid());
         entries.putIfAbsent(snapshot.id(), new HashMap<>());
         entriesStatuses.putIfAbsent(snapshot.id(), new HashMap<>());
         snapshotWhiteboardsMapping.putIfAbsent(snapshot.id(), new ArrayList<>());
@@ -146,6 +148,15 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     @Override
     public synchronized WhiteboardStatus resolveWhiteboard(URI id) {
         return whiteboards.get(id);
+    }
+
+    @Override
+    public List<WhiteboardInfo> whiteboards(URI uid) {
+        return whiteboards.entrySet()
+                .stream()
+                .filter(entry -> Objects.equals(snapshotToOwner.get(entry.getValue().whiteboard().snapshot().id()), uid))
+                .map(entry -> new WhiteboardInfo.Impl(entry.getKey(), entry.getValue().state()))
+                .collect(Collectors.toList());
     }
 
     @Override
