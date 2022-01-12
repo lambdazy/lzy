@@ -6,9 +6,6 @@ import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import io.micronaut.context.annotation.Requires;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
@@ -32,8 +29,6 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
@@ -171,22 +166,6 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             .addAllFields(fields)
             .setStatus(to(wb.state()))
             .build();
-    }
-
-    @Override
-    public void whiteboards(LzyWhiteboard.WhiteboardsCommand request, StreamObserver<LzyWhiteboard.WhiteboardsInfo> responseObserver) {
-        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            responseObserver.onError(Status.PERMISSION_DENIED.asException());
-            return;
-        }
-
-        List<WhiteboardInfo> wbInfoList = whiteboardRepository.whiteboards(URI.create(request.getAuth().getUser().getUserId()));
-        final LzyWhiteboard.WhiteboardsInfo response = LzyWhiteboard.WhiteboardsInfo
-                .newBuilder()
-                .addAllWhiteboards(wbInfoList.stream().map(gRPCConverter::to).collect(Collectors.toList()))
-                .build();
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
     }
 
     @Override
