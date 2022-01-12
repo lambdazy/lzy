@@ -33,7 +33,8 @@ class Singleton(type):
 
 
 class BashExecution(Execution):
-    def __init__(self, execution_id: str, bindings: Bindings, env: Dict[str, str], *command):
+    def __init__(self, execution_id: str, bindings: Bindings,
+                 env: Dict[str, str], *command):
         super().__init__()
         self._id = execution_id
         self._cmd = command
@@ -75,11 +76,17 @@ class BashExecution(Execution):
         )
 
 
-class BashServantClient(ServantClient, metaclass=Singleton):
-    def __init__(self, lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy")):
+class BashServantClient(ServantClient):
+    _instance: Optional['BashServantClient'] = None
+
+    def __init__(self, lzy_mount: Optional[str] = None):
         super().__init__()
+
+        if lzy_mount is None:
+            lzy_mount = os.getenv("LZY_MOUNT", default="/tmp/lzy")
+        self._mount: Path = Path(lzy_mount)
+
         self._log = logging.getLogger(str(self.__class__))
-        self._mount = Path(lzy_mount)
         self._log.info(f"Creating BashServant at MOUNT_PATH={self._mount}")
 
     def mount(self) -> Path:
@@ -90,19 +97,20 @@ class BashServantClient(ServantClient, metaclass=Singleton):
 
     def create_channel(self, channel: Channel):
         self._log.info(f"Creating channel {channel.name}")
-        return self._exec_bash(f"{self._mount}/sbin/channel create " + channel.name)
+        return self._exec_bash(f"{self.mount()}/sbin/channel create " + channel.name)
 
     def destroy_channel(self, channel: Channel):
         self._log.info(f"Destroying channel {channel.name}")
-        return self._exec_bash(f"{self.mount}/sbin/channel", "destroy", channel.name)
+        return self._exec_bash(f"{self.mount()}/sbin/channel", "destroy", channel.name)
 
     def touch(self, slot: Slot, channel: Channel):
         self._log.info(f"Creating slot {slot.name()} dir:{slot.direction()} channel:{channel.name}")
         slot_description_file = tempfile.mktemp(prefix="lzy_slot_", suffix=".json", dir="/tmp/")
+
         with open(slot_description_file, 'w') as f:
             f.write(slot.to_json())
         result = self._exec_bash(
-            f"{self._mount}/sbin/touch",
+            f"{self.mount()}/sbin/touch",
             str(self.get_slot_path(slot)),
             channel.name,
             "--slot",
@@ -114,11 +122,13 @@ class BashServantClient(ServantClient, metaclass=Singleton):
         return result
 
     def publish(self, zygote: Zygote):
-        self._log.info(f"Publishing zygote {zygote.name()}")
-        zygote_description_file = tempfile.mktemp(prefix="lzy_zygote_", suffix=".json", dir="/tmp/")
+        self._log.info(f"Publishing zygote {zygote.name}")
+        zygote_description_file = tempfile.mktemp(prefix="lzy_zygote_",
+                                                  suffix=".json", dir="/tmp/")
         with open(zygote_description_file, 'w') as f:
             f.write(zygote.to_json())
-        return self._exec_bash(f"{self._mount}/sbin/publish", zygote.name(), zygote_description_file)
+        return self._exec_bash(f"{self.mount()}/sbin/publish", zygote.name,
+                               zygote_description_file)
 
     def get_credentials(self, typ: ServantClient.CredentialsTypes) -> StorageCredentials:
         self._log.info(f"Getting credentials for {typ}")
@@ -128,9 +138,13 @@ class BashServantClient(ServantClient, metaclass=Singleton):
             return AzureCredentials(data["azure"]["connectionString"])
         return AmazonCredentials(data["amazon"]["endpoint"], data["amazon"]["accessToken"], data["amazon"]["secretToken"])
 
-    def _execute_run(self, execution_id: str, zygote: Zygote, bindings: Bindings, entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
-        slots_mapping_file = tempfile.mktemp(prefix="lzy_slot_mapping_", suffix=".json", dir="/tmp/")
-        entry_id_mapping_file = tempfile.mktemp(prefix="entry_id_mapping_", suffix=".json", dir="/tmp/")
+    def _execute_run(self, execution_id: str, zygote: Zygote,
+                     bindings: Bindings, entry_id_mapping: Optional[
+                Mapping[Slot, str]]) -> Execution:
+        slots_mapping_file = tempfile.mktemp(prefix="lzy_slot_mapping_",
+                                             suffix=".json", dir="/tmp/")
+        entry_id_mapping_file = tempfile.mktemp(prefix="entry_id_mapping_",
+                                                suffix=".json", dir="/tmp/")
         with open(slots_mapping_file, 'w') as f:
             json_bindings = {
                 binding.remote_slot.name(): binding.channel.name for binding in bindings.bindings()
@@ -148,8 +162,10 @@ class BashServantClient(ServantClient, metaclass=Singleton):
         env = os.environ.copy()
         env['ZYGOTE'] = zygote.to_json()
 
-        execution = BashExecution(execution_id, bindings, env, f"{self._mount}/sbin/run", "--mapping",
-                                  slots_mapping_file, "-s", entry_id_mapping_file)
+        execution = BashExecution(execution_id, bindings, env,
+                                  f"{self.mount()}/sbin/run", "--mapping",
+                                  slots_mapping_file,
+                                  "-s", entry_id_mapping_file)
         execution.start()
         return execution
 
@@ -165,5 +181,12 @@ class BashServantClient(ServantClient, metaclass=Singleton):
         if err != b'':
             raise BashExecutionException(message=str(err, encoding='utf-8'))
         if process.returncode != 0:
-            raise BashExecutionException(message=f"Process exited with code {process.returncode}")
+            raise BashExecutionException(
+                message=f"Process exited with code {process.returncode}")
         return out
+
+    @classmethod
+    def instance(cls, lzy_mount: Optional[str] = None) -> 'BashServantClient':
+        if cls._instance is None:
+            cls._instance = BashServantClient(lzy_mount)
+        return cls._instance

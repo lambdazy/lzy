@@ -25,7 +25,7 @@ def load_arg(path: Path) -> Any:
 
 def main():
     argv = sys.argv[1:]
-    servant: ServantClient = BashServantClient()
+    servant: ServantClient = BashServantClient.instance()
 
     print("Loading function")
     func_s: FuncSignature = cloudpickle.loads(base64.b64decode(argv[0].encode('ascii')))
