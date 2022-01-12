@@ -18,10 +18,10 @@ public class ChannelsStatus implements LzyCommand {
         final IAM.Auth auth = IAM.Auth
             .parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         final ManagedChannel serverCh = ChannelBuilder
-                .forAddress(serverAddr.getHost(), serverAddr.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                .build();
+            .forAddress(serverAddr.getHost(), serverAddr.getPort())
+            .usePlaintext()
+            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+            .build();
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         final Channels.ChannelStatusList statusList = server.channelsStatus(auth);
         for (final Channels.ChannelStatus status : statusList.getStatusesList()) {

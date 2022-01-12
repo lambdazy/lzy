@@ -30,10 +30,10 @@ public class SlotConnectionManager {
 
         Connection(URI uri, String serviceName, ControllerCreator controllerCreator) {
             channel = ChannelBuilder
-                    .forAddress(uri.getHost(), uri.getPort())
-                    .usePlaintext()
-                    .enableRetry(serviceName)
-                    .build();
+                .forAddress(uri.getHost(), uri.getPort())
+                .usePlaintext()
+                .enableRetry(serviceName)
+                .build();
             controller = controllerCreator.create(channel);
         }
     }
@@ -48,7 +48,8 @@ public class SlotConnectionManager {
         SlotController create(ManagedChannel channel);
     }
 
-    public synchronized SlotController getOrCreate(String slotName, URI slotUri, String serviceName, ControllerCreator controllerCreator) {
+    public synchronized SlotController getOrCreate(String slotName, URI slotUri, String serviceName,
+        ControllerCreator controllerCreator) {
         LOG.info("Create connection to " + slotUri);
         final URI uri = getOnlyHostPortURI(slotUri);
 

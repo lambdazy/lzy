@@ -26,10 +26,10 @@ public class LocalConnectionManager implements ConnectionManager {
 
         Connection(URI uri, UUID sessionId) {
             channel = ChannelBuilder
-                    .forAddress(uri.getHost(), uri.getPort())
-                    .usePlaintext()
-                    .enableRetry(LzyServantGrpc.SERVICE_NAME)
-                    .build();
+                .forAddress(uri.getHost(), uri.getPort())
+                .usePlaintext()
+                .enableRetry(LzyServantGrpc.SERVICE_NAME)
+                .build();
 
             final Metadata metadata = new Metadata();
             metadata.put(GrpcConstant.SESSION_ID_METADATA_KEY, sessionId.toString());

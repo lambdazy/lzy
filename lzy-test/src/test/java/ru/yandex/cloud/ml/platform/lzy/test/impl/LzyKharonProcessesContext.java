@@ -2,12 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
-import org.apache.commons.lang3.SystemUtils;
-import ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -78,9 +72,9 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
             }
 
             channel = ChannelBuilder
-                    .forAddress("localhost", LZY_KHARON_PORT)
-                    .usePlaintext()
-                    .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                .forAddress("localhost", LZY_KHARON_PORT)
+                .usePlaintext()
+                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
                 .build();
             lzyKharonClient = LzyKharonGrpc.newBlockingStub(channel)
                 .withWaitForReady()
