@@ -36,9 +36,6 @@ class FuncSignature(Generic[T]):
         input_types = ", ".join(str(t) for t in self.input_types)
         return f'{self.callable} {self.name}({input_types}) -> {self.output_type}'
 
-    def __iter__(self):
-        yield from (self.callable, self.input_types, self.output_type)
-
 
 @dataclass
 class CallSignature(Generic[T]):
@@ -48,9 +45,6 @@ class CallSignature(Generic[T]):
     def exec(self) -> T:
         print("Calling: ", self.description)
         return self.func.callable(*self.args)
-
-    def __iter__(self):
-        yield from (self.func, self.args)
 
     @property
     def description(self) -> str:

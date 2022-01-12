@@ -52,10 +52,6 @@ class Zygote(ABC, Generic[T]):
     env: Optional[Env]
     provisioning: Optional[Provisioning]
 
-    def __iter__(self):
-        yield from (self.signature, self.arg_slots, self.return_slot,
-                    self.env, self.provisioning)
-
     @property
     def slots(self) -> List[Slot]:
         return self.arg_slots + [self.return_slot]

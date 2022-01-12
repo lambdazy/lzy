@@ -178,12 +178,9 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
     @staticmethod
     def restore(servant: ServantClient, materialized: bool, materialization: Any,
-                return_entry_id: Optional[str],
-                input_types: Tuple[Type, ...], output_types: Type[T],
-                func: Callable, provisioning: Provisioning, env: PyEnv, *args: Tuple[Any, ...]):
-        # TODO: reducer for CallSignature and FuncSignature?
-        s_ = CallSignature(FuncSignature(func, input_types, output_types), args)
-        op = LzyRemoteOp(servant, s_, provisioning, env,
+                return_entry_id: Optional[str], call_s: CallSignature[T],
+                provisioning: Provisioning, env: PyEnv):
+        op = LzyRemoteOp(servant, call_s, provisioning, env,
                          deployed=False, return_entry_id=return_entry_id)
         op._materialized = materialized
         op._materialization = materialization
@@ -191,13 +188,11 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
     @staticmethod
     def reducer(op: 'LzyRemoteOp') -> Any:
-        (callable_, input_types, return_type), args = op.signature
-        *_, env, provisioning = op.zygote
         return LzyRemoteOp.restore, (
             op._servant, op.is_materialized(), op._materialization,
             op.return_entry_id(),
-            input_types, return_type,
-            callable_, provisioning, env, *args)
+            op.signature,
+            op.zygote.provisioning, op.zygote.env)
 
     def return_entry_id(self) -> Optional[str]:
         return self._return_entry_id
