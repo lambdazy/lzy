@@ -75,10 +75,10 @@ class ServantClient(ABC):
 
     def run(self, zygote: Zygote, slots_to_entry_id: Optional[Mapping[Slot, str]]) -> Execution:
         execution_id = str(uuid.uuid4())
-        self._log.info(f"Running zygote {zygote.name()}, execution id {execution_id}")
+        self._log.info(f"Running zygote {zygote.name}, execution id {execution_id}")
 
         bindings = []
-        for slot in zygote.slots():
+        for slot in zygote.slots:
             slot_full_name = "/task/" + execution_id + slot.name
             local_slot = create_slot(slot_full_name, Direction.opposite(slot.direction))
             channel = Channel(':'.join([execution_id, slot.name]))
@@ -97,4 +97,4 @@ class ServantClient(ABC):
         pass
 
     def _zygote_path(self, zygote: Zygote) -> str:
-        return f"{self.mount()}/bin/{zygote.name()}"
+        return f"{self.mount()}/bin/{zygote.name}"

@@ -1,14 +1,15 @@
-import abc
+from abc import ABC, abstractmethod
 import json
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Generic, List, Optional, TypeVar
 
 from lzy.model.env import Env
 from lzy.model.slot import Slot
+from lzy.model.signatures import FuncSignature
 
 
-class Tag:
-    @abc.abstractmethod
+class Tag(ABC):
+    @abstractmethod
     def tag(self) -> str:
         pass
 
@@ -40,42 +41,52 @@ class Provisioning:
         return res
 
 
-class Zygote(abc.ABC):
-    @abc.abstractmethod
-    def name(self) -> str:
-        pass
+T = TypeVar('T')
 
-    @abc.abstractmethod
+
+@dataclass
+class Zygote(ABC, Generic[T]):
+    signature: FuncSignature[T]
+    arg_slots: List[Slot]
+    return_slot: Slot
+    env: Optional[Env]
+    provisioning: Optional[Provisioning]
+
+    def __iter__(self):
+        yield from (self.signature, self.arg_slots, self.return_slot,
+                    self.env, self.provisioning)
+
+    @property
+    def slots(self) -> List[Slot]:
+        return self.arg_slots + [self.return_slot]
+
+    @property
+    def name(self) -> str:
+        return self.signature.name
+
+    @property
+    def description(self) -> str:
+        return self.name
+
+    @property
+    @abstractmethod
     def command(self) -> str:
         pass
 
-    @abc.abstractmethod
-    def slots(self) -> List[Slot]:
-        pass
-
-    @abc.abstractmethod
-    def env(self) -> Optional[Env]:
-        pass
-
-    @abc.abstractmethod
-    def provisioning(self) -> Optional[Provisioning]:
-        pass
-
-    @abc.abstractmethod
-    def description(self) -> Optional[str]:
-        pass
-
     def to_json(self) -> str:
-        env = self.env()
-        provisioning = self.provisioning()
+        env = self.env
+        provisioning = self.provisioning
         return json.dumps({
             # tried to serialize env as json and it didn't work,
             # so build dict here instead for env
             "env": {env.type_id(): env.as_dct()} if env else {},
-            "fuze": self.command(),
-            "provisioning": {"tags": [{"tag": tag} for tag in provisioning.tags()]} if provisioning else {},
+            "fuze": self.command,
+            "provisioning": {"tags": [
+                {"tag": tag}
+                for tag in provisioning.tags()
+            ]} if provisioning else {},
             "slots": [
-                slot.to_dict() for slot in self.slots()
+                slot.to_dict() for slot in self.slots
             ],
-            "description": self.description()
+            "description": self.description
         }, sort_keys=True, indent=3)

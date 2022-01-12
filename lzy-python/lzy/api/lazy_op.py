@@ -93,18 +93,18 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
         self._return_entry_id: Optional[str] = return_entry_id
         if entry_id_generator is not None:
-            self._return_entry_id = entry_id_generator.generate(self._zygote.return_slot())
+            self._return_entry_id = entry_id_generator.generate(self._zygote.return_slot)
 
     @property
     def zygote(self) -> Zygote:
         return self._zygote
 
     def execution_logic(self):
-        bindings = {self._zygote.return_slot(): self._return_entry_id} if self._return_entry_id else None
+        bindings = {self._zygote.return_slot: self._return_entry_id} if self._return_entry_id else None
         execution = self._servant.run(self._zygote, bindings)
 
         call_s = self.signature
-        slots = self._zygote.arg_slots()
+        slots = self._zygote.arg_slots
         for arg, name, slot in zip(call_s.args, call_s.func.param_names, slots):
             local_slot = execution.bindings().local_slot(slot)
             if not local_slot:
@@ -121,9 +121,9 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 f"Written argument {name} to local slot {local_slot.name}")
 
         return_local_slot = execution.bindings().local_slot(
-            self._zygote.return_slot())
+            self._zygote.return_slot)
         if not return_local_slot:
-            raise RuntimeError(f"Slot {self._zygote.return_slot().name} not binded")
+            raise RuntimeError(f"Slot {self._zygote.return_slot.name} not binded")
         return_slot_path = self._servant.get_slot_path(return_local_slot)
         self._log.info(f"Reading result from {return_slot_path}")
 
