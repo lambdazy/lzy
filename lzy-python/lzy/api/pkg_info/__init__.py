@@ -1,4 +1,3 @@
-import functools
 import inspect
 import sys
 import pkg_resources
