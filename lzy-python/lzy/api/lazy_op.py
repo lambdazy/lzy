@@ -3,7 +3,7 @@ import logging
 import os
 from abc import abstractmethod, ABC
 import time
-from typing import Callable, Optional, Any, Tuple, Type, TypeVar, Generic
+from typing import Optional, Any, TypeVar, Generic
 
 import cloudpickle
 
@@ -127,8 +127,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         return_slot_path = self._servant.get_slot_path(return_local_slot)
         self._log.info(f"Reading result from {return_slot_path}")
 
+        func = call_s.func.callable
         deserialization_failed: bool = False
-        # noinspection PyBroadException
         try:
             with open(return_slot_path, 'rb') as handle:
                 # Wait for slot become open
@@ -137,22 +137,22 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 handle.seek(0)
                 self._materialization = cloudpickle.load(handle)
             self._log.info(f"Read result from {return_slot_path}")
+        # noinspection PyBroadException
         except Exception as e:
             self._log.error(f"Failed to read result from {return_slot_path}\n{e}")
             deserialization_failed = True
+        finally:
+            result = execution.wait_for()
 
-        result = execution.wait_for()
         rc = result.rc()
-        func = self.signature.func.callable
-        if rc:
+        if rc != 0:
             if rc == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR.value:
-                raise LzyExecutionException(
-                    "Failed to install environment on remote machine", func,
-                    execution, rc)
-            if rc == ReturnCode.EXECUTION_ERROR.value:
-                raise LzyExecutionException("Lzy error", func, execution, rc)
-
-            raise LzyExecutionException("Execution error", func, execution, rc)
+                message = "Failed to install environment on remote machine"
+            elif rc == ReturnCode.EXECUTION_ERROR.value:
+                message = "Lzy error"
+            else:
+                message = "Execution error"
+            raise LzyExecutionException(message, func, execution, rc)
         elif deserialization_failed:
             raise LzyExecutionException("Return value deserialization failure",
                                         func, execution,
