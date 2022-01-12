@@ -1,5 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
+import java.io.FileReader;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.UUID;
 import org.apache.commons.cli.CommandLine;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
@@ -7,18 +13,13 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 
-import java.io.FileReader;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.UUID;
-
 public class Terminal implements LzyCommand {
+
     @Override
     public int execute(CommandLine parse) throws Exception {
         if (!parse.hasOption('z')) {
-            throw new IllegalArgumentException("Provide lzy server address with -z option to start a task.");
+            throw new IllegalArgumentException(
+                "Provide lzy server address with -z option to start a task.");
         }
 
         final UUID terminalToken = UUID.randomUUID();

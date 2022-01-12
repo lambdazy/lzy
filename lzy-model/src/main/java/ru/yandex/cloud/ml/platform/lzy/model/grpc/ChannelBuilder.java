@@ -2,8 +2,10 @@ package ru.yandex.cloud.ml.platform.lzy.model.grpc;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ChannelBuilder {
 
@@ -30,18 +32,18 @@ public class ChannelBuilder {
         this.maxBackoff = "30s";
         this.backoffMultiplier = 2;
         this.retryableStatusCodes = List.of(
-                "CANCELLED",
-                "UNKNOWN",
-                "DEADLINE_EXCEEDED",
-                "PERMISSION_DENIED",
-                "RESOURCE_EXHAUSTED",
-                "FAILED_PRECONDITION",
-                "ABORTED",
-                "OUT_OF_RANGE",
-                "INTERNAL",
-                "UNAVAILABLE",
-                "DATA_LOSS",
-                "UNAUTHENTICATED"
+            "CANCELLED",
+            "UNKNOWN",
+            "DEADLINE_EXCEEDED",
+            "PERMISSION_DENIED",
+            "RESOURCE_EXHAUSTED",
+            "FAILED_PRECONDITION",
+            "ABORTED",
+            "OUT_OF_RANGE",
+            "INTERNAL",
+            "UNAVAILABLE",
+            "DATA_LOSS",
+            "UNAUTHENTICATED"
         );
     }
 
@@ -102,7 +104,7 @@ public class ChannelBuilder {
 
     private void configureRetry(ManagedChannelBuilder builder, String serviceName) {
         Map<String, Object> retryPolicy = new HashMap<>();
-        retryPolicy.put("maxAttempts", (double)maxRetry);
+        retryPolicy.put("maxAttempts", (double) maxRetry);
         retryPolicy.put("initialBackoff", initialBackoff);
         retryPolicy.put("maxBackoff", maxBackoff);
         retryPolicy.put("backoffMultiplier", backoffMultiplier);
@@ -117,8 +119,8 @@ public class ChannelBuilder {
         builder.defaultServiceConfig(serviceConfig);
 
         builder.enableRetry()
-                .maxRetryAttempts(maxRetry)
-                .maxHedgedAttempts(maxRetry);
+            .maxRetryAttempts(maxRetry)
+            .maxHedgedAttempts(maxRetry);
 
     }
 
