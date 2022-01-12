@@ -7,6 +7,7 @@ from lzy.api import LzyOp
 from lzy.api.utils import lazy_proxy, is_lazy_proxy
 # noinspection PyProtectedMember
 from lzy.api._proxy import proxy
+from lzy.model.signatures import CallSignature, FuncSignature
 
 
 class ProxyTests(TestCase):
@@ -93,7 +94,8 @@ class ProxyTests(TestCase):
 
         class LazyOpMock(LzyOp, ABC):
             def __init__(self):
-                super().__init__(lambda: None, (), None, ())
+                super().__init__(
+                    CallSignature(FuncSignature(lambda: None, (), None), ()))
 
             def materialize(self) -> Any:
                 a.append("Materialized without any fcking reason")
