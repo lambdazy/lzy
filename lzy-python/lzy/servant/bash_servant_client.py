@@ -81,10 +81,9 @@ class BashServantClient(ServantClient):
 
     def __init__(self, lzy_mount: Optional[str] = None):
         super().__init__()
-
-        if lzy_mount is None:
-            lzy_mount = os.getenv("LZY_MOUNT", default="/tmp/lzy")
-        self._mount: Path = Path(lzy_mount)
+        mount_path: str = lzy_mount if lzy_mount is not None \
+            else os.getenv("LZY_MOUNT", default="/tmp/lzy")
+        self._mount: Path = Path(mount_path)
 
         self._log = logging.getLogger(str(self.__class__))
         self._log.info(f"Creating BashServant at MOUNT_PATH={self._mount}")

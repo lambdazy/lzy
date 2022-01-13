@@ -44,14 +44,21 @@ class Provisioning:
 T = TypeVar('T')
 
 
+# Zygote should've been just marked as
+# @dataclass(frozen=True)
+# but mypy is broken here a bit, so workaround with mixin is needed:
+# https://stackoverflow.com/questions/69330256/how-to-get-an-abstract-dataclass-to-pass-mypy
+# https://github.com/python/mypy/issues/5374#issuecomment-568335302
 @dataclass
-class Zygote(ABC, Generic[T]):
+class ZygoteDataclassMixin(Generic[T]):
     signature: FuncSignature[T]
     arg_slots: List[Slot]
     return_slot: Slot
     env: Optional[Env]
     provisioning: Optional[Provisioning]
 
+
+class Zygote(ZygoteDataclassMixin[T], ABC):
     @property
     def slots(self) -> List[Slot]:
         return self.arg_slots + [self.return_slot]

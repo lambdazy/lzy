@@ -34,10 +34,17 @@ class DataSchema:
         return "not implemented yet"
 
 
+# actually Slot should be just marked as
+# @dataclass(frozen=True)
+# but mypy is broken here a bit, so workaround with mixin is needed:
+# https://stackoverflow.com/questions/69330256/how-to-get-an-abstract-dataclass-to-pass-mypy
+# https://github.com/python/mypy/issues/5374#issuecomment-568335302
 @dataclass(frozen=True)
-class Slot(ABC):
+class SlotDataclassMixin:
     name: str
 
+
+class Slot(SlotDataclassMixin, ABC):
     @property
     @abstractmethod
     def direction(self) -> Direction:

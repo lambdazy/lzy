@@ -19,7 +19,7 @@ class FuncSignature(Generic[T]):
 
     @property
     def param_names(self) -> Iterable[str]:
-        return self.argspec.args
+        return list(self.argspec.args)
 
     @property
     def name(self) -> str:

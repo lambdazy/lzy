@@ -54,7 +54,8 @@ class WhiteboardBashApi(WhiteboardApi):
 
     def resolve(self, field_url: str, field_type: Type[T]) -> Any:
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
-        return proxy(lambda: self._whiteboard_storage.read(field_url), field_type)
+
+        return proxy(lambda: self._whiteboard_storage.read(field_url), field_type) # type: ignore[no-any-return]
     
     def create(self, fields: List[str], snapshot_id: str) -> WhiteboardDescription:
         logging.info(f"Creating whiteboard for snapshot {snapshot_id} with fields {fields}")
