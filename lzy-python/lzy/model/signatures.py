@@ -32,7 +32,7 @@ class FuncSignature(Generic[T]):
             return repr(self.callable)
         return self.callable.__name__
 
-    def repr(self) -> str:
+    def __repr__(self) -> str:
         input_types = ", ".join(str(t) for t in self.input_types)
         return f'{self.callable} {self.name}({input_types}) -> {self.output_type}'
 
