@@ -175,7 +175,6 @@ resource "kubernetes_deployment" "lzy_backoffice" {
 }
 
 resource "kubernetes_service" "lzy_backoffice" {
-  count = var.backoffice_public_ip != "" ? 1 : 0
   metadata {
     name        = "lzy-backoffice-service"
     annotations = var.backoffice_load_balancer_necessary_annotations
