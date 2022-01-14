@@ -17,15 +17,19 @@ import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tasks.GetTasksRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.CreateUserRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.DeleteUserRequest;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.users.ListUsersRequest;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.whiteboards.WhiteboardsCommand;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
 
 @Singleton
 public class Client {
 
     private final Channel channel;
+    private final Channel wbApiChannel;
 
     @Inject
     CredentialsProvider credentials;
@@ -36,10 +40,17 @@ public class Client {
 
         channel = ChannelBuilder.forAddress(config.getHost(), config.getPort())
             .usePlaintext().enableRetry(LzyBackofficeGrpc.SERVICE_NAME).build();
+
+        wbApiChannel = ChannelBuilder.forAddress(config.getWbHost(), config.getWbPort())
+                .usePlaintext().enableRetry(WbApiGrpc.SERVICE_NAME).build();
     }
 
     public LzyBackofficeGrpc.LzyBackofficeBlockingStub getBlockingStub() {
         return LzyBackofficeGrpc.newBlockingStub(channel);
+    }
+
+    public WbApiGrpc.WbApiBlockingStub getWbApiBlockingStub() {
+        return WbApiGrpc.newBlockingStub(wbApiChannel);
     }
 
     public LzyBackofficeGrpc.LzyBackofficeStub getAsyncStub() {
@@ -145,6 +156,16 @@ public class Client {
         try {
             return getBlockingStub().getTasks(
                 request.toModel(credentials.createCreds())
+            );
+        } catch (StatusRuntimeException e) {
+            throw catchStatusException(e);
+        }
+    }
+
+    public LzyWhiteboard.WhiteboardsInfo getWhiteboards(WhiteboardsCommand request) {
+        try {
+            return getWbApiBlockingStub().whiteboards(
+                    request.toModel(credentials.createCreds())
             );
         } catch (StatusRuntimeException e) {
             throw catchStatusException(e);

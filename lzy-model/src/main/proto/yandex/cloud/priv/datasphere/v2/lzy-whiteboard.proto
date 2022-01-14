@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-backoffice.proto";
 
 package yandex.cloud.priv.datasphere.v2;
 
@@ -112,7 +113,10 @@ message Whiteboard {
 }
 
 message WhiteboardsCommand {
-  Auth auth = 1;
+  oneof credentials {
+    Auth auth = 1;
+    BackofficeCredentials backoffice = 2;
+  }
 }
 
 message WhiteboardInfo {
@@ -122,4 +126,9 @@ message WhiteboardInfo {
 
 message WhiteboardsInfo {
   repeated WhiteboardInfo whiteboards = 1;
+}
+
+message BackofficeCredentials {
+  UserCredentials backofficeCredentials = 1;
+  BackofficeUserCredentials credentials = 2;
 }

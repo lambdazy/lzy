@@ -11,6 +11,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
@@ -26,6 +29,7 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.SimpleAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
@@ -49,7 +53,8 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 .usePlaintext()
                 .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
-        auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel));
+        auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel),
+                LzyBackofficeGrpc.newBlockingStub(serverChannel));
         this.whiteboardRepository = whiteboardRepository;
         this.snapshotRepository = snapshotRepository;
     }
@@ -170,12 +175,22 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     @Override
     public void whiteboards(LzyWhiteboard.WhiteboardsCommand request, StreamObserver<LzyWhiteboard.WhiteboardsInfo> responseObserver) {
-        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+        boolean ok = true;
+        String uid = "";
+        if (request.hasAuth()) {
+            ok = auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL);
+            uid = request.getAuth().getUser().getUserId();
+        }
+        if (request.hasBackoffice()) {
+            ok = auth.checkPermissions(request.getBackoffice(), Permissions.WHITEBOARD_ALL);
+            uid = request.getBackoffice().getBackofficeCredentials().getUserId();
+        }
+        if (!ok) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
 
-        List<WhiteboardInfo> wbInfoList = whiteboardRepository.whiteboards(URI.create(request.getAuth().getUser().getUserId()));
+        List<WhiteboardInfo> wbInfoList = whiteboardRepository.whiteboards(URI.create(uid));
         final LzyWhiteboard.WhiteboardsInfo response = LzyWhiteboard.WhiteboardsInfo
                 .newBuilder()
                 .addAllWhiteboards(wbInfoList.stream().map(gRPCConverter::to).collect(Collectors.toList()))

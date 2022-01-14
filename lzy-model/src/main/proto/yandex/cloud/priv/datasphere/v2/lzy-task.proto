@@ -2,7 +2,6 @@ syntax = "proto3";
 
 import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
-import "yandex/cloud/priv/datasphere/v2/lzy-whiteboard.proto";
 
 package yandex.cloud.priv.datasphere.v2;
 
