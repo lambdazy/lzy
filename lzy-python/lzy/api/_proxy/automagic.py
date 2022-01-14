@@ -22,6 +22,14 @@ def materialize_args_on_fall(f):
         # https://docs.python.org/3/library/constants.html#NotImplemented
         # in short: all binary operations return NotImplemented in case
         # if there is error related to type
+        #
+        # >>> class A:
+        # ...     pass
+        # >>> a = (10).__add__(A()) # exception is not raised here
+        # >>> a
+        # NotImplemented
+        #
+        # TODO: probably try/except is worth too but let's wait and see
         if val is NotImplemented:
             kwargs = {name: materialize_if_proxy(arg_value)
                       for name, arg_value in kwargs.items()}
@@ -50,8 +58,9 @@ class TrickDescriptor:
             if callable(res):
                 # if __get__ returned callable then we have function in here
                 # so instead of this function we should return a new one,
-                # which will try to work as usual but if failed with TypeError
+                # which will try to work as usual but if returned NotImplemented
                 # it will materialize its arguments and try again
+                #
                 return materialize_args_on_fall(res)
             else:
                 # if not callable, just return it as is

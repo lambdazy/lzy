@@ -52,7 +52,7 @@ class WhiteboardBashApi(WhiteboardApi):
             self.__whiteboard_storage = WhiteboardStorage.create(self.__credentials)
         return self.__whiteboard_storage
 
-    def resolve(self, field_url: str, field_type: Type[T]) -> Any:
+    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
 
         return proxy(lambda: self._whiteboard_storage.read(field_url), field_type) # type: ignore[no-any-return]
