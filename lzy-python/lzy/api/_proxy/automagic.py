@@ -2,22 +2,35 @@ import functools
 from typing import Any, Type, Callable, TypeVar
 
 
-def caster(f):
-    @functools.wraps(f)
-    def inner(*args, **kwargs):
-        try:
-            # noinspection PyArgumentList
-            return f(*args, **kwargs)
-        finally:
-            args = tuple(
-                create_and_cache(type(arg), type(arg).__origin) if isinstance(type(arg), Proxifier) else arg for arg in
-                args)
-            kwargs = {k: create_and_cache(type(arg), type(arg).__origin) if isinstance(type(arg), Proxifier) else arg
-                      for k, arg in kwargs.items()}
-            # noinspection PyArgumentList
-            return f(*args, **kwargs)
+def materialize_args_on_fall(f):
+    """
+    Decorates function f and returns new function which will materialize it's
+    arguments on every call if the first call didn't succeed. Seems that usually
+    it happens with some builtin types like int
+    :param f: any function
+    :return: new function with changed behaviour
+    """
+    def materialize_if_proxy(arg: Any) -> Any:
+        return create_and_cache(type(arg), type(arg).__origin) \
+            if isinstance(type(arg), Proxifier) \
+            else arg
 
-    return inner
+    @functools.wraps(f)
+    def new(*args, **kwargs):
+        # noinspection PyArgumentList
+        val = f(*args, **kwargs)
+        # https://docs.python.org/3/library/constants.html#NotImplemented
+        # in short: all binary operations return NotImplemented in case
+        # if there is error related to type
+        if val is NotImplemented:
+            kwargs = {name: materialize_if_proxy(arg_value)
+                      for name, arg_value in kwargs.items()}
+            args = tuple(materialize_if_proxy(arg) for arg in args)
+            # it's ok if exception happens here because
+            # there could be user exception
+            val = f(*args, **kwargs)
+        return val
+    return new
 
 
 class TrickDescriptor:
@@ -34,18 +47,15 @@ class TrickDescriptor:
             res = f.__get__(create_and_cache(type(instance), self.callback),
                             owner)
 
-            # TODO: well and that would be it but sometimes __get__ will
-            # TODO: return methods, sometimes even magic methods.
-            # TODO: This methods possible return instances of the same type as
-            # TODO: passed to __get__ intance
-            # TODO: so we need to wrap it in a proxy if we want to support such
-            # TODO: operations: a + 1
-            # TODO: because it's the same as:
-            # TODO: int.__dict__['__add__'].__get__(inst, int)(1)
-            # TODO: so mb instead it's better to return wrapped function instead
-            # TODO: wrapped function would make proxy out of result of the
-            # TODO: same type
-            return caster(res)
+            if callable(res):
+                # if __get__ returned callable then we have function in here
+                # so instead of this function we should return a new one,
+                # which will try to work as usual but if failed with TypeError
+                # it will materialize its arguments and try again
+                return materialize_args_on_fall(res)
+            else:
+                # if not callable, just return it as is
+                return res
         # otherwise just call original __get__ without forcing evaluation
         return f.__get__(instance, owner)
 

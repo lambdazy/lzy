@@ -123,3 +123,68 @@ class ProxyTests(TestCase):
         prxy_b = proxy(lambda: b, int)
         self.assertEqual(prxy_a + prxy_b, 60)
         self.assertEqual(prxy_a * prxy_b, 500)
+
+    def test_real_descriptor(self):
+        class Field:
+            def __init__(self, value):
+                self.value = value
+
+            def __get__(self, instance, owner):
+                return self.value
+
+            def __eq__(self, other):
+                return other.value == self.value
+
+        class IntField(Field):
+            def __init__(self, value=0):
+                super().__init__(value)
+
+        class MockType:
+            a = IntField(41)
+            b = IntField(42)
+
+        materialized = []
+        prxy = proxy(lambda: materialized.append(1) or MockType(), MockType)
+        self.assertNotEqual(prxy.a, prxy.b)
+        self.assertEqual(len(materialized), 1)
+
+    def test_proxy_set(self):
+        class Field:
+            def __init__(self, value):
+                self.value = value
+
+            def __get__(self, instance, owner):
+                return self.value
+
+            def __set__(self, instance, value):
+                self.value = value
+
+            def __eq__(self, other):
+                return other.value == self.value
+
+        class IntField(Field):
+            def __init__(self, value=0):
+                super().__init__(value)
+
+        class MockType:
+            a = IntField(41)
+            b = IntField(42)
+
+        materialized = []
+        prxy = proxy(lambda: materialized.append(1) or MockType(), MockType)
+        prxy.a = 42
+        self.assertEqual(len(materialized), 1)
+        self.assertEqual(prxy.a, prxy.b)
+
+
+    def test_exception(self):
+        class CrazyException(Exception):
+            pass
+
+        class CrazyClass:
+            def crazy_func(self):
+                raise CrazyException("Ahaa")
+
+        with self.assertRaises(CrazyException):
+            prxy: CrazyClass = proxy(lambda: CrazyClass(), CrazyClass)
+            prxy.crazy_func()
