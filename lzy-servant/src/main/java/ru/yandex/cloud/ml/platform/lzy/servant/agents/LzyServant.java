@@ -317,7 +317,7 @@ public class LzyServant extends LzyAgent {
                 Map.of(
                     "task_id", taskId,
                     "address", agentAddress.toString(),
-                    "exit_code", String.valueOf(1)
+                    "exit_code", String.valueOf(0)
                 ),
                 UserEvent.UserEventType.TaskStop
             ));

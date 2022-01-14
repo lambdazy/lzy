@@ -14,7 +14,16 @@ variable "kharon_public_ip" {}
 
 variable "backoffice_public_ip" {}
 
+variable "grafana_public_ip" {
+  default = ""
+}
+
 variable "kharon_load_balancer_necessary_annotations" {
+  type    = map(string)
+  default = {}
+}
+
+variable "grafana_load_balancer_necessary_annotations" {
   type    = map(string)
   default = {}
 }
@@ -37,6 +46,11 @@ variable "backoffice-backend-image" {
 variable "clickhouse-image" {
   type    = string
   default = "clickhouse/clickhouse-server"
+}
+
+variable "grafana-image" {
+  type    = string
+  default = "lzydock/grafana:testing-2"
 }
 
 variable "kharon-image" {
