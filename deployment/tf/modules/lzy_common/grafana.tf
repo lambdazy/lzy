@@ -28,7 +28,7 @@ resource "kubernetes_deployment" "grafana" {
           }
           env {
             name = "CLICKHOUSE_URL"
-            value = "http://clickhouse-service.default.svc.cluster.local:8123"
+            value = "http://${kubernetes_service.clickhouse_service.spec[0].cluster_ip}:8123"
           }
           env {
             name = "CLICKHOUSE_USER"
@@ -73,6 +73,7 @@ resource "kubernetes_deployment" "grafana" {
 }
 
 resource "kubernetes_service" "grafana_service" {
+  count = var.grafana_public_ip != "" ? 1 : 0
   metadata {
     name = "grafana-service"
     annotations = var.grafana_load_balancer_necessary_annotations

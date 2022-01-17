@@ -144,7 +144,7 @@ resource "kubernetes_deployment" "server" {
           }
           env {
             name = "KAFKA_LOGS_HOST"
-            value = "kafka.default.svc.cluster.local:9092"
+            value = var.kafka-url
           }
 
           env {

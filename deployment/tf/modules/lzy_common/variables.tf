@@ -10,9 +10,13 @@ variable "oauth-github-client-secret" {
   type = string
 }
 
-variable "kharon_public_ip" {}
+variable "kharon_public_ip" {
+  default = ""
+}
 
-variable "backoffice_public_ip" {}
+variable "backoffice_public_ip" {
+  default = ""
+}
 
 variable "grafana_public_ip" {
   default = ""
@@ -125,4 +129,9 @@ variable "ssl-keystore-password" {
 
 variable "servant-image" {
   type = string
+}
+
+variable "kafka-url" {
+  type = string
+  default = "kafka.default.svc.cluster.local:9092"
 }
