@@ -1,5 +1,4 @@
 import base64
-import inspect
 import os
 from pathlib import Path
 from typing import Any
@@ -10,7 +9,7 @@ import time
 
 from lzy.api.lazy_op import LzyRemoteOp
 from lzy.api.utils import lazy_proxy
-from lzy.model.zygote_python_func import FuncContainer
+from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 
@@ -26,29 +25,28 @@ def load_arg(path: Path) -> Any:
 
 def main():
     argv = sys.argv[1:]
-    servant: ServantClient = BashServantClient()
+    servant: ServantClient = BashServantClient.instance()
 
     print("Loading function")
-    container: FuncContainer = cloudpickle.loads(base64.b64decode(argv[0].encode('ascii')))
-    print("Function loaded: " + container.func.__name__)
-
-    params_names = list(inspect.signature(container.func).parameters)
+    func_s: FuncSignature = cloudpickle.loads(base64.b64decode(argv[0].encode('ascii')))
+    print("Function loaded: " + func_s.name)
     args = tuple(
         lazy_proxy(
-            lambda i=i: load_arg(Path(os.path.join(os.path.sep, servant.mount(), container.func.__name__, params_names[i]))),
-            container.input_types[i],
-            {})
-        for i in range(len(params_names))
+            lambda name=name: load_arg(servant.mount() / func_s.name / name),
+            inp_type,
+            {}
+        )
+        for name, inp_type in zip(func_s.param_names, func_s.input_types)
     )
-    print(f"Loaded {len(args)} args")
+    lazy_call = CallSignature(func_s, args)
+    print(f"Loaded {len(args)} lazy args")
 
-    print(f'Running {container.func.__name__}')
-    op = LzyRemoteOp(servant, container.func, container.input_types,
-                     container.output_type, deployed=True, args=args)
+    print(f'Running {func_s.name}')
+    op = LzyRemoteOp(servant, lazy_call, deployed=True)
     result = op.materialize()
     print(f'Result of execution {result}')
 
-    result_path = os.path.join(os.path.sep, servant.mount(), container.func.__name__, "return")
+    result_path = servant.mount() / func_s.name / "return"
     print(f'Writing result to file {result_path}')
     with open(result_path, 'wb') as out_handle:
         cloudpickle.dump(result, out_handle)
