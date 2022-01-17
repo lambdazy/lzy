@@ -1,0 +1,37 @@
+# config file version
+apiVersion: 1
+
+# list of datasources that should be deleted from the database
+deleteDatasources:
+  - name: ClickHouse
+    orgId: 1
+
+# list of datasources to insert/update depending
+# what's available in the database
+datasources:
+  # <string, required> name of the datasource. Required
+  - name: ClickHouse
+    # <string, required> datasource type. Required
+    type: vertamedia-clickhouse-datasource
+    # <string, required> access mode. proxy or direct (Server or Browser in the UI). Required
+    access: proxy
+    # <int> org id. will default to orgId 1 if not specified
+    orgId: 1
+    # <string> custom UID which can be used to reference this datasource in other parts of the configuration, if not specified will be generated automatically
+    uid: clickhouse
+    # <string> url
+    url: $CLICKHOUSE_URL
+    # <string> database name, if used
+    database: default
+    # <bool> enable/disable basic auth
+    basicAuth: true
+    # <string> basic auth username
+    basicAuthUser: $CLICKHOUSE_USER
+    # <bool> mark as default datasource. Max one per org
+    isDefault: true
+    # <string> json object of data that will be encrypted.
+    secureJsonData:
+      # <string> basic auth password
+      basicAuthPassword: $CLICKHOUSE_PASSWORD
+    version: 1
+    editable: false

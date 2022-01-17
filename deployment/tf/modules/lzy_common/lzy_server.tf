@@ -138,6 +138,14 @@ resource "kubernetes_deployment" "server" {
             name  = "SERVANT_IMAGE"
             value = var.servant-image
           }
+          env {
+            name  = "KAFKA_LOGS_ENABLED"
+            value = true
+          }
+          env {
+            name = "KAFKA_LOGS_HOST"
+            value = var.kafka-url
+          }
 
           env {
             name = "DATABASE_PASSWORD"
