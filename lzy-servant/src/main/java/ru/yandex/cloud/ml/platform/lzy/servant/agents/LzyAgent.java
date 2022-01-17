@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -30,12 +32,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFsManagerImpl;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyScript;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -60,8 +57,12 @@ public abstract class LzyAgent implements Closeable {
         final long start = System.currentTimeMillis();
         this.mount = config.getRoot();
         this.serverAddress = config.getServerAddress();
-
-        this.lzyFS = new LzyFsManagerImpl();
+        if (SystemUtils.IS_OS_MAC) {
+            this.lzyFS = new LzyMacosFsManagerImpl();
+        }
+        else{
+            this.lzyFS = new LzyLinuxFsManagerImpl();
+        }
         LOG.info("Mounting LZY FS: " + mount);
         this.lzyFS.mount(mount);
         //this.lzyFS.mount(mount, false, true);
