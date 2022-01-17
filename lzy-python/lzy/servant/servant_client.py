@@ -1,4 +1,4 @@
-import abc
+from abc import ABC, abstractmethod
 import logging
 import uuid
 from enum import Enum
@@ -28,74 +28,73 @@ class ExecutionResult:
         return self._rc
 
 
-class Execution:
-    @abc.abstractmethod
+class Execution(ABC):
+    @abstractmethod
     def id(self) -> str:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def bindings(self) -> Bindings:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def wait_for(self) -> ExecutionResult:
         pass
 
 
-class ServantClient:
-
+class ServantClient(ABC):
     class CredentialsTypes(Enum):
         S3 = "s3"
 
     def __init__(self):
         self._log = logging.getLogger(str(self.__class__))
 
-    @abc.abstractmethod
+    @abstractmethod
     def mount(self) -> Path:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_slot_path(self, slot: Slot) -> Path:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def create_channel(self, channel: Channel):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def destroy_channel(self, channel: Channel):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def touch(self, slot: Slot, channel: Channel):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def publish(self, zygote: Zygote):
         pass
 
     def run(self, zygote: Zygote, slots_to_entry_id: Optional[Mapping[Slot, str]]) -> Execution:
         execution_id = str(uuid.uuid4())
-        self._log.info(f"Running zygote {zygote.name()}, execution id {execution_id}")
+        self._log.info(f"Running zygote {zygote.name}, execution id {execution_id}")
 
         bindings = []
-        for slot in zygote.slots():
-            slot_full_name = "/task/" + execution_id + slot.name()
-            local_slot = create_slot(slot_full_name, Direction.opposite(slot.direction()))
-            channel = Channel(':'.join([execution_id, slot.name()]))
+        for slot in zygote.slots:
+            slot_full_name = "/task/" + execution_id + slot.name
+            local_slot = create_slot(slot_full_name, Direction.opposite(slot.direction))
+            channel = Channel(':'.join([execution_id, slot.name]))
             self.create_channel(channel)
             self.touch(local_slot, channel)
             bindings.append(Binding(local_slot, slot, channel))
 
         return self._execute_run(execution_id, zygote, Bindings(bindings), slots_to_entry_id)
 
-    @abc.abstractmethod
+    @abstractmethod
     def _execute_run(self, execution_id: str, zygote: Zygote, bindings: Bindings, entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_credentials(self, typ: CredentialsTypes) -> StorageCredentials:
         pass
 
     def _zygote_path(self, zygote: Zygote) -> str:
-        return f"{self.mount()}/bin/{zygote.name()}"
+        return f"{self.mount()}/bin/{zygote.name}"
