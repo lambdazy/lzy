@@ -1,15 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.DockerEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvConfig.MountDescription;
 
 public class EnvFactory {
@@ -20,19 +16,20 @@ public class EnvFactory {
         throws EnvironmentInstallationException {
         final String resourcesPathStr = "/tmp/resources/";
         config.mounts.add(new MountDescription(resourcesPathStr, resourcesPathStr));
+        final BaseEnvironment baseEnv = (zygote == null || !(zygote.env() instanceof DockerEnv)) ?
+            new ProcessEnvironment():
+            new DockerEnvironment(config);
+
         if (zygote == null) {
-            return new SimpleBashEnvironment(config);
+            return new SimpleBashEnvironment(baseEnv);
         }
 
         if (zygote.env() instanceof PythonEnv) {
             LOG.info("Conda environment is provided, using CondaEnvironment");
-            return new CondaEnvironment((PythonEnv) zygote.env(), config);
-        } else if (zygote.env() instanceof DockerEnv) {
-            LOG.info("Docker environment is provided, using DockerEnvironment");
-            return new BaseEnv(config);
+            return new CondaEnvironment((PythonEnv) zygote.env(), baseEnv);
         } else {
             LOG.info("No environment provided, using SimpleBashEnvironment");
-            return new SimpleBashEnvironment(config);
+            return new SimpleBashEnvironment(baseEnv);
         }
     }
 }

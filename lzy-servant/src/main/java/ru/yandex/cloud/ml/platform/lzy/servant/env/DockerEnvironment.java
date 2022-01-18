@@ -25,15 +25,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import org.apache.commons.io.output.NullOutputStream;
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
 
-public class BaseEnv implements Environment {
+public class DockerEnvironment implements BaseEnvironment {
 
-    private static final Logger LOG = LogManager.getLogger(BaseEnv.class);
+    private static final Logger LOG = LogManager.getLogger(BaseEnvironment.class);
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
 
     public final CreateContainerResponse container;
@@ -42,7 +41,7 @@ public class BaseEnv implements Environment {
         return "celdwind/lzy:default-env";
     }
 
-    public BaseEnv(EnvConfig config) {
+    public DockerEnvironment(EnvConfig config) {
         LOG.info("Creating container: image={}, ", defaultImage());
         LOG.info("Mount options: {}", config.mounts.toString());
         final List<Mount> dockerMounts = new ArrayList<>();

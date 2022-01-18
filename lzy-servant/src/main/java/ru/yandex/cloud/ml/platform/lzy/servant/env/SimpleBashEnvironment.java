@@ -1,7 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
-import java.util.Arrays;
-import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
@@ -11,11 +9,17 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
 
-public class SimpleBashEnvironment extends BaseEnv {
+public class SimpleBashEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(SimpleBashEnvironment.class);
+    private final BaseEnvironment baseEnv;
 
-    public SimpleBashEnvironment(EnvConfig config) {
-        super(config);
+    public SimpleBashEnvironment(BaseEnvironment baseEnv) {
+        this.baseEnv = baseEnv;
+    }
+
+    @Override
+    public BaseEnvironment base() {
+        return baseEnv;
     }
 
     @Override
@@ -25,12 +29,12 @@ public class SimpleBashEnvironment extends BaseEnv {
         throws EnvironmentInstallationException, LzyExecutionException {
         LOG.info("Executing command " + command);
         String[] bashCmd = new String[]{"bash", "-c", command};
-        return super.runProcess(bashCmd, envp);
+        return baseEnv.runProcess(bashCmd, envp);
     }
 
     @Override
     public LzyProcess runProcess(String... command)
-        throws EnvironmentInstallationException, LzyExecutionException {
+        throws LzyExecutionException {
 
         try {
             LOG.info("bash exec in docker env");

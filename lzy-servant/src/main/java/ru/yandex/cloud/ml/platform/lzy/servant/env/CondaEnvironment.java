@@ -15,19 +15,22 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-public class CondaEnvironment extends BaseEnv {
+
+public class CondaEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
-    private final PythonEnv env;
+    private final PythonEnv pythonEnv;
+    private final BaseEnvironment baseEnv;
     private final AtomicBoolean envInstalled = new AtomicBoolean(false);
 
-    public CondaEnvironment(PythonEnv env, EnvConfig config) {
-        super(config);
-        this.env = env;
+    public CondaEnvironment(PythonEnv pythonEnv, BaseEnvironment baseEnv) {
+        this.pythonEnv = pythonEnv;
+        this.baseEnv = baseEnv;
+    }
+
+    @Override
+    public BaseEnvironment base() {
+        return baseEnv;
     }
 
     private void installPyenv() throws EnvironmentInstallationException {
@@ -36,7 +39,7 @@ public class CondaEnvironment extends BaseEnv {
             final String yamlBindPath = "/tmp/resources/conda.yaml";
 
             try (FileWriter file = new FileWriter(yamlPath)) {
-                file.write(env.yaml());
+                file.write(pythonEnv.yaml());
             }
             // --prune removes packages not specified in yaml, so probably it has not to be there
             final LzyProcess lzyProcess = execInEnv("conda env update --file " + yamlBindPath); // + " --prune");
@@ -71,9 +74,9 @@ public class CondaEnvironment extends BaseEnv {
     private LzyProcess execInEnv(String command, String[] envp)
         throws IOException, EnvironmentInstallationException, LzyExecutionException {
         LOG.info("Executing command " + command);
-        return super.runProcess("bash", "-c",
+        return baseEnv.runProcess("bash", "-c",
             "source /root/miniconda3/etc/profile.d/conda.sh && " +
-                "conda activate " + env.name() + " && " + command,
+                "conda activate " + pythonEnv.name() + " && " + command,
             envp
         );
     }

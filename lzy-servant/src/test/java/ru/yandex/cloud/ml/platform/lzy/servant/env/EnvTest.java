@@ -13,7 +13,7 @@ public class EnvTest {
     @Test
     public void testEnvRunSimple()
         throws Exception {
-        final BaseEnv env = new BaseEnv(new EnvConfig());
+        final BaseEnvironment env = new BaseEnvironment(new EnvConfig());
 
         final LzyProcess job = env.runProcess("/bin/bash", "-c", "echo 42 && echo 43 > /dev/stderr");
 
@@ -39,7 +39,7 @@ public class EnvTest {
         throws Exception {
         final EnvConfig envConfig = new EnvConfig();
         envConfig.mounts.add(new MountDescription("/tmp/resources", "/tmp/resources"));
-        final BaseEnv env = new BaseEnv(envConfig);
+        final BaseEnvironment env = new BaseEnvironment(envConfig);
 
         try (FileWriter file = new FileWriter("/tmp/resources/conda.yaml")) {
             file.write(String.join("\n",
