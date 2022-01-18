@@ -2,11 +2,11 @@ import json
 import logging
 import os
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional, Mapping, Union
+from typing import Any, Dict, Optional, Mapping
 
+import sys
 from time import sleep
 
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials
@@ -135,11 +135,11 @@ class BashServantClient(ServantClient):
         data: dict = json.loads(out)
         if "azure" in data:
             return AzureCredentials(data["azure"]["connectionString"])
-        return AmazonCredentials(data["amazon"]["endpoint"], data["amazon"]["accessToken"], data["amazon"]["secretToken"])
+        return AmazonCredentials(data["amazon"]["endpoint"], data["amazon"]["accessToken"],
+                                 data["amazon"]["secretToken"])
 
-    def _execute_run(self, execution_id: str, zygote: Zygote,
-                     bindings: Bindings, entry_id_mapping: Optional[
-                Mapping[Slot, str]]) -> Execution:
+    def run(self, execution_id: str, zygote: Zygote,
+            bindings: Bindings, entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
         slots_mapping_file = tempfile.mktemp(prefix="lzy_slot_mapping_",
                                              suffix=".json", dir="/tmp/")
         entry_id_mapping_file = tempfile.mktemp(prefix="entry_id_mapping_",
