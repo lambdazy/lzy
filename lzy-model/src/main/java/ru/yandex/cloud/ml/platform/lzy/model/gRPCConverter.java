@@ -49,9 +49,8 @@ public abstract class gRPCConverter {
         Operations.Env.Builder builder = Operations.Env.newBuilder();
         if (env instanceof PythonEnv) {
             builder.setPyenv(to((PythonEnv) env));
-        } else if (env instanceof DockerEnv) {
-            builder.setDocker(to((DockerEnv) env));
         }
+        // TODO (lindvv) 86682: builder.setBaseEnv();
         return builder.build();
     }
 
@@ -69,9 +68,9 @@ public abstract class gRPCConverter {
                 .build();
     }
 
-    public static Operations.DockerEnv to(DockerEnv env) {
-        return Operations.DockerEnv.newBuilder() // TODO lindvv
-            .setUri(env.uri().toString())
+    public static Operations.BaseEnv to(BaseEnv env) {
+        return Operations.BaseEnv.newBuilder()
+            .setName(env.name())
             .build();
     }
 
@@ -116,8 +115,8 @@ public abstract class gRPCConverter {
         if (env.hasPyenv()) {
             return envFrom(env.getPyenv());
         }
-        if (env.hasDocker()) {
-            return envFrom(env.getDocker());
+        if (env.hasBaseEnv()) {
+            // TODO 86682: envFrom(env.getBaseEnv());
         }
         return null;
     }
@@ -126,8 +125,8 @@ public abstract class gRPCConverter {
         return new PythonEnvAdapter(env);
     }
 
-    private static DockerEnv envFrom(Operations.DockerEnv env) {
-        return new DockerEnvAdapter(env);
+    private static BaseEnv envFrom(Operations.BaseEnv env) {
+        return new BaseEnvAdapter(env);
     }
 
 
@@ -431,18 +430,16 @@ public abstract class gRPCConverter {
         }
     }
 
-    private static class DockerEnvAdapter implements DockerEnv {
-        private final Operations.DockerEnv env;
+    private static class BaseEnvAdapter implements BaseEnv {
+        private final Operations.BaseEnv env;
 
-        public DockerEnvAdapter(Operations.DockerEnv env) {
+        public BaseEnvAdapter(Operations.BaseEnv env) {
             this.env = env;
         }
 
-        // TODO lindvv
-
         @Override
         public URI uri() {
-            return URI.create(env.getUri());
+            return URI.create("baseEnv/" + env.getName());
         }
 
         @Override

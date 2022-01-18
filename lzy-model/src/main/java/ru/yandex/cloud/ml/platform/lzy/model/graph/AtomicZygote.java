@@ -1,11 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.model.graph;
 
-
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 public interface AtomicZygote extends Zygote {
-  Env env();
+  Env env(); // TODO 86682: add BaseEnv;
   String description();
   String fuze();
   Provisioning provisioning();
