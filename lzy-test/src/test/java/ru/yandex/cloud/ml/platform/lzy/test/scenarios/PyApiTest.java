@@ -43,6 +43,19 @@ public class PyApiTest extends LzyBaseTest {
     }
 
     @Test
+    public void testSimplePyGraphWithAssertions() {
+        //Arrange
+        String condaPrefix = prepareConda();
+        final String pyCommand = "python /lzy-python/examples/integration/simple_graph_with_assertions.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + pyCommand);
+
+        //Assert
+        Assert.assertEquals("6", Utils.lastLine(result.stdout()));
+    }
+    @Test
     public void testSimpleCatboostGraph() {
         //Arrange
         String condaPrefix = prepareConda();

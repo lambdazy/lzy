@@ -41,7 +41,7 @@
         <guava.version>25.0-jre</guava.version>
         <httpcore.version>4.4.8</httpcore.version>
         <httpclient.version>4.5.9</httpclient.version>
-        <log4j.version>2.17.0</log4j.version>
+        <log4j.version>2.17.1</log4j.version>
         <commons-lang3.version>3.9</commons-lang3.version>
         <commons-pool2.version>2.11.1</commons-pool2.version>
         <commons-math3.version>3.6.1</commons-math3.version>
@@ -90,7 +90,7 @@
         <flyway-core.version>7.5.2</flyway-core.version>
         <envoy.version>0.1.28</envoy.version>
         <unified-agent-client.version>8232432</unified-agent-client.version>
-        <jnr-fuse.version>0.5.4</jnr-fuse.version>
+        <jnr-fuse.version>0.5.7</jnr-fuse.version>
         <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
         <hibernate.version>5.6.0.Final</hibernate.version>
         <micronaut.version>3.1.3</micronaut.version>

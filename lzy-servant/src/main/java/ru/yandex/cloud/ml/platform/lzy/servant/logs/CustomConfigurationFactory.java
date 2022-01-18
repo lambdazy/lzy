@@ -31,7 +31,8 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
                         "\"message\": \"%enc{%msg}{JSON}\", " +
                         "\"servant\": \"" + System.getenv("LZYTASK") + "\", " +
                         "\"exception\": \"%enc{%ex}{JSON}\"" +
-                        "}"
+                        "}",
+                "servant"
         );
     }
 

@@ -1,9 +1,7 @@
-import functools
 import inspect
 import sys
 import pkg_resources
 
-from types import ModuleType
 from typing import Any, Dict, Iterable, List, Tuple
 
 import yaml
@@ -52,7 +50,7 @@ def create_yaml(installed_packages: Dict[str, Tuple[str, ...]],
         name = _installed_versions[python_version]
         deps: List[Any] = []
     else:
-        name = 'default'
+        name = name
         deps = [f'python=={python_version}']
 
     deps.append('pip')

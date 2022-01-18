@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.logs;
 
 
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.ConfigurationFactory;
@@ -11,6 +12,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.utils.KafkaLogsConfiguration;
 
 import java.util.Objects;
 
+@Plugin(name = "CustomConfigurationFactory", category = "ConfigurationFactory")
+@Order(10)
 public class CustomConfigurationFactory extends ConfigurationFactory {
 
     public static final String[] SUFFIXES = new String[] {".yaml", ".yml", "*"};
@@ -28,7 +31,8 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
                     " \"logger\": \"%logger{36}\"," +
                     " \"message\": \"%enc{%msg}{JSON}\"," +
                     " \"exception\": \"%enc{%ex}{JSON}\"" +
-                    "}"
+                    "}",
+            "server"
         );
     }
 
