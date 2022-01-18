@@ -1,20 +1,22 @@
 import copyreg
 import logging
 import os
+import uuid
 from abc import abstractmethod, ABC
-import time
 from typing import Optional, Any, TypeVar, Generic
 
 import cloudpickle
-
-from lzy.model.env import PyEnv
-from lzy.model.return_codes import PyReturnCode, ReturnCode
-from lzy.model.signatures import CallSignature, FuncSignature
-from lzy.model.zygote_python_func import ZygotePythonFunc
-from lzy.model.zygote import Zygote, Provisioning
+import time
 
 from lzy.api.whiteboard.api import EntryIdGenerator
-
+from lzy.model.channel import Channel, Binding, Bindings
+from lzy.model.env import PyEnv
+from lzy.model.file_slots import create_slot
+from lzy.model.return_codes import PyReturnCode, ReturnCode
+from lzy.model.signatures import CallSignature
+from lzy.model.slot import Direction, Slot
+from lzy.model.zygote import Zygote, Provisioning
+from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant_client import ServantClient
 
 T = TypeVar('T')
@@ -100,66 +102,77 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         return self._zygote
 
     def execution_logic(self):
-        bindings = {self._zygote.return_slot: self._return_entry_id} if self._return_entry_id else None
-        execution = self._servant.run(self._zygote, bindings)
+        entry_id_mapping = {self._zygote.return_slot: self._return_entry_id} if self._return_entry_id else None
+        execution_id = str(uuid.uuid4())
+        self._log.info(f"Running zygote {self._zygote.name}, execution id {execution_id}")
 
-        call_s = self.signature
-        slots = self._zygote.arg_slots
-        for arg, name, slot in zip(call_s.args, call_s.func.param_names, slots):
-            local_slot = execution.bindings().local_slot(slot)
-            if not local_slot:
-                raise RuntimeError(f"Slot {slot.name} not binded")
-            self._log.info(
-                f"Writing argument {name} to local slot {local_slot.name}")
-
-            with open(self._servant.get_slot_path(local_slot), 'wb') as handle:
-                cloudpickle.dump(arg, handle)
-                handle.flush()
-                os.fsync(handle.fileno())
-
-            self._log.info(
-                f"Written argument {name} to local slot {local_slot.name}")
-
-        return_local_slot = execution.bindings().local_slot(
-            self._zygote.return_slot)
-        if not return_local_slot:
-            raise RuntimeError(f"Slot {self._zygote.return_slot.name} not binded")
-        return_slot_path = self._servant.get_slot_path(return_local_slot)
-        self._log.info(f"Reading result from {return_slot_path}")
-
-        func = call_s.func.callable
-        deserialization_failed: bool = False
+        bindings = []
         try:
-            with open(return_slot_path, 'rb') as handle:
-                # Wait for slot become open
-                while handle.read(1) is None:
-                    time.sleep(0)  # Thread.yield
-                handle.seek(0)
-                self._materialization = cloudpickle.load(handle)
-            self._log.info(f"Read result from {return_slot_path}")
-        # noinspection PyBroadException
-        except Exception as e:
-            self._log.error(f"Failed to read result from {return_slot_path}\n{e}")
-            deserialization_failed = True
+            for slot in self._zygote.slots:
+                binding = self._create_binding(execution_id, slot)
+                bindings.append(binding)
+            execution = self._servant.run(execution_id, self._zygote, Bindings(bindings), entry_id_mapping)
+
+            call_s = self.signature
+            slots = self._zygote.arg_slots
+            for arg, name, slot in zip(call_s.args, call_s.func.param_names, slots):
+                local_slot = execution.bindings().local_slot(slot)
+                if not local_slot:
+                    raise RuntimeError(f"Slot {slot.name} not binded")
+                self._log.info(
+                    f"Writing argument {name} to local slot {local_slot.name}")
+
+                with open(self._servant.get_slot_path(local_slot), 'wb') as handle:
+                    cloudpickle.dump(arg, handle)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+
+                self._log.info(
+                    f"Written argument {name} to local slot {local_slot.name}")
+
+            return_local_slot = execution.bindings().local_slot(
+                self._zygote.return_slot)
+            if not return_local_slot:
+                raise RuntimeError(f"Slot {self._zygote.return_slot.name} not binded")
+            return_slot_path = self._servant.get_slot_path(return_local_slot)
+            self._log.info(f"Reading result from {return_slot_path}")
+
+            func = call_s.func.callable
+            deserialization_failed: bool = False
+            try:
+                with open(return_slot_path, 'rb') as handle:
+                    # Wait for slot become open
+                    while handle.read(1) is None:
+                        time.sleep(0)  # Thread.yield
+                    handle.seek(0)
+                    self._materialization = cloudpickle.load(handle)
+                self._log.info(f"Read result from {return_slot_path}")
+            # noinspection PyBroadException
+            except Exception as e:
+                self._log.error(f"Failed to read result from {return_slot_path}\n{e}")
+                deserialization_failed = True
+            finally:
+                result = execution.wait_for()
+
+            rc = result.rc()
+            if rc != 0:
+                if rc == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR.value:
+                    message = "Failed to install environment on remote machine"
+                elif rc == ReturnCode.EXECUTION_ERROR.value:
+                    message = "Lzy error"
+                else:
+                    message = "Execution error"
+                raise LzyExecutionException(message, func, execution, rc)
+            elif deserialization_failed:
+                raise LzyExecutionException("Return value deserialization failure",
+                                            func, execution,
+                                            PyReturnCode.DESERIALIZATION_FAILURE)
+
+            self._log.info("Executed task %s for func %s with rc %s",
+                           execution.id()[:4], self.signature.func.name, rc)
         finally:
-            result = execution.wait_for()
-
-        rc = result.rc()
-        if rc != 0:
-            if rc == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR.value:
-                message = "Failed to install environment on remote machine"
-            elif rc == ReturnCode.EXECUTION_ERROR.value:
-                message = "Lzy error"
-            else:
-                message = "Execution error"
-            raise LzyExecutionException(message, func, execution, rc)
-        elif deserialization_failed:
-            raise LzyExecutionException("Return value deserialization failure",
-                                        func, execution,
-                                        PyReturnCode.DESERIALIZATION_FAILURE)
-
-        self._log.info("Executed task %s for func %s with rc %s",
-                       execution.id()[:4], self.signature.func.name, rc)
+            for binding in bindings:
+                self._destroy_binding(binding)
 
     def materialize(self) -> Any:
         name = self.signature.func.name
@@ -196,6 +209,17 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
     def return_entry_id(self) -> Optional[str]:
         return self._return_entry_id
+
+    def _create_binding(self, execution_id: str, slot: Slot) -> Binding:
+        slot_full_name = "/task/" + execution_id + slot.name
+        local_slot = create_slot(slot_full_name, Direction.opposite(slot.direction))
+        channel = Channel(':'.join([execution_id, slot.name]))
+        self._servant.create_channel(channel)
+        self._servant.touch(local_slot, channel)
+        return Binding(local_slot, slot, channel)
+
+    def _destroy_binding(self, binding: Binding) -> None:
+        self._servant.destroy_channel(binding.channel)
 
 
 copyreg.dispatch_table[LzyRemoteOp] = LzyRemoteOp.reducer  # type: ignore
