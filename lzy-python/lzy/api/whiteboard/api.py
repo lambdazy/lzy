@@ -128,7 +128,7 @@ class InMemWhiteboardApi(WhiteboardApi):
         return [WhiteboardInfo(wb.id, wb.status) for key, wb in self.__whiteboards.items()]
 
     def get_whiteboard_by_type(self, serialized_type: str) -> List[WhiteboardDescription]:
-        return [wb for wb in self.__whiteboards if self.__types[wb.id] == str]
+        return [wb for wb in list(self.__whiteboards.values()) if self.__types[wb.id] == str]
 
 
 class InMemSnapshotApi(SnapshotApi):
