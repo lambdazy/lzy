@@ -124,7 +124,7 @@ class WhiteboardBashApi(WhiteboardApi):
         return WhiteboardDescription(res['id'], fields, snapshot, status)
 
     @staticmethod
-    def _parse_wb_list_json(res: Dict[str, Any]) -> WhiteboardDescription:
+    def _parse_wb_list_json(res: Dict[str, Any]) -> List[WhiteboardDescription]:
         return [WhiteboardBashApi._parse_wb_json(field) for field in res.get('whiteboards', [])]
 
     @staticmethod
