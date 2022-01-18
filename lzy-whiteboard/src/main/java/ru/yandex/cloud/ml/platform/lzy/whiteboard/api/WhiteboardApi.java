@@ -9,6 +9,7 @@ import jakarta.inject.Singleton;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
@@ -29,6 +30,8 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
+
+import javax.validation.constraints.NotNull;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
@@ -70,8 +73,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         URI wbId = URI.create(UUID.randomUUID().toString());
         whiteboardRepository.create(
             new Whiteboard.Impl(wbId, new HashSet<>(request.getFieldNamesList()),
-                snapshotStatus.snapshot()));
-        final LzyWhiteboard.Whiteboard result = buildWhiteboard(wbId, responseObserver);
+                snapshotStatus.snapshot(), request.getType()));
+        final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardRepository
+                .resolveWhiteboard(wbId));
         if (result != null) {
             responseObserver.onNext(result);
         }
@@ -122,21 +126,13 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
             return;
         }
-        final LzyWhiteboard.Whiteboard result = buildWhiteboard(
-            URI.create(request.getWhiteboardId()), responseObserver);
-        if (result != null) {
-            responseObserver.onNext(result);
-        }
+        final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus);
+        responseObserver.onNext(result);
         responseObserver.onCompleted();
     }
 
-    private LzyWhiteboard.Whiteboard buildWhiteboard(URI id,
-        StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        WhiteboardStatus wb = whiteboardRepository.resolveWhiteboard(id);
+    public LzyWhiteboard.Whiteboard buildWhiteboard(WhiteboardStatus wb) {
         if (wb == null) {
-            responseObserver.onError(
-                Status.NOT_FOUND.withDescription("Cannot found whiteboard with id " + id)
-                    .asException());
             return null;
         }
         List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(wb.whiteboard())
@@ -182,5 +178,27 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 .build();
         responseObserver.onNext(response);
         responseObserver.onCompleted();
+    }
+
+    @Override
+    public void whiteboardsByType(LzyWhiteboard.WhiteboardsByTypeCommand request, StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
+
+        List<String> wbIds = whiteboardRepository.whiteboardsByType(URI.create(request.getAuth().getUser().getUserId()), request.getWhiteboardType());
+        List<LzyWhiteboard.Whiteboard> wbList = wbIds.stream()
+            .map(id -> whiteboardRepository.resolveWhiteboard(URI.create(id)))
+            .filter(Objects::nonNull)
+            .map(this::buildWhiteboard)
+            .collect(Collectors.toList());
+        final LzyWhiteboard.WhiteboardsResponse response = LzyWhiteboard.WhiteboardsResponse
+                .newBuilder()
+                .addAllWhiteboards(wbList)
+                .build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+
     }
 }

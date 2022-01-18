@@ -105,7 +105,7 @@ public class PyApiTest extends LzyBaseTest {
                 condaPrefix + pyCommand);
 
         //Assert
-        Assert.assertTrue(result.stdout().contains("42 42"));
+        Assert.assertTrue(result.stdout().contains("42 42 42 42"));
         Assert.assertTrue(result.stdout().contains("COMPLETED"));
     }
 }

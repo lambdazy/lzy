@@ -19,6 +19,7 @@ service WbApi {
   rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
   rpc Link (LinkCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
+  rpc WhiteboardsByType (WhiteboardsByTypeCommand) returns (WhiteboardsResponse);
   rpc Whiteboards (WhiteboardsCommand) returns (WhiteboardsInfo);
 }
 
@@ -35,6 +36,7 @@ message CreateWhiteboardCommand {
   Auth auth = 1;
   string snapshotId = 2;
   repeated string fieldNames = 3;
+  string type = 4;
 }
 
 message Snapshot {
@@ -122,4 +124,13 @@ message WhiteboardInfo {
 
 message WhiteboardsInfo {
   repeated WhiteboardInfo whiteboards = 1;
+}
+
+message WhiteboardsByTypeCommand {
+  Auth auth = 1;
+  string whiteboardType = 2;
+}
+
+message WhiteboardsResponse {
+  repeated Whiteboard whiteboards = 1;
 }

@@ -1,6 +1,8 @@
 import dataclasses
 import logging
 import os
+import base64
+import pickle
 from abc import abstractmethod, ABC
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
@@ -14,6 +16,7 @@ from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.terminal_server import TerminalServer
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
+from lzy.api.whiteboard.api import WhiteboardDescription
 
 T = TypeVar('T')
 
@@ -41,6 +44,10 @@ class LzyEnvBase(ABC):
 
     @abstractmethod
     def get_whiteboard(self, id: str, typ: Type[T]) -> T:
+        pass
+
+    @abstractmethod
+    def get_whiteboards_by_type(self, typ: Type[Any]) -> List[Any]:
         pass
 
     @abstractmethod
@@ -88,7 +95,8 @@ class WhiteboardExecutionContext:
             snapshot_id = self.snapshot_id
             if snapshot_id is None:
                 raise RuntimeError("Cannot create snapshot")
-            self._whiteboard_id = self.whiteboard_api.create([field.name for field in fields], snapshot_id).id
+            serialized_whiteboard = base64.b64encode(pickle.dumps(type(self.whiteboard), protocol = 2)).decode('ascii')
+            self._whiteboard_id = self.whiteboard_api.create([field.name for field in fields], snapshot_id, serialized_whiteboard).id
             return self._whiteboard_id
         return None
 
@@ -215,9 +223,22 @@ class LzyEnv(LzyEnvBase):
     def get_whiteboard(self, wid: str, typ: Type[Any]) -> Any:
         if not dataclasses.is_dataclass(typ):
             raise ValueError("Whiteboard must be dataclass")
+        return self._build_whiteboard(typ, self._execution_context.whiteboard_api.get(wid))
+
+    def get_whiteboards_by_type(self, typ: Type[Any]) -> List[Any]:
+        if not dataclasses.is_dataclass(typ):
+            raise ValueError("Whiteboard must be dataclass")
+        serialized_type = base64.b64encode(pickle.dumps(typ, protocol = 2)).decode('ascii')
+        whiteboards = self._execution_context.whiteboard_api.get_whiteboard_by_type(serialized_type)
+        wb_list = [self._build_whiteboard(typ, wb) for wb in whiteboards]
+        return wb_list
+
+    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
+        return self._execution_context.whiteboard_api.get_all()
+
+    def _build_whiteboard(self, typ: Type[Any], wb: WhiteboardDescription) -> Any:
         # noinspection PyDataclass
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
-        wb = self._execution_context.whiteboard_api.get(wid)
         whiteboard_dict = {
             field.field_name: self._execution_context.whiteboard_api.resolve(
                 field.storage_uri, field_types[field.field_name]) for field in  # type: ignore
@@ -226,6 +247,3 @@ class LzyEnv(LzyEnvBase):
         # noinspection PyArgumentList
         result = typ(**whiteboard_dict)
         return result
-
-    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
-        return self._execution_context.whiteboard_api.getAll()

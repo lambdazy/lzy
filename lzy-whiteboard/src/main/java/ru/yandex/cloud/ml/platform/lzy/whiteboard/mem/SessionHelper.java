@@ -127,8 +127,14 @@ public class SessionHelper {
 
         Query<WhiteboardFieldModel> query = session.createQuery(cr);
         List<WhiteboardFieldModel> results = query.getResultList();
-        results.forEach(f -> ((Set<String>) new HashSet<String>()).add(f.getFieldName()));
-        return new Whiteboard.Impl(URI.create(wbId), new HashSet<>(), snapshot);
+        Set<String> fieldNames = new HashSet<>();
+        results.forEach(f -> fieldNames.add(f.getFieldName()));
+
+        WhiteboardModel wbModel = session.find(WhiteboardModel.class, wbId);
+        if (wbModel == null || wbModel.getWbType() == null) {
+            return null;
+        }
+        return new Whiteboard.Impl(URI.create(wbId), fieldNames, snapshot, wbModel.getWbType());
     }
 
     @Nullable
@@ -166,7 +172,8 @@ public class SessionHelper {
             return null;
         }
         String spId = wbModel.getSnapshotId();
-        return new Whiteboard.Impl(URI.create(wbId), SessionHelper.getWhiteboardFieldNames(wbId, session), resolveSnapshot(spId, session));
+        return new Whiteboard.Impl(URI.create(wbId), SessionHelper.getWhiteboardFieldNames(wbId, session),
+                resolveSnapshot(spId, session), wbModel.getWbType());
     }
 
     @Nullable
@@ -191,5 +198,14 @@ public class SessionHelper {
         SnapshotEntry entry = new SnapshotEntry.Impl(id, snapshot);
         return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(),snapshotEntryModel.getEntryState(), entry,
                 Set.copyOf(dependentEntryIds), URI.create(snapshotEntryModel.getStorageUri()));
+    }
+
+    public static List<String> whiteboardsByType(URI uid, String wbType, Session session) {
+        String queryWhiteboardModelRequest = "SELECT w.wbId FROM WhiteboardModel w JOIN SnapshotModel s " +
+                "ON w.snapshotId = s.snapshotId WHERE s.uid = :uid AND w.wbType = :wbType AND w.wbState = 'COMPLETED'";
+        Query<String> queryWhiteboardModel = session.createQuery(queryWhiteboardModelRequest);
+        queryWhiteboardModel.setParameter("uid", uid.toString());
+        queryWhiteboardModel.setParameter("wbType", wbType);
+        return queryWhiteboardModel.list();
     }
 }

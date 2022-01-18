@@ -190,4 +190,15 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
         }
         return new ArrayList<>(fields.get(whiteboard.id()).values()).stream();
     }
+
+    @Override
+    public List<String> whiteboardsByType(URI uid, String type) {
+        return whiteboards.values()
+                .stream()
+                .filter(whiteboardStatus -> Objects.equals(snapshotToOwner.get(whiteboardStatus.whiteboard().snapshot().id()), uid))
+                .filter(whiteboardStatus -> Objects.equals(whiteboardStatus.whiteboard().type(), type))
+                .filter(whiteboardStatus -> Objects.equals(whiteboardStatus.state(), WhiteboardStatus.State.COMPLETED))
+                .map(whiteboardStatus -> whiteboardStatus.whiteboard().id().toString())
+                .collect(Collectors.toList());
+    }
 }

@@ -19,10 +19,14 @@ public class WhiteboardModel {
     @Column(name = "snapshot_id", nullable = false)
     private String snapshotId;
 
-    public WhiteboardModel(String wbId, WhiteboardStatus.State wbStatus, String snapshotId) {
+    @Column(columnDefinition="text", name = "whiteboard_type", nullable = false)
+    private String wbType;
+
+    public WhiteboardModel(String wbId, WhiteboardStatus.State wbStatus, String snapshotId, String type) {
         this.wbId = wbId;
         this.wbState = wbStatus;
         this.snapshotId = snapshotId;
+        this.wbType = type;
     }
 
     public WhiteboardModel() {
@@ -42,5 +46,9 @@ public class WhiteboardModel {
 
     public String getSnapshotId() {
         return snapshotId;
+    }
+
+    public String getWbType() {
+        return wbType;
     }
 }

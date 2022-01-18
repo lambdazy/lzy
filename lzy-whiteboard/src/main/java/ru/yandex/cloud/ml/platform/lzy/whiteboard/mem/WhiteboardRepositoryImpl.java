@@ -9,12 +9,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.LzySnapshot;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
@@ -36,6 +40,7 @@ import java.util.stream.Stream;
 @Singleton
 @Requires(beans = DbStorage.class)
 public class WhiteboardRepositoryImpl implements WhiteboardRepository {
+    private static final Logger LOG = LogManager.getLogger(LzySnapshot.class);
     @Inject
     DbStorage storage;
 
@@ -45,7 +50,7 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
             Transaction tx = session.beginTransaction();
             String wbId = whiteboard.id().toString();
             WhiteboardModel wbModel = new WhiteboardModel(wbId, WhiteboardStatus.State.CREATED,
-                    whiteboard.snapshot().id().toString());
+                    whiteboard.snapshot().id().toString(), whiteboard.type());
             List<WhiteboardFieldModel> whiteboardFieldModels = whiteboard.fieldNames().stream()
                     .map(fieldName -> new WhiteboardFieldModel(wbId, fieldName, null))
                     .collect(Collectors.toList());
@@ -125,6 +130,14 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
                     .map(w -> SessionHelper.getWhiteboardField(w, whiteboard, snapshot, session))
                     .collect(Collectors.toList());
             return result.stream();
+        }
+    }
+
+    @Override
+    public List<String> whiteboardsByType(URI uid, String type) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            List<String> result = SessionHelper.whiteboardsByType(uid, type, session);
+            return result;
         }
     }
 }

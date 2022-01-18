@@ -26,6 +26,8 @@ public class Whiteboard implements LzyCommand {
         options.addOption(new Option("f", "field", true, "Whiteboard field for mapping"));
         options.addOption(
             new Option("l", "fields list", true, "Whiteboard fields comma-separated list"));
+        options.addOption(
+                new Option("t", "type", true, "Serialized whiteboard class used as whiteboard type"));
     }
 
     @Override
@@ -58,13 +60,18 @@ public class Whiteboard implements LzyCommand {
                 if (!localCmd.hasOption('l')) {
                     throw new IllegalArgumentException("Whiteboard fields list must be specified");
                 }
+                if (!localCmd.hasOption('t')) {
+                    throw new IllegalArgumentException("Whiteboard type must be specified");
+                }
                 final List<String> fields = List.of(localCmd.getOptionValue('l').split(","));
+                final String wbType = localCmd.getOptionValue('t');
                 final LzyWhiteboard.Whiteboard whiteboardId = server
                     .createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
                         .newBuilder()
                         .setSnapshotId(command.getArgs()[2])
                         .addAllFieldNames(fields)
                         .setAuth(auth)
+                        .setType(wbType)
                         .build()
                     );
                 System.out.println(JsonFormat.printer().print(whiteboardId));
@@ -107,6 +114,21 @@ public class Whiteboard implements LzyCommand {
                         .build()
                 );
                 System.out.println(JsonFormat.printer().print(whiteboardsInfo));
+                break;
+            }
+            case "getByType": {
+                if (!localCmd.hasOption('t')) {
+                    throw new IllegalArgumentException(
+                            "Get whiteboard by type command requires whiteboard type");
+                }
+                final String type = localCmd.getOptionValue('t');
+                final LzyWhiteboard.WhiteboardsResponse whiteboards = server.whiteboardsByType(LzyWhiteboard.WhiteboardsByTypeCommand
+                        .newBuilder()
+                        .setAuth(auth)
+                        .setWhiteboardType(type)
+                        .build()
+                );
+                System.out.println(JsonFormat.printer().print(whiteboards));
                 break;
             }
         }

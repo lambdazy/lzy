@@ -59,7 +59,7 @@ class SnapshotApi(ABC):
 class WhiteboardApi(ABC):
 
     @abstractmethod
-    def create(self, fields: List[str], snapshot_id: str) -> WhiteboardDescription:
+    def create(self, fields: List[str], snapshot_id: str, type: str) -> WhiteboardDescription:
         pass
 
     @abstractmethod
@@ -75,7 +75,11 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def getAll(self) -> List[WhiteboardInfo]:
+    def get_all(self) -> List[WhiteboardInfo]:
+        pass
+
+    @abstractmethod
+    def get_whiteboard_by_type(self, serialized_type: str) -> List[WhiteboardDescription]:
         pass
 
 
@@ -101,8 +105,9 @@ class InMemWhiteboardApi(WhiteboardApi):
 
     def __init__(self) -> None:
         self.__whiteboards: Dict[str, WhiteboardDescription] = {}
+        self.__types: Dict[str, str] = {}
 
-    def create(self, fields: List[str], snapshot_id: str) -> WhiteboardDescription:
+    def create(self, fields: List[str], snapshot_id: str, type: str) -> WhiteboardDescription:
         wb_id = str(uuid.uuid1())
         self.__whiteboards[wb_id] = WhiteboardDescription(
             wb_id,
@@ -110,6 +115,7 @@ class InMemWhiteboardApi(WhiteboardApi):
             SnapshotDescription(snapshot_id=snapshot_id),
             WhiteboardStatus.CREATED
         )
+        self.__types[wb_id] = type
         return self.__whiteboards[wb_id]
     
     def link(self, wb_id: str, field_name: str, entry_id: str):
@@ -118,8 +124,11 @@ class InMemWhiteboardApi(WhiteboardApi):
     def get(self, wb_id: str) -> WhiteboardDescription:
         return self.__whiteboards[wb_id]
 
-    def getAll(self) -> List[WhiteboardInfo]:
+    def get_all(self) -> List[WhiteboardInfo]:
         return [WhiteboardInfo(wb.id, wb.status) for key, wb in self.__whiteboards.items()]
+
+    def get_whiteboard_by_type(self, serialized_type: str) -> List[WhiteboardDescription]:
+        return [wb for wb in self.__whiteboard if self.__types[wb.id] == str]
 
 
 class InMemSnapshotApi(SnapshotApi):

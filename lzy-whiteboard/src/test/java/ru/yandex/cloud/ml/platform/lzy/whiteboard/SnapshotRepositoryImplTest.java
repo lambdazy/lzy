@@ -39,6 +39,7 @@ public class SnapshotRepositoryImplTest {
     private String entryIdThird;
     private final String storageUri = "storageUri";
     private URI snapshotOwner;
+    private final String wbType = "type";
 
     @Before
     public void setUp() {
@@ -99,8 +100,8 @@ public class SnapshotRepositoryImplTest {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId));
-            session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId));
+            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId, wbType));
+            session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId, wbType));
             String fieldNameFirst = "fieldNameFirst";
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
             String fieldNameSecond = "fieldNameSecond";
@@ -135,8 +136,8 @@ public class SnapshotRepositoryImplTest {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId));
-            session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId));
+            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId, wbType));
+            session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId, wbType));
             tx.commit();
         }
         impl.error(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
