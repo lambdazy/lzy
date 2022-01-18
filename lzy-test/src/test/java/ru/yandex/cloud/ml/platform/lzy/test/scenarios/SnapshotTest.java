@@ -37,6 +37,7 @@ import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
 public class SnapshotTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
+    private final String wbType = "whiteboardType";
 
     @Before
     public void setUp() {
@@ -64,8 +65,8 @@ public class SnapshotTest extends LzyBaseTest {
         return (String) spIdObject.get("snapshotId");
     }
 
-    private String createWhiteboard(String spId, List<String> fileNames) throws ParseException {
-        String wbIdJson = terminal.createWhiteboard(spId, fileNames);
+    private String createWhiteboard(String spId, List<String> fileNames, String wbType) throws ParseException {
+        String wbIdJson = terminal.createWhiteboard(spId, fileNames, wbType);
         JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
         return (String) wbIdObject.get("id");
     }
@@ -104,7 +105,7 @@ public class SnapshotTest extends LzyBaseTest {
         final String spId = createSnapshot();
         Assert.assertNotNull(spId);
 
-        final String wbId = createWhiteboard(spId, List.of(localFileName, localFileOutName));
+        final String wbId = createWhiteboard(spId, List.of(localFileName, localFileOutName), wbType);
         Assert.assertNotNull(wbId);
 
         final String firstEntryId = "firstEntryId";
@@ -195,13 +196,13 @@ public class SnapshotTest extends LzyBaseTest {
         final String spIdSecond = createSnapshot();
         Assert.assertNotNull(spIdSecond);
 
-        final String wbIdFirst = createWhiteboard(spIdFirst, List.of("fileNameX", "fileNameY"));
+        final String wbIdFirst = createWhiteboard(spIdFirst, List.of("fileNameX", "fileNameY"), wbType);
         Assert.assertNotNull(wbIdFirst);
 
-        final String wbIdSecond = createWhiteboard(spIdFirst, List.of("fileNameZ", "fileNameW"));
+        final String wbIdSecond = createWhiteboard(spIdFirst, List.of("fileNameZ", "fileNameW"), wbType);
         Assert.assertNotNull(wbIdSecond);
 
-        final String wbIdThird = createWhiteboard(spIdSecond, List.of("fileNameA", "fileNameB"));
+        final String wbIdThird = createWhiteboard(spIdSecond, List.of("fileNameA", "fileNameB"), wbType);
         Assert.assertNotNull(wbIdThird);
 
         String whiteboards = terminal.getAllWhiteboards();

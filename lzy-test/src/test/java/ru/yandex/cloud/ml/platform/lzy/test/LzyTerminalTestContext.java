@@ -184,7 +184,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String createWhiteboard(String wbId, List<String> fieldNames) {
+        default String createWhiteboard(String wbId, List<String> fieldNames, String wbType) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(
                             " ",
@@ -192,7 +192,9 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                             "create",
                             wbId,
                             "-l",
-                            String.join(",", fieldNames)
+                            String.join(",", fieldNames),
+                            "-t",
+                            wbType
                     )
             );
             if (execute.exitCode() != 0) {
