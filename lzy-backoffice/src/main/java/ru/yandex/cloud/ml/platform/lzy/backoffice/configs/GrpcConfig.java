@@ -7,6 +7,8 @@ public class GrpcConfig {
 
     private String host;
     private int port;
+    private String wbhost;
+    private int wbport;
 
     public String getHost() {
         return host;
@@ -22,5 +24,21 @@ public class GrpcConfig {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public String getWbhost() {
+        return wbhost;
+    }
+
+    public void setWbhost(String wbhost) {
+        this.wbhost = wbhost;
+    }
+
+    public int getWbport() {
+        return wbport;
+    }
+
+    public void setWbport(int wbport) {
+        this.wbport = wbport;
     }
 }

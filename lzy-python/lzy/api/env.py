@@ -8,7 +8,7 @@ from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.api.whiteboard.api import InMemSnapshotApi, InMemWhiteboardApi, \
-  SnapshotApi, WhiteboardApi
+    SnapshotApi, WhiteboardApi, WhiteboardInfo
 from lzy.api.whiteboard.wb import wrap_whiteboard
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
@@ -41,6 +41,10 @@ class LzyEnvBase(ABC):
 
     @abstractmethod
     def get_whiteboard(self, id: str, typ: Type[T]) -> T:
+        pass
+
+    @abstractmethod
+    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
         pass
 
     @abstractmethod
@@ -107,7 +111,7 @@ class LzyEnv(LzyEnvBase):
             if not user:
                 raise ValueError("Username must be specified")
             self._terminal_server: Optional[TerminalServer] = TerminalServer(private_key_path, lzy_mount, server_url, user)
-            self._servant_client: Optional[BashServantClient] = BashServantClient(lzy_mount)
+            self._servant_client: Optional[BashServantClient] = BashServantClient().instance(lzy_mount)
             whiteboard_api: WhiteboardApi = WhiteboardBashApi(lzy_mount, self._servant_client)
             snapshot_api: SnapshotApi = SnapshotBashApi(lzy_mount)
         else:
@@ -220,5 +224,7 @@ class LzyEnv(LzyEnvBase):
             wb.fields
         }
         # noinspection PyArgumentList
-        result = typ(**whiteboard_dict)
-        return result
+        return typ(**whiteboard_dict)
+
+    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
+        return self._execution_context.whiteboard_api.getAll()

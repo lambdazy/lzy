@@ -7,7 +7,7 @@ from urllib import parse
 import cloudpickle
 import s3fs
 
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials
 from azure.storage.blob import BlobServiceClient, StorageStreamDownloader
 
 T = TypeVar("T")
@@ -23,7 +23,7 @@ class WhiteboardStorage(ABC):
         pass
 
     @staticmethod
-    def create(credentials: Union[AmazonCredentials, AzureCredentials]) -> 'WhiteboardStorage':
+    def create(credentials: StorageCredentials) -> 'WhiteboardStorage':
         if isinstance(credentials, AmazonCredentials):
             return AmazonWhiteboardStorage(credentials)
         return AzureWhiteboardStorage(credentials)

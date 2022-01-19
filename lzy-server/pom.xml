@@ -129,6 +129,10 @@
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-c3p0</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <resources>
@@ -137,6 +141,7 @@
                 <filtering>true</filtering>
                 <includes>
                     <include>**/*.yaml</include>
+                    <include>c3p0.properties</include>
                     <include>db/migrations/**</include>
                     <include>clickhouse/**</include>
                     <include>hibernate.cfg.xml</include>
@@ -147,6 +152,14 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
+                <version>3.2.4</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.github.edwgiz</groupId>
+                        <artifactId>log4j-maven-shade-plugin-extensions</artifactId>
+                        <version>2.17.1</version>
+                    </dependency>
+                </dependencies>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -165,6 +178,9 @@
                                 </filter>
                             </filters>
                             <transformers>
+                                <transformer
+                                        implementation="io.github.edwgiz.log4j.maven.plugins.shade.transformer.Log4j2PluginCacheFileTransformer">
+                                </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>ru.yandex.cloud.ml.platform.lzy.server.LzyServer</mainClass>
                                 </transformer>

@@ -1,37 +1,32 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.cli.CommandLine;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 
 import java.io.FileReader;
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.InvalidKeyException;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.Signature;
-import java.security.SignatureException;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.Base64;
 import java.util.UUID;
+import org.apache.commons.cli.CommandLine;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 
 public class Terminal implements LzyCommand {
+
     @Override
     public int execute(CommandLine parse) throws Exception {
         if (!parse.hasOption('z')) {
-            throw new IllegalArgumentException("Provide lzy server address with -z option to start a task.");
+            throw new IllegalArgumentException(
+                "Provide lzy server address with -z option to start a task.");
         }
 
         final UUID terminalToken = UUID.randomUUID();

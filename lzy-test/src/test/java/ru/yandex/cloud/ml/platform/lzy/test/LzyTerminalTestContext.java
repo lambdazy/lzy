@@ -209,6 +209,20 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
+        default String getAllWhiteboards() {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                    String.join(
+                            " ",
+                            mount() + "/sbin/whiteboard",
+                            "getAll"
+                    )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+            return execute.stdout();
+        }
+
         default String createSnapshot() {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                 String.join(

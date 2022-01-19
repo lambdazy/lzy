@@ -46,6 +46,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
+  count = var.lzy_count != 0 ? 1 : 0
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   name                  = "lzypool"
   vm_size               = "Standard_D2_v2"
@@ -56,6 +57,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
+  count = var.cpu_count != 0 ? 1 : 0
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   name                  = "cpupool"
   vm_size               = "Standard_D2_v2"
@@ -66,6 +68,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
+  count = var.gpu_count != 0 ? 1 : 0
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   name                  = "gpupool"
   vm_size               = "Standard_NV12s_v3"
@@ -90,6 +93,15 @@ resource "azurerm_public_ip" "lzy_kharon" {
   allocation_method   = "Static"
 }
 
+resource "azurerm_public_ip" "grafana" {
+  domain_name_label   = "grafana-${var.installation_name}"
+  name                = "grafana-public-ip"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  sku                 = "Standard"
+  allocation_method   = "Static"
+}
+
 resource "azurerm_role_assignment" "test" {
   scope                = azurerm_resource_group.test.id
   role_definition_name = "Network Contributor"
@@ -106,25 +118,35 @@ resource "azurerm_public_ip" "lzy_backoffice" {
 }
 
 module "lzy_common" {
-  source                            = "../lzy_common"
-  kubernetes_host                   = azurerm_kubernetes_cluster.main.kube_config.0.host
-  kubernetes_client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate)
-  kubernetes_client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key)
-  kubernetes_cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate)
-  kharon_public_ip                  = azurerm_public_ip.lzy_kharon.ip_address
-  backoffice_public_ip              = azurerm_public_ip.lzy_backoffice.ip_address
+  source               = "../lzy_common"
+  kharon_public_ip     = azurerm_public_ip.lzy_kharon.ip_address
+  backoffice_public_ip = azurerm_public_ip.lzy_backoffice.ip_address
+  grafana_public_ip = azurerm_public_ip.grafana.ip_address
+  kharon_load_balancer_necessary_annotations = {
+    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+  }
+  backoffice_load_balancer_necessary_annotations = {
+    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+  }
+  grafana_load_balancer_necessary_annotations = {
+    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+  }
   installation_name                 = var.installation_name
   oauth-github-client-id            = var.oauth-github-client-id
   oauth-github-client-secret        = var.oauth-github-client-secret
-  s3-bucket-name = "lzy-bucket"
-  storage-provider = "azure"
-  azure-connection-string = azurerm_storage_account.main_s3.primary_connection_string
-  whiteboard-image = var.whiteboard-image
-  server-image = var.server-image
-  kharon-image = var.kharon-image
-  backoffice-backend-image = var.backoffice-backend-image
-  backoffice-frontend-image = var.backoffice-frontend-image
-  clickhouse-image = var.clickhouse-image
-  azure-resource-group = azurerm_resource_group.test.name
-  servant-image = var.servant-image
+  s3-bucket-name                    = "lzy-bucket"
+  storage-provider                  = "azure"
+  azure-connection-string           = azurerm_storage_account.main_s3.primary_connection_string
+  whiteboard-image                  = var.whiteboard-image
+  server-image                      = var.server-image
+  kharon-image                      = var.kharon-image
+  backoffice-backend-image          = var.backoffice-backend-image
+  backoffice-frontend-image         = var.backoffice-frontend-image
+  clickhouse-image                  = var.clickhouse-image
+  azure-resource-group              = azurerm_resource_group.test.name
+  ssl-enabled                       = var.ssl-enabled
+  ssl-cert                          = var.ssl-cert
+  ssl-cert-key                      = var.ssl-cert-key
+  ssl-keystore-password             = var.ssl-keystore-password
+  servant-image                     = var.servant-image
 }

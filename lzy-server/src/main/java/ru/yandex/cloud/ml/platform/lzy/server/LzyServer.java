@@ -30,8 +30,10 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
@@ -57,7 +59,18 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 public class LzyServer {
-    private static final Logger LOG = LogManager.getLogger(LzyServer.class);
+
+    private static final Logger LOG;
+
+    static{
+        // This is to avoid this bug: https://issues.apache.org/jira/browse/LOG4J2-2375
+        // KafkaLogsConfiguration will fall, so then we must call reconfigure
+        ProducerConfig.configNames();
+        LoggerContext ctx = (LoggerContext)LogManager.getContext();
+        ctx.reconfigure();
+        LOG = LogManager.getLogger(LzyServer.class);
+    }
+
 
     private static final Options options = new Options();
     static {
@@ -245,7 +258,7 @@ public class LzyServer {
                     "Task created",
                     Map.of(
                         "task_id", task.tid().toString(),
-                        "user_idatu", uid
+                        "user_id", uid
                     ),
                     UserEvent.UserEventType.TaskCreate
                 )

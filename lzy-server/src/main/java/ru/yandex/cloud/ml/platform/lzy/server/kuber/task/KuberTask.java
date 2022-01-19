@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.KuberUtils;
@@ -41,10 +43,12 @@ public class KuberTask extends BaseTask {
             );
             final CoreV1Api api = new CoreV1Api();
             final String namespace = "default";
+            final long sendTaskMillis = System.currentTimeMillis();
             final V1Pod pod = api.createNamespacedPod(namespace, servantPodSpec, null, null, null);
+            LOG.info("Created servant pod in Kuber: {}", pod);
             Objects.requireNonNull(pod.getMetadata());
 
-            LOG.info("Created servant pod in Kuber: {}", pod);
+            boolean metricLogged = false;
             while (true) {
                 //noinspection BusyWait
                 Thread.sleep(2000); // sleep for 2 second
@@ -70,20 +74,32 @@ public class KuberTask extends BaseTask {
                     continue;
                 }
                 final String phase = Objects.requireNonNull(queriedPod.get().getStatus()).getPhase();
-                LOG.info("KuberTask current phase: " + phase);
+                LOG.info("KuberTask:: {} pod current phase: {}", pod.getMetadata().getName(), phase);
                 // TODO: handle "Failed" phase
                 if ("Succeeded".equals(phase) || "Failed".equals(phase)) {
                     api.deleteNamespacedPod(podName, namespace, null, null, null, null, null, null);
                     break;
+                } else if ("Running".equals(phase)) {
+                    // It's necessary to log metric only 1 time
+                    if (!metricLogged) {
+                        final long taskRunningMillis = System.currentTimeMillis();
+                        MetricEventLogger.log(
+                            new MetricEvent(
+                                "time from send KuberTask to Servant Running status",
+                                Map.of(),
+                                taskRunningMillis - sendTaskMillis
+                            )
+                        );
+                        metricLogged = true;
+                    }
                 }
             }
         } catch (InterruptedException e) {
             throw new RuntimeException("KuberTask:: Exception while execution. " + e);
         } catch (ApiException e) {
-            LOG.error("KuberTask:: API exception while pod creation. " + e);
-            LOG.error(e.getResponseBody());
+            throw new RuntimeException("KuberTask:: API exception while kubernetes pod creation", e);
         } catch (PodProviderException e) {
-            LOG.error("KuberTask:: Exception while creating servant pod spec");
+            throw new RuntimeException("KuberTask:: Exception while creating servant pod spec", e);
         } finally {
             LOG.info("Destroying kuber task");
             state(State.DESTROYED);

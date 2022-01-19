@@ -8,6 +8,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvironment;
@@ -169,11 +171,14 @@ public class LzyExecution {
     }
 
     public void start() {
+        final long startMillis = System.currentTimeMillis();
         if (zygote == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
         } else if (exec != null) {
             throw new IllegalStateException("LzyExecution has been already started");
         }
+        final long envExecFinishMillis;
+        final long slotsClosedMillis;
         try {
             progress(Servant.ExecutionProgress.newBuilder()
                 .setStarted(Servant.ExecutionStarted.newBuilder().build())
@@ -192,7 +197,15 @@ public class LzyExecution {
             LOG.info("Going to exec command " + command);
             int rc;
             String resultDescription;
+            final long envExecStartMillis = System.currentTimeMillis();
             try {
+                MetricEventLogger.log(
+                    new MetricEvent(
+                        "time from LzyExecution::start to Environment::exec",
+                        Map.of("metric_type", "system_metric"),
+                        envExecStartMillis - startMillis
+                    )
+                );
                 this.exec = session.exec(command);
                 stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
                 stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
@@ -219,6 +232,15 @@ public class LzyExecution {
             } catch (LzyExecutionException e) {
                 resultDescription = "Error during task execution:\n" + e;
                 rc = ReturnCodes.EXECUTION_ERROR.getRc();
+            } finally {
+                envExecFinishMillis = System.currentTimeMillis();
+                MetricEventLogger.log(
+                    new MetricEvent(
+                        "env execution time",
+                        Map.of("metric_type", "task_metric"),
+                        envExecFinishMillis - envExecStartMillis
+                    )
+                );
             }
 
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
@@ -234,6 +256,14 @@ public class LzyExecution {
                     slots.wait();
                 }
             }
+            slotsClosedMillis = System.currentTimeMillis();
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "time from env exec finished to slots closed",
+                    Map.of("metric_type", "system_metric"),
+                    slotsClosedMillis - envExecFinishMillis
+                )
+            );
             LOG.info("Result description: " + resultDescription);
             progress(Servant.ExecutionProgress.newBuilder()
                 .setExit(Servant.ExecutionConcluded.newBuilder()
@@ -241,6 +271,14 @@ public class LzyExecution {
                     .setDescription(resultDescription)
                     .build())
                 .build()
+            );
+            final long finishMillis = System.currentTimeMillis();
+            MetricEventLogger.log(
+                new MetricEvent(
+                    "time from slots closed to LzyExecution::start finish",
+                    Map.of("metric_type", "system_metric"),
+                    finishMillis - slotsClosedMillis
+                )
             );
         } catch (InterruptedException e) {
             final String exceptionDescription = "InterruptedException during task execution" + e;

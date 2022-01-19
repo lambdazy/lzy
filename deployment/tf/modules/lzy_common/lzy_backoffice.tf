@@ -17,7 +17,7 @@ resource "kubernetes_secret" "backoffice_secrets" {
 
 resource "kubernetes_deployment" "lzy_backoffice" {
   metadata {
-    name   = "lzy-backoffice"
+    name = "lzy-backoffice"
     labels = {
       app = "lzy-backoffice"
     }
@@ -33,7 +33,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
     }
     template {
       metadata {
-        name   = "lzy-backoffice"
+        name = "lzy-backoffice"
         labels = {
           app = "lzy-backoffice"
         }
@@ -44,7 +44,16 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           image             = var.backoffice-frontend-image
           image_pull_policy = "Always"
           port {
+            name           = "frontend"
             container_port = 80
+          }
+          port {
+            name           = "frontendtls"
+            container_port = 443
+          }
+          volume_mount {
+            name       = "cert"
+            mount_path = "/etc/sec"
           }
         }
         container {
@@ -58,6 +67,14 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           env {
             name  = "GRPC_PORT"
             value = "8888"
+          }
+          env {
+            name  = "GRPC_WBHOST"
+            value = kubernetes_service.whiteboard.spec[0].cluster_ip
+          }
+          env {
+            name  = "GRPC_WBPORT"
+            value = "8999"
           }
           env {
             name = "OAUTH_GITHUB_CLIENT_ID"
@@ -90,8 +107,18 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             mount_path = "/etc/sec"
           }
           port {
+            name           = "backend"
             container_port = 8080
           }
+          port {
+            name           = "backendtls"
+            container_port = 8443
+          }
+          args = [
+            "-Dmicronaut.ssl.keyStore.password=${var.ssl-keystore-password}",
+            "-Dmicronaut.ssl.enabled=${var.ssl-enabled ? "true" : "false"}",
+            "-Dmicronaut.server.dual-protocol=${var.ssl-enabled ? "true" : "false"}"
+          ]
         }
         volume {
           name = "sec"
@@ -100,6 +127,20 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             items {
               key  = "private-key"
               path = "backofficePrivateKey.txt"
+            }
+          }
+        }
+        volume {
+          name = "cert"
+          secret {
+            secret_name = "certs"
+            items {
+              key  = "cert"
+              path = "cert.crt"
+            }
+            items {
+              key  = "cert-key"
+              path = "cert.key"
             }
           }
         }
@@ -113,7 +154,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
                 match_expressions {
                   key      = "app"
                   operator = "In"
-                  values   = [
+                  values = [
                     "lzy-servant",
                     "lzy-server",
                     "lzy-kharon",
@@ -134,11 +175,10 @@ resource "kubernetes_deployment" "lzy_backoffice" {
 }
 
 resource "kubernetes_service" "lzy_backoffice" {
+  count = var.backoffice_public_ip != "" ? 1 : 0
   metadata {
-    name = "lzy-backoffice-service"
-    annotations = {
-      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = var.azure-resource-group
-    }
+    name        = "lzy-backoffice-service"
+    annotations = var.backoffice_load_balancer_necessary_annotations
   }
   spec {
     load_balancer_ip = var.backoffice_public_ip
@@ -147,12 +187,30 @@ resource "kubernetes_service" "lzy_backoffice" {
       app : "lzy-backoffice"
     }
     port {
-      name = "backend"
-      port = 8080
+      name        = "backend"
+      port        = 8080
+      target_port = 8080
+    }
+    dynamic "port" {
+      for_each = var.ssl-enabled ? [1] : []
+      content {
+        name        = "backendtls"
+        port        = 8443
+        target_port = 8443
+      }
+    }
+    dynamic "port" {
+      for_each = var.ssl-enabled ? [1] : []
+      content {
+        name        = "frontendtls"
+        port        = 443
+        target_port = 443
+      }
     }
     port {
-      name = "frontend"
-      port = 80
+      name        = "frontend"
+      port        = 80
+      target_port = 80
     }
   }
 }

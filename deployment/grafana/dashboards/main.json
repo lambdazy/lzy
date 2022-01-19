@@ -1,0 +1,303 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 1,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 3,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "maxDataPoints": 30000,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "database": "default",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "V2x6bS1nz"
+          },
+          "dateColDataType": "",
+          "dateLoading": false,
+          "dateTimeColDataType": "toUnixTimestamp(timestamp)",
+          "dateTimeType": "TIMESTAMP",
+          "datetimeLoading": false,
+          "extrapolate": true,
+          "format": "time_series",
+          "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "query": "SELECT toDateTime((intDiv(t, 60) * 60)) AS t, sum(tps) as tpm FROM\n\n(SELECT toUnixTimestamp(timestamp) as t, count() as tps FROM\n    (SELECT\n         JSON_VALUE(message, '$.event.type') as type,\n         JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n         timestamp\n     FROM default.servant_logs WHERE logger = 'UserEventLogs')\nWHERE type = 'ExecutionStart'\nGROUP BY t\nORDER BY t)\nGROUP BY t\nORDER BY t",
+          "rawQuery": "SELECT toDateTime((intDiv(t, 60) * 60)) AS t, sum(tps) as tpm FROM\n\n(SELECT toUnixTimestamp(timestamp) as t, count() as tps FROM\n    (SELECT\n         JSON_VALUE(message, '$.event.type') as type,\n         JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n         timestamp\n     FROM default.servant_logs WHERE logger = 'UserEventLogs')\nWHERE type = 'ExecutionStart'\nGROUP BY t\nORDER BY t)\nGROUP BY t\nORDER BY t",
+          "refId": "A",
+          "round": "0s",
+          "skip_comments": true,
+          "table": "servant_logs",
+          "tableLoading": false
+        }
+      ],
+      "title": "Started tasks per minute",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 10
+      },
+      "id": 4,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "database": "default",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "V2x6bS1nz"
+          },
+          "dateColDataType": "",
+          "dateLoading": false,
+          "dateTimeColDataType": "toUnixTimestamp(timestamp)",
+          "dateTimeType": "DATETIME",
+          "datetimeLoading": false,
+          "extrapolate": true,
+          "format": "time_series",
+          "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
+          "intervalFactor": 1,
+          "query": "SELECT toDateTime(t) as t, ok, not_ok FROM (\nSELECT intDiv(t, 60 * 60 * 24) * 60 * 60 * 24 AS t, sum(good) as ok, sum(bad) as not_ok FROM\n\n(SELECT toUnixTimestamp(timestamp) as t, countIf(JSONExtractString(tags, 'exit_code') = '0') as good, countIf(JSONExtractString(tags, 'exit_code') != '0') as bad FROM\n    (SELECT\n         JSON_VALUE(message, '$.event.type') as type,\n         JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n         timestamp\n     FROM default.servant_logs WHERE logger = 'UserEventLogs')\nWHERE type = 'ExecutionComplete'\nGROUP BY t\nORDER BY t)\nGROUP BY t\nHAVING t = max(t)\nORDER BY t)\n",
+          "rawQuery": "SELECT toDateTime(t) as t, ok, not_ok FROM (\nSELECT intDiv(t, 60 * 60 * 24) * 60 * 60 * 24 AS t, sum(good) as ok, sum(bad) as not_ok FROM\n\n(SELECT toUnixTimestamp(timestamp) as t, countIf(JSONExtractString(tags, 'exit_code') = '0') as good, countIf(JSONExtractString(tags, 'exit_code') != '0') as bad FROM\n    (SELECT\n         JSON_VALUE(message, '$.event.type') as type,\n         JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n         timestamp\n     FROM default.servant_logs WHERE logger = 'UserEventLogs')\nWHERE type = 'ExecutionComplete'\nGROUP BY t\nORDER BY t)\nGROUP BY t\nHAVING t = max(t)\nORDER BY t)",
+          "refId": "A",
+          "round": "0s",
+          "skip_comments": true,
+          "table": "servant_logs",
+          "tableLoading": false
+        }
+      ],
+      "title": "ok/not ok tasks per last day",
+      "type": "bargauge"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 6,
+        "y": 10
+      },
+      "id": 6,
+      "options": {
+        "barWidth": 0.97,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "right"
+        },
+        "orientation": "auto",
+        "showValue": "never",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single"
+        },
+        "xTickLabelRotation": 0
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "V2x6bS1nz"
+          },
+          "dateTimeType": "DATETIME",
+          "extrapolate": true,
+          "format": "table",
+          "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
+          "interval": "",
+          "intervalFactor": 1,
+          "query": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nHAVING t = max(t)\nORDER BY t)\n",
+          "rawQuery": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nHAVING t = max(t)\nORDER BY t)",
+          "refId": "A",
+          "round": "0s",
+          "skip_comments": true
+        }
+      ],
+      "title": "Tasks by users per last day",
+      "type": "barchart"
+    }
+  ],
+  "refresh": "15m",
+  "schemaVersion": 34,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "nowDelay": ""
+  },
+  "timezone": "Asia/Bishkek",
+  "title": "main dashboard",
+  "uid": "PQiLpv17z",
+  "version": 1,
+  "weekStart": ""
+}

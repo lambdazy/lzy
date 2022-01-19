@@ -17,6 +17,6 @@ python setup.py sdist bdist_wheel
 # token has to be provided by person who runs the script
 python -m twine upload dist/* --verbose
 
-rm ./HEAD lzy/lzy-servant.jar
+rm lzy/lzy-servant.jar
 
 

@@ -1,11 +1,3 @@
-variable "kubernetes_host" {}
-
-variable "kubernetes_client_certificate" {}
-
-variable "kubernetes_client_key" {}
-
-variable "kubernetes_cluster_ca_certificate" {}
-
 variable "installation_name" {
   type = string
 }
@@ -18,9 +10,32 @@ variable "oauth-github-client-secret" {
   type = string
 }
 
-variable "kharon_public_ip" {}
+variable "kharon_public_ip" {
+  default = ""
+}
 
-variable "backoffice_public_ip" {}
+variable "backoffice_public_ip" {
+  default = ""
+}
+
+variable "grafana_public_ip" {
+  default = ""
+}
+
+variable "kharon_load_balancer_necessary_annotations" {
+  type    = map(string)
+  default = {}
+}
+
+variable "grafana_load_balancer_necessary_annotations" {
+  type    = map(string)
+  default = {}
+}
+
+variable "backoffice_load_balancer_necessary_annotations" {
+  type    = map(string)
+  default = {}
+}
 
 variable "backoffice-frontend-image" {
   type    = string
@@ -37,6 +52,11 @@ variable "clickhouse-image" {
   default = "clickhouse/clickhouse-server"
 }
 
+variable "grafana-image" {
+  type    = string
+  default = "lzydock/grafana:master"
+}
+
 variable "kharon-image" {
   type    = string
   default = "lzydock/lzy-kharon:master"
@@ -48,44 +68,70 @@ variable "server-image" {
 }
 
 variable "whiteboard-image" {
-  type = string
+  type    = string
   default = "lzydock/lzy-whiteboard:master"
 }
 
 variable "s3-bucket-name" {
-  type = string
+  type    = string
+  default = "lzy-bucket"
 }
 
 variable "amazon-access-key" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "amazon-secret-key" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "amazon-service-endpoint" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "azure-connection-string" {
-  type = string
+  type    = string
   default = ""
 }
 
 variable "storage-provider" {
-  type = string
+  type    = string
   default = "amazon"
 }
 
 variable "azure-resource-group" {
-  type = string
+  type    = string
+  default = ""
+}
+
+variable "ssl-enabled" {
+  type    = bool
+  default = false
+}
+
+variable "ssl-cert" {
+  type    = string
+  default = ""
+}
+
+variable "ssl-cert-key" {
+  type    = string
+  default = ""
+}
+
+variable "ssl-keystore-password" {
+  type    = string
   default = ""
 }
 
 variable "servant-image" {
-  type    = string
+  type = string
+}
+
+variable "kafka-url" {
+  type = string
+  default = "kafka.default.svc.cluster.local:9092"
 }

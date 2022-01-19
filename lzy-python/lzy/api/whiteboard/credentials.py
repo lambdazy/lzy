@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Union
 
 
 @dataclasses.dataclass
@@ -11,3 +12,6 @@ class AmazonCredentials:
     endpoint: str
     access_token: str
     secret_token: str
+
+
+StorageCredentials = Union[AzureCredentials, AmazonCredentials]

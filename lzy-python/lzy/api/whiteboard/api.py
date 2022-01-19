@@ -33,6 +33,12 @@ class WhiteboardStatus(Enum):
 
 
 @dataclass
+class WhiteboardInfo:
+    id: str
+    status: Optional[WhiteboardStatus]
+
+
+@dataclass
 class WhiteboardDescription:
     id: str
     fields: List[WhiteboardFieldDescription]
@@ -68,6 +74,10 @@ class WhiteboardApi(ABC):
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         pass
 
+    @abstractmethod
+    def getAll(self) -> List[WhiteboardInfo]:
+        pass
+
 
 class EntryIdGenerator(ABC):
     
@@ -81,7 +91,7 @@ class UUIDEntryIdGenerator(EntryIdGenerator):
         self.__snapshot_id = snapshot_id
     
     def generate(self, slot: Slot) -> str:
-        return "/".join([self.__snapshot_id, slot.name(), str(uuid.uuid1())])
+        return "/".join([self.__snapshot_id, slot.name, str(uuid.uuid1())])
 
 
 class InMemWhiteboardApi(WhiteboardApi):
@@ -107,6 +117,9 @@ class InMemWhiteboardApi(WhiteboardApi):
 
     def get(self, wb_id: str) -> WhiteboardDescription:
         return self.__whiteboards[wb_id]
+
+    def getAll(self) -> List[WhiteboardInfo]:
+        return [WhiteboardInfo(wb.id, wb.status) for key, wb in self.__whiteboards.items()]
 
 
 class InMemSnapshotApi(SnapshotApi):
