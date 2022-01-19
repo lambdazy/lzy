@@ -49,7 +49,6 @@ public class LzyServant extends LzyAgent {
         super(config);
         final long start = System.currentTimeMillis();
         taskId = config.getTask();
-        bucket = config.getBucket();
         URI whiteboardAddress = config.getWhiteboardAddress();
         final Impl impl = new Impl();
         final ManagedChannel channel = ChannelBuilder
@@ -65,7 +64,10 @@ public class LzyServant extends LzyAgent {
             .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
-        storage = initStorage();
+        Lzy.GetS3CredentialsResponse resp = server
+                .getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder().setAuth(auth).build());
+        bucket = resp.getBucket();
+        storage =  SnapshotStorage.create(resp);
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(
@@ -77,12 +79,6 @@ public class LzyServant extends LzyAgent {
                 finish - start
             )
         );
-    }
-
-    private SnapshotStorage initStorage() {
-        Lzy.GetS3CredentialsResponse resp = server
-            .getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder().setAuth(auth).build());
-        return SnapshotStorage.create(resp);
     }
 
     @Override

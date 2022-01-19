@@ -88,8 +88,9 @@ public class DbAuthenticator implements Authenticator {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             final String token = UUID.randomUUID().toString();
+            UserModel user = session.find(UserModel.class, uid);
             try {
-                TaskModel taskModel = new TaskModel(task.tid(), token, new UserModel(uid));
+                TaskModel taskModel = new TaskModel(task.tid(), token, user);
                 session.save(taskModel);
                 tx.commit();
             }
@@ -136,6 +137,14 @@ public class DbAuthenticator implements Authenticator {
         }
         catch (Exception e){
             return false;
+        }
+    }
+
+    @Override
+    public String bucketForUser(String uid) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            UserModel user = session.find(UserModel.class, uid);
+            return user.getBucket();
         }
     }
 

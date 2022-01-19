@@ -82,4 +82,5 @@ message GetS3CredentialsResponse {
     AmazonCredentials amazon = 1;
     AzureCredentials azure = 2;
   }
+  string bucket = 3;
 }

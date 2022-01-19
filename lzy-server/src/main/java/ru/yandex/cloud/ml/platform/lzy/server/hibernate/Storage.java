@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import java.util.Locale;
 import java.util.Set;
 
 @Singleton
@@ -82,7 +83,7 @@ public class Storage implements DbStorage{
                 try {
                     UserModel user = session.find(UserModel.class, name);
                     if (user == null){
-                        user = new UserModel(name);
+                        user = new UserModel(name, name.toLowerCase(Locale.ROOT));
                         session.save(user);
                     }
                     UserRoleModel roleModel = session.find(UserRoleModel.class, role);
