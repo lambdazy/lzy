@@ -121,7 +121,7 @@ class LzyEnv(LzyEnvBase):
         config: Optional[TerminalConfig] = None,
     ):
         super().__init__()
-        config: TerminalConfig = config or TerminalConfig()
+        config_: TerminalConfig = config or TerminalConfig() # type: ignore
         buses = buses or []
 
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
@@ -129,15 +129,15 @@ class LzyEnv(LzyEnvBase):
 
         self._local = local
         if not local:
-            if config.user is None:
+            if config_.user is None:
                 raise ValueError("Username must be specified")
-            self._terminal_server = TerminalServer(config)
-            self._servant_client: BashServantClient = BashServantClient()\
-                .instance(config.lzy_mount)
+            self._terminal_server: Optional[TerminalServer] = TerminalServer(config_)
+            self._servant_client: Optional[BashServantClient] = BashServantClient()\
+                .instance(config_.lzy_mount)
             whiteboard_api: WhiteboardApi = WhiteboardBashApi(
-                config.lzy_mount, self._servant_client
+                config_.lzy_mount, self._servant_client
             )
-            snapshot_api: SnapshotApi = SnapshotBashApi(config.lzy_mount)
+            snapshot_api: SnapshotApi = SnapshotBashApi(config_.lzy_mount)
         else:
             self._terminal_server = None
             self._servant_client = None
@@ -158,7 +158,7 @@ class LzyEnv(LzyEnvBase):
         self._ops: List[LzyOp] = []
         self._eager = eager
         self._buses = list(buses)
-        self._yaml = config.yaml_path
+        self._yaml = config_.yaml_path
         self._log = logging.getLogger(str(self.__class__))
 
     def generate_conda_env(
@@ -252,12 +252,12 @@ class LzyEnv(LzyEnvBase):
         # noinspection PyDataclass
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
         wb_ = self._execution_context.whiteboard_api.get(wid)
-        whiteboard_dict = {
-            field.field_name: self._execution_context.whiteboard_api.resolve(
-                field.storage_uri, field_types[field.field_name]
-            )
-            for field in wb_.fields  # type: ignore
-        }
+        whiteboard_dict = {}
+        for field in wb_.fields:
+            assert field.storage_uri is not None
+            whiteboard_dict[field.field_name] = self._execution_context\
+                    .whiteboard_api\
+                    .resolve(field.storage_uri, field_types[field.field_name])
         # noinspection PyArgumentList
         return typ(**whiteboard_dict)
 
