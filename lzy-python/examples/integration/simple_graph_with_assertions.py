@@ -1,4 +1,4 @@
-from lzy.api import op, LzyEnv
+from lzy.api import op, LzyRemoteEnv
 from lzy.servant.terminal_server import TerminalConfig
 
 
@@ -23,7 +23,7 @@ def main():
         return a + b + c
 
     config = TerminalConfig(user="test_user", server_url="localhost:8899")
-    with LzyEnv(config=config):
+    with LzyRemoteEnv(config=config):
         a = function_returning_1()
         b = function_returning_2()
         c = function_returning_3()

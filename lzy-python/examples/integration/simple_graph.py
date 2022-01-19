@@ -1,4 +1,4 @@
-from lzy.api import op, LzyEnv
+from lzy.api import op, LzyRemoteEnv
 import base
 from base import Base
 import cloudpickle
@@ -19,7 +19,7 @@ def main():
         # noinspection PyTypeChecker
         return sp + bs.b + str(bs.a)
     config = TerminalConfig(user="test_user", server_url="localhost:8899")
-    with LzyEnv(config=config):
+    with LzyRemoteEnv(config=config):
         s = str_gen()
         f = foo(3)
         b = bar(f, s)
