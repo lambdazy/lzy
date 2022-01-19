@@ -54,7 +54,7 @@ variable "clickhouse-image" {
 
 variable "grafana-image" {
   type    = string
-  default = "lzydock/grafana:testing-2"
+  default = "lzydock/grafana:master"
 }
 
 variable "kharon-image" {

@@ -141,6 +141,7 @@ module "lzy_common" {
   server-image                      = var.server-image
   kharon-image                      = var.kharon-image
   backoffice-backend-image          = var.backoffice-backend-image
+  backoffice-frontend-image         = var.backoffice-frontend-image
   clickhouse-image                  = var.clickhouse-image
   azure-resource-group              = azurerm_resource_group.test.name
   ssl-enabled                       = var.ssl-enabled
