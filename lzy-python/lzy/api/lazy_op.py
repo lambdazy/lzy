@@ -179,7 +179,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
     @staticmethod
     def _exception(execution: Execution, func: FuncSignature[Any],
-                   returncode: int, message: str):
+                   returncode: int, message: str) -> str:
         return (
             f"Task {execution.id()[:4]} failed in func {func.name}"
             f"with rc {returncode} and message: {message}"
@@ -214,7 +214,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             if rc_ == 0 and return_value is not None:
                 self._log.info("Executed task %s for func %s with rc %s",
                                execution.id()[:4], self.signature.func.name, rc_,)
-                return return_value
+                return return_value # type: ignore
 
             message = ""
             if rc_ != 0:
@@ -223,7 +223,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             elif return_value is None:
                 message = "Return value deserialization failure"
                 message = self._exception(execution, func,
-                        PyReturnCode.value, message)
+                        PyReturnCode.DESERIALIZATION_FAILURE.value, message)
 
             raise LzyExecutionException(message)
 
