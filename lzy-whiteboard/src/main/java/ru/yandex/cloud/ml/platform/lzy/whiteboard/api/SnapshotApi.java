@@ -10,8 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import java.net.URI;
 import java.util.UUID;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
@@ -22,6 +21,7 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.SimpleAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
@@ -42,7 +42,8 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
                 .usePlaintext()
                 .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
-        auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel));
+        auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel),
+                LzyBackofficeGrpc.newBlockingStub(serverChannel));
         this.repository = repository;
     }
 

@@ -92,7 +92,7 @@ class WhiteboardBashApi(WhiteboardApi):
             return self._parse_wb_info_json(res)
         except (JSONDecodeError, KeyError) as e:
             raise RuntimeError(f"Wrong command output format: {out}") from e
-
+    
     @staticmethod
     def _parse_wb_json(res: Dict[str, Any]) -> WhiteboardDescription:
         fields = [

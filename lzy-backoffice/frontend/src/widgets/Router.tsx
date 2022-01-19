@@ -7,6 +7,7 @@ import { AddToken } from "./AddToken";
 import { AuthUser } from "./AuthUser";
 import { Readme } from "./Readme";
 import { Tasks } from "./Tasks";
+import { Whiteboards } from "./Whiteboards";
 import { Keys } from "./Tokens";
 
 export const MainRouter = () => (
@@ -23,6 +24,9 @@ export const MainRouter = () => (
       <Route exact path="/login_user" component={AuthUser} />
       <PrivateRoute path="/keys" exact>
         <Keys />
+      </PrivateRoute>
+      <PrivateRoute path="/whiteboards" exact>
+        <Whiteboards />
       </PrivateRoute>
       <Redirect to="/"/>
     </Switch>
