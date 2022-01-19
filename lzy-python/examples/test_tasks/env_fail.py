@@ -1,5 +1,6 @@
 import tempfile
 from lzy.api import op, LzyEnv
+from lzy.servant.terminal_server import TerminalConfig
 
 
 @op
@@ -22,5 +23,6 @@ if __name__ == "__main__":
         )
         f.flush()
 
-        with LzyEnv(user='phil', yaml_path=f.name):
+        config = TerminalConfig(user='phil', yaml_path=f.name)
+        with LzyEnv(config=config):
             main()

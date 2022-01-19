@@ -1,4 +1,5 @@
 from lzy.api import op, LzyEnv
+from lzy.servant.terminal_server import TerminalConfig
 
 
 @op
@@ -7,5 +8,6 @@ def raises() -> int:
 
 
 if __name__ == "__main__":
-    with LzyEnv(user="phil"):
+    config = TerminalConfig(user="phil")
+    with LzyEnv(config=config):
         raises()

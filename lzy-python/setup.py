@@ -6,7 +6,7 @@ import setuptools
 from setuptools import Distribution, Command
 from setuptools.command.install import install
 from setuptools.command.sdist import sdist
-from wheel.bdist_wheel import bdist_wheel  # type: ignore
+from wheel.bdist_wheel import bdist_wheel
 
 
 class RunMixin(Command, ABC):

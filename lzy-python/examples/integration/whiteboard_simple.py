@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List
 
 from lzy.api import op, LzyEnv
+from lzy.servant.terminal_server import TerminalConfig
 
 
 @dataclass
@@ -21,12 +22,14 @@ def fun2(a: int) -> List[str]:
 
 
 wb = SimpleWhiteboard()
-with LzyEnv(user="test_user", server_url="localhost:8899", whiteboard=wb):
+config = TerminalConfig(user="test_user", server_url="localhost:8899")
+with LzyEnv(config=config, whiteboard=wb):
     wb.a = fun1()
     wb.b = fun2(wb.a)
     wb_id = wb.id()
 
-with LzyEnv(user="test_user", server_url="localhost:8899") as env:
+config = TerminalConfig(user="test_user", server_url="localhost:8899")
+with LzyEnv(config=config) as env:
     wb = env.get_whiteboard(wb_id, SimpleWhiteboard)
     print(len(wb.b))
     wbInfo = env.get_all_whiteboards_info()

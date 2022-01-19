@@ -1,4 +1,3 @@
-
 from lzy.model.slot import Media, Slot, Direction
 
 
@@ -23,7 +22,8 @@ class OutFileSlot(FileSlot):
 def create_slot(name: str, direction: Direction) -> Slot:
     if direction == Direction.INPUT:
         return InFileSlot(name)
-    elif direction == Direction.OUTPUT:
+
+    if direction == Direction.OUTPUT:
         return OutFileSlot(name)
-    else:
-        raise ValueError(f"Cannot create fileslot for direction: {direction}")
+
+    raise ValueError(f"Cannot create fileslot for direction: {direction}")
