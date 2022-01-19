@@ -19,7 +19,7 @@ class Binding:
 class Bindings:
     def __init__(self, bindings: List[Binding]):
         self._bindings = list(bindings)
-        self._to_local_map = dict()
+        self._to_local_map = {}
         for bind in bindings:
             self._to_local_map[bind.remote_slot] = bind.local_slot
 

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Optional, List
 from unittest import TestCase
 
-from lzy.api import LzyOp
+from lzy.api.lazy_op import LzyOp
 
 from lzy.api.utils import lazy_proxy, is_lazy_proxy
 # noinspection PyProtectedMember
@@ -12,6 +12,20 @@ from lzy.model.signatures import CallSignature, FuncSignature
 
 
 class ProxyTests(TestCase):
+    @staticmethod
+    def lazy_constructed_obj(cls, *args, **kwargs):
+        print(args, kwargs)
+        return proxy(lambda: cls(*args, **kwargs), cls)
+
+    def test_simple_isinstance(self):
+        class A:
+            pass
+        prxy_ = self.lazy_constructed_obj(A)
+        self.assertIsInstance(prxy_, A)
+
+        prxy_int_ = self.lazy_constructed_obj(int)
+        self.assertIsInstance(prxy_int_, int)
+
     def test_custom_object_with_static_and_class_methods(self):
         class A:
             # noinspection PyShadowingNames
@@ -39,7 +53,7 @@ class ProxyTests(TestCase):
             def kung(oh, way):
                 return oh + way
 
-        a = proxy(lambda: A(4, 1, 3), A)
+        a = self.lazy_constructed_obj(A, 4, 1, 3)
         self.assertEqual(4, a.a)
         self.assertEqual(1, a._b)
         self.assertEqual(3, a.f())
@@ -57,23 +71,24 @@ class ProxyTests(TestCase):
         self.assertIs(a.class_method(), A)
 
     def test_primitive_type(self):
-        integer = proxy(lambda: 42, int)
-        val = proxy(lambda: 0, int)
+        integer = self.lazy_constructed_obj(int, 42)
+        val = self.lazy_constructed_obj(int, 0)
         for i in range(integer):
             val += 1
         self.assertEqual(42, val)
 
-        string_ = proxy(lambda: "string   ", str)
+        # useless but good for tests
+        string_ = self.lazy_constructed_obj(str, "string   ")
         expected = "string"
         self.assertEqual(string_.rstrip(), expected)
 
         res = 0
-        b = proxy(lambda: True, bool)
+        b = self.lazy_constructed_obj(bool, True)
         if b:
             res = 1
         self.assertEqual(res, 1)
 
-        lst = proxy(lambda: [1, 2, 3, 4, 5], list)
+        lst = self.lazy_constructed_obj(list, [1, 2, 3, 4, 5])
         self.assertEqual(len(lst), 5)
 
     def test_slots(self):
@@ -84,7 +99,7 @@ class ProxyTests(TestCase):
                 if not _fields:
                     self._fields = set()
 
-        a = proxy(B, B)
+        a = self.lazy_constructed_obj(B)
         self.assertIsInstance(a._fields, set)
         a._fields = None
         self.assertIs(a._fields, None)
@@ -120,8 +135,8 @@ class ProxyTests(TestCase):
         a = 10
         b = 50
 
-        prxy_a = proxy(lambda: a, int)
-        prxy_b = proxy(lambda: b, int)
+        prxy_a = self.lazy_constructed_obj(int, a)
+        prxy_b = self.lazy_constructed_obj(int, b)
         self.assertEqual(prxy_a + prxy_b, 60)
         self.assertEqual(prxy_a * prxy_b, 500)
 

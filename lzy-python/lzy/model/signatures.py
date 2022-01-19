@@ -1,10 +1,19 @@
 import inspect
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Generic, Iterable, Iterator, Optional, Tuple, Type, \
-    Callable, TypeVar
+from typing import (
+    Any,
+    Generic,
+    Iterable,
+    Iterator,
+    Optional,
+    Tuple,
+    Type,
+    Callable,
+    TypeVar,
+)
 
-T = TypeVar('T')
+T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 # TODO: own decorator with default unpacking?
@@ -28,13 +37,13 @@ class FuncSignature(Generic[T]):
     @property
     def description(self) -> str:
         # TODO: is it needed?
-        if not hasattr(self.callable, '__name__'):
+        if not hasattr(self.callable, "__name__"):
             return repr(self.callable)
         return self.callable.__name__
 
     def __repr__(self) -> str:
         input_types = ", ".join(str(t) for t in self.input_types)
-        return f'{self.callable} {self.name}({input_types}) -> {self.output_type}'
+        return f"{self.callable} {self.name}({input_types}) -> {self.output_type}"
 
 
 @dataclass
@@ -51,12 +60,11 @@ class CallSignature(Generic[T]):
         return f"{self.func.description} with args {self.args}"
 
 
-def param_files(func_s: FuncSignature, prefix: Optional[Path] = None) -> \
-        Iterator[Path]:
-    prefix = prefix or Path('/')
+def param_files(func_s: FuncSignature, prefix: Optional[Path] = None) -> Iterator[Path]:
+    prefix = prefix or Path("/")
     return (prefix / func_s.name / name for name in func_s.param_names)
 
 
 def return_file(func_s: FuncSignature, prefix: Optional[Path] = None) -> Path:
-    prefix = prefix or Path('/')
+    prefix = prefix or Path("/")
     return prefix / func_s.name / "return"

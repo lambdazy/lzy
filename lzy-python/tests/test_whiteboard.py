@@ -1,7 +1,7 @@
 import dataclasses
 from unittest import TestCase
 
-import lzy
+from lzy.api import LzyEnv
 
 
 @dataclasses.dataclass
@@ -9,10 +9,11 @@ class WB:
     a: int
     b: int
 
+
 class WhiteboardTests(TestCase):
     def test_many_wb(self):
         wb = WB(1, 1)
-        with lzy.api.LzyEnv(local=True, whiteboard=wb):
+        with LzyEnv(local=True, whiteboard=wb):
             pass
-        with lzy.api.LzyEnv(local=True, whiteboard=wb):
+        with LzyEnv(local=True, whiteboard=wb):
             pass

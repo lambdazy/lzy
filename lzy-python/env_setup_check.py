@@ -97,7 +97,7 @@ class FuseCheckStage(Stage):
 
 def check():
     stages: List[Stage] = [JavaCheckStage(), FuseCheckStage()]
-    for s in stages:
-        result = s.run()
+    for stage in stages:
+        result = stage.run()
         if not result.done():
             raise ValueError(result.error_message())

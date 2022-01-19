@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Type, TypeVar
+from typing import Dict, List, Optional, Any, Type
 from dataclasses import dataclass
 from enum import Enum
 import uuid
@@ -34,13 +34,13 @@ class WhiteboardStatus(Enum):
 
 @dataclass
 class WhiteboardInfo:
-    id: str
+    id: str  # pylint: disable=invalid-name
     status: Optional[WhiteboardStatus]
 
 
 @dataclass
 class WhiteboardDescription:
-    id: str
+    id: str  # pylint: disable=invalid-name
     fields: List[WhiteboardFieldDescription]
     snapshot: Optional[SnapshotDescription]
     status: Optional[WhiteboardStatus]
@@ -57,7 +57,6 @@ class SnapshotApi(ABC):
 
 
 class WhiteboardApi(ABC):
-
     @abstractmethod
     def create(self, fields: List[str], snapshot_id: str) -> WhiteboardDescription:
         pass
@@ -75,12 +74,11 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def getAll(self) -> List[WhiteboardInfo]:
+    def get_all(self) -> List[WhiteboardInfo]:
         pass
 
 
 class EntryIdGenerator(ABC):
-    
     @abstractmethod
     def generate(self, slot: Slot) -> str:
         pass
@@ -89,13 +87,12 @@ class EntryIdGenerator(ABC):
 class UUIDEntryIdGenerator(EntryIdGenerator):
     def __init__(self, snapshot_id: str) -> None:
         self.__snapshot_id = snapshot_id
-    
+
     def generate(self, slot: Slot) -> str:
         return "/".join([self.__snapshot_id, slot.name, str(uuid.uuid1())])
 
 
 class InMemWhiteboardApi(WhiteboardApi):
-
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         return None
 
@@ -108,24 +105,25 @@ class InMemWhiteboardApi(WhiteboardApi):
             wb_id,
             [WhiteboardFieldDescription(name, None, []) for name in fields],
             SnapshotDescription(snapshot_id=snapshot_id),
-            WhiteboardStatus.CREATED
+            WhiteboardStatus.CREATED,
         )
         return self.__whiteboards[wb_id]
-    
+
     def link(self, wb_id: str, field_name: str, entry_id: str):
         pass
 
     def get(self, wb_id: str) -> WhiteboardDescription:
         return self.__whiteboards[wb_id]
 
-    def getAll(self) -> List[WhiteboardInfo]:
-        return [WhiteboardInfo(wb.id, wb.status) for key, wb in self.__whiteboards.items()]
+    def get_all(self) -> List[WhiteboardInfo]:
+        return [
+            WhiteboardInfo(wb.id, wb.status) for key, wb in self.__whiteboards.items()
+        ]
 
 
 class InMemSnapshotApi(SnapshotApi):
     def create(self) -> SnapshotDescription:
-        id = str(uuid.uuid1())
-        return SnapshotDescription(id)
-    
+        return SnapshotDescription(str(uuid.uuid1()))
+
     def finalize(self, snapshot_id: str):
         pass

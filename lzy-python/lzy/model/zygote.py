@@ -35,13 +35,13 @@ class Provisioning:
 
     def tags(self) -> List[Tag]:
         res = []
-        for v in self.__dict__.values():
-            if v:
-                res.append(v.tag())
+        for tag in self.__dict__.values():
+            if tag:
+                res.append(tag.tag())
         return res
 
 
-T = TypeVar('T')
+T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 # Zygote should've been just marked as
@@ -79,17 +79,18 @@ class Zygote(ZygoteDataclassMixin[T], ABC):
     def to_json(self) -> str:
         env = self.env
         provisioning = self.provisioning
-        return json.dumps({
-            # tried to serialize env as json and it didn't work,
-            # so build dict here instead for env
-            "env": {env.type_id(): env.as_dct()} if env else {},
-            "fuze": self.command,
-            "provisioning": {"tags": [
-                {"tag": tag}
-                for tag in provisioning.tags()
-            ]} if provisioning else {},
-            "slots": [
-                slot.to_dict() for slot in self.slots
-            ],
-            "description": self.description
-        }, sort_keys=True, indent=3)
+        return json.dumps(
+            {
+                # tried to serialize env as json and it didn't work,
+                # so build dict here instead for env
+                "env": {env.type_id(): env.as_dct()} if env else {},
+                "fuze": self.command,
+                "provisioning": {"tags": [{"tag": tag} for tag in provisioning.tags()]}
+                if provisioning
+                else {},
+                "slots": [slot.to_dict() for slot in self.slots],
+                "description": self.description,
+            },
+            sort_keys=True,
+            indent=3,
+        )
