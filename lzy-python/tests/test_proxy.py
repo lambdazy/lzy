@@ -1,5 +1,6 @@
 from abc import ABC
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any, Optional, List
 from unittest import TestCase
 
 from lzy.api import LzyOp
@@ -176,7 +177,6 @@ class ProxyTests(TestCase):
         self.assertEqual(len(materialized), 1)
         self.assertEqual(prxy.a, prxy.b)
 
-
     def test_exception(self):
         class CrazyException(Exception):
             pass
@@ -188,3 +188,14 @@ class ProxyTests(TestCase):
         with self.assertRaises(CrazyException):
             prxy: CrazyClass = proxy(lambda: CrazyClass(), CrazyClass)
             prxy.crazy_func()
+
+    def test_lists(self):
+        @dataclass
+        class A:
+            val: int
+
+        a = [A(0), A(1), A(2)]
+        prxy_a = proxy(lambda: a, List[A])
+        self.assertEqual(prxy_a[0].val, 0)
+        self.assertEqual(prxy_a[1].val, 1)
+        self.assertEqual(prxy_a[2].val, 2)
