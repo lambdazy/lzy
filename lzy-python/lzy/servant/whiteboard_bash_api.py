@@ -92,16 +92,6 @@ class WhiteboardBashApi(WhiteboardApi):
             return self._parse_wb_info_json(res)
         except (JSONDecodeError, KeyError) as e:
             raise RuntimeError(f"Wrong command output format: {out}") from e
-
-    def getAll(self) -> List[WhiteboardInfo]:
-        self._log.info("Getting all whiteboards")
-        out = BashServantClient._exec_bash(f"{self.__mount}/sbin/whiteboard", "getAll")
-        try:
-            res = json.loads(out)
-            self._log.info(f"Received whiteboards info: {res}")
-            return self._parse_wb_info_json(res)
-        except (JSONDecodeError, KeyError) as e:
-            raise RuntimeError(f"Wrong command output format: {out}")
     
     @staticmethod
     def _parse_wb_json(res: Dict[str, Any]) -> WhiteboardDescription:
@@ -121,10 +111,6 @@ class WhiteboardBashApi(WhiteboardApi):
             status = WhiteboardStatus(res['status'])
 
         return WhiteboardDescription(res['id'], fields, snapshot, status)
-
-    @staticmethod
-    def _parse_wb_info_json(res: Dict[str, Any]) -> List[WhiteboardInfo]:
-        return [WhiteboardInfo(field['id'], field.get('whiteboardStatus')) for field in res.get('whiteboards', [])]
 
     @staticmethod
     def _parse_wb_info_json(res: Dict[str, Any]) -> List[WhiteboardInfo]:

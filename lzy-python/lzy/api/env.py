@@ -228,6 +228,3 @@ class LzyEnv(LzyEnvBase):
 
     def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
         return self._execution_context.whiteboard_api.getAll()
-
-    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
-        return self._execution_context.whiteboard_api.getAll()
