@@ -41,7 +41,7 @@ public class Client {
         channel = ChannelBuilder.forAddress(config.getHost(), config.getPort())
             .usePlaintext().enableRetry(LzyBackofficeGrpc.SERVICE_NAME).build();
 
-        wbApiChannel = ChannelBuilder.forAddress(config.getWbHost(), config.getWbPort())
+        wbApiChannel = ChannelBuilder.forAddress(config.getWbhost(), config.getWbport())
                 .usePlaintext().enableRetry(WbApiGrpc.SERVICE_NAME).build();
     }
 

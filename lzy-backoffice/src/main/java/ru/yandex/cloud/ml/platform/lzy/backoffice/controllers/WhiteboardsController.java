@@ -9,10 +9,8 @@ import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
 import javax.validation.Valid;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.grpc.Client;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tasks.GetTasksRequest;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.tasks.GetTasksResponse;
 import ru.yandex.cloud.ml.platform.lzy.backoffice.models.whiteboards.WhiteboardsCommand;
-import ru.yandex.cloud.ml.platform.lzy.backoffice.models.whiteboards.WhiteboardsInfo;
+import ru.yandex.cloud.ml.platform.lzy.backoffice.models.whiteboards.WhiteboardsResponse;
 
 @ExecuteOn(TaskExecutors.IO)
 @Controller("whiteboards")
@@ -22,9 +20,9 @@ public class WhiteboardsController {
     Client client;
 
     @Post("get")
-    public HttpResponse<WhiteboardsInfo> get(@Valid @Body WhiteboardsCommand request) {
+    public HttpResponse<WhiteboardsResponse> get(@Valid @Body WhiteboardsCommand request) {
         return HttpResponse.ok(
-            WhiteboardsInfo.fromModel(client.getWhiteboards(request))
+            WhiteboardsResponse.fromModel(client.getWhiteboards(request))
         );
     }
 }

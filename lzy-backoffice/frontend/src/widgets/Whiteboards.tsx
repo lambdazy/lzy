@@ -19,7 +19,7 @@ async function fetchWhiteboards(credentials: UserCredentials): Promise<Whiteboar
         console.log(response.data);
         return response
     });
-    return res.data.whiteboardsInfo;
+    return res.data.wbInfos;
 }
 
 export function WhiteboardsInternal(props: {}){

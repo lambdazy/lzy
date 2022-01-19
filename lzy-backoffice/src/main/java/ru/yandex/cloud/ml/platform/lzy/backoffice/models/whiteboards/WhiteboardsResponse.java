@@ -6,12 +6,12 @@ import java.util.stream.Collectors;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 @Introspected
-public class WhiteboardsInfo {
+public class WhiteboardsResponse {
 
     List<WhiteboardInfo> wbInfos;
 
-    public static WhiteboardsInfo fromModel(LzyWhiteboard.WhiteboardsInfo response) {
-        WhiteboardsInfo resp = new WhiteboardsInfo();
+    public static WhiteboardsResponse fromModel(LzyWhiteboard.WhiteboardsInfo response) {
+        WhiteboardsResponse resp = new WhiteboardsResponse();
         resp.wbInfos = response.getWhiteboardsList().stream().map(WhiteboardInfo::fromModel)
                 .collect(Collectors.toList());
         return resp;

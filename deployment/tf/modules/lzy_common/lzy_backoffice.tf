@@ -69,6 +69,14 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             value = "8888"
           }
           env {
+            name  = "GRPC_WBHOST"
+            value = kubernetes_service.whiteboard.spec[0].cluster_ip
+          }
+          env {
+            name  = "GRPC_WBPORT"
+            value = "8999"
+          }
+          env {
             name = "OAUTH_GITHUB_CLIENT_ID"
             value_from {
               secret_key_ref {
