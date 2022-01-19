@@ -15,7 +15,6 @@ class TerminalConfig:
     server_url: str = "api.lzy.ai:8899"
     lzy_mount: str = ""
     user: Optional[str] = None
-    yaml_path: Optional[str] = None
 
     def __post_init__(self):
         if not self.lzy_mount:
@@ -62,7 +61,9 @@ class TerminalServer:
             self._terminal_log = open(self._terminal_log_path,
                                       "w", encoding=encoding)
         env = os.environ.copy()
-        env["USER"] = self._config.user
+        if self._config.user is not None:
+            env["USER"] = self._config.user
+
         # pylint: disable=consider-using-with
         self._pcs = subprocess.Popen(
             [
@@ -72,7 +73,7 @@ class TerminalServer:
                 "-Djava.library.path=/usr/local/lib",
                 f"-Dcustom.log.file={self._log_file}",
                 "-classpath",
-                TerminalServer.jar_path,
+                str(TerminalServer.jar_path),
                 "ru.yandex.cloud.ml.platform.lzy.servant.BashApi",
                 "--lzy-address",
                 self._config.server_url,
@@ -104,6 +105,11 @@ class TerminalServer:
             if self._terminal_log:
                 self._terminal_log.flush()
                 self._terminal_log.close()
+
+    def join(self):
+        if not self._already_started:
+            raise RuntimeError
+        self._pcs.wait()
 
     @staticmethod
     def _check_exists_safe(path: Path) -> bool:

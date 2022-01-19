@@ -68,11 +68,15 @@ setuptools.setup(
     },
     install_requires=read_requirements(),
     packages=['lzy', 'lzy/api', 'lzy/api/whiteboard', 'lzy/api/_proxy',
-              'lzy/model', 'lzy/servant', 'lzy/api/pkg_info'],
+              'lzy/model', 'lzy/servant', 'lzy/api/pkg_info', 'lzy/cli'],
     python_requires='>=3.7',
     cmdclass={
         'install': _install,
         'bdist_wheel': _bdist_wheel,
         'sdist': _sdist,
+    },
+    entry_points = {
+        'console_scripts': ['lzy-terminal=lzy.cli.terminal_runner:console_main'],
     }
 )
+

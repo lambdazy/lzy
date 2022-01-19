@@ -1,6 +1,8 @@
 import dataclasses
 import logging
+import os
 from abc import abstractmethod, ABC
+from pathlib import Path
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 from lzy.api.buses import Bus
@@ -17,7 +19,6 @@ from lzy.api.whiteboard.wb import wrap_whiteboard
 from lzy.model.encoding import ENCODING as encoding
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
-from lzy.servant.terminal_server import TerminalServer, TerminalConfig
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -180,29 +181,36 @@ class LzyLocalEnv(LzyEnvBase):
         pass
 
 
+@dataclasses.dataclass
+class RunConfig:
+    yaml: Optional[Path] = None
+    lzy_mount: str = ""
+
+    def __post_init__(self):
+        if not self.lzy_mount:
+            self.lzy_mount = os.getenv("LZY_MOUNT", default="/tmp/lzy")
+
+
 class LzyRemoteEnv(LzyEnvBase):
     def __init__(
         self,
         eager: bool = False,
         whiteboard: Any = None,
         buses: Optional[BusList] = None,
-        config: Optional[TerminalConfig] = None,
+        config: Optional[RunConfig] = None
     ):
-        config_: TerminalConfig = config or TerminalConfig() # type: ignore
+        config_: RunConfig = config or RunConfig()
         buses = buses or []
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
             raise ValueError("Whiteboard should be a dataclass")
 
-        if config_.user is None:
-            raise ValueError("Username must be specified")
-        self._terminal_server: TerminalServer = TerminalServer(config_)
         self._servant_client: BashServantClient = BashServantClient().instance(config_.lzy_mount)
         whiteboard_api: WhiteboardApi = WhiteboardBashApi(
             config_.lzy_mount, self._servant_client
         )
         snapshot_api: SnapshotApi = SnapshotBashApi(config_.lzy_mount)
         super().__init__(buses, whiteboard, whiteboard_api, snapshot_api, eager)
-        self._yaml = config_.yaml_path
+        self._yaml = config_.yaml
 
     def generate_conda_env(
         self, namespace: Optional[Dict[str, Any]] = None
@@ -223,10 +231,12 @@ class LzyRemoteEnv(LzyEnvBase):
             return "default", "".join(file.readlines())
 
     def activate(self):
-        self._terminal_server.start()
+        pass
+        # self._terminal_server.start()
 
     def deactivate(self):
-        self._terminal_server.stop()
+        pass
+        # self._terminal_server.stop()
 
     def servant(self) -> Optional[ServantClient]:
         return self._servant_client
