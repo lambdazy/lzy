@@ -10,6 +10,7 @@ def materialize_args_on_fall(f):
     :param f: any function
     :return: new function with changed behaviour
     """
+
     def materialize_if_proxy(arg: Any) -> Any:
         return create_and_cache(type(arg), type(arg).__origin) \
             if isinstance(type(arg), Proxifier) \
@@ -38,6 +39,7 @@ def materialize_args_on_fall(f):
             # there could be user exception
             val = f(*args, **kwargs)
         return val
+
     return new
 
 
@@ -119,6 +121,10 @@ def proxy(origin_getter: Callable[[], T], t: Type[T],
     cls_attrs = cls_attrs or {}
     obj_attrs = obj_attrs or {}
 
+    # for type annotations (i.e. List[MyClass]) we should extract origin type
+    if hasattr(t, '__origin__'):
+        t = t.__origin__ # type: ignore
+
     # yea, creates new class everytime
     # probably all this stuff could be done with just one `type` call
     #
@@ -147,5 +153,4 @@ def proxy(origin_getter: Callable[[], T], t: Type[T],
             return setattr(create_and_cache(type(self), origin_getter), item,
                            value)
 
-    return Pearl() # type: ignore
-
+    return Pearl()  # type: ignore
