@@ -4,7 +4,7 @@ from typing import Any, Dict, Callable, Optional
 from lzy.api.whiteboard.api import WhiteboardApi
 from lzy.api.utils import is_lazy_proxy
 
-
+ALREADY_WRAPPED = '_already_wrapped'
 def wrap_whiteboard(
     instance: Any,
     whiteboard_api: WhiteboardApi,
@@ -12,6 +12,10 @@ def wrap_whiteboard(
 ):
     if not dataclasses.is_dataclass(instance):
         raise RuntimeError("Only dataclasses can be whiteboard")
+
+    if hasattr(instance, ALREADY_WRAPPED):
+        return
+
     fields = dataclasses.fields(instance)
     fields_dict: Dict[str, dataclasses.Field] = {
         field.name: field
@@ -39,4 +43,5 @@ def wrap_whiteboard(
         super(type(instance), self).__setattr__(key, value)
 
     setattr(instance, "id", whiteboard_id_getter)
+    setattr(instance, ALREADY_WRAPPED, True)
     type(instance).__setattr__ = __setattr__  # type: ignore
