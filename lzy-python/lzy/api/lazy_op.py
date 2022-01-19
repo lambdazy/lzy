@@ -74,6 +74,7 @@ class LzyLocalOp(LzyOp, Generic[T]):
 class LzyExecutionException(Exception):
     pass
 
+
 class LzyRemoteOp(LzyOp, Generic[T]):
     def __init__(
         self,
