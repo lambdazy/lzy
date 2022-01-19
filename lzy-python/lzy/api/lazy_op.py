@@ -6,7 +6,7 @@ import time
 
 from abc import abstractmethod, ABC
 from pathlib import Path
-from typing import Callable, Optional, Any, TypeVar, Generic
+from typing import Optional, Any, TypeVar, Generic
 
 import cloudpickle
 
@@ -67,22 +67,6 @@ class LzyLocalOp(LzyOp, Generic[T]):
 
 class LzyExecutionException(Exception):
     pass
-    #
-    # def __init__(self, message, func, execution, rc_):
-    #     self.message = message
-    #     self.func = func
-    #     self.execution = execution
-    #     self.rc_ = rc_
-    #     super().__init__(message)
-    #
-    # def __str__(self):
-    #     return (
-    #         f"Task {self.execution.id()[:4]} failed "
-    #         f"in func {self.func.__name__} "
-    #         f"with rc {self.rc_} "
-    #         f"and message: {self.message}"
-    #     )
-
 
 class LzyRemoteOp(LzyOp, Generic[T]):
     def __init__(
@@ -197,13 +181,9 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     def _exception(execution: Execution, func: FuncSignature[Any],
                    returncode: int, message: str):
         return (
-            f"Task {execution.id()[:4]} failed "
-            f"in func {func.__name__} "
-            f"with rc {returncode} "
-            f"and message: {message}"
+            f"Task {execution.id()[:4]} failed in func {func.name}"
+            f"with rc {returncode} and message: {message}"
         )
-
-
 
     def execution_logic(self) -> T:
         entry_id_mapping = (
@@ -242,7 +222,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 self._log.error(f"Execution exception with message: {message}")
             elif return_value is None:
                 message = "Return value deserialization failure"
-                message = self._exception(execution, func, rc_, message)
+                message = self._exception(execution, func,
+                        PyReturnCode.value, message)
 
             raise LzyExecutionException(message)
 
