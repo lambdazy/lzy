@@ -1,10 +1,21 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import jakarta.inject.Singleton;
+import java.text.MessageFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot.Direction;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
@@ -19,20 +30,9 @@ import ru.yandex.cloud.ml.platform.lzy.server.task.InMemTasksManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 
-import javax.annotation.Nullable;
-import java.text.MessageFormat;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.Lock;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 @Singleton
 public class LocalChannelsManager implements ChannelsManager {
+
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     private final LockManager lockManager = new LocalLockManager();
     private final Map<String, ChannelEx> channels = new ConcurrentHashMap<>();
@@ -62,7 +62,7 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     private ChannelEx getBoundChannel(Endpoint endpoint) {
-        for (ChannelEx channel: channels.values()) {
+        for (ChannelEx channel : channels.values()) {
             if (channel.hasBound(endpoint)) {
                 return channel;
             }
@@ -81,7 +81,8 @@ public class LocalChannelsManager implements ChannelsManager {
             }
             final ChannelEx boundChannel = getBoundChannel(endpoint);
             if (boundChannel != null && !boundChannel.equals(ch)) {
-                throw new ChannelException("Endpoint " + endpoint + " bound to another channel: " + channel.name());
+                throw new ChannelException(
+                    "Endpoint " + endpoint + " bound to another channel: " + channel.name());
             }
             final Slot slot = endpoint.slot();
             switch (slot.direction()) { // type checking
@@ -115,7 +116,8 @@ public class LocalChannelsManager implements ChannelsManager {
             if (channel != null) {
                 channel.unbind(endpoint);
             } else {
-                LOG.warn("Attempt to unbind endpoint " + endpoint + " from unregistered channel " + ch.name());
+                LOG.warn("Attempt to unbind endpoint " + endpoint + " from unregistered channel "
+                    + ch.name());
             }
         } finally {
             lock.unlock();
@@ -159,18 +161,30 @@ public class LocalChannelsManager implements ChannelsManager {
             final Lock lock = lockManager.getOrCreate(channel.name());
             lock.lock();
             try {
-                final Set<Endpoint> servantEndpoints = channel
-                        .bound()
-                        .filter(endpoint -> endpoint.sessionId().equals(sessionId))
-                        .collect(Collectors.toSet());
-
-                for (Endpoint endpoint : servantEndpoints) {
-                    try {
-                        channel.unbind(endpoint);
-                    } catch (ChannelException e) {
-                        LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);
-                    }
-                }
+                //unbind receivers
+                channel
+                    .bound()
+                    .filter(endpoint -> endpoint.sessionId().equals(sessionId))
+                    .filter(endpoint -> endpoint.slot().direction() == Direction.INPUT)
+                    .forEach(endpoint -> {
+                        try {
+                            channel.unbind(endpoint);
+                        } catch (ChannelException e) {
+                            LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);
+                        }
+                    });
+                //unbind senders
+                channel
+                    .bound()
+                    .filter(endpoint -> endpoint.sessionId().equals(sessionId))
+                    .filter(endpoint -> endpoint.slot().direction() == Direction.OUTPUT)
+                    .forEach(endpoint -> {
+                        try {
+                            channel.unbind(endpoint);
+                        } catch (ChannelException e) {
+                            LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);
+                        }
+                    });
             } finally {
                 lock.unlock();
             }
@@ -186,7 +200,8 @@ public class LocalChannelsManager implements ChannelsManager {
             if (channel == null) {
                 return new SlotStatus[0];
             }
-            return channel.bound().map(Endpoint::status).filter(Objects::nonNull).toArray(SlotStatus[]::new);
+            return channel.bound().map(Endpoint::status).filter(Objects::nonNull)
+                .toArray(SlotStatus[]::new);
         } finally {
             lock.unlock();
         }
@@ -198,6 +213,7 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     private static class ChannelImpl implements ChannelEx {
+
         private final String id;
         private final DataSchema contentType;
         private ChannelController logic; // pluggable channel logic

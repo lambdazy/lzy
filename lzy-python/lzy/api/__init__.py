@@ -5,13 +5,15 @@ from typing import Callable
 
 import sys
 
+from lzy.model.signatures import FuncSignature, CallSignature
+from lzy.model.zygote import Provisioning, Gpu
 from lzy.model.env import PyEnv
-from lzy.model.zygote import Gpu, Provisioning
+
 from ._proxy import proxy
 from .buses import *
 from .env import LzyEnv
 from .lazy_op import LzyOp, LzyLocalOp, LzyRemoteOp
-from .utils import print_lzy_ops, infer_return_type, is_lazy_proxy, lazy_proxy
+from .utils import infer_return_type, is_lazy_proxy, lazy_proxy
 from .whiteboard.api import UUIDEntryIdGenerator
 
 logging.root.setLevel(logging.INFO)
@@ -37,8 +39,8 @@ def op_(provisioning: Provisioning, *, input_types=None, output_type=None):
             output_type = infer_return_type(f)
             if output_type is None:
                 raise TypeError(f"{f} return type is not annotated. "
-                                f"Please for proper use of {op.__name__} annotate "
-                                f"return type of your function.")
+                                f"Please for proper use of {op.__name__} "
+                                f"annotate return type of your function.")
 
         @functools.wraps(f)
         def lazy(*args):
@@ -51,7 +53,7 @@ def op_(provisioning: Provisioning, *, input_types=None, output_type=None):
             if input_types is None:
                 # noinspection PyProtectedMember
                 input_types = tuple(
-                    arg._op.return_type if is_lazy_proxy(arg) else type(arg)
+                    arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
                     for arg in args
                 )
 
@@ -59,10 +61,14 @@ def op_(provisioning: Provisioning, *, input_types=None, output_type=None):
             if current_env is None:
                 return f(*args)
 
+            signature = CallSignature(
+                FuncSignature(f, input_types, output_type), args
+            )
+
             if current_env.is_local():
-                lzy_op = LzyLocalOp(f, input_types, output_type, args)
+                lzy_op = LzyLocalOp(signature)
             else:
-                # we need specifib globals() for caller site to find all
+                # we need specify globals() for caller site to find all
                 # required modules
                 caller_globals = inspect.stack()[1].frame.f_globals
                 env_name, yaml = current_env.generate_conda_env(caller_globals)
@@ -70,10 +76,11 @@ def op_(provisioning: Provisioning, *, input_types=None, output_type=None):
                 servant = current_env.servant()
                 if not servant:
                     raise RuntimeError("Cannot find servant")
-                lzy_op = LzyRemoteOp(servant, f, input_types, output_type,
-                                     provisioning, PyEnv(env_name, yaml),
-                                     deployed=False, args=args,
-                                     entry_id_generator=UUIDEntryIdGenerator(current_env.snapshot_id()))
+                id_generator = UUIDEntryIdGenerator(current_env.snapshot_id())
+                pyenv = PyEnv(env_name, yaml)
+                lzy_op = LzyRemoteOp(servant, signature, provisioning,
+                                     pyenv, deployed=False,
+                                     entry_id_generator=id_generator)
             current_env.register_op(lzy_op)
             return lazy_proxy(lambda: lzy_op.materialize(), output_type,
                               {'_op': lzy_op})

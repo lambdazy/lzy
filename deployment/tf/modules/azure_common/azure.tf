@@ -93,6 +93,15 @@ resource "azurerm_public_ip" "lzy_kharon" {
   allocation_method   = "Static"
 }
 
+resource "azurerm_public_ip" "grafana" {
+  domain_name_label   = "grafana-${var.installation_name}"
+  name                = "grafana-public-ip"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  sku                 = "Standard"
+  allocation_method   = "Static"
+}
+
 resource "azurerm_role_assignment" "test" {
   scope                = azurerm_resource_group.test.id
   role_definition_name = "Network Contributor"
@@ -112,10 +121,14 @@ module "lzy_common" {
   source               = "../lzy_common"
   kharon_public_ip     = azurerm_public_ip.lzy_kharon.ip_address
   backoffice_public_ip = azurerm_public_ip.lzy_backoffice.ip_address
+  grafana_public_ip = azurerm_public_ip.grafana.ip_address
   kharon_load_balancer_necessary_annotations = {
     "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
   }
   backoffice_load_balancer_necessary_annotations = {
+    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+  }
+  grafana_load_balancer_necessary_annotations = {
     "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
   }
   installation_name                 = var.installation_name

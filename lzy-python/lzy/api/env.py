@@ -111,7 +111,7 @@ class LzyEnv(LzyEnvBase):
             if not user:
                 raise ValueError("Username must be specified")
             self._terminal_server: Optional[TerminalServer] = TerminalServer(private_key_path, lzy_mount, server_url, user)
-            self._servant_client: Optional[BashServantClient] = BashServantClient(lzy_mount)
+            self._servant_client: Optional[BashServantClient] = BashServantClient().instance(lzy_mount)
             whiteboard_api: WhiteboardApi = WhiteboardBashApi(lzy_mount, self._servant_client)
             snapshot_api: SnapshotApi = SnapshotBashApi(lzy_mount)
         else:
@@ -224,8 +224,10 @@ class LzyEnv(LzyEnvBase):
             wb.fields
         }
         # noinspection PyArgumentList
-        result = typ(**whiteboard_dict)
-        return result
+        return typ(**whiteboard_dict)
+
+    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
+        return self._execution_context.whiteboard_api.getAll()
 
     def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
         return self._execution_context.whiteboard_api.getAll()

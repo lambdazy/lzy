@@ -18,6 +18,5 @@ module "azure_common" {
   oauth-github-client-secret = var.github-secret
   s3-postfics                = "testing2"
   gpu_count                  = 0
-  servant-image              = "lzydock/lzy-servant:testing-2"
-  server-image              = "lzydock/lzy-server:testing-2"
+  server-image = "lzydock/lzy-server:testing-2"
 }
