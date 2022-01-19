@@ -123,7 +123,7 @@ def proxy(origin_getter: Callable[[], T], t: Type[T],
 
     # for type annotations (i.e. List[MyClass]) we should extract origin type
     if hasattr(t, '__origin__'):
-        t = t.__origin__
+        t = t.__origin__ # type: ignore
 
     # yea, creates new class everytime
     # probably all this stuff could be done with just one `type` call
