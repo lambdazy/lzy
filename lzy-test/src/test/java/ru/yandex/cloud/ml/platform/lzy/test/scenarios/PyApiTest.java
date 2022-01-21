@@ -9,6 +9,8 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
+
 public class PyApiTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
 
@@ -48,7 +50,6 @@ public class PyApiTest extends LzyBaseTest {
                 8899,
                 "test_user"
         );
-        final String condaPrefix = prepareConda();
         final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
 
         //Act
@@ -67,7 +68,6 @@ public class PyApiTest extends LzyBaseTest {
                 "test_user"
         );
         //Arrange
-        String condaPrefix = prepareConda();
         final String pyCommand = "python /lzy-python/examples/integration/simple_graph_with_assertions.py";
 
         //Act
@@ -81,7 +81,6 @@ public class PyApiTest extends LzyBaseTest {
     public void testSimpleCatboostGraph() {
         arrangeTerminal();
         //Arrange
-        String condaPrefix = prepareConda();
         terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install catboost");
         final String pyCommand = "python /lzy-python/examples/integration/catboost_simple.py";
@@ -94,19 +93,10 @@ public class PyApiTest extends LzyBaseTest {
         Assert.assertEquals("1", Utils.lastLine(result.stdout()));
     }
 
-    private String prepareConda() {
-        String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
-                "conda activate default && ";
-        terminal.execute(Map.of(), "bash", "-c",
-                condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
-        return condaPrefix;
-    }
-
     @Test
     public void testExecFail() {
         arrangeTerminal("phil");
         //Arrange
-        String condaPrefix = prepareConda();
         final String pyCommand = "python /lzy-python/examples/test_tasks/exec_fail.py";
 
         //Act
@@ -121,7 +111,6 @@ public class PyApiTest extends LzyBaseTest {
     public void testEnvFail() {
         arrangeTerminal("phil");
         //Arrange
-        String condaPrefix = prepareConda();
         final String pyCommand = "python /lzy-python/examples/test_tasks/env_fail.py";
 
         //Act
@@ -140,7 +129,6 @@ public class PyApiTest extends LzyBaseTest {
                 "test_user"
                 );
         //Arrange
-        String condaPrefix = prepareConda();
         final String pyCommand = "python /lzy-python/examples/integration/whiteboard_simple.py";
 
         //Act

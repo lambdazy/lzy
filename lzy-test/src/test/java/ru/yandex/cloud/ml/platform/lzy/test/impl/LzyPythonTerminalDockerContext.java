@@ -3,9 +3,12 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 import org.testcontainers.containers.GenericContainer;
 
 public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
+    public static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
+            "conda activate default && ";
+
     @Override
     public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String private_key_path) {
-        String terminalCommand = "terminal ";
+        String terminalCommand = "lzy-terminal ";
         if (serverAddress != null) {
             terminalCommand += "--url " + serverAddress + " ";
         }
@@ -19,7 +22,7 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
             terminalCommand += "-u " + user + " ";
         }
         terminalCommand += ";";
-        final String command = terminalCommand;
+        final String command = condaPrefix + terminalCommand;
 
         GenericContainer<?> servantContainer = createDockerWithCommandAndModifier(
                 user, debugPort, private_key_path, port,
