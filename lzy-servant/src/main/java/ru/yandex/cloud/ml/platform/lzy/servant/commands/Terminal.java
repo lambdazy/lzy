@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import org.apache.commons.cli.CommandLine;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
@@ -29,8 +30,6 @@ public class Terminal implements LzyCommand {
                 "Provide lzy server address with -z option to start a task.");
         }
 
-        final UUID terminalToken = UUID.randomUUID();
-        final String tokenSignature;
         String serverAddress = parse.getOptionValue('z');
         if (!serverAddress.contains("//")) {
             serverAddress = "http://" + serverAddress;
@@ -47,7 +46,6 @@ public class Terminal implements LzyCommand {
         final LzyAgentConfig.LzyAgentConfigBuilder builder = LzyAgentConfig.builder()
             .serverAddress(URI.create(serverAddress))
             .user(System.getenv("USER"))
-            .token(terminalToken.toString())
             .agentName(host)
             .agentInternalName(parse.getOptionValue('i', host))
             .agentPort(port)
@@ -55,8 +53,8 @@ public class Terminal implements LzyCommand {
 
         if (Files.exists(privateKeyPath)) {
             try (FileReader keyReader = new FileReader(String.valueOf(privateKeyPath))) {
-                tokenSignature = Credentials.signToken(terminalToken, keyReader);
-                builder.tokenSign(tokenSignature);
+                String token = JwtCredentials.buildJWT(System.getenv("USER"), keyReader);
+                builder.token(token);
             }
         }
         final LzyAgent terminal = new LzyTerminal(builder.build());

@@ -16,7 +16,7 @@ public class PublicKeyModel {
     @Column(name = "user_id")
     private String userId;
 
-    @Column(name = "value")
+    @Column(name = "value", length = 512)
     private String value;
 
     @ManyToOne()
