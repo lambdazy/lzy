@@ -42,7 +42,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     protected  GenericContainer<?> createDockerWithCommandAndModifier(
             String user, int debugPort,
             String private_key_path, int exposedPort,
-            Supplier<String> commandGeneator,
+            Supplier<String> commandGenerator,
             Consumer<CreateContainerCmd> modifier
     ) {
 
@@ -56,7 +56,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
                 .withEnv("SUSPEND_DOCKER", "n")
                 //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
                 .withCreateContainerCmdModifier(modifier)
-                .withCommand(commandGeneator.get());
+                .withCommand(commandGenerator.get());
 
         if (private_key_path != null) {
             base.withFileSystemBind(private_key_path, private_key_path);
@@ -208,7 +208,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
                user, debugPort, private_key_path, port,
                 () -> "--lzy-address " + serverAddress + " "
                         + "--host localhost "
-                        + "--exposedPort " + port + " "
+                        + "--port " + port + " "
                         + "--lzy-mount " + mount + " "
                         + "--internal-host " + internalHost + " "
                         + "--private-key " + private_key_path + " "

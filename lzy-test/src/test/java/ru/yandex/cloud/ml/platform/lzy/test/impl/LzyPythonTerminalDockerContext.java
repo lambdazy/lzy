@@ -8,7 +8,7 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
 
     @Override
     public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String private_key_path) {
-        String terminalCommand = "lzy-terminal ";
+        String terminalCommand = "";
         if (serverAddress != null) {
             terminalCommand += "--url " + serverAddress + " ";
         }
@@ -21,13 +21,13 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
         if (user != null) {
             terminalCommand += "-u " + user + " ";
         }
-        terminalCommand += ";";
-        final String command = condaPrefix + terminalCommand;
+        terminalCommand += "-p " + port + " ";
+        final String command = terminalCommand;
         System.out.println("running command " + command);
         GenericContainer<?> servantContainer = createDockerWithCommandAndModifier(
                 user, debugPort, private_key_path, port,
                 () -> command,
-                (cmd) -> cmd.withEntrypoint("/bin/bash -c")
+                (cmd) -> cmd.withEntrypoint("/test_entrypoint.sh")
         );
         return createTerminal(mount, serverAddress, port, servantContainer);
     }
