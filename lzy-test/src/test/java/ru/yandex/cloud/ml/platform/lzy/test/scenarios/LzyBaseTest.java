@@ -40,6 +40,7 @@ public class LzyBaseTest {
     public void tearDown() {
         api.shutdown();
         terminalContext.close();
+        pyTerminalContext.close();
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();
