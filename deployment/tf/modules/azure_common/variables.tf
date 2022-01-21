@@ -91,3 +91,7 @@ variable "ssl-keystore-password" {
   type    = string
   default = ""
 }
+variable "s3-separated-per-bucket" {
+  type    = bool
+  default = true
+}

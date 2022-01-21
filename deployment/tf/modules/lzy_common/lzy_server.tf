@@ -131,6 +131,10 @@ resource "kubernetes_deployment" "server" {
             }
           }
           env {
+            name = "STORAGE_SEPARATED"
+            value = var.s3-separated-per-bucket
+          }
+          env {
             name  = "LZYWHITEBOARD"
             value = "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:8999"
           }
@@ -148,12 +152,25 @@ resource "kubernetes_deployment" "server" {
           }
 
           env {
+            name = "DATABASE_ENABLED"
+            value = "true"
+          }
+
+          env {
             name = "DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
                 name = "postgres"
                 key  = "postgresql-password"
               }
+            }
+          }
+          dynamic "env" {
+            for_each = var.server-additional-envs
+            iterator = data
+            content {
+              name = data.key
+              value = data.value
             }
           }
           port {

@@ -17,15 +17,13 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 import java.io.StringReader;
 import java.security.Security;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials.checkToken;
 
 
 @Singleton
-@Requires(property = "authenticator", value = "DbAuthenticator")
+@Requires(property = "database.enabled", value = "true", defaultValue = "false")
 public class DbAuthenticator implements Authenticator {
     private static final Logger LOG = LogManager.getLogger(DbAuthenticator.class);
 
@@ -137,14 +135,6 @@ public class DbAuthenticator implements Authenticator {
         }
         catch (Exception e){
             return false;
-        }
-    }
-
-    @Override
-    public String bucketForUser(String uid) {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            UserModel user = session.find(UserModel.class, uid);
-            return user.getBucket();
         }
     }
 

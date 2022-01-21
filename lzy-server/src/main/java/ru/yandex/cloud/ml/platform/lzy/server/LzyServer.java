@@ -11,8 +11,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configurator;
-import org.hibernate.Session;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
@@ -21,6 +19,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
@@ -119,6 +118,9 @@ public class LzyServer {
 
         @Inject
         private Authenticator auth;
+
+        @Inject
+        private StorageCredentialsProvider credentialsProvider;
 
         @Inject
         private StorageConfigs storageConfigs;
@@ -377,26 +379,9 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-            Lzy.GetS3CredentialsResponse.Builder builder = Lzy.GetS3CredentialsResponse.newBuilder();
-            if (storageConfigs.getAmazon().isEnabled()){
-                builder.setAmazon(
-                    Lzy.AmazonCredentials.newBuilder()
-                        .setAccessToken(storageConfigs.getAmazon().getAccessToken())
-                        .setSecretToken(storageConfigs.getAmazon().getSecretToken())
-                        .setEndpoint(storageConfigs.getAmazon().getEndpoint())
-                );
-            }
-            else if (storageConfigs.getAzure().isEnabled()){
-                builder.setAzure(
-                    Lzy.AzureCredentials.newBuilder()
-                        .setConnectionString(storageConfigs.getAzure().getConnectionString())
-                );
-            }
-            String bucketName = this.auth.bucketForUser(resolveUser(auth));
-            builder.setBucket(bucketName);
-
             responseObserver.onNext(
-                builder.build()
+                storageConfigs.isSeparated() ? credentialsProvider.separatedStorageCredentials(resolveUser(auth))
+                        : credentialsProvider.storageCredentials(resolveUser(auth))
             );
             responseObserver.onCompleted();
         }

@@ -149,4 +149,5 @@ module "lzy_common" {
   ssl-cert-key                      = var.ssl-cert-key
   ssl-keystore-password             = var.ssl-keystore-password
   servant-image                     = var.servant-image
+  s3-separated-per-bucket           = var.s3-separated-per-bucket
 }

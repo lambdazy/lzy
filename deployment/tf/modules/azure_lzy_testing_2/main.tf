@@ -19,4 +19,6 @@ module "azure_common" {
   s3-postfics                = "testing2"
   gpu_count                  = 0
   server-image = "lzydock/lzy-server:testing-2"
+  servant-image = "lzydock/lzy-servant:testing-2"
+  s3-separated-per-bucket = false
 }
