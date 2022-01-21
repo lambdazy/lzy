@@ -23,13 +23,11 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
         }
         terminalCommand += ";";
         final String command = condaPrefix + terminalCommand;
-
+        System.out.println("running command " + command);
         GenericContainer<?> servantContainer = createDockerWithCommandAndModifier(
                 user, debugPort, private_key_path, port,
                 () -> command,
-                (genericContainer -> genericContainer.withCreateContainerCmdModifier(
-                        (cmd) -> cmd.withEntrypoint("/bin/bash -c")
-                ))
+                (cmd) -> cmd.withEntrypoint("/bin/bash -c")
         );
         return createTerminal(mount, serverAddress, port, servantContainer);
     }

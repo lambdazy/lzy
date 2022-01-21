@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.exception.ConflictException;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -41,7 +43,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             String user, int debugPort,
             String private_key_path, int exposedPort,
             Supplier<String> commandGeneator,
-            Function<GenericContainer<?>, GenericContainer<?>> modifiers
+            Consumer<CreateContainerCmd> modifier
     ) {
 
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
@@ -53,7 +55,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
                 .withEnv("DEBUG_PORT", Integer.toString(debugPort))
                 .withEnv("SUSPEND_DOCKER", "n")
                 //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-                .withCreateContainerCmdModifier((modifier) -> modifier.withEntrypoint("terminal"))
+                .withCreateContainerCmdModifier(modifier)
                 .withCommand(commandGeneator.get());
 
         if (private_key_path != null) {
@@ -211,7 +213,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
                         + "--internal-host " + internalHost + " "
                         + "--private-key " + private_key_path + " "
                         + "terminal",
-                (genericContainer -> genericContainer)
+                (cmd) -> {}
         );
         return createTerminal(mount, serverAddress, port, servantContainer);
     }
