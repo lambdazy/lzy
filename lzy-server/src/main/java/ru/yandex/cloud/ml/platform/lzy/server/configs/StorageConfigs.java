@@ -7,6 +7,15 @@ public class StorageConfigs {
 
     private AmazonCredentials amazon = new AmazonCredentials();
     private AzureCredentials azure = new AzureCredentials();
+    private String bucket;
+
+    public String getBucket() {
+        return bucket;
+    }
+
+    public void setBucket(String bucket) {
+        this.bucket = bucket;
+    }
 
     public AmazonCredentials getAmazon() {
         return amazon;

@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

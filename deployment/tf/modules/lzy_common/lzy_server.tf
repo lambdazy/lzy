@@ -85,7 +85,7 @@ resource "kubernetes_deployment" "server" {
             value = "backoffice"
           }
           env {
-            name  = "BUCKET_NAME"
+            name  = "STORAGE_BUCKET"
             value = var.s3-bucket-name
           }
           dynamic "env" {

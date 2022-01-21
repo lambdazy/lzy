@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.security.*;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -62,7 +63,7 @@ public class LzyDbAuthTest {
         }
 
         public UserModel getUserModel(){
-            return new UserModel(userId);
+            return new UserModel(userId, userId.toLowerCase(Locale.ROOT));
         }
     }
 

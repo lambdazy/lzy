@@ -76,6 +76,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                 env.put("STORAGE_AMAZON_ACCESS_TOKEN", "access-key");
                 env.put("STORAGE_AMAZON_SECRET_TOKEN", "secret-key");
                 env.put("STORAGE_AMAZON_ENABLED", "true");
+                env.put("STORAGE_BUCKET", "lzy-bucket");
                 String serviceEndpoint;
                 String lzywhiteboard;
                 if (!SystemUtils.IS_OS_LINUX) {
