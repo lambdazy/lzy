@@ -14,4 +14,7 @@ RUN ./conda_prepare.sh pylzy_install 'lzy-python'
 COPY lzy-servant/entrypoint.sh /
 RUN chmod a+rx /entrypoint.sh
 
+COPY lzy-servant/test_entrypoint.sh /
+RUN chmod a+rx /test_entrypoint.sh
+
 ENTRYPOINT ["/entrypoint.sh"]

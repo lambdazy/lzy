@@ -7,19 +7,19 @@ from pathlib import Path
 from typing import Optional
 
 from lzy.model.encoding import ENCODING as encoding
-
+import lzy.api # needed to instantiate logging #  pylint: disable=unused-import
 
 @dataclass
 class TerminalConfig:
     private_key_path: str = "~/.ssh/id_rsa"
     server_url: str = "api.lzy.ai:8899"
+    port: int = 9999
     lzy_mount: str = ""
     user: Optional[str] = None
 
     def __post_init__(self):
         if not self.lzy_mount:
             self.lzy_mount = os.getenv("LZY_MOUNT", default="/tmp/lzy")
-
 
 class TerminalServer:
     jar_path = Path(os.path.dirname(__file__)) / ".." / "lzy-servant.jar"
@@ -72,17 +72,13 @@ class TerminalServer:
                 "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
                 "-Djava.library.path=/usr/local/lib",
                 f"-Dcustom.log.file={self._log_file}",
-                "-classpath",
-                str(TerminalServer.jar_path),
+                "-classpath", TerminalServer.jar_path,
                 "ru.yandex.cloud.ml.platform.lzy.servant.BashApi",
-                "--lzy-address",
-                self._config.server_url,
-                "--lzy-mount",
-                self._config.lzy_mount,
-                "--private-key",
-                self._config.private_key_path,
-                "--host",
-                "localhost",
+                "--lzy-address", self._config.server_url,
+                "--port", self._config.port,
+                "--lzy-mount", self._config.lzy_mount,
+                "--private-key", self._config.private_key_path,
+                "--host", "localhost",
                 "terminal",
             ],
             stdout=self._terminal_log,
@@ -105,11 +101,6 @@ class TerminalServer:
             if self._terminal_log:
                 self._terminal_log.flush()
                 self._terminal_log.close()
-
-    def join(self):
-        if not self._already_started:
-            raise RuntimeError
-        self._pcs.wait()
 
     @staticmethod
     def _check_exists_safe(path: Path) -> bool:

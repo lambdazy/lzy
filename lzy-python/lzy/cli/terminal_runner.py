@@ -2,6 +2,7 @@
 import argparse
 import signal
 import sys
+from pathlib import Path
 
 from lzy.servant.terminal_server import TerminalConfig, TerminalServer
 
@@ -18,12 +19,15 @@ def create_signal_handler(terminal: TerminalServer):
 def console_main():
     parser = argparse.ArgumentParser(description='lzy-terminal entrypoint')
 
-    parser.add_argument("--url", dest="url", default="api.lzy.ai:8899",
-                        help="Server url.\nOptional: api.lzy.ai:8899 is used"
+    parser.add_argument("--url", dest="url", default="api.lzy.ai",
+                        help="Server url.\nOptional: api.lzy.ai is used"
                              "as default if key is not given.",
                         type=str)
+    parser.add_argument("-p", "--port", dest="port", default="8899",
+                        help="Server port. Optional: 8899 is used as default "
+                             "value.")
     parser.add_argument("-k", "--private-key-path", dest="keypath",
-                        default="~/.ssh/id_rsa",
+                        default=str(Path("~/.ssh/id_rsa").expanduser()),
                         help="Path to private rsa key.\n"
                              "Optional: I~/.ssh/id_rsa is used as default path"
                              " if key is not given.",
@@ -39,14 +43,16 @@ def console_main():
     args = parser.parse_args()
     config = TerminalConfig(
         server_url=args.url,
+        port=args.port,
         private_key_path=args.keypath,
         user=args.user,
         lzy_mount=args.mountpath
     )
     terminal_server = TerminalServer(config)
+    print(terminal_server.jar_path)
 
     signal.signal(signal.SIGINT, create_signal_handler(terminal_server))
-
     terminal_server.start()
-    terminal_server.join()
+    print("Started terminal")
+    signal.pause()
     sys.exit(0)
