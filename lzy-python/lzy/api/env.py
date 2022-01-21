@@ -192,6 +192,8 @@ class RunConfig:
 
 
 class LzyRemoteEnv(LzyEnvBase):
+    default_config = RunConfig()
+
     def __init__(
         self,
         eager: bool = False,
@@ -199,18 +201,18 @@ class LzyRemoteEnv(LzyEnvBase):
         buses: Optional[BusList] = None,
         config: Optional[RunConfig] = None
     ):
-        config_: RunConfig = config or RunConfig()
+        config_ = config or self.default_config
         buses = buses or []
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
             raise ValueError("Whiteboard should be a dataclass")
 
+        self._yaml = config_.yaml
         self._servant_client: BashServantClient = BashServantClient().instance(config_.lzy_mount)
         whiteboard_api: WhiteboardApi = WhiteboardBashApi(
             config_.lzy_mount, self._servant_client
         )
         snapshot_api: SnapshotApi = SnapshotBashApi(config_.lzy_mount)
         super().__init__(buses, whiteboard, whiteboard_api, snapshot_api, eager)
-        self._yaml = config_.yaml
 
     def generate_conda_env(
         self, namespace: Optional[Dict[str, Any]] = None
@@ -232,11 +234,9 @@ class LzyRemoteEnv(LzyEnvBase):
 
     def activate(self):
         pass
-        # self._terminal_server.start()
 
     def deactivate(self):
         pass
-        # self._terminal_server.stop()
 
     def servant(self) -> Optional[ServantClient]:
         return self._servant_client
