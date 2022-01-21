@@ -20,9 +20,7 @@ def main():
     def bar(bs: Base, sp: str) -> str:
         # noinspection PyTypeChecker
         return sp + bs.b + str(bs.a)
-
-    config = TerminalConfig(user="test_user", server_url="localhost:8899")
-    with LzyRemoteEnv(config=config):
+    with LzyRemoteEnv():
         just_print()
         s = str_gen()
         f = foo(3)

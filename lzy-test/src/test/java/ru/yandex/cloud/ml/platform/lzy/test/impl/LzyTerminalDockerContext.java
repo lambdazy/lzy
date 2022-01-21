@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
@@ -35,25 +37,24 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(LzyTerminalDockerContext.class);
     private final List<GenericContainer<?>> startedContainers = new ArrayList<>();
 
-    @Override
-    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String private_key_path) {
-        final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
+    protected  GenericContainer<?> createDockerWithCommandAndModifier(
+            String user, int debugPort,
+            String private_key_path, int exposedPort,
+            Supplier<String> commandGeneator,
+            Function<GenericContainer<?>, GenericContainer<?>> modifiers
+    ) {
+
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
-            .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
-            .withEnv("USER", user)
-            .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)
-            .withEnv("DEBUG_PORT", Integer.toString(debugPort))
-            .withEnv("SUSPEND_DOCKER", "n")
-            //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withCommand("--lzy-address " + serverAddress + " "
-                + "--host localhost "
-                + "--port " + port + " "
-                + "--lzy-mount " + mount + " "
-                + "--internal-host " + internalHost + " "
-                + "--private-key " + private_key_path + " "
-                + "terminal");
+                .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
+                .withEnv("USER", user)
+                .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)
+                .withEnv("DEBUG_PORT", Integer.toString(debugPort))
+                .withEnv("SUSPEND_DOCKER", "n")
+                //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
+                .withCreateContainerCmdModifier((modifier) -> modifier.withEntrypoint("terminal"))
+                .withCommand(commandGeneator.get());
 
         if (private_key_path != null) {
             base.withFileSystemBind(private_key_path, private_key_path);
@@ -64,14 +65,23 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             servantContainer = base.withNetworkMode("host");
         } else {
             servantContainer = base
-                .withFixedExposedPort(port, port)
-                .withFixedExposedPort(debugPort, debugPort) //to attach debugger
-                .withExposedPorts(port, debugPort);
+                    .withFixedExposedPort(exposedPort, exposedPort)
+                    .withFixedExposedPort(debugPort, debugPort) //to attach debugger
+                    .withExposedPorts(exposedPort, debugPort);
         }
 
         servantContainer.start();
         servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
         startedContainers.add(servantContainer);
+        return servantContainer;
+    }
+
+    public Terminal createTerminal(
+            String mount,
+            String serverAddress,
+            int port,
+            GenericContainer<?> servantContainer
+    ) {
         return new Terminal() {
             @Override
             public String mount() {
@@ -106,13 +116,13 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
 
                     final ExecCreateCmd execCreateCmd = dockerClient.execCreateCmd(containerId);
                     final ExecCreateCmdResponse exec = execCreateCmd.withEnv(env.entrySet()
-                            .stream()
-                            .map(e -> e.getKey() + "=" + Utils.bashEscape(e.getValue()))
-                            .collect(Collectors.toList()))
-                        .withAttachStdout(true)
-                        .withAttachStderr(true)
-                        .withCmd(command)
-                        .exec();
+                                    .stream()
+                                    .map(e -> e.getKey() + "=" + Utils.bashEscape(e.getValue()))
+                                    .collect(Collectors.toList()))
+                            .withAttachStdout(true)
+                            .withAttachStderr(true)
+                            .withCmd(command)
+                            .exec();
 
                     final ToStringConsumer stdoutStringConsumer = new ToStringConsumer();
                     final ToStringConsumer stderrStringConsumer = new ToStringConsumer();
@@ -152,14 +162,14 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
 
             @Override
             public boolean waitForStatus(
-                AgentStatus status, long timeout, TimeUnit unit
+                    AgentStatus status, long timeout, TimeUnit unit
             ) {
                 return Utils.waitFlagUp(() -> {
                     if (pathExists(Paths.get(mount + "/sbin/status"))) {
                         try {
                             final Container.ExecResult bash = servantContainer.execInContainer(
-                                "bash",
-                                mount + "/sbin/status"
+                                    "bash",
+                                    mount + "/sbin/status"
                             );
                             final String parsedStatus = bash.getStdout().split("\n")[0];
                             return parsedStatus.equalsIgnoreCase(status.name());
@@ -187,6 +197,23 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
                 }, timeout, unit);
             }
         };
+    }
+
+    @Override
+    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String private_key_path) {
+        final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
+        GenericContainer<?> servantContainer = createDockerWithCommandAndModifier(
+               user, debugPort, private_key_path, port,
+                () -> "--lzy-address " + serverAddress + " "
+                        + "--host localhost "
+                        + "--exposedPort " + port + " "
+                        + "--lzy-mount " + mount + " "
+                        + "--internal-host " + internalHost + " "
+                        + "--private-key " + private_key_path + " "
+                        + "terminal",
+                (genericContainer -> genericContainer)
+        );
+        return createTerminal(mount, serverAddress, port, servantContainer);
     }
 
     @Override
