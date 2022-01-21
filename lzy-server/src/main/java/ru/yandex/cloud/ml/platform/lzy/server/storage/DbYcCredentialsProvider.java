@@ -40,14 +40,12 @@ import java.security.PrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 
-import static ru.yandex.cloud.ml.platform.lzy.server.utils.StorageUtils.getCredentialsByBucket;
-
 @Singleton
 @Requires(property = "database.enabled", value = "true")
 @Requires(property = "storage.amazon.enabled", value = "true")
 @Requires(property = "server.yc.enabled", value = "true")
-public class DbAmazonCredentialsProvider implements StorageCredentialsProvider {
-    private static final Logger LOG = LogManager.getLogger(DbAmazonCredentialsProvider.class);
+public class DbYcCredentialsProvider implements StorageCredentialsProvider {
+    private static final Logger LOG = LogManager.getLogger(DbYcCredentialsProvider.class);
 
     @Inject
     StorageConfigs storageConfigs;
@@ -60,7 +58,7 @@ public class DbAmazonCredentialsProvider implements StorageCredentialsProvider {
 
     private final RenewableToken token;
 
-    public DbAmazonCredentialsProvider(ServerConfig serverConfig) {
+    public DbYcCredentialsProvider(ServerConfig serverConfig) {
         PemObject privateKeyPem;
         LOG.info(
                 String.format("folderId: %s\n saId: %s", serverConfig.getYc().getFolderId(), serverConfig.getYc().getServiceAccountId())

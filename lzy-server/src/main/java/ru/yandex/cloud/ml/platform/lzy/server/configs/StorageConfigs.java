@@ -8,7 +8,7 @@ public class StorageConfigs {
     private AmazonCredentials amazon = new AmazonCredentials();
     private AzureCredentials azure = new AzureCredentials();
     private String bucket;
-    private boolean separated = true;
+    private boolean separated = false;
 
     public boolean isSeparated() {
         return separated;
