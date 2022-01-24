@@ -119,16 +119,19 @@ public abstract class gRPCConverter {
             case Azure: {
                 return GetS3CredentialsResponse.newBuilder()
                     .setAzure(to(credentials.azure()))
+                    .setBucket(credentials.bucket())
                     .build();
             }
             case AzureSas: {
                 return GetS3CredentialsResponse.newBuilder()
                     .setAzureSas(to(credentials.azureSAS()))
+                    .setBucket(credentials.bucket())
                     .build();
             }
             case Amazon: {
                 return GetS3CredentialsResponse.newBuilder()
                     .setAmazon(to(credentials.amazon()))
+                    .setBucket(credentials.bucket())
                     .build();
             }
             default:

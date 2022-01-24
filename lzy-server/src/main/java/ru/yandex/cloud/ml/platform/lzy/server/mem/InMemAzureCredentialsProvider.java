@@ -23,7 +23,8 @@ public class InMemAzureCredentialsProvider implements StorageCredentialsProvider
     @Override
     public StorageCredentials storageCredentials(String uid) {
         return StorageCredentialsImpl.azure(
-            storageConfigs.getAzure().getConnectionString()
+            storageConfigs.getAzure().getConnectionString(),
+            storageConfigs.getBucket()
         );
     }
 
@@ -31,6 +32,7 @@ public class InMemAzureCredentialsProvider implements StorageCredentialsProvider
     public StorageCredentials separatedStorageCredentials(String uid) {
         AzureSASCredentials credentials = StorageUtils.getCredentialsByBucket(uid, uid.toLowerCase(Locale.ROOT), storageConfigs.getAzure());
 
-        return StorageCredentialsImpl.azureSAS(credentials.signature(), credentials.endpoint());
+        return StorageCredentialsImpl.azureSAS(credentials.signature(), credentials.endpoint(), uid.toLowerCase(
+            Locale.ROOT));
     }
 }

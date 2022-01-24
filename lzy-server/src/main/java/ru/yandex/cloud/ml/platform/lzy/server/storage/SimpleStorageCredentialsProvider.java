@@ -11,11 +11,11 @@ import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type;
 public class SimpleStorageCredentialsProvider implements StorageCredentialsProvider {
     @Override
     public StorageCredentials storageCredentials(String uid) {
-        return new StorageCredentialsImpl(Type.Empty, null, null, null);
+        return new StorageCredentialsImpl(Type.Empty, null, null, null, null);
     }
 
     @Override
     public StorageCredentials separatedStorageCredentials(String uid) {
-        return new StorageCredentialsImpl(Type.Empty, null, null, null);
+        return new StorageCredentialsImpl(Type.Empty, null, null, null, null);
     }
 }

@@ -27,4 +27,5 @@ public interface StorageCredentials {
     AmazonCredentials amazon();
     AzureSASCredentials azureSAS();
     Type type();
+    String bucket();
 }

@@ -44,7 +44,8 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
         return StorageCredentialsImpl.amazon(
             storageConfigs.getAmazon().getEndpoint(),
             storageConfigs.getAmazon().getAccessToken(),
-            storageConfigs.getAmazon().getSecretToken()
+            storageConfigs.getAmazon().getSecretToken(),
+            storageConfigs.getBucket()
         );
     }
 
@@ -89,7 +90,8 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
             client.setBucketAcl(user.getBucket(), acl);
 
             return StorageCredentialsImpl
-                .amazon(storageConfigs.getAmazon().getEndpoint(), user.getAccessKey(), user.getSecretKey());
+                .amazon(storageConfigs.getAmazon().getEndpoint(), user.getAccessKey(), user.getSecretKey(),
+                    user.getBucket());
         }
     }
 }

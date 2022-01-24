@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.server.mem;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.util.Locale;
 import org.apache.commons.lang3.NotImplementedException;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
 import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsImpl;
@@ -21,7 +22,8 @@ public class InMemAmazonCredentialsProvider implements StorageCredentialsProvide
         return StorageCredentialsImpl.amazon(
             storageConfigs.getAmazon().getEndpoint(),
             storageConfigs.getAmazon().getAccessToken(),
-            storageConfigs.getAmazon().getSecretToken()
+            storageConfigs.getAmazon().getSecretToken(),
+            storageConfigs.getBucket()
         );
     }
 

@@ -8,16 +8,20 @@ public class StorageCredentialsImpl implements StorageCredentials {
     private final AzureCredentials azure;
     private final AzureSASCredentials azureSAS;
     private final AmazonCredentials amazon;
+    private final String bucket;
 
     public StorageCredentialsImpl(
         Type type,
         AzureCredentials azure,
         AzureSASCredentials azureSAS,
-        AmazonCredentials amazon) {
+        AmazonCredentials amazon,
+        String bucket
+    ) {
         this.type = type;
         this.azure = azure;
         this.azureSAS = azureSAS;
         this.amazon = amazon;
+        this.bucket = bucket;
     }
 
     public static class AzureCredentialsImpl implements AzureCredentials{
@@ -104,29 +108,35 @@ public class StorageCredentialsImpl implements StorageCredentials {
         return type;
     }
 
-    public static StorageCredentials azure(String connectionString){
+    @Override
+    public String bucket() {
+        return bucket;
+    }
+
+    public static StorageCredentials azure(String connectionString, String bucket){
         return new StorageCredentialsImpl(
             Type.Azure,
             new AzureCredentialsImpl(connectionString),
-            null, null
+            null, null, bucket
         );
     }
 
-    public static StorageCredentials azureSAS(String signature, String endpoint){
+    public static StorageCredentials azureSAS(String signature, String endpoint, String bucket){
         return new StorageCredentialsImpl(
             Type.AzureSas,
             null,
             new AzureSASCredentialsImpl(signature, endpoint),
-            null
+            null, bucket
         );
     }
 
-    public static StorageCredentials amazon(String endpoint, String accessToken, String secretToken){
+    public static StorageCredentials amazon(String endpoint, String accessToken, String secretToken, String bucket){
         return new StorageCredentialsImpl(
             Type.Amazon,
             null,
             null,
-            new AmazonCredentialsImpl(endpoint, accessToken, secretToken)
+            new AmazonCredentialsImpl(endpoint, accessToken, secretToken),
+            bucket
         );
     }
 

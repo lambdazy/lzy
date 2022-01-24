@@ -25,7 +25,7 @@ public class DbAzureCredentialsProvider implements StorageCredentialsProvider {
 
     @Override
     public StorageCredentials storageCredentials(String uid) {
-        return StorageCredentialsImpl.azure(storageConfigs.getAzure().getConnectionString());
+        return StorageCredentialsImpl.azure(storageConfigs.getAzure().getConnectionString(), storageConfigs.getBucket());
     }
 
     @Override
@@ -33,7 +33,7 @@ public class DbAzureCredentialsProvider implements StorageCredentialsProvider {
         try (Session session = storage.getSessionFactory().openSession()) {
             UserModel user = session.find(UserModel.class, uid);
             AzureSASCredentials credentials = getCredentialsByBucket(uid, user.getBucket(), storageConfigs.getAzure());
-            return StorageCredentialsImpl.azureSAS(credentials.signature(), credentials.endpoint());
+            return StorageCredentialsImpl.azureSAS(credentials.signature(), credentials.endpoint(), user.getBucket());
         }
     }
 }
