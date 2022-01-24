@@ -27,7 +27,7 @@ public class JwtCredentials {
         return Jwts.builder()
             .setIssuedAt(Date.from(now))
             .setNotBefore(Date.from(now))
-            .setExpiration(Date.from(now.plusSeconds(60 * 60 * 7)))
+            .setExpiration(Date.from(now.plusSeconds(60 * 60 * 24 * 7)))  // 7 days
             .setIssuer(uid)
             .signWith(key, SignatureAlgorithm.PS256)
             .compact();
