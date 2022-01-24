@@ -41,11 +41,11 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
 
     @Override
     public StorageCredentials storageCredentials(String uid) {
-        return StorageCredentialsImpl.amazon(
+        return new AmazonCredentialsImpl(
+            storageConfigs.getBucket(),
             storageConfigs.getAmazon().getEndpoint(),
             storageConfigs.getAmazon().getAccessToken(),
-            storageConfigs.getAmazon().getSecretToken(),
-            storageConfigs.getBucket()
+            storageConfigs.getAmazon().getSecretToken()
         );
     }
 
@@ -89,9 +89,12 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
             acl.grantPermission(grantee, Permission.FullControl);
             client.setBucketAcl(user.getBucket(), acl);
 
-            return StorageCredentialsImpl
-                .amazon(storageConfigs.getAmazon().getEndpoint(), user.getAccessKey(), user.getSecretKey(),
-                    user.getBucket());
+            return new AmazonCredentialsImpl(
+                user.getBucket(),
+                storageConfigs.getAmazon().getEndpoint(),
+                user.getAccessKey(),
+                user.getSecretKey()
+            );
         }
     }
 }

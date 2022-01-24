@@ -1,31 +1,75 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
-public interface StorageCredentials {
-    interface AzureCredentials {
-        String connectionString();
+public abstract class StorageCredentials {
+    private final String bucket;
+
+    public StorageCredentials(String bucket) {
+        this.bucket = bucket;
     }
 
-    interface AmazonCredentials {
-        String endpoint();
-        String accessToken();
-        String secretToken();
+    public abstract static class AzureCredentials extends StorageCredentials {
+
+        public AzureCredentials(String bucket) {
+            super(bucket);
+        }
+
+        public abstract String connectionString();
+
+        public Type type(){
+            return Type.Azure;
+        }
     }
 
-    interface AzureSASCredentials {
-        String signature();
-        String endpoint();
+    public abstract static class AmazonCredentials extends StorageCredentials {
+
+        public AmazonCredentials(String bucket) {
+            super(bucket);
+        }
+
+        public abstract String endpoint();
+        public abstract String accessToken();
+        public abstract String secretToken();
+
+        public Type type(){
+            return Type.Amazon;
+        }
     }
 
-    enum Type{
+    public abstract static class AzureSASCredentials extends StorageCredentials{
+
+        public AzureSASCredentials(String bucket) {
+            super(bucket);
+        }
+
+        public abstract String signature();
+        public abstract String endpoint();
+
+        public Type type(){
+            return Type.AzureSas;
+        }
+    }
+
+    public static class EmptyCredentials extends StorageCredentials{
+
+        public EmptyCredentials() {
+            super(null);
+        }
+
+        @Override
+        Type type() {
+            return Type.Empty;
+        }
+    }
+
+    public enum Type{
         Azure,
         AzureSas,
         Amazon,
         Empty
     }
 
-    AzureCredentials azure();
-    AmazonCredentials amazon();
-    AzureSASCredentials azureSAS();
-    Type type();
-    String bucket();
+    abstract Type type();
+    String bucket(){
+        return bucket;
+    }
 }

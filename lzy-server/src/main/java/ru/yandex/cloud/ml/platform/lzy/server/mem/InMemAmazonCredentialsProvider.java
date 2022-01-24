@@ -6,7 +6,7 @@ import jakarta.inject.Singleton;
 import java.util.Locale;
 import org.apache.commons.lang3.NotImplementedException;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
-import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsImpl;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.AmazonCredentialsImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 
@@ -19,11 +19,11 @@ public class InMemAmazonCredentialsProvider implements StorageCredentialsProvide
 
     @Override
     public StorageCredentials storageCredentials(String uid) {
-        return StorageCredentialsImpl.amazon(
+        return new AmazonCredentialsImpl(
+            storageConfigs.getBucket(),
             storageConfigs.getAmazon().getEndpoint(),
             storageConfigs.getAmazon().getAccessToken(),
-            storageConfigs.getAmazon().getSecretToken(),
-            storageConfigs.getBucket()
+            storageConfigs.getAmazon().getSecretToken()
         );
     }
 

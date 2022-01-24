@@ -8,12 +8,12 @@ import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import com.azure.storage.common.sas.SasProtocol;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
-import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsImpl.AzureSASCredentialsImpl;
 
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.AzureSASCredentialsImpl;
 
 public class StorageUtils {
 
@@ -37,6 +37,7 @@ public class StorageUtils {
         URI endpointUri = URI.create(String.format("https://%s.blob.core.windows.net?%s",client.getAccountName(), blobClient.generateSas(builder)));
 
         return new AzureSASCredentialsImpl(
+            bucket,
             getQueryMap(endpointUri.getQuery()).get("sig"),
             endpointUri.toString()
         );

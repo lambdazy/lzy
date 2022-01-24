@@ -5,7 +5,8 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AzureSASCredentials;
-import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsImpl;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.AzureCredentialsImpl;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.AzureSASCredentialsImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.utils.azure.StorageUtils;
@@ -22,7 +23,7 @@ public class InMemAzureCredentialsProvider implements StorageCredentialsProvider
 
     @Override
     public StorageCredentials storageCredentials(String uid) {
-        return StorageCredentialsImpl.azure(
+        return new AzureCredentialsImpl(
             storageConfigs.getAzure().getConnectionString(),
             storageConfigs.getBucket()
         );
@@ -32,7 +33,10 @@ public class InMemAzureCredentialsProvider implements StorageCredentialsProvider
     public StorageCredentials separatedStorageCredentials(String uid) {
         AzureSASCredentials credentials = StorageUtils.getCredentialsByBucket(uid, uid.toLowerCase(Locale.ROOT), storageConfigs.getAzure());
 
-        return StorageCredentialsImpl.azureSAS(credentials.signature(), credentials.endpoint(), uid.toLowerCase(
-            Locale.ROOT));
+        return new AzureSASCredentialsImpl(
+            uid.toLowerCase(Locale.ROOT),
+            credentials.signature(),
+            credentials.endpoint()
+        );
     }
 }
