@@ -102,8 +102,7 @@ public abstract class LzyAgent implements Closeable {
     private static IAM.Auth getAuth(LzyAgentConfig config) {
         final IAM.Auth.Builder authBuilder = IAM.Auth.newBuilder();
         if (config.getUser() != null) {
-            final String tokenSign = config.getTokenSign() != null ? config.getTokenSign() : "";
-            final String signedToken = config.getToken() + "." + tokenSign;
+            final String signedToken = config.getToken();
             final IAM.UserCredentials.Builder credBuilder = IAM.UserCredentials.newBuilder()
                 .setUserId(config.getUser())
                 .setToken(signedToken);

@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import org.junit.Assert;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 
 import java.io.FileReader;
 import java.nio.file.Files;
@@ -29,6 +30,12 @@ public class SignTokenTest {
             String tokenSignature = Credentials.signToken(terminalToken, keyReader);
             try (FileReader reader = new FileReader(publicKeyPath.toFile())) {
                 Assert.assertTrue(Credentials.checkToken(reader, terminalToken.toString(), tokenSignature));
+            }
+        }
+        try (FileReader keyReader = new FileReader(privateKeyPath.toFile())) {
+            String jwt = JwtCredentials.buildJWT("some_user", keyReader);
+            try (FileReader reader = new FileReader(publicKeyPath.toFile())) {
+                Assert.assertTrue(JwtCredentials.checkJWT(reader, jwt, "some_user"));
             }
         }
     }

@@ -12,6 +12,7 @@ import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.UUID;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Requires(property = "azure-providers", value = "false", defaultValue = "false")
@@ -38,11 +39,10 @@ public class CredentialsConfig implements CredentialsProvider {
     }
 
     public IAM.UserCredentials createCreds() {
-        UUID uuid = UUID.randomUUID();
         String token;
         try (FileReader keyReader = new FileReader(privateKeyPath)) {
-            token = uuid + "." + Credentials.signToken(uuid, keyReader);
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException | SignatureException | InvalidKeyException | IOException e) {
+            token = JwtCredentials.buildJWT(userId, keyReader);
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException | IOException e) {
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Corrupted backoffice token");
         }
 
