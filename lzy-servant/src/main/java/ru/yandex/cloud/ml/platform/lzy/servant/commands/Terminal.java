@@ -57,6 +57,9 @@ public class Terminal implements LzyCommand {
                 builder.token(token);
             }
         }
+        else {
+            builder.token("");
+        }
         final LzyAgent terminal = new LzyTerminal(builder.build());
 
         terminal.start();
