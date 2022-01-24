@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.utils;
+package ru.yandex.cloud.ml.platform.lzy.server.utils.yc;
 
 import net.bytebuddy.agent.builder.AgentBuilder;
 import org.apache.http.client.methods.CloseableHttpResponse;

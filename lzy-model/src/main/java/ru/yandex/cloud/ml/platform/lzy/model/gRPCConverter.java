@@ -7,6 +7,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
@@ -110,6 +112,50 @@ public abstract class gRPCConverter {
 
     public static LzyWhiteboard.Snapshot to(Snapshot snapshot) {
         return LzyWhiteboard.Snapshot.newBuilder().setSnapshotId(snapshot.id().toString()).build();
+    }
+
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials credentials) {
+        switch (credentials.type()){
+            case Azure: {
+                return GetS3CredentialsResponse.newBuilder()
+                    .setAzure(to(credentials.azure()))
+                    .build();
+            }
+            case AzureSas: {
+                return GetS3CredentialsResponse.newBuilder()
+                    .setAzureSas(to(credentials.azureSAS()))
+                    .build();
+            }
+            case Amazon: {
+                return GetS3CredentialsResponse.newBuilder()
+                    .setAmazon(to(credentials.amazon()))
+                    .build();
+            }
+            default:
+            case Empty:
+                return GetS3CredentialsResponse.newBuilder().build();
+        }
+    }
+
+    public static Lzy.AzureCredentials to(StorageCredentials.AzureCredentials credentials){
+        return Lzy.AzureCredentials.newBuilder()
+            .setConnectionString(credentials.connectionString())
+            .build();
+    }
+
+    public static Lzy.AmazonCredentials to(StorageCredentials.AmazonCredentials credentials){
+        return Lzy.AmazonCredentials.newBuilder()
+            .setEndpoint(credentials.endpoint())
+            .setAccessToken(credentials.accessToken())
+            .setSecretToken(credentials.secretToken())
+            .build();
+    }
+
+    public static Lzy.AzureSASCredentials to(StorageCredentials.AzureSASCredentials credentials){
+        return Lzy.AzureSASCredentials.newBuilder()
+            .setEndpoint(credentials.endpoint())
+            .setSignature(credentials.signature())
+            .build();
     }
 
     public static LzyWhiteboard.WhiteboardField to(

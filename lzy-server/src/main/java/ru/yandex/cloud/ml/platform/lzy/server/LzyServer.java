@@ -32,6 +32,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
 
@@ -164,7 +165,7 @@ public class LzyServer {
             operations.list().filter(op -> this.auth.canAccess(op, user)).forEach(zyName ->
                 builder.addZygoteBuilder()
                     .setName(zyName)
-                    .setWorkload(gRPCConverter.to(operations.get(zyName)))
+                    .setWorkload(to(operations.get(zyName)))
                     .build()
             );
             responseObserver.onNext(builder.build());
@@ -380,8 +381,8 @@ public class LzyServer {
                 return;
             }
             responseObserver.onNext(
-                storageConfigs.isSeparated() ? credentialsProvider.separatedStorageCredentials(resolveUser(auth))
-                        : credentialsProvider.storageCredentials(resolveUser(auth))
+                storageConfigs.isSeparated() ? to(credentialsProvider.separatedStorageCredentials(resolveUser(auth)))
+                        : to(credentialsProvider.storageCredentials(resolveUser(auth)))
             );
             responseObserver.onCompleted();
         }
@@ -391,7 +392,7 @@ public class LzyServer {
 
             final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
             tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()
-                .setSlot(gRPCConverter.to(slot))
+                .setSlot(to(slot))
                 .setBinding("channel:" + channel.name())
                 .build()
             );
@@ -452,7 +453,7 @@ public class LzyServer {
                     .forEach(slotStatus -> {
                         final Operations.SlotStatus.Builder slotStateBuilder = builder.addConnectionsBuilder();
                         slotStateBuilder.setTaskId(task.tid().toString());
-                        slotStateBuilder.setDeclaration(gRPCConverter.to(slotStatus.slot()));
+                        slotStateBuilder.setDeclaration(to(slotStatus.slot()));
                         URI connected = slotStatus.connected();
                         if (connected != null)
                             slotStateBuilder.setConnectedTo(connected.toString());
@@ -471,7 +472,7 @@ public class LzyServer {
 
         private Channels.ChannelStatus channelStatus(Channel channel) {
             final Channels.ChannelStatus.Builder slotStatus = Channels.ChannelStatus.newBuilder();
-            slotStatus.setChannel(gRPCConverter.to(channel));
+            slotStatus.setChannel(to(channel));
             for (SlotStatus state : tasks.connected(channel)) {
                 final Operations.SlotStatus.Builder builder = slotStatus.addConnectedBuilder();
                 if (state.tid() != null) {
@@ -481,7 +482,7 @@ public class LzyServer {
                 else builder.setUser(state.user());
 
                 builder.setConnectedTo(channel.name())
-                    .setDeclaration(gRPCConverter.to(state.slot()))
+                    .setDeclaration(to(state.slot()))
                     .setPointer(state.pointer())
                     .setState(Operations.SlotStatus.State.valueOf(state.state().toString()))
                     .build();

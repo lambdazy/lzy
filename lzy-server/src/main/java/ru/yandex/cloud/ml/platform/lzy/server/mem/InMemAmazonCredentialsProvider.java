@@ -4,9 +4,10 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.commons.lang3.NotImplementedException;
+import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 @Singleton
 @Requires(property = "storage.amazon.enabled", value = "true")
@@ -16,21 +17,16 @@ public class InMemAmazonCredentialsProvider implements StorageCredentialsProvide
     StorageConfigs storageConfigs;
 
     @Override
-    public Lzy.GetS3CredentialsResponse storageCredentials(String uid) {
-        return Lzy.GetS3CredentialsResponse.newBuilder()
-            .setBucket(storageConfigs.getBucket())
-            .setAmazon(
-                Lzy.AmazonCredentials.newBuilder()
-                    .setAccessToken(storageConfigs.getAmazon().getAccessToken())
-                    .setSecretToken(storageConfigs.getAmazon().getSecretToken())
-                    .setEndpoint(storageConfigs.getAmazon().getEndpoint())
-                    .build()
-            )
-            .build();
+    public StorageCredentials storageCredentials(String uid) {
+        return StorageCredentialsImpl.amazon(
+            storageConfigs.getAmazon().getEndpoint(),
+            storageConfigs.getAmazon().getAccessToken(),
+            storageConfigs.getAmazon().getSecretToken()
+        );
     }
 
     @Override
-    public Lzy.GetS3CredentialsResponse separatedStorageCredentials(String uid) {
+    public StorageCredentials separatedStorageCredentials(String uid) {
         throw new NotImplementedException("Cannot implement separated storage without db");
     }
 }

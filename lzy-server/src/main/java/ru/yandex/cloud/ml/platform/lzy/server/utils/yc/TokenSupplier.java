@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.utils;
+package ru.yandex.cloud.ml.platform.lzy.server.utils.yc;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;

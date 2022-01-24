@@ -1,8 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.server.storage;
 
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
 
 public interface StorageCredentialsProvider {
-    Lzy.GetS3CredentialsResponse storageCredentials(String uid);
-    Lzy.GetS3CredentialsResponse separatedStorageCredentials(String uid);
+    StorageCredentials storageCredentials(String uid);
+    StorageCredentials separatedStorageCredentials(String uid);
 }

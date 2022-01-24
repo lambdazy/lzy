@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.utils;
+package ru.yandex.cloud.ml.platform.lzy.server.utils.yc;
 
 import jakarta.inject.Singleton;
 
@@ -6,14 +6,14 @@ import java.util.Date;
 import java.util.function.Supplier;
 
 
-public class RenewableToken implements Supplier<String> {
+public class RenewableTokenInstance implements Supplier<String> {
     private static final long HOUR = 60 * 60 * 1000;
     private final Supplier<String> tokenSupplier;
 
     private Date lastTokenUpdateTime;
     private String cachedToken = null;
 
-    public RenewableToken(Supplier<String> tokenSupplier) {
+    public RenewableTokenInstance(Supplier<String> tokenSupplier) {
         this.tokenSupplier = tokenSupplier;
     }
 

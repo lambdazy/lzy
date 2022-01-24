@@ -8,7 +8,7 @@ public class DbConfig {
     private String url;
     private String username;
     private String password;
-    private boolean enabled = false;
+    private boolean enabled;
 
     public boolean isEnabled() {
         return enabled;

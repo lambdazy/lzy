@@ -20,5 +20,5 @@ module "azure_common" {
   gpu_count                  = 0
   server-image = "lzydock/lzy-server:testing-2"
   servant-image = "lzydock/lzy-servant:testing-2"
-  s3-separated-per-bucket = false
+  s3-separated-per-bucket = true
 }

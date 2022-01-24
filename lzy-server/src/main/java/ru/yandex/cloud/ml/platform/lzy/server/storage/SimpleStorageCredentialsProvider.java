@@ -2,19 +2,20 @@ package ru.yandex.cloud.ml.platform.lzy.server.storage;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
+import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type;
 
 @Singleton
 @Requires(property = "storage.amazon.enabled", value = "false", defaultValue = "false")
 @Requires(property = "storage.azure.enabled", value = "false", defaultValue = "false")
 public class SimpleStorageCredentialsProvider implements StorageCredentialsProvider {
     @Override
-    public Lzy.GetS3CredentialsResponse storageCredentials(String uid) {
-        return Lzy.GetS3CredentialsResponse.newBuilder().build();
+    public StorageCredentials storageCredentials(String uid) {
+        return new StorageCredentialsImpl(Type.Empty, null, null, null);
     }
 
     @Override
-    public Lzy.GetS3CredentialsResponse separatedStorageCredentials(String uid) {
-        return Lzy.GetS3CredentialsResponse.newBuilder().build();
+    public StorageCredentials separatedStorageCredentials(String uid) {
+        return new StorageCredentialsImpl(Type.Empty, null, null, null);
     }
 }
