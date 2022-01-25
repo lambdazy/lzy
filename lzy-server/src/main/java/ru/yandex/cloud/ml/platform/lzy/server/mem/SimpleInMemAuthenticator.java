@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.server.mem;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
@@ -14,13 +15,10 @@ import java.util.Map;
 import java.util.UUID;
 
 @Singleton
-@Requires(property = "authenticator", value = "SimpleInMemAuthenticator", defaultValue = "SimpleInMemAuthenticator")
+@Requires(property = "database.enabled", value = "false", defaultValue = "false")
 public class SimpleInMemAuthenticator implements Authenticator {
     private final Map<String, String> taskTokens = new HashMap<>();
     private final Map<String, String> owners = new HashMap<>();
-
-    @Inject
-    private StorageConfigs storageConfigs;
 
     @Override
     public boolean checkUser(String userId, String token) {
@@ -77,10 +75,5 @@ public class SimpleInMemAuthenticator implements Authenticator {
     @Override
     public boolean checkBackOfficeSession(UUID sessionId, String userId) {
         return true;
-    }
-
-    @Override
-    public String bucketForUser(String uid) {
-        return storageConfigs.getBucket();
     }
 }

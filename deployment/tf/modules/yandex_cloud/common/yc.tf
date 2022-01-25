@@ -65,6 +65,12 @@ resource "yandex_kubernetes_cluster" "main" {
   service_account_id      = yandex_iam_service_account.sa.id
 }
 
+resource "yandex_iam_service_account_key" "server-key" {
+  service_account_id = yandex_iam_service_account.sa.id
+  description        = "key for server"
+  key_algorithm      = "RSA_4096"
+}
+
 resource "yandex_kubernetes_node_group" "lzy" {
   count = var.lzy_count != 0 ? 1 : 0
   cluster_id = yandex_kubernetes_cluster.main.id
@@ -199,4 +205,13 @@ module "lzy_common" {
   s3-bucket-name          = "lzy-bucket-internal"
 
   servant-image             = var.servant-image
+  s3-separated-per-bucket   = var.s3-separated-per-bucket
+  server-image              = var.server-image
+  server-additional-envs = {
+    SERVER_YC_ENABLED = "true",
+    SERVER_YC_SERVICE_ACCOUNT_ID = yandex_iam_service_account.sa.id
+    SERVER_YC_KEY_ID = yandex_iam_service_account_key.server-key.id
+    SERVER_YC_PRIVATE_KEY = yandex_iam_service_account_key.server-key.private_key
+    SERVER_YC_FOLDER_ID = var.folder_id
+  }
 }

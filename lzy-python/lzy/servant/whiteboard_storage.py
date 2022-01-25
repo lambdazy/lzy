@@ -8,11 +8,8 @@ from azure.storage.blob import BlobServiceClient, StorageStreamDownloader
 import cloudpickle
 import s3fs
 
-from lzy.api.whiteboard.credentials import (
-    AzureCredentials,
-    AmazonCredentials,
-    StorageCredentials,
-)
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
+from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
 
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -36,15 +33,15 @@ class WhiteboardStorage(ABC):
     def create(credentials: StorageCredentials) -> "WhiteboardStorage":
         if isinstance(credentials, AmazonCredentials):
             return AmazonWhiteboardStorage(credentials)
-        return AzureWhiteboardStorage(credentials)
+        if isinstance(credentials, AzureCredentials):
+            return AzureWhiteboardStorage.from_connection_string(credentials)
+        return AzureWhiteboardStorage.from_sas(credentials)
 
 
 class AzureWhiteboardStorage(WhiteboardStorage):
-    def __init__(self, credentials: AzureCredentials):
+    def __init__(self, client: BlobServiceClient):
         super().__init__()
-        self.client: BlobServiceClient = BlobServiceClient.from_connection_string(
-            credentials.connection_string
-        )
+        self.client: BlobServiceClient = client
 
     def read(self, url: str) -> Any:
         uri = parse.urlparse(url)
@@ -64,6 +61,14 @@ class AzureWhiteboardStorage(WhiteboardStorage):
         )
         data = downloader.readall()
         return cloudpickle.loads(data)
+
+    @staticmethod
+    def from_connection_string(credentials: AzureCredentials) -> 'AzureWhiteboardStorage':
+        return AzureWhiteboardStorage(BlobServiceClient.from_connection_string(credentials.connection_string))
+
+    @staticmethod
+    def from_sas(credentials: AzureSasCredentials) -> 'AzureWhiteboardStorage':
+        return AzureWhiteboardStorage(BlobServiceClient(credentials.endpoint))
 
 
 class AmazonWhiteboardStorage(WhiteboardStorage):
