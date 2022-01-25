@@ -1,17 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
 public abstract class StorageCredentials {
-    private final String bucket;
-
-    public StorageCredentials(String bucket) {
-        this.bucket = bucket;
-    }
 
     public abstract static class AzureCredentials extends StorageCredentials {
-
-        public AzureCredentials(String bucket) {
-            super(bucket);
-        }
 
         public abstract String connectionString();
 
@@ -21,10 +12,6 @@ public abstract class StorageCredentials {
     }
 
     public abstract static class AmazonCredentials extends StorageCredentials {
-
-        public AmazonCredentials(String bucket) {
-            super(bucket);
-        }
 
         public abstract String endpoint();
         public abstract String accessToken();
@@ -37,10 +24,6 @@ public abstract class StorageCredentials {
 
     public abstract static class AzureSASCredentials extends StorageCredentials{
 
-        public AzureSASCredentials(String bucket) {
-            super(bucket);
-        }
-
         public abstract String signature();
         public abstract String endpoint();
 
@@ -50,10 +33,6 @@ public abstract class StorageCredentials {
     }
 
     public static class EmptyCredentials extends StorageCredentials{
-
-        public EmptyCredentials() {
-            super(null);
-        }
 
         @Override
         Type type() {
@@ -69,7 +48,4 @@ public abstract class StorageCredentials {
     }
 
     abstract Type type();
-    public String bucket(){
-        return bucket;
-    }
 }

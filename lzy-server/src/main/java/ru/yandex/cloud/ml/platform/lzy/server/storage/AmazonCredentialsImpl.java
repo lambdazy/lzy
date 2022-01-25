@@ -8,9 +8,8 @@ public class AmazonCredentialsImpl extends AmazonCredentials {
     private final String accessToken;
     private final String secretToken;
 
-    public AmazonCredentialsImpl(String bucket, String endpoint, String accessToken,
+    public AmazonCredentialsImpl(String endpoint, String accessToken,
         String secretToken) {
-        super(bucket);
         this.endpoint = endpoint;
         this.accessToken = accessToken;
         this.secretToken = secretToken;

@@ -8,8 +8,7 @@ public class AzureSASCredentialsImpl extends AzureSASCredentials {
     private final String endpoint;
 
 
-    public AzureSASCredentialsImpl(String bucket, String signature, String endpoint) {
-        super(bucket);
+    public AzureSASCredentialsImpl(String signature, String endpoint) {
         this.signature = signature;
         this.endpoint = endpoint;
     }

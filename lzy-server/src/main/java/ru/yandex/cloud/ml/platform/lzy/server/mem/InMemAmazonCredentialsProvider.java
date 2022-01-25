@@ -20,7 +20,6 @@ public class InMemAmazonCredentialsProvider implements StorageCredentialsProvide
     @Override
     public StorageCredentials storageCredentials(String uid, String bucket) {
         return new AmazonCredentialsImpl(
-            bucket,
             storageConfigs.getAmazon().getEndpoint(),
             storageConfigs.getAmazon().getAccessToken(),
             storageConfigs.getAmazon().getSecretToken()

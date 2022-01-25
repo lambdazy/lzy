@@ -22,8 +22,7 @@ public class AzureCredentialsProvider implements StorageCredentialsProvider {
     @Override
     public StorageCredentials storageCredentials(String uid, String bucket) {
         return new AzureCredentialsImpl(
-            storageConfigs.getAzure().getConnectionString(),
-            bucket
+            storageConfigs.getAzure().getConnectionString()
         );
     }
 
@@ -31,7 +30,6 @@ public class AzureCredentialsProvider implements StorageCredentialsProvider {
     public StorageCredentials separatedStorageCredentials(String uid, String bucket) {
         AzureSASCredentials credentials = getCredentialsByBucket(uid, bucket, storageConfigs.getAzure());
         return new AzureSASCredentialsImpl(
-            bucket,
             credentials.signature(),
             credentials.endpoint()
         );

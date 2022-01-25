@@ -42,7 +42,6 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
     @Override
     public StorageCredentials storageCredentials(String uid, String bucket) {
         return new AmazonCredentialsImpl(
-            bucket,
             storageConfigs.getAmazon().getEndpoint(),
             storageConfigs.getAmazon().getAccessToken(),
             storageConfigs.getAmazon().getSecretToken()
@@ -100,7 +99,6 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
             client.setBucketAcl(bucket, acl);
 
             return new AmazonCredentialsImpl(
-                bucket,
                 storageConfigs.getAmazon().getEndpoint(),
                 user.getAccessKey(),
                 user.getSecretKey()
