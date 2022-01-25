@@ -181,7 +181,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         if (request.hasBackoffice()) {
             ok = auth.checkPermissions(request.getBackoffice(), Permissions.WHITEBOARD_ALL);
-            uid = request.getBackoffice().getBackofficeCredentials().getUserId();
+            uid = request.getBackoffice().getCredentials().getUserId();
         }
         if (!ok) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
