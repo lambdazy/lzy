@@ -136,6 +136,12 @@ pacman -Sy fuse2 inetutils
 
 ## Deployment
 
+### Requirements
+
+1) terraform
+2) azure subscription
+3) azure cli
+
 ### Steps
 
 1) create terraform module
