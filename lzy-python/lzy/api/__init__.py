@@ -63,7 +63,6 @@ def op_(provisioning: Provisioning, *, output_type=None):
                 return f(*args)
 
             signature = CallSignature(FuncSignature(f, input_types, output_type), args)
-
             if current_env.is_local():
                 lzy_op = LzyLocalOp(signature)
             else:
@@ -86,7 +85,22 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     entry_id_generator=id_generator,
                 )
             current_env.register_op(lzy_op)
-            return lazy_proxy(lzy_op.materialize, output_type, {"_op": lzy_op})
+
+            # Special case for NoneType, just leave op registered and return
+            # the real None. LzyEnv later will materialize it anyway.
+            #
+            # Otherwise `is` checks won't work, for example:
+            # >>> @op
+            # ... def op_none_operation() -> None:
+            # ...      pass
+            #
+            # >>> obj = op_none_operation()
+            # >>> obj is None
+            # >>> False
+            if issubclass(output_type, type(None)):
+                return None
+            else:
+                return lazy_proxy(lzy_op.materialize, output_type, {"_op": lzy_op})
 
         return lazy
 

@@ -143,6 +143,8 @@ class BaseApiTests(TestCase):
         n = 0
         @op
         def none_func() -> None:
+            nonlocal n
+            n = 5
             return None
 
         @op
@@ -157,7 +159,8 @@ class BaseApiTests(TestCase):
         with LzyEnv(local=True) as env:
             a_res = none_func()
             b_res = none_receiver_func(a_res)
-        print(a_res, b_res)
+
+        # the result depends on the order of execution here
         self.assertEqual(b_res, 42)
         self.assertEqual(n, 42)
 
