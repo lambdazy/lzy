@@ -7,7 +7,7 @@ import sys
 
 from lzy.api.env import LzyEnv
 from lzy.api.lazy_op import LzyLocalOp, LzyRemoteOp
-from lzy.api.utils import infer_return_type, is_lazy_proxy, lazy_proxy, NoResult
+from lzy.api.utils import infer_return_type, is_lazy_proxy, lazy_proxy, Nothing
 from lzy.api.whiteboard.api import UUIDEntryIdGenerator
 
 from lzy.model.signatures import FuncSignature, CallSignature
@@ -37,14 +37,14 @@ def op_(provisioning: Provisioning, *, output_type=None):
         nonlocal output_type
         if output_type is None:
             infer_result = infer_return_type(f)
-            if isinstance(infer_result, NoResult):
+            if isinstance(infer_result, Nothing):
                 raise TypeError(
                     f"{f} return type is not annotated. "
                     f"Please for proper use of {op.__name__} "
                     f"annotate return type of your function."
                 )
             else:
-                output_type = infer_result.inferred_type
+                output_type = infer_result.value
 
         @functools.wraps(f)
         def lazy(*args):
