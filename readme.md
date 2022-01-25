@@ -141,9 +141,45 @@ pacman -Sy fuse2 inetutils
 1) create terraform module
 2) import [azure_common](deployment/tf/modules/azure_common) module
 3) az login
-4) terraform init
-5) terraform plan
-6) terraform apply
+4) create GitHub OAuth App
+5) generate client secret
+6) create tvars.json file with the following content
+
+```
+{
+  "github-client-id": "",
+  "github-secret": ""
+}
+```
+
+7) copy client ID and client secret from GitHub OAuth App and paste to the corresponding json fields 
+8) terraform init
+9) terraform plan -var-file=tvars.json -out=tfplan
+10) terraform apply tfplan
+
+### Example
+
+In example, we use backend `azurerm` for remote terraform state storing
+
+```
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "my-lzy-terraformstate"
+    storage_account_name = "mylzytfstatestorage"
+    container_name       = "terraformstate"
+    key                  = "lzy.terraform.tfstate"
+  }
+}
+
+module "azure_common" {
+  source                     = "git@github.com:lambda-zy/lzy.git//deployment/tf/modules/azure_common"
+  installation_name          = "my-lzy-installation"
+  oauth-github-client-id     = var.github-client-id
+  oauth-github-client-secret = var.github-secret
+  s3-postfics                = "master"
+  server-image               = "lzydock/lzy-server:master"
+}
+```
 
 ### FAQ
 
