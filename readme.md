@@ -134,6 +134,17 @@ pacman -Sy fuse2 inetutils
 5. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
 6. `cd lzy-servant/ && ./prepare_envs.sh ../lzy-python` (conda envs setup)
 
+## Deployment
+
+### Steps
+
+1) create terraform module
+2) import [azure_common](deployment/tf/modules/azure_common) module
+3) az login
+4) terraform init
+5) terraform plan
+6) terraform apply
+
 ### FAQ
 
 * ```Exception in thread "main" java.lang.UnsatisfiedLinkError: dlopen(libfuse.dylib, 9): image not found```: Java > 11 is required
