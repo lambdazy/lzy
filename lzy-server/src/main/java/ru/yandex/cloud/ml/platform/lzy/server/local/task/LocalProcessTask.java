@@ -44,6 +44,8 @@ public class LocalProcessTask extends LocalTask {
             taskDir.delete();
             taskDir.mkdirs();
             taskDir.mkdir();
+            LOG.info("LZY mount for local process task: " + taskDir.getAbsolutePath());
+
             HashMap<String, String> envs = new HashMap<>(Map.of(
                     "LZYTASK", tid.toString(),
                     "LZYTOKEN", token,
@@ -51,7 +53,7 @@ public class LocalProcessTask extends LocalTask {
                     "LZYWHITEBOARD", System.getenv("LZYWHITEBOARD")
             ));
             final Process process = runJvm(
-                config.servantJarPath(), taskDir,
+                config.servantJarPath(),
                 new String[]{
                     "-z", serverHost + ":" + serverPort,
                     "--host", servantHost,
@@ -97,14 +99,12 @@ public class LocalProcessTask extends LocalTask {
     @SuppressWarnings("SameParameterValue")
     private static Process runJvm(
         final String pathToJar,
-        File wd,
         final String[] args,
         final Map<String, String> env
     ) {
 
         try {
             ProcessBuilder pb = new ProcessBuilder();
-            pb.directory(wd);
             final List<String> parameters = pb.command();
             parameters.add(System.getProperty("java.home") + "/bin/java");
             parameters.add("-Xmx1g");
