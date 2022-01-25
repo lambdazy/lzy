@@ -134,6 +134,10 @@ pacman -Sy fuse2 inetutils
 5. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
 6. `cd lzy-servant/ && ./prepare_envs.sh ../lzy-python` (conda envs setup)
 
+### FAQ
+
+* ```Exception in thread "main" java.lang.UnsatisfiedLinkError: dlopen(libfuse.dylib, 9): image not found```: Java > 11 is required
+
 ## Deployment
 
 ### Requirements
@@ -186,7 +190,3 @@ module "azure_common" {
   server-image               = "lzydock/lzy-server:master"
 }
 ```
-
-### FAQ
-
-* ```Exception in thread "main" java.lang.UnsatisfiedLinkError: dlopen(libfuse.dylib, 9): image not found```: Java > 11 is required
