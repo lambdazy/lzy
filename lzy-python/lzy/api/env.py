@@ -4,6 +4,7 @@ import os
 from abc import abstractmethod, ABC
 from pathlib import Path
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
+from dataclasses import dataclass
 
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
@@ -47,7 +48,7 @@ class LzyEnvBase(ABC):
             )
 
         self._ops: List[LzyOp] = []
-        self._buses = list(buses)
+        self._buses = list(buses or [])
         self._eager = eager
         self._log = logging.getLogger(str(self.__class__))
 
@@ -113,17 +114,20 @@ class LzyEnvBase(ABC):
     def __exit__(self, *_) -> None:
         try:
             self.run()
-
             context = self._execution_context
             # pylint: disable=protected-access
             # noinspection PyProtectedMember
             if context._snapshot_id is not None:
                 # noinspection PyProtectedMember
                 context.snapshot_api.finalize(context._snapshot_id)
-
         finally:
             self.deactivate()
             type(self).instances.pop()
+
+    @staticmethod
+    def _check_whiteboard(wb: Any):
+        if wb is not None and not dataclasses.is_dataclass(wb):
+            raise ValueError("Whiteboard should be a dataclass")
 
 
 class WhiteboardExecutionContext:
@@ -166,13 +170,14 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
     ):
-        if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
-            raise ValueError("Whiteboard should be a dataclass")
-        buses = buses or []
-
-        whiteboard_api = InMemWhiteboardApi()
-        snapshot_api = InMemSnapshotApi()
-        super().__init__(buses, whiteboard, whiteboard_api, snapshot_api, eager)
+        self._check_whiteboard(whiteboard)
+        super().__init__(
+            buses=buses,
+            whiteboard=whiteboard,
+            whiteboard_api=InMemWhiteboardApi(),
+            snapshot_api=InMemSnapshotApi(),
+            eager=eager
+        )
 
     def activate(self):
         pass
@@ -180,11 +185,11 @@ class LzyLocalEnv(LzyEnvBase):
     def deactivate(self):
         pass
 
-
-@dataclasses.dataclass
+@dataclass
 class RunConfig:
     yaml: Optional[Path] = None
     lzy_mount: str = ""
+    eager: bool = False
 
     def __post_init__(self):
         if not self.lzy_mount:
@@ -196,23 +201,26 @@ class LzyRemoteEnv(LzyEnvBase):
 
     def __init__(
         self,
-        eager: bool = False,
         whiteboard: Any = None,
         buses: Optional[BusList] = None,
         config: Optional[RunConfig] = None
     ):
+        self._check_whiteboard(whiteboard)
+
         config_ = config or self.default_config
-        buses = buses or []
-        if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
-            raise ValueError("Whiteboard should be a dataclass")
+        lzy_mount = config_.lzy_mount
 
         self._yaml = config_.yaml
-        self._servant_client: BashServantClient = BashServantClient().instance(config_.lzy_mount)
-        whiteboard_api: WhiteboardApi = WhiteboardBashApi(
-            config_.lzy_mount, self._servant_client
+        self._servant_client: BashServantClient = BashServantClient() \
+            .instance(lzy_mount)
+
+        super().__init__(
+            buses=buses,
+            whiteboard=whiteboard,
+            whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
+            snapshot_api=SnapshotBashApi(config_.lzy_mount),
+            eager=config_.eager
         )
-        snapshot_api: SnapshotApi = SnapshotBashApi(config_.lzy_mount)
-        super().__init__(buses, whiteboard, whiteboard_api, snapshot_api, eager)
 
     def generate_conda_env(
         self, namespace: Optional[Dict[str, Any]] = None
