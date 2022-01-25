@@ -11,11 +11,11 @@ from lzy.model.encoding import ENCODING as encoding
 
 @dataclass
 class TerminalConfig:
-    private_key_path: str = "~/.ssh/id_rsa"
     server_url: str = "api.lzy.ai:8899"
     lzy_mount: str = ""
     user: Optional[str] = None
     yaml_path: Optional[str] = None
+    private_key_path: Optional[str] = None
 
     def __post_init__(self):
         if not self.lzy_mount:
@@ -49,10 +49,12 @@ class TerminalServer:
             self._log.info("Using already started servant")
             return
 
-        private_key_path = Path(self._config.private_key_path)
-        if not private_key_path.resolve().exists():
-            raise ValueError("Private key path does not exists: "
-                             f"{self._config.private_key_path}")
+        private_key_path = "null"
+        if self._config.private_key_path is not None:
+            private_key_path = Path(self._config.private_key_path).expanduser()
+            if not private_key_path.exists():
+                raise ValueError("Private key path does not exists: "
+                                 f"{private_key_path}")
 
         # TODO: understand why terminal writes to stdout even with
         # TODO: custom.log.file argument and drop terminal_log_path and
@@ -79,13 +81,13 @@ class TerminalServer:
                 "--lzy-mount",
                 self._config.lzy_mount,
                 "--private-key",
-                self._config.private_key_path,
+                private_key_path,
                 "--host",
                 "localhost",
                 "terminal",
             ],
-            stdout=self._terminal_log,
-            stderr=self._terminal_log,
+            # stdout=self._terminal_log,
+            # stderr=self._terminal_log,
             env=env,
         )
         started_ts = int(time.time())

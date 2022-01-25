@@ -40,20 +40,21 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         //noinspection deprecation
-        final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
-            .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
-            .withEnv("USER", user)
-            .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)
-            .withEnv("DEBUG_PORT", Integer.toString(debugPort))
-            .withEnv("SUSPEND_DOCKER", "n")
-            //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withCommand("--lzy-address " + serverAddress + " "
+        String cmd = "--lzy-address " + serverAddress + " "
                 + "--host localhost "
                 + "--port " + port + " "
                 + "--lzy-mount " + mount + " "
                 + "--internal-host " + internalHost + " "
                 + "--private-key " + private_key_path + " "
-                + "terminal");
+                + "terminal";
+        final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
+            .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
+            .withEnv("USER", user)
+            .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)
+            .withEnv("DEBUG_PORT", Integer.toString(debugPort))
+            .withEnv("SUSPEND_DOCKER", "n");
+            //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
+//            .withCommand(cmd);
 
         if (private_key_path != null) {
             base.withFileSystemBind(private_key_path, private_key_path);
