@@ -43,6 +43,9 @@ def infer_return_type(func: Callable) -> TypeInferResult:
         return NoResult()
 
     or_type = hints["return"]
+    if or_type == type(None):
+        return Result(None)
+
     if hasattr(or_type, "__origin__"):
         return Result(or_type.__origin__)  # type: ignore
 

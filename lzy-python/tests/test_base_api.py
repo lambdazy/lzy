@@ -138,3 +138,28 @@ class BaseApiTests(TestCase):
         # Assert
         self.assertEqual('a', a_res.a())
         self.assertEqual('b', b_res.b())
+
+    def test_function_with_none(self):
+        @op
+        def none_func() -> None:
+            return None
+
+        @op
+        def none_receiver_func(ahah: None) -> int:
+            print(ahah)
+            print(ahah is None)
+            return 42
+
+        # Act
+        # noinspection PyUnusedLocal
+        with LzyEnv(local=True) as env:
+            a_res = none_func()
+            b_res = none_receiver_func(a_res)
+        print(a_res, b_res)
+        self.assertEqual(b_res + 1, 42 + 1)
+
+    def test_not_annotated_type_error(self):
+        with self.assertRaises(TypeError) as _:
+            @op
+            def not_annotated():
+                pass

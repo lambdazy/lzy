@@ -48,6 +48,11 @@ class LzyOp(Generic[T], ABC):
     def return_entry_id(self) -> Optional[str]:
         pass
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}: signature={self._sign}, " \
+               f"materialized={self._materialized}, " \
+               f"materialization={self._materialization}"
+
 
 class LzyLocalOp(LzyOp, Generic[T]):
     def materialize(self) -> T:
