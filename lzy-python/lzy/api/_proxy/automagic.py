@@ -1,5 +1,33 @@
 import functools
 from typing import Any, Type, Callable, TypeVar
+from itertools import chain
+
+DEBUG = False
+
+
+def always_materialize_args_before_call(func):
+    def materialize(arg: Any) -> Any:
+        # pylint: disable=protected-access
+        return create_and_cache(type(arg), type(arg)._constructor)
+
+    @functools.wraps(func)
+    def new(*args, **kwargs):
+        is_arg_lazy_set = {
+                is_proxy(arg)
+                for arg in chain(args, kwargs.values())
+            }
+
+        if any(is_arg_lazy_set):
+            args = tuple(
+                    arg if not is_proxy(arg) else materialize(arg)
+                    for arg in args
+                )
+            kwargs = {
+                    name: arg if not is_proxy(arg) else materialize(arg)
+                    for name, arg in kwargs.items()
+                }
+        return func(*args, **kwargs)
+    return new
 
 
 def materialize_args_on_fall(func):
@@ -80,7 +108,7 @@ class TrickDescriptor:
         # so instead of this function we should return a new one,
         # which will try to work as usual but if returned NotImplemented
         # it will materialize its arguments and try again
-        return materialize_args_on_fall(res)
+        return always_materialize_args_before_call(res)
 
 
 def create_and_cache(proxy_cls, callback):
@@ -122,6 +150,8 @@ def collect_attributes(cls):
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
+def is_proxy(obj: Any) -> bool:
+    return isinstance(type(obj), Proxifier)
 
 # TODO: LazyProxy type?
 def proxy(
@@ -155,15 +185,25 @@ def proxy(
         cls_attrs=cls_attrs,
     ):
         def __init__(self):
+            if DEBUG:
+                print("Pearl created")
             super().__init__()
             for name, attr in obj_attrs.items():
                 setattr(self, name, attr)
 
         def __getattribute__(self, item):
-            if item in obj_attrs or item in cls_attrs:
-                return super().__getattribute__(item)
+            if DEBUG:
+                print(f"Called __getattribute__: {item}")
 
-            return getattr(create_and_cache(type(self), constructor), item)
+            if item in obj_attrs or item in cls_attrs:
+                candidate = super().__getattribute__(item)
+            else:
+                candidate = getattr(create_and_cache(type(self), constructor), item)
+
+            if DEBUG:
+                print(f"and gonna return {candidate}")
+
+            return candidate
 
         def __setattr__(self, item, value):
             # if trying to set attributes from obj_attrs to pearl obj

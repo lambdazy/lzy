@@ -232,8 +232,8 @@ class LzyEnv(LzyEnvBase):
             lzy_op.materialize()
 
     def registered_ops(self) -> Iterable[LzyOp]:
-        if not self.already_exists():
-            raise ValueError("Fetching ops on a non-entered environment")
+        # if not self.already_exists():
+        #    raise ValueError("Fetching ops on a non-entered environment")
         return list(self._ops)
 
     def run(self) -> None:

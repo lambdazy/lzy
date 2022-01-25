@@ -138,3 +138,34 @@ class BaseApiTests(TestCase):
         # Assert
         self.assertEqual('a', a_res.a())
         self.assertEqual('b', b_res.b())
+
+    def test_function_with_none(self):
+        variable: int = 0
+        @op
+        def none_func() -> None:
+            nonlocal variable
+            variable = 5
+            return None
+
+        @op
+        def none_receiver_func(ahah: None) -> int:
+            self.assertIsNone(ahah)
+            nonlocal variable
+            variable = 42
+            return variable
+
+        # Act
+        # noinspection PyUnusedLocal
+        with LzyEnv(local=True) as env:
+            a_res = none_func()
+            b_res = none_receiver_func(a_res)
+
+        # the result depends on the order of execution here
+        self.assertEqual(b_res, 42)
+        self.assertEqual(variable, 42)
+
+    def test_not_annotated_type_error(self):
+        with self.assertRaises(TypeError) as _:
+            @op
+            def not_annotated():
+                pass
