@@ -14,6 +14,8 @@ import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -31,6 +33,9 @@ public class DbAuthenticator implements Authenticator {
 
     @Inject
     private DbStorage storage;
+
+    @Inject
+    private StorageConfigs storageConfigs;
 
     @Override
     public boolean checkUser(String userId, String token) {
@@ -137,6 +142,33 @@ public class DbAuthenticator implements Authenticator {
         }
         catch (Exception e){
             return false;
+        }
+    }
+
+    @Override
+    public boolean canAccessBucket(String uid, String bucket) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            UserModel user = session.find(UserModel.class, uid);
+            if (user == null) {
+                return false;
+            }
+            if (bucket.equals(user.getBucket()))
+                return true;
+        }
+        return false;
+    }
+
+    @Override
+    public String bucketForUser(String uid) {
+        if (storageConfigs.isSeparated()){
+            return storageConfigs.getBucket();
+        }
+        try (Session session = storage.getSessionFactory().openSession()) {
+            UserModel user = session.find(UserModel.class, uid);
+            if (user == null) {
+                return null;
+            }
+            return user.getBucket();
         }
     }
 

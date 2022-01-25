@@ -28,9 +28,10 @@ public class LocalDockerTask extends LocalTask {
         Map<Slot, String> assignments,
         SnapshotMeta meta,
         ChannelsManager channels,
-        URI serverURI
+        URI serverURI,
+        String bucket
     ) {
-        super(owner, tid, workload, assignments, meta, channels, serverURI);
+        super(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
     }
 
     @Override
@@ -48,6 +49,7 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("LOG_FILE", "/var/log/servant/servant_start_" + uuid)
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
+            .withEnv("BUCKET_NAME", bucket())
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
             .withEnv("LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"))
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "

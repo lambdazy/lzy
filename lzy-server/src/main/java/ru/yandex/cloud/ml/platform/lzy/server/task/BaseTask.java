@@ -37,6 +37,7 @@ public abstract class BaseTask implements Task {
     private State state = State.PREPARING;
     private URI servantURI;
     private LzyServantBlockingStub servant;
+    private final String bucket;
 
     public BaseTask(
         String owner,
@@ -45,7 +46,8 @@ public abstract class BaseTask implements Task {
         Map<Slot, String> assignments,
         @Nullable SnapshotMeta snapshotMeta,
         ChannelsManager channels,
-        URI serverURI
+        URI serverURI,
+        String bucket
     ) {
         this.owner = owner;
         this.tid = tid;
@@ -54,6 +56,12 @@ public abstract class BaseTask implements Task {
         this.snapshotMeta = snapshotMeta;
         this.channels = channels;
         this.serverURI = serverURI;
+        this.bucket = bucket;
+    }
+
+    @Override
+    public String bucket() {
+        return bucket;
     }
 
     @Override

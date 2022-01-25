@@ -18,9 +18,9 @@ public class InMemAmazonCredentialsProvider implements StorageCredentialsProvide
     StorageConfigs storageConfigs;
 
     @Override
-    public StorageCredentials storageCredentials(String uid) {
+    public StorageCredentials storageCredentials(String uid, String bucket) {
         return new AmazonCredentialsImpl(
-            storageConfigs.getBucket(),
+            bucket,
             storageConfigs.getAmazon().getEndpoint(),
             storageConfigs.getAmazon().getAccessToken(),
             storageConfigs.getAmazon().getSecretToken()
@@ -28,7 +28,7 @@ public class InMemAmazonCredentialsProvider implements StorageCredentialsProvide
     }
 
     @Override
-    public StorageCredentials separatedStorageCredentials(String uid) {
+    public StorageCredentials separatedStorageCredentials(String uid, String bucket) {
         throw new NotImplementedException("Cannot implement separated storage without db");
     }
 }

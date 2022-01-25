@@ -64,9 +64,15 @@ public class LzyServant extends LzyAgent {
             .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
         agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
+        bucket = config.getBucket();
         Lzy.GetS3CredentialsResponse resp = server
-                .getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder().setAuth(auth).build());
-        bucket = resp.getBucket();
+            .getS3Credentials(
+                Lzy.GetS3CredentialsRequest.newBuilder()
+                    .setAuth(auth)
+                    .setBucket(bucket)
+                    .build()
+            );
+
         storage =  SnapshotStorage.create(resp);
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(

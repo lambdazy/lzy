@@ -26,9 +26,10 @@ public class LocalProcessTask extends LocalTask {
         Map<Slot, String> assignments,
         SnapshotMeta meta,
         ChannelsManager channels,
-        URI serverURI
+        URI serverURI,
+        String bucket
     ) {
-        super(owner, tid, workload, assignments, meta, channels, serverURI);
+        super(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -43,7 +44,8 @@ public class LocalProcessTask extends LocalTask {
                     "LZYTASK", tid.toString(),
                     "LZYTOKEN", token,
                     "LZY_MOUNT", taskDir.getAbsolutePath(),
-                    "LZYWHITEBOARD", System.getenv("LZYWHITEBOARD")
+                    "LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"),
+                    "BUCKET_NAME", bucket()
             ));
             final Process process = runJvm(
                 "lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar", taskDir,

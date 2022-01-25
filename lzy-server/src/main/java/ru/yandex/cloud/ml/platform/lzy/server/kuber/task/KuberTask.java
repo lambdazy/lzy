@@ -30,8 +30,8 @@ public class KuberTask extends BaseTask {
     private final ServantPodProvider servantPodProvider = new ServantPodProviderImpl();
 
     public KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
-                     SnapshotMeta meta, ChannelsManager channels, URI serverURI) {
-        super(owner, tid, workload, assignments, meta, channels, serverURI);
+                     SnapshotMeta meta, ChannelsManager channels, URI serverURI, String bucket) {
+        super(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
     }
 
     @Override
@@ -39,7 +39,7 @@ public class KuberTask extends BaseTask {
         LOG.info("KuberTask::start {}", token);
         try {
             V1Pod servantPodSpec = servantPodProvider.createServantPod(
-                workload(), token, tid, serverURI, owner
+                workload(), token, tid, serverURI, owner, bucket()
             );
             final CoreV1Api api = new CoreV1Api();
             final String namespace = "default";

@@ -25,7 +25,8 @@ public interface TasksManager {
         Map<Slot, String> assignments,
         SnapshotMeta meta,
         Authenticator token,
-        Consumer<Servant.ExecutionProgress> progressTracker
+        Consumer<Servant.ExecutionProgress> progressTracker,
+        String bucket
     ) throws TaskException;
 
     Stream<Task> ps();

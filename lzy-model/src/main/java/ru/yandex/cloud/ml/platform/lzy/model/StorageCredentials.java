@@ -69,7 +69,7 @@ public abstract class StorageCredentials {
     }
 
     abstract Type type();
-    String bucket(){
+    public String bucket(){
         return bucket;
     }
 }
