@@ -8,10 +8,16 @@ class AzureCredentials:
 
 
 @dataclasses.dataclass
+class AzureSasCredentials:
+    endpoint: str
+    signature: str
+
+
+@dataclasses.dataclass
 class AmazonCredentials:
     endpoint: str
     access_token: str
     secret_token: str
 
 
-StorageCredentials = Union[AzureCredentials, AmazonCredentials]
+StorageCredentials = Union[AzureCredentials, AmazonCredentials, AzureSasCredentials]

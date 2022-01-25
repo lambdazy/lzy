@@ -18,6 +18,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import javax.persistence.criteria.CriteriaQuery;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -113,7 +114,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
         try(Session session = storage.getSessionFactory().openSession()){
             Transaction tx = session.beginTransaction();
-            UserModel user = new UserModel(request.getUserId());
+            UserModel user = session.find(UserModel.class, request.getUserId());
             try {
                 session.remove(user);
                 tx.commit();
@@ -385,7 +386,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     }
 
     private UserModel createUser(Session session, String userId){
-        UserModel user = new UserModel(userId);
+        UserModel user = new UserModel(userId, userId.toLowerCase(Locale.ROOT));
         session.save(user);
         UserRoleModel role = session.find(UserRoleModel.class, "user");
         Set<UserModel> users = role.getUsers();

@@ -77,6 +77,11 @@ variable "s3-bucket-name" {
   default = "lzy-bucket"
 }
 
+variable "s3-separated-per-bucket" {
+  type    = bool
+  default = true
+}
+
 variable "amazon-access-key" {
   type    = string
   default = ""
@@ -134,4 +139,9 @@ variable "servant-image" {
 variable "kafka-url" {
   type = string
   default = "kafka.default.svc.cluster.local:9092"
+}
+
+variable "server-additional-envs" {
+  type = map(string)
+  default = {}
 }

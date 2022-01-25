@@ -53,7 +53,7 @@
         <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
         <java.version>11</java.version>
         <common-codec.version>1.6</common-codec.version>
-        <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
+        <jsonwebtoken.version>0.11.2</jsonwebtoken.version>
         <jaxb-api.version>2.3.1</jaxb-api.version>
         <jackson-core.version>2.12.5</jackson-core.version>
         <jackson-databind.version>2.12.5</jackson-databind.version>
@@ -123,6 +123,7 @@
         <commons-io.version>2.4</commons-io.version>
         <s3proxy.version>1.7.1</s3proxy.version>
         <c3po.version>5.6.3.Final</c3po.version>
+        <org.json.verion>20211205</org.json.verion>
 
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
@@ -867,6 +868,16 @@
                 <groupId>org.hibernate</groupId>
                 <artifactId>hibernate-c3p0</artifactId>
                 <version>${c3po.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>${org.json.verion}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-sts</artifactId>
+                <version>${aws-java-sdk-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.gaul</groupId>

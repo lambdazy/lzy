@@ -1,22 +1,29 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
+import java.net.URI;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardInfo;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AmazonCredentials;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AzureCredentials;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AzureSASCredentials;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-
-import javax.annotation.Nullable;
-import java.net.URI;
-import java.util.HashSet;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public abstract class gRPCConverter {
     public static Zygote from(Operations.Zygote grpcOperation) {
@@ -110,6 +117,51 @@ public abstract class gRPCConverter {
 
     public static LzyWhiteboard.Snapshot to(Snapshot snapshot) {
         return LzyWhiteboard.Snapshot.newBuilder().setSnapshotId(snapshot.id().toString()).build();
+    }
+
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials credentials) {
+        switch (credentials.type()){
+            case Azure: return to((StorageCredentials.AzureCredentials) credentials);
+            case AzureSas: return to((StorageCredentials.AzureSASCredentials) credentials);
+            case Amazon: return to((StorageCredentials.AmazonCredentials)  credentials);
+            default:
+            case Empty:
+                return GetS3CredentialsResponse.newBuilder().build();
+        }
+    }
+
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureCredentials credentials){
+        return GetS3CredentialsResponse.newBuilder()
+            .setBucket(credentials.bucket())
+            .setAzure(
+                AzureCredentials.newBuilder()
+                    .setConnectionString(credentials.connectionString())
+                    .build()
+            )
+            .build();
+    }
+
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AmazonCredentials credentials){
+        return GetS3CredentialsResponse.newBuilder()
+            .setBucket(credentials.bucket())
+            .setAmazon(AmazonCredentials.newBuilder()
+                .setEndpoint(credentials.endpoint())
+                .setAccessToken(credentials.accessToken())
+                .setSecretToken(credentials.secretToken())
+                .build())
+            .build();
+    }
+
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureSASCredentials credentials){
+        return GetS3CredentialsResponse.newBuilder()
+            .setBucket(credentials.bucket())
+            .setAzureSas(
+                AzureSASCredentials.newBuilder()
+                    .setSignature(credentials.signature())
+                    .setEndpoint(credentials.endpoint())
+                    .build()
+            )
+            .build();
     }
 
     public static LzyWhiteboard.WhiteboardField to(

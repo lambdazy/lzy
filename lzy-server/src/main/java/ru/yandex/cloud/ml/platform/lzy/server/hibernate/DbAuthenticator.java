@@ -3,11 +3,15 @@ package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
@@ -16,15 +20,12 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 import java.io.StringReader;
 import java.security.Security;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials.checkToken;
 
 
 @Singleton
-@Requires(property = "authenticator", value = "DbAuthenticator")
+@Requires(property = "database.enabled", value = "true", defaultValue = "false")
 public class DbAuthenticator implements Authenticator {
     private static final Logger LOG = LogManager.getLogger(DbAuthenticator.class);
 
@@ -34,8 +35,7 @@ public class DbAuthenticator implements Authenticator {
     @Override
     public boolean checkUser(String userId, String token) {
         LOG.info("checkUser userId=" + userId);
-        String[] tokenParts = token.split("\\.");
-        return isUserTokenSigned(userId, tokenParts[0], tokenParts[1]);
+        return isUserTokenSigned(userId, token);
     }
 
     @Override
@@ -88,8 +88,9 @@ public class DbAuthenticator implements Authenticator {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             final String token = UUID.randomUUID().toString();
+            UserModel user = session.find(UserModel.class, uid);
             try {
-                TaskModel taskModel = new TaskModel(task.tid(), token, new UserModel(uid));
+                TaskModel taskModel = new TaskModel(task.tid(), token, user);
                 session.save(taskModel);
                 tx.commit();
             }
@@ -139,7 +140,7 @@ public class DbAuthenticator implements Authenticator {
         }
     }
 
-    private boolean isUserTokenSigned(String userId, String token, String tokenSign) {
+    private boolean isUserTokenSigned(String userId, String token) {
         LOG.info("isUserTokenSigned " + userId);
         try (Session session = storage.getSessionFactory().openSession()) {
             final UserModel user = session.find(UserModel.class, userId);
@@ -151,7 +152,7 @@ public class DbAuthenticator implements Authenticator {
             Security.addProvider(new BouncyCastleProvider());
             for (PublicKeyModel userToken: user.getPublicKeys()) {
                 try (StringReader keyReader = new StringReader(userToken.getValue())) {
-                    if (checkToken(keyReader, token, tokenSign)) {
+                    if (JwtCredentials.checkJWT(keyReader, token, userId)) {
                         LOG.info("Successfully checked user token " + userId);
                         return true;
                     }

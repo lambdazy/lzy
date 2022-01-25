@@ -10,8 +10,9 @@ import java.util.Set;
 @Table(name = "users")
 public class UserModel {
 
-    public UserModel(String userId) {
+    public UserModel(String userId, String bucket) {
         this.userId = userId;
+        this.bucket = bucket;
     }
 
     @Id
@@ -39,6 +40,50 @@ public class UserModel {
 
     @Column(name = "provider_user_id")
     private String providerUserId;
+
+    @Column(name = "access_key")
+    private String accessKey;
+
+    @Column(name = "secret_key")
+    private String secretKey;
+
+    @Column(name = "service_account_id")
+    private String serviceAccountId;
+
+    public String getServiceAccountId() {
+        return serviceAccountId;
+    }
+
+    public void setServiceAccountId(String serviceAccountId) {
+        this.serviceAccountId = serviceAccountId;
+    }
+
+    public String getAccessKey() {
+        return accessKey;
+    }
+
+    public void setAccessKey(String accessKey) {
+        this.accessKey = accessKey;
+    }
+
+    public String getSecretKey() {
+        return secretKey;
+    }
+
+    public void setSecretKey(String secretKey) {
+        this.secretKey = secretKey;
+    }
+
+    public String getBucket() {
+        return bucket;
+    }
+
+    public void setBucket(String bucket) {
+        this.bucket = bucket;
+    }
+
+    @Column(name = "bucket")
+    private String bucket;
 
     public AuthProviders getAuthProviderEnum() {
         return AuthProviders.fromString(authProvider);

@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage;
 
+import com.azure.core.credential.AzureSasCredential;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import org.apache.http.client.utils.URIBuilder;
@@ -11,7 +12,10 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Base64;
 
 public class AzureSnapshotStorage implements SnapshotStorage {
 
@@ -26,6 +30,13 @@ public class AzureSnapshotStorage implements SnapshotStorage {
 
     public AzureSnapshotStorage(Lzy.AzureCredentials credentials, String transmitterName, int downloadsPoolSize, int chunksPoolSize){
         this(credentials.getConnectionString(), transmitterName, downloadsPoolSize, chunksPoolSize);
+    }
+
+    public AzureSnapshotStorage(Lzy.AzureSASCredentials credentials, String transmitterName, int downloadsPoolSize, int chunksPoolSize){
+        client = new BlobServiceClientBuilder()
+            .endpoint(credentials.getEndpoint())
+            .buildClient();
+        transmitter = new AzureTransmitterFactory(client).fixedPoolsTransmitter(transmitterName, downloadsPoolSize, chunksPoolSize);
     }
 
     @Override

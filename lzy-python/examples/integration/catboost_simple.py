@@ -3,6 +3,8 @@ from catboost import CatBoostClassifier
 from lzy.api import op, LzyEnv, Gpu
 import numpy as np
 
+from lzy.servant.terminal_server import TerminalConfig
+
 
 @dataclass
 class DataSet:
@@ -33,7 +35,8 @@ def predict(cb_model: CatBoostClassifier, point: np.array) -> np.int64:
 
 
 if __name__ == '__main__':
-    with LzyEnv(user="test_user", server_url="localhost:8899"):
+    config = TerminalConfig(user="test_user", server_url="localhost:8899")
+    with LzyEnv(config=config):
         data = dataset()
         model = learn(data)
         result = predict(model, np.array([9, 1]))

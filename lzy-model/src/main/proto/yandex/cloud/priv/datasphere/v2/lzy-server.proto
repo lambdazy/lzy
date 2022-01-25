@@ -71,6 +71,11 @@ message AzureCredentials {
   string connectionString = 1;
 }
 
+message AzureSASCredentials {
+  string signature = 1;
+  string endpoint = 2;
+}
+
 message AmazonCredentials {
   string endpoint = 1;
   string accessToken = 2;
@@ -81,5 +86,7 @@ message GetS3CredentialsResponse {
   oneof credentials {
     AmazonCredentials amazon = 1;
     AzureCredentials azure = 2;
+    AzureSASCredentials azureSas = 4;
   }
+  string bucket = 3;
 }

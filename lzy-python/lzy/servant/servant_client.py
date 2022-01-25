@@ -1,32 +1,29 @@
-import logging
 from abc import ABC, abstractmethod
+import logging
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Mapping, Optional
 
-from lzy.api.whiteboard.credentials import StorageCredentials
+from lzy.api.whiteboard.credentials import (
+    # AzureCredentials,
+    # AmazonCredentials,
+    StorageCredentials,
+)
 from lzy.model.channel import Channel, Bindings
 from lzy.model.slot import Slot
 from lzy.model.zygote import Zygote
 
 
+@dataclass
 class ExecutionResult:
-    def __init__(self, stdout: str, stderr: str, rc: int):
-        self._rc = rc
-        self._stderr = stderr
-        self._stdout = stdout
-
-    def stdout(self) -> str:
-        return self._stdout
-
-    def stderr(self) -> str:
-        return self._stderr
-
-    def rc(self) -> int:
-        return self._rc
+    stdout: str
+    stderr: str
+    returncode: int
 
 
 class Execution(ABC):
+    # pylint: disable=invalid-name
     @abstractmethod
     def id(self) -> str:
         pass
@@ -38,6 +35,12 @@ class Execution(ABC):
     @abstractmethod
     def wait_for(self) -> ExecutionResult:
         pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
 
 
 class ServantClient(ABC):
@@ -73,7 +76,11 @@ class ServantClient(ABC):
         pass
 
     @abstractmethod
-    def run(self, execution_id: str, zygote: Zygote, bindings: Bindings,
+    def run(
+            self,
+            execution_id: str,
+            zygote: Zygote,
+            bindings: Bindings,
             entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
         pass
 

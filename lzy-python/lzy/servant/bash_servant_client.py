@@ -9,16 +9,37 @@ from typing import Any, Dict, Optional, Mapping
 import sys
 from time import sleep
 
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
 from lzy.model.channel import Channel, Bindings
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
 from lzy.servant.servant_client import ServantClient, Execution, ExecutionResult
 
+from lzy.model.encoding import ENCODING as encoding
+
+def exec_bash(*command):
+    with subprocess.Popen(
+        ["bash", "-c", " ".join(command)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE
+    ) as process:
+
+        out, err = process.communicate()
+        if err != b"":
+            raise BashExecutionException(message=str(err, encoding="utf-8"))
+
+        if process.returncode != 0:
+            raise BashExecutionException(
+                message=f"Process exited with code {process.returncode}"
+            )
+    return out
+
+if __name__ == '__main__':
+    print(exec_bash('ls'))
 
 class BashExecutionException(Exception):
     def __init__(self, message, *args):
-        super(BashExecutionException, self).__init__(message, *args)
+        super().__init__(message, *args)
         self.message = message
 
 
@@ -33,8 +54,11 @@ class Singleton(type):
 
 
 class BashExecution(Execution):
-    def __init__(self, execution_id: str, bindings: Bindings,
-                 env: Dict[str, str], *command):
+    def __init__(
+        self, execution_id: str,
+        bindings: Bindings, env: Dict[str, str],
+        *command
+    ):
         super().__init__()
         self._id = execution_id
         self._cmd = command
@@ -50,13 +74,17 @@ class BashExecution(Execution):
 
     def start(self) -> None:
         if self._process:
-            raise ValueError('Execution has been already started')
+            raise ValueError("Execution has been already started")
+        # TODO: make BashExecution a context manager and delegate
+        # TODO: __enter__ and __exit__ to __enter__ and __exit__
+        # TODO: of self._process. Disabled pylint recommendation for now
+        # pylint: disable=consider-using-with
         self._process = subprocess.Popen(
             ["bash", "-c", " ".join(self._cmd)],
             stdout=sys.stdout,
             stderr=sys.stderr,
             stdin=subprocess.PIPE,
-            env=self._env
+            env=self._env,
         )
 
     @staticmethod
@@ -67,22 +95,24 @@ class BashExecution(Execution):
 
     def wait_for(self) -> ExecutionResult:
         if not self._process:
-            raise ValueError('Execution has NOT been started')
+            raise ValueError("Execution has NOT been started")
         out, err = self._process.communicate()
         return ExecutionResult(
             BashExecution._pipe_to_string(out),
             BashExecution._pipe_to_string(err),
-            self._process.returncode
+            self._process.returncode,
         )
 
-
 class BashServantClient(ServantClient):
-    _instance: Optional['BashServantClient'] = None
+    _instance: Optional["BashServantClient"] = None
 
     def __init__(self, lzy_mount: Optional[str] = None):
         super().__init__()
-        mount_path: str = lzy_mount if lzy_mount is not None \
+        mount_path: str = (
+            lzy_mount
+            if lzy_mount is not None
             else os.getenv("LZY_MOUNT", default="/tmp/lzy")
+        )
         self._mount: Path = Path(mount_path)
 
         self._log = logging.getLogger(str(self.__class__))
@@ -96,24 +126,28 @@ class BashServantClient(ServantClient):
 
     def create_channel(self, channel: Channel):
         self._log.info(f"Creating channel {channel.name}")
-        return self._exec_bash(f"{self.mount()}/sbin/channel create " + channel.name)
+        return exec_bash(f"{self.mount()}/sbin/channel create " + channel.name)
 
     def destroy_channel(self, channel: Channel):
         self._log.info(f"Destroying channel {channel.name}")
-        return self._exec_bash(f"{self.mount()}/sbin/channel", "destroy", channel.name)
+        return exec_bash(f"{self.mount()}/sbin/channel", "destroy", channel.name)
 
     def touch(self, slot: Slot, channel: Channel):
-        self._log.info(f"Creating slot {slot.name} dir:{slot.direction} channel:{channel.name}")
-        slot_description_file = tempfile.mktemp(prefix="lzy_slot_", suffix=".json", dir="/tmp/")
+        self._log.info(
+            f"Creating slot {slot.name} dir:{slot.direction} channel:{channel.name}"
+        )
+        slot_description_file = tempfile.mktemp(
+            prefix="lzy_slot_", suffix=".json", dir="/tmp/"
+        )
 
-        with open(slot_description_file, 'w') as f:
-            f.write(slot.to_json())
-        result = self._exec_bash(
+        with open(slot_description_file, "w", encoding=encoding) as file:
+            file.write(slot.to_json())
+        result = exec_bash(
             f"{self.mount()}/sbin/touch",
             str(self.get_slot_path(slot)),
             channel.name,
             "--slot",
-            slot_description_file
+            slot_description_file,
         )
         if slot.direction == Direction.OUTPUT:
             while not self.get_slot_path(slot).exists():
@@ -122,72 +156,77 @@ class BashServantClient(ServantClient):
 
     def publish(self, zygote: Zygote):
         self._log.info(f"Publishing zygote {zygote.name}")
-        zygote_description_file = tempfile.mktemp(prefix="lzy_zygote_",
-                                                  suffix=".json", dir="/tmp/")
-        with open(zygote_description_file, 'w') as f:
-            f.write(zygote.to_json())
-        return self._exec_bash(f"{self.mount()}/sbin/publish", zygote.name,
-                               zygote_description_file)
+        zygote_description_file = tempfile.mktemp(
+            prefix="lzy_zygote_", suffix=".json", dir="/tmp/"
+        )
+        with open(zygote_description_file, "w", encoding=encoding) as file:
+            file.write(zygote.to_json())
+        return exec_bash(
+            f"{self.mount()}/sbin/publish", zygote.name, zygote_description_file
+        )
 
-    def get_credentials(self, typ: ServantClient.CredentialsTypes) -> StorageCredentials:
+    def get_credentials(
+        self, typ: ServantClient.CredentialsTypes
+    ) -> StorageCredentials:
         self._log.info(f"Getting credentials for {typ}")
-        out = self._exec_bash(f"{self._mount}/sbin/credentials", typ.value)
+        out = exec_bash(f"{self._mount}/sbin/credentials", typ.value)
         data: dict = json.loads(out)
         if "azure" in data:
             return AzureCredentials(data["azure"]["connectionString"])
-        return AmazonCredentials(data["amazon"]["endpoint"], data["amazon"]["accessToken"],
-                                 data["amazon"]["secretToken"])
+        if "amazon" in data:
+            return AmazonCredentials(
+            data["amazon"]["endpoint"],
+            data["amazon"]["accessToken"],
+            data["amazon"]["secretToken"],
+        )
 
+        return AzureSasCredentials(**data["azureSas"])
+
+    # pylint: disable=duplicate-code
     def run(self, execution_id: str, zygote: Zygote,
-            bindings: Bindings, entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
-        slots_mapping_file = tempfile.mktemp(prefix="lzy_slot_mapping_",
-                                             suffix=".json", dir="/tmp/")
-        entry_id_mapping_file = tempfile.mktemp(prefix="entry_id_mapping_",
-                                                suffix=".json", dir="/tmp/")
-        with open(slots_mapping_file, 'w') as f:
+            bindings: Bindings,
+            entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
+
+        slots_mapping_file = tempfile.mktemp(
+            prefix="lzy_slot_mapping_", suffix=".json", dir="/tmp/"
+        )
+        entry_id_mapping_file = tempfile.mktemp(
+            prefix="entry_id_mapping_", suffix=".json", dir="/tmp/"
+        )
+        with open(slots_mapping_file, "w", encoding=encoding) as file:
             json_bindings = {
-                binding.remote_slot.name: binding.channel.name for binding in
-                bindings.bindings()
+                binding.remote_slot.name: binding.channel.name
+                for binding in bindings.bindings()
             }
-            json.dump(json_bindings, f, indent=3)
-        with open(entry_id_mapping_file, 'w') as f:
+            json.dump(json_bindings, file, indent=3)
+
+        with open(entry_id_mapping_file, "w", encoding=encoding) as file:
             if entry_id_mapping:
                 json_bindings = {
-                    slot.name: entry_id for slot, entry_id in
-                    entry_id_mapping.items()
+                    slot.name: entry_id for slot, entry_id in entry_id_mapping.items()
                 }
             else:
                 json_bindings = {}
-            json.dump(json_bindings, f, indent=3)
+            json.dump(json_bindings, file, indent=3)
 
         env = os.environ.copy()
-        env['ZYGOTE'] = zygote.to_json()
+        env["ZYGOTE"] = zygote.to_json()
 
-        execution = BashExecution(execution_id, bindings, env,
-                                  f"{self.mount()}/sbin/run", "--mapping",
-                                  slots_mapping_file,
-                                  "-s", entry_id_mapping_file)
+        execution = BashExecution(
+            execution_id,
+            bindings,
+            env,
+            f"{self.mount()}/sbin/run",
+            "--mapping",
+            slots_mapping_file,
+            "-s",
+            entry_id_mapping_file,
+        )
         execution.start()
         return execution
 
-    @staticmethod
-    def _exec_bash(*command):
-        process = subprocess.Popen(
-            ["bash", "-c", " ".join(command)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            stdin=subprocess.PIPE
-        )
-        out, err = process.communicate()
-        if err != b'':
-            raise BashExecutionException(message=str(err, encoding='utf-8'))
-        if process.returncode != 0:
-            raise BashExecutionException(
-                message=f"Process exited with code {process.returncode}")
-        return out
-
     @classmethod
-    def instance(cls, lzy_mount: Optional[str] = None) -> 'BashServantClient':
+    def instance(cls, lzy_mount: Optional[str] = None) -> "BashServantClient":
         if cls._instance is None:
             cls._instance = BashServantClient(lzy_mount)
         return cls._instance

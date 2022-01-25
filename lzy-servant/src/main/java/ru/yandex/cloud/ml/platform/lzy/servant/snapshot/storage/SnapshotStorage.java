@@ -20,8 +20,11 @@ public interface SnapshotStorage {
         if (credentials.hasAmazon()){
             return new AmazonSnapshotStorage(credentials.getAmazon(), transmitterName, downloadsPoolSize, chunksPoolSize);
         }
-        else {
+        else if (credentials.hasAzure()) {
             return new AzureSnapshotStorage(credentials.getAzure(), transmitterName, downloadsPoolSize, chunksPoolSize);
+        }
+        else {
+            return new AzureSnapshotStorage(credentials.getAzureSas(), transmitterName, downloadsPoolSize, chunksPoolSize);
         }
     }
     static SnapshotStorage create(Lzy.GetS3CredentialsResponse credentials){
