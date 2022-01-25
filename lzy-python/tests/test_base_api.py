@@ -156,7 +156,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv(local=True) as env:
+        with LzyLocalEnv() as env:
             a_res = none_func()
             b_res = none_receiver_func(a_res)
 
