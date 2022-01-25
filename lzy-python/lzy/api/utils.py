@@ -1,10 +1,8 @@
-from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
     Dict,
     Iterable,
-    Union,
     Type,
     Tuple,
     TypeVar,
@@ -13,6 +11,7 @@ from typing import (
 
 from lzy.api._proxy import proxy
 from lzy.api.lazy_op import LzyOp
+from lzy.api.result import Result, Just, Nothing
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -25,31 +24,22 @@ def print_lzy_ops(ops: Iterable[LzyOp]) -> None:
         print(repr(lzy_op.signature.func))
 
 
-class NoResult:
-    pass
-
-
-@dataclass
-class Result:
-    inferred_type: type
-
-
-TypeInferResult = Union[Result, NoResult]
+TypeInferResult = Result[type]
 
 
 def infer_return_type(func: Callable) -> TypeInferResult:
     hints = get_type_hints(func)
     if "return" not in hints:
-        return NoResult()
+        return Nothing()
 
     or_type = hints["return"]
     if hasattr(or_type, "__origin__"):
-        return Result(or_type.__origin__)  # type: ignore
+        return Just(or_type.__origin__)  # type: ignore
 
     if isinstance(or_type, type):
-        return Result(or_type)
+        return Just(or_type)
 
-    return NoResult()
+    return Nothing()
 
 
 def infer_arg_types(*args) -> Tuple[type, ...]:
