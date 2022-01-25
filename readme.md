@@ -190,3 +190,21 @@ module "azure_common" {
   server-image               = "lzydock/lzy-server:master"
 }
 ```
+
+Same example, but here we use `local` backend
+
+```
+terraform {
+  backend "local" {
+  }
+}
+
+module "azure_common" {
+  source                     = "git@github.com:lambda-zy/lzy.git//deployment/tf/modules/azure_common"
+  installation_name          = "my-lzy-installation"
+  oauth-github-client-id     = var.github-client-id
+  oauth-github-client-secret = var.github-secret
+  s3-postfics                = "master"
+  server-image               = "lzydock/lzy-server:master"
+}
+```
