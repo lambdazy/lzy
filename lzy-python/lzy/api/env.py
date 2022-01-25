@@ -112,6 +112,14 @@ class LzyEnvBase(ABC):
     def __exit__(self, *_) -> None:
         try:
             self.run()
+
+            context = self._execution_context
+            # pylint: disable=protected-access
+            # noinspection PyProtectedMember
+            if context._snapshot_id is not None:
+                # noinspection PyProtectedMember
+                context.snapshot_api.finalize(context._snapshot_id)
+
         finally:
             self.deactivate()
             type(self).instances.pop()
@@ -222,13 +230,3 @@ class LzyRemoteEnv(LzyEnvBase):
 
     def servant(self) -> Optional[ServantClient]:
         return self._servant_client
-
-    def run(self) -> None:
-        super().run()
-
-        context = self._execution_context
-        # pylint: disable=protected-access
-        # noinspection PyProtectedMember
-        if context._snapshot_id:
-            # noinspection PyProtectedMember
-            context.snapshot_api.finalize(context._snapshot_id)
