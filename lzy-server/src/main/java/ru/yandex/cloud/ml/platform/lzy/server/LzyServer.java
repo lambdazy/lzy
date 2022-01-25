@@ -224,9 +224,6 @@ public class LzyServer {
             final Task parent = resolveTask(request.getAuth());
             final AtomicBoolean concluded = new AtomicBoolean(false);
             final SnapshotMeta snapshotMeta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : null;
-            final StorageCredentials credentials = storageConfigs.isSeparated() ?
-                credentialsProvider.separatedStorageCredentials(uid, auth.bucketForUser(uid)) :
-                credentialsProvider.storageCredentials(uid, auth.bucketForUser(uid));
             Task task = tasks.start(uid, parent, workload, assignments, snapshotMeta, auth, progress -> {
                 if (concluded.get())
                     return;
@@ -237,7 +234,7 @@ public class LzyServer {
                     if (parent != null)
                         parent.signal(TasksManager.Signal.CHLD);
                 }
-            }, credentials.bucket());
+            }, auth.bucketForUser(uid));
             UserEventLogger.log(
                 new UserEvent(
                     "Task created",

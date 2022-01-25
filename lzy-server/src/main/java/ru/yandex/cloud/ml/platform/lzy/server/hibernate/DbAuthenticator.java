@@ -147,20 +147,12 @@ public class DbAuthenticator implements Authenticator {
 
     @Override
     public boolean canAccessBucket(String uid, String bucket) {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            UserModel user = session.find(UserModel.class, uid);
-            if (user == null) {
-                return false;
-            }
-            if (bucket.equals(user.getBucket()))
-                return true;
-        }
-        return false;
+        return bucket.equals(bucketForUser(uid));
     }
 
     @Override
     public String bucketForUser(String uid) {
-        if (storageConfigs.isSeparated()){
+        if (!storageConfigs.isSeparated()){
             return storageConfigs.getBucket();
         }
         try (Session session = storage.getSessionFactory().openSession()) {
