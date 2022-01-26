@@ -1,9 +1,11 @@
 import inspect
+from stdlib_list import stdlib_list
 import sys
-from typing import Any, Dict, Iterable, List, Tuple
-
+from types import ModuleType
+from typing import Any, Dict, Iterable, List, Tuple, Set
 
 import pkg_resources
+import requests
 import yaml
 from importlib_metadata import packages_distributions
 
@@ -12,8 +14,8 @@ from importlib_metadata import packages_distributions
 def get_base_prefix_compat():
     # Get base/real prefix, or sys.prefix if there is none.
     return getattr(sys, "base_prefix", None) or \
-        getattr(sys, "real_prefix", None) or \
-        sys.prefix
+           getattr(sys, "real_prefix", None) or \
+           sys.prefix
 
 
 def in_virtualenv():
@@ -24,15 +26,11 @@ def to_str(source: Iterable[Any], delim: str = ".") -> str:
     return delim.join(map(str, source))
 
 
-exclude = {"lzy-py"}
-
-
 def all_installed_packages() -> Dict[str, Tuple[str, ...]]:
     return {
         entry.project_name: tuple(entry.version.split("."))
         # working_set is actually iterable see sources
         for entry in pkg_resources.working_set  # pylint: disable=not-an-iterable
-        if entry.project_name not in exclude
     }
 
 
@@ -43,10 +41,10 @@ _installed_versions = {
     # "3.10.0": "py310"
 }
 
+pypi_existence_cache: Dict[str, bool] = dict()
 
-def create_yaml(
-    installed_packages: Dict[str, Tuple[str, ...]], name: str = "default"
-) -> Tuple[str, str]:
+
+def create_yaml(installed_packages: Dict[str, Tuple[str, ...]], name: str = "default") -> Tuple[str, str]:
     # always use only first three numbers, otherwise conda won't find
     python_version = to_str(sys.version_info[:3])
     if python_version in _installed_versions:
@@ -69,30 +67,44 @@ def create_yaml(
     return name, yaml.dump(conda_yaml, sort_keys=False)
 
 
-def select_modules(
-    namespace: Dict[str, Any]
-) -> Tuple[Dict[str, Tuple[str, ...]], Tuple[str, ...]]:
+def exists_in_pypi(package_name: str) -> bool:
+    if package_name in pypi_existence_cache:
+        return pypi_existence_cache[package_name]
+
+    response = requests.get("https://pypi.python.org/pypi/{}/json"
+                            .format(package_name))
+    result = 200 <= response.status_code < 300
+    pypi_existence_cache[package_name] = result
+    return result
+
+
+def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], Set[ModuleType]]:
     dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
     # TODO: this doesn't work for custom modules installed by user, e.g. lzy-py
     # TODO: don't know why
 
     distributions = packages_distributions()
-    packages_with_versions = {}
-    packages_without_versions = []
+    remote_packages = {}
+    local_modules = set()
     for name, entry in namespace.items():
         # try to get module name
         parent_module = inspect.getmodule(entry)
         if parent_module is None:
             continue
 
-        name = inspect.getmodule(entry).__name__.split(".")[0]  # type: ignore
+        module = inspect.getmodule(entry)
+        name = module.__name__.split(".")[0]  # type: ignore
+        if name in stdlib_list():
+            continue
+
         if name not in distributions:
+            local_modules.add(module)
             continue
 
         dist_name = distributions[name][0]
-        if dist_name in dist_versions:
-            packages_with_versions[dist_name] = dist_versions[dist_name]
+        if dist_name in dist_versions and exists_in_pypi(dist_name):
+            remote_packages[dist_name] = dist_versions[dist_name]
         else:
-            packages_without_versions.append(dist_name)
+            local_modules.add(module)
 
-    return packages_with_versions, tuple(packages_without_versions)
+    return remote_packages, local_modules

@@ -15,6 +15,7 @@ from lzy.api.whiteboard.api import (
 )
 from lzy.api.whiteboard.wb import wrap_whiteboard
 from lzy.model.encoding import ENCODING as encoding
+from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.terminal_server import TerminalServer, TerminalConfig
@@ -82,7 +83,7 @@ class LzyEnvBase(ABC):
         return self._execution_context.snapshot_id
 
     def registered_ops(self) -> Iterable[LzyOp]:
-        #if self.get_active() is None:
+        # if self.get_active() is None:
         #    raise ValueError("Fetching ops on a non-entered environment")
         return list(self._ops)
 
@@ -127,7 +128,7 @@ class LzyEnvBase(ABC):
 
 class WhiteboardExecutionContext:
     def __init__(
-        self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any
+            self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any
     ):
         self._snapshot_id: Optional[str] = None
         self._whiteboard_id: Optional[str] = None
@@ -182,13 +183,13 @@ class LzyLocalEnv(LzyEnvBase):
 
 class LzyRemoteEnv(LzyEnvBase):
     def __init__(
-        self,
-        eager: bool = False,
-        whiteboard: Any = None,
-        buses: Optional[BusList] = None,
-        config: Optional[TerminalConfig] = None,
+            self,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None,
+            config: Optional[TerminalConfig] = None,
     ):
-        config_: TerminalConfig = config or TerminalConfig() # type: ignore
+        config_: TerminalConfig = config or TerminalConfig()  # type: ignore
         buses = buses or []
         if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
             raise ValueError("Whiteboard should be a dataclass")
@@ -204,23 +205,22 @@ class LzyRemoteEnv(LzyEnvBase):
         super().__init__(buses, whiteboard, whiteboard_api, snapshot_api, eager)
         self._yaml = config_.yaml_path
 
-    def generate_conda_env(
-        self, namespace: Optional[Dict[str, Any]] = None
-    ) -> Tuple[str, str]:
+    def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._yaml is None:
             if namespace is None:
-                return create_yaml(installed_packages=all_installed_packages())
-
-            # TODO: there are modules without versions, should we do smth with
-            # TODO: them?
-            installed, _ = select_modules(namespace)
-            return create_yaml(installed_packages=installed)
+                name, yaml = create_yaml(installed_packages=all_installed_packages())
+                local_modules = []
+            else:
+                installed, local_modules = select_modules(namespace)
+                name, yaml = create_yaml(installed_packages=installed)
+            return PyEnv(name, yaml, local_modules)
 
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option
         # TODO: parse yaml and get name?
         with open(self._yaml, "r", encoding=encoding) as file:
-            return "default", "".join(file.readlines())
+            name, yaml = "default", "".join(file.readlines())
+            return PyEnv(name, yaml, [])
 
     def activate(self):
         self._terminal_server.start()

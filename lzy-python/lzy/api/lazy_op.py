@@ -92,6 +92,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
         self._deployed = deployed
         self._servant = servant
+        self._env = env
         self._zygote = ZygotePythonFunc(
             signature.func,
             # self._servant.mount(),
@@ -190,6 +191,9 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         )
 
     def execution_logic(self) -> T:
+        for module in self._env.local_modules():
+            cloudpickle.register_pickle_by_value(module)
+
         entry_id_mapping = (
             {self._zygote.return_slot: self._return_entry_id}
             if self._return_entry_id else
