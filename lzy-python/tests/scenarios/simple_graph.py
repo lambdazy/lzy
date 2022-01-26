@@ -1,7 +1,5 @@
-from lzy.api import op, LzyRemoteEnv
-import base
 from base import Base
-import cloudpickle
+from lzy.api import op, LzyRemoteEnv
 from lzy.servant.terminal_server import TerminalConfig
 
 
@@ -15,11 +13,17 @@ def main():
         return Base(a, "before")
 
     @op
+    def just_print() -> None:
+        print("Just print some text")
+
+    @op
     def bar(bs: Base, sp: str) -> str:
         # noinspection PyTypeChecker
         return sp + bs.b + str(bs.a)
+
     config = TerminalConfig(user="test_user", server_url="localhost:8899")
     with LzyRemoteEnv(config=config):
+        just_print()
         s = str_gen()
         f = foo(3)
         b = bar(f, s)
@@ -28,5 +32,4 @@ def main():
 
 
 if __name__ == '__main__':
-    cloudpickle.register_pickle_by_value(base)
     main()
