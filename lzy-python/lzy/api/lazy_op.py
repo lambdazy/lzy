@@ -191,8 +191,9 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         )
 
     def execution_logic(self) -> T:
-        for module in self._env.local_modules():
-            cloudpickle.register_pickle_by_value(module)
+        if self._env:
+            for module in self._env.local_modules():
+                cloudpickle.register_pickle_by_value(module)
 
         entry_id_mapping = (
             {self._zygote.return_slot: self._return_entry_id}
@@ -236,6 +237,10 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             raise LzyExecutionException(message)
 
         finally:
+            if self._env:
+                for module in self._env.local_modules():
+                    cloudpickle.unregister_pickle_by_value(module)
+
             for binding in bindings:
                 self._destroy_binding(binding)
 

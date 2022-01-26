@@ -85,7 +85,7 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
 
     distributions = packages_distributions()
     remote_packages = {}
-    local_modules = set()
+    local_modules: Set[ModuleType] = set()
     for name, entry in namespace.items():
         # try to get module name
         parent_module = inspect.getmodule(entry)
@@ -93,6 +93,9 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
             continue
 
         module = inspect.getmodule(entry)
+        if not module:
+            continue
+
         name = module.__name__.split(".")[0]  # type: ignore
         if name in stdlib_list():
             continue

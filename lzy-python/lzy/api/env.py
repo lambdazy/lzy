@@ -1,7 +1,8 @@
 import dataclasses
 import logging
 from abc import abstractmethod, ABC
-from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
+from types import ModuleType
+from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional, Set
 
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
@@ -209,7 +210,7 @@ class LzyRemoteEnv(LzyEnvBase):
         if self._yaml is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
-                local_modules = []
+                local_modules: Set[ModuleType] = set()
             else:
                 installed, local_modules = select_modules(namespace)
                 name, yaml = create_yaml(installed_packages=installed)
