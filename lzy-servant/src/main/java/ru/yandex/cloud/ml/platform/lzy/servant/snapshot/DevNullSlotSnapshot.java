@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import com.google.protobuf.ByteString;
+import java.io.InputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -38,6 +39,9 @@ public class DevNullSlotSnapshot implements SlotSnapshot {
     public boolean isEmpty() {
         return true;
     }
+
+    @Override
+    public void readAll(InputStream stream) {}
 
     @Override
     public void onFinish() {

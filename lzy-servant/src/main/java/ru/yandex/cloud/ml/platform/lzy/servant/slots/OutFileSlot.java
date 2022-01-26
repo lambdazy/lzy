@@ -1,6 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
@@ -110,10 +112,18 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         localFileContents.onClose(written -> {
             if (written) {
                 synchronized (OutFileSlot.this) {
-                    LOG.info("Content to slot " + OutFileSlot.this + " was written; READY=true");
-                    ready = true;
-                    state(Operations.SlotStatus.State.OPEN);
-                    OutFileSlot.this.notifyAll();
+                    synchronized (localFileContents) {
+                        try {
+                            snapshotProvider.slotSnapshot(definition()).readAll(new FileInputStream(storage.toFile()));
+                        } catch (FileNotFoundException e) {
+                            throw new RuntimeException(e);
+                        }
+                        LOG.info(
+                            "Content to slot " + OutFileSlot.this + " was written; READY=true");
+                        ready = true;
+                        state(Operations.SlotStatus.State.OPEN);
+                        OutFileSlot.this.notifyAll();
+                    }
                 }
             }
         });
@@ -165,14 +175,10 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                     bb.clear();
                     int read = channel.read(bb);
                     LOG.info("Slot {} hasNext read {}", name(), read);
-                    if (read < 0) {
-                        snapshotProvider.slotSnapshot(definition()).onFinish();
-                    }
                     return read >= 0;
                 }
                 catch (IOException e) {
                     LOG.warn("Unable to read line from reader", e);
-                    snapshotProvider.slotSnapshot(definition()).onFinish();
                     return false;
                 }
             }
@@ -181,9 +187,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             public ByteString next() {
                 bb.flip();
                 LOG.info("Send from slot {} data {}", name(), bb.toString());
-                ByteString chunk = ByteString.copyFrom(bb);
-                snapshotProvider.slotSnapshot(definition()).onChunk(chunk);
-                return chunk;
+                return ByteString.copyFrom(bb);
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);
     }

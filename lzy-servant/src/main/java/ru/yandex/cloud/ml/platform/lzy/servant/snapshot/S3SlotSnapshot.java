@@ -3,6 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
+import java.io.InputStream;
+import java.io.OutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -94,6 +96,14 @@ public class S3SlotSnapshot implements SlotSnapshot {
     public boolean isEmpty() {
         LOG.info("S3ExecutionSnapshot::isEmpty invoked with slot " + slot.name());
         return !nonEmpty.contains(slot);
+    }
+
+    @Override
+    public void readAll(InputStream stream) {
+        slotStream.computeIfAbsent(slot, slot -> createStreams());
+        slotStream.get(slot).write(stream);
+        nonEmpty.add(slot);
+        onFinish();
     }
 
     @Override
