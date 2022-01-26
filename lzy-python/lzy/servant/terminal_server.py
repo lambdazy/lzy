@@ -49,7 +49,7 @@ class TerminalServer:
             self._log.info("Using already started servant")
             return
 
-        private_key_path = Path(self._config.private_key_path)
+        private_key_path = Path(self._config.private_key_path).expanduser()
         if not private_key_path.resolve().exists():
             raise ValueError("Private key path does not exists: "
                              f"{self._config.private_key_path}")

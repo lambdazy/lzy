@@ -5,10 +5,11 @@ from typing import Callable
 
 import sys
 
-from lzy.api.env import LzyEnv
+from lzy.api.env import LzyEnvBase, LzyRemoteEnv, LzyLocalEnv
 from lzy.api.lazy_op import LzyLocalOp, LzyRemoteOp
-from lzy.api.utils import infer_return_type, is_lazy_proxy, lazy_proxy, Nothing
+from lzy.api.utils import infer_return_type, is_lazy_proxy, lazy_proxy
 from lzy.api.whiteboard.api import UUIDEntryIdGenerator
+from lzy.api.result import Nothing
 
 from lzy.model.signatures import FuncSignature, CallSignature
 from lzy.model.zygote import Provisioning, Gpu
@@ -58,14 +59,15 @@ def op_(provisioning: Provisioning, *, output_type=None):
                 for arg in args
             )
 
-            current_env = LzyEnv.get_active()
+            current_env = LzyEnvBase.get_active()
             if current_env is None:
                 return f(*args)
 
             signature = CallSignature(FuncSignature(f, input_types, output_type), args)
-            if current_env.is_local():
+
+            if isinstance(current_env, LzyLocalEnv):
                 lzy_op = LzyLocalOp(signature)
-            else:
+            elif isinstance(current_env, LzyRemoteEnv):
                 # we need specify globals() for caller site to find all
                 # required modules
                 caller_globals = inspect.stack()[1].frame.f_globals
@@ -84,6 +86,8 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     deployed=False,
                     entry_id_generator=id_generator,
                 )
+            else:
+                raise RuntimeError(f"Unsupported env type: {type(current_env)}")
             current_env.register_op(lzy_op)
 
             # Special case for NoneType, just leave op registered and return

@@ -11,6 +11,7 @@ from typing import Optional, Any, TypeVar, Generic
 import cloudpickle
 
 from lzy.api.whiteboard.api import EntryIdGenerator
+from lzy.api.result import Just, Nothing, Result
 from lzy.model.channel import Channel, Binding, Bindings
 from lzy.model.env import PyEnv
 from lzy.model.file_slots import create_slot
@@ -19,7 +20,6 @@ from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.model.slot import Direction, Slot
 from lzy.model.zygote import Zygote, Provisioning
 from lzy.model.zygote_python_func import ZygotePythonFunc
-from lzy.api.result import Just, Nothing, Result
 from lzy.servant.servant_client import ServantClient, Execution
 
 

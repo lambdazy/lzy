@@ -14,7 +14,6 @@ from lzy.model.signatures import CallSignature, FuncSignature
 class ProxyTests(TestCase):
     @staticmethod
     def lazy_constructed_obj(cls, *args, **kwargs):
-        print(args, kwargs)
         return proxy(lambda: cls(*args, **kwargs), cls)
 
     def test_simple_isinstance(self):

@@ -1,7 +1,7 @@
 from typing import List
 from unittest import TestCase
 
-from lzy.api import op, LzyEnv
+from lzy.api import op, LzyLocalEnv
 
 
 class BaseApiTests(TestCase):
@@ -30,7 +30,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv(local=True) as env:
+        with LzyLocalEnv() as env:
             s = source()
             r = process(s)
             sink(r)
@@ -42,7 +42,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv(eager=True, local=True) as env:
+        with LzyLocalEnv(eager=True) as env:
             s = source()
             r = process(s)
             sink(r)
@@ -68,7 +68,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv(local=True) as env:
+        with LzyLocalEnv() as env:
             n = get_int()
             s = 0.0
             for i in range(n):
@@ -92,7 +92,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv(local=True) as env:
+        with LzyLocalEnv() as env:
             n = get_int()
             s = 0.0
             for i in range(n):
@@ -131,7 +131,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv(local=True) as env:
+        with LzyLocalEnv() as env:
             a_res = a()
             b_res = b(a_res)
 
@@ -156,7 +156,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyEnv(local=True) as env:
+        with LzyLocalEnv() as env:
             a_res = none_func()
             b_res = none_receiver_func(a_res)
 
