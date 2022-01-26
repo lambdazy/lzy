@@ -65,6 +65,7 @@ message CheckUserPermissionsResponse {
 
 message GetS3CredentialsRequest {
   Auth auth = 1;
+  string bucket = 2;
 }
 
 message AzureCredentials {
@@ -88,5 +89,4 @@ message GetS3CredentialsResponse {
     AzureCredentials azure = 2;
     AzureSASCredentials azureSas = 4;
   }
-  string bucket = 3;
 }

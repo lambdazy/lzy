@@ -33,7 +33,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     private static final V1ResourceRequirements GPU_SERVANT_POD_RESOURCE = new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1")).build();
 
     @Override
-    public V1Pod createServantPod(Zygote workload, String token, UUID tid, URI serverURI, String uid) throws PodProviderException {
+    public V1Pod createServantPod(Zygote workload, String token, UUID tid, URI serverURI, String uid, String bucket) throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
             Configuration.setDefaultApiClient(client);
@@ -66,7 +66,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             throw new PodProviderException("cannot find " + LZY_SERVANT_CONTAINER_NAME + " container in pod spec");
         }
         final V1Container container = containerOptional.get();
-        addEnvVars(container, token, tid, serverURI, System.getenv("BUCKET_NAME"));
+        addEnvVars(container, token, tid, serverURI, bucket);
 
         final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
         pod.getMetadata().setName(podName);
@@ -101,6 +101,8 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
         ).addEnvItem(
             new V1EnvVar().name("LZYWHITEBOARD").value(System.getenv("LZYWHITEBOARD"))
+        ).addEnvItem(
+            new V1EnvVar().name("BUCKET_NAME").value(bucketName)
         );
     }
 }

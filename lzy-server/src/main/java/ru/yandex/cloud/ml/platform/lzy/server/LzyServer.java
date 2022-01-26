@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
 import io.grpc.*;
+import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -233,7 +234,7 @@ public class LzyServer {
                     if (parent != null)
                         parent.signal(TasksManager.Signal.CHLD);
                 }
-            });
+            }, auth.bucketForUser(uid));
             UserEventLogger.log(
                 new UserEvent(
                     "Task created",
@@ -380,9 +381,20 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
+            if (!this.auth.canAccessBucket(resolveUser(auth), request.getBucket())){
+                responseObserver.onError(
+                    Status.PERMISSION_DENIED.withDescription("Cannot access bucket " + request.getBucket())
+                        .asException());
+            }
+
+            String uid = resolveUser(auth);
+
+            String bucket = request.getBucket();
+
             responseObserver.onNext(
-                storageConfigs.isSeparated() ? to(credentialsProvider.separatedStorageCredentials(resolveUser(auth)))
-                        : to(credentialsProvider.storageCredentials(resolveUser(auth)))
+                storageConfigs.isSeparated() ?
+                    to(credentialsProvider.separatedStorageCredentials(uid, bucket)) :
+                    to(credentialsProvider.storageCredentials(uid, bucket))
             );
             responseObserver.onCompleted();
         }

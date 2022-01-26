@@ -19,17 +19,17 @@ import java.util.UUID;
 public class TaskFactory {
     private static final Logger LOG = LogManager.getLogger(TaskFactory.class);
 
-    public static Task createTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments, SnapshotMeta meta, ChannelsManager channels, URI serverURI) {
+    public static Task createTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments, SnapshotMeta meta, ChannelsManager channels, URI serverURI, String bucket) {
         final String taskType = System.getProperty("lzy.server.task.type", "default");
         LOG.info("read property lzy.server.task.type={}", taskType);
         switch (taskType) {
             case "local-docker":
-                return new LocalDockerTask(owner, tid, workload, assignments, meta, channels, serverURI);
+                return new LocalDockerTask(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
             case "kuber":
-                return new KuberTask(owner, tid, workload, assignments, meta, channels, serverURI);
+                return new KuberTask(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
             case "local-process":
             default:
-                return new LocalProcessTask(owner, tid, workload, assignments, meta, channels, serverURI);
+                return new LocalProcessTask(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
         }
     }
 }

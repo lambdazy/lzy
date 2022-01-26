@@ -37,7 +37,6 @@ public class StorageUtils {
         URI endpointUri = URI.create(String.format("https://%s.blob.core.windows.net?%s",client.getAccountName(), blobClient.generateSas(builder)));
 
         return new AzureSASCredentialsImpl(
-            bucket,
             getQueryMap(endpointUri.getQuery()).get("sig"),
             endpointUri.toString()
         );

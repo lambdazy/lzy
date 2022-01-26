@@ -40,9 +40,8 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
     ServerConfig serverConfig;
 
     @Override
-    public StorageCredentials storageCredentials(String uid) {
+    public StorageCredentials storageCredentials(String uid, String bucket) {
         return new AmazonCredentialsImpl(
-            storageConfigs.getBucket(),
             storageConfigs.getAmazon().getEndpoint(),
             storageConfigs.getAmazon().getAccessToken(),
             storageConfigs.getAmazon().getSecretToken()
@@ -50,15 +49,25 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
     }
 
     @Override
-    public StorageCredentials separatedStorageCredentials(String uid) {
+    public StorageCredentials separatedStorageCredentials(String uid, String bucket) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             UserModel user = session.find(UserModel.class, uid);
             if (user.getAccessKey() == null || user.getSecretKey() == null){
                 try {
                     CloseableHttpClient httpclient = HttpClients.createDefault();
-                    String serviceAccountId = createServiceAccount(user.getUserId(), RenewableToken.getToken(), httpclient, serverConfig.getYc().getFolderId(), user.getBucket());
-                    AWSCredentials credentials = createStaticCredentials(serviceAccountId, RenewableToken.getToken(), httpclient);
+                    String serviceAccountId = createServiceAccount(
+                        user.getUserId(),
+                        RenewableToken.getToken(),
+                        httpclient,
+                        serverConfig.getYc().getFolderId(),
+                        bucket
+                    );
+                    AWSCredentials credentials = createStaticCredentials(
+                        serviceAccountId,
+                        RenewableToken.getToken(),
+                        httpclient
+                    );
                     user.setAccessKey(credentials.getAWSAccessKeyId());
                     user.setSecretKey(credentials.getAWSSecretKey());
                     user.setServiceAccountId(serviceAccountId);
@@ -81,16 +90,15 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
                     new AwsClientBuilder.EndpointConfiguration(storageConfigs.getAmazon().getEndpoint(), "us-west-1")
             ).build();
 
-            if (!client.doesBucketExistV2(user.getBucket())){
-                client.createBucket(user.getBucket());
+            if (!client.doesBucketExistV2(bucket)){
+                client.createBucket(bucket);
             }
-            AccessControlList acl = client.getBucketAcl(user.getBucket());
+            AccessControlList acl = client.getBucketAcl(bucket);
             Grantee grantee = new CanonicalGrantee(user.getServiceAccountId());
             acl.grantPermission(grantee, Permission.FullControl);
-            client.setBucketAcl(user.getBucket(), acl);
+            client.setBucketAcl(bucket, acl);
 
             return new AmazonCredentialsImpl(
-                user.getBucket(),
                 storageConfigs.getAmazon().getEndpoint(),
                 user.getAccessKey(),
                 user.getSecretKey()

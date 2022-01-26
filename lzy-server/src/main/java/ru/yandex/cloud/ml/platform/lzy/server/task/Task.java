@@ -30,6 +30,8 @@ public interface Task {
 
     Stream<Slot> slots();
 
+    String bucket();
+
     void start(String token);
 
     enum State {

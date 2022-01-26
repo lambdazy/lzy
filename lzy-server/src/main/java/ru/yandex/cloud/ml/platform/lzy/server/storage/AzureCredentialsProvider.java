@@ -13,34 +13,25 @@ import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AzureSASCredenti
 import static ru.yandex.cloud.ml.platform.lzy.server.utils.azure.StorageUtils.getCredentialsByBucket;
 
 @Singleton
-@Requires(property = "database.enabled", value = "true")
 @Requires(property = "storage.azure.enabled", value = "true")
-public class DbAzureCredentialsProvider implements StorageCredentialsProvider {
+public class AzureCredentialsProvider implements StorageCredentialsProvider {
     @Inject
     StorageConfigs storageConfigs;
 
-    @Inject
-    DbStorage storage;
-
 
     @Override
-    public StorageCredentials storageCredentials(String uid) {
+    public StorageCredentials storageCredentials(String uid, String bucket) {
         return new AzureCredentialsImpl(
-            storageConfigs.getAzure().getConnectionString(),
-            storageConfigs.getBucket()
+            storageConfigs.getAzure().getConnectionString()
         );
     }
 
     @Override
-    public StorageCredentials separatedStorageCredentials(String uid) {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            UserModel user = session.find(UserModel.class, uid);
-            AzureSASCredentials credentials = getCredentialsByBucket(uid, user.getBucket(), storageConfigs.getAzure());
-            return new AzureSASCredentialsImpl(
-                user.getBucket(),
-                credentials.signature(),
-                credentials.endpoint()
-            );
-        }
+    public StorageCredentials separatedStorageCredentials(String uid, String bucket) {
+        AzureSASCredentials credentials = getCredentialsByBucket(uid, bucket, storageConfigs.getAzure());
+        return new AzureSASCredentialsImpl(
+            credentials.signature(),
+            credentials.endpoint()
+        );
     }
 }

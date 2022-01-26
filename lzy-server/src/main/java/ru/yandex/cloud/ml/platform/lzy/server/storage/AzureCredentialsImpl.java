@@ -7,8 +7,7 @@ public class AzureCredentialsImpl extends AzureCredentials {
 
     private final String connectionString;
 
-    public AzureCredentialsImpl(String connectionString, String bucket) {
-        super(bucket);
+    public AzureCredentialsImpl(String connectionString) {
         this.connectionString = connectionString;
     }
 

@@ -25,4 +25,8 @@ public interface Authenticator {
     boolean hasPermission(String uid, String permission);
 
     boolean checkBackOfficeSession(UUID sessionId, String userId);
+
+    boolean canAccessBucket(String uid, String bucket);
+
+    String bucketForUser(String uid);
 }

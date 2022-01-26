@@ -134,7 +134,6 @@ public abstract class gRPCConverter {
 
     public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureCredentials credentials){
         return GetS3CredentialsResponse.newBuilder()
-            .setBucket(credentials.bucket())
             .setAzure(
                 AzureCredentials.newBuilder()
                     .setConnectionString(credentials.connectionString())
@@ -145,7 +144,6 @@ public abstract class gRPCConverter {
 
     public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AmazonCredentials credentials){
         return GetS3CredentialsResponse.newBuilder()
-            .setBucket(credentials.bucket())
             .setAmazon(AmazonCredentials.newBuilder()
                 .setEndpoint(credentials.endpoint())
                 .setAccessToken(credentials.accessToken())
@@ -156,7 +154,6 @@ public abstract class gRPCConverter {
 
     public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureSASCredentials credentials){
         return GetS3CredentialsResponse.newBuilder()
-            .setBucket(credentials.bucket())
             .setAzureSas(
                 AzureSASCredentials.newBuilder()
                     .setSignature(credentials.signature())

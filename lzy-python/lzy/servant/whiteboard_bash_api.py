@@ -1,7 +1,7 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Optional, Type, Dict, List, TypeVar
+from typing import Any, Optional, Type, Dict, List, TypeVar, Mapping
 
 from lzy.api._proxy import proxy
 from lzy.api.whiteboard.api import (
@@ -11,7 +11,7 @@ from lzy.api.whiteboard.api import (
     WhiteboardDescription,
     WhiteboardInfo,
     WhiteboardStatus,
-    WhiteboardFieldDescription
+    WhiteboardFieldDescription, get_bucket_from_url
 )
 from lzy.api.whiteboard.credentials import StorageCredentials
 from lzy.servant.bash_servant_client import exec_bash
@@ -50,24 +50,25 @@ class WhiteboardBashApi(WhiteboardApi):
         self.__mount = mount_point
         self.__client = client
         self._log = logging.getLogger(str(self.__class__))
-        self.__credentials: Optional[StorageCredentials] = None
-        self.__whiteboard_storage: Optional[WhiteboardStorage] = None
+        self.__credentials: Dict[str, StorageCredentials] = {}
+        self.__whiteboard_storage_by_bucket: Dict[str, WhiteboardStorage] = {}
 
-    @property
-    def _whiteboard_storage(self) -> WhiteboardStorage:
-        if not self.__credentials:
-            self.__credentials = self.__client.get_credentials(
-                ServantClient.CredentialsTypes.S3
+    def _whiteboard_storage(self, bucket: str) -> WhiteboardStorage:
+        if bucket not in self.__credentials:
+            self.__credentials[bucket] = self.__client.get_credentials(
+                ServantClient.CredentialsTypes.S3,
+                bucket
             )
-        if not self.__whiteboard_storage:
-            self.__whiteboard_storage = WhiteboardStorage.create(self.__credentials)
-        return self.__whiteboard_storage
+        if bucket not in self.__whiteboard_storage_by_bucket:
+            self.__whiteboard_storage_by_bucket[bucket] = WhiteboardStorage.create(self.__credentials[bucket])
+        return self.__whiteboard_storage_by_bucket[bucket]
 
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
 
+        bucket = get_bucket_from_url(field_url)
         return proxy(
-            lambda: self._whiteboard_storage.read(field_url), field_type
+            lambda: self._whiteboard_storage(bucket).read(field_url), field_type
         )  # type: ignore[no-any-return]
 
     def create(self, fields: List[str], snapshot_id: str) -> WhiteboardDescription:

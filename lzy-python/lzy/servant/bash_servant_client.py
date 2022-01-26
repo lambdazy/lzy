@@ -166,10 +166,10 @@ class BashServantClient(ServantClient):
         )
 
     def get_credentials(
-        self, typ: ServantClient.CredentialsTypes
+        self, typ: ServantClient.CredentialsTypes, bucket: str
     ) -> StorageCredentials:
         self._log.info(f"Getting credentials for {typ}")
-        out = exec_bash(f"{self._mount}/sbin/credentials", typ.value)
+        out = exec_bash(f"{self._mount}/sbin/credentials", typ.value, bucket)
         data: dict = json.loads(out)
         if "azure" in data:
             return AzureCredentials(data["azure"]["connectionString"])
