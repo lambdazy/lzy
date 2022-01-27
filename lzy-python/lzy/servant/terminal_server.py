@@ -19,7 +19,6 @@ class TerminalConfig:
     debug_port: int = 5006
     private_key_path: Optional[str] = None
     user: Optional[str] = None
-    internal_host: Optional[str] = None
 
     def __post_init__(self):
         if not self.lzy_mount:
@@ -80,11 +79,6 @@ class TerminalServer:
         if self._config.private_key_path is not None:
             terminal_args.extend((
                 "--private-key", private_key_path,
-            ))
-
-        if self._config.internal_host is not None:
-            terminal_args.extend((
-                "--internal-host", self._config.internal_host
             ))
         terminal_args.append("terminal")
 

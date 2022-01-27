@@ -1,7 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
-import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
-
 import org.testcontainers.containers.GenericContainer;
 
 public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
@@ -10,7 +8,6 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
 
     @Override
     public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String private_key_path) {
-        final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         String terminalCommand = "";
         if (serverAddress != null) {
             terminalCommand += "-s " + serverAddress + " ";
@@ -25,7 +22,6 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
             terminalCommand += "-u " + user + " ";
         }
         terminalCommand += "-p " + port + " ";
-        terminalCommand += "-i " + internalHost + " ";
         terminalCommand += "-d " + debugPort + " ";
         final String command = terminalCommand;
         System.out.println("running command " + command);

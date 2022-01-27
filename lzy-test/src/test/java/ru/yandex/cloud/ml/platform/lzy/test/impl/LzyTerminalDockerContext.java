@@ -5,6 +5,18 @@ import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.exception.ConflictException;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,22 +30,6 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.output.ToStringConsumer;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
-import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
 
 public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(LzyTerminalDockerContext.class);
@@ -203,14 +199,12 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
 
     @Override
     public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String private_key_path) {
-        final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         GenericContainer<?> servantContainer = createDockerWithCommandAndModifier(
                user, port, private_key_path, debugPort,
                 () -> "--lzy-address " + serverAddress + " "
                         + "--host localhost "
                         + "--port " + port + " "
                         + "--lzy-mount " + mount + " "
-                        + "--internal-host " + internalHost + " "
                         + "--private-key " + private_key_path + " "
                         + "terminal",
                 (cmd) -> {}

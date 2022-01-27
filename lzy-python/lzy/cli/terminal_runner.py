@@ -40,9 +40,6 @@ def console_main():
                         type=str, help="User name. \n"
                                        "Optional: $USER environment variable is used"
                                        " as default value if key is not given.")
-    parser.add_argument("-i", "--internal-host", default=None, dest="internal",
-                        type=str, help="Internal hostname. \n"
-                                       "Used for testing within docker container on macOS")
     parser.add_argument("-d", "--debug-port", default=None, dest="debug",
                         type=str, help="Port to attach java debugger.")
 
@@ -53,8 +50,7 @@ def console_main():
         private_key_path=args.keypath,
         user=args.user,
         debug_port=args.debug,
-        lzy_mount=args.mountpath,
-        internal_host=args.internal
+        lzy_mount=args.mountpath
     )
     terminal_server = TerminalServer(config)
     print(terminal_server.jar_path)
