@@ -2,7 +2,6 @@ from lzy.api import op, LzyRemoteEnv
 import base
 from base import Base
 import cloudpickle
-from lzy.servant.terminal_server import TerminalConfig
 
 
 def main():

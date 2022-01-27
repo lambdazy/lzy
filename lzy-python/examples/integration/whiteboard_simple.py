@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import List
 
 from lzy.api import op, LzyRemoteEnv
-from lzy.servant.terminal_server import TerminalConfig
 
 
 @dataclass

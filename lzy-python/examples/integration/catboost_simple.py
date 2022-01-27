@@ -1,11 +1,8 @@
 from dataclasses import dataclass
 from catboost import CatBoostClassifier
 
-from api.env import RunConfig
 from lzy.api import op, LzyRemoteEnv, Gpu
 import numpy as np
-
-from lzy.servant.terminal_server import TerminalConfig
 
 
 @dataclass

@@ -1,5 +1,5 @@
 from typing import Callable
-from lzy.api import op, LzyEnv  # pylint: disable=no-name-in-module
+from lzy.api import op, LzyLocalEnv  # pylint: disable=no-name-in-module
 
 SOME_GLOBAL: int = 0
 
@@ -40,7 +40,7 @@ def heh(surely: SurelytType) -> int:
 
 
 if __name__ == "__main__":
-    with LzyEnv():
+    with LzyLocalEnv():
         value: int = heh(im())
         # or
         nothing: None = no()
