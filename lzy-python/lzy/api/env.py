@@ -2,9 +2,10 @@ import dataclasses
 import logging
 import os
 from abc import abstractmethod, ABC
-from pathlib import Path
-from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 from dataclasses import dataclass
+from pathlib import Path
+from types import ModuleType
+from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional, Set
 
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
@@ -18,6 +19,7 @@ from lzy.api.whiteboard.api import (
 )
 from lzy.api.whiteboard.wb import wrap_whiteboard
 from lzy.model.encoding import ENCODING as encoding
+from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
@@ -84,7 +86,7 @@ class LzyEnvBase(ABC):
         return self._execution_context.snapshot_id
 
     def registered_ops(self) -> Iterable[LzyOp]:
-        #if self.get_active() is None:
+        # if self.get_active() is None:
         #    raise ValueError("Fetching ops on a non-entered environment")
         return list(self._ops)
 
@@ -132,7 +134,7 @@ class LzyEnvBase(ABC):
 
 class WhiteboardExecutionContext:
     def __init__(
-        self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any
+            self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any
     ):
         self._snapshot_id: Optional[str] = None
         self._whiteboard_id: Optional[str] = None
@@ -185,6 +187,7 @@ class LzyLocalEnv(LzyEnvBase):
     def deactivate(self):
         pass
 
+
 @dataclass
 class RunConfig:
     yaml: Optional[Path] = None
@@ -200,10 +203,10 @@ class LzyRemoteEnv(LzyEnvBase):
     default_config = RunConfig()
 
     def __init__(
-        self,
-        whiteboard: Any = None,
-        buses: Optional[BusList] = None,
-        config: Optional[RunConfig] = None
+            self,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None,
+            config: Optional[RunConfig] = None
     ):
         self._check_whiteboard(whiteboard)
 
@@ -222,23 +225,22 @@ class LzyRemoteEnv(LzyEnvBase):
             eager=config_.eager
         )
 
-    def generate_conda_env(
-        self, namespace: Optional[Dict[str, Any]] = None
-    ) -> Tuple[str, str]:
+    def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._yaml is None:
             if namespace is None:
-                return create_yaml(installed_packages=all_installed_packages())
-
-            # TODO: there are modules without versions, should we do smth with
-            # TODO: them?
-            installed, _ = select_modules(namespace)
-            return create_yaml(installed_packages=installed)
+                name, yaml = create_yaml(installed_packages=all_installed_packages())
+                local_modules: Set[ModuleType] = set()
+            else:
+                installed, local_modules = select_modules(namespace)
+                name, yaml = create_yaml(installed_packages=installed)
+            return PyEnv(name, yaml, local_modules)
 
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option
         # TODO: parse yaml and get name?
         with open(self._yaml, "r", encoding=encoding) as file:
-            return "default", "".join(file.readlines())
+            name, yaml = "default", "".join(file.readlines())
+            return PyEnv(name, yaml, [])
 
     def activate(self):
         pass

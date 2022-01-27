@@ -68,16 +68,16 @@ def op_(provisioning: Provisioning, *, output_type=None):
             if isinstance(current_env, LzyLocalEnv):
                 lzy_op = LzyLocalOp(signature)
             elif isinstance(current_env, LzyRemoteEnv):
-                # we need specify globals() for caller site to find all
-                # required modules
-                caller_globals = inspect.stack()[1].frame.f_globals
-                env_name, yaml = current_env.generate_conda_env(caller_globals)
-
                 servant = current_env.servant()
                 if not servant:
                     raise RuntimeError("Cannot find servant")
                 id_generator = UUIDEntryIdGenerator(current_env.snapshot_id())
-                pyenv = PyEnv(env_name, yaml)
+
+                # we need specify globals() for caller site to find all
+                # required modules
+                caller_globals = inspect.stack()[1].frame.f_globals
+                pyenv = current_env.py_env(caller_globals)
+
                 lzy_op = LzyRemoteOp(
                     servant,
                     signature,

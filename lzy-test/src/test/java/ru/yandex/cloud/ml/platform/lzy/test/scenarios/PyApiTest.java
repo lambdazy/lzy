@@ -14,22 +14,8 @@ import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerC
 public class PyApiTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
 
-    public void arrangeTerminal() {
-        terminal = pyTerminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT, DEFAULT_SERVANT_PORT, kharonContext.serverAddress(terminalContext.inDocker())
-        );
-        terminal.waitForStatus(
-                AgentStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
-                TimeUnit.SECONDS
-        );
-    }
     public void arrangeTerminal(String user) {
         this.arrangeTerminal(LZY_MOUNT, DEFAULT_SERVANT_PORT, kharonContext.serverAddress(terminalContext.inDocker()), user, null);
-    }
-
-    public void arrangeTerminal(String serverAddress, int port, String user) {
-        this.arrangeTerminal(LZY_MOUNT, port, serverAddress, user, null);
     }
 
     public void arrangeTerminal(String mount, Integer port, String serverAddress, String user, String keyPath) {
@@ -46,7 +32,7 @@ public class PyApiTest extends LzyBaseTest {
     public void testSimplePyGraph() {
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
+        final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
@@ -54,13 +40,14 @@ public class PyApiTest extends LzyBaseTest {
 
         //Assert
         Assert.assertEquals("More meaningful str than ever before3", Utils.lastLine(result.stdout()));
+        Assert.assertTrue(result.stdout().contains("Just print some text"));
     }
 
     @Test
     public void testSimplePyGraphWithAssertions() {
-        arrangeTerminal("testUser");
         //Arrange
-        final String pyCommand = "python /lzy-python/examples/integration/simple_graph_with_assertions.py";
+        arrangeTerminal("testUser");
+        final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph_with_assertions.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
@@ -71,11 +58,11 @@ public class PyApiTest extends LzyBaseTest {
     }
     @Test
     public void testSimpleCatboostGraph() {
-        arrangeTerminal("testUser");
         //Arrange
+        arrangeTerminal("testUser");
         terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install catboost");
-        final String pyCommand = "python /lzy-python/examples/integration/catboost_simple.py";
+        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_simple.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
@@ -87,9 +74,9 @@ public class PyApiTest extends LzyBaseTest {
 
     @Test
     public void testExecFail() {
-        arrangeTerminal("phil");
         //Arrange
-        final String pyCommand = "python /lzy-python/examples/test_tasks/exec_fail.py";
+        arrangeTerminal("phil");
+        final String pyCommand = "python /lzy-python/tests/scenarios/exec_fail.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
@@ -101,23 +88,24 @@ public class PyApiTest extends LzyBaseTest {
 
     @Test
     public void testEnvFail() {
-        arrangeTerminal("phil");
         //Arrange
-        final String pyCommand = "python /lzy-python/examples/test_tasks/env_fail.py";
+        arrangeTerminal("phil");
+        final String pyCommand = "python /lzy-python/tests/scenarios/env_fail.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
             condaPrefix + pyCommand);
 
         //Assert
+        Assert.assertTrue(result.stderr().contains("Could not find a version that satisfies the requirement"));
         Assert.assertTrue(result.stderr().contains("Failed to install environment on remote machine"));
     }
 
     @Test
     public void testSimpleWhiteboard() {
-        arrangeTerminal("testUser");
         //Arrange
-        final String pyCommand = "python /lzy-python/examples/integration/whiteboard_simple.py";
+        arrangeTerminal("testUser");
+        final String pyCommand = "python /lzy-python/tests/scenarios/whiteboard_simple.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
