@@ -212,11 +212,12 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
             self.dump_arguments(execution)
             return_value = self.read_return_value(execution)
-            result = execution.wait_for()
 
             func = self.signature.func
+
+            result = execution.wait_for()
             rc_ = result.returncode
-            if rc_ == 0 and return_value is not None:
+            if rc_ == 0 and isinstance(return_value, Result):
                 self._log.info("Executed task %s for func %s with rc %s",
                                execution.id()[:4], self.signature.func.name, rc_,)
                 return return_value.value # type: ignore

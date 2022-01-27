@@ -26,5 +26,5 @@ if __name__ == "__main__":
         f.flush()
 
         config = RunConfig(yaml=Path(f.name))
-        with LzyRemoteEnv():
+        with LzyRemoteEnv(config=config):
             main()
