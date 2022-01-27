@@ -7,13 +7,15 @@ from pathlib import Path
 from typing import Optional
 
 from lzy.model.encoding import ENCODING as encoding
-import lzy.api # needed to instantiate logging #  pylint: disable=unused-import
+# noinspection PyUnresolvedReferences
+import lzy.api  # needed to instantiate logging #  pylint: disable=unused-import
 
 @dataclass
 class TerminalConfig:
-    server_url: str = "api.lzy.ai:9999"
+    server_url: str = "api.lzy.ai:8899"
     port: int = 9999
     lzy_mount: str = ""
+    debug_port: int = 5006
     private_key_path: Optional[str] = None
     user: Optional[str] = None
 
@@ -91,8 +93,8 @@ class TerminalServer:
                 "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
                 "-Djava.library.path=/usr/local/lib",
                 f"-Dcustom.log.file={self._log_file}",
-                "-classpath", TerminalServer.jar_path,
-                "ru.yandex.cloud.ml.platform.lzy.servant.BashApi",
+                f"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:{self._config.debug_port}",
+                "-jar", TerminalServer.jar_path,
                 *terminal_args
             ],
             # stdout=self._terminal_log,
@@ -120,5 +122,5 @@ class TerminalServer:
     def _check_exists_safe(path: Path) -> bool:
         try:
             return path.exists()
-        except OSError: # TODO: find out what should be here
+        except OSError:  # TODO: find out what should be here
             return False
