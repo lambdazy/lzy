@@ -21,7 +21,7 @@ def fun2(a: int) -> List[str]:
 
 
 wb = SimpleWhiteboard()
-with LzyRemoteEnv():
+with LzyRemoteEnv(whiteboard=wb):
     wb.a = fun1()
     wb.b = fun2(wb.a)
     wb_id = wb.id()

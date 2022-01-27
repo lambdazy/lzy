@@ -15,7 +15,7 @@ public class PyApiTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
 
     public void arrangeTerminal(String user) {
-        this.arrangeTerminal(LZY_MOUNT, DEFAULT_SERVANT_PORT, kharonContext.serverAddress(terminalContext.inDocker()), user, null);
+        this.arrangeTerminal(LZY_MOUNT, 9998, kharonContext.serverAddress(terminalContext.inDocker()), user, null);
     }
 
     public void arrangeTerminal(String mount, Integer port, String serverAddress, String user, String keyPath) {
