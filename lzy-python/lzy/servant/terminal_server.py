@@ -7,15 +7,19 @@ from pathlib import Path
 from typing import Optional
 
 from lzy.model.encoding import ENCODING as encoding
-import lzy.api # needed to instantiate logging #  pylint: disable=unused-import
+# noinspection PyUnresolvedReferences
+import lzy.api  # needed to instantiate logging #  pylint: disable=unused-import
+
 
 @dataclass
 class TerminalConfig:
     server_url: str = "api.lzy.ai:9999"
-    port: int = 9999
+    port: int = 9998
     lzy_mount: str = ""
+    debug_port: int = 5006
     private_key_path: Optional[str] = None
     user: Optional[str] = None
+    internal_host: Optional[str] = None
 
     def __post_init__(self):
         if not self.lzy_mount:
@@ -27,12 +31,8 @@ class TerminalServer:
     jar_path = jar_path.resolve().absolute()
     start_timeout_sec = 30
 
-    def __init__(
-        self,
-        config: TerminalConfig,
-        custom_log_file: str = "./custom_terminal_log",
-        terminal_log_path: str = "./terminal_log",
-    ):
+    def __init__(self, config: TerminalConfig, custom_log_file: str = "./custom_terminal_log",
+                 terminal_log_path: str = "./terminal_log"):
         self._config = config
         self._log_file = custom_log_file
         self._terminal_log_path = terminal_log_path
@@ -81,6 +81,11 @@ class TerminalServer:
             terminal_args.extend((
                 "--private-key", private_key_path,
             ))
+
+        if self._config.internal_host is not None:
+            terminal_args.extend((
+                "--internal-host", self._config.internal_host
+            ))
         terminal_args.append("terminal")
 
         # pylint: disable=consider-using-with
@@ -91,8 +96,8 @@ class TerminalServer:
                 "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
                 "-Djava.library.path=/usr/local/lib",
                 f"-Dcustom.log.file={self._log_file}",
-                "-classpath", TerminalServer.jar_path,
-                "ru.yandex.cloud.ml.platform.lzy.servant.BashApi",
+                f"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:{self._config.debug_port}",
+                "-jar", TerminalServer.jar_path,
                 *terminal_args
             ],
             # stdout=self._terminal_log,
@@ -120,5 +125,5 @@ class TerminalServer:
     def _check_exists_safe(path: Path) -> bool:
         try:
             return path.exists()
-        except OSError: # TODO: find out what should be here
+        except OSError:  # TODO: find out what should be here
             return False

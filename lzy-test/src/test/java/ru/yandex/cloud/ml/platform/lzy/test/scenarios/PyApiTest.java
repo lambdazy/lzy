@@ -45,11 +45,7 @@ public class PyApiTest extends LzyBaseTest {
     @Test
     public void testSimplePyGraph() {
         //Arrange
-        arrangeTerminal(
-                "localhost",
-                DEFAULT_SERVANT_PORT,
-                "test_user"
-        );
+        arrangeTerminal("testUser");
         final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
 
         //Act
@@ -62,11 +58,7 @@ public class PyApiTest extends LzyBaseTest {
 
     @Test
     public void testSimplePyGraphWithAssertions() {
-        arrangeTerminal(
-                "localhost",
-                DEFAULT_SERVANT_PORT,
-                "test_user"
-        );
+        arrangeTerminal("testUser");
         //Arrange
         final String pyCommand = "python /lzy-python/examples/integration/simple_graph_with_assertions.py";
 
@@ -79,7 +71,7 @@ public class PyApiTest extends LzyBaseTest {
     }
     @Test
     public void testSimpleCatboostGraph() {
-        arrangeTerminal("test_user");
+        arrangeTerminal("testUser");
         //Arrange
         terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install catboost");
@@ -123,11 +115,7 @@ public class PyApiTest extends LzyBaseTest {
 
     @Test
     public void testSimpleWhiteboard() {
-        arrangeTerminal(
-                "localhost",
-                DEFAULT_SERVANT_PORT,
-                "test_user"
-                );
+        arrangeTerminal("testUser");
         //Arrange
         final String pyCommand = "python /lzy-python/examples/integration/whiteboard_simple.py";
 
