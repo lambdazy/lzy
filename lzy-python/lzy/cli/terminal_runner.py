@@ -40,7 +40,7 @@ def console_main():
                         type=str, help="User name. \n"
                                        "Optional: $USER environment variable is used"
                                        " as default value if key is not given.")
-    parser.add_argument("-d", "--debug-port", default=None, dest="debug",
+    parser.add_argument("-d", "--debug-port", default=5006, dest="debug",
                         type=str, help="Port to attach java debugger.")
 
     args = parser.parse_args()
