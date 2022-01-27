@@ -222,7 +222,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
             result = execution.wait_for()
             rc_ = result.returncode
-            if rc_ == 0 and isinstance(return_value, Result):
+            if rc_ == 0 and isinstance(return_value, Result):  # type: ignore
                 self._log.info("Executed task %s for func %s with rc %s",
                                execution.id()[:4], self.signature.func.name, rc_,)
                 return return_value.value # type: ignore
