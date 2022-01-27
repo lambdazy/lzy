@@ -33,7 +33,7 @@ class LzyEnvBase(ABC):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
-                 buses: BusList,
+                 buses: Optional[BusList],
                  whiteboard: Any,
                  whiteboard_api: WhiteboardApi,
                  snapshot_api: SnapshotApi,
