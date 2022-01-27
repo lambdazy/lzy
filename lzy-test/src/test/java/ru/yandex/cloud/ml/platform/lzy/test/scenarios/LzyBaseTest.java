@@ -7,7 +7,11 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.*;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyKharonProcessesContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotProcessesContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalDockerContext;
 
 public class LzyBaseTest {
     protected static final int DEFAULT_TIMEOUT_SEC = 30;
