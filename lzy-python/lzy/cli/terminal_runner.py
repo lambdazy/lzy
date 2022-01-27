@@ -19,11 +19,11 @@ def console_main():
     parser = argparse.ArgumentParser(description='lzy-terminal entrypoint')
 
     parser.add_argument("-s", "--server", dest="url", default="https://api.lzy.ai:8899",
-                        help="Server url.\nOptional: api.lzy.ai:9999 is used"
+                        help="Server url.\nOptional: https://api.lzy.ai:8899 is used"
                              "as default if key is not given.",
                         type=str)
-    parser.add_argument("-p", "--port", dest="port", default="9999",
-                        help="Terminal port. Optional: 9998 is used as default "
+    parser.add_argument("-p", "--port", dest="port", default=9999,
+                        help="Terminal port. Optional: 9999 is used as default "
                              "value.")
     parser.add_argument("-k", "--private-key-path", dest="keypath",
                         default=None,
