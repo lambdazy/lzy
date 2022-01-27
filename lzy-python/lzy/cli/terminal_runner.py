@@ -23,11 +23,11 @@ def console_main():
                         help="Server url.\nOptional: api.lzy.ai is used"
                              "as default if key is not given.",
                         type=str)
-    parser.add_argument("-p", "--port", dest="port", default="8899",
-                        help="Server port. Optional: 8899 is used as default "
+    parser.add_argument("-p", "--port", dest="port", default="9999",
+                        help="Server port. Optional: 9999 is used as default "
                              "value.")
     parser.add_argument("-k", "--private-key-path", dest="keypath",
-                        default=str(Path("~/.ssh/id_rsa").expanduser()),
+                        default=None,
                         help="Path to private rsa key.\n"
                              "Optional: I~/.ssh/id_rsa is used as default path"
                              " if key is not given.",

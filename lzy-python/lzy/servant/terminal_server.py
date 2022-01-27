@@ -11,15 +11,16 @@ import lzy.api # needed to instantiate logging #  pylint: disable=unused-import
 
 @dataclass
 class TerminalConfig:
-    private_key_path: str = "~/.ssh/id_rsa"
-    server_url: str = "api.lzy.ai:8899"
+    server_url: str = "api.lzy.ai:9999"
     port: int = 9999
     lzy_mount: str = ""
+    private_key_path: Optional[str] = None
     user: Optional[str] = None
 
     def __post_init__(self):
         if not self.lzy_mount:
             self.lzy_mount = os.getenv("LZY_MOUNT", default="/tmp/lzy")
+
 
 class TerminalServer:
     jar_path = Path(os.path.dirname(__file__)) / ".." / "lzy-servant.jar"
@@ -48,10 +49,12 @@ class TerminalServer:
             self._log.info("Using already started servant")
             return
 
-        private_key_path = Path(self._config.private_key_path).expanduser()
-        if not private_key_path.resolve().exists():
-            raise ValueError("Private key path does not exists: "
-                             f"{self._config.private_key_path}")
+        private_key_path = "null"
+        if self._config.private_key_path is not None:
+            private_key_path = Path(self._config.private_key_path).expanduser()
+            if not private_key_path.resolve().exists():
+                raise ValueError("Private key path does not exists: "
+                                 f"{self._config.private_key_path}")
 
         # TODO: understand why terminal writes to stdout even with
         # TODO: custom.log.file argument and drop terminal_log_path and
@@ -64,6 +67,20 @@ class TerminalServer:
         if self._config.user is not None:
             env["USER"] = self._config.user
 
+        terminal_args = [
+            "--lzy-address", self._config.server_url,
+            "--lzy-mount", self._config.lzy_mount,
+            "--host", "localhost",
+        ]
+        if self._config.port is not None:
+            terminal_args.extend((
+                "--port", self._config.port,
+            ))
+        if self._config.private_key_path is not None:
+            terminal_args.extend((
+                "--private-key", private_key_path,
+            ))
+
         # pylint: disable=consider-using-with
         self._pcs = subprocess.Popen(
             [
@@ -74,15 +91,10 @@ class TerminalServer:
                 f"-Dcustom.log.file={self._log_file}",
                 "-classpath", TerminalServer.jar_path,
                 "ru.yandex.cloud.ml.platform.lzy.servant.BashApi",
-                "--lzy-address", self._config.server_url,
-                "--port", self._config.port,
-                "--lzy-mount", self._config.lzy_mount,
-                "--private-key", self._config.private_key_path,
-                "--host", "localhost",
-                "terminal",
+                *terminal_args
             ],
-            stdout=self._terminal_log,
-            stderr=self._terminal_log,
+            # stdout=self._terminal_log,
+            # stderr=self._terminal_log,
             env=env,
         )
         started_ts = int(time.time())

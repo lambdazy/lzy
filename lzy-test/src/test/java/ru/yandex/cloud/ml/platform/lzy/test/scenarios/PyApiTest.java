@@ -47,7 +47,7 @@ public class PyApiTest extends LzyBaseTest {
         //Arrange
         arrangeTerminal(
                 "localhost",
-                8899,
+                9999,
                 "test_user"
         );
         final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
@@ -65,7 +65,7 @@ public class PyApiTest extends LzyBaseTest {
     public void testSimplePyGraphWithAssertions() {
         arrangeTerminal(
                 "localhost",
-                8899,
+                9999,
                 "test_user"
         );
         //Arrange
@@ -127,7 +127,7 @@ public class PyApiTest extends LzyBaseTest {
     public void testSimpleWhiteboard() {
         arrangeTerminal(
                 "localhost",
-                8899,
+                9999,
                 "test_user"
                 );
         //Arrange
