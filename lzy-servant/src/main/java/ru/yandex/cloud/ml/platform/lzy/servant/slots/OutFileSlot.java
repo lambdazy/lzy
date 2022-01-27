@@ -3,6 +3,12 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 import com.google.protobuf.ByteString;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
@@ -33,6 +39,8 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     private final Path storage;
     private final String tid;
     private boolean ready;
+    private final ExecutorService pool = Executors.newCachedThreadPool();
+    private final List<Future> writers = new ArrayList<>();
 
     protected OutFileSlot(String tid, Slot definition, Path storage, SlotSnapshotProvider snapshotProvider) {
         super(definition, snapshotProvider);
@@ -112,18 +120,19 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         localFileContents.onClose(written -> {
             if (written) {
                 synchronized (OutFileSlot.this) {
-                    synchronized (localFileContents) {
+                    writers.add(pool.submit(() -> {
                         try {
-                            snapshotProvider.slotSnapshot(definition()).readAll(new FileInputStream(storage.toFile()));
+                            snapshotProvider.slotSnapshot(definition())
+                                .readAll(new FileInputStream(storage.toFile()));
+                            LOG.info(
+                                "Content to slot " + OutFileSlot.this + " was written; READY=true");
                         } catch (FileNotFoundException e) {
                             throw new RuntimeException(e);
                         }
-                        LOG.info(
-                            "Content to slot " + OutFileSlot.this + " was written; READY=true");
-                        ready = true;
-                        state(Operations.SlotStatus.State.OPEN);
-                        OutFileSlot.this.notifyAll();
-                    }
+                    }));
+                    ready = true;
+                    state(Operations.SlotStatus.State.OPEN);
+                    OutFileSlot.this.notifyAll();
                 }
             }
         });
@@ -193,6 +202,14 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     public void destroy() {
+        for (Future<?> future: writers){
+            try {
+                future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                LOG.error(e);
+                throw new RuntimeException(e);
+            }
+        }
         super.destroy();
     }
 
