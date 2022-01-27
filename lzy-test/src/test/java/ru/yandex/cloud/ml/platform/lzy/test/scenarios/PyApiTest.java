@@ -79,7 +79,7 @@ public class PyApiTest extends LzyBaseTest {
     }
     @Test
     public void testSimpleCatboostGraph() {
-        arrangeTerminal();
+        arrangeTerminal("test_user");
         //Arrange
         terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install catboost");
