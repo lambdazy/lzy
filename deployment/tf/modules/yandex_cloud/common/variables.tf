@@ -59,3 +59,13 @@ variable "servant-image" {
   type    = string
   default = "lzydock/lzy-servant:master"
 }
+
+variable "server-image" {
+  type    = string
+  default = "lzydock/lzy-server:master"
+}
+
+variable "s3-separated-per-bucket" {
+  type    = bool
+  default = true
+}

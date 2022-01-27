@@ -1,3 +1,4 @@
+import pathlib
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type, TypeVar
 from dataclasses import dataclass
@@ -6,6 +7,7 @@ import uuid
 import logging
 import inspect
 from inspect import Signature
+from urllib import parse
 
 from lzy.model.slot import Slot
 
@@ -178,3 +180,12 @@ class InMemSnapshotApi(SnapshotApi):
 
     def finalize(self, snapshot_id: str):
         pass
+
+
+def get_bucket_from_url(url: str) -> str:
+    uri = parse.urlparse(url)
+    path = pathlib.PurePath(uri.path)
+    if path.is_absolute():
+        return path.parts[1]
+    else:
+        return path.parts[0]

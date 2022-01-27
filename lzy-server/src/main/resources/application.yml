@@ -1,0 +1,10 @@
+storage:
+  separated: false
+  azure:
+    enabled: false
+  amazon:
+    enabled: false
+server:
+  enabled: false
+database:
+  enabled: false

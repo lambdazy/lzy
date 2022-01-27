@@ -9,11 +9,7 @@ from typing import Any, Dict, Optional, Mapping
 import sys
 from time import sleep
 
-from lzy.api.whiteboard.credentials import (
-    AzureCredentials,
-    AmazonCredentials,
-    StorageCredentials,
-)
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
 from lzy.model.channel import Channel, Bindings
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
@@ -170,18 +166,21 @@ class BashServantClient(ServantClient):
         )
 
     def get_credentials(
-        self, typ: ServantClient.CredentialsTypes
+        self, typ: ServantClient.CredentialsTypes, bucket: str
     ) -> StorageCredentials:
         self._log.info(f"Getting credentials for {typ}")
-        out = exec_bash(f"{self._mount}/sbin/credentials", typ.value)
+        out = exec_bash(f"{self._mount}/sbin/credentials", typ.value, bucket)
         data: dict = json.loads(out)
         if "azure" in data:
             return AzureCredentials(data["azure"]["connectionString"])
-        return AmazonCredentials(
+        if "amazon" in data:
+            return AmazonCredentials(
             data["amazon"]["endpoint"],
             data["amazon"]["accessToken"],
             data["amazon"]["secretToken"],
         )
+
+        return AzureSasCredentials(**data["azureSas"])
 
     # pylint: disable=duplicate-code
     def run(self, execution_id: str, zygote: Zygote,

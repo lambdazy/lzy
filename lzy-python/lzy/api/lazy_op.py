@@ -11,6 +11,7 @@ from typing import Optional, Any, TypeVar, Generic
 import cloudpickle
 
 from lzy.api.whiteboard.api import EntryIdGenerator
+from lzy.api.result import Just, Nothing, Result
 from lzy.model.channel import Channel, Binding, Bindings
 from lzy.model.env import PyEnv
 from lzy.model.file_slots import create_slot
@@ -47,6 +48,11 @@ class LzyOp(Generic[T], ABC):
     @abstractmethod
     def return_entry_id(self) -> Optional[str]:
         pass
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}: signature={self._sign}, " \
+               f"materialized={self._materialized}, " \
+               f"materialization={self._materialization}"
 
 
 class LzyLocalOp(LzyOp, Generic[T]):
@@ -118,13 +124,13 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         self._log.info(
             f"Written argument {name} to local slot {local_slot.name}")
 
-    def read_return_value(self, execution: Execution) -> Optional[Any]:
+    def read_return_value(self, execution: Execution) -> Result[Any]:
         return_slot = self._zygote.return_slot
         return_local_slot = self.resolve_slot(execution, return_slot)
         return_slot_path = self._servant.get_slot_path(return_local_slot)
         self._log.info(f"Reading result from {return_slot_path}")
         return_value = self.read_value_from_slot(return_slot_path)
-        if return_value is None:
+        if isinstance(return_value, Nothing):
             self._log.error(f"Failed to read result from {return_slot_path}")
         return return_value
 
@@ -136,15 +142,13 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             os.fsync(handle.fileno())
 
     @staticmethod
-    def read_value_from_slot(slot_path: Path) -> Optional[Any]:
-        # TODO: actually it's better to pass nanosecs or at least microsecs
-        # TODO: but time.sleep receives seconds
+    def read_value_from_slot(slot_path: Path) -> Result[Any]:
         try:
-            return LzyRemoteOp._read_value_from_slot(slot_path)
+            return Just(LzyRemoteOp._read_value_from_slot(slot_path))
         except (OSError, ValueError) as _:
-            return None
+            return Nothing()
         except BaseException as _: # pylint: disable=broad-except
-            return None
+            return Nothing()
 
     @staticmethod
     def _read_value_from_slot(slot_path: Path) -> Optional[Any]:
@@ -214,13 +218,13 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             if rc_ == 0 and return_value is not None:
                 self._log.info("Executed task %s for func %s with rc %s",
                                execution.id()[:4], self.signature.func.name, rc_,)
-                return return_value # type: ignore
+                return return_value.value # type: ignore
 
             message = ""
             if rc_ != 0:
                 message = self._execution_exception_message(execution, func, rc_)
                 self._log.error(f"Execution exception with message: {message}")
-            elif return_value is None:
+            elif isinstance(return_value, Nothing):
                 message = "Return value deserialization failure"
                 message = self._exception(execution, func,
                         PyReturnCode.DESERIALIZATION_FAILURE.value, message)

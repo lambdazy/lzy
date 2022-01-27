@@ -35,8 +35,16 @@ public class Credentials implements LzyCommand {
 
         switch (command.getArgs()[1]) {
             case "s3": {
-                Lzy.GetS3CredentialsResponse resp = kharon.getS3Credentials(
-                    Lzy.GetS3CredentialsRequest.newBuilder().setAuth(auth).build());
+                if (command.getArgs().length < 3) {
+                    throw new IllegalArgumentException("Please specify bucket name");
+                }
+
+                Lzy.GetS3CredentialsRequest.Builder builder = Lzy.GetS3CredentialsRequest
+                    .newBuilder()
+                    .setAuth(auth)
+                    .setBucket(command.getArgs()[2]);
+
+                Lzy.GetS3CredentialsResponse resp = kharon.getS3Credentials(builder.build());
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
             }

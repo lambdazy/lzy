@@ -8,6 +8,15 @@ public class StorageConfigs {
     private AmazonCredentials amazon = new AmazonCredentials();
     private AzureCredentials azure = new AzureCredentials();
     private String bucket;
+    private boolean separated;
+
+    public boolean isSeparated() {
+        return separated;
+    }
+
+    public void setSeparated(boolean separated) {
+        this.separated = separated;
+    }
 
     public String getBucket() {
         return bucket;
@@ -37,7 +46,7 @@ public class StorageConfigs {
     public static class AzureCredentials {
         private String connectionString;
 
-        private boolean enabled = false;
+        private boolean enabled;
 
         public boolean isEnabled() {
             return enabled;
@@ -61,7 +70,7 @@ public class StorageConfigs {
         private String endpoint;
         private String accessToken;
         private String secretToken;
-        private boolean enabled = false;
+        private boolean enabled;
 
         public boolean isEnabled() {
             return enabled;

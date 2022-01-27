@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
 import io.grpc.*;
+import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -11,8 +12,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configurator;
-import org.hibernate.Session;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
@@ -21,6 +20,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
@@ -33,6 +33,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
 
@@ -121,6 +122,9 @@ public class LzyServer {
         private Authenticator auth;
 
         @Inject
+        private StorageCredentialsProvider credentialsProvider;
+
+        @Inject
         private StorageConfigs storageConfigs;
 
         @Override
@@ -162,7 +166,7 @@ public class LzyServer {
             operations.list().filter(op -> this.auth.canAccess(op, user)).forEach(zyName ->
                 builder.addZygoteBuilder()
                     .setName(zyName)
-                    .setWorkload(gRPCConverter.to(operations.get(zyName)))
+                    .setWorkload(to(operations.get(zyName)))
                     .build()
             );
             responseObserver.onNext(builder.build());
@@ -230,7 +234,7 @@ public class LzyServer {
                     if (parent != null)
                         parent.signal(TasksManager.Signal.CHLD);
                 }
-            });
+            }, auth.bucketForUser(uid));
             UserEventLogger.log(
                 new UserEvent(
                     "Task created",
@@ -377,26 +381,20 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-            Lzy.GetS3CredentialsResponse.Builder builder = Lzy.GetS3CredentialsResponse.newBuilder();
-            if (storageConfigs.getAmazon().isEnabled()){
-                builder.setAmazon(
-                    Lzy.AmazonCredentials.newBuilder()
-                        .setAccessToken(storageConfigs.getAmazon().getAccessToken())
-                        .setSecretToken(storageConfigs.getAmazon().getSecretToken())
-                        .setEndpoint(storageConfigs.getAmazon().getEndpoint())
-                );
+            if (!this.auth.canAccessBucket(resolveUser(auth), request.getBucket())){
+                responseObserver.onError(
+                    Status.PERMISSION_DENIED.withDescription("Cannot access bucket " + request.getBucket())
+                        .asException());
             }
-            else if (storageConfigs.getAzure().isEnabled()){
-                builder.setAzure(
-                    Lzy.AzureCredentials.newBuilder()
-                        .setConnectionString(storageConfigs.getAzure().getConnectionString())
-                );
-            }
-            String bucketName = this.auth.bucketForUser(resolveUser(auth));
-            builder.setBucket(bucketName);
+
+            String uid = resolveUser(auth);
+
+            String bucket = request.getBucket();
 
             responseObserver.onNext(
-                builder.build()
+                storageConfigs.isSeparated() ?
+                    to(credentialsProvider.separatedStorageCredentials(uid, bucket)) :
+                    to(credentialsProvider.storageCredentials(uid, bucket))
             );
             responseObserver.onCompleted();
         }
@@ -406,7 +404,7 @@ public class LzyServer {
 
             final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
             tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()
-                .setSlot(gRPCConverter.to(slot))
+                .setSlot(to(slot))
                 .setBinding("channel:" + channel.name())
                 .build()
             );
@@ -467,7 +465,7 @@ public class LzyServer {
                     .forEach(slotStatus -> {
                         final Operations.SlotStatus.Builder slotStateBuilder = builder.addConnectionsBuilder();
                         slotStateBuilder.setTaskId(task.tid().toString());
-                        slotStateBuilder.setDeclaration(gRPCConverter.to(slotStatus.slot()));
+                        slotStateBuilder.setDeclaration(to(slotStatus.slot()));
                         URI connected = slotStatus.connected();
                         if (connected != null)
                             slotStateBuilder.setConnectedTo(connected.toString());
@@ -486,7 +484,7 @@ public class LzyServer {
 
         private Channels.ChannelStatus channelStatus(Channel channel) {
             final Channels.ChannelStatus.Builder slotStatus = Channels.ChannelStatus.newBuilder();
-            slotStatus.setChannel(gRPCConverter.to(channel));
+            slotStatus.setChannel(to(channel));
             for (SlotStatus state : tasks.connected(channel)) {
                 final Operations.SlotStatus.Builder builder = slotStatus.addConnectedBuilder();
                 if (state.tid() != null) {
@@ -496,7 +494,7 @@ public class LzyServer {
                 else builder.setUser(state.user());
 
                 builder.setConnectedTo(channel.name())
-                    .setDeclaration(gRPCConverter.to(state.slot()))
+                    .setDeclaration(to(state.slot()))
                     .setPointer(state.pointer())
                     .setState(Operations.SlotStatus.State.valueOf(state.state().toString()))
                     .build();

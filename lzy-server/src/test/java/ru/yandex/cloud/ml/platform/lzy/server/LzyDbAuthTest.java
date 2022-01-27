@@ -2,6 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import io.micronaut.context.ApplicationContext;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
@@ -9,6 +11,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
@@ -43,19 +46,17 @@ public class LzyDbAuthTest {
         public User(String userId) throws NoSuchAlgorithmException {
             this.userId = userId;
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-            kpg.initialize(512);
+            kpg.initialize(2048);
             KeyPair kp = kpg.generateKeyPair();
             publicKey = new String(Base64.getEncoder().encode(kp.getPublic().getEncoded()));
             privateKey = new String(Base64.getEncoder().encode(kp.getPrivate().getEncoded()));
         }
 
-        public String getToken(){
+        public String getToken(String uid){
             if (token != null)
                 return token;
-            UUID token = UUID.randomUUID();
             try(StringReader reader = new StringReader("-----BEGIN RSA PRIVATE KEY-----\n"+privateKey+"\n-----END RSA PRIVATE KEY-----")) {
-                String signedToken = Credentials.signToken(token, reader);
-                this.token = token + "." + signedToken;
+                this.token = JwtCredentials.buildJWT(uid, reader);
                 return this.token;
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -70,7 +71,8 @@ public class LzyDbAuthTest {
     private void generateContext(){
         ctx = ApplicationContext.run(Map.of(
                 "authenticator", "DbAuthenticator",
-                "server.server-uri", "https://lzy.server.com:8888"
+                "server.server-uri", "https://lzy.server.com:8888",
+                "database.enabled", true
         ));
     }
 
@@ -125,7 +127,7 @@ public class LzyDbAuthTest {
                 .setUser(
                     IAM.UserCredentials.newBuilder()
                             .setUserId(user.userId)
-                            .setToken(user.getToken())
+                            .setToken(user.getToken(user.userId))
                             .build())
                 .build()
         );
@@ -141,7 +143,7 @@ public class LzyDbAuthTest {
                         .setUser(
                                 IAM.UserCredentials.newBuilder()
                                         .setUserId(user.userId)
-                                        .setToken(user.getToken())
+                                        .setToken(user.getToken(user.userId))
                                         .build())
                         .build()
         );

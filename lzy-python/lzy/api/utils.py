@@ -3,7 +3,6 @@ from typing import (
     Callable,
     Dict,
     Iterable,
-    Optional,
     Type,
     Tuple,
     TypeVar,
@@ -12,6 +11,7 @@ from typing import (
 
 from lzy.api._proxy import proxy
 from lzy.api.lazy_op import LzyOp
+from lzy.api.result import Result, Just, Nothing
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -24,19 +24,22 @@ def print_lzy_ops(ops: Iterable[LzyOp]) -> None:
         print(repr(lzy_op.signature.func))
 
 
-def infer_return_type(func: Callable) -> Optional[type]:
+TypeInferResult = Result[type]
+
+
+def infer_return_type(func: Callable) -> TypeInferResult:
     hints = get_type_hints(func)
     if "return" not in hints:
-        return None
+        return Nothing()
 
     or_type = hints["return"]
     if hasattr(or_type, "__origin__"):
-        return or_type.__origin__  # type: ignore
+        return Just(or_type.__origin__)  # type: ignore
 
     if isinstance(or_type, type):
-        return or_type
+        return Just(or_type)
 
-    return None
+    return Nothing()
 
 
 def infer_arg_types(*args) -> Tuple[type, ...]:

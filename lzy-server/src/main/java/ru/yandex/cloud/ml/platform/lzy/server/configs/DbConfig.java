@@ -8,6 +8,15 @@ public class DbConfig {
     private String url;
     private String username;
     private String password;
+    private boolean enabled;
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 
     public String getUrl() {
         return url;
