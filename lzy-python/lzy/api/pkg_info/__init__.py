@@ -80,8 +80,6 @@ def exists_in_pypi(package_name: str) -> bool:
 
 def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], Set[ModuleType]]:
     dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
-    # TODO: this doesn't work for custom modules installed by user, e.g. lzy-py
-    # TODO: don't know why
 
     distributions = packages_distributions()
     remote_packages = {}
