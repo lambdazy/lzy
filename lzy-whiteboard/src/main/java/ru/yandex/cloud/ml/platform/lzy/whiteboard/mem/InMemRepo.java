@@ -151,6 +151,14 @@ public class InMemRepo implements WhiteboardRepository, SnapshotRepository {
     }
 
     @Override
+    public List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags) {
+        return whiteboards.values().stream()
+            .filter(whiteboardStatus -> Objects.equals(whiteboardStatus.whiteboard().namespace(), namespace)
+                    && whiteboardStatus.whiteboard().tags().containsAll(tags))
+            .collect(Collectors.toList());
+    }
+
+    @Override
     public List<WhiteboardInfo> whiteboards(URI uid) {
         return whiteboards.entrySet()
                 .stream()

@@ -70,17 +70,16 @@ class WhiteboardBashApi(WhiteboardApi):
             lambda: self._whiteboard_storage.read(field_url), field_type
         )  # type: ignore[no-any-return]
 
-    def create(self, fields: List[str], snapshot_id: str) -> WhiteboardDescription:
+    def create(self, fields: List[str], snapshot_id: str, namespace: str, tags: List[str]) -> WhiteboardDescription:
         logging.info(
-            f"Creating whiteboard for snapshot {snapshot_id} with fields {fields}"
+            f"Creating whiteboard for snapshot {snapshot_id} with fields {fields}, namespace {namespace}, tags {tags}"
         )
-        out = exec_bash(
-            f"{self.__mount}/sbin/whiteboard",
-            "create",
-            snapshot_id,
-            "-l",
-            ",".join(fields),
-        )
+        command = " ".join([f"{self.__mount}/sbin/whiteboard", "create", snapshot_id, "-l", ",".join(fields)])
+        if len(tags) > 0:
+            command = " ".join([command, "-t", ",".join(tags)])
+        if namespace != '':
+            command = " ".join([command, "-n", namespace])
+        out = exec_bash(command)
         try:
             res = json.loads(out)
             return self._parse_wb_json(res)
@@ -145,8 +144,27 @@ class WhiteboardBashApi(WhiteboardApi):
         return WhiteboardDescription(res["id"], fields, snapshot, status)
 
     @staticmethod
+    def _parse_wb_json_list(res: Dict[str, Any]) -> List[WhiteboardDescription]:
+        return [WhiteboardBashApi._parse_wb_json(whiteboard) for whiteboard in res.get("whiteboards", [])]
+
+    @staticmethod
     def _parse_wb_info_json(res: Dict[str, Any]) -> List[WhiteboardInfo]:
         return [
             WhiteboardInfo(field["id"], field.get("whiteboardStatus"))
             for field in res.get("whiteboards", [])
         ]
+
+    def getByNamespaceAndTags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+        self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags}")
+        command = " ".join([f"{self.__mount}/sbin/whiteboard", "getByNamespaceAndTags"])
+        if len(tags) > 0:
+            command = " ".join([command, "-t", ",".join(tags)])
+        if namespace != '':
+            command = " ".join([command, "-n", namespace])
+        out = exec_bash(command)
+        try:
+            res = json.loads(out)
+            self._log.info(f"Received whiteboards in namespace {namespace} with tags {tags}: {res}")
+            return self._parse_wb_json_list(res)
+        except (JSONDecodeError, KeyError) as err:
+            raise RuntimeError(f"Wrong command output format: {out}") from err

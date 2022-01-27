@@ -21,6 +21,7 @@ service WbApi {
   rpc Link (LinkCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
   rpc Whiteboards (WhiteboardsCommand) returns (WhiteboardsInfo);
+  rpc WhiteboardByNamespaceAndTags (WhiteboardByNamespaceAndTagsCommand) returns (WhiteboardsResponse);
 }
 
 message CreateSnapshotCommand {
@@ -36,6 +37,8 @@ message CreateWhiteboardCommand {
   Auth auth = 1;
   string snapshotId = 2;
   repeated string fieldNames = 3;
+  repeated string tags = 4;
+  string namespace = 5;
 }
 
 message Snapshot {
@@ -110,6 +113,8 @@ message Whiteboard {
   repeated WhiteboardField fields = 2;
   Snapshot snapshot = 3;
   WhiteboardStatus status = 4;
+  repeated string tags = 5;
+  string namespace = 6;
 }
 
 message WhiteboardsCommand {
@@ -131,4 +136,14 @@ message WhiteboardsInfo {
 message BackofficeCredentials {
   UserCredentials backofficeCredentials = 1;
   BackofficeUserCredentials credentials = 2;
+}
+
+message WhiteboardByNamespaceAndTagsCommand {
+  Auth auth = 1;
+  string namespace = 2;
+  repeated string tags = 3;
+}
+
+message WhiteboardsResponse {
+  repeated Whiteboard whiteboards = 1;
 }

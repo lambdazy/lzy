@@ -5,6 +5,7 @@ from lzy.api import LzyEnv
 
 
 @dataclasses.dataclass
+@whiteboard(namespace='wb', tags=["simple_whiteboard"])
 class WB:
     a: int
     b: int
