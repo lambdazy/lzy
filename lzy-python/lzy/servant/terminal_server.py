@@ -76,10 +76,12 @@ class TerminalServer:
             terminal_args.extend((
                 "--port", self._config.port,
             ))
+
         if self._config.private_key_path is not None:
             terminal_args.extend((
                 "--private-key", private_key_path,
             ))
+        terminal_args.append("terminal")
 
         # pylint: disable=consider-using-with
         self._pcs = subprocess.Popen(

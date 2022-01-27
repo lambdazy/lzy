@@ -40,8 +40,8 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     private final List<GenericContainer<?>> startedContainers = new ArrayList<>();
 
     protected  GenericContainer<?> createDockerWithCommandAndModifier(
-            String user, int debugPort,
-            String private_key_path, int exposedPort,
+            String user, int exposedPort,
+            String private_key_path, int debugPort,
             Supplier<String> commandGenerator,
             Consumer<CreateContainerCmd> modifier
     ) {
@@ -205,7 +205,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String private_key_path) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         GenericContainer<?> servantContainer = createDockerWithCommandAndModifier(
-               user, debugPort, private_key_path, port,
+               user, port, private_key_path, debugPort,
                 () -> "--lzy-address " + serverAddress + " "
                         + "--host localhost "
                         + "--port " + port + " "

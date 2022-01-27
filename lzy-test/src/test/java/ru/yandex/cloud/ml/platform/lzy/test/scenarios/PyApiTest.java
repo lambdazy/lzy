@@ -16,7 +16,7 @@ public class PyApiTest extends LzyBaseTest {
 
     public void arrangeTerminal() {
         terminal = pyTerminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT, 9999, kharonContext.serverAddress(terminalContext.inDocker())
+                LZY_MOUNT, DEFAULT_SERVANT_PORT, kharonContext.serverAddress(terminalContext.inDocker())
         );
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,
@@ -25,7 +25,7 @@ public class PyApiTest extends LzyBaseTest {
         );
     }
     public void arrangeTerminal(String user) {
-        this.arrangeTerminal(LZY_MOUNT, 9999, kharonContext.serverAddress(terminalContext.inDocker()), user, null);
+        this.arrangeTerminal(LZY_MOUNT, DEFAULT_SERVANT_PORT, kharonContext.serverAddress(terminalContext.inDocker()), user, null);
     }
 
     public void arrangeTerminal(String serverAddress, int port, String user) {
@@ -47,7 +47,7 @@ public class PyApiTest extends LzyBaseTest {
         //Arrange
         arrangeTerminal(
                 "localhost",
-                9999,
+                DEFAULT_SERVANT_PORT,
                 "test_user"
         );
         final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
@@ -64,7 +64,7 @@ public class PyApiTest extends LzyBaseTest {
     public void testSimplePyGraphWithAssertions() {
         arrangeTerminal(
                 "localhost",
-                9999,
+                DEFAULT_SERVANT_PORT,
                 "test_user"
         );
         //Arrange
@@ -125,7 +125,7 @@ public class PyApiTest extends LzyBaseTest {
     public void testSimpleWhiteboard() {
         arrangeTerminal(
                 "localhost",
-                9999,
+                DEFAULT_SERVANT_PORT,
                 "test_user"
                 );
         //Arrange
