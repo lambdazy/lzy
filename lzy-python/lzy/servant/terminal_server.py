@@ -13,8 +13,8 @@ import lzy.api  # needed to instantiate logging #  pylint: disable=unused-import
 
 @dataclass
 class TerminalConfig:
-    server_url: str = "api.lzy.ai:9999"
-    port: int = 9998
+    server_url: str = "api.lzy.ai:8899"
+    port: int = 9999
     lzy_mount: str = ""
     debug_port: int = 5006
     private_key_path: Optional[str] = None
