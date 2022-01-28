@@ -3,6 +3,7 @@ from typing import Any, Dict, Callable, Optional
 
 from lzy.api.whiteboard.api import WhiteboardApi
 from lzy.api.utils import is_lazy_proxy
+from lzy.api.whiteboard import is_whiteboard
 
 ALREADY_WRAPPED = '_already_wrapped'
 def wrap_whiteboard(
@@ -10,8 +11,8 @@ def wrap_whiteboard(
     whiteboard_api: WhiteboardApi,
     whiteboard_id_getter: Callable[[], Optional[str]],
 ):
-    if not dataclasses.is_dataclass(instance):
-        raise RuntimeError("Only dataclasses can be whiteboard")
+    if not is_whiteboard(instance):
+        raise RuntimeError("Whiteboard must be a dataclass and have a @whiteboard decorator")
 
     if hasattr(instance, ALREADY_WRAPPED):
         return

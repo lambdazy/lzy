@@ -55,45 +55,52 @@ class LzyEnvBase(ABC):
         self._log = logging.getLogger(str(self.__class__))
 
     def get_whiteboard(self, wid: str, typ: Type[Any]) -> Any:
-        if not dataclasses.is_dataclass(typ):
-            raise ValueError("Whiteboard must be dataclass")
+        if not is_whiteboard(typ):
+            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
 
+        wb_ = self._execution_context.whiteboard_api.get(wid)
+        return self._build_whiteboard(wb_, typ)
+
+    def _build_whiteboard(self, wb_: WhiteboardDescription, typ: Type[Any]) -> Any:
+        if not is_whiteboard(typ):
+            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
         # noinspection PyDataclass
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
-        wb_ = self._execution_context.whiteboard_api.get(wid)
         whiteboard_dict = {}
         for field in wb_.fields:
             assert field.storage_uri is not None
             whiteboard_dict[field.field_name] = self._execution_context \
                 .whiteboard_api \
                 .resolve(field.storage_uri, field_types[field.field_name])
-
         # noinspection PyArgumentList
         return typ(**whiteboard_dict)
 
     def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
         return self._execution_context.whiteboard_api.get_all()
 
+    def get_whiteboards(self, namespace: str, tags: List[str], typ: Type[T]) -> List[T]:
+        if not is_whiteboard(typ):
+            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
+        wb_list = self._execution_context.whiteboard_api.getByNamespaceAndTags(namespace, tags)
+        self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags}")
+        result = [self._build_whiteboard(wb_, typ) for wb_ in wb_list]
+        return result
+
+    def whiteboards(self, typs: List[Type[T]]) -> WhiteboardList:
+        whiteboard_dict = {}
+        for typ in typs:
+            if not is_whiteboard(typ):
+                self._log.warning(f"{typ} is not a whiteboard")
+                continue
+            whiteboard_dict[typ] = self.get_whiteboards(typ.NAMESPACE, typ.TAGS, typ)
+        self._log.info(f"Whiteboard dict is {whiteboard_dict}")
+        list_of_wb_lists = list(whiteboard_dict.values())
+        return WhiteboardList(reduce(list.__add__, list_of_wb_lists))
+
     def register_op(self, lzy_op: LzyOp) -> None:
         self._ops.append(lzy_op)
         if self._eager:
             lzy_op.materialize()
-
-    @abstractmethod
-    def get_whiteboard(self, wid: str, typ: Type[T]) -> T:
-        pass
-
-    @abstractmethod
-    def get_whiteboards(self, namespace: str, tags: List[str], typ: Type[T]) -> List[T]:
-        pass
-
-    @abstractmethod
-    def whiteboards(self, typs: List[Type[T]]) -> WhiteboardList:
-        pass
-
-    @abstractmethod
-    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
-        pass
 
     @abstractmethod
     def whiteboard_id(self) -> Optional[str]:
@@ -103,7 +110,7 @@ class LzyEnvBase(ABC):
         return self._execution_context.snapshot_id
 
     def registered_ops(self) -> Iterable[LzyOp]:
-        #if self.get_active() is None:
+        # if self.get_active() is None:
         #    raise ValueError("Fetching ops on a non-entered environment")
         return list(self._ops)
 
@@ -148,7 +155,7 @@ class LzyEnvBase(ABC):
 
 class WhiteboardExecutionContext:
     def __init__(
-        self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any
+            self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any
     ):
         self._snapshot_id: Optional[str] = None
         self._whiteboard_id: Optional[str] = None
@@ -186,8 +193,8 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
     ):
-        if whiteboard is not None and not dataclasses.is_dataclass(whiteboard):
-            raise ValueError("Whiteboard should be a dataclass")
+        if not is_whiteboard(whiteboard):
+            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
         buses = buses or []
 
         whiteboard_api = InMemWhiteboardApi()
@@ -203,13 +210,13 @@ class LzyLocalEnv(LzyEnvBase):
 
 class LzyRemoteEnv(LzyEnvBase):
     def __init__(
-        self,
-        eager: bool = False,
-        whiteboard: Any = None,
-        buses: Optional[BusList] = None,
-        config: Optional[TerminalConfig] = None,
+            self,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None,
+            config: Optional[TerminalConfig] = None,
     ):
-        config_: TerminalConfig = config or TerminalConfig() # type: ignore
+        config_: TerminalConfig = config or TerminalConfig()  # type: ignore
         buses = buses or []
         self._log = logging.getLogger(str(self.__class__))
 
@@ -228,7 +235,7 @@ class LzyRemoteEnv(LzyEnvBase):
         self._yaml = config_.yaml_path
 
     def generate_conda_env(
-        self, namespace: Optional[Dict[str, Any]] = None
+            self, namespace: Optional[Dict[str, Any]] = None
     ) -> Tuple[str, str]:
         if self._yaml is None:
             if namespace is None:
@@ -273,47 +280,3 @@ class LzyRemoteEnv(LzyEnvBase):
     @classmethod
     def get_active(cls) -> Optional["LzyEnv"]:
         return cls.instance
-
-    def get_whiteboard(self, wid: str, typ: Type[Any]) -> Any:
-        if not is_whiteboard(typ):
-            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
-
-        wb_ = self._execution_context.whiteboard_api.get(wid)
-        return self._build_whiteboard(wb_, typ)
-
-    def _build_whiteboard(self, wb_: WhiteboardDescription, typ: Type[Any]) -> Any:
-        if not is_whiteboard(typ):
-            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
-        # noinspection PyDataclass
-        field_types = {field.name: field.type for field in dataclasses.fields(typ)}
-        whiteboard_dict = {}
-        for field in wb_.fields:
-            assert field.storage_uri is not None
-            whiteboard_dict[field.field_name] = self._execution_context \
-                .whiteboard_api \
-                .resolve(field.storage_uri, field_types[field.field_name])
-        # noinspection PyArgumentList
-        return typ(**whiteboard_dict)
-
-    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
-        return self._execution_context.whiteboard_api.get_all()
-
-    def get_whiteboards(self, namespace: str, tags: List[str], typ: Type[T]) -> List[T]:
-        if not is_whiteboard(typ):
-            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
-        wb_list = self._execution_context.whiteboard_api.getByNamespaceAndTags(namespace, tags)
-        self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags}")
-        result = [self._build_whiteboard(wb_, typ) for wb_ in wb_list]
-        return result
-
-    def whiteboards(self, typs: List[Type[T]]) -> WhiteboardList:
-        whiteboard_dict = {}
-        for typ in typs:
-            if not is_whiteboard(typ):
-                self._log.warning(f"{typ} is not a whiteboard")
-                continue
-            whiteboard_dict[typ] = self.get_whiteboards(typ.NAMESPACE, typ.TAGS, typ)
-        self._log.info(f"Whiteboard dict is {whiteboard_dict}")
-        list_of_wb_lists = list(whiteboard_dict.values())
-        return WhiteboardList(reduce(list.__add__, list_of_wb_lists))
-
