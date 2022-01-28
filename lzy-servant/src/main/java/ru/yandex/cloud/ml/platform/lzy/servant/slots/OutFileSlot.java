@@ -3,12 +3,22 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 import com.google.protobuf.ByteString;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
+import java.util.Iterator;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
@@ -21,35 +31,27 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.FileTime;
-import java.util.Iterator;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
 public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSlot {
+
     private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);
     private final Path storage;
     private final String tid;
-    private boolean ready;
-    private final ExecutorService pool = Executors.newCachedThreadPool();
-    private final List<Future> writers = new ArrayList<>();
+    private final ExecutorService pool = Executors.newSingleThreadExecutor();
 
-    protected OutFileSlot(String tid, Slot definition, Path storage, SlotSnapshotProvider snapshotProvider) {
+    private boolean ready;
+    private boolean opened;
+    private Future<?> snapshotWrite;
+
+    protected OutFileSlot(String tid, Slot definition, Path storage,
+        SlotSnapshotProvider snapshotProvider) {
         super(definition, snapshotProvider);
         this.tid = tid;
         this.storage = storage;
         ready = true;
     }
 
-    public OutFileSlot(String tid, Slot definition, SlotSnapshotProvider snapshotProvider) throws IOException {
+    public OutFileSlot(String tid, Slot definition, SlotSnapshotProvider snapshotProvider)
+        throws IOException {
         super(definition, snapshotProvider);
         this.tid = tid;
         this.storage = Files.createTempFile("lzy", "file-slot");
@@ -74,7 +76,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     @Override
     public long ctime() {
         try {
-            return ((FileTime)Files.getAttribute(storage, "unix:creationTime")).toMillis();
+            return ((FileTime) Files.getAttribute(storage, "unix:creationTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -84,7 +86,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     @Override
     public long mtime() {
         try {
-            return ((FileTime)Files.getAttribute(storage, "unix:lastModifiedTime")).toMillis();
+            return ((FileTime) Files.getAttribute(storage, "unix:lastModifiedTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -94,7 +96,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     @Override
     public long atime() {
         try {
-            return ((FileTime)Files.getAttribute(storage, "unix:lastAccessTime")).toMillis();
+            return ((FileTime) Files.getAttribute(storage, "unix:lastAccessTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -111,29 +113,31 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     @Override
-    public FileContents open(FuseFileInfo fi) throws IOException {
-        final LocalFileContents localFileContents = new LocalFileContents(storage,
+    public synchronized FileContents open(FuseFileInfo fi) throws IOException {
+        final LocalFileContents localFileContents = opened ? new LocalFileContents(storage,
+            StandardOpenOption.READ
+        ) : new LocalFileContents(storage,
             StandardOpenOption.CREATE,
             StandardOpenOption.WRITE,
             StandardOpenOption.READ
         );
+        opened = true;
         localFileContents.onClose(written -> {
             if (written) {
-                synchronized (OutFileSlot.this) {
-                    writers.add(pool.submit(() -> {
-                        try {
-                            snapshotProvider.slotSnapshot(definition())
-                                .readAll(new FileInputStream(storage.toFile()));
-                            LOG.info(
-                                "Content to slot " + OutFileSlot.this + " was written; READY=true");
-                        } catch (FileNotFoundException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }));
-                    ready = true;
-                    state(Operations.SlotStatus.State.OPEN);
-                    OutFileSlot.this.notifyAll();
-                }
+                snapshotWrite = pool.submit(() -> {
+                    try {
+                        snapshotProvider.slotSnapshot(definition())
+                            .readAll(new FileInputStream(storage.toFile()));
+                        LOG.info(
+                            "Content to slot " + OutFileSlot.this
+                                + " was written; READY=true");
+                    } catch (FileNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                ready = true;
+                state(Operations.SlotStatus.State.OPEN);
+                OutFileSlot.this.notifyAll();
             }
         });
         return localFileContents;
@@ -166,14 +170,15 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         while (!ready) {
             try {
                 this.wait();
+            } catch (InterruptedException ignore) {
             }
-            catch (InterruptedException ignore) {}
         }
         LOG.info("Slot {} is ready", name());
         final FileChannel channel = FileChannel.open(storage);
         channel.position(offset);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<>() {
             private final ByteBuffer bb = ByteBuffer.allocate(4096);
+
             @Override
             public boolean hasNext() {
                 if (state() != Operations.SlotStatus.State.OPEN) {
@@ -185,8 +190,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                     int read = channel.read(bb);
                     LOG.info("Slot {} hasNext read {}", name(), read);
                     return read >= 0;
-                }
-                catch (IOException e) {
+                } catch (IOException e) {
                     LOG.warn("Unable to read line from reader", e);
                     return false;
                 }
@@ -202,9 +206,9 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     public void destroy() {
-        for (Future<?> future: writers){
+        if (snapshotWrite != null) {
             try {
-                future.get();
+                snapshotWrite.get();
             } catch (InterruptedException | ExecutionException e) {
                 LOG.error(e);
                 throw new RuntimeException(e);
