@@ -104,7 +104,6 @@ class LzyEnvBase(ABC):
         if self._eager:
             lzy_op.materialize()
 
-    @abstractmethod
     def whiteboard_id(self) -> Optional[str]:
         return self._execution_context.whiteboard_id
 
