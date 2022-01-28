@@ -128,7 +128,7 @@ public class PyApiTest extends LzyBaseTest {
     public void testSimpleView() {
         //Arrange
         String condaPrefix = prepareConda();
-        final String pyCommand = "python /lzy-python/examples/integration/view_simple.py";
+        final String pyCommand = "python /lzy-python/tests/scenarios/view_simple.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",

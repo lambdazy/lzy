@@ -94,7 +94,7 @@ class LzyEnvBase(ABC):
             if not is_whiteboard(typ):
                 self._log.warning(f"{typ} is not a whiteboard")
                 continue
-            whiteboard_dict[typ] = self.get_whiteboards(typ.NAMESPACE, typ.TAGS, typ)
+            whiteboard_dict[typ] = self.get_whiteboards(typ.NAMESPACE, typ.TAGS, typ) # type: ignore
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
         return WhiteboardList(reduce(list.__add__, list_of_wb_lists))
