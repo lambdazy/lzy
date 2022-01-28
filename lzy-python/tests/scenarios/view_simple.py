@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-from lzy.api import op, LzyEnv
+from lzy.api import op, LzyRemoteEnv
 from lzy.api.whiteboard import whiteboard, view
 from lzy.servant.terminal_server import TerminalConfig
 
@@ -83,14 +83,14 @@ def fun5(a: int) -> int:
 
 wb = SimpleWhiteboard()
 config = TerminalConfig(user="test_user", server_url="localhost:8899")
-with LzyEnv(config=config, whiteboard=wb):
+with LzyRemoteEnv(config=config, whiteboard=wb):
     wb.a = fun1()
     wb.b = fun2(wb.a)
 
 
 wb = AnotherSimpleWhiteboard()
 config = TerminalConfig(user="test_user", server_url="localhost:8899")
-with LzyEnv(config=config, whiteboard=wb):
+with LzyRemoteEnv(config=config, whiteboard=wb):
     wb.a = fun3(3)
     wb.b = fun4(3)
     wb.c = fun5(4)
@@ -98,12 +98,12 @@ with LzyEnv(config=config, whiteboard=wb):
 
 wb = OneMoreSimpleWhiteboard()
 config = TerminalConfig(user="test_user", server_url="localhost:8899")
-with LzyEnv(config=config, whiteboard=wb):
+with LzyRemoteEnv(config=config, whiteboard=wb):
     wb.a = fun1()
     wb.b = fun2(wb.a)
 
 config = TerminalConfig(user="test_user", server_url="localhost:8899")
-with LzyEnv(config=config) as env:
+with LzyRemoteEnv(config=config) as env:
     views = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard]).views(SimpleView)
     print("Number of SimpleView views " + str(len(views)))
     simple_view_ids = "Ids of SimpleView "
