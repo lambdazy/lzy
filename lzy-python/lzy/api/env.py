@@ -194,7 +194,7 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
     ):
-        if not is_whiteboard(whiteboard):
+        if whiteboard is not None and not is_whiteboard(whiteboard):
             raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
         buses = buses or []
 
