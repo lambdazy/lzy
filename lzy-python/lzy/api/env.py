@@ -1,7 +1,8 @@
 import dataclasses
 import logging
 from abc import abstractmethod, ABC
-from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
+from types import ModuleType
+from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional, Set
 from functools import reduce
 
 from lzy.api.buses import Bus
@@ -19,6 +20,7 @@ from lzy.api.whiteboard.api import (
 )
 from lzy.api.whiteboard.wb import wrap_whiteboard
 from lzy.model.encoding import ENCODING as encoding
+from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.terminal_server import TerminalServer, TerminalConfig
@@ -234,23 +236,24 @@ class LzyRemoteEnv(LzyEnvBase):
         super().__init__(buses, whiteboard, whiteboard_api, snapshot_api, eager)
         self._yaml = config_.yaml_path
 
-    def generate_conda_env(
+    def py_env(
             self, namespace: Optional[Dict[str, Any]] = None
-    ) -> Tuple[str, str]:
+    ) -> PyEnv:
         if self._yaml is None:
             if namespace is None:
-                return create_yaml(installed_packages=all_installed_packages())
-
-            # TODO: there are modules without versions, should we do smth with
-            # TODO: them?
-            installed, _ = select_modules(namespace)
-            return create_yaml(installed_packages=installed)
+                name, yaml = create_yaml(installed_packages=all_installed_packages())
+                local_modules: Set[ModuleType] = set()
+            else:
+                installed, local_modules = select_modules(namespace)
+                name, yaml = create_yaml(installed_packages=installed)
+            return PyEnv(name, yaml, local_modules)
 
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option
         # TODO: parse yaml and get name?
         with open(self._yaml, "r", encoding=encoding) as file:
-            return "default", "".join(file.readlines())
+            name, yaml = "default", "".join(file.readlines())
+            return PyEnv(name, yaml, [])
 
     def activate(self):
         self._terminal_server.start()
@@ -260,23 +263,3 @@ class LzyRemoteEnv(LzyEnvBase):
 
     def servant(self) -> Optional[ServantClient]:
         return self._servant_client
-
-    def register_op(self, lzy_op: LzyOp) -> None:
-        self._ops.append(lzy_op)
-        if self._eager:
-            lzy_op.materialize()
-
-    def registered_ops(self) -> Iterable[LzyOp]:
-        if not self.already_exists():
-            raise ValueError("Fetching ops on a non-entered environment")
-        return list(self._ops)
-
-    def run(self) -> None:
-        if not self.already_exists():
-            raise ValueError("Run operation on a non-entered environment")
-        for wrapper in self._ops:
-            wrapper.materialize()
-
-    @classmethod
-    def get_active(cls) -> Optional["LzyEnv"]:
-        return cls.instance

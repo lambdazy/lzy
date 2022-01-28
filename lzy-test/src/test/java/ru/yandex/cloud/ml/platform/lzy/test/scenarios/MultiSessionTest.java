@@ -71,7 +71,7 @@ public class MultiSessionTest extends LzyBaseTest {
         ForkJoinPool.commonPool().execute(() -> {
             terminal1.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
-            final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
+            final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
 
             //Act
             result1.complete(terminal1.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand));
@@ -81,7 +81,7 @@ public class MultiSessionTest extends LzyBaseTest {
         ForkJoinPool.commonPool().execute(() -> {
             terminal2.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
-            final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
+            final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
 
             //Act
             result2.complete(terminal2.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand));

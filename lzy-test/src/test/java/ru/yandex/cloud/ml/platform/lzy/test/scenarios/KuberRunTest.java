@@ -51,7 +51,7 @@ public class KuberRunTest {
     public void testSimplePyGraph() {
         //Arrange
         final String condaPrefix = prepareConda();
-        final String pyCommand = "python /lzy-python/examples/integration/simple_graph.py";
+        final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
@@ -59,6 +59,7 @@ public class KuberRunTest {
 
         //Assert
         Assert.assertEquals("More meaningful str than ever before3", Utils.lastLine(result.stdout()));
+        Assert.assertTrue(result.stdout().contains("Just print some text"));
     }
 
     @Test
@@ -67,7 +68,7 @@ public class KuberRunTest {
         String condaPrefix = prepareConda();
         terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install catboost");
-        final String pyCommand = "python /lzy-python/examples/integration/catboost_simple.py";
+        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_simple.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
@@ -81,7 +82,7 @@ public class KuberRunTest {
     public void testSimpleWhiteboard() {
         //Arrange
         String condaPrefix = prepareConda();
-        final String pyCommand = "python /lzy-python/examples/integration/whiteboard_simple.py";
+        final String pyCommand = "python /lzy-python/tests/scenarios/whiteboard_simple.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
