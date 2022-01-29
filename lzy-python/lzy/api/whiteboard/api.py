@@ -57,16 +57,16 @@ class WhiteboardList:
     def __init__(self, wb_list):
         self.wb_list = wb_list
 
-    def _methods_with_view_decorator_names(self, cls) -> List:
+    def _methods_with_view_decorator_names(self, obj) -> List:
         res = []
-        for name, maybeDecorated in cls.__dict__.items():
-            if hasattr(maybeDecorated, 'VIEW_DECORATOR'):
+        for name in dir(obj):
+            attribute = getattr(obj, name)
+            if hasattr(attribute, 'VIEW_DECORATOR'):
                 res.append(name)
         return res
 
     def _views_from_single_whiteboard(self, wb, view_type: Type[T]):
-        wb_type = type(wb)
-        method_names = self._methods_with_view_decorator_names(wb_type)
+        method_names = self._methods_with_view_decorator_names(wb)
         all_methods = []
         for method_name in method_names:
             all_methods.append(getattr(wb, method_name))

@@ -97,7 +97,7 @@ class LzyEnvBase(ABC):
             whiteboard_dict[typ] = self.get_whiteboards(typ.NAMESPACE, typ.TAGS, typ) # type: ignore
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
-        return WhiteboardList(reduce(list.__add__, list_of_wb_lists))
+        return WhiteboardList([wb for wbs_list in list_of_wb_lists for wb in wbs_list])
 
     def register_op(self, lzy_op: LzyOp) -> None:
         self._ops.append(lzy_op)

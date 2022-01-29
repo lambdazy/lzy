@@ -136,10 +136,11 @@ public class PyApiTest extends LzyBaseTest {
 
         // Assert
         Assert.assertTrue(result.stdout().contains("Number of SimpleView views 6"));
-        Assert.assertTrue(result.stdout().contains("Ids of SimpleView first_id_SimpleWhiteboard;second_id_SimpleWhiteboard;" +
-                "first_id_SimpleWhiteboard;second_id_SimpleWhiteboard;third_id_OneMoreSimpleWhiteboard;third_id_OneMoreSimpleWhiteboard;"));
-        Assert.assertTrue(result.stdout().contains("Rules of SimpleView plus_one_rule;minus_one_rule;plus_one_rule;" +
-                "minus_one_rule;plus_two_rule;plus_two_rule;"));
+        Assert.assertTrue(result.stdout().contains("Ids of SimpleView second_id_SimpleWhiteboard;" +
+                "first_id_SimpleWhiteboard;second_id_SimpleWhiteboard;first_id_SimpleWhiteboard;" +
+                "third_id_OneMoreSimpleWhiteboard;third_id_OneMoreSimpleWhiteboard;"));
+        Assert.assertTrue(result.stdout().contains("Rules of SimpleView minus_one_rule;plus_one_rule;minus_one_rule;" +
+                "plus_one_rule;plus_two_rule;plus_two_rule;"));
 
         Assert.assertTrue(result.stdout().contains("Number of AnotherSimpleView views 3"));
         Assert.assertTrue(result.stdout().contains("Ids of AnotherSimpleView first_id_SimpleWhiteboard;" +

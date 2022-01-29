@@ -158,9 +158,9 @@ class WhiteboardBashApi(WhiteboardApi):
     def getByNamespaceAndTags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
         self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags}")
         command = " ".join([f"{self.__mount}/sbin/whiteboard", "getByNamespaceAndTags"])
-        if len(tags) > 0:
+        if tags:
             command = " ".join([command, "-t", ",".join(tags)])
-        if namespace != '':
+        if namespace:
             command = " ".join([command, "-n", namespace])
         out = exec_bash(command)
         try:

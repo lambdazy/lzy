@@ -28,15 +28,15 @@ class SimpleWhiteboard:
     a: int = 0
     b: List[str] = None
     @view
-    def toSimpleViewPlusOneRule(self) -> SimpleView:
+    def to_simple_view_plus_one_rule(self) -> SimpleView:
         return SimpleView('first_id_SimpleWhiteboard', [Rule(self.a + 1, 'plus_one_rule')])
     @view
-    def toSimpleViewMinusOneRule(self) -> SimpleView:
+    def to_simple_view_minus_one_rule(self) -> SimpleView:
         return SimpleView('second_id_SimpleWhiteboard', [Rule(self.a - 1, 'minus_one_rule')])
     # it's important that view and staticmethod annotations are present in the following order
-    @view
     @staticmethod
-    def toAnotherSimpleView() -> AnotherSimpleView:
+    @view
+    def to_another_simple_view() -> AnotherSimpleView:
         return AnotherSimpleView('first_id_SimpleWhiteboard', 'made_from_SimpleWhiteboard')
 
 @dataclass
@@ -47,7 +47,7 @@ class AnotherSimpleWhiteboard:
     c: int = 3
 
     @view
-    def toAnotherSimpleView(self) -> AnotherSimpleView:
+    def to_another_simple_view(self) -> AnotherSimpleView:
         return AnotherSimpleView(self.a, 'made_from_AnotherSimpleWhiteboard')
 
 @dataclass
@@ -57,7 +57,7 @@ class OneMoreSimpleWhiteboard:
     b: List[str] = None
 
     @view
-    def toSimpleViewWithPlusTwoRule(self) -> SimpleView:
+    def to_simple_view_with_plus_two_rule(self) -> SimpleView:
         return SimpleView('third_id_OneMoreSimpleWhiteboard', [Rule(self.a + 2, 'plus_two_rule')])
 
 @op
