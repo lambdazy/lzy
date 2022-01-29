@@ -46,6 +46,13 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     private final SnapshotRepository snapshotRepository;
     private final Authenticator auth;
 
+    private String resolveNamespace(String namespace, String uid) {
+        if (!namespace.startsWith(uid + ":")) {
+            return uid + ":" + namespace;
+        }
+        return namespace;
+    }
+
     @Inject
     public WhiteboardApi(ServerConfig serverConfig, WhiteboardRepository whiteboardRepository,
         SnapshotRepository snapshotRepository) {
@@ -77,7 +84,8 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         URI wbId = URI.create(UUID.randomUUID().toString());
         whiteboardRepository.create(
             new Whiteboard.Impl(wbId, new HashSet<>(request.getFieldNamesList()),
-                snapshotStatus.snapshot(), new HashSet<>(request.getTagsList()), request.getNamespace()));
+                    snapshotStatus.snapshot(), new HashSet<>(request.getTagsList()),
+                    resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId())));
         final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardRepository.resolveWhiteboard(wbId));
         if (result != null) {
             responseObserver.onNext(result);
@@ -202,8 +210,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
-        final List<WhiteboardStatus> whiteboardStatus = whiteboardRepository
-                .resolveWhiteboards(request.getNamespace(), request.getTagsList());
+        final List<WhiteboardStatus> whiteboardStatus = whiteboardRepository.resolveWhiteboards(
+                resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()), request.getTagsList()
+        );
         List<LzyWhiteboard.Whiteboard> result = new ArrayList<>();
         for (var entry : whiteboardStatus) {
             result.add(buildWhiteboard(entry));

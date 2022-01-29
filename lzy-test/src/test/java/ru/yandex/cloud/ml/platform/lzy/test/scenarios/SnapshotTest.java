@@ -180,7 +180,7 @@ public class SnapshotTest extends LzyBaseTest {
         final List<LzyWhiteboard.WhiteboardField> fieldsList = wb.getFieldsList();
 
         Assert.assertEquals(spId, wb.getSnapshot().getSnapshotId());
-        Assert.assertEquals(namespace, wb.getNamespace());
+        Assert.assertEquals("test-user:" + namespace, wb.getNamespace());
         Assert.assertEquals(2, fieldsList.size());
         Assert.assertEquals(LzyWhiteboard.WhiteboardStatus.COMPLETED, wb.getStatus());
 
