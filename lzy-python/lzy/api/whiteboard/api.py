@@ -84,6 +84,9 @@ class WhiteboardList:
             res.extend(self._views_from_single_whiteboard(elem, view_type))
         return res
 
+    def __iter__(self):
+        return iter(self.wb_list)
+
 
 class SnapshotApi(ABC):
     @abstractmethod

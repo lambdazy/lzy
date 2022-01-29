@@ -144,5 +144,8 @@ public class PyApiTest extends LzyBaseTest {
         Assert.assertTrue(result.stdout().contains("Number of AnotherSimpleView views 3"));
         Assert.assertTrue(result.stdout().contains("Ids of AnotherSimpleView first_id_SimpleWhiteboard;" +
                 "first_id_SimpleWhiteboard;3;"));
+
+        Assert.assertTrue(result.stdout().contains("Iterating over whiteboards with types SimpleWhiteboard " +
+                "SimpleWhiteboard AnotherSimpleWhiteboard"));
     }
 }

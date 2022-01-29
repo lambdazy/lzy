@@ -120,3 +120,11 @@ with LzyRemoteEnv(config=config) as env:
     for view in views:
         another_simple_view_ids += view.id + ";"
     print(another_simple_view_ids)
+
+config = TerminalConfig(user="test_user", server_url="localhost:8899")
+with LzyRemoteEnv(config=config) as env:
+    whiteboards = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard])
+    iteration = "Iterating over whiteboards with types "
+    for whiteboard in whiteboards:
+        iteration += whiteboard.__class__.__name__ + " "
+    print(iteration)
