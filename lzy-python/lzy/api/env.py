@@ -193,7 +193,6 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
     ):
-        self._check_whiteboard(whiteboard)
         super().__init__(
             buses=buses,
             whiteboard=whiteboard,
