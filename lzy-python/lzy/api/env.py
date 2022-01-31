@@ -2,7 +2,6 @@ import dataclasses
 import logging
 import os
 from abc import abstractmethod, ABC
-from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional, Set
@@ -210,30 +209,16 @@ class LzyLocalEnv(LzyEnvBase):
         pass
 
 
-@dataclass
-class RunConfig:
-    yaml: Optional[Path] = None
-    lzy_mount: str = ""
-    eager: bool = False
-
-    def __post_init__(self):
-        if not self.lzy_mount:
-            self.lzy_mount = os.getenv("LZY_MOUNT", default="/tmp/lzy")
-
-
 class LzyRemoteEnv(LzyEnvBase):
-    default_config = RunConfig()
-
     def __init__(
             self,
+            lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
+            eager: bool = False,
+            conda_yaml_path: Optional[Path] = None,
             whiteboard: Any = None,
-            buses: Optional[BusList] = None,
-            config: Optional[RunConfig] = None
+            buses: Optional[BusList] = None
     ):
-        config_ = config or self.default_config
-        lzy_mount = config_.lzy_mount
-
-        self._yaml = config_.yaml
+        self._yaml = conda_yaml_path
         self._servant_client: BashServantClient = BashServantClient() \
             .instance(lzy_mount)
 
@@ -241,13 +226,20 @@ class LzyRemoteEnv(LzyEnvBase):
             buses=buses,
             whiteboard=whiteboard,
             whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
-            snapshot_api=SnapshotBashApi(config_.lzy_mount),
-            eager=config_.eager
+            snapshot_api=SnapshotBashApi(lzy_mount),
+            eager=eager
         )
 
-    def py_env(
-            self, namespace: Optional[Dict[str, Any]] = None
-    ) -> PyEnv:
+    def activate(self):
+        pass
+
+    def deactivate(self):
+        pass
+
+    def servant(self) -> Optional[ServantClient]:
+        return self._servant_client
+
+    def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._yaml is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
@@ -263,12 +255,3 @@ class LzyRemoteEnv(LzyEnvBase):
         with open(self._yaml, "r", encoding=encoding) as file:
             name, yaml = "default", "".join(file.readlines())
             return PyEnv(name, yaml, [])
-
-    def activate(self):
-        pass
-
-    def deactivate(self):
-        pass
-
-    def servant(self) -> Optional[ServantClient]:
-        return self._servant_client

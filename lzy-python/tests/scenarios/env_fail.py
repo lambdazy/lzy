@@ -1,7 +1,6 @@
 import tempfile
 from pathlib import Path
 
-from lzy.api.env import RunConfig
 from lzy.api import op, LzyRemoteEnv
 
 
@@ -25,6 +24,5 @@ if __name__ == "__main__":
         )
         f.flush()
 
-        config = RunConfig(yaml=Path(f.name))
-        with LzyRemoteEnv(config=config):
+        with LzyRemoteEnv(conda_yaml_path=Path(f.name)):
             main()
