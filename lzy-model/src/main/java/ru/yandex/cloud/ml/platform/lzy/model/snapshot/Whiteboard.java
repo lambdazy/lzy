@@ -7,17 +7,23 @@ import java.util.Set;
 public interface Whiteboard {
     URI id();
     Set<String> fieldNames();
+    Set<String> tags();
     Snapshot snapshot();
+    String namespace();
 
     class Impl implements Whiteboard {
         private final URI id;
         private final Set<String> fieldNames;
+        private final Set<String> tags;
         private final Snapshot snapshot;
+        private final String namespace;
 
-        public Impl(URI id, Set<String> fieldNames, Snapshot snapshot) {
+        public Impl(URI id, Set<String> fieldNames, Snapshot snapshot, Set<String> tags, String namespace) {
             this.id = id;
             this.fieldNames = new HashSet<>(fieldNames);
+            this.tags = new HashSet<>(tags);
             this.snapshot = snapshot;
+            this.namespace = namespace;
         }
 
         @Override
@@ -31,8 +37,18 @@ public interface Whiteboard {
         }
 
         @Override
+        public Set<String> tags() {
+            return tags;
+        }
+
+        @Override
         public Snapshot snapshot() {
             return snapshot;
+        }
+
+        @Override
+        public String namespace() {
+            return namespace;
         }
     }
 }

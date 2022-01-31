@@ -4,6 +4,7 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import org.apache.commons.cli.CommandLine;
@@ -26,6 +27,9 @@ public class Whiteboard implements LzyCommand {
         options.addOption(new Option("f", "field", true, "Whiteboard field for mapping"));
         options.addOption(
             new Option("l", "fields list", true, "Whiteboard fields comma-separated list"));
+        options.addOption(
+                new Option("t", "tags list", true, "Whiteboard tags comma-separated list"));
+        options.addOption(new Option("n", "namespace", true, "Whiteboard namespace"));
     }
 
     @Override
@@ -58,12 +62,22 @@ public class Whiteboard implements LzyCommand {
                 if (!localCmd.hasOption('l')) {
                     throw new IllegalArgumentException("Whiteboard fields list must be specified");
                 }
+                if (!localCmd.hasOption('n')) {
+                    throw new IllegalArgumentException("Whiteboard namespace must be specified");
+                }
+                List<String> tags = new ArrayList<>();
+                if (localCmd.hasOption('t')) {
+                    tags = List.of(localCmd.getOptionValue('t').split(","));
+                }
                 final List<String> fields = List.of(localCmd.getOptionValue('l').split(","));
+                final String namespace = localCmd.getOptionValue('n');
                 final LzyWhiteboard.Whiteboard whiteboardId = server
                     .createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
                         .newBuilder()
                         .setSnapshotId(command.getArgs()[2])
                         .addAllFieldNames(fields)
+                        .addAllTags(tags)
+                        .setNamespace(namespace)
                         .setAuth(auth)
                         .build()
                     );
@@ -108,6 +122,25 @@ public class Whiteboard implements LzyCommand {
                 );
                 System.out.println(JsonFormat.printer().print(whiteboardsInfo));
                 break;
+            }
+            case "getByNamespaceAndTags": {
+                if (!localCmd.hasOption('n')) {
+                    throw new IllegalArgumentException("Whiteboard namespace must be specified");
+                }
+                final String namespace = localCmd.getOptionValue('n');
+                List<String> tags = new ArrayList<>();
+                if (localCmd.hasOption('t')) {
+                    tags = List.of(localCmd.getOptionValue('t').split(","));
+                }
+                final LzyWhiteboard.WhiteboardsResponse whiteboards =
+                    server.whiteboardByNamespaceAndTags(LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand
+                        .newBuilder()
+                        .setAuth(auth)
+                        .addAllTags(tags)
+                        .setNamespace(namespace)
+                        .build()
+                    );
+                System.out.println(JsonFormat.printer().print(whiteboards));
             }
         }
         return 0;

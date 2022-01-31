@@ -11,6 +11,7 @@ public interface WhiteboardRepository {
     void create(Whiteboard whiteboard);
     @Nullable
     WhiteboardStatus resolveWhiteboard(URI id);
+    List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags);
     List<WhiteboardInfo> whiteboards(URI uid);
 
     void add(WhiteboardField field);

@@ -2,9 +2,11 @@ import dataclasses
 from unittest import TestCase
 
 from lzy.api import LzyLocalEnv
+from lzy.api.whiteboard import whiteboard, view
 
 
 @dataclasses.dataclass
+@whiteboard(namespace='wb', tags=["simple_whiteboard"])
 class WB:
     a: int
     b: int
