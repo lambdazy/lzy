@@ -78,7 +78,7 @@ class WhiteboardBashApi(WhiteboardApi):
         command = " ".join([f"{self.__mount}/sbin/whiteboard", "create", snapshot_id, "-l", ",".join(fields)])
         if len(tags) > 0:
             command = " ".join([command, "-t", ",".join(tags)])
-        if namespace != '':
+        if namespace:
             command = " ".join([command, "-n", namespace])
         out = exec_bash(command)
         try:
@@ -155,7 +155,7 @@ class WhiteboardBashApi(WhiteboardApi):
             for field in res.get("whiteboards", [])
         ]
 
-    def getByNamespaceAndTags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+    def get_by_namespace_and_tags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
         self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags}")
         command = " ".join([f"{self.__mount}/sbin/whiteboard", "getByNamespaceAndTags"])
         if tags:

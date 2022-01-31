@@ -124,6 +124,8 @@ with LzyRemoteEnv(config=config) as env:
 config = TerminalConfig(user="test_user", server_url="localhost:8899")
 with LzyRemoteEnv(config=config) as env:
     whiteboards = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard])
+    print("Number of whiteboard is " + str(len(whiteboards)))
+    print("First whiteboard type is " + whiteboards[0].__class__.__name__)
     iteration = "Iterating over whiteboards with types "
     for whiteboard in whiteboards:
         iteration += whiteboard.__class__.__name__ + " "

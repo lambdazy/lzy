@@ -61,7 +61,7 @@ class WhiteboardList:
         res = []
         for name in dir(obj):
             attribute = getattr(obj, name)
-            if hasattr(attribute, 'VIEW_DECORATOR'):
+            if hasattr(attribute, 'LZY_WB_VIEW_DECORATOR'):
                 res.append(name)
         return res
 
@@ -86,6 +86,12 @@ class WhiteboardList:
 
     def __iter__(self):
         return iter(self.wb_list)
+
+    def __getitem__(self, key):
+        return self.wb_list.__getitem__(key)
+
+    def __len__(self):
+        return len(self.wb_list)
 
 
 class SnapshotApi(ABC):
@@ -112,7 +118,7 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def getByNamespaceAndTags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+    def get_by_namespace_and_tags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
         pass
 
     @abstractmethod
@@ -170,7 +176,7 @@ class InMemWhiteboardApi(WhiteboardApi):
             WhiteboardInfo(wb.id, wb.status) for key, wb in self.__whiteboards.items()
         ]
 
-    def getByNamespaceAndTags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+    def get_by_namespace_and_tags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
         namespace_ids = [k for k, v in self.__namespaces.items() if v == namespace]
         tags_ids = [k for k, v in self.__tags.items() if all(item in v for item in tags)]
         wb_ids = set.intersection(set(namespace_ids), set(tags_ids))

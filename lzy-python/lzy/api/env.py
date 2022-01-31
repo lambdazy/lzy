@@ -83,7 +83,7 @@ class LzyEnvBase(ABC):
     def get_whiteboards(self, namespace: str, tags: List[str], typ: Type[T]) -> List[T]:
         if not is_whiteboard(typ):
             raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
-        wb_list = self._execution_context.whiteboard_api.getByNamespaceAndTags(namespace, tags)
+        wb_list = self._execution_context.whiteboard_api.get_by_namespace_and_tags(namespace, tags)
         self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags}")
         result = [self._build_whiteboard(wb_, typ) for wb_ in wb_list]
         return result
@@ -92,9 +92,8 @@ class LzyEnvBase(ABC):
         whiteboard_dict = {}
         for typ in typs:
             if not is_whiteboard(typ):
-                self._log.warning(f"{typ} is not a whiteboard")
-                continue
-            whiteboard_dict[typ] = self.get_whiteboards(typ.NAMESPACE, typ.TAGS, typ) # type: ignore
+                raise TypeError(f"{typ} is not a whiteboard")
+            whiteboard_dict[typ] = self.get_whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ) # type: ignore
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
         return WhiteboardList([wb for wbs_list in list_of_wb_lists for wb in wbs_list])
@@ -181,7 +180,8 @@ class WhiteboardExecutionContext:
             if snapshot_id is None:
                 raise RuntimeError("Cannot create snapshot")
             self._whiteboard_id = self.whiteboard_api.create(
-                [field.name for field in fields], snapshot_id, self.whiteboard.NAMESPACE, self.whiteboard.TAGS
+                [field.name for field in fields], snapshot_id,
+                self.whiteboard.LZY_WB_NAMESPACE, self.whiteboard.LZY_WB_TAGS
             ).id
             return self._whiteboard_id
         return None
