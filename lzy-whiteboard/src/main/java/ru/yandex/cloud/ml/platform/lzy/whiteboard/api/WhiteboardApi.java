@@ -7,11 +7,14 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
@@ -22,6 +25,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.LzySnapshot;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
@@ -41,6 +45,13 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     private final WhiteboardRepository whiteboardRepository;
     private final SnapshotRepository snapshotRepository;
     private final Authenticator auth;
+
+    private String resolveNamespace(String namespace, String uid) {
+        if (!namespace.startsWith(uid + ":")) {
+            return uid + ":" + namespace;
+        }
+        return namespace;
+    }
 
     @Inject
     public WhiteboardApi(ServerConfig serverConfig, WhiteboardRepository whiteboardRepository,
@@ -73,8 +84,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         URI wbId = URI.create(UUID.randomUUID().toString());
         whiteboardRepository.create(
             new Whiteboard.Impl(wbId, new HashSet<>(request.getFieldNamesList()),
-                snapshotStatus.snapshot()));
-        final LzyWhiteboard.Whiteboard result = buildWhiteboard(wbId, responseObserver);
+                    snapshotStatus.snapshot(), new HashSet<>(request.getTagsList()),
+                    resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId())));
+        final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardRepository.resolveWhiteboard(wbId));
         if (result != null) {
             responseObserver.onNext(result);
         }
@@ -125,21 +137,13 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
             return;
         }
-        final LzyWhiteboard.Whiteboard result = buildWhiteboard(
-            URI.create(request.getWhiteboardId()), responseObserver);
-        if (result != null) {
-            responseObserver.onNext(result);
-        }
+        final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus);
+        responseObserver.onNext(result);
         responseObserver.onCompleted();
     }
 
-    private LzyWhiteboard.Whiteboard buildWhiteboard(URI id,
-        StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        WhiteboardStatus wb = whiteboardRepository.resolveWhiteboard(id);
+    private LzyWhiteboard.Whiteboard buildWhiteboard(WhiteboardStatus wb) {
         if (wb == null) {
-            responseObserver.onError(
-                Status.NOT_FOUND.withDescription("Cannot found whiteboard with id " + id)
-                    .asException());
             return null;
         }
         List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(wb.whiteboard())
@@ -167,6 +171,8 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 .setSnapshotId(wb.whiteboard().snapshot().id().toString())
                 .build())
             .addAllFields(fields)
+            .addAllTags(wb.whiteboard().tags())
+            .setNamespace(wb.whiteboard().namespace())
             .setStatus(to(wb.state()))
             .build();
     }
@@ -181,7 +187,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         if (request.hasBackoffice()) {
             ok = auth.checkPermissions(request.getBackoffice(), Permissions.WHITEBOARD_ALL);
-            uid = request.getBackoffice().getCredentials().getUserId();
+            uid = request.getBackoffice().getBackofficeCredentials().getUserId();
         }
         if (!ok) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -193,6 +199,27 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 .newBuilder()
                 .addAllWhiteboards(wbInfoList.stream().map(gRPCConverter::to).collect(Collectors.toList()))
                 .build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void whiteboardByNamespaceAndTags(LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand request,
+                                             StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
+        final List<WhiteboardStatus> whiteboardStatus = whiteboardRepository.resolveWhiteboards(
+                resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()), request.getTagsList()
+        );
+        List<LzyWhiteboard.Whiteboard> result = new ArrayList<>();
+        for (var entry : whiteboardStatus) {
+            result.add(buildWhiteboard(entry));
+        }
+        final LzyWhiteboard.WhiteboardsResponse response = LzyWhiteboard.WhiteboardsResponse.newBuilder()
+            .addAllWhiteboards(result)
+            .build();
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }

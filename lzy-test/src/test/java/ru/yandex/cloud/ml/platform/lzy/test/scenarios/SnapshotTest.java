@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 import org.apache.commons.io.IOUtils;
 import org.jose4j.json.internal.json_simple.JSONObject;
 import org.jose4j.json.internal.json_simple.parser.JSONParser;
@@ -64,10 +66,17 @@ public class SnapshotTest extends LzyBaseTest {
         return (String) spIdObject.get("snapshotId");
     }
 
-    private String createWhiteboard(String spId, List<String> fileNames) throws ParseException {
-        String wbIdJson = terminal.createWhiteboard(spId, fileNames);
+    private String createWhiteboard(String spId, List<String> fileNames, List<String> tags, String namespace) throws ParseException {
+        String wbIdJson = terminal.createWhiteboard(spId, fileNames, tags, namespace);
         JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
         return (String) wbIdObject.get("id");
+    }
+
+    private List<LzyWhiteboard.Whiteboard> getWhiteboardsByNamespaceAndTags(String namespace, List<String> tags) throws InvalidProtocolBufferException {
+        String whiteboardsJson = terminal.getWhiteboardsByNamespaceAndTags(namespace, tags);
+        LzyWhiteboard.WhiteboardsResponse.Builder builder = LzyWhiteboard.WhiteboardsResponse.newBuilder();
+        JsonFormat.parser().merge(whiteboardsJson, builder);
+        return builder.build().getWhiteboardsList();
     }
 
     @Test
@@ -104,7 +113,11 @@ public class SnapshotTest extends LzyBaseTest {
         final String spId = createSnapshot();
         Assert.assertNotNull(spId);
 
-        final String wbId = createWhiteboard(spId, List.of(localFileName, localFileOutName));
+        final String firstTag = "firstTag";
+        final String secondTag = "secondTag";
+        final String namespace = "namespace";
+
+        final String wbId = createWhiteboard(spId, List.of(localFileName, localFileOutName), List.of(firstTag, secondTag), namespace);
         Assert.assertNotNull(wbId);
 
         final String firstEntryId = "firstEntryId";
@@ -167,16 +180,24 @@ public class SnapshotTest extends LzyBaseTest {
         final List<LzyWhiteboard.WhiteboardField> fieldsList = wb.getFieldsList();
 
         Assert.assertEquals(spId, wb.getSnapshot().getSnapshotId());
+        Assert.assertEquals("test-user:" + namespace, wb.getNamespace());
         Assert.assertEquals(2, fieldsList.size());
         Assert.assertEquals(LzyWhiteboard.WhiteboardStatus.COMPLETED, wb.getStatus());
 
         Assert.assertTrue(
                 (localFileName.equals(fieldsList.get(0).getFieldName()) && localFileOutName.equals(fieldsList.get(1).getFieldName())) ||
-                (localFileName.equals(fieldsList.get(1).getFieldName()) && localFileOutName.equals(fieldsList.get(0).getFieldName()))
+                        (localFileName.equals(fieldsList.get(1).getFieldName()) && localFileOutName.equals(fieldsList.get(0).getFieldName()))
         );
 
         Assert.assertTrue(fieldsList.get(0).getStorageUri().length() > 0);
         Assert.assertTrue(fieldsList.get(1).getStorageUri().length() > 0);
+
+        final List<String> tagsList = wb.getTagsList();
+        Assert.assertEquals(2, tagsList.size());
+        Assert.assertTrue(
+                (firstTag.equals(tagsList.get(0)) && secondTag.equals(tagsList.get(1))) ||
+                        (firstTag.equals(tagsList.get(1)) && secondTag.equals(tagsList.get(0)))
+        );
 
         if (localFileName.equals(fieldsList.get(0).getFieldName())) {
             Assert.assertEquals(Collections.emptyList(), fieldsList.get(0).getDependentFieldNamesList());
@@ -195,13 +216,13 @@ public class SnapshotTest extends LzyBaseTest {
         final String spIdSecond = createSnapshot();
         Assert.assertNotNull(spIdSecond);
 
-        final String wbIdFirst = createWhiteboard(spIdFirst, List.of("fileNameX", "fileNameY"));
+        final String wbIdFirst = createWhiteboard(spIdFirst, List.of("fileNameX", "fileNameY"), List.of("tag"), "namespace");
         Assert.assertNotNull(wbIdFirst);
 
-        final String wbIdSecond = createWhiteboard(spIdFirst, List.of("fileNameZ", "fileNameW"));
+        final String wbIdSecond = createWhiteboard(spIdFirst, List.of("fileNameZ", "fileNameW"), List.of("tag"), "namespace");
         Assert.assertNotNull(wbIdSecond);
 
-        final String wbIdThird = createWhiteboard(spIdSecond, List.of("fileNameA", "fileNameB"));
+        final String wbIdThird = createWhiteboard(spIdSecond, List.of("fileNameA", "fileNameB"), List.of("tag"), "namespace");
         Assert.assertNotNull(wbIdThird);
 
         String whiteboards = terminal.getAllWhiteboards();
@@ -219,6 +240,69 @@ public class SnapshotTest extends LzyBaseTest {
         );
         Assert.assertTrue(wbInfoList.contains(
                 to(new WhiteboardInfo.Impl(URI.create(wbIdThird), WhiteboardStatus.State.CREATED)))
+        );
+    }
+
+    @Test
+    public void testWhiteboardsResolvingByNamespaceAndTags() throws ParseException, InvalidProtocolBufferException {
+        final String spIdFirst = createSnapshot();
+        Assert.assertNotNull(spIdFirst);
+
+        final String spIdSecond = createSnapshot();
+        Assert.assertNotNull(spIdSecond);
+
+        final String firstTag = "firstTag";
+        final String secondTag = "secondTag";
+        final String thirdTag = "thirdTag";
+        final String firstNamespace = "firstNamespace";
+        final String secondNamespace = "secondNamespace";
+
+        final String wbIdFirst = createWhiteboard(
+                spIdFirst, List.of("fileNameX", "fileNameY"), List.of(firstTag, secondTag), firstNamespace
+        );
+        Assert.assertNotNull(wbIdFirst);
+
+        final String wbIdSecond = createWhiteboard(
+                spIdFirst, List.of("fileNameZ", "fileNameW"), List.of(firstTag, secondTag, thirdTag), secondNamespace);
+        Assert.assertNotNull(wbIdSecond);
+
+        final String wbIdThird = createWhiteboard(
+                spIdSecond, List.of("fileNameA", "fileNameB"), List.of(secondTag, thirdTag), firstNamespace);
+        Assert.assertNotNull(wbIdThird);
+
+        final String wbIdFourth = createWhiteboard(
+                spIdSecond, List.of("fileNameC"), Collections.emptyList(), firstNamespace);
+        Assert.assertNotNull(wbIdFourth);
+
+        final String wbIdFifth = createWhiteboard(
+                spIdSecond, List.of("fileNameD"), List.of(firstTag, thirdTag), secondNamespace);
+        Assert.assertNotNull(wbIdFifth);
+
+        List<LzyWhiteboard.Whiteboard> list = getWhiteboardsByNamespaceAndTags(firstNamespace, List.of(secondTag));
+        Assert.assertEquals(2, list.size());
+        Assert.assertTrue(
+                list.stream()
+                        .map(LzyWhiteboard.Whiteboard::getId)
+                        .collect(Collectors.toList())
+                        .containsAll(List.of(wbIdFirst, wbIdThird))
+        );
+
+        list = getWhiteboardsByNamespaceAndTags(firstNamespace, Collections.emptyList());
+        Assert.assertEquals(3, list.size());
+        Assert.assertTrue(
+                list.stream()
+                        .map(LzyWhiteboard.Whiteboard::getId)
+                        .collect(Collectors.toList())
+                        .containsAll(List.of(wbIdFirst, wbIdThird, wbIdFourth))
+        );
+
+        list = getWhiteboardsByNamespaceAndTags(secondNamespace, List.of(firstTag, thirdTag));
+        Assert.assertEquals(2, list.size());
+        Assert.assertTrue(
+                list.stream()
+                        .map(LzyWhiteboard.Whiteboard::getId)
+                        .collect(Collectors.toList())
+                        .containsAll(List.of(wbIdSecond, wbIdFifth))
         );
     }
 }

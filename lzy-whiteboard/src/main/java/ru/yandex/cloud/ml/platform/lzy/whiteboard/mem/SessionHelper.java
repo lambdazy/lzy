@@ -70,6 +70,13 @@ public class SessionHelper {
         return fieldNames;
     }
 
+    public static Set<String> getWhiteboardTags(String wbId, Session session) {
+        List<WhiteboardTagModel> results = getWhiteboardTagModels(wbId, session);
+        Set<String> tags = new HashSet<>();
+        results.forEach(tag -> tags.add(tag.getTag()));
+        return tags;
+    }
+
     public static List<WhiteboardFieldModel> getWhiteboardFields(String wbId, Session session) {
         CriteriaBuilder cb = session.getCriteriaBuilder();
         CriteriaQuery<WhiteboardFieldModel> cr = cb.createQuery(WhiteboardFieldModel.class);
@@ -77,6 +84,16 @@ public class SessionHelper {
         cr.select(root).where(cb.equal(root.get("wbId"), wbId));
 
         Query<WhiteboardFieldModel> query = session.createQuery(cr);
+        return query.getResultList();
+    }
+
+    public static List<WhiteboardTagModel> getWhiteboardTagModels(String wbId, Session session) {
+        CriteriaBuilder cb = session.getCriteriaBuilder();
+        CriteriaQuery<WhiteboardTagModel> cr = cb.createQuery(WhiteboardTagModel.class);
+        Root<WhiteboardTagModel> root = cr.from(WhiteboardTagModel.class);
+        cr.select(root).where(cb.equal(root.get("wbId"), wbId));
+
+        Query<WhiteboardTagModel> query = session.createQuery(cr);
         return query.getResultList();
     }
 
@@ -120,15 +137,13 @@ public class SessionHelper {
     }
 
     public static Whiteboard getWhiteboard(String wbId, Snapshot snapshot, Session session) {
-        CriteriaBuilder cb = session.getCriteriaBuilder();
-        CriteriaQuery<WhiteboardFieldModel> cr = cb.createQuery(WhiteboardFieldModel.class);
-        Root<WhiteboardFieldModel> root = cr.from(WhiteboardFieldModel.class);
-        cr.select(root).where(cb.equal(root.get("wbId"), wbId));
-
-        Query<WhiteboardFieldModel> query = session.createQuery(cr);
-        List<WhiteboardFieldModel> results = query.getResultList();
-        results.forEach(f -> ((Set<String>) new HashSet<String>()).add(f.getFieldName()));
-        return new Whiteboard.Impl(URI.create(wbId), new HashSet<>(), snapshot);
+        WhiteboardModel wbModel = session.find(WhiteboardModel.class, wbId);
+        if (wbModel == null) {
+            return null;
+        }
+        Set<String> fieldNames = getWhiteboardFieldNames(wbId, session);
+        Set<String> tags = getWhiteboardTags(wbId, session);
+        return new Whiteboard.Impl(URI.create(wbId), fieldNames, snapshot, tags, wbModel.getNamespace());
     }
 
     @Nullable
@@ -166,7 +181,13 @@ public class SessionHelper {
             return null;
         }
         String spId = wbModel.getSnapshotId();
-        return new Whiteboard.Impl(URI.create(wbId), SessionHelper.getWhiteboardFieldNames(wbId, session), resolveSnapshot(spId, session));
+        return new Whiteboard.Impl(
+                URI.create(wbId),
+                SessionHelper.getWhiteboardFieldNames(wbId, session),
+                resolveSnapshot(spId, session),
+                SessionHelper.getWhiteboardTags(wbId, session),
+                wbModel.getNamespace()
+        );
     }
 
     @Nullable
@@ -191,5 +212,26 @@ public class SessionHelper {
         SnapshotEntry entry = new SnapshotEntry.Impl(id, snapshot);
         return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(),snapshotEntryModel.getEntryState(), entry,
                 Set.copyOf(dependentEntryIds), URI.create(snapshotEntryModel.getStorageUri()));
+    }
+
+    public static List<String> getWhiteboardIdByNamespaceAndTags(String namespace, List<String> tags, Session session) {
+        String whiteboardsByNameAndTagsRequest;
+        if (tags.isEmpty()) {
+            whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w " +
+                    "WHERE w.namespace = :namespace ";
+        } else {
+            whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w " +
+                    "JOIN WhiteboardTagModel t ON w.wbId = t.wbId " +
+                    "WHERE w.namespace = :namespace AND t.tag in (:tags) " +
+                    "GROUP BY w.wbId " +
+                    "HAVING count(*) >= :tagsSize ";
+        }
+        Query<String> query = session.createQuery(whiteboardsByNameAndTagsRequest);
+        query.setParameter("namespace", namespace);
+        if (!tags.isEmpty()) {
+            query.setParameter("tagsSize", (long) tags.size());
+            query.setParameterList("tags", tags);
+        }
+        return query.list();
     }
 }

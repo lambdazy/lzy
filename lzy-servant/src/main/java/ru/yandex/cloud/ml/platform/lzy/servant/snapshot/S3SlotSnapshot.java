@@ -3,11 +3,16 @@ package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
+import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
@@ -17,10 +22,6 @@ import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class S3SlotSnapshot implements SlotSnapshot {
@@ -30,8 +31,9 @@ public class S3SlotSnapshot implements SlotSnapshot {
     private final String taskId;
     private final String bucket;
     private final Slot slot;
-    private final Map<Slot, StreamsWrapper> slotStream = new ConcurrentHashMap<>();
-    private final Set<Slot> nonEmpty = ConcurrentHashMap.newKeySet();
+    private StreamsWrapper slotStream = null;
+    private final Lock lock = new ReentrantLock();
+    private final AtomicBoolean nonEmpty = new AtomicBoolean(false);
     private final AtomicBoolean bucketInited = new AtomicBoolean(false);
 
     public S3SlotSnapshot(String taskId, String bucket, Slot slot, SnapshotStorage storage) {
@@ -74,6 +76,18 @@ public class S3SlotSnapshot implements SlotSnapshot {
         return new StreamsWrapper(is, os, future);
     }
 
+    private void initStream() {
+        try{
+            lock.lock();
+            if (slotStream == null) {
+                slotStream = createStreams();
+            }
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
     private void initBucket() {
         if (bucketInited.compareAndSet(false, true)) {
             if (!storage.isBucketExist(bucket)) {
@@ -85,23 +99,40 @@ public class S3SlotSnapshot implements SlotSnapshot {
     @Override
     public void onChunk(ByteString chunk) {
         LOG.info("S3ExecutionSnapshot::onChunk invoked with slot " + slot.name());
-        slotStream.computeIfAbsent(slot, slot -> createStreams());
-        slotStream.get(slot).write(chunk);
-        nonEmpty.add(slot);
+        initStream();
+        slotStream.write(chunk);
+        nonEmpty.set(true);
     }
 
     @Override
     public boolean isEmpty() {
         LOG.info("S3ExecutionSnapshot::isEmpty invoked with slot " + slot.name());
-        return !nonEmpty.contains(slot);
+        return !nonEmpty.get();
+    }
+
+    @Override
+    public void readAll(InputStream stream) {
+        LOG.info("S3ExecutionSnapshot::onChunk invoked with slot " + slot.name());
+        initStream();
+        slotStream.write(stream);
+        nonEmpty.set(true);
+        onFinish();
     }
 
     @Override
     public void onFinish() {
         LOG.info("S3ExecutionSnapshot::onFinish invoked with slot " + slot.name());
-        slotStream.computeIfPresent(slot, (k, v) -> {
-            v.close();
-            return null;
-        });
+        try {
+            lock.lock();
+            if (slotStream == null){
+                return;
+            }
+            slotStream.close();
+            slotStream = null;
+        }
+        finally {
+            lock.unlock();
+        }
+
     }
 }

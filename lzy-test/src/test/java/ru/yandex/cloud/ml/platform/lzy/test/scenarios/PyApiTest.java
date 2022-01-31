@@ -115,4 +115,32 @@ public class PyApiTest extends LzyBaseTest {
         Assert.assertTrue(result.stdout().contains("42 42"));
         Assert.assertTrue(result.stdout().contains("COMPLETED"));
     }
+
+    @Test
+    public void testSimpleView() {
+        //Arrange
+        arrangeTerminal("testUser");
+        final String pyCommand = "python /lzy-python/tests/scenarios/view_simple.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(), "bash", "-c",
+                condaPrefix + pyCommand);
+
+        // Assert
+        Assert.assertTrue(result.stdout().contains("Number of SimpleView views 6"));
+        Assert.assertTrue(result.stdout().contains("Ids of SimpleView second_id_SimpleWhiteboard;" +
+                "first_id_SimpleWhiteboard;second_id_SimpleWhiteboard;first_id_SimpleWhiteboard;" +
+                "third_id_OneMoreSimpleWhiteboard;third_id_OneMoreSimpleWhiteboard;"));
+        Assert.assertTrue(result.stdout().contains("Rules of SimpleView minus_one_rule;plus_one_rule;minus_one_rule;" +
+                "plus_one_rule;plus_two_rule;plus_two_rule;"));
+
+        Assert.assertTrue(result.stdout().contains("Number of AnotherSimpleView views 3"));
+        Assert.assertTrue(result.stdout().contains("Ids of AnotherSimpleView first_id_SimpleWhiteboard;" +
+                "first_id_SimpleWhiteboard;3;"));
+
+        Assert.assertTrue(result.stdout().contains("Iterating over whiteboards with types SimpleWhiteboard " +
+                "SimpleWhiteboard AnotherSimpleWhiteboard"));
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard is 3"));
+        Assert.assertTrue(result.stdout().contains("First whiteboard type is SimpleWhiteboard"));
+    }
 }

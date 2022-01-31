@@ -2,9 +2,11 @@ from dataclasses import dataclass
 from typing import List
 
 from lzy.api import op, LzyRemoteEnv
+from lzy.api.whiteboard import whiteboard
 
 
 @dataclass
+@whiteboard(namespace="wb", tags=["wb"])
 class SimpleWhiteboard:
     a: int = 0
     b: List[str] = None
