@@ -27,9 +27,10 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class LzyOp(Generic[T], ABC):
-    def __init__(self, signature: CallSignature[T]):
+    def __init__(self, signature: CallSignature[T], return_entry_id: str):
         super().__init__()
         self._sign: CallSignature[T] = signature
+        self._return_entry_id = return_entry_id
         self._materialized: bool = False
         self._materialization: Optional[T] = None
         self._log: logging.Logger = logging.getLogger(str(self.__class__))
@@ -45,9 +46,8 @@ class LzyOp(Generic[T], ABC):
     def materialize(self) -> T:
         pass
 
-    @abstractmethod
-    def return_entry_id(self) -> Optional[str]:
-        pass
+    def return_entry_id(self) -> str:
+        return self._return_entry_id
 
     def __repr__(self):
         return f"{self.__class__.__name__}: signature={self._sign}, " \
@@ -56,6 +56,9 @@ class LzyOp(Generic[T], ABC):
 
 
 class LzyLocalOp(LzyOp, Generic[T]):
+    def __init__(self, signature: CallSignature[T]):
+        super().__init__(signature, str(uuid.uuid4()))
+
     def materialize(self) -> T:
         self._log.info("Materializing function %s", self.signature.func)
         name = self.signature.func.name
@@ -66,9 +69,6 @@ class LzyLocalOp(LzyOp, Generic[T]):
         else:
             self._log.info("Function %s has been already materialized", name)
         return self._materialization
-
-    def return_entry_id(self) -> Optional[str]:
-        return None
 
 
 class LzyExecutionException(Exception):
@@ -89,8 +89,6 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         if (not provisioning or not env) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
 
-        super().__init__(signature)
-
         self._deployed = deployed
         self._servant = servant
         self._env = env
@@ -101,10 +99,12 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             provisioning,
         )
 
-        self._return_entry_id: Optional[str] = return_entry_id
-        if entry_id_generator is not None:
-            self._return_entry_id = entry_id_generator.generate(
-                    self._zygote.return_slot)
+        if return_entry_id is not None and entry_id_generator is not None:
+            raise ValueError("Both entry id and entry id generator are provided")
+        elif entry_id_generator is not None:
+            return_entry_id = entry_id_generator.generate(self._zygote.return_slot)
+
+        super().__init__(signature, return_entry_id)
 
     @property
     def zygote(self) -> Zygote:
@@ -145,11 +145,12 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
     @staticmethod
     def read_value_from_slot(slot_path: Path) -> Result[Any]:
+        # noinspection PyBroadException
         try:
             return Just(LzyRemoteOp._read_value_from_slot(slot_path))
         except (OSError, ValueError) as _:
             return Nothing()
-        except BaseException as _: # pylint: disable=broad-except
+        except BaseException as _:  # pylint: disable=broad-except
             return Nothing()
 
     @staticmethod
@@ -157,7 +158,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         with slot_path.open("rb") as handle:
             # Wait for slot to become open
             while handle.read(1) is None:
-                time.sleep(0) # Thread.yield
+                time.sleep(0)  # Thread.yield
             handle.seek(0)
             value = cloudpickle.load(handle)
         return value
@@ -225,7 +226,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             if rc_ == 0 and return_value is not None:
                 self._log.info("Executed task %s for func %s with rc %s",
                                execution.id()[:4], self.signature.func.name, rc_,)
-                return return_value.value # type: ignore
+                return return_value.value  # type: ignore
 
             message = ""
             if rc_ != 0:
@@ -233,8 +234,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 self._log.error(f"Execution exception with message: {message}")
             elif isinstance(return_value, Nothing):
                 message = "Return value deserialization failure"
-                message = self._exception(execution, func,
-                        PyReturnCode.DESERIALIZATION_FAILURE.value, message)
+                message = self._exception(execution, func, PyReturnCode.DESERIALIZATION_FAILURE.value, message)
 
             raise LzyExecutionException(message)
 
@@ -294,9 +294,6 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             op_.zygote.provisioning,
             op_.zygote.env,
         )
-
-    def return_entry_id(self) -> Optional[str]:
-        return self._return_entry_id
 
     def _create_binding(self, execution_id: str, slot: Slot) -> Binding:
         slot_full_name = "/task/" + execution_id + slot.name
