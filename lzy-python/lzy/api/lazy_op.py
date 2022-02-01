@@ -74,6 +74,7 @@ class LzyLocalOp(LzyOp, Generic[T]):
 class LzyExecutionException(Exception):
     pass
 
+
 class LzyRemoteOp(LzyOp, Generic[T]):
     def __init__(
         self,
@@ -216,9 +217,10 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
             self.dump_arguments(execution)
             return_value = self.read_return_value(execution)
-            result = execution.wait_for()
 
             func = self.signature.func
+
+            result = execution.wait_for()
             rc_ = result.returncode
             if rc_ == 0 and return_value is not None:
                 self._log.info("Executed task %s for func %s with rc %s",

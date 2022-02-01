@@ -8,9 +8,10 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyKharonProcessesContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalDockerContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotProcessesContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalDockerContext;
 
 public class LzyBaseTest {
     protected static final int DEFAULT_TIMEOUT_SEC = 30;
@@ -19,6 +20,7 @@ public class LzyBaseTest {
     protected static final int S3_PORT = 8001;
 
     protected LzyTerminalTestContext terminalContext;
+    protected LzyPythonTerminalDockerContext pyTerminalContext;
     protected LzyServerTestContext serverContext;
     protected LzyKharonTestContext kharonContext;
     protected LzySnapshotTestContext whiteboardContext;
@@ -33,6 +35,7 @@ public class LzyBaseTest {
         kharonContext = new LzyKharonProcessesContext(serverContext.address(false), whiteboardContext.address(false));
         kharonContext.init();
         terminalContext = new LzyTerminalDockerContext();
+        pyTerminalContext = new LzyPythonTerminalDockerContext();
         api = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
         api.start();
     }
@@ -41,6 +44,7 @@ public class LzyBaseTest {
     public void tearDown() {
         api.shutdown();
         terminalContext.close();
+        pyTerminalContext.close();
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();

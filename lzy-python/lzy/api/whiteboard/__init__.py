@@ -1,7 +1,8 @@
 import dataclasses
+from typing import List
 
 
-def whiteboard(namespace=None, tags=[]):
+def whiteboard(tags: List[str], namespace=None):
     def wrap(cls):
         return whiteboard_(cls, namespace, tags)
     return wrap
@@ -19,7 +20,10 @@ def whiteboard_(cls, namespace, tags):
     return cls
 
 
-def is_whiteboard(obj):
+def is_whiteboard(obj) -> bool:
+    if obj is None:
+        return False
+
     cls = obj if isinstance(obj, type) else type(obj)
     return hasattr(cls, 'LZY_WB_NAMESPACE') and hasattr(cls, 'LZY_WB_TAGS') and dataclasses.is_dataclass(cls)
 

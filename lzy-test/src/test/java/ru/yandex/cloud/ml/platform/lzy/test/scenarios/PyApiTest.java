@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
@@ -10,17 +9,18 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
+
 public class PyApiTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
 
-    @Before
-    public void setUp() {
-        super.setUp();
-        terminal = terminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                9999,
-                kharonContext.serverAddress(terminalContext.inDocker())
-        );
+    public void arrangeTerminal(String user) {
+        this.arrangeTerminal(LZY_MOUNT, 9998, kharonContext.serverAddress(terminalContext.inDocker()), user, null);
+    }
+
+    public void arrangeTerminal(String mount, Integer port, String serverAddress, String user, String keyPath) {
+        int debugPort = 5006;
+        terminal = pyTerminalContext.startTerminalAtPathAndPort(mount, port, serverAddress, debugPort, user, keyPath );
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
@@ -31,7 +31,7 @@ public class PyApiTest extends LzyBaseTest {
     @Test
     public void testSimplePyGraph() {
         //Arrange
-        String condaPrefix = prepareConda();
+        arrangeTerminal("testUser");
         final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
 
         //Act
@@ -46,7 +46,7 @@ public class PyApiTest extends LzyBaseTest {
     @Test
     public void testSimplePyGraphWithAssertions() {
         //Arrange
-        String condaPrefix = prepareConda();
+        arrangeTerminal("testUser");
         final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph_with_assertions.py";
 
         //Act
@@ -59,7 +59,7 @@ public class PyApiTest extends LzyBaseTest {
     @Test
     public void testSimpleCatboostGraph() {
         //Arrange
-        String condaPrefix = prepareConda();
+        arrangeTerminal("testUser");
         terminal.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install catboost");
         final String pyCommand = "python /lzy-python/tests/scenarios/catboost_simple.py";
@@ -72,18 +72,10 @@ public class PyApiTest extends LzyBaseTest {
         Assert.assertEquals("1", Utils.lastLine(result.stdout()));
     }
 
-    private String prepareConda() {
-        String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
-                "conda activate default && ";
-        terminal.execute(Map.of(), "bash", "-c",
-                condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
-        return condaPrefix;
-    }
-
     @Test
     public void testExecFail() {
         //Arrange
-        String condaPrefix = prepareConda();
+        arrangeTerminal("phil");
         final String pyCommand = "python /lzy-python/tests/scenarios/exec_fail.py";
 
         //Act
@@ -97,7 +89,7 @@ public class PyApiTest extends LzyBaseTest {
     @Test
     public void testEnvFail() {
         //Arrange
-        String condaPrefix = prepareConda();
+        arrangeTerminal("phil");
         final String pyCommand = "python /lzy-python/tests/scenarios/env_fail.py";
 
         //Act
@@ -112,7 +104,7 @@ public class PyApiTest extends LzyBaseTest {
     @Test
     public void testSimpleWhiteboard() {
         //Arrange
-        String condaPrefix = prepareConda();
+        arrangeTerminal("testUser");
         final String pyCommand = "python /lzy-python/tests/scenarios/whiteboard_simple.py";
 
         //Act
@@ -127,7 +119,7 @@ public class PyApiTest extends LzyBaseTest {
     @Test
     public void testSimpleView() {
         //Arrange
-        String condaPrefix = prepareConda();
+        arrangeTerminal("testUser");
         final String pyCommand = "python /lzy-python/tests/scenarios/view_simple.py";
 
         //Act

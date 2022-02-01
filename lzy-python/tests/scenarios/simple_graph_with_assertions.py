@@ -1,5 +1,4 @@
 from lzy.api import op, LzyRemoteEnv
-from lzy.servant.terminal_server import TerminalConfig
 
 
 def main():
@@ -22,8 +21,7 @@ def main():
         assert c == 3, "c is not 3!"
         return a + b + c
 
-    config = TerminalConfig(user="test_user", server_url="localhost:8899")
-    with LzyRemoteEnv(config=config):
+    with LzyRemoteEnv():
         a = function_returning_1()
         b = function_returning_2()
         c = function_returning_3()

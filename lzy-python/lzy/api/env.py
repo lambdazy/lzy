@@ -1,14 +1,15 @@
 import dataclasses
 import logging
+import os
 from abc import abstractmethod, ABC
+from pathlib import Path
 from types import ModuleType
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional, Set
-from functools import reduce
 
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
-from lzy.api.whiteboard import is_whiteboard
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
+from lzy.api.whiteboard import is_whiteboard
 from lzy.api.whiteboard.api import (
     InMemSnapshotApi,
     InMemWhiteboardApi,
@@ -23,7 +24,6 @@ from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
-from lzy.servant.terminal_server import TerminalServer, TerminalConfig
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -35,7 +35,7 @@ class LzyEnvBase(ABC):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
-                 buses: BusList,
+                 buses: Optional[BusList],
                  whiteboard: Any,
                  whiteboard_api: WhiteboardApi,
                  snapshot_api: SnapshotApi,
@@ -45,6 +45,7 @@ class LzyEnvBase(ABC):
         )
 
         if self._execution_context.whiteboard is not None:
+            self._check_whiteboard(whiteboard)
             wrap_whiteboard(
                 self._execution_context.whiteboard,
                 self._execution_context.whiteboard_api,
@@ -52,20 +53,17 @@ class LzyEnvBase(ABC):
             )
 
         self._ops: List[LzyOp] = []
-        self._buses = list(buses)
+        self._buses = list(buses or [])
         self._eager = eager
         self._log = logging.getLogger(str(self.__class__))
 
     def get_whiteboard(self, wid: str, typ: Type[Any]) -> Any:
-        if not is_whiteboard(typ):
-            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
-
+        self._check_whiteboard(typ)
         wb_ = self._execution_context.whiteboard_api.get(wid)
         return self._build_whiteboard(wb_, typ)
 
     def _build_whiteboard(self, wb_: WhiteboardDescription, typ: Type[Any]) -> Any:
-        if not is_whiteboard(typ):
-            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
+        self._check_whiteboard(typ)
         # noinspection PyDataclass
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
         whiteboard_dict = {}
@@ -81,8 +79,7 @@ class LzyEnvBase(ABC):
         return self._execution_context.whiteboard_api.get_all()
 
     def get_whiteboards(self, namespace: str, tags: List[str], typ: Type[T]) -> List[T]:
-        if not is_whiteboard(typ):
-            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
+        self._check_whiteboard(typ)
         wb_list = self._execution_context.whiteboard_api.get_by_namespace_and_tags(namespace, tags)
         self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags}")
         result = [self._build_whiteboard(wb_, typ) for wb_ in wb_list]
@@ -91,9 +88,8 @@ class LzyEnvBase(ABC):
     def whiteboards(self, typs: List[Type[T]]) -> WhiteboardList:
         whiteboard_dict = {}
         for typ in typs:
-            if not is_whiteboard(typ):
-                raise TypeError(f"{typ} is not a whiteboard")
-            whiteboard_dict[typ] = self.get_whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ) # type: ignore
+            self._check_whiteboard(typ)
+            whiteboard_dict[typ] = self.get_whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ)  # type: ignore
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
         return WhiteboardList([wb for wbs_list in list_of_wb_lists for wb in wbs_list])
@@ -140,17 +136,20 @@ class LzyEnvBase(ABC):
     def __exit__(self, *_) -> None:
         try:
             self.run()
-
             context = self._execution_context
             # pylint: disable=protected-access
             # noinspection PyProtectedMember
             if context._snapshot_id is not None:
                 # noinspection PyProtectedMember
                 context.snapshot_api.finalize(context._snapshot_id)
-
         finally:
             self.deactivate()
             type(self).instances.pop()
+
+    @staticmethod
+    def _check_whiteboard(wb: Any):
+        if not is_whiteboard(wb):
+            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
 
 
 class WhiteboardExecutionContext:
@@ -194,13 +193,13 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
     ):
-        if whiteboard is not None and not is_whiteboard(whiteboard):
-            raise ValueError("Whiteboard must be a dataclass and have a @whiteboard decorator")
-        buses = buses or []
-
-        whiteboard_api = InMemWhiteboardApi()
-        snapshot_api = InMemSnapshotApi()
-        super().__init__(buses, whiteboard, whiteboard_api, snapshot_api, eager)
+        super().__init__(
+            buses=buses,
+            whiteboard=whiteboard,
+            whiteboard_api=InMemWhiteboardApi(),
+            snapshot_api=InMemSnapshotApi(),
+            eager=eager
+        )
 
     def activate(self):
         pass
@@ -212,32 +211,34 @@ class LzyLocalEnv(LzyEnvBase):
 class LzyRemoteEnv(LzyEnvBase):
     def __init__(
             self,
+            lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
             eager: bool = False,
+            conda_yaml_path: Optional[Path] = None,
             whiteboard: Any = None,
-            buses: Optional[BusList] = None,
-            config: Optional[TerminalConfig] = None,
+            buses: Optional[BusList] = None
     ):
-        config_: TerminalConfig = config or TerminalConfig()  # type: ignore
-        buses = buses or []
-        self._log = logging.getLogger(str(self.__class__))
+        self._yaml = conda_yaml_path
+        self._servant_client: BashServantClient = BashServantClient() \
+            .instance(lzy_mount)
 
-        if whiteboard is not None and not is_whiteboard(whiteboard):
-            raise ValueError("Whiteboard should be a dataclass and should be decorated with @whiteboard")
-
-        if config_.user is None:
-            raise ValueError("Username must be specified")
-        self._terminal_server: TerminalServer = TerminalServer(config_)
-        self._servant_client: BashServantClient = BashServantClient().instance(config_.lzy_mount)
-        whiteboard_api: WhiteboardApi = WhiteboardBashApi(
-            config_.lzy_mount, self._servant_client
+        super().__init__(
+            buses=buses,
+            whiteboard=whiteboard,
+            whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
+            snapshot_api=SnapshotBashApi(lzy_mount),
+            eager=eager
         )
-        snapshot_api: SnapshotApi = SnapshotBashApi(config_.lzy_mount)
-        super().__init__(buses, whiteboard, whiteboard_api, snapshot_api, eager)
-        self._yaml = config_.yaml_path
 
-    def py_env(
-            self, namespace: Optional[Dict[str, Any]] = None
-    ) -> PyEnv:
+    def activate(self):
+        pass
+
+    def deactivate(self):
+        pass
+
+    def servant(self) -> Optional[ServantClient]:
+        return self._servant_client
+
+    def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._yaml is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
@@ -253,12 +254,3 @@ class LzyRemoteEnv(LzyEnvBase):
         with open(self._yaml, "r", encoding=encoding) as file:
             name, yaml = "default", "".join(file.readlines())
             return PyEnv(name, yaml, [])
-
-    def activate(self):
-        self._terminal_server.start()
-
-    def deactivate(self):
-        self._terminal_server.stop()
-
-    def servant(self) -> Optional[ServantClient]:
-        return self._servant_client

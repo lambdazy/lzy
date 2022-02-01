@@ -7,15 +7,18 @@ from pathlib import Path
 from typing import Optional
 
 from lzy.model.encoding import ENCODING as encoding
+# noinspection PyUnresolvedReferences
+import lzy.api  # needed to instantiate logging #  pylint: disable=unused-import
 
 
 @dataclass
 class TerminalConfig:
-    private_key_path: str = "~/.ssh/id_rsa"
     server_url: str = "api.lzy.ai:8899"
+    port: int = 9999
     lzy_mount: str = ""
+    debug_port: int = 5006
+    private_key_path: Optional[str] = None
     user: Optional[str] = None
-    yaml_path: Optional[str] = None
 
     def __post_init__(self):
         if not self.lzy_mount:
@@ -27,12 +30,8 @@ class TerminalServer:
     jar_path = jar_path.resolve().absolute()
     start_timeout_sec = 30
 
-    def __init__(
-        self,
-        config: TerminalConfig,
-        custom_log_file: str = "./custom_terminal_log",
-        terminal_log_path: str = "./terminal_log",
-    ):
+    def __init__(self, config: TerminalConfig, custom_log_file: str = "./custom_terminal_log",
+                 terminal_log_path: str = "./terminal_log"):
         self._config = config
         self._log_file = custom_log_file
         self._terminal_log_path = terminal_log_path
@@ -49,10 +48,12 @@ class TerminalServer:
             self._log.info("Using already started servant")
             return
 
-        private_key_path = Path(self._config.private_key_path).expanduser()
-        if not private_key_path.resolve().exists():
-            raise ValueError("Private key path does not exists: "
-                             f"{self._config.private_key_path}")
+        private_key_path = "null"
+        if self._config.private_key_path is not None:
+            private_key_path = Path(self._config.private_key_path).expanduser()
+            if not private_key_path.resolve().exists():
+                raise ValueError("Private key path does not exists: "
+                                 f"{self._config.private_key_path}")
 
         # TODO: understand why terminal writes to stdout even with
         # TODO: custom.log.file argument and drop terminal_log_path and
@@ -62,7 +63,25 @@ class TerminalServer:
             self._terminal_log = open(self._terminal_log_path,
                                       "w", encoding=encoding)
         env = os.environ.copy()
-        env["USER"] = self._config.user
+        if self._config.user is not None:
+            env["USER"] = self._config.user
+
+        terminal_args = [
+            "--lzy-address", self._config.server_url,
+            "--lzy-mount", self._config.lzy_mount,
+            "--host", "localhost",
+        ]
+        if self._config.port is not None:
+            terminal_args.extend((
+                "--port", self._config.port,
+            ))
+
+        if self._config.private_key_path is not None:
+            terminal_args.extend((
+                "--private-key", private_key_path,
+            ))
+        terminal_args.append("terminal")
+
         # pylint: disable=consider-using-with
         self._pcs = subprocess.Popen(
             [
@@ -71,21 +90,12 @@ class TerminalServer:
                 "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32",
                 "-Djava.library.path=/usr/local/lib",
                 f"-Dcustom.log.file={self._log_file}",
-                "-classpath",
-                TerminalServer.jar_path,
-                "ru.yandex.cloud.ml.platform.lzy.servant.BashApi",
-                "--lzy-address",
-                self._config.server_url,
-                "--lzy-mount",
-                self._config.lzy_mount,
-                "--private-key",
-                self._config.private_key_path,
-                "--host",
-                "localhost",
-                "terminal",
+                f"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:{self._config.debug_port}",
+                "-jar", TerminalServer.jar_path,
+                *terminal_args
             ],
-            stdout=self._terminal_log,
-            stderr=self._terminal_log,
+            # stdout=self._terminal_log,
+            # stderr=self._terminal_log,
             env=env,
         )
         started_ts = int(time.time())
@@ -109,5 +119,5 @@ class TerminalServer:
     def _check_exists_safe(path: Path) -> bool:
         try:
             return path.exists()
-        except OSError: # TODO: find out what should be here
+        except OSError:  # TODO: find out what should be here
             return False
