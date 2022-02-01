@@ -21,9 +21,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import javax.annotation.Nullable;
 import java.net.URI;
-import java.util.HashSet;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,9 +53,15 @@ public abstract class gRPCConverter {
 
 
     public static Operations.PythonEnv to(PythonEnv env) {
+        List<Operations.LocalModule> localModules = new ArrayList<>();
+        env.localModules().forEach((key, value) -> localModules.add(Operations.LocalModule.newBuilder()
+                .setName(key)
+                .setUri(value)
+                .build()));
         return Operations.PythonEnv.newBuilder()
                 .setName(env.name())
                 .setYaml(env.yaml())
+                .addAllLocalModules(localModules)
                 .build();
     }
 
@@ -161,6 +165,51 @@ public abstract class gRPCConverter {
                     .build()
             )
             .build();
+    }
+
+    public static Lzy.GetS3CredentialsAndBucketResponse to(StorageCredentials credentials, String bucket) {
+        switch (credentials.type()){
+            case Azure: return to((StorageCredentials.AzureCredentials) credentials, bucket);
+            case AzureSas: return to((StorageCredentials.AzureSASCredentials) credentials, bucket);
+            case Amazon: return to((StorageCredentials.AmazonCredentials)  credentials, bucket);
+            default:
+            case Empty:
+                return Lzy.GetS3CredentialsAndBucketResponse.newBuilder().build();
+        }
+    }
+
+    public static Lzy.GetS3CredentialsAndBucketResponse to(StorageCredentials.AzureCredentials credentials, String bucket) {
+        return Lzy.GetS3CredentialsAndBucketResponse.newBuilder()
+                .setAzure(
+                        AzureCredentials.newBuilder()
+                                .setConnectionString(credentials.connectionString())
+                                .build()
+                )
+                .setBucket(bucket)
+                .build();
+    }
+
+    public static Lzy.GetS3CredentialsAndBucketResponse to(StorageCredentials.AmazonCredentials credentials, String bucket) {
+        return Lzy.GetS3CredentialsAndBucketResponse.newBuilder()
+                .setAmazon(AmazonCredentials.newBuilder()
+                        .setEndpoint(credentials.endpoint())
+                        .setAccessToken(credentials.accessToken())
+                        .setSecretToken(credentials.secretToken())
+                        .build())
+                .setBucket(bucket)
+                .build();
+    }
+
+    public static Lzy.GetS3CredentialsAndBucketResponse to(StorageCredentials.AzureSASCredentials credentials, String bucket) {
+        return Lzy.GetS3CredentialsAndBucketResponse.newBuilder()
+                .setAzureSas(
+                        AzureSASCredentials.newBuilder()
+                                .setSignature(credentials.signature())
+                                .setEndpoint(credentials.endpoint())
+                                .build()
+                )
+                .setBucket(bucket)
+                .build();
     }
 
     public static LzyWhiteboard.WhiteboardField to(
@@ -339,9 +388,13 @@ public abstract class gRPCConverter {
 
     private static class PythonEnvAdapter implements PythonEnv {
         private final Operations.PythonEnv env;
+        private final Map<String, String> localModules;
 
         public PythonEnvAdapter(Operations.PythonEnv env) {
             this.env = env;
+            localModules = new HashMap<>();
+            env.getLocalModulesList()
+                    .forEach(localModule -> localModules.put(localModule.getName(), localModule.getUri()));
         }
 
         @Override
@@ -352,6 +405,11 @@ public abstract class gRPCConverter {
         @Override
         public String yaml() {
             return this.env.getYaml();
+        }
+
+        @Override
+        public Map<String, String> localModules() {
+            return new HashMap<>(localModules);
         }
 
         @Override

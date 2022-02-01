@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,7 +58,7 @@ public class CondaEnvironment implements Environment {
             "eval \"$(conda shell.bash hook)\" && " +
                 "conda activate " + env.name() + " && " +
                 command
-        });
+        }, new String[] {"LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(env.localModules())});
     }
 
     @Override

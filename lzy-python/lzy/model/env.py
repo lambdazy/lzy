@@ -1,7 +1,14 @@
 from abc import ABC, abstractmethod
 import logging
+import cloudpickle
+import uuid
 from types import ModuleType
 from typing import Dict, Tuple, Iterable
+
+from lzy.api.whiteboard.credentials import StorageCredentials, AmazonCredentials, AzureCredentials
+from lzy.servant.bash_servant_client import BashServantClient
+from lzy.servant.servant_client import ServantClient
+from lzy.servant.whiteboard_storage import AmazonClient, AzureClient
 
 
 class Env(ABC):
@@ -28,6 +35,7 @@ class PyEnv(Env):
         self._yaml = yaml
         self._local_packages = local_packages
         self._log = logging.getLogger(str(self.__class__))
+        self._local_modules_as_dict = None
 
     def type_id(self) -> str:
         return "pyenv"
@@ -41,8 +49,28 @@ class PyEnv(Env):
     def yaml(self) -> str:
         return self._yaml
 
+    def local_modules_as_dict(self) -> Dict[str, str]:
+        if self._local_modules_as_dict is not None:
+            return self._local_modules_as_dict
+
+        servant: ServantClient = BashServantClient.instance()
+        credentials, bucket = servant.get_credentials_and_bucket(ServantClient.CredentialsTypes.S3)
+
+        if isinstance(credentials, AmazonCredentials):
+            client = AmazonClient(credentials)
+        if isinstance(credentials, AzureCredentials):
+            client = AzureClient.from_connection_string(credentials)
+        else:
+            client = AzureClient.from_sas(credentials)
+
+        self._local_modules_as_dict = {}
+        for local_module in self._local_packages:
+            key = str(uuid.uuid4())
+            uri = client.write(bucket, key, cloudpickle.dumps(local_module))
+            self._local_modules_as_dict[local_module.__name__] = uri
+
     def as_dct(self) -> Dict[str, str]:
-        return {"name": self._name, "yaml": self._yaml}
+        return {"name": self._name, "yaml": self._yaml, "localModules": self.local_modules_as_dict()}
 
 
 PACKAGES_DELIM = ";"

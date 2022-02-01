@@ -399,6 +399,25 @@ public class LzyServer {
             responseObserver.onCompleted();
         }
 
+        @Override
+        public void getS3CredentialsAndBucket(Lzy.GetS3CredentialsRequest request, StreamObserver<Lzy.GetS3CredentialsAndBucketResponse> responseObserver) {
+            LOG.info("Server::getS3CredentialsAndBucket " + JsonUtils.printRequest(request));
+            final IAM.Auth auth = request.getAuth();
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                return;
+            }
+            String uid = resolveUser(auth);
+            String bucket = this.auth.bucketForUser(uid);
+
+            responseObserver.onNext(
+                    storageConfigs.isSeparated() ?
+                            to(credentialsProvider.separatedStorageCredentials(uid, bucket), bucket) :
+                            to(credentialsProvider.storageCredentials(uid, bucket), bucket)
+            );
+            responseObserver.onCompleted();
+        }
+
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
             final String user = auth.getUser().getUserId();
 

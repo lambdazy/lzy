@@ -38,9 +38,8 @@ class WhiteboardStorage(ABC):
         return AzureWhiteboardStorage.from_sas(credentials)
 
 
-class AzureWhiteboardStorage(WhiteboardStorage):
+class AzureClient:
     def __init__(self, client: BlobServiceClient):
-        super().__init__()
         self.client: BlobServiceClient = client
 
     def read(self, url: str) -> Any:
@@ -62,6 +61,27 @@ class AzureWhiteboardStorage(WhiteboardStorage):
         data = downloader.readall()
         return cloudpickle.loads(data)
 
+    def write(self, container: str, blob: str, data):
+        self.client.get_container_client(container).get_blob_client(blob).upload_blob(data)
+        return f"azure:/{container}/{blob}"
+
+    @staticmethod
+    def from_connection_string(credentials: AzureCredentials) -> 'AzureClient':
+        return AzureClient(BlobServiceClient.from_connection_string(credentials.connection_string))
+
+    @staticmethod
+    def from_sas(credentials: AzureSasCredentials) -> 'AzureClient':
+        return AzureClient(BlobServiceClient(credentials.endpoint))
+
+
+class AzureWhiteboardStorage(WhiteboardStorage):
+    def __init__(self, client: BlobServiceClient):
+        super().__init__()
+        self.client: AzureClient = AzureClient(client)
+
+    def read(self, url: str) -> Any:
+        return self.client.read(url)
+
     @staticmethod
     def from_connection_string(credentials: AzureCredentials) -> 'AzureWhiteboardStorage':
         return AzureWhiteboardStorage(BlobServiceClient.from_connection_string(credentials.connection_string))
@@ -71,9 +91,8 @@ class AzureWhiteboardStorage(WhiteboardStorage):
         return AzureWhiteboardStorage(BlobServiceClient(credentials.endpoint))
 
 
-class AmazonWhiteboardStorage(WhiteboardStorage):
+class AmazonClient:
     def __init__(self, credentials: AmazonCredentials):
-        super().__init__()
         self.fs_ = s3fs.S3FileSystem(
             key=credentials.access_token,
             secret=credentials.secret_token,
@@ -85,3 +104,18 @@ class AmazonWhiteboardStorage(WhiteboardStorage):
         assert uri.scheme == "s3"
         with self.fs_.open(uri.path) as file:
             return cloudpickle.load(file)
+
+    def write(self, bucket: str, key: str, data) -> str:
+        uri = f"s3:/{bucket}/{key}"
+        with self.fs_.open(uri, "w") as file:
+            file.write(data)
+        return uri
+
+
+class AmazonWhiteboardStorage(WhiteboardStorage):
+    def __init__(self, credentials: AmazonCredentials):
+        super().__init__()
+        self.client = AmazonClient(credentials)
+
+    def read(self, url: str) -> Any:
+        return self.client.read(url)

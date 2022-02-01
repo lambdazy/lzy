@@ -1,6 +1,7 @@
 import base64
 import os
 import sys
+import json
 from typing import Any
 import time
 from pathlib import Path
@@ -9,9 +10,11 @@ import cloudpickle
 
 from lzy.api.lazy_op import LzyRemoteOp
 from lzy.api.utils import lazy_proxy
+from lzy.api.whiteboard.credentials import AmazonCredentials, AzureCredentials
 from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
+from lzy.servant.whiteboard_storage import AmazonClient, AzureClient
 
 
 def load_arg(path: Path) -> Any:
@@ -27,9 +30,23 @@ def main():
     argv = sys.argv[1:]
     servant: ServantClient = BashServantClient.instance()
 
+    if os.environ['LOCAL_MODULES'] is not None:
+        credentials, bucket = servant.get_credentials_and_bucket(ServantClient.CredentialsTypes.S3)
+
+        if isinstance(credentials, AmazonCredentials):
+            client = AmazonClient(credentials)
+        if isinstance(credentials, AzureCredentials):
+            client = AzureClient.from_connection_string(credentials)
+        else:
+            client = AzureClient.from_sas(credentials)
+
+        local_modules = json.loads(os.environ['LOCAL_MODULES'])
+        for name, url in local_modules:
+            local_module = client.read(url)
+            sys.modules[name] = local_module
+
     print("Loading function")
-    func_s: FuncSignature = cloudpickle.loads(
-            base64.b64decode(argv[0].encode("ascii")))
+    func_s: FuncSignature = cloudpickle.loads(base64.b64decode(argv[0].encode("ascii")))
     print("Function loaded: " + func_s.name)
     args = tuple(
         lazy_proxy(

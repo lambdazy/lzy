@@ -182,6 +182,21 @@ class BashServantClient(ServantClient):
 
         return AzureSasCredentials(**data["azureSas"])
 
+    def get_credentials_and_bucket(self, typ: ServantClient.CredentialsTypes) -> (StorageCredentials, str):
+        self._log.info(f"Getting bucket and credentials for {typ}")
+        out = exec_bash(f"{self._mount}/sbin/credentials", typ.value, "b")
+        data: dict = json.loads(out)
+        if "azure" in data:
+            return AzureCredentials(data["azure"]["connectionString"]), str(data["bucket"])
+        if "amazon" in data:
+            return AmazonCredentials(
+                data["amazon"]["endpoint"],
+                data["amazon"]["accessToken"],
+                data["amazon"]["secretToken"],
+            ), str(data["bucket"])
+
+        return AzureSasCredentials(**data["azureSas"]), str(data["bucket"])
+
     # pylint: disable=duplicate-code
     def run(self, execution_id: str, zygote: Zygote,
             bindings: Bindings,
