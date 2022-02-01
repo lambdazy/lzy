@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -15,6 +17,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 public class MultiSessionTest extends LzyBaseTest {
+
     @Before
     public void setUp() {
         super.setUp();
@@ -62,33 +65,46 @@ public class MultiSessionTest extends LzyBaseTest {
 
     @Test
     public void parallelPyGraphExecution() throws ExecutionException, InterruptedException {
+        //Arrange
         final Terminal terminal1 = createTerminal(9998, 5006, "user1");
         final Terminal terminal2 = createTerminal(9999, 5007, "user2");
+        final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
 
-        final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " + "conda activate default && ";
-
+        //Act
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> {
-            terminal1.execute(Map.of(), "bash", "-c",
-                condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
-            final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
-
-            //Act
-            result1.complete(terminal1.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand));
-        });
+        ForkJoinPool.commonPool().execute(() -> result1.complete(
+            terminal1.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
 
         final CompletableFuture<Terminal.ExecutionResult> result2 = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> {
-            terminal2.execute(Map.of(), "bash", "-c",
-                condaPrefix + "pip install --default-timeout=100 /lzy-python setuptools");
-            final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
-
-            //Act
-            result2.complete(terminal2.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand));
-        });
+        ForkJoinPool.commonPool().execute(() -> result2.complete(
+            terminal2.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
 
         //Assert
-        Assert.assertEquals("More meaningful str than ever before3", Utils.lastLine(result1.get().stdout()));
-        Assert.assertEquals("More meaningful str than ever before3", Utils.lastLine(result2.get().stdout()));
+        Assert.assertEquals("More meaningful str than ever before3",
+            Utils.lastLine(result1.get().stdout()));
+        Assert.assertEquals("More meaningful str than ever before3",
+            Utils.lastLine(result2.get().stdout()));
+    }
+
+    @Test
+    public void parallelPyGraphExecutionInSingleTerminal()
+        throws ExecutionException, InterruptedException {
+        final Terminal terminal = createTerminal(9998, 5006, "user1");
+        final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph.py";
+
+        //Act
+        final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
+        ForkJoinPool.commonPool().execute(() -> result1.complete(
+            terminal.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
+
+        final CompletableFuture<Terminal.ExecutionResult> result2 = new CompletableFuture<>();
+        ForkJoinPool.commonPool().execute(() -> result2.complete(
+            terminal.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
+
+        //Assert
+        Assert.assertEquals("More meaningful str than ever before3",
+            Utils.lastLine(result1.get().stdout()));
+        Assert.assertEquals("More meaningful str than ever before3",
+            Utils.lastLine(result2.get().stdout()));
     }
 }
