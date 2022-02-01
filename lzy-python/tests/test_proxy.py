@@ -119,8 +119,8 @@ class ProxyTests(TestCase):
             def is_materialized(self) -> bool:
                 return False
 
-            def return_entry_id(self) -> Optional[str]:
-                return None
+            def return_entry_id(self) -> str:
+                return "entry_id"
 
         mock = LazyOpMock()
         prxy = lazy_proxy(lambda: mock.materialize(), str, {'_op': mock})

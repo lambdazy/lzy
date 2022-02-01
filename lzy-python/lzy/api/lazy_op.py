@@ -104,7 +104,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         elif entry_id_generator is not None:
             return_entry_id = entry_id_generator.generate(self._zygote.return_slot)
 
-        super().__init__(signature, return_entry_id)
+        super().__init__(signature, str(return_entry_id))
 
     @property
     def zygote(self) -> Zygote:
