@@ -24,5 +24,6 @@
         <module>lzy-python</module>
         <module>parent</module>
         <module>lzy-whiteboard</module>
+        <module>iam</module>
     </modules>
 </project>
