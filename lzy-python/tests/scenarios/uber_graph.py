@@ -3,6 +3,21 @@ from typing import List
 
 from lzy.api import op, LzyRemoteEnv
 from lzy.api.whiteboard import whiteboard, view
+from base import Base
+
+'''
+This scenario contains:
+    1. Importing local modules
+    2. Functions that return None
+    3. Whiteboards/Views machinery
+'''
+
+
+@op
+def just_print() -> None:
+    base = Base(1, "before")
+    print(base.echo())
+    print("Just print some text")
 
 
 @dataclass
@@ -97,8 +112,16 @@ def fun5(a: int) -> int:
 
 wb = SimpleWhiteboard()
 with LzyRemoteEnv(whiteboard=wb):
+    just_print()
     wb.a = fun1()
     wb.b = fun2(wb.a)
+    wb_id = wb.id()
+
+with LzyRemoteEnv() as env:
+    wb = env.get_whiteboard(wb_id, SimpleWhiteboard)
+    print(len(wb.b))
+    wbInfo = env.get_all_whiteboards_info()
+    print(wb.a, wb.a, wbInfo[0].status)
 
 wb = AnotherSimpleWhiteboard()
 with LzyRemoteEnv(whiteboard=wb):

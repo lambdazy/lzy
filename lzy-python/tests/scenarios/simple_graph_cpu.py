@@ -1,31 +1,24 @@
-from dataclasses import dataclass
-from catboost import CatBoostClassifier
-from lzy.api import op, LzyRemoteEnv, Gpu
 import numpy as np
+from catboost import CatBoostClassifier
 
-from lzy.servant.terminal_server import TerminalConfig
+from lzy.api import op, LzyRemoteEnv, Gpu
+
+'''
+This scenario contains:
+    1. Importing external modules (catboost)
+    2. Functions which accept and return complex objects
+'''
 
 
-@dataclass
-class DataSet:
-    data: np.array
-    labels: np.array
-
-
-@op
-def dataset() -> DataSet:
+@op(gpu=Gpu.any())
+def learn() -> CatBoostClassifier:
     train_data = np.array([[0, 3],
                            [4, 1],
                            [8, 1],
                            [9, 1]])
     train_labels = np.array([0, 0, 1, 1])
-    return DataSet(train_data, train_labels)
-
-
-@op(gpu=Gpu.any())
-def learn(data_set: DataSet) -> CatBoostClassifier:
     cb_model = CatBoostClassifier(iterations=1000, task_type="CPU", devices='0:1', train_dir='/tmp/catboost')
-    cb_model.fit(data_set.data, data_set.labels, verbose=False)
+    cb_model.fit(train_data, train_labels, verbose=False)
     return cb_model
 
 
@@ -36,7 +29,6 @@ def predict(cb_model: CatBoostClassifier, point: np.array) -> np.int64:
 
 if __name__ == '__main__':
     with LzyRemoteEnv():
-        data = dataset()
-        model = learn(data)
+        model = learn()
         result = predict(model, np.array([9, 1]))
-    print(result)
+    print("Prediction: " + str(result))
