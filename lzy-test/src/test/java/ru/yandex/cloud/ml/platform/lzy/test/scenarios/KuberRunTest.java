@@ -60,6 +60,7 @@ public class KuberRunTest {
         //Assert
         Assert.assertEquals("More meaningful str than ever before3", Utils.lastLine(result.stdout()));
         Assert.assertTrue(result.stdout().contains("Just print some text"));
+        Assert.assertTrue(result.stdout().contains("base echo"));
     }
 
     @Test

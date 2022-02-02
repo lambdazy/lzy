@@ -1,5 +1,4 @@
 import inspect
-from stdlib_list import stdlib_list
 import sys
 from types import ModuleType
 from typing import Any, Dict, Iterable, List, Tuple, Set
@@ -8,6 +7,7 @@ import pkg_resources
 import requests
 import yaml
 from importlib_metadata import packages_distributions
+from stdlib_list import stdlib_list
 
 
 # https://stackoverflow.com/a/1883251
@@ -84,28 +84,31 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
     distributions = packages_distributions()
     remote_packages = {}
     local_modules: Set[ModuleType] = set()
-    for name, entry in namespace.items():
-        # try to get module name
-        parent_module = inspect.getmodule(entry)
-        if parent_module is None:
-            continue
 
-        module = inspect.getmodule(entry)
+    def search(obj: Any) -> None:
+        # try to get module name
+        parent_module = inspect.getmodule(obj)
+        if parent_module is None:
+            return
+
+        module = inspect.getmodule(obj)
         if not module:
-            continue
+            return
 
         name = module.__name__.split(".")[0]  # type: ignore
         if name in stdlib_list():
-            continue
+            return
 
-        if name not in distributions:
-            local_modules.add(module)
-            continue
-
-        dist_name = distributions[name][0]
-        if dist_name in dist_versions and exists_in_pypi(dist_name):
-            remote_packages[dist_name] = dist_versions[dist_name]
+        if name in distributions and distributions[name][0] in dist_versions and exists_in_pypi(distributions[name][0]):
+            remote_packages[distributions[name][0]] = dist_versions[distributions[name][0]]
         else:
+            if module in local_modules:
+                return
             local_modules.add(module)
+            for field in dir(module):
+                search(getattr(module, field))
+
+    for _, entry in namespace.items():
+        search(entry)
 
     return remote_packages, local_modules
