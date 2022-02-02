@@ -21,7 +21,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -168,7 +167,7 @@
         },
         "showUnfilled": true
       },
-      "pluginVersion": "8.3.3",
+      "pluginVersion": "8.3.4",
       "targets": [
         {
           "database": "default",
@@ -270,8 +269,8 @@
           "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
           "interval": "",
           "intervalFactor": 1,
-          "query": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nHAVING t = max(t)\nORDER BY t)\n",
-          "rawQuery": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nHAVING t = max(t)\nORDER BY t)",
+          "query": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nORDER BY t\n)\nWHERE t = (intDiv(toUnixTimestamp(now()), 60 * 60 * 24) * 60 * 60 * 24) - 60 * 60 * 24",
+          "rawQuery": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nORDER BY t\n)\nWHERE t = (intDiv(toUnixTimestamp(now()), 60 * 60 * 24) * 60 * 60 * 24) - 60 * 60 * 24",
           "refId": "A",
           "round": "0s",
           "skip_comments": true
@@ -281,7 +280,7 @@
       "type": "barchart"
     }
   ],
-  "refresh": "15m",
+  "refresh": "",
   "schemaVersion": 34,
   "style": "dark",
   "tags": [],
