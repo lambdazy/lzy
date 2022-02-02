@@ -69,6 +69,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.StateChanged.State;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskSignal;
 
@@ -301,14 +302,16 @@ public class LzyServer {
             final Task parent = resolveTask(request.getAuth());
             final AtomicBoolean concluded = new AtomicBoolean(false);
             final SnapshotMeta snapshotMeta =
-                request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : null;
+                request.hasSnapshotMeta()
+                    ? SnapshotMeta.from(request.getSnapshotMeta()) :
+                    SnapshotMeta.empty();
             Task task = tasks.start(uid, parent, workload, assignments, snapshotMeta, auth, progress -> {
                 if (concluded.get()) {
                     return;
                 }
                 responseObserver.onNext(progress);
                 if (progress.hasChanged()
-                    && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
+                    && progress.getChanged().getNewState() == State.FINISHED) {
                     concluded.set(true);
                     responseObserver.onCompleted();
                     if (parent != null) {
@@ -331,6 +334,7 @@ public class LzyServer {
                 if (!EnumSet.of(FINISHED, DESTROYED).contains(task.state())) {
                     // TODO(d-kruchinin): Now we use raw stop of servant when connection to terminal was lost
                     // To make stopping process simple and understandable
+                    LOG.info("Stopping servant {}", task.servantUri());
                     task.stopServant();
                 }
             }, Runnable::run);
@@ -416,7 +420,7 @@ public class LzyServer {
 
         @Override
         public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request,
-            StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
+                                         StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
             LOG.info("Server::checkPermissions " + JsonUtils.printRequest(request));
             IAM.Auth requestAuth = request.getAuth();
             if (!checkAuth(requestAuth, responseObserver)) {
@@ -464,7 +468,7 @@ public class LzyServer {
 
         @Override
         public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
-            StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+                                     StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
             LOG.info("Server::getS3Credentials " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
@@ -491,7 +495,7 @@ public class LzyServer {
 
         @Override
         public void getSessions(GetSessionsRequest request,
-            StreamObserver<GetSessionsResponse> responseObserver) {
+                                StreamObserver<GetSessionsResponse> responseObserver) {
             final String userId = request.getAuth().getUserId();
             if (!auth.checkUser(userId, request.getAuth().getToken())) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -525,15 +529,15 @@ public class LzyServer {
             final String user = auth.getUser().getUserId();
             sessionManager.registerSession(user, sessionId);
 
-            final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
-            tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()
+            final Tasks.ContextSpec.Builder contextSpec = Tasks.ContextSpec.newBuilder();
+            tasks.slots(user).forEach((slot, channel) -> contextSpec.addAssignmentsBuilder()
                 .setSlot(to(slot))
                 .setBinding("channel:" + channel.name())
                 .build()
             );
-            final Iterator<Servant.ExecutionProgress> execute = kharon.execute(executionSpec.build());
+            final Iterator<Servant.ContextProgress> contextProgress = kharon.prepare(contextSpec.build());
             try {
-                execute.forEachRemaining(progress -> {
+                contextProgress.forEachRemaining(progress -> {
                     LOG.info("LzyServer::terminalProgress " + JsonUtils.printRequest(progress));
                     if (progress.hasAttach()) {
                         final Servant.SlotAttach attach = progress.getAttach();

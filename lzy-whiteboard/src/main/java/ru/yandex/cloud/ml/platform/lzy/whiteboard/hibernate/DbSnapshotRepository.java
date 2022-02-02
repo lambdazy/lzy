@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
@@ -27,6 +29,8 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardMod
 @Singleton
 @Requires(beans = DbStorage.class)
 public class DbSnapshotRepository implements SnapshotRepository {
+
+    private static final Logger LOG = LogManager.getLogger(DbSnapshotRepository.class);
 
     @Inject
     DbStorage storage;
@@ -84,6 +88,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
             List<SnapshotEntryModel> snapshotEntries = SessionHelper.getSnapshotEntries(snapshotId, session);
             for (SnapshotEntryModel spEntry : snapshotEntries) {
                 if (spEntry.getEntryState() != State.FINISHED || spEntry.getStorageUri() == null) {
+                    LOG.info("Error in entry {}: status {}", spEntry.getEntryId(), spEntry.getEntryState());
                     spEntry.setEntryState(State.ERRORED);
                     snapshotModel.setSnapshotState(SnapshotStatus.State.ERRORED);
                 }

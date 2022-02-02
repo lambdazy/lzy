@@ -75,10 +75,11 @@ public class CondaEnvironment implements Environment {
     }
 
     @Override
-    public Process exec(String command) throws EnvironmentInstallationException, LzyExecutionException {
-        if (envInstalled.compareAndSet(false, true)) {
+    public synchronized void prepare() throws EnvironmentInstallationException {
+        if (!envInstalled.get()) {
             final long pyEnvInstallStart = System.currentTimeMillis();
             installPyenv();
+            envInstalled.set(true);
             final long pyEnvInstallFinish = System.currentTimeMillis();
             MetricEventLogger.log(
                 new MetricEvent(
@@ -87,13 +88,6 @@ public class CondaEnvironment implements Environment {
                     pyEnvInstallFinish - pyEnvInstallStart
                 )
             );
-        }
-        try {
-            List<String> envList = getEnvironmentVariables();
-            envList.addAll(getLocalModules());
-            return execInEnv(command, envList.toArray(String[]::new));
-        } catch (IOException e) {
-            throw new LzyExecutionException(e);
         }
     }
 
@@ -104,7 +98,7 @@ public class CondaEnvironment implements Environment {
             .collect(Collectors.toList());
     }
 
-    private List<String> getLocalModules() throws EnvironmentInstallationException {
+    private List<String> getLocalModules() throws LzyExecutionException {
         List<String> envList = new ArrayList<>();
         try {
             LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
@@ -118,8 +112,22 @@ public class CondaEnvironment implements Environment {
                 envList.add("AZURE_SAS=" + JsonFormat.printer().print(credentials.getAzureSas()));
             }
         } catch (JsonProcessingException | InvalidProtocolBufferException e) {
-            throw new EnvironmentInstallationException(e.getMessage());
+            throw new LzyExecutionException(e);
         }
         return envList;
+    }
+
+    @Override
+    public Process exec(String command) throws LzyExecutionException {
+        if (!envInstalled.get()) {
+            throw new RuntimeException("Environment not installed");
+        }
+        try {
+            List<String> envList = getEnvironmentVariables();
+            envList.addAll(getLocalModules());
+            return execInEnv(command, envList.toArray(String[]::new));
+        } catch (IOException e) {
+            throw new LzyExecutionException(e);
+        }
     }
 }

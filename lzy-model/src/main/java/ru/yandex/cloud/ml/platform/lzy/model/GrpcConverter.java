@@ -19,6 +19,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
@@ -31,8 +32,12 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Builder;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
 
 public abstract class GrpcConverter {
+
     public static Zygote from(Operations.Zygote grpcOperation) {
         return new AtomicZygoteAdapter(grpcOperation);
     }
@@ -62,6 +67,24 @@ public abstract class GrpcConverter {
 
     public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
         return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
+    }
+
+    private static SnapshotMeta from(Tasks.SnapshotMeta snapshotMeta) {
+        return SnapshotMeta.from(snapshotMeta);
+    }
+
+    public static Context from(ContextSpec spec) {
+        return new ContextImpl(
+            from(spec.getEnv()),
+            from(spec.getProvisioning()),
+            from(spec.getSnapshotMeta()),
+            from(spec.getAssignmentsList().stream())
+        );
+    }
+
+    private static Stream<Context.SlotAssignment> from(Stream<SlotAssignment> assignmentsList) {
+        return assignmentsList
+            .map(ass -> new Context.SlotAssignment(from(ass.getSlot()), ass.getBinding()));
     }
 
     public static Date from(Timestamp date) {
@@ -95,10 +118,11 @@ public abstract class GrpcConverter {
 
     public static Operations.PythonEnv to(PythonEnv env) {
         List<Operations.LocalModule> localModules = new ArrayList<>();
-        env.localModules().forEach(localModule -> localModules.add(Operations.LocalModule.newBuilder()
-            .setName(localModule.name())
-            .setUri(localModule.uri())
-            .build()));
+        env.localModules()
+            .forEach(localModule -> localModules.add(Operations.LocalModule.newBuilder()
+                .setName(localModule.name())
+                .setUri(localModule.uri())
+                .build()));
         return Operations.PythonEnv.newBuilder()
             .setName(env.name())
             .setYaml(env.yaml())
@@ -162,7 +186,8 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AmazonCredentials credentials) {
+    public static Lzy.GetS3CredentialsResponse to(
+        StorageCredentials.AmazonCredentials credentials) {
         return GetS3CredentialsResponse.newBuilder()
             .setAmazon(AmazonCredentials.newBuilder()
                 .setEndpoint(credentials.endpoint())
@@ -172,7 +197,8 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureSASCredentials credentials) {
+    public static Lzy.GetS3CredentialsResponse to(
+        StorageCredentials.AzureSASCredentials credentials) {
         return GetS3CredentialsResponse.newBuilder()
             .setAzureSas(
                 AzureSASCredentials.newBuilder()
@@ -189,7 +215,8 @@ public abstract class GrpcConverter {
         @Nullable SnapshotEntryStatus entryStatus) {
         final Builder builder = LzyWhiteboard.WhiteboardField.newBuilder()
             .setFieldName(field.name())
-            .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()));
+            .addAllDependentFieldNames(
+                dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()));
         if (entryStatus == null) {
             builder.setEmpty(true);
             builder.setStatus(Status.CREATED);
@@ -236,6 +263,7 @@ public abstract class GrpcConverter {
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {
+
         private final Operations.Zygote operation;
 
         AtomicZygoteAdapter(Operations.Zygote operation) {
@@ -290,6 +318,7 @@ public abstract class GrpcConverter {
 
 
     private static class SlotAdapter implements Slot {
+
         private final Operations.Slot s;
 
         SlotAdapter(Operations.Slot s) {
@@ -329,6 +358,7 @@ public abstract class GrpcConverter {
     }
 
     private static class SlotStatusAdapter implements SlotStatus {
+
         private final Operations.SlotStatus slotStatus;
 
         SlotStatusAdapter(Operations.SlotStatus slotStatus) {
@@ -349,7 +379,8 @@ public abstract class GrpcConverter {
         @Override
         public UUID tid() {
             slotStatus.getTaskId();
-            return !slotStatus.getTaskId().isEmpty() ? UUID.fromString(slotStatus.getTaskId()) : null;
+            return !slotStatus.getTaskId().isEmpty() ? UUID.fromString(slotStatus.getTaskId())
+                : null;
         }
 
         @Override
@@ -359,7 +390,8 @@ public abstract class GrpcConverter {
 
         @Override
         public URI connected() {
-            return slotStatus.getConnectedTo().isEmpty() ? null : URI.create(slotStatus.getConnectedTo());
+            return slotStatus.getConnectedTo().isEmpty() ? null
+                : URI.create(slotStatus.getConnectedTo());
         }
 
         @Override
@@ -374,6 +406,7 @@ public abstract class GrpcConverter {
     }
 
     private static class LocalModuleAdapter implements LocalModule {
+
         private final String name;
         private final String uri;
 
@@ -392,6 +425,7 @@ public abstract class GrpcConverter {
     }
 
     private static class PythonEnvAdapter implements PythonEnv {
+
         private final Operations.PythonEnv env;
         private final List<LocalModule> localModules;
 

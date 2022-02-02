@@ -88,8 +88,8 @@ public class Run implements LzyCommand {
             //noinspection unchecked
             bindings.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
             LOG.info("Bindings: " + bindings.entrySet().stream()
-                    .map(e -> e.getKey() + " -> " + e.getValue())
-                    .collect(Collectors.joining(";\n"))
+                .map(e -> e.getKey() + " -> " + e.getValue())
+                .collect(Collectors.joining(";\n"))
             );
         }
 
@@ -167,18 +167,11 @@ public class Run implements LzyCommand {
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
-                if (progress.hasDetach() && "/dev/stdin"
-                    .equals(progress.getDetach().getSlot().getName())) {
-                    LOG.info("Closing stdin");
-                    System.in.close();
-                }
                 if (progress.hasExit()) {
                     exit[0] = progress.getExit();
                 }
             } catch (InvalidProtocolBufferException e) {
                 LOG.warn("Unable to parse execution progress", e);
-            } catch (IOException e) {
-                LOG.error("Failed to close stdin", e);
             }
         });
         final int rc = exit[0].getRc();

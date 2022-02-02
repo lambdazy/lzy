@@ -24,9 +24,9 @@ public class LzySlotBase implements LzySlot {
     protected LzySlotBase(Slot definition, SlotSnapshotProvider snapshotProvider) {
         this.snapshotProvider = snapshotProvider;
         this.definition = definition;
-        onState(Operations.SlotStatus.State.OPEN, () -> LOG.info("LzySlot::OPEN " + this));
-        onState(Operations.SlotStatus.State.DESTROYED, () -> LOG.info("LzySlot::DESTROYED " + this));
-        onState(Operations.SlotStatus.State.SUSPENDED, () -> LOG.info("LzySlot::SUSPENDED " + this));
+        onState(Operations.SlotStatus.State.OPEN, () -> LOG.info("LzySlot::OPEN " + this.definition.name()));
+        onState(Operations.SlotStatus.State.DESTROYED, () -> LOG.info("LzySlot::DESTROYED " + this.definition.name()));
+        onState(Operations.SlotStatus.State.SUSPENDED, () -> LOG.info("LzySlot::SUSPENDED " + this.definition.name()));
     }
 
     @Override

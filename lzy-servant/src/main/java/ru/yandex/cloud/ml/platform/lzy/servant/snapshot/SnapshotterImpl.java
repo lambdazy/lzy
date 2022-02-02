@@ -1,8 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import java.net.URI;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Context.SlotAssignment;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -11,19 +16,22 @@ import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 public class SnapshotterImpl implements Snapshotter {
     private final SlotSnapshotProvider snapshotProvider;
-    private final Zygote zygote;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
-    private final SnapshotMeta meta;
     private final IAM.TaskCredentials taskCred;
+    private final List<SlotAssignment> assignments;
+    private final SnapshotMeta meta;
+    private final Logger logger = LogManager.getLogger(SnapshotterImpl.class);
 
-    public SnapshotterImpl(IAM.TaskCredentials taskCred, String bucket, Zygote zygote,
+    public SnapshotterImpl(IAM.TaskCredentials taskCred, String bucket,
                            SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
-                           SnapshotMeta meta, SnapshotStorage storage) {
-        this.zygote = zygote;
-        this.snapshotApi = snapshotApi;
+                           SnapshotStorage storage, Stream<SlotAssignment> assignments, SnapshotMeta meta) {
         this.meta = meta;
+        this.snapshotApi = snapshotApi;
         this.taskCred = taskCred;
+        this.assignments = assignments.collect(Collectors.toList());
         snapshotProvider = new SlotSnapshotProvider.Cached(slot -> {
+            logger.info(String.format("Creating new SlotSnapshotter for slot %s with entry %s", slot.name(),
+                meta.getEntryId(slot.name())));
             if (meta.getEntryId(slot.name()) != null) {
                 return new S3SlotSnapshot(taskCred.getTaskId(), bucket, slot, storage);
             } else {
@@ -40,10 +48,10 @@ public class SnapshotterImpl implements Snapshotter {
                 .setEntryId(meta.getEntryId(slot.name()))
                 .setStorageUri(uri.toString());
             if (slot.direction().equals(Slot.Direction.OUTPUT)) {
-                zygote.slots()
-                    .filter(s -> s.direction().equals(Slot.Direction.INPUT))
-                    .filter(s -> meta.getEntryId(s.name()) != null)
-                    .forEach(s -> entryBuilder.addDependentEntryIds(meta.getEntryId(s.name()))
+                assignments.stream()
+                    .filter(s -> s.slot().direction().equals(Slot.Direction.INPUT))
+                    .filter(s -> meta.getEntryId(s.slot().name()) != null)
+                    .forEach(s -> entryBuilder.addDependentEntryIds(meta.getEntryId(s.slot().name()))
                     );
             }
 

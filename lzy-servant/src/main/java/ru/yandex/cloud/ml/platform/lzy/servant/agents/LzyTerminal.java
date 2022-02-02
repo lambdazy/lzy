@@ -36,7 +36,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private final LzyKharonGrpc.LzyKharonStub kharon;
     private final LzyKharonGrpc.LzyKharonBlockingStub kharonBlockingStub;
     private CommandHandler commandHandler;
-    private LzyExecution currentExecution;
+    private LzyContext context;
 
     public LzyTerminal(LzyAgentConfig config) throws URISyntaxException {
         super(config);
@@ -63,18 +63,17 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     protected void onStartUp() {
         commandHandler = new CommandHandler();
         status.set(AgentStatus.PREPARING_EXECUTION);
-        currentExecution = new LzyExecution(null, null, agentInternalAddress,
-            new Snapshotter.DevNullSnapshotter(), null);
+        context = new LzyContext(null, new Snapshotter.DevNullSnapshotter(), agentInternalAddress, null);
         status.set(AgentStatus.EXECUTING);
 
         Context.current().addListener(context -> {
-            if (currentExecution != null) {
+            if (this.context != null) {
                 LOG.info("Execution terminated from server ");
                 System.exit(1);
             }
         }, Runnable::run);
 
-        currentExecution.onProgress(progress -> {
+        this.context.onProgress(progress -> {
             LOG.info("LzyTerminal::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
             if (progress.hasAttach()) {
                 final TerminalState terminalState = TerminalState.newBuilder()
@@ -93,7 +92,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
             if (progress.hasExit()) {
                 LOG.info("LzyTerminal::exit {}", agentAddress);
-                currentExecution = null;
+                this.context = null;
                 commandHandler.onCompleted();
             }
         });
@@ -130,7 +129,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
                     final Servant.SlotCommand slotCommand = terminalCommand.getSlotCommand();
                     try {
-                        final LzySlot slot = currentExecution.slot(slotCommand.getSlot());
+                        final LzySlot slot = context.slot(slotCommand.getSlot());
                         if (slotCommand.hasConnect()) {
                             final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
                             ForkJoinPool.commonPool().execute(() -> {
@@ -154,7 +153,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                         }
 
                         final Servant.SlotCommandStatus slotCommandStatus = configureSlot(
-                            currentExecution,
+                            context,
                             slotCommand
                         );
                         final TerminalState terminalState = TerminalState.newBuilder()
@@ -214,7 +213,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             StreamObserver<Servant.SlotCommandStatus> responseObserver
         ) {
             LOG.info("LzyTerminal configureSlot " + JsonUtils.printRequest(request));
-            LzyTerminal.this.configureSlot(currentExecution, request, responseObserver);
+            LzyTerminal.this.configureSlot(context, request, responseObserver);
         }
 
         @Override
@@ -226,7 +225,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         @Override
         public void status(IAM.Empty request,
                            StreamObserver<Servant.ServantStatus> responseObserver) {
-            LzyTerminal.this.status(currentExecution, request, responseObserver);
+            LzyTerminal.this.status(context, request, responseObserver);
         }
     }
 }
