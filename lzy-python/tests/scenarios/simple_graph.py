@@ -9,7 +9,9 @@ def main():
 
     @op
     def foo(a: int) -> Base:
-        return Base(a, "before")
+        base = Base(a, "before")
+        print(base.echo())
+        return base
 
     @op
     def just_print() -> None:
