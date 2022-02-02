@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
+import ru.yandex.cloud.ml.platform.lzy.model.Context.ContextImpl;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.*;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
@@ -17,6 +18,9 @@ import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
 
 public abstract class gRPCConverter {
     public static Zygote from(Operations.Zygote grpcOperation) {
@@ -147,6 +151,29 @@ public abstract class gRPCConverter {
                 .setSecretToken(credentials.secretToken())
                 .build())
             .build();
+    }
+
+    public static Context from(ContextSpec spec){
+        return new ContextImpl(
+            from(spec.getEnv()),
+            from(spec.getProvisioning()),
+            from(spec.getSnapshotMeta()),
+            from(spec.getAssignmentsList())
+        );
+    }
+
+    private static SnapshotMeta from(Tasks.SnapshotMeta snapshotMeta) {
+        return SnapshotMeta.from(snapshotMeta);
+    }
+
+    private static List<Context.SlotAssignment> from(List<SlotAssignment> assignmentsList) {
+        return assignmentsList.stream()
+            .map(ass -> new Context.SlotAssignment(from(ass.getSlot()), ass.getBinding()))
+            .collect(Collectors.toList());
+    }
+
+    private static Env from(Operations.Env env) {
+        return envFrom(env);
     }
 
     public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureSASCredentials credentials){

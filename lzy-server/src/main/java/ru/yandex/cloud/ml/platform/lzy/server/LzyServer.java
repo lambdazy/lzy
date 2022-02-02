@@ -418,13 +418,13 @@ public class LzyServer {
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
             final String user = auth.getUser().getUserId();
 
-            final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
+            final Tasks.ContextSpec.Builder executionSpec = Tasks.ContextSpec.newBuilder();
             tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()
                 .setSlot(to(slot))
                 .setBinding("channel:" + channel.name())
                 .build()
             );
-            final Iterator<Servant.ExecutionProgress> execute = kharon.execute(executionSpec.build());
+            final Iterator<Servant.ContextProgress> execute = kharon.prepare(executionSpec.build());
             try {
                 execute.forEachRemaining(progress -> {
                     LOG.info("LzyServer::terminalProgress " + JsonUtils.printRequest(progress));

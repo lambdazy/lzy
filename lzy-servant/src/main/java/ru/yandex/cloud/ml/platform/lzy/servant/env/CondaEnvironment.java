@@ -66,12 +66,7 @@ public class CondaEnvironment implements Environment {
     }
 
     @Override
-    public Process exec(String command) throws EnvironmentInstallationException, LzyExecutionException {
-        return exec(command, null);
-    }
-
-    @Override
-    public Process exec(String command, String[] envp) throws EnvironmentInstallationException, LzyExecutionException {
+    public void prepare() throws EnvironmentInstallationException {
         if (envInstalled.compareAndSet(false, true)) {
             final long pyEnvInstallStart = System.currentTimeMillis();
             installPyenv();
@@ -84,10 +79,20 @@ public class CondaEnvironment implements Environment {
                 )
             );
         }
+    }
+
+    @Override
+    public Process exec(String command, String[] envp) throws LzyExecutionException {
+        assert envInstalled.get(): "Environment not prepared";
         try {
             return execInEnv(command, envp);
         } catch (IOException e) {
             throw new LzyExecutionException(e);
         }
+    }
+
+    @Override
+    public Process exec(String command) throws LzyExecutionException {
+        return exec(command, null);
     }
 }

@@ -19,8 +19,8 @@ public class TerminalSession {
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
     public static final String SESSION_ID_KEY = "kharon_session_id";
 
-    private final CompletableFuture<StreamObserver<Servant.ExecutionProgress>> executeFromServerFuture = new CompletableFuture<>();
-    private StreamObserver<Servant.ExecutionProgress> executionProgress;
+    private final CompletableFuture<StreamObserver<Servant.ContextProgress>> executeFromServerFuture = new CompletableFuture<>();
+    private StreamObserver<Servant.ContextProgress> executionProgress;
     private final StreamObserver<Kharon.TerminalState> terminalStateObserver;
     private final StreamObserver<Kharon.TerminalCommand> terminalController;
 
@@ -83,7 +83,7 @@ public class TerminalSession {
                     }
                     case ATTACH: {
                         final Servant.SlotAttach attach = terminalState.getAttach();
-                        executionProgress.onNext(Servant.ExecutionProgress.newBuilder()
+                        executionProgress.onNext(Servant.ContextProgress.newBuilder()
                             .setAttach(Servant.SlotAttach.newBuilder()
                                 .setSlot(attach.getSlot())
                                 .setUri(convertToKharonServantUri(attach.getUri()))
@@ -94,7 +94,7 @@ public class TerminalSession {
                     }
                     case DETACH: {
                         final Servant.SlotDetach detach = terminalState.getDetach();
-                        executionProgress.onNext(Servant.ExecutionProgress.newBuilder()
+                        executionProgress.onNext(Servant.ContextProgress.newBuilder()
                             .setDetach(Servant.SlotDetach.newBuilder()
                                 .setSlot(detach.getSlot())
                                 .setUri(convertToKharonServantUri(detach.getUri()))
@@ -133,7 +133,7 @@ public class TerminalSession {
         return sessionId;
     }
 
-    public void setExecutionProgress(StreamObserver<Servant.ExecutionProgress> executionProgress) {
+    public void setExecutionProgress(StreamObserver<Servant.ContextProgress> executionProgress) {
         executeFromServerFuture.complete(executionProgress);
     }
 

@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import com.amazonaws.services.s3.AmazonS3;
+import ru.yandex.cloud.ml.platform.lzy.model.Context;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
@@ -14,16 +15,16 @@ import java.net.URI;
 
 public class SnapshotterImpl implements Snapshotter {
     private final SlotSnapshotProvider snapshotProvider;
-    private final Zygote zygote;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
-    private final SnapshotMeta meta;
     private final IAM.TaskCredentials taskCred;
+    private final Context context;
+    private final SnapshotMeta meta;
 
-    public SnapshotterImpl(IAM.TaskCredentials taskCred, String bucket, Zygote zygote, SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
-                           SnapshotMeta meta, SnapshotStorage storage) {
-        this.zygote = zygote;
+    public SnapshotterImpl(IAM.TaskCredentials taskCred, String bucket, SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
+                           SnapshotStorage storage, Context context) {
+        this.context = context;
+        meta = context.meta();
         this.snapshotApi = snapshotApi;
-        this.meta = meta;
         this.taskCred = taskCred;
         snapshotProvider = new SlotSnapshotProvider.Cached(slot -> {
             if (meta.getEntryId(slot.name()) != null) {
@@ -42,10 +43,10 @@ public class SnapshotterImpl implements Snapshotter {
                     .setEntryId(meta.getEntryId(slot.name()))
                     .setStorageUri(uri.toString());
             if (slot.direction().equals(Slot.Direction.OUTPUT)) {
-                zygote.slots()
-                        .filter(s -> s.direction().equals(Slot.Direction.INPUT))
-                        .filter(s -> meta.getEntryId(s.name()) != null)
-                        .forEach(s -> entryBuilder.addDependentEntryIds(meta.getEntryId(s.name()))
+                context.assignments().stream()
+                        .filter(s -> s.slot().direction().equals(Slot.Direction.INPUT))
+                        .filter(s -> meta.getEntryId(s.slot().name()) != null)
+                        .forEach(s -> entryBuilder.addDependentEntryIds(meta.getEntryId(s.slot().name()))
                         );
             }
 

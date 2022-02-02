@@ -39,8 +39,10 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
 public class LzyKharon {
@@ -335,11 +337,10 @@ public class LzyKharon {
     private class KharonServantProxyService extends LzyServantGrpc.LzyServantImplBase {
 
         @Override
-        public void execute(Tasks.TaskSpec request,
-            StreamObserver<Servant.ExecutionProgress> responseObserver) {
+        public void prepare(ContextSpec request, StreamObserver<ContextProgress> responseObserver) {
             final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
             LOG.info("KharonServantProxyService sessionId = " + session.getSessionId() +
-                    "::execute " + JsonUtils.printRequest(request));
+                "::prepare " + JsonUtils.printRequest(request));
             session.setExecutionProgress(responseObserver);
             Context.current().addListener(context -> {
                 LOG.info("Execution terminated from server ");

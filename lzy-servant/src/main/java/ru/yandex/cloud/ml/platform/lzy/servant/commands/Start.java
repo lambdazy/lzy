@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
+import static java.lang.Thread.sleep;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

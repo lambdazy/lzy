@@ -20,20 +20,22 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress.StatusCase;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 
 public class LzyServant extends LzyAgent {
 
@@ -44,8 +46,7 @@ public class LzyServant extends LzyAgent {
     private final String taskId;
     private final String bucket;
     private final SnapshotStorage storage;
-    /* temporary bad solution; will go away */
-    private final Lzy.GetS3CredentialsResponse credentials;
+    private final GetS3CredentialsResponse credentials;
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
@@ -74,7 +75,9 @@ public class LzyServant extends LzyAgent {
                     .setBucket(bucket)
                     .build()
             );
+
         credentials = resp;
+
         storage =  SnapshotStorage.create(resp);
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
@@ -134,24 +137,52 @@ public class LzyServant extends LzyAgent {
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
 
         private LzyExecution currentExecution;
+        private LzyContext context;
+        private Environment env;
+
+        @Override
+        public void prepare(ContextSpec request, StreamObserver<ContextProgress> responseObserver) {
+            LOG.info("LzyServant::prepare " + JsonUtils.printRequest(request));
+            ru.yandex.cloud.ml.platform.lzy.model.Context context = gRPCConverter.from(request);
+            if (this.context != null || env != null) {
+                responseObserver.onError(Status.RESOURCE_EXHAUSTED.asException());
+                return;
+            }
+            final Snapshotter snapshotter = new SnapshotterImpl(auth.getTask(), bucket,
+                snapshot, storage, context);
+            this.context = new LzyContext(taskId, snapshotter, agentInternalAddress, credentials);
+            this.context.onProgress(progress -> {
+                responseObserver.onNext(progress);
+                if (progress.getStatusCase() == StatusCase.EXIT) {
+                    responseObserver.onCompleted();
+                    this.context = null;
+                    this.env = null;
+                }
+            });
+            try {
+                env = this.context.prepare(lzyFS, context);
+            } catch (EnvironmentInstallationException e) {
+                responseObserver.onError(Status.INTERNAL.withCause(e)
+                    .withDescription(e.getMessage()).asException());
+            }
+        }
 
         @Override
         public void execute(Tasks.TaskSpec request,
             StreamObserver<Servant.ExecutionProgress> responseObserver) {
-            final long executeMillis = System.currentTimeMillis();
             status.set(AgentStatus.PREPARING_EXECUTION);
             LOG.info("LzyServant::execute " + JsonUtils.printRequest(request));
             if (currentExecution != null) {
                 responseObserver.onError(Status.RESOURCE_EXHAUSTED.asException());
                 return;
             }
-            final String tid = request.getAuth().getTask().getTaskId();
-            final SnapshotMeta meta =
-                request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta())
-                    : SnapshotMeta.empty();
+
+            if (context == null || env == null) {
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Running execute without context").asException());
+                return;
+            }
+
             final AtomicZygote zygote = (AtomicZygote) gRPCConverter.from(request.getZygote());
-            final Snapshotter snapshotter = new SnapshotterImpl(auth.getTask(), bucket, zygote,
-                snapshot, meta, storage);
 
             UserEventLogger.log(new UserEvent(
                 "Servant execution preparing",
@@ -162,35 +193,44 @@ public class LzyServant extends LzyAgent {
                 UserEvent.UserEventType.ExecutionPreparing
             ));
 
-            currentExecution = new LzyExecution(tid, zygote, agentInternalAddress, snapshotter, credentials);
-            currentExecution.onProgress(progress -> {
-                LOG.info("LzyServant::progress {} {}", agentAddress,
-                    JsonUtils.printRequest(progress));
-                UserEventLogger.log(new UserEvent(
-                    "Servant execution progress",
-                    Map.of(
-                        "task_id", request.getAuth().getTask().getTaskId(),
-                        "zygote_description", zygote.description(),
-                        "progress", JsonUtils.printRequest(progress)
-                    ),
-                    UserEvent.UserEventType.ExecutionProgress
-                ));
-                responseObserver.onNext(progress);
-                if (progress.hasExit()) {
+            try {
+                currentExecution = context.execute(zygote, env, progress -> {
+                    LOG.info("LzyServant::progress {} {}", agentAddress,
+                        JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
-                        "Servant execution exit",
+                        "Servant execution progress",
                         Map.of(
                             "task_id", request.getAuth().getTask().getTaskId(),
                             "zygote_description", zygote.description(),
-                            "exit_code", String.valueOf(progress.getExit().getRc())
+                            "progress", JsonUtils.printRequest(progress)
                         ),
-                        UserEvent.UserEventType.ExecutionComplete
+                        UserEvent.UserEventType.ExecutionProgress
                     ));
-                    LOG.info("LzyServant::exit {}", agentAddress);
-                    currentExecution = null;
-                    responseObserver.onCompleted();
-                }
-            });
+                    responseObserver.onNext(progress);
+                    if (progress.hasExit()) {
+                        UserEventLogger.log(new UserEvent(
+                            "Servant execution exit",
+                            Map.of(
+                                "task_id", request.getAuth().getTask().getTaskId(),
+                                "zygote_description", zygote.description(),
+                                "exit_code", String.valueOf(progress.getExit().getRc())
+                            ),
+                            UserEvent.UserEventType.ExecutionComplete
+                        ));
+                        LOG.info("LzyServant::exit {}", agentAddress);
+                        currentExecution = null;
+                        responseObserver.onCompleted();
+                    }
+                });
+                context.waitForSlots();
+
+            } catch (LzyExecutionException | InterruptedException e) {
+                responseObserver.onError(
+                    Status.INTERNAL
+                        .withDescription(e.getMessage()).withCause(e.getCause()).asException()
+                );
+                return;
+            }
             Context.current().addListener(context -> {
                 if (currentExecution != null) {
                     LOG.info("Execution terminated from server ");
@@ -207,41 +247,6 @@ public class LzyServant extends LzyAgent {
                 }
             }, Runnable::run);
 
-            for (Tasks.SlotAssignment spec : request.getAssignmentsList()) {
-                final LzySlot lzySlot = currentExecution.configureSlot(
-                    gRPCConverter.from(spec.getSlot()),
-                    spec.getBinding()
-                );
-                if (lzySlot instanceof LzyFileSlot) {
-                    LOG.info("lzyFS::addSlot " + lzySlot.name());
-                    lzyFS.addSlot((LzyFileSlot) lzySlot);
-                    LOG.info("lzyFS::slot added " + lzySlot.name());
-                }
-            }
-
-            final long startExecutionMillis = System.currentTimeMillis();
-            MetricEventLogger.log(
-                new MetricEvent(
-                    "time from task LzyServant::execution to LzyExecution::start",
-                    Map.of(
-                        "task_id", taskId,
-                        "metric_type", "system_metric"
-                    ),
-                    startExecutionMillis - executeMillis
-                )
-            );
-            currentExecution.start();
-            final long finishExecutionMillis = System.currentTimeMillis();
-            MetricEventLogger.log(
-                new MetricEvent(
-                    "execution time",
-                    Map.of(
-                        "task_id", taskId,
-                        "metric_type", "task_metric"
-                    ),
-                    finishExecutionMillis - startExecutionMillis
-                )
-            );
             status.set(AgentStatus.EXECUTING);
         }
 
@@ -250,12 +255,12 @@ public class LzyServant extends LzyAgent {
             StreamObserver<Servant.Message> responseObserver) {
             final long start = System.currentTimeMillis();
             LOG.info("LzyServant::openOutputSlot " + JsonUtils.printRequest(request));
-            if (currentExecution == null || currentExecution.slot(request.getSlot()) == null) {
+            if (context == null || context.slot(request.getSlot()) == null) {
                 LOG.info("Not found slot: " + request.getSlot());
                 responseObserver.onError(Status.NOT_FOUND.asException());
                 return;
             }
-            final LzyOutputSlot slot = (LzyOutputSlot) currentExecution.slot(request.getSlot());
+            final LzyOutputSlot slot = (LzyOutputSlot) context.slot(request.getSlot());
             try {
                 slot.readFromPosition(request.getOffset())
                     .forEach(chunk -> responseObserver
@@ -284,7 +289,7 @@ public class LzyServant extends LzyAgent {
             Servant.SlotCommand request,
             StreamObserver<Servant.SlotCommandStatus> responseObserver
         ) {
-            LzyServant.this.configureSlot(currentExecution, request, responseObserver);
+            LzyServant.this.configureSlot(context, request, responseObserver);
         }
 
         @Override
@@ -308,7 +313,7 @@ public class LzyServant extends LzyAgent {
         @Override
         public void status(IAM.Empty request,
             StreamObserver<Servant.ServantStatus> responseObserver) {
-            LzyServant.this.status(currentExecution, request, responseObserver);
+            LzyServant.this.status(context, request, responseObserver);
         }
 
         @Override

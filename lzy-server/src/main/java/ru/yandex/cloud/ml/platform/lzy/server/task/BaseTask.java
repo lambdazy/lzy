@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
+import java.util.concurrent.CountDownLatch;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
@@ -10,6 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
@@ -38,6 +40,7 @@ public abstract class BaseTask implements Task {
     private URI servantURI;
     private LzyServantBlockingStub servant;
     private final String bucket;
+    private final CountDownLatch contextStarted = new CountDownLatch(1);
 
     public BaseTask(
         String owner,
@@ -111,6 +114,73 @@ public abstract class BaseTask implements Task {
     public void attachServant(URI uri, LzyServantBlockingStub servant) {
         servantURI = uri;
         this.servant = servant;
+        Operations.Zygote zygote = gRPCConverter.to(workload);
+        final Tasks.ContextSpec.Builder contextBuilder = Tasks.ContextSpec.newBuilder()
+            .setEnv(zygote.getEnv())
+            .setProvisioning(zygote.getProvisioning());
+        if (snapshotMeta != null){
+            contextBuilder.setSnapshotMeta(SnapshotMeta.to(snapshotMeta));
+        }
+        assignments.forEach((slot, binding) ->
+            contextBuilder.addAssignmentsBuilder()
+                .setSlot(gRPCConverter.to(slot))
+                .setBinding(binding)
+                .build()
+        );
+
+        final Iterator<Servant.ContextProgress> contextProgress = servant.prepare(contextBuilder.build());
+        LOG.info("BaseTask::attachServant called " + uri);
+
+        final Thread contextProgressThread = new Thread(() -> contextProgress.forEachRemaining(progress -> {
+            switch (progress.getStatusCase()){
+                case ATTACH: {
+                    LOG.info("BaseTask::attach "+ JsonUtils.printRequest(progress));
+                    final Servant.SlotAttach attach = progress.getAttach();
+                    final Slot slot = gRPCConverter.from(attach.getSlot());
+                    final URI slotUri = URI.create(attach.getUri());
+                    final String channelName;
+                    if (attach.getChannel().isEmpty()) {
+                        final String binding = assignments.getOrDefault(slot, "");
+                        channelName = binding.startsWith("channel:") ?
+                            binding.substring("channel:".length()) :
+                            null;
+                    }
+                    else channelName = attach.getChannel();
+
+                    final Channel channel = channels.get(channelName);
+                    if (channel != null) {
+                        attachedSlots.put(slot, channel);
+                        channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, servant));
+                    } else {
+                        LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
+                    }
+                    break;
+                }
+                case DETACH: {
+                    LOG.info("BaseTask::detach "+ JsonUtils.printRequest(progress));
+                    final Servant.SlotDetach detach = progress.getDetach();
+                    final Slot slot = gRPCConverter.from(detach.getSlot());
+                    final URI slotUri = URI.create(detach.getUri());
+                    final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, servant);
+                    final Channel channel = channels.bound(endpoint);
+                    if (channel != null) {
+                        attachedSlots.remove(slot);
+                        channels.unbind(channel, endpoint);
+                    }
+                    break;
+                }
+                case START: {
+                    LOG.info("Context " + uri + " started");
+                    contextStarted.countDown();
+                }
+                case EXIT:{
+                    LOG.info("Context " + uri + " exited");
+                    state(State.FINISHED);
+                }
+            }
+        }));
+        contextProgressThread.start();
+
         final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
             .setAuth(IAM.Auth.newBuilder()
                 .setTask(IAM.TaskCredentials.newBuilder()
@@ -127,6 +197,12 @@ public abstract class BaseTask implements Task {
                 .setBinding(binding)
                 .build()
         );
+
+        try {
+            contextStarted.await();
+        } catch (InterruptedException e) {
+            LOG.error(e);
+        }
         final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
         state(State.CONNECTED);
         LOG.info("Server is attached to servant {}", servantURI);
@@ -138,47 +214,15 @@ public abstract class BaseTask implements Task {
                     case STARTED:
                         state(State.RUNNING);
                         break;
-                    case ATTACH: {
-                        final Servant.SlotAttach attach = progress.getAttach();
-                        final Slot slot = gRPCConverter.from(attach.getSlot());
-                        final URI slotUri = URI.create(attach.getUri());
-                        final String channelName;
-                        if (attach.getChannel().isEmpty()) {
-                            final String binding = assignments.getOrDefault(slot, "");
-                            channelName = binding.startsWith("channel:") ?
-                                binding.substring("channel:".length()) :
-                                null;
-                        }
-                        else channelName = attach.getChannel();
-
-                        final Channel channel = channels.get(channelName);
-                        if (channel != null) {
-                            attachedSlots.put(slot, channel);
-                            channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, servant));
-                        } else {
-                            LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
-                        }
-                        break;
-                    }
-                    case DETACH: {
-                        final Servant.SlotDetach detach = progress.getDetach();
-                        final Slot slot = gRPCConverter.from(detach.getSlot());
-                        final URI slotUri = URI.create(detach.getUri());
-                        final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, servant);
-                        final Channel channel = channels.bound(endpoint);
-                        if (channel != null) {
-                            attachedSlots.remove(slot);
-                            channels.unbind(channel, endpoint);
-                        }
-                        break;
-                    }
                     case EXIT:
-                        state(State.FINISHED);
                         break;
                 }
             });
-        }
-        finally {
+            contextProgressThread.join();
+        } catch (InterruptedException e) {
+            LOG.error(e);
+            throw new RuntimeException(e);
+        } finally {
             state(State.FINISHED);
             LOG.info("Stopping servant {}", servantURI);
             //noinspection ResultOfMethodCallIgnored

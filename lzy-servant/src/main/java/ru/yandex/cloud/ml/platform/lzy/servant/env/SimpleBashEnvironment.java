@@ -6,6 +6,10 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
 import java.io.IOException;
 
 public class SimpleBashEnvironment implements Environment {
+
+    @Override
+    public void prepare() throws EnvironmentInstallationException {}
+
     @Override
     public Process exec(String command) throws LzyExecutionException {
         try {
@@ -16,7 +20,7 @@ public class SimpleBashEnvironment implements Environment {
     }
 
     @Override
-    public Process exec(String command, String[] envp) throws EnvironmentInstallationException, LzyExecutionException {
+    public Process exec(String command, String[] envp) throws LzyExecutionException {
         try {
             return Runtime.getRuntime().exec(new String[]{"bash", "-c", command}, envp);
         } catch (IOException e) {
