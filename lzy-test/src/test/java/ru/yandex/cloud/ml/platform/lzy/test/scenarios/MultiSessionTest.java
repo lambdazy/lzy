@@ -59,4 +59,26 @@ public class MultiSessionTest extends LzyBaseTest {
         Assert.assertEquals("Prediction: 1",
             Utils.lastLine(result2.get().stdout()));
     }
+
+    @Test
+    public void parallelPyGraphExecutionInSingleTerminal()
+        throws ExecutionException, InterruptedException {
+        final Terminal terminal = createTerminal(9998, 5006, "user1");
+        final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph_cpu.py";
+
+        //Act
+        final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
+        ForkJoinPool.commonPool().execute(() -> result1.complete(
+            terminal.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
+
+        final CompletableFuture<Terminal.ExecutionResult> result2 = new CompletableFuture<>();
+        ForkJoinPool.commonPool().execute(() -> result2.complete(
+            terminal.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
+
+        //Assert
+        Assert.assertEquals("Prediction: 1",
+            Utils.lastLine(result1.get().stdout()));
+        Assert.assertEquals("Prediction: 1",
+            Utils.lastLine(result2.get().stdout()));
+    }
 }
