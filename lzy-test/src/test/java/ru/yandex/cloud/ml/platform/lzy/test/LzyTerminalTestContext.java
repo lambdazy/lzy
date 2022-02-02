@@ -331,6 +331,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit);
         boolean waitForShutdown(long timeout, TimeUnit unit);
+        void shutdownNow();
 
         interface ExecutionResult {
             String stdout();

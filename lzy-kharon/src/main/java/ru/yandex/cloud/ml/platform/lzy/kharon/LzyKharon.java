@@ -107,25 +107,23 @@ public class LzyKharon {
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
         int servantProxyPort) throws URISyntaxException {
-        final ManagedChannel serverChannel = ChannelBuilder
-                .forAddress(serverUri.getHost(), serverUri.getPort())
-                .usePlaintext()
-                .enableRetry(LzyServerGrpc.SERVICE_NAME)
-                .build();
+        final ManagedChannel serverChannel = ManagedChannelBuilder
+            .forAddress(serverUri.getHost(), serverUri.getPort())
+            .usePlaintext()
+            .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
 
-        final ManagedChannel whiteboardChannel = ChannelBuilder
-                .forAddress(whiteboardUri.getHost(), whiteboardUri.getPort())
-                .usePlaintext()
-                .enableRetry(WbApiGrpc.SERVICE_NAME)
+        final ManagedChannel whiteboardChannel = ManagedChannelBuilder
+            .forAddress(whiteboardUri.getHost(), whiteboardUri.getPort())
+            .usePlaintext()
             .build();
         whiteboard = WbApiGrpc.newBlockingStub(whiteboardChannel);
 
         final ManagedChannel snapshotChannel = ChannelBuilder
-                .forAddress(snapshotUri.getHost(), snapshotUri.getPort())
-                .usePlaintext()
-                .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
-                .build();
+            .forAddress(snapshotUri.getHost(), snapshotUri.getPort())
+            .usePlaintext()
+            .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
+            .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(snapshotChannel);
 
         final URI servantProxyAddress = new URI("http", null, host, servantProxyPort, null, null,
@@ -133,15 +131,15 @@ public class LzyKharon {
         terminalManager = new TerminalSessionManager(server, servantProxyAddress);
 
         kharonServer = ServerBuilder
-                .forPort(port)
-                .addService(
+            .forPort(port)
+            .addService(
                 ServerInterceptors.intercept(new KharonService(), new SessionIdInterceptor()))
-                .build();
+            .build();
         kharonServantProxy = ServerBuilder
-                .forPort(servantProxyPort)
-                .addService(ServerInterceptors
+            .forPort(servantProxyPort)
+            .addService(ServerInterceptors
                 .intercept(new KharonServantProxyService(), new SessionIdInterceptor()))
-                .build();
+            .build();
     }
 
     public void start() throws IOException {
@@ -332,7 +330,7 @@ public class LzyKharon {
             StreamObserver<Servant.ExecutionProgress> responseObserver) {
             final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
             LOG.info("KharonServantProxyService sessionId = " + session.getSessionId() +
-                    "::execute " + JsonUtils.printRequest(request));
+                "::execute " + JsonUtils.printRequest(request));
             session.setExecutionProgress(responseObserver);
             Context.current().addListener(context -> {
                 LOG.info("Execution terminated from server ");
@@ -346,15 +344,15 @@ public class LzyKharon {
             final TerminalSession session = terminalManager
                 .getTerminalSessionFromSlotUri(request.getSlotUri());
             LOG.info("KharonServantProxyService sessionId = " + session.getSessionId() +
-                    "::openOutputSlot " + JsonUtils.printRequest(request));
+                "::openOutputSlot " + JsonUtils.printRequest(request));
             LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
             dataCarrier.openServantConnection(URI.create(request.getSlotUri()), responseObserver);
             session.configureSlot(Servant.SlotCommand.newBuilder()
-                    .setSlot(request.getSlot())
-                    .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                            .setSlotUri(request.getSlotUri())
-                            .build())
-                    .build());
+                .setSlot(request.getSlot())
+                .setConnect(Servant.ConnectSlotCommand.newBuilder()
+                    .setSlotUri(request.getSlotUri())
+                    .build())
+                .build());
         }
 
         @Override

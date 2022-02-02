@@ -132,6 +132,13 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
             public boolean waitForShutdown(long timeout, TimeUnit unit) {
                 return Utils.waitFlagUp(() -> !process.isAlive(), timeout, unit);
             }
+
+            @Override
+            public void shutdownNow() {
+                if (process.isAlive()) {
+                    process.destroy();
+                }
+            }
         };
     }
 
