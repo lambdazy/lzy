@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
+import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 
 import javax.persistence.*;
@@ -48,6 +49,7 @@ public class SnapshotEntryModel {
         this.entryState = status;
     }
 
+    @Nullable
     public String getStorageUri() {
         return storageUri;
     }

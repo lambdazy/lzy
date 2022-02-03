@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.mem;
 
-import io.grpc.Status;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
@@ -211,7 +210,7 @@ public class SessionHelper {
         List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
         SnapshotEntry entry = new SnapshotEntry.Impl(id, snapshot);
         return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(),snapshotEntryModel.getEntryState(), entry,
-                Set.copyOf(dependentEntryIds), URI.create(snapshotEntryModel.getStorageUri()));
+                Set.copyOf(dependentEntryIds), snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri()));
     }
 
     public static List<String> getWhiteboardIdByNamespaceAndTags(String namespace, List<String> tags, Session session) {
@@ -226,6 +225,7 @@ public class SessionHelper {
                     "GROUP BY w.wbId " +
                     "HAVING count(*) >= :tagsSize ";
         }
+        //noinspection unchecked
         Query<String> query = session.createQuery(whiteboardsByNameAndTagsRequest);
         query.setParameter("namespace", namespace);
         if (!tags.isEmpty()) {

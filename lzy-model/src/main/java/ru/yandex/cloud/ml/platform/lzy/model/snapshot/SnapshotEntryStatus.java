@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 public interface SnapshotEntryStatus {
     boolean empty();
@@ -34,6 +35,7 @@ public interface SnapshotEntryStatus {
             return status;
         }
 
+        @Nullable
         @Override
         public URI storage() {
             return storage;

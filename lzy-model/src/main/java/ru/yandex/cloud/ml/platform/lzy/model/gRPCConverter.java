@@ -10,6 +10,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AzureCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AzureSASCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Builder;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import javax.annotation.Nullable;
@@ -161,13 +162,15 @@ public abstract class gRPCConverter {
     }
 
     public static LzyWhiteboard.WhiteboardField to(
-            WhiteboardField field, List<WhiteboardField> dependent, boolean empty, String storage) {
-        return LzyWhiteboard.WhiteboardField.newBuilder()
-                .setFieldName(field.name())
-                .setStorageUri(storage)
-                .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()))
-                .setEmpty(empty)
-                .build();
+            WhiteboardField field, List<WhiteboardField> dependent, boolean empty, @Nullable URI storage) {
+        final Builder builder = LzyWhiteboard.WhiteboardField.newBuilder()
+            .setFieldName(field.name())
+            .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()))
+            .setEmpty(empty);
+        if (storage != null) {
+            builder.setStorageUri(storage.toString());
+        }
+        return builder.build();
     }
 
     public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {

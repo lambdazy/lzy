@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.api;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
+
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -12,20 +14,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.LzySnapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
@@ -35,8 +33,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
 @Singleton
 @Requires(property = "server.uri")
@@ -147,19 +143,18 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             return null;
         }
         List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(wb.whiteboard())
-            .filter(field -> field.entry() != null)
             .map(field -> {
                     SnapshotEntryStatus entryStatus = snapshotRepository.resolveEntryStatus(
                         field.entry().snapshot(), field.entry().id()
                     );
                     if (entryStatus == null) {
-                        return null;
+                        throw new RuntimeException("Cannot find snapshot entry: " + field.entry().id());
                     }
                     return gRPCConverter.to(
                         field,
                         whiteboardRepository.dependent(field).collect(Collectors.toList()),
                         entryStatus.empty(),
-                        entryStatus.storage().toString()
+                        entryStatus.storage()
                     );
                 }
             )
