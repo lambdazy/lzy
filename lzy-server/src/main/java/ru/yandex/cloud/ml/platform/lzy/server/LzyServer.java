@@ -399,6 +399,22 @@ public class LzyServer {
             responseObserver.onCompleted();
         }
 
+        @Override
+        public void getBucket(Lzy.GetBucketRequest request, StreamObserver<Lzy.GetBucketResponse> responseObserver) {
+            LOG.info("Server::getBucket " + JsonUtils.printRequest(request));
+            final IAM.Auth auth = request.getAuth();
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                return;
+            }
+            String uid = resolveUser(auth);
+            String bucket = this.auth.bucketForUser(uid);
+
+            Lzy.GetBucketResponse response = Lzy.GetBucketResponse.newBuilder().setBucket(bucket).build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
             final String user = auth.getUser().getUserId();
 

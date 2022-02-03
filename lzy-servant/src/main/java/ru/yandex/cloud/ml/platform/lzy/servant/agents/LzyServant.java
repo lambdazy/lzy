@@ -44,6 +44,8 @@ public class LzyServant extends LzyAgent {
     private final String taskId;
     private final String bucket;
     private final SnapshotStorage storage;
+    /* temporary bad solution; will go away */
+    private final Lzy.GetS3CredentialsResponse credentials;
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
@@ -72,7 +74,7 @@ public class LzyServant extends LzyAgent {
                     .setBucket(bucket)
                     .build()
             );
-
+        credentials = resp;
         storage =  SnapshotStorage.create(resp);
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
@@ -160,7 +162,7 @@ public class LzyServant extends LzyAgent {
                 UserEvent.UserEventType.ExecutionPreparing
             ));
 
-            currentExecution = new LzyExecution(tid, zygote, agentInternalAddress, snapshotter);
+            currentExecution = new LzyExecution(tid, zygote, agentInternalAddress, snapshotter, credentials);
             currentExecution.onProgress(progress -> {
                 LOG.info("LzyServant::progress {} {}", agentAddress,
                     JsonUtils.printRequest(progress));

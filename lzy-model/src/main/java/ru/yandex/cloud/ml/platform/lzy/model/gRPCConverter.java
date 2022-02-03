@@ -1,14 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type.Amazon;
-import static ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type.AzureSas;
-import static ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type.Empty;
-
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.*;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -21,9 +14,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import javax.annotation.Nullable;
 import java.net.URI;
-import java.util.HashSet;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,9 +46,15 @@ public abstract class gRPCConverter {
 
 
     public static Operations.PythonEnv to(PythonEnv env) {
+        List<Operations.LocalModule> localModules = new ArrayList<>();
+        env.localModules().forEach(localModule -> localModules.add(Operations.LocalModule.newBuilder()
+                .setName(localModule.name())
+                .setUri(localModule.uri())
+                .build()));
         return Operations.PythonEnv.newBuilder()
                 .setName(env.name())
                 .setYaml(env.yaml())
+                .addAllLocalModules(localModules)
                 .build();
     }
 
@@ -337,11 +334,33 @@ public abstract class gRPCConverter {
         }
     }
 
+    private static class LocalModuleAdapter implements LocalModule {
+        private final String name;
+        private final String uri;
+
+        public LocalModuleAdapter(Operations.LocalModule localModule) {
+            this.name = localModule.getName();
+            this.uri = localModule.getUri();
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public String uri() {
+            return uri;
+        }
+    }
+
     private static class PythonEnvAdapter implements PythonEnv {
         private final Operations.PythonEnv env;
+        private final List<LocalModule> localModules;
 
         public PythonEnvAdapter(Operations.PythonEnv env) {
             this.env = env;
+            localModules = new ArrayList<>();
+            env.getLocalModulesList()
+                    .forEach(localModule -> localModules.add(new LocalModuleAdapter(localModule)));
         }
 
         @Override
@@ -352,6 +371,11 @@ public abstract class gRPCConverter {
         @Override
         public String yaml() {
             return this.env.getYaml();
+        }
+
+        @Override
+        public List<LocalModule> localModules() {
+            return new ArrayList<>(localModules);
         }
 
         @Override

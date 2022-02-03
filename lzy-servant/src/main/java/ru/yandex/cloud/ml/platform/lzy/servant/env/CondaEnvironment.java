@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -50,18 +51,27 @@ public class CondaEnvironment implements Environment {
         }
     }
 
-    private Process execInEnv(String command) throws IOException {
+    private Process execInEnv(String command, String[] envp) throws IOException {
         LOG.info("Executing command " + command);
         return Runtime.getRuntime().exec(new String[]{
             "bash", "-c",
             "eval \"$(conda shell.bash hook)\" && " +
                 "conda activate " + env.name() + " && " +
                 command
-        });
+        }, envp);
+    }
+
+    private Process execInEnv(String command) throws IOException {
+        return execInEnv(command, null);
     }
 
     @Override
     public Process exec(String command) throws EnvironmentInstallationException, LzyExecutionException {
+        return exec(command, null);
+    }
+
+    @Override
+    public Process exec(String command, String[] envp) throws EnvironmentInstallationException, LzyExecutionException {
         if (envInstalled.compareAndSet(false, true)) {
             final long pyEnvInstallStart = System.currentTimeMillis();
             installPyenv();
@@ -75,7 +85,7 @@ public class CondaEnvironment implements Environment {
             );
         }
         try {
-           return execInEnv(command);
+            return execInEnv(command, envp);
         } catch (IOException e) {
             throw new LzyExecutionException(e);
         }

@@ -319,6 +319,12 @@ public class LzyKharon {
         }
 
         @Override
+        public void getBucket(Lzy.GetBucketRequest request, StreamObserver<Lzy.GetBucketResponse> responseObserver) {
+            responseObserver.onNext(server.getBucket(request));
+            responseObserver.onCompleted();
+        }
+
+        @Override
         public void whiteboardByNamespaceAndTags(LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand request,
                                                  StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
             responseObserver.onNext(whiteboard.whiteboardByNamespaceAndTags(request));

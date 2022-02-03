@@ -1,10 +1,13 @@
 import dataclasses
 import logging
+import uuid
 import os
 from abc import abstractmethod, ABC
 from pathlib import Path
 from types import ModuleType
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional, Set
+
+import cloudpickle
 
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
@@ -19,12 +22,16 @@ from lzy.api.whiteboard.api import (
     WhiteboardList,
     WhiteboardDescription
 )
+from lzy.api.whiteboard.credentials import AmazonCredentials, AzureCredentials
 from lzy.api.whiteboard.wb import wrap_whiteboard
 from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
+from lzy.servant.whiteboard_storage import AmazonClient, AzureClient, StorageClient
+import io
+import hashlib
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]
@@ -246,11 +253,29 @@ class LzyRemoteEnv(LzyEnvBase):
             else:
                 installed, local_modules = select_modules(namespace)
                 name, yaml = create_yaml(installed_packages=installed)
-            return PyEnv(name, yaml, local_modules)
+
+            bucket = self._servant_client.get_bucket()
+            credentials = self._servant_client.get_credentials(ServantClient.CredentialsTypes.S3, bucket)
+            client: StorageClient
+            if isinstance(credentials, AmazonCredentials):
+                client = AmazonClient(credentials)
+            elif isinstance(credentials, AzureCredentials):
+                client = AzureClient.from_connection_string(credentials)
+            else:
+                client = AzureClient.from_sas(credentials)
+
+            local_modules_uploaded = []
+            for local_module in local_modules:
+                cloudpickle.register_pickle_by_value(local_module)
+                key = str(hashlib.sha1(local_module.__name__.encode('utf-8')))
+                uri = client.write(bucket, key, cloudpickle.dumps(local_module))
+                local_modules_uploaded.append((local_module.__name__, uri))
+                cloudpickle.unregister_pickle_by_value(local_module)
+            return PyEnv(name, yaml, local_modules, local_modules_uploaded)
 
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option
         # TODO: parse yaml and get name?
         with open(self._yaml, "r", encoding=encoding) as file:
             name, yaml = "default", "".join(file.readlines())
-            return PyEnv(name, yaml, [])
+            return PyEnv(name, yaml, [], {})

@@ -155,7 +155,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         commandHandler = new CommandHandler();
         status.set(AgentStatus.PREPARING_EXECUTION);
         currentExecution = new LzyExecution(null, null, agentInternalAddress,
-            new Snapshotter.DevNullSnapshotter());
+            new Snapshotter.DevNullSnapshotter(), null);
         status.set(AgentStatus.EXECUTING);
 
         Context.current().addListener(context -> {

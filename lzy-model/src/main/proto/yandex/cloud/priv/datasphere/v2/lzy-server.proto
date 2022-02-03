@@ -29,6 +29,8 @@ service LzyServer {
   rpc CheckUserPermissions (CheckUserPermissionsRequest) returns (CheckUserPermissionsResponse);
 
   rpc GetS3Credentials (GetS3CredentialsRequest) returns (GetS3CredentialsResponse);
+
+  rpc GetBucket (GetBucketRequest) returns (GetBucketResponse);
 }
 
 message PublishRequest {
@@ -89,4 +91,12 @@ message GetS3CredentialsResponse {
     AzureCredentials azure = 2;
     AzureSASCredentials azureSas = 4;
   }
+}
+
+message GetBucketRequest {
+  Auth auth = 1;
+}
+
+message GetBucketResponse {
+  string bucket = 1;
 }

@@ -88,5 +88,9 @@ class ServantClient(ABC):
     def get_credentials(self, typ: CredentialsTypes, bucket: str) -> StorageCredentials:
         pass
 
+    @abstractmethod
+    def get_bucket(self) -> str:
+        pass
+
     def _zygote_path(self, zygote: Zygote) -> str:
         return f"{self.mount()}/bin/{zygote.name}"

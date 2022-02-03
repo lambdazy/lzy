@@ -22,12 +22,13 @@ class Env(ABC):
 
 
 class PyEnv(Env):
-    def __init__(self, env_name: str, yaml: str, local_packages: Iterable[ModuleType]):
+    def __init__(self, env_name: str, yaml: str, local_packages: Iterable[ModuleType], local_modules_uploaded):
         super().__init__()
         self._name = env_name
         self._yaml = yaml
         self._local_packages = local_packages
         self._log = logging.getLogger(str(self.__class__))
+        self._local_modules_uploaded = local_modules_uploaded
 
     def type_id(self) -> str:
         return "pyenv"
@@ -41,8 +42,16 @@ class PyEnv(Env):
     def yaml(self) -> str:
         return self._yaml
 
-    def as_dct(self) -> Dict[str, str]:
-        return {"name": self._name, "yaml": self._yaml}
+    def local_modules_uploaded(self):
+        return self._local_modules_uploaded
+
+    def as_dct(self):
+        if self._local_modules_uploaded:
+            return {"name": self._name, "yaml": self._yaml,
+                    "localModules": [{"name": tuple[0], "uri": tuple[1]} for index, tuple
+                                     in enumerate(self._local_modules_uploaded)]}
+        else:
+            return {"name": self._name, "yaml": self._yaml}
 
 
 PACKAGES_DELIM = ";"
