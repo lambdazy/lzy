@@ -221,10 +221,11 @@ public class LzyExecution {
                         .collect(Collectors.toList());
                 if (zygote.env() instanceof PythonEnv) {
                     try {
-                        envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(((PythonEnv) zygote.env()).localModules()));
+                        Map<String, String> localModules = new HashMap<>();
+                        ((PythonEnv) zygote.env()).localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
+                        envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(localModules));
                         if (credentials.hasAmazon()) {
                             envList.add("AMAZON=" + JsonFormat.printer().print(credentials.getAmazon()));
-                            System.out.println("SSSSSS " + JsonFormat.printer().print(credentials.getAmazon()));
                         } else if (credentials.hasAzure()) {
                             envList.add("AZURE=" + JsonFormat.printer().print(credentials.getAzure()));
                         } else {
