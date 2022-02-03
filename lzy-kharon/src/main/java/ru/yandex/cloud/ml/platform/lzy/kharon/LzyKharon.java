@@ -1,15 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
-import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.ServerInterceptors;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.*;
 
@@ -323,6 +321,13 @@ public class LzyKharon {
         @Override
         public void getBucket(Lzy.GetBucketRequest request, StreamObserver<Lzy.GetBucketResponse> responseObserver) {
             responseObserver.onNext(server.getBucket(request));
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void whiteboardByNamespaceAndTags(LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand request,
+                                                 StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
+            responseObserver.onNext(whiteboard.whiteboardByNamespaceAndTags(request));
             responseObserver.onCompleted();
         }
     }

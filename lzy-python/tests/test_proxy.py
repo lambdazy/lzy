@@ -1,13 +1,12 @@
 from abc import ABC
 from dataclasses import dataclass
-from typing import Any, Optional, List
+from typing import Any, List
 from unittest import TestCase
 
-from lzy.api.lazy_op import LzyOp
-
-from lzy.api.utils import lazy_proxy, is_lazy_proxy
 # noinspection PyProtectedMember
 from lzy.api._proxy import proxy
+from lzy.api.lazy_op import LzyOp
+from lzy.api.utils import lazy_proxy, is_lazy_proxy
 from lzy.model.signatures import CallSignature, FuncSignature
 
 
@@ -19,6 +18,7 @@ class ProxyTests(TestCase):
     def test_simple_isinstance(self):
         class A:
             pass
+
         prxy_ = self.lazy_constructed_obj(A)
         self.assertIsInstance(prxy_, A)
 
@@ -109,8 +109,7 @@ class ProxyTests(TestCase):
 
         class LazyOpMock(LzyOp, ABC):
             def __init__(self):
-                super().__init__(
-                    CallSignature(FuncSignature(lambda: None, (), None), ()))
+                super().__init__(CallSignature(FuncSignature(lambda: None, (), None), ()), "return_entry_id")
 
             def materialize(self) -> Any:
                 a.append("Materialized without any fcking reason")
@@ -118,9 +117,6 @@ class ProxyTests(TestCase):
 
             def is_materialized(self) -> bool:
                 return False
-
-            def return_entry_id(self) -> Optional[str]:
-                return None
 
         mock = LazyOpMock()
         prxy = lazy_proxy(lambda: mock.materialize(), str, {'_op': mock})

@@ -17,6 +17,7 @@ from lzy.servant.servant_client import ServantClient, Execution, ExecutionResult
 
 from lzy.model.encoding import ENCODING as encoding
 
+
 def exec_bash(*command):
     with subprocess.Popen(
         ["bash", "-c", " ".join(command)],
@@ -25,8 +26,8 @@ def exec_bash(*command):
     ) as process:
 
         out, err = process.communicate()
-        if err != b"":
-            raise BashExecutionException(message=str(err, encoding="utf-8"))
+        if err:
+            raise BashExecutionException(message=str(err, encoding=encoding))
 
         if process.returncode != 0:
             raise BashExecutionException(
@@ -34,8 +35,6 @@ def exec_bash(*command):
             )
     return out
 
-if __name__ == '__main__':
-    print(exec_bash('ls'))
 
 class BashExecutionException(Exception):
     def __init__(self, message, *args):

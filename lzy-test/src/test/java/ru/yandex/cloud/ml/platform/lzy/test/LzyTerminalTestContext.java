@@ -170,6 +170,24 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
+        default String getWhiteboardsByNamespaceAndTags(String namespace, List<String> tags) {
+            String command = String.join(
+                    " ",
+                    mount() + "/sbin/whiteboard",
+                    "getByNamespaceAndTags",
+                    "-n",
+                    namespace
+            );
+            if (!tags.isEmpty()) {
+                command = String.join(" ", command, "-t", String.join(",", tags));
+            }
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c", command);
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+            return execute.stdout();
+        }
+
         default String createSnapshot() {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                     String.join(
@@ -184,17 +202,21 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String createWhiteboard(String wbId, List<String> fieldNames) {
-            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                    String.join(
-                            " ",
-                            mount() + "/sbin/whiteboard",
-                            "create",
-                            wbId,
-                            "-l",
-                            String.join(",", fieldNames)
-                    )
+        default String createWhiteboard(String wbId, List<String> fieldNames, List<String> tags, String namespace) {
+            String command = String.join(
+                    " ",
+                    mount() + "/sbin/whiteboard",
+                    "create",
+                    wbId,
+                    "-l",
+                    String.join(",", fieldNames),
+                    "-n",
+                    namespace
             );
+            if (!tags.isEmpty()) {
+                command = String.join(" ", command, "-t", String.join(",", tags));
+            }
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c", command);
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
             }

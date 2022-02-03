@@ -5,6 +5,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -45,13 +46,17 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
             Transaction tx = session.beginTransaction();
             String wbId = whiteboard.id().toString();
             WhiteboardModel wbModel = new WhiteboardModel(wbId, WhiteboardStatus.State.CREATED,
-                    whiteboard.snapshot().id().toString());
+                    whiteboard.snapshot().id().toString(), whiteboard.namespace());
             List<WhiteboardFieldModel> whiteboardFieldModels = whiteboard.fieldNames().stream()
                     .map(fieldName -> new WhiteboardFieldModel(wbId, fieldName, null))
+                    .collect(Collectors.toList());
+            List<WhiteboardTagModel> whiteboardTagModels = whiteboard.tags().stream()
+                    .map(tag -> new WhiteboardTagModel(wbId, tag))
                     .collect(Collectors.toList());
             try {
                 session.save(wbModel);
                 whiteboardFieldModels.forEach(session::save);
+                whiteboardTagModels.forEach(session::save);
                 tx.commit();
             } catch (Exception e) {
                 tx.rollback();
@@ -70,6 +75,15 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
             }
             return new WhiteboardStatus.Impl(whiteboard, SessionHelper.resolveWhiteboardState(id.toString(), session));
         }
+    }
+
+    @Override
+    public List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags) {
+        List<String> ids;
+        try (Session session = storage.getSessionFactory().openSession()) {
+            ids = SessionHelper.getWhiteboardIdByNamespaceAndTags(namespace, tags, session);
+        }
+        return ids.stream().map(id -> resolveWhiteboard(URI.create(id))).collect(Collectors.toList());
     }
 
     @Override
