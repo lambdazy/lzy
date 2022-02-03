@@ -67,7 +67,7 @@ The continuous sequences of remote calls form a graph that runs only when result
 with LzyRemoteEnv():
     data = dataset()                            # lazy call
     model = learn(data)                         # lazy call
-    result = model.predict(np.array([9, 1]))    # model is required - graph containing dataset and learn functions is started
+    result = model.predict(np.array([9, 1]))    # model object is required - graph containing dataset and learn functions is started
 ```
 
 You can force materialization using the `run` method:
@@ -87,8 +87,18 @@ with LzyRemoteEnv(eager=True) as env:
     ...
 ```
 
+**TBD:** ʎzy runs independent functions in parallel:
+
+```python
+with LzyRemoteEnv() as env:
+    data = dataset()
+    params = params()
+    model = learn(data, params)
+    result = model.predict(np.array([9, 1]))    # dataset and params functions run in parallel 
+```
+
 ---
 
 You can find the complete code of this step [here](../../lzy-python/examples/catboost.py).
 
-In the [**next**](basics.md) part, we will dive into the environment setup.
+In the [**next**](environment.md) part, we will dive into the environment setup.
