@@ -256,12 +256,13 @@ class LzyRemoteEnv(LzyEnvBase):
 
             bucket = self._servant_client.get_bucket()
             credentials = self._servant_client.get_credentials(ServantClient.CredentialsTypes.S3, bucket)
+            client: StorageClient
             if isinstance(credentials, AmazonCredentials):
-                client: StorageClient = AmazonClient(credentials)
+                client = AmazonClient(credentials)
             elif isinstance(credentials, AzureCredentials):
-                client: StorageClient = AzureClient.from_connection_string(credentials)
+                client = AzureClient.from_connection_string(credentials)
             else:
-                client: StorageClient = AzureClient.from_sas(credentials)
+                client = AzureClient.from_sas(credentials)
 
             local_modules_uploaded = []
             for local_module in local_modules:
