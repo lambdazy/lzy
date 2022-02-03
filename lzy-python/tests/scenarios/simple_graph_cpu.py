@@ -10,7 +10,7 @@ This scenario contains:
 '''
 
 
-@op(gpu=Gpu.any())
+@op
 def learn() -> CatBoostClassifier:
     train_data = np.array([[0, 3],
                            [4, 1],
