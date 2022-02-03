@@ -6,10 +6,10 @@ import "yandex/cloud/priv/lzy/v1/lzy-iam.proto";
 import "google/protobuf/empty.proto";
 
 option go_package = "lzy";
-option java_outer_classname = "LRM";
+option java_outer_classname = "LABS";
 option java_package = "yandex.cloud.priv.lzy.v1";
 
-service LzyRM {
+service LzyABS {
   rpc ListAccessBindings (ListAccessBindingsRequest) returns (ListAccessBindingsResponse);
 
   rpc SetAccessBindings (SetAccessBindingsRequest) returns (google.protobuf.Empty);
