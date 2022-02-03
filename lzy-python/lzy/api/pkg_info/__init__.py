@@ -78,12 +78,12 @@ def exists_in_pypi(package_name: str) -> bool:
     return result
 
 
-def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], Set[ModuleType]]:
+def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], List[ModuleType]]:
     dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
 
     distributions = packages_distributions()
     remote_packages = {}
-    local_modules: Set[ModuleType] = set()
+    local_modules: List[ModuleType] = []
 
     def search(obj: Any) -> None:
         # try to get module name
@@ -104,7 +104,7 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
         else:
             if module in local_modules:
                 return
-            local_modules.add(module)
+            local_modules.append(module)
             for field in dir(module):
                 search(getattr(module, field))
 

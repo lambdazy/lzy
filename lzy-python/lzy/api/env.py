@@ -29,7 +29,7 @@ from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
-from lzy.servant.whiteboard_storage import AmazonClient, AzureClient
+from lzy.servant.whiteboard_storage import AmazonClient, AzureClient, StorageClient
 import io
 import hashlib
 
@@ -257,18 +257,18 @@ class LzyRemoteEnv(LzyEnvBase):
             bucket = self._servant_client.get_bucket()
             credentials = self._servant_client.get_credentials(ServantClient.CredentialsTypes.S3, bucket)
             if isinstance(credentials, AmazonCredentials):
-                client = AmazonClient(credentials)
+                client: StorageClient = AmazonClient(credentials)
             elif isinstance(credentials, AzureCredentials):
-                client = AzureClient.from_connection_string(credentials)
+                client: StorageClient = AzureClient.from_connection_string(credentials)
             else:
-                client = AzureClient.from_sas(credentials)
+                client: StorageClient = AzureClient.from_sas(credentials)
 
-            local_modules_uploaded = {}
+            local_modules_uploaded = []
             for local_module in local_modules:
                 cloudpickle.register_pickle_by_value(local_module)
                 key = str(hashlib.sha1(local_module.__name__.encode('utf-8')))
                 uri = client.write(bucket, key, cloudpickle.dumps(local_module))
-                local_modules_uploaded[local_module.__name__] = uri
+                local_modules_uploaded.append((local_module.__name__, uri))
                 cloudpickle.unregister_pickle_by_value(local_module)
             return PyEnv(name, yaml, local_modules, local_modules_uploaded)
 

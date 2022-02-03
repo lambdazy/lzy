@@ -221,7 +221,7 @@ public class LzyExecution {
                         .collect(Collectors.toList());
                 if (zygote.env() instanceof PythonEnv) {
                     try {
-                        Map<String, String> localModules = new HashMap<>();
+                        LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
                         ((PythonEnv) zygote.env()).localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
                         envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(localModules));
                         if (credentials.hasAmazon()) {

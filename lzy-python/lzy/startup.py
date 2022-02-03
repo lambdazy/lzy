@@ -3,6 +3,7 @@ import os
 import sys
 import json
 from typing import Any
+from collections import OrderedDict
 import time
 from pathlib import Path
 
@@ -41,8 +42,8 @@ def main():
             data = json.loads(os.environ['AZURE_SAS'])
             client = AzureClient.from_sas(AzureSasCredentials(data['endpoint'], data['signature']))
 
-        local_modules = json.loads(os.environ['LOCAL_MODULES'])
-        for name, url in local_modules.items():
+        local_modules: OrderedDict = json.loads(os.environ['LOCAL_MODULES'])
+        for name, url in reversed(local_modules.items()):
             local_module = client.read(url)
             sys.modules[name] = local_module
 
