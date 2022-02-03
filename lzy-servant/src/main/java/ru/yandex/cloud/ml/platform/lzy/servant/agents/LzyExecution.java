@@ -1,5 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
@@ -24,6 +28,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -37,6 +42,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
@@ -56,8 +62,10 @@ public class LzyExecution {
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
     private final Snapshotter snapshotter;
+    /* temporary bad solution; will go away */
+    private final Lzy.GetS3CredentialsResponse credentials;
 
-    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, Snapshotter snapshotter) {
+    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, Snapshotter snapshotter, Lzy.GetS3CredentialsResponse credentials) {
         this.taskId = taskId;
         this.zygote = zygote;
         stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"), snapshotter.snapshotProvider());
@@ -65,6 +73,7 @@ public class LzyExecution {
         stderrSlot = new LineReaderSlot(taskId, new TextLinesOutSlot("/dev/stderr"), snapshotter.snapshotProvider());
         this.servantUri = servantUri;
         this.snapshotter = snapshotter;
+        this.credentials = credentials;
     }
 
     public LzySlot configureSlot(Slot spec, String binding) {
@@ -206,7 +215,26 @@ public class LzyExecution {
                         envExecStartMillis - startMillis
                     )
                 );
-                this.exec = session.exec(command);
+                Map<String, String> envMap = System.getenv();
+                List<String> envList = envMap.entrySet().stream()
+                        .map(entry -> entry.getKey() + "=" + entry.getValue())
+                        .collect(Collectors.toList());
+                if (zygote.env() instanceof PythonEnv) {
+                    try {
+                        envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(((PythonEnv) zygote.env()).localModules()));
+                        if (credentials.hasAmazon()) {
+                            envList.add("AMAZON=" + JsonFormat.printer().print(credentials.getAmazon()));
+                            System.out.println("SSSSSS " + JsonFormat.printer().print(credentials.getAmazon()));
+                        } else if (credentials.hasAzure()) {
+                            envList.add("AZURE=" + JsonFormat.printer().print(credentials.getAzure()));
+                        } else {
+                            envList.add("AZURE_SAS=" + JsonFormat.printer().print(credentials.getAzureSas()));
+                        }
+                    } catch (JsonProcessingException | InvalidProtocolBufferException e) {
+                        throw new EnvironmentInstallationException(e.getMessage());
+                    }
+                }
+                this.exec = session.exec(command, envList.toArray(String[]::new));
                 stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
                 stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
                     exec.getInputStream(),

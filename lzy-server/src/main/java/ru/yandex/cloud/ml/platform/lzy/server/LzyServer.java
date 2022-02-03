@@ -400,8 +400,8 @@ public class LzyServer {
         }
 
         @Override
-        public void getS3CredentialsAndBucket(Lzy.GetS3CredentialsRequest request, StreamObserver<Lzy.GetS3CredentialsAndBucketResponse> responseObserver) {
-            LOG.info("Server::getS3CredentialsAndBucket " + JsonUtils.printRequest(request));
+        public void getBucket(Lzy.GetBucketRequest request, StreamObserver<Lzy.GetBucketResponse> responseObserver) {
+            LOG.info("Server::getBucket " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -410,11 +410,8 @@ public class LzyServer {
             String uid = resolveUser(auth);
             String bucket = this.auth.bucketForUser(uid);
 
-            responseObserver.onNext(
-                    storageConfigs.isSeparated() ?
-                            to(credentialsProvider.separatedStorageCredentials(uid, bucket), bucket) :
-                            to(credentialsProvider.storageCredentials(uid, bucket), bucket)
-            );
+            Lzy.GetBucketResponse response = Lzy.GetBucketResponse.newBuilder().setBucket(bucket).build();
+            responseObserver.onNext(response);
             responseObserver.onCompleted();
         }
 

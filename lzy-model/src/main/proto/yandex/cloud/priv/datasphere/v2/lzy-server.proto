@@ -30,7 +30,7 @@ service LzyServer {
 
   rpc GetS3Credentials (GetS3CredentialsRequest) returns (GetS3CredentialsResponse);
 
-  rpc GetS3CredentialsAndBucket (GetS3CredentialsRequest) returns (GetS3CredentialsAndBucketResponse);
+  rpc GetBucket (GetBucketRequest) returns (GetBucketResponse);
 }
 
 message PublishRequest {
@@ -93,11 +93,10 @@ message GetS3CredentialsResponse {
   }
 }
 
-message GetS3CredentialsAndBucketResponse {
-  oneof credentials {
-    AmazonCredentials amazon = 1;
-    AzureCredentials azure = 2;
-    AzureSASCredentials azureSas = 4;
-  }
-  string bucket = 5;
+message GetBucketRequest {
+  Auth auth = 1;
+}
+
+message GetBucketResponse {
+  string bucket = 1;
 }

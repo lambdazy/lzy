@@ -3,6 +3,7 @@ import pathlib
 from abc import ABC, abstractmethod
 from typing import TypeVar, Any
 from urllib import parse
+from urllib.parse import urlunsplit, urlencode
 
 from azure.storage.blob import BlobServiceClient, StorageStreamDownloader
 import cloudpickle
@@ -62,7 +63,10 @@ class AzureClient:
         return cloudpickle.loads(data)
 
     def write(self, container: str, blob: str, data):
-        self.client.get_container_client(container).get_blob_client(blob).upload_blob(data)
+        # May not be working
+        container_client: ContainerClient = self.client.get_container_client(container)
+        container_client.create_container()
+        container_client.get_blob_client(blob).upload_blob(data)
         return f"azure:/{container}/{blob}"
 
     @staticmethod
@@ -98,6 +102,7 @@ class AmazonClient:
             secret=credentials.secret_token,
             client_kwargs={"endpoint_url": credentials.endpoint},
         )
+        self.__logger = logging.getLogger(self.__class__.__name__)
 
     def read(self, url: str) -> Any:
         uri = parse.urlparse(url)
@@ -105,11 +110,16 @@ class AmazonClient:
         with self.fs_.open(uri.path) as file:
             return cloudpickle.load(file)
 
+
     def write(self, bucket: str, key: str, data) -> str:
-        uri = f"s3:/{bucket}/{key}"
-        with self.fs_.open(uri, "w") as file:
+        path = f"/{bucket}/{key}"
+        url = urlunsplit(("s3", "", path, "", ""))
+        uri = parse.urlparse(url)
+        self.fs_.mkdirs(f"{bucket}", exist_ok=True)
+        self.fs_.touch(f"{bucket}/{key}")
+        with self.fs_.open(uri.path, "wb") as file:
             file.write(data)
-        return uri
+        return url
 
 
 class AmazonWhiteboardStorage(WhiteboardStorage):

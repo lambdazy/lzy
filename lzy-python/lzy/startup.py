@@ -10,7 +10,7 @@ import cloudpickle
 
 from lzy.api.lazy_op import LzyRemoteOp
 from lzy.api.utils import lazy_proxy
-from lzy.api.whiteboard.credentials import AmazonCredentials, AzureCredentials
+from lzy.api.whiteboard.credentials import AmazonCredentials, AzureCredentials, AzureSasCredentials
 from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
@@ -31,17 +31,18 @@ def main():
     servant: ServantClient = BashServantClient.instance()
 
     if os.environ['LOCAL_MODULES'] is not None:
-        credentials, bucket = servant.get_credentials_and_bucket(ServantClient.CredentialsTypes.S3)
-
-        if isinstance(credentials, AmazonCredentials):
-            client = AmazonClient(credentials)
-        if isinstance(credentials, AzureCredentials):
-            client = AzureClient.from_connection_string(credentials)
+        if os.environ['AMAZON'] is not None:
+            data = json.loads(os.environ['AMAZON'])
+            client = AmazonClient(AmazonCredentials(data['endpoint'], data['accessToken'], data['secretToken']))
+        elif os.environ['AZURE'] is not None:
+            data = json.loads(os.environ['AZURE'])
+            client = AzureClient.from_connection_string(AzureCredentials(data['connectionString']))
         else:
-            client = AzureClient.from_sas(credentials)
+            data = json.loads(os.environ['AZURE_SAS'])
+            client = AzureClient.from_sas(AzureSasCredentials(data['endpoint'], data['signature']))
 
         local_modules = json.loads(os.environ['LOCAL_MODULES'])
-        for name, url in local_modules:
+        for name, url in local_modules.items():
             local_module = client.read(url)
             sys.modules[name] = local_module
 

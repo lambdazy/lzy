@@ -89,7 +89,7 @@ class ServantClient(ABC):
         pass
 
     @abstractmethod
-    def get_credentials_and_bucket(self, typ: CredentialsTypes) -> (StorageCredentials, str):
+    def get_bucket(self) -> str:
         pass
 
     def _zygote_path(self, zygote: Zygote) -> str:

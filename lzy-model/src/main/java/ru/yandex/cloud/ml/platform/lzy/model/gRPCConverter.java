@@ -1,9 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type.Amazon;
-import static ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type.AzureSas;
-import static ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type.Empty;
-
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
@@ -165,51 +161,6 @@ public abstract class gRPCConverter {
                     .build()
             )
             .build();
-    }
-
-    public static Lzy.GetS3CredentialsAndBucketResponse to(StorageCredentials credentials, String bucket) {
-        switch (credentials.type()){
-            case Azure: return to((StorageCredentials.AzureCredentials) credentials, bucket);
-            case AzureSas: return to((StorageCredentials.AzureSASCredentials) credentials, bucket);
-            case Amazon: return to((StorageCredentials.AmazonCredentials)  credentials, bucket);
-            default:
-            case Empty:
-                return Lzy.GetS3CredentialsAndBucketResponse.newBuilder().build();
-        }
-    }
-
-    public static Lzy.GetS3CredentialsAndBucketResponse to(StorageCredentials.AzureCredentials credentials, String bucket) {
-        return Lzy.GetS3CredentialsAndBucketResponse.newBuilder()
-                .setAzure(
-                        AzureCredentials.newBuilder()
-                                .setConnectionString(credentials.connectionString())
-                                .build()
-                )
-                .setBucket(bucket)
-                .build();
-    }
-
-    public static Lzy.GetS3CredentialsAndBucketResponse to(StorageCredentials.AmazonCredentials credentials, String bucket) {
-        return Lzy.GetS3CredentialsAndBucketResponse.newBuilder()
-                .setAmazon(AmazonCredentials.newBuilder()
-                        .setEndpoint(credentials.endpoint())
-                        .setAccessToken(credentials.accessToken())
-                        .setSecretToken(credentials.secretToken())
-                        .build())
-                .setBucket(bucket)
-                .build();
-    }
-
-    public static Lzy.GetS3CredentialsAndBucketResponse to(StorageCredentials.AzureSASCredentials credentials, String bucket) {
-        return Lzy.GetS3CredentialsAndBucketResponse.newBuilder()
-                .setAzureSas(
-                        AzureSASCredentials.newBuilder()
-                                .setSignature(credentials.signature())
-                                .setEndpoint(credentials.endpoint())
-                                .build()
-                )
-                .setBucket(bucket)
-                .build();
     }
 
     public static LzyWhiteboard.WhiteboardField to(

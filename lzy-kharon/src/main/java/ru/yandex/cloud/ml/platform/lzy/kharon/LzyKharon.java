@@ -321,9 +321,8 @@ public class LzyKharon {
         }
 
         @Override
-        public void getS3CredentialsAndBucket(Lzy.GetS3CredentialsRequest request,
-                                     StreamObserver<Lzy.GetS3CredentialsAndBucketResponse> responseObserver) {
-            responseObserver.onNext(server.getS3CredentialsAndBucket(request));
+        public void getBucket(Lzy.GetBucketRequest request, StreamObserver<Lzy.GetBucketResponse> responseObserver) {
+            responseObserver.onNext(server.getBucket(request));
             responseObserver.onCompleted();
         }
     }
