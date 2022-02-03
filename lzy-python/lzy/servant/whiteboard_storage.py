@@ -12,9 +12,7 @@ import s3fs
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
 from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
 
-
 T = TypeVar("T")  # pylint: disable=invalid-name
-
 
 logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
     logging.WARNING
@@ -39,8 +37,23 @@ class WhiteboardStorage(ABC):
         return AzureWhiteboardStorage.from_sas(credentials)
 
 
-class AzureClient:
+class StorageClient(ABC):
+    def __init__(self):
+        # pylint: disable=unused-private-member
+        self.__logger = logging.getLogger(self.__class__.__name__)
+
+    @abstractmethod
+    def read(self, url: str) -> Any:
+        pass
+
+    @abstractmethod
+    def write(self, container: str, blob: str, data):
+        pass
+
+
+class AzureClient(StorageClient):
     def __init__(self, client: BlobServiceClient):
+        super().__init__()
         self.client: BlobServiceClient = client
 
     def read(self, url: str) -> Any:
@@ -56,8 +69,8 @@ class AzureClient:
 
         downloader: StorageStreamDownloader = (
             self.client.get_container_client(bucket)
-            .get_blob_client(str(other))
-            .download_blob()
+                .get_blob_client(str(other))
+                .download_blob()
         )
         data = downloader.readall()
         return cloudpickle.loads(data)
@@ -95,8 +108,9 @@ class AzureWhiteboardStorage(WhiteboardStorage):
         return AzureWhiteboardStorage(BlobServiceClient(credentials.endpoint))
 
 
-class AmazonClient:
+class AmazonClient(StorageClient):
     def __init__(self, credentials: AmazonCredentials):
+        super().__init__()
         self.fs_ = s3fs.S3FileSystem(
             key=credentials.access_token,
             secret=credentials.secret_token,
@@ -109,7 +123,6 @@ class AmazonClient:
         assert uri.scheme == "s3"
         with self.fs_.open(uri.path) as file:
             return cloudpickle.load(file)
-
 
     def write(self, bucket: str, key: str, data) -> str:
         path = f"/{bucket}/{key}"

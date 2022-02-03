@@ -45,7 +45,7 @@ class PyEnv(Env):
     def local_modules_uploaded(self) -> Dict[str, str]:
         return self._local_modules_uploaded
 
-    def as_dct(self) -> Dict[str, str]:
+    def as_dct(self):
         if self._local_modules_uploaded:
             return {"name": self._name, "yaml": self._yaml,
                     "localModules": [{"name": name, "uri": uri} for name, uri in self._local_modules_uploaded.items()]}
