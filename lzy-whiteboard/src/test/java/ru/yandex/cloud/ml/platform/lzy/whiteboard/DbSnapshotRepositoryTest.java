@@ -13,7 +13,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.SnapshotRepositoryImpl;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbSnapshotRepository;
 
 
 import java.net.URI;
@@ -26,9 +26,9 @@ import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus.Stat
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus.State.FINALIZED;
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State.*;
 
-public class SnapshotRepositoryImplTest {
+public class DbSnapshotRepositoryTest {
     private ApplicationContext ctx;
-    SnapshotRepositoryImpl impl;
+    DbSnapshotRepository impl;
     private DbStorage storage;
 
     private String snapshotId;
@@ -44,7 +44,7 @@ public class SnapshotRepositoryImplTest {
     @Before
     public void setUp() {
         ctx = ApplicationContext.run();
-        impl = ctx.getBean(SnapshotRepositoryImpl.class);
+        impl = ctx.getBean(DbSnapshotRepository.class);
         storage = ctx.getBean(DbStorage.class);
 
         snapshotId = UUID.randomUUID().toString();

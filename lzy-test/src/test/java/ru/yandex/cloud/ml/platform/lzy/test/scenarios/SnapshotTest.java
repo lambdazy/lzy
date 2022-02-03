@@ -11,7 +11,6 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
@@ -19,7 +18,6 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import org.apache.commons.io.IOUtils;
 import org.jose4j.json.internal.json_simple.JSONObject;
 import org.jose4j.json.internal.json_simple.parser.JSONParser;
@@ -28,14 +26,10 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardInfo;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
 public class SnapshotTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
@@ -209,7 +203,7 @@ public class SnapshotTest extends LzyBaseTest {
     }
 
     @Test
-    public void testWhiteboardsResolving() throws ParseException, InvalidProtocolBufferException {
+    public void testWhiteboardsResolving() throws ParseException {
         final String spIdFirst = createSnapshot();
         Assert.assertNotNull(spIdFirst);
 
@@ -224,23 +218,6 @@ public class SnapshotTest extends LzyBaseTest {
 
         final String wbIdThird = createWhiteboard(spIdSecond, List.of("fileNameA", "fileNameB"), List.of("tag"), "namespace");
         Assert.assertNotNull(wbIdThird);
-
-        String whiteboards = terminal.getAllWhiteboards();
-        LzyWhiteboard.WhiteboardsInfo.Builder builder = LzyWhiteboard.WhiteboardsInfo.newBuilder();
-        JsonFormat.parser().merge(whiteboards, builder);
-        LzyWhiteboard.WhiteboardsInfo wbInfo = builder.build();
-
-        List<LzyWhiteboard.WhiteboardInfo> wbInfoList = wbInfo.getWhiteboardsList();
-        Assert.assertEquals(3, wbInfoList.size());
-        Assert.assertTrue(wbInfoList.contains(
-                to(new WhiteboardInfo.Impl(URI.create(wbIdFirst), WhiteboardStatus.State.CREATED)))
-        );
-        Assert.assertTrue(wbInfoList.contains(
-                to(new WhiteboardInfo.Impl(URI.create(wbIdSecond), WhiteboardStatus.State.CREATED)))
-        );
-        Assert.assertTrue(wbInfoList.contains(
-                to(new WhiteboardInfo.Impl(URI.create(wbIdThird), WhiteboardStatus.State.CREATED)))
-        );
     }
 
     @Test

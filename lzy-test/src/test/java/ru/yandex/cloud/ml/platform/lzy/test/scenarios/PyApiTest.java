@@ -109,7 +109,7 @@ public class PyApiTest extends LzyBaseTest {
         Assert.assertTrue(result.stdout().contains("Just print some text"));
 
         Assert.assertTrue(result.stdout().contains("42 42"));
-        Assert.assertTrue(result.stdout().contains("COMPLETED"));
+        Assert.assertTrue(result.stdout().contains("Len: 3"));
 
         Assert.assertTrue(result.stdout().contains("Number of SimpleView views 6"));
         Assert.assertTrue(result.stdout().contains("Ids of SimpleView second_id_SimpleWhiteboard;" +

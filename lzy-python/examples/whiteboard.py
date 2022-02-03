@@ -29,7 +29,5 @@ with LzyRemoteEnv(whiteboard=wb):
     wb_id = wb.id()
 
 with LzyRemoteEnv() as env:
-    wb = env.get_whiteboard(wb_id, SimpleWhiteboard)
+    wb = env.whiteboard(wb_id, SimpleWhiteboard)
     print(len(wb.b))
-    wbInfo = env.get_all_whiteboards_info()
-    print(wb.a, wb.a, wbInfo[0].status)

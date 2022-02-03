@@ -1,12 +1,11 @@
+import inspect
 import pathlib
+import uuid
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Type, TypeVar
 from dataclasses import dataclass
 from enum import Enum
-import uuid
-import logging
-import inspect
 from inspect import Signature
+from typing import Dict, List, Optional, Any, Type, TypeVar
 from urllib import parse
 
 from lzy.model.slot import Slot
@@ -20,15 +19,19 @@ class SnapshotDescription:
 
 
 class WhiteboardFieldStatus(Enum):
+    UNKNOWN = "UNKNOWN"
+    CREATED = "CREATED"
     IN_PROGRESS = "IN_PROGRESS"
     FINISHED = "FINISHED"
+    ERRORED = "ERRORED"
 
 
 @dataclass
 class WhiteboardFieldDescription:
     field_name: str
+    status: WhiteboardFieldStatus
+    dependent_field_names: Optional[List[str]]  # protobuf makes no distinction between empty list and null list
     storage_uri: Optional[str]
-    dependent_field_names: Optional[List[str]]
 
 
 class WhiteboardStatus(Enum):
@@ -40,24 +43,19 @@ class WhiteboardStatus(Enum):
 
 
 @dataclass
-class WhiteboardInfo:
-    id: str  # pylint: disable=invalid-name
-    status: Optional[WhiteboardStatus]
-
-
-@dataclass
 class WhiteboardDescription:
     id: str  # pylint: disable=invalid-name
     fields: List[WhiteboardFieldDescription]
-    snapshot: Optional[SnapshotDescription]
-    status: Optional[WhiteboardStatus]
+    snapshot: SnapshotDescription
+    status: WhiteboardStatus
 
 
 class WhiteboardList:
-    def __init__(self, wb_list):
+    def __init__(self, wb_list: List[Any]):
         self.wb_list = wb_list
 
-    def _methods_with_view_decorator_names(self, obj) -> List:
+    @staticmethod
+    def _methods_with_view_decorator_names(obj) -> List:
         res = []
         for name in dir(obj):
             attribute = getattr(obj, name)
@@ -118,15 +116,11 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def get_by_namespace_and_tags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+    def list(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
         pass
 
     @abstractmethod
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
-        pass
-
-    @abstractmethod
-    def get_all(self) -> List[WhiteboardInfo]:
         pass
 
 
@@ -157,7 +151,7 @@ class InMemWhiteboardApi(WhiteboardApi):
         wb_id = str(uuid.uuid1())
         self.__whiteboards[wb_id] = WhiteboardDescription(
             wb_id,
-            [WhiteboardFieldDescription(name, None, []) for name in fields],
+            [WhiteboardFieldDescription(name, WhiteboardFieldStatus.CREATED, [], None) for name in fields],
             SnapshotDescription(snapshot_id=snapshot_id),
             WhiteboardStatus.CREATED,
         )
@@ -171,16 +165,11 @@ class InMemWhiteboardApi(WhiteboardApi):
     def get(self, wb_id: str) -> WhiteboardDescription:
         return self.__whiteboards[wb_id]
 
-    def get_all(self) -> List[WhiteboardInfo]:
-        return [
-            WhiteboardInfo(wb.id, wb.status) for key, wb in self.__whiteboards.items()
-        ]
-
-    def get_by_namespace_and_tags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+    def list(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
         namespace_ids = [k for k, v in self.__namespaces.items() if v == namespace]
         tags_ids = [k for k, v in self.__tags.items() if all(item in v for item in tags)]
         wb_ids = set.intersection(set(namespace_ids), set(tags_ids))
-        return [self.__whiteboards[id] for id in wb_ids]
+        return [self.__whiteboards[id_] for id_ in wb_ids]
 
 
 class InMemSnapshotApi(SnapshotApi):

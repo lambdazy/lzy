@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 public interface SnapshotEntryStatus {
     boolean empty();
     State status();
+    @Nullable
     URI storage();
     SnapshotEntry entry();
     Set<String> dependentEntryIds();
@@ -56,6 +57,7 @@ public interface SnapshotEntryStatus {
     enum State {
         CREATED,
         IN_PROGRESS,
-        FINISHED
+        FINISHED,
+        ERRORED
     }
 }

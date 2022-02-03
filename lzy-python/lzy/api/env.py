@@ -1,6 +1,6 @@
 import dataclasses
+import hashlib
 import logging
-import uuid
 import os
 from abc import abstractmethod, ABC
 from pathlib import Path
@@ -13,25 +13,22 @@ from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.api.whiteboard import is_whiteboard
-from lzy.api.whiteboard.api import (
+from lzy.api.whiteboard.model import (
     InMemSnapshotApi,
     InMemWhiteboardApi,
     SnapshotApi,
     WhiteboardApi,
-    WhiteboardInfo,
     WhiteboardList,
     WhiteboardDescription
 )
 from lzy.api.whiteboard.credentials import AmazonCredentials, AzureCredentials
-from lzy.api.whiteboard.wb import wrap_whiteboard
+from lzy.api.whiteboard.wrappers import wrap_whiteboard, wrap_whiteboard_for_read
 from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 from lzy.servant.whiteboard_storage import AmazonClient, AzureClient, StorageClient
-import io
-import hashlib
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]
@@ -64,7 +61,7 @@ class LzyEnvBase(ABC):
         self._eager = eager
         self._log = logging.getLogger(str(self.__class__))
 
-    def get_whiteboard(self, wid: str, typ: Type[Any]) -> Any:
+    def whiteboard(self, wid: str, typ: Type[Any]) -> Any:
         self._check_whiteboard(typ)
         wb_ = self._execution_context.whiteboard_api.get(wid)
         return self._build_whiteboard(wb_, typ)
@@ -75,19 +72,20 @@ class LzyEnvBase(ABC):
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
         whiteboard_dict = {}
         for field in wb_.fields:
-            assert field.storage_uri is not None
-            whiteboard_dict[field.field_name] = self._execution_context \
-                .whiteboard_api \
-                .resolve(field.storage_uri, field_types[field.field_name])
+            if field.storage_uri is None:
+                whiteboard_dict[field.field_name] = None
+            else:
+                whiteboard_dict[field.field_name] = self._execution_context \
+                    .whiteboard_api \
+                    .resolve(field.storage_uri, field_types[field.field_name])
         # noinspection PyArgumentList
-        return typ(**whiteboard_dict)
+        instance = typ(**whiteboard_dict)
+        wrap_whiteboard_for_read(instance, wb_)
+        return instance
 
-    def get_all_whiteboards_info(self) -> List[WhiteboardInfo]:
-        return self._execution_context.whiteboard_api.get_all()
-
-    def get_whiteboards(self, namespace: str, tags: List[str], typ: Type[T]) -> List[T]:
+    def _whiteboards(self, namespace: str, tags: List[str], typ: Type[T]) -> List[T]:
         self._check_whiteboard(typ)
-        wb_list = self._execution_context.whiteboard_api.get_by_namespace_and_tags(namespace, tags)
+        wb_list = self._execution_context.whiteboard_api.list(namespace, tags)
         self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags}")
         result = [self._build_whiteboard(wb_, typ) for wb_ in wb_list]
         return result
@@ -96,7 +94,7 @@ class LzyEnvBase(ABC):
         whiteboard_dict = {}
         for typ in typs:
             self._check_whiteboard(typ)
-            whiteboard_dict[typ] = self.get_whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ)  # type: ignore
+            whiteboard_dict[typ] = self._whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ)  # type: ignore
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
         return WhiteboardList([wb for wbs_list in list_of_wb_lists for wb in wbs_list])

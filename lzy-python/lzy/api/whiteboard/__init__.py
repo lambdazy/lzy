@@ -1,10 +1,13 @@
 import dataclasses
 from typing import List
 
+from lzy.api.whiteboard.model import WhiteboardApi, WhiteboardDescription
+
 
 def whiteboard(tags: List[str], namespace=None):
     def wrap(cls):
         return whiteboard_(cls, namespace, tags)
+
     return wrap
 
 

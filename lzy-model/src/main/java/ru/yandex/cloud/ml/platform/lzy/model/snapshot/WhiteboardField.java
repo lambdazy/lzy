@@ -1,7 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 
+import javax.annotation.Nullable;
+
 public interface WhiteboardField {
     String name();
+    @Nullable
     SnapshotEntry entry();
     Whiteboard whiteboard();
 
@@ -21,6 +24,7 @@ public interface WhiteboardField {
             return name;
         }
 
+        @Nullable
         @Override
         public SnapshotEntry entry() {
             return entry;

@@ -20,7 +20,6 @@ service WbApi {
   rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
   rpc Link (LinkCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
-  rpc Whiteboards (WhiteboardsCommand) returns (WhiteboardsInfo);
   rpc WhiteboardByNamespaceAndTags (WhiteboardByNamespaceAndTagsCommand) returns (WhiteboardsResponse);
 }
 
@@ -95,8 +94,11 @@ message WhiteboardField {
   Status status = 5;
 
   enum Status {
-    IN_PROGRESS = 0;
-    FINISHED = 1;
+    UNKNOWN = 0;
+    CREATED = 1;
+    IN_PROGRESS = 2;
+    FINISHED = 3;
+    ERRORED = 4;
   }
 }
 
@@ -115,22 +117,6 @@ message Whiteboard {
   WhiteboardStatus status = 4;
   repeated string tags = 5;
   string namespace = 6;
-}
-
-message WhiteboardsCommand {
-  oneof credentials {
-    Auth auth = 1;
-    BackofficeCredentials backoffice = 2;
-  }
-}
-
-message WhiteboardInfo {
-  string id = 1;
-  WhiteboardStatus whiteboardStatus = 2;
-}
-
-message WhiteboardsInfo {
-  repeated WhiteboardInfo whiteboards = 1;
 }
 
 message BackofficeCredentials {

@@ -118,10 +118,8 @@ with LzyRemoteEnv(whiteboard=wb):
     wb_id = wb.id()
 
 with LzyRemoteEnv() as env:
-    wb = env.get_whiteboard(wb_id, SimpleWhiteboard)
-    print(len(wb.b))
-    wbInfo = env.get_all_whiteboards_info()
-    print(wb.a, wb.a, wbInfo[0].status)
+    wb = env.whiteboard(wb_id, SimpleWhiteboard)
+    print("Len: " + str(len(wb.b)))
 
 wb = AnotherSimpleWhiteboard()
 with LzyRemoteEnv(whiteboard=wb):
@@ -133,6 +131,14 @@ wb = OneMoreSimpleWhiteboard()
 with LzyRemoteEnv(whiteboard=wb):
     wb.a = fun1()
     wb.b = fun2(wb.a)
+
+# Simulate crash before whiteboard is finished
+wb = OneMoreSimpleWhiteboard()
+with LzyRemoteEnv(whiteboard=wb) as env:
+    wb.a = fun1()
+    wb.b = fun2(wb.a)
+    # noinspection PyProtectedMember
+    env._ops.clear()
 
 with LzyRemoteEnv() as env:
     views = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard]).views(SimpleView)

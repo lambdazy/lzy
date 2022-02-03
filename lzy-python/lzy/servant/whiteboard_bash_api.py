@@ -1,19 +1,19 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Optional, Type, Dict, List, TypeVar, Mapping
+from typing import Any, Type, Dict, List, TypeVar
 
+# noinspection PyProtectedMember
 from lzy.api._proxy import proxy
-from lzy.api.whiteboard.api import (
+from lzy.api.whiteboard.credentials import StorageCredentials
+from lzy.api.whiteboard.model import (
     SnapshotApi,
     SnapshotDescription,
     WhiteboardApi,
     WhiteboardDescription,
-    WhiteboardInfo,
     WhiteboardStatus,
     WhiteboardFieldDescription, get_bucket_from_url
 )
-from lzy.api.whiteboard.credentials import StorageCredentials
 from lzy.servant.bash_servant_client import exec_bash
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.whiteboard_storage import WhiteboardStorage
@@ -113,51 +113,28 @@ class WhiteboardBashApi(WhiteboardApi):
         except (JSONDecodeError, KeyError) as err:
             raise RuntimeError(f"Wrong command output format: {out}") from err
 
-    def get_all(self) -> List[WhiteboardInfo]:
-        self._log.info("Getting all whiteboards")
-        out = exec_bash(f"{self.__mount}/sbin/whiteboard", "getAll")
-        try:
-            res = json.loads(out)
-            self._log.info(f"Received whiteboards info: {res}")
-            return self._parse_wb_info_json(res)
-        except (JSONDecodeError, KeyError) as err:
-            raise RuntimeError(f"Wrong command output format: {out}") from err
-
     @staticmethod
     def _parse_wb_json(res: Dict[str, Any]) -> WhiteboardDescription:
         fields = [
             WhiteboardFieldDescription(
                 field["fieldName"],
-                field.get("storageUri"),
+                field["status"],
                 field.get("dependentFieldNames"),
+                field.get("storageUri")
             )
             for field in res.get("fields", [])
         ]
-
-        snapshot = None
-        if res.get("snapshot") is not None:
-            snapshot = SnapshotDescription(res["snapshot"]["snapshotId"])
-
-        status = None
-        if res.get("status") is not None:
-            status = WhiteboardStatus(res["status"])
-
+        snapshot = SnapshotDescription(res["snapshot"]["snapshotId"])
+        status = WhiteboardStatus(res["status"])
         return WhiteboardDescription(res["id"], fields, snapshot, status)
 
     @staticmethod
     def _parse_wb_json_list(res: Dict[str, Any]) -> List[WhiteboardDescription]:
         return [WhiteboardBashApi._parse_wb_json(whiteboard) for whiteboard in res.get("whiteboards", [])]
 
-    @staticmethod
-    def _parse_wb_info_json(res: Dict[str, Any]) -> List[WhiteboardInfo]:
-        return [
-            WhiteboardInfo(field["id"], field.get("whiteboardStatus"))
-            for field in res.get("whiteboards", [])
-        ]
-
-    def get_by_namespace_and_tags(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+    def list(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
         self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags}")
-        command = " ".join([f"{self.__mount}/sbin/whiteboard", "getByNamespaceAndTags"])
+        command = " ".join([f"{self.__mount}/sbin/whiteboard", "list"])
         if tags:
             command = " ".join([command, "-t", ",".join(tags)])
         if namespace:

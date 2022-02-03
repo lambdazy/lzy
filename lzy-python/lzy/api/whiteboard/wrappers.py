@@ -1,11 +1,11 @@
 import dataclasses
-from typing import Any, Dict, Callable, Optional
+from typing import Any, Callable, Optional, Dict
 
-from lzy.api.whiteboard.api import WhiteboardApi
 from lzy.api.utils import is_lazy_proxy
-from lzy.api.whiteboard import is_whiteboard
+from lzy.api.whiteboard import WhiteboardApi, is_whiteboard, WhiteboardDescription
 
-ALREADY_WRAPPED = '_already_wrapped'
+ALREADY_WRAPPED = '_already_wrapped_whiteboard'
+ALREADY_WRAPPED_READY = '_already_wrapped_ready_whiteboard'
 
 
 def wrap_whiteboard(
@@ -55,3 +55,12 @@ def wrap_whiteboard(
     setattr(instance, "id", whiteboard_id_getter)
     setattr(instance, ALREADY_WRAPPED, True)
     type(instance).__setattr__ = __setattr__  # type: ignore
+
+
+def wrap_whiteboard_for_read(instance: Any, wd: WhiteboardDescription):
+    if hasattr(instance, ALREADY_WRAPPED_READY):
+        return
+
+    setattr(instance, "id", wd.id)
+    setattr(instance, "status", wd.status)
+    setattr(instance, ALREADY_WRAPPED_READY, True)

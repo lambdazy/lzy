@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.whiteboard.mem;
+package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate;
 
 import io.grpc.Status;
 import io.micronaut.context.annotation.Requires;
@@ -8,18 +8,16 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
 
 import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Singleton
 @Requires(beans = DbStorage.class)
-public class SnapshotRepositoryImpl implements SnapshotRepository {
+public class DbSnapshotRepository implements SnapshotRepository {
     @Inject
     DbStorage storage;
 

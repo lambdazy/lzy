@@ -3,43 +3,29 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.env.PropertySource;
-import io.micronaut.context.exceptions.NoSuchBeanException;
-import jakarta.inject.Inject;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.WhiteboardApi;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.InMemRepo;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.WhiteboardApi;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.InMemRepo;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.SnapshotRepositoryImpl;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.WhiteboardRepositoryImpl;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.SnapshotRepositoryImpl;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.WhiteboardRepositoryImpl;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 
 public class LzySnapshot {
+
     private static final Logger LOG = LogManager.getLogger(LzySnapshot.class);
 
     private static final Options options = new Options();
     private static final String LZY_SNAPSHOT_HOST_ENV = "LZY_WHITEBOARD_HOST";
     private static final String DEFAULT_LZY_SNAPSHOT_LOCALHOST = "http://localhost";
-    private static URI snapshotURI;
 
     static {
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
-        options.addOption(new Option("z", "lzy-server-address", true, "Lzy server address [host:port]"));
+        options.addOption(
+            new Option("z", "lzy-server-address", true, "Lzy server address [host:port]"));
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -61,19 +47,20 @@ public class LzySnapshot {
             lzyWhiteboardHost = DEFAULT_LZY_SNAPSHOT_LOCALHOST;
         }
         final int port = Integer.parseInt(parse.getOptionValue('p', "8999"));
-        snapshotURI = URI.create(lzyWhiteboardHost + ":" + port);
+        URI snapshotURI = URI.create(lzyWhiteboardHost + ":" + port);
+        LOG.info("Starting at: " + snapshotURI);
         try (ApplicationContext context = ApplicationContext.run(
             PropertySource.of(
                 Map.of(
-                  "snapshot.uri", snapshotURI.toString(),
-                        "server.uri", serverAddress.toString()
+                    "snapshot.uri", snapshotURI.toString(),
+                    "server.uri", serverAddress.toString()
                 )
             )
         )) {
             SnapshotApi spImpl = context.getBean(SnapshotApi.class);
             WhiteboardApi wbImpl = context.getBean(WhiteboardApi.class);
             ServerBuilder<?> builder = ServerBuilder.forPort(port)
-                    .addService(wbImpl);
+                .addService(wbImpl);
             builder.addService(spImpl);
 
             final Server server = builder.build();
