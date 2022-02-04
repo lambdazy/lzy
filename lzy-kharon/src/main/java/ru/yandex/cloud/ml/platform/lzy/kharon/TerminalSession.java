@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
@@ -14,8 +15,12 @@ import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus.RC;
 
 public class TerminalSession {
+
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
     public static final String SESSION_ID_KEY = "kharon_session_id";
 
@@ -43,16 +48,19 @@ public class TerminalSession {
             @Override
             public void onNext(Kharon.TerminalState terminalState) {
                 if (!terminalState.hasSlotStatus()) {
-                    LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:" + JsonUtils.printRequest(terminalState));
+                    LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:"
+                        + JsonUtils.printRequest(terminalState));
                 }
-                if (terminalState.getProgressCase() != Kharon.TerminalState.ProgressCase.ATTACHTERMINAL) {
+                if (terminalState.getProgressCase()
+                    != Kharon.TerminalState.ProgressCase.ATTACHTERMINAL) {
                     checkConsistency();
                 }
                 switch (terminalState.getProgressCase()) {
                     case ATTACHTERMINAL: {
                         final Kharon.AttachTerminal attachTerminal = terminalState.getAttachTerminal();
                         if (user != null) {
-                            throw new IllegalStateException("Double attach to terminal from user " + user);
+                            throw new IllegalStateException(
+                                "Double attach to terminal from user " + user);
                         }
                         final IAM.UserCredentials auth = attachTerminal.getAuth();
                         user = auth.getUserId();
@@ -69,12 +77,12 @@ public class TerminalSession {
                         try {
                             //noinspection ResultOfMethodCallIgnored
                             lzyServer.registerServant(Lzy.AttachServant.newBuilder()
-                                    .setAuth(IAM.Auth.newBuilder()
-                                            .setUser(userCredentials)
-                                            .build())
-                                    .setServantURI(servantAddr)
-                                    .setSessionId(sessionId.toString())
-                                    .build());
+                                .setAuth(IAM.Auth.newBuilder()
+                                    .setUser(userCredentials)
+                                    .build())
+                                .setServantURI(servantAddr)
+                                .setSessionId(sessionId.toString())
+                                .build());
                         } catch (StatusRuntimeException e) {
                             LOG.error("registerServant failed. " + e);
                             terminalController.onError(e);
@@ -103,9 +111,11 @@ public class TerminalSession {
                         break;
                     }
                     case SLOTSTATUS: {
-                        final CompletableFuture<Kharon.TerminalState> future = tasks.get(UUID.fromString(terminalState.getCommandId()));
+                        final CompletableFuture<Kharon.TerminalState> future = tasks.get(
+                            UUID.fromString(terminalState.getCommandId()));
                         if (future == null) {
-                            throw new IllegalStateException("No such task " + terminalState.getCommandId());
+                            throw new IllegalStateException(
+                                "No such task " + terminalState.getCommandId());
                         }
                         future.complete(terminalState);
                         break;
@@ -116,6 +126,9 @@ public class TerminalSession {
             @Override
             public void onError(Throwable throwable) {
                 LOG.error("Terminal execution terminated ", throwable);
+                if (executionProgress != null) {
+                    executionProgress.onError(throwable);
+                }
             }
 
             @Override
@@ -138,8 +151,9 @@ public class TerminalSession {
     }
 
     @Nullable
-    public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) {
-        LOG.info("Kharon sessionId " + sessionId + " ::configureSlot " + JsonUtils.printRequest(request));
+    public Servant.SlotCommandStatus configureSlot(SlotCommand request) {
+        LOG.info("Kharon sessionId " + sessionId + " ::configureSlot " + JsonUtils.printRequest(
+            request));
         final CompletableFuture<Kharon.TerminalState> future = new CompletableFuture<>();
         final String commandId = generateCommandId(future);
         final Kharon.TerminalCommand sendingRequest = Kharon.TerminalCommand.newBuilder()
@@ -148,7 +162,15 @@ public class TerminalSession {
             .build();
         LOG.info("terminalController send request " + JsonUtils.printRequest(sendingRequest));
         synchronized (terminalController) {
-            terminalController.onNext(sendingRequest);
+            try {
+                terminalController.onNext(sendingRequest);
+            } catch (RuntimeException e) { // FIXME(d-kruchinin): why cannot catch StatusRuntimeException?
+                LOG.warn(
+                    "Kharon session={} was cancelled, but got configureSlot return -1;\n Cause: {}",
+                    sessionId, e);
+                return Servant.SlotCommandStatus.newBuilder()
+                    .setRc(RC.newBuilder().setCodeValue(-1)).build();
+            }
         }
         try {
             return future.get(10, TimeUnit.SECONDS).getSlotStatus();
@@ -166,7 +188,8 @@ public class TerminalSession {
             try {
                 executionProgress = executeFromServerFuture.get(10, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                throw new IllegalStateException("Got terminal state before execute from server. " + e);
+                throw new IllegalStateException(
+                    "Got terminal state before execute from server. " + e);
             }
         }
     }
@@ -195,6 +218,10 @@ public class TerminalSession {
     }
 
     public void close() {
-        terminalController.onCompleted();
+        try {
+            terminalController.onCompleted();
+        } catch (Exception e) {
+            LOG.error("Failed to close stream with Terminal session_id {}. Already closed.", sessionId);
+        }
     }
 }

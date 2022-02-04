@@ -285,6 +285,16 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
+        default String sessions() {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                mount() + "/sbin/sessions"
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+            return execute.stdout();
+        }
+
         default void createSlot(String path, String channelName, Slot slot) {
             try {
                 execute(

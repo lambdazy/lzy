@@ -32,6 +32,10 @@ import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse.Builder;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.SessionDescription;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
@@ -117,6 +121,9 @@ public class LzyServer {
 
         @Inject
         private ConnectionManager connectionManager;
+
+        @Inject
+        private SessionManager sessionManager;
 
         @Inject
         private Authenticator auth;
@@ -247,8 +254,9 @@ public class LzyServer {
             );
             Context.current().addListener(ctxt -> {
                 concluded.set(true);
-                if (!EnumSet.of(FINISHED, DESTROYED).contains(task.state()))
+                if (!EnumSet.of(FINISHED, DESTROYED).contains(task.state())) {
                     task.signal(TasksManager.Signal.TERM);
+                }
             }, Runnable::run);
         }
 
@@ -400,6 +408,22 @@ public class LzyServer {
         }
 
         @Override
+        public void getSessions(GetSessionsRequest request,
+            StreamObserver<GetSessionsResponse> responseObserver) {
+            final String userId = request.getAuth().getUserId();
+            if (!auth.checkUser(userId, request.getAuth().getToken())) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            }
+
+            final Builder builder = GetSessionsResponse.newBuilder();
+            sessionManager.getSessionIds(userId).forEach(
+                sessionId -> builder.addSessions(SessionDescription.newBuilder().setSessionId(sessionId.toString()))
+            );
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
         public void getBucket(Lzy.GetBucketRequest request, StreamObserver<Lzy.GetBucketResponse> responseObserver) {
             LOG.info("Server::getBucket " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();
@@ -417,6 +441,7 @@ public class LzyServer {
 
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
             final String user = auth.getUser().getUserId();
+            sessionManager.registerSession(user, sessionId);
 
             final Tasks.TaskSpec.Builder executionSpec = Tasks.TaskSpec.newBuilder();
             tasks.slots(user).forEach((slot, channel) -> executionSpec.addAssignmentsBuilder()
@@ -459,6 +484,7 @@ public class LzyServer {
                 tasks.slots(user).keySet().forEach(slot -> tasks.removeUserSlot(user, slot));
                 channels.unbindAll(sessionId);
                 tasks.destroyUserChannels(user);
+                sessionManager.deleteSession(user, sessionId);
             }
         }
 
@@ -472,8 +498,8 @@ public class LzyServer {
                 );
 
                 builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
-                if (task.servant() != null) {
-                    builder.setServant(task.servant().toString());
+                if (task.servantUri() != null) {
+                    builder.setServant(task.servantUri().toString());
                 }
                 builder.setOwner(tasks.owner(task.tid()));
                 Stream.concat(Stream.of(task.workload().input()), Stream.of(task.workload().output()))

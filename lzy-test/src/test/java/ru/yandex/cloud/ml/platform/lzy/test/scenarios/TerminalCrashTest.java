@@ -1,8 +1,14 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import io.grpc.internal.JsonParser;
+import java.io.IOException;
+import java.util.ArrayList;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.JsonNode;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.node.ArrayNode;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
@@ -74,10 +80,14 @@ public class TerminalCrashTest extends LzyBaseTest {
         terminal = createTerminal();
 
         //Assert
-        Assert.assertEquals(terminal.channelStatus(channelName), "");
-
-        //Act
-        terminal.destroyChannel(channelName);
+        Assert.assertEquals("Got exception while channel status (status_code=NOT_FOUND)\n", terminal.channelStatus(channelName));
+        final String sessions = terminal.sessions();
+        try {
+            final JsonNode node = new ObjectMapper().readTree(sessions);
+            Assert.assertEquals(node.size(), 1);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         //Assert
         Assert.assertTrue(Utils.waitFlagUp(() ->

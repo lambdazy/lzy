@@ -19,7 +19,8 @@ public interface LzyCommand {
         whiteboard(new Whiteboard()),
         storage(new Storage()),
         snapshot(new Snapshot()),
-        cat(new Cat());
+        cat(new Cat()),
+        sessions(new Sessions());
 
         private final LzyCommand command;
         Commands(LzyCommand command) {

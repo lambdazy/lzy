@@ -152,7 +152,7 @@ public class LocalChannelGraph implements ChannelGraph {
 
     private long numConnections(Endpoint endpoint) {
         if (senders.contains(endpoint)) {
-            return edges.get(endpoint).size();
+            return !edges.containsKey(endpoint) ? 0 : edges.get(endpoint).size();
         }
         return edges.entrySet().stream()
             .filter(entry -> entry.getValue().contains(endpoint))

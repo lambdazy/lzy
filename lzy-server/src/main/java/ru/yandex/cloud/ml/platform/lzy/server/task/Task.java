@@ -25,7 +25,7 @@ public interface Task {
     SlotStatus slotStatus(Slot slot) throws TaskException;
     void signal(TasksManager.Signal signal) throws TaskException;
 
-    URI servant();
+    URI servantUri();
     void attachServant(URI uri, LzyServantBlockingStub servant);
 
     Stream<Slot> slots();

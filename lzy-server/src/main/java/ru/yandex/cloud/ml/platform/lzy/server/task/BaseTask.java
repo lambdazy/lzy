@@ -1,5 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
@@ -20,6 +24,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public abstract class BaseTask implements Task {
+
     private static final Logger LOG = LogManager.getLogger(BaseTask.class);
 
     protected final String owner;
@@ -35,8 +40,8 @@ public abstract class BaseTask implements Task {
     private final Map<Slot, Channel> attachedSlots = new HashMap<>();
 
     private State state = State.PREPARING;
-    private URI servantURI;
-    private LzyServantBlockingStub servant;
+    private URI servantUri;
+    private CompletableFuture<LzyServantBlockingStub> servant = new CompletableFuture<>();
     private final String bucket;
 
     public BaseTask(
@@ -102,15 +107,16 @@ public abstract class BaseTask implements Task {
         if (newState != state) {
             state = newState;
             progress(Servant.ExecutionProgress.newBuilder()
-                .setChanged(Servant.StateChanged.newBuilder().setNewState(Servant.StateChanged.State.valueOf(newState.name())).build())
+                .setChanged(Servant.StateChanged.newBuilder()
+                    .setNewState(Servant.StateChanged.State.valueOf(newState.name())).build())
                 .build());
         }
     }
 
     @Override
     public void attachServant(URI uri, LzyServantBlockingStub servant) {
-        servantURI = uri;
-        this.servant = servant;
+        servantUri = uri;
+        this.servant.complete(servant);
         final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
             .setAuth(IAM.Auth.newBuilder()
                 .setTask(IAM.TaskCredentials.newBuilder()
@@ -129,7 +135,7 @@ public abstract class BaseTask implements Task {
         );
         final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
         state(State.CONNECTED);
-        LOG.info("Server is attached to servant {}", servantURI);
+        LOG.info("Server is attached to servant {}", servantUri);
         try {
             progressIt.forEachRemaining(progress -> {
                 LOG.info("BaseTask::Progress " + JsonUtils.printRequest(progress));
@@ -148,15 +154,18 @@ public abstract class BaseTask implements Task {
                             channelName = binding.startsWith("channel:") ?
                                 binding.substring("channel:".length()) :
                                 null;
+                        } else {
+                            channelName = attach.getChannel();
                         }
-                        else channelName = attach.getChannel();
 
                         final Channel channel = channels.get(channelName);
                         if (channel != null) {
                             attachedSlots.put(slot, channel);
-                            channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, servant));
+                            channels.bind(channel,
+                                new ServantEndpoint(slot, slotUri, tid, servant));
                         } else {
-                            LOG.warn("Unable to attach channel to " + tid + ":" + slot.name());
+                            LOG.warn("Unable to attach channel to " + tid + ":" + slot.name()
+                                + ". Channel not found.");
                         }
                         break;
                     }
@@ -177,10 +186,9 @@ public abstract class BaseTask implements Task {
                         break;
                 }
             });
-        }
-        finally {
+        } finally {
             state(State.FINISHED);
-            LOG.info("Stopping servant {}", servantURI);
+            LOG.info("Stopping servant {}", servantUri);
             //noinspection ResultOfMethodCallIgnored
             servant.stop(IAM.Empty.newBuilder().build());
         }
@@ -191,8 +199,8 @@ public abstract class BaseTask implements Task {
     }
 
     @Override
-    public URI servant() {
-        return servantURI;
+    public URI servantUri() {
+        return servantUri;
     }
 
     @Override
@@ -204,23 +212,37 @@ public abstract class BaseTask implements Task {
     public SlotStatus slotStatus(Slot slot) throws TaskException {
         final Slot definedSlot = workload.slot(slot.name());
         if (servant == null) {
-            if (definedSlot != null)
+            if (definedSlot != null) {
                 return new PreparingSlotStatus(owner, this, definedSlot, assignments.get(slot));
+            }
             throw new TaskException("No such slot: " + tid + ":" + slot);
         }
-        final Servant.SlotCommandStatus slotStatus = servant.configureSlot(Servant.SlotCommand.newBuilder()
-            .setSlot(slot.name())
-            .setStatus(Servant.StatusCommand.newBuilder().build())
-            .build()
+        final Servant.SlotCommandStatus slotStatus = servant().configureSlot(
+            Servant.SlotCommand.newBuilder()
+                .setSlot(slot.name())
+                .setStatus(Servant.StatusCommand.newBuilder().build())
+                .build()
         );
         return gRPCConverter.from(slotStatus.getStatus());
     }
 
     @Override
     public void signal(TasksManager.Signal signal) throws TaskException {
-        if (servant == null)
+        LOG.info("Sending signal {} to servant {} for task {}", signal.name(), servantUri, tid);
+        final LzyServantBlockingStub ser = servant();
+        if (ser == null)
             throw new TaskException("Illegal task state: " + state());
         //noinspection ResultOfMethodCallIgnored
-        servant.signal(Tasks.TaskSignal.newBuilder().setSigValue(signal.sig()).build());
+        ser.signal(Tasks.TaskSignal.newBuilder().setSigValue(signal.sig()).build());
+    }
+
+    private LzyServantBlockingStub servant() {
+        try {
+            // TODO(d-kruchinin): what if servant won't come with attachServant?
+            return servant.get(600, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOG.error("Failed to get connection to servant for task {}\nCause: {}", tid, e);
+            throw new RuntimeException(e);
+        }
     }
 }
