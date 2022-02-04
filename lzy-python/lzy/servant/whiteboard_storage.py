@@ -76,7 +76,7 @@ class AzureClient(StorageClient):
 
     def write(self, container: str, blob: str, data):
         container_client: ContainerClient = self.client.get_container_client(container)
-        container_client.get_blob_client(blob).upload_blob(data)
+        container_client.get_blob_client(blob).upload_blob(data, overwrite=True)
         return f"azure:/{container}/{blob}"
 
     @staticmethod
