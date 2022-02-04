@@ -3,14 +3,13 @@ import pathlib
 from abc import ABC, abstractmethod
 from typing import TypeVar, Any
 from urllib import parse
-from urllib.parse import urlunsplit, urlencode
+from urllib.parse import urlunsplit
 
-from azure.storage.blob import BlobServiceClient, StorageStreamDownloader
 import cloudpickle
 import s3fs
+from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
 
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
-from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -76,9 +75,7 @@ class AzureClient(StorageClient):
         return cloudpickle.loads(data)
 
     def write(self, container: str, blob: str, data):
-        # May not be working
         container_client: ContainerClient = self.client.get_container_client(container)
-        container_client.create_container()
         container_client.get_blob_client(blob).upload_blob(data)
         return f"azure:/{container}/{blob}"
 
