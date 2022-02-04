@@ -1,6 +1,5 @@
 import dataclasses
 import logging
-import uuid
 import os
 from abc import abstractmethod, ABC
 from pathlib import Path
@@ -30,8 +29,6 @@ from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 from lzy.servant.whiteboard_storage import AmazonClient, AzureClient, StorageClient
-import io
-import hashlib
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]
@@ -267,7 +264,7 @@ class LzyRemoteEnv(LzyEnvBase):
             local_modules_uploaded = []
             for local_module in local_modules:
                 cloudpickle.register_pickle_by_value(local_module)
-                key = str(hashlib.sha1(local_module.__name__.encode('utf-8')))
+                key = "local_modules/" + local_module.__name__
                 uri = client.write(bucket, key, cloudpickle.dumps(local_module))
                 local_modules_uploaded.append((local_module.__name__, uri))
                 cloudpickle.unregister_pickle_by_value(local_module)

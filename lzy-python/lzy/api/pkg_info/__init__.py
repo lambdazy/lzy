@@ -1,7 +1,7 @@
 import inspect
 import sys
 from types import ModuleType
-from typing import Any, Dict, Iterable, List, Tuple, Set
+from typing import Any, Dict, Iterable, List, Tuple
 
 import pkg_resources
 import requests
@@ -111,4 +111,6 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
     for _, entry in namespace.items():
         search(entry)
 
+    local_modules = list(
+        dict.fromkeys(local_modules))  # remove duplicates and keep order as dict preserves order since python3.7
     return remote_packages, local_modules

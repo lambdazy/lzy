@@ -31,16 +31,18 @@ def main():
     argv = sys.argv[1:]
     servant: ServantClient = BashServantClient.instance()
 
-    if os.environ['LOCAL_MODULES'] is not None:
-        if os.environ['AMAZON'] is not None:
+    if 'LOCAL_MODULES' in os.environ:
+        if 'AMAZON' in os.environ:
             data = json.loads(os.environ['AMAZON'])
             client = AmazonClient(AmazonCredentials(data['endpoint'], data['accessToken'], data['secretToken']))
-        elif os.environ['AZURE'] is not None:
+        elif 'AZURE' in os.environ:
             data = json.loads(os.environ['AZURE'])
             client = AzureClient.from_connection_string(AzureCredentials(data['connectionString']))
-        else:
+        elif 'AZURE_SAS' in os.environ:
             data = json.loads(os.environ['AZURE_SAS'])
             client = AzureClient.from_sas(AzureSasCredentials(data['endpoint'], data['signature']))
+        else:
+            raise ValueError('No storage credentials are provided')
 
         local_modules: OrderedDict = json.loads(os.environ['LOCAL_MODULES'])
         for name, url in reversed(local_modules.items()):
@@ -50,6 +52,7 @@ def main():
     print("Loading function")
     func_s: FuncSignature = cloudpickle.loads(base64.b64decode(argv[0].encode("ascii")))
     print("Function loaded: " + func_s.name)
+    # noinspection PyShadowingNames
     args = tuple(
         lazy_proxy(
             lambda name=name: load_arg(servant.mount() / func_s.name / name),
