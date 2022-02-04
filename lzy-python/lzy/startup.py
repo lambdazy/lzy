@@ -52,9 +52,10 @@ def main():
     print("Loading function")
     func_s: FuncSignature = cloudpickle.loads(base64.b64decode(argv[0].encode("ascii")))
     print("Function loaded: " + func_s.name)
+    # noinspection PyShadowingNames
     args = tuple(
         lazy_proxy(
-            lambda name_=name: load_arg(servant.mount() / func_s.name / name),
+            lambda name=name: load_arg(servant.mount() / func_s.name / name),
             inp_type,
             {},
         )
