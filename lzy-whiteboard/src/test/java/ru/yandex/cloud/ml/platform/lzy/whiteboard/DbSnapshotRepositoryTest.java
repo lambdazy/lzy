@@ -103,13 +103,21 @@ public class DbSnapshotRepositoryTest {
             session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId, namespace));
             session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId, namespace));
             String fieldNameFirst = "fieldNameFirst";
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
+            final String entryIdFirst = UUID.randomUUID().toString();
+            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, entryIdFirst));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, "", false, FINISHED));
             String fieldNameSecond = "fieldNameSecond";
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, UUID.randomUUID().toString()));
+            final String entryIdSecond = UUID.randomUUID().toString();
+            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, entryIdSecond));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdSecond, "", false, SnapshotEntryStatus.State.CREATED));
             String fieldNameThird = "fieldNameThird";
-            session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameThird, UUID.randomUUID().toString()));
+            String entryIdThird = UUID.randomUUID().toString();
+            session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameThird, entryIdThird));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdThird, "", false, FINISHED));
             String fieldNameFourth = "fieldNameFourth";
-            session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameFourth, UUID.randomUUID().toString()));
+            final String entryIdFourth = UUID.randomUUID().toString();
+            session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameFourth, entryIdFourth));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdFourth, "", false, FINISHED));
             tx.commit();
         }
         impl.finalize(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));

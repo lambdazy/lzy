@@ -104,7 +104,8 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             .resolveEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId());
         if (snapshotEntry == null) {
             snapshotEntry = snapshotRepository
-                .createEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId());
+                .createEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId())
+                .entry();
         }
         whiteboardRepository.update(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry,
             whiteboardStatus.whiteboard()));

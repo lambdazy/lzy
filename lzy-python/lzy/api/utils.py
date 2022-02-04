@@ -2,27 +2,17 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Iterable,
     Type,
     Tuple,
     TypeVar,
     get_type_hints,
 )
 
+# noinspection PyProtectedMember
 from lzy.api._proxy import proxy
-from lzy.api.lazy_op import LzyOp
 from lzy.api.result import Result, Just, Nothing
 
 T = TypeVar("T")  # pylint: disable=invalid-name
-
-
-# TODO: remove?
-def print_lzy_ops(ops: Iterable[LzyOp]) -> None:
-    for lzy_op in ops:
-        # noinspection PyProtectedMember
-        # pylint: disable=protected-access
-        print(repr(lzy_op.signature.func))
-
 
 TypeInferResult = Result[type]
 
@@ -58,7 +48,7 @@ def is_lazy_proxy(obj: Any) -> bool:
 
 
 def lazy_proxy(
-    materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]
+        materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]
 ) -> Any:
     return proxy(
         materialization,

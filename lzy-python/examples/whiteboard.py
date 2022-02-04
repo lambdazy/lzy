@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import List
 
-from lzy.api.whiteboard import whiteboard, view
 from lzy.api import op, LzyRemoteEnv
+from lzy.api.whiteboard import whiteboard
 
 
 @dataclass
@@ -26,7 +26,7 @@ wb = SimpleWhiteboard()
 with LzyRemoteEnv(whiteboard=wb):
     wb.a = fun1()
     wb.b = fun2(wb.a)
-    wb_id = wb.id()
+    wb_id = wb.__id__
 
 with LzyRemoteEnv() as env:
     wb = env.whiteboard(wb_id, SimpleWhiteboard)

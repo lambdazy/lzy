@@ -115,10 +115,11 @@ with LzyRemoteEnv(whiteboard=wb):
     just_print()
     wb.a = fun1()
     wb.b = fun2(wb.a)
-    wb_id = wb.id()
+    wb_id = wb.__id__
 
 with LzyRemoteEnv() as env:
     wb = env.whiteboard(wb_id, SimpleWhiteboard)
+    print(wb.a, wb.a)
     print("Len: " + str(len(wb.b)))
 
 wb = AnotherSimpleWhiteboard()

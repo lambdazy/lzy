@@ -26,21 +26,24 @@ public class SessionHelper {
         return query.getResultList();
     }
 
-    @SuppressWarnings("unchecked")
-    public static List<WhiteboardModel> getWhiteboardModelsByOwner(String uid, Session session) {
-        String queryWhiteboardModelRequest = "SELECT w FROM WhiteboardModel w JOIN SnapshotModel s " +
-                "ON w.snapshotId = s.snapshotId WHERE s.uid = :uid";
-        Query<WhiteboardModel> queryWhiteboardModel = session.createQuery(queryWhiteboardModelRequest);
-        queryWhiteboardModel.setParameter("uid", uid);
-        return queryWhiteboardModel.list();
+    public static long getNumEntriesWithStateForWhiteboard(String whiteboardId, SnapshotEntryStatus.State state, Session session) {
+        String queryWhiteboardFieldRequest = "SELECT count(*) FROM WhiteboardFieldModel w "
+            + "JOIN SnapshotEntryModel s ON w.entryId = s.entryId "
+            + "WHERE w.wbId = :wbId AND s.entryState = :state";
+        //noinspection unchecked
+        Query<Long> queryWhiteboardField = session.createQuery(queryWhiteboardFieldRequest);
+        queryWhiteboardField.setParameter("wbId", whiteboardId);
+        queryWhiteboardField.setParameter("state", state);
+        return queryWhiteboardField.getSingleResult();
     }
 
-    @SuppressWarnings("unchecked")
-    public static List<WhiteboardFieldModel> getNotCompletedWhiteboardFields(String whiteboardId, Session session) {
-        String queryWhiteboardFieldRequest = "SELECT w FROM WhiteboardFieldModel w WHERE w.wbId = :wbId AND w.entryId is NULL";
-        Query<WhiteboardFieldModel> queryWhiteboardField = session.createQuery(queryWhiteboardFieldRequest);
+    public static long getWhiteboardFieldsNum(String whiteboardId, Session session) {
+        String queryWhiteboardFieldRequest = "SELECT count(*) FROM WhiteboardFieldModel w "
+            + "WHERE w.wbId = :wbId";
+        //noinspection unchecked
+        Query<Long> queryWhiteboardField = session.createQuery(queryWhiteboardFieldRequest);
         queryWhiteboardField.setParameter("wbId", whiteboardId);
-        return queryWhiteboardField.list();
+        return queryWhiteboardField.getSingleResult();
     }
 
     @SuppressWarnings("unchecked")

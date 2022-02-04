@@ -1,4 +1,5 @@
 import inspect
+import logging
 import pathlib
 import uuid
 from abc import ABC, abstractmethod
@@ -53,6 +54,7 @@ class WhiteboardDescription:
 class WhiteboardList:
     def __init__(self, wb_list: List[Any]):
         self.wb_list = wb_list
+        self._log = logging.getLogger(str(self.__class__))
 
     @staticmethod
     def _methods_with_view_decorator_names(obj) -> List:
@@ -79,7 +81,11 @@ class WhiteboardList:
     def views(self, view_type: Type[T]) -> List[T]:
         res = []
         for elem in self.wb_list:
-            res.extend(self._views_from_single_whiteboard(elem, view_type))
+            if elem.__status__ == WhiteboardStatus.COMPLETED:
+                res.extend(self._views_from_single_whiteboard(elem, view_type))
+            else:
+                self._log.warning(
+                    f"Whiteboard with id={elem.__id__} is not completed and is not used for building view")
         return res
 
     def __iter__(self):
