@@ -113,4 +113,4 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
 
     local_modules = list(
         dict.fromkeys(local_modules))  # remove duplicates and keep order as dict preserves order since python3.7
-    return remote_packages, local_modules
+    return remote_packages, reversed(local_modules)  # reverse to ensure the right order: from leaves to the root
