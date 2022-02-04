@@ -45,7 +45,7 @@ def main():
             raise ValueError('No storage credentials are provided')
 
         local_modules: OrderedDict = json.loads(os.environ['LOCAL_MODULES'])
-        for name, url in reversed(local_modules.items()):
+        for name, url in local_modules.items():
             local_module = client.read(url)
             sys.modules[name] = local_module
 

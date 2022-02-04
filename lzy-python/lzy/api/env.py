@@ -4,7 +4,7 @@ import os
 from abc import abstractmethod, ABC
 from pathlib import Path
 from types import ModuleType
-from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional, Set
+from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 import cloudpickle
 
@@ -246,7 +246,7 @@ class LzyRemoteEnv(LzyEnvBase):
         if self._yaml is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
-                local_modules: Set[ModuleType] = set()
+                local_modules: List[ModuleType] = []
             else:
                 installed, local_modules = select_modules(namespace)
                 name, yaml = create_yaml(installed_packages=installed)
