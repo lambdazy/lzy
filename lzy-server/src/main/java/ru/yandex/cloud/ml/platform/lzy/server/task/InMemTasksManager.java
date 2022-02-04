@@ -113,8 +113,7 @@ public class InMemTasksManager implements TasksManager {
         task.onProgress(state -> {
             consumer.accept(state);
             if (!state.hasChanged() ||
-                (state.getChanged().getNewState() != Servant.StateChanged.State.FINISHED &&
-                    state.getChanged().getNewState() != Servant.StateChanged.State.DESTROYED))
+                (state.getChanged().getNewState() != Servant.StateChanged.State.DESTROYED))
                 return;
             if (tasks.remove(task.tid()) == null) // idempotence support
                 return;

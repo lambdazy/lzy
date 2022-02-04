@@ -25,6 +25,8 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Context;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
@@ -59,6 +61,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextConcluded;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextStarted;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionProgress;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.PreparationError;
 
 public class LzyContext {
     private static final Logger LOG = LogManager.getLogger(LzyContext.class);
@@ -129,7 +132,7 @@ public class LzyContext {
                 );
                 slot.onState(Operations.SlotStatus.State.DESTROYED, () -> {
                     synchronized (slots) {
-                        LOG.info("LzyExecution::Slots.remove(\n" + slot.name() + "\n)");
+                        LOG.info("LzyContext::Slots.remove(\n" + slot.name() + "\n)");
                         snapshotter.commit(spec);
                         slots.remove(slot.name());
                         slots.notifyAll();
@@ -178,7 +181,22 @@ public class LzyContext {
             session = new SimpleBashEnvironment();
             LOG.info("No environment provided, using SimpleBashEnvironment");
         }
-        session.prepare();
+        try {
+            session.prepare();
+        } catch (EnvironmentInstallationException e){
+            Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
+            Set.copyOf(slots.values()).stream()
+                .filter(s -> s instanceof LzyOutputSlot)
+                .map(s -> (LzyOutputSlot)s)
+                .forEach(LzyOutputSlot::forceClose);
+            progress(ContextProgress.newBuilder()
+                .setError(PreparationError.newBuilder()
+                    .setDescription("Error during environment installation:\n" + e)
+                    .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
+                    .build())
+                .build());
+            throw e;
+        }
         progress(ContextProgress.newBuilder()
             .setStart(ContextStarted.newBuilder().build())
             .build());
@@ -270,6 +288,7 @@ public class LzyContext {
     }
 
     public synchronized void progress(Servant.ContextProgress progress) {
+        LOG.info("LzyContext::progress " + JsonUtils.printRequest(progress));
         listeners.forEach(l -> l.accept(progress));
     }
 
@@ -278,9 +297,9 @@ public class LzyContext {
     }
 
     public void waitForSlots() throws InterruptedException {
-        LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
-        synchronized (slots) {
-            while (!slots.isEmpty()) {
+        while (!slots.isEmpty()) {
+            synchronized (slots) {
+                LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
                 slots.wait();
             }
         }

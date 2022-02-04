@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
@@ -13,6 +14,8 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionProgress;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import javax.annotation.Nullable;
@@ -20,6 +23,7 @@ import java.net.URI;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 
 public abstract class BaseTask implements Task {
     private static final Logger LOG = LogManager.getLogger(BaseTask.class);
@@ -40,7 +44,6 @@ public abstract class BaseTask implements Task {
     private URI servantURI;
     private LzyServantBlockingStub servant;
     private final String bucket;
-    private final CountDownLatch contextStarted = new CountDownLatch(1);
 
     public BaseTask(
         String owner,
@@ -114,6 +117,10 @@ public abstract class BaseTask implements Task {
     public void attachServant(URI uri, LzyServantBlockingStub servant) {
         servantURI = uri;
         this.servant = servant;
+        LOG.info("Server is attached to servant {}", servantURI);
+        // will be removed while server refactoring
+        final CountDownLatch contextStarted = new CountDownLatch(1);
+        final AtomicBoolean contextHasError = new AtomicBoolean(false);
         Operations.Zygote zygote = gRPCConverter.to(workload);
         final Tasks.ContextSpec.Builder contextBuilder = Tasks.ContextSpec.newBuilder()
             .setEnv(zygote.getEnv())
@@ -128,8 +135,10 @@ public abstract class BaseTask implements Task {
                 .build()
         );
 
-        final Iterator<Servant.ContextProgress> contextProgress = servant.prepare(contextBuilder.build());
-        LOG.info("BaseTask::attachServant called " + uri);
+        ContextSpec spec = contextBuilder.build();
+
+        final Iterator<Servant.ContextProgress> contextProgress = servant.prepare(spec);
+        LOG.info("Preparing context " + JsonUtils.printRequest(spec));
 
         final Thread contextProgressThread = new Thread(() -> contextProgress.forEachRemaining(progress -> {
             switch (progress.getStatusCase()){
@@ -172,14 +181,46 @@ public abstract class BaseTask implements Task {
                 case START: {
                     LOG.info("Context " + uri + " started");
                     contextStarted.countDown();
+                    break;
                 }
-                case EXIT:{
+                case EXIT: {
                     LOG.info("Context " + uri + " exited");
-                    state(State.FINISHED);
+                    LOG.info("Stopping servant {}", servantURI);
+                    //noinspection ResultOfMethodCallIgnored
+                    servant.stop(IAM.Empty.newBuilder().build());
+                    break;
+                }
+                case ERROR: {
+                    LOG.info("Error in context " + JsonUtils.printRequest(progress));
+                    this.progress(
+                        ExecutionProgress.newBuilder()
+                            .setExit(ExecutionConcluded.newBuilder()
+                                .setDescription(progress.getError().getDescription())
+                                .setRc(progress.getError().getRc())
+                                .build())
+                            .build()
+                    );
+                    contextHasError.set(true);
+                    contextStarted.countDown();
                 }
             }
         }));
         contextProgressThread.start();
+        state(State.CONNECTED);
+
+        try {
+            contextStarted.await();
+            if (contextHasError.get()){
+                state(State.FINISHED);
+                LOG.info("Stopping servant {}", servantURI);
+                //noinspection ResultOfMethodCallIgnored
+                servant.stop(IAM.Empty.newBuilder().build());
+                return;
+            }
+        } catch (InterruptedException e) {
+            LOG.error(e);
+            throw new RuntimeException(e);
+        }
 
         final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
             .setAuth(IAM.Auth.newBuilder()
@@ -197,36 +238,28 @@ public abstract class BaseTask implements Task {
                 .setBinding(binding)
                 .build()
         );
-
-        try {
-            contextStarted.await();
-        } catch (InterruptedException e) {
-            LOG.error(e);
-        }
         final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
-        state(State.CONNECTED);
-        LOG.info("Server is attached to servant {}", servantURI);
         try {
             progressIt.forEachRemaining(progress -> {
                 LOG.info("BaseTask::Progress " + JsonUtils.printRequest(progress));
                 this.progress(progress);
                 switch (progress.getStatusCase()) {
-                    case STARTED:
+                    case STARTED: {
                         state(State.RUNNING);
-                        break;
-                    case EXIT:
-                        break;
+                        LOG.info("Execution started");
+                        return;
+                    }
+                    case EXIT: {
+                        LOG.info("Execution finished");
+                        state(State.FINISHED);
+                    }
                 }
             });
             contextProgressThread.join();
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             LOG.error(e);
-            throw new RuntimeException(e);
-        } finally {
             state(State.FINISHED);
-            LOG.info("Stopping servant {}", servantURI);
-            //noinspection ResultOfMethodCallIgnored
-            servant.stop(IAM.Empty.newBuilder().build());
+            throw new RuntimeException(e);
         }
     }
 

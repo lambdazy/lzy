@@ -1,6 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import com.amazonaws.services.s3.AmazonS3;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Context;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
@@ -19,6 +21,7 @@ public class SnapshotterImpl implements Snapshotter {
     private final IAM.TaskCredentials taskCred;
     private final Context context;
     private final SnapshotMeta meta;
+    private final Logger LOG = LogManager.getLogger(SnapshotterImpl.class);
 
     public SnapshotterImpl(IAM.TaskCredentials taskCred, String bucket, SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
                            SnapshotStorage storage, Context context) {
@@ -27,6 +30,7 @@ public class SnapshotterImpl implements Snapshotter {
         this.snapshotApi = snapshotApi;
         this.taskCred = taskCred;
         snapshotProvider = new SlotSnapshotProvider.Cached(slot -> {
+            LOG.info(String.format("Creating new SlotSnapshotter for slot %s with entry %s", slot.name(), meta.getEntryId(slot.name())));
             if (meta.getEntryId(slot.name()) != null) {
                 return new S3SlotSnapshot(taskCred.getTaskId(), bucket, slot, storage);
             } else {

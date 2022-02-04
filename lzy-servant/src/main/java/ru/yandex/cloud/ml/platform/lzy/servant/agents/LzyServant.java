@@ -159,12 +159,16 @@ public class LzyServant extends LzyAgent {
                     this.env = null;
                 }
             });
-            try {
-                env = this.context.prepare(lzyFS, context);
-            } catch (EnvironmentInstallationException e) {
-                responseObserver.onError(Status.INTERNAL.withCause(e)
-                    .withDescription(e.getMessage()).asException());
-            }
+            MetricEventLogger.timeIt(
+                "time of context preparing",
+                Map.of("metric_type", "system_metric"),
+                () -> {
+                    try{
+                        env = this.context.prepare(lzyFS, context);
+                    } catch (EnvironmentInstallationException e) {
+                        responseObserver.onCompleted();
+                    }
+                });
         }
 
         @Override
@@ -194,6 +198,7 @@ public class LzyServant extends LzyAgent {
             ));
 
             try {
+                final long start = System.currentTimeMillis();
                 currentExecution = context.execute(zygote, env, progress -> {
                     LOG.info("LzyServant::progress {} {}", agentAddress,
                         JsonUtils.printRequest(progress));
@@ -222,7 +227,18 @@ public class LzyServant extends LzyAgent {
                         responseObserver.onCompleted();
                     }
                 });
+                final long executed = System.currentTimeMillis();
+                MetricEventLogger.log( new MetricEvent(
+                    "time of task executing",
+                    Map.of("metric_type", "system_metric"),
+                    executed - start)
+                );
                 context.waitForSlots();
+                MetricEventLogger.log( new MetricEvent(
+                    "time of waiting for slots",
+                    Map.of("metric_type", "system_metric"),
+                    System.currentTimeMillis() - executed)
+                );
 
             } catch (LzyExecutionException | InterruptedException e) {
                 responseObserver.onError(

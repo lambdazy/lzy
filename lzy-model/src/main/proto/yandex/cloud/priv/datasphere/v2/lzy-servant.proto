@@ -105,6 +105,7 @@ message ContextProgress {
         SlotAttach attach = 2;
         SlotDetach detach = 3;
         ContextConcluded exit = 4;
+        PreparationError error = 5;
     }
 }
 
@@ -115,6 +116,11 @@ message ContextStarted {
 }
 
 message ContextConcluded {
+}
+
+message PreparationError {
+    string description = 1;
+    int32  rc = 2;
 }
 
 message StateChanged {

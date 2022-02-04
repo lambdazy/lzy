@@ -69,6 +69,7 @@ public class LzyExecution {
                 UserEvent.UserEventType.ExecutionStart
             ));
 
+
         } catch (LzyExecutionException e) {
             resultDescription = "Error during task execution:\n" + e;
             rc = ReturnCodes.EXECUTION_ERROR.getRc();

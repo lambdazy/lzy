@@ -32,6 +32,7 @@ import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.StateChanged.State;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
@@ -228,7 +229,7 @@ public class LzyServer {
                 if (concluded.get())
                     return;
                 responseObserver.onNext(progress);
-                if (progress.hasChanged() && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
+                if (progress.hasChanged() && progress.getChanged().getNewState() == State.FINISHED) {
                     concluded.set(true);
                     responseObserver.onCompleted();
                     if (parent != null)

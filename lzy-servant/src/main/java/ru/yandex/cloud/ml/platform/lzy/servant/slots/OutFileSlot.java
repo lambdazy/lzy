@@ -135,9 +135,11 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                         throw new RuntimeException(e);
                     }
                 });
-                ready = true;
-                state(Operations.SlotStatus.State.OPEN);
-                OutFileSlot.this.notifyAll();
+                synchronized (OutFileSlot.this) {
+                    ready = true;
+                    state(Operations.SlotStatus.State.OPEN);
+                    OutFileSlot.this.notifyAll();
+                }
             }
         });
         return localFileContents;
@@ -206,6 +208,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     public void destroy() {
+        LOG.info("OutFileSlot::destroy was called");
         if (snapshotWrite != null) {
             try {
                 snapshotWrite.get();
