@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 from typing import List
 
@@ -41,8 +42,12 @@ class AnotherSimpleView:
     b: str
 
 
+simple_whiteboard_tag = "simple_whiteboard_" + str(uuid.uuid4())
+another_simple_whiteboard_tag = "another_simple_whiteboard_" + str(uuid.uuid4())
+
+
 @dataclass
-@whiteboard(namespace='simple/whiteboard', tags=["simple_whiteboard"])
+@whiteboard(namespace='simple/whiteboard', tags=[simple_whiteboard_tag])
 class SimpleWhiteboard:
     a: int = 0
     b: List[str] = None
@@ -63,7 +68,7 @@ class SimpleWhiteboard:
 
 
 @dataclass
-@whiteboard(namespace='another/simple/whiteboard', tags=["another_simple_whiteboard"])
+@whiteboard(namespace='another/simple/whiteboard', tags=[another_simple_whiteboard_tag])
 class AnotherSimpleWhiteboard:
     a: str = 'first_id_AnotherSimpleWhiteboard'
     b: int = 5
@@ -75,7 +80,7 @@ class AnotherSimpleWhiteboard:
 
 
 @dataclass
-@whiteboard(namespace='simple/whiteboard', tags=["simple_whiteboard"])
+@whiteboard(namespace='simple/whiteboard', tags=[simple_whiteboard_tag])
 class OneMoreSimpleWhiteboard:
     a: int = 0
     b: List[str] = None
