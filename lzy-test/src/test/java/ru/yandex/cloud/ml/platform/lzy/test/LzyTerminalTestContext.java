@@ -174,7 +174,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             String command = String.join(
                     " ",
                     mount() + "/sbin/whiteboard",
-                    "getByNamespaceAndTags",
+                    "list",
                     "-n",
                     namespace
             );
