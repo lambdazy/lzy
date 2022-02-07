@@ -1,6 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.server.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
+import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.EmptyCredentials;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.AmazonCredentialsImpl;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.AzureCredentialsImpl;
 
 @ConfigurationProperties("storage")
 public class StorageConfigs {
@@ -103,5 +107,15 @@ public class StorageConfigs {
         public void setSecretToken(String secretToken) {
             this.secretToken = secretToken;
         }
+    }
+
+    public StorageCredentials credentials(){
+        if (amazon.isEnabled()){
+            return new AmazonCredentialsImpl(amazon.endpoint, amazon.accessToken, amazon.secretToken);
+        }
+        if (azure.isEnabled()){
+            return new AzureCredentialsImpl(azure.connectionString);
+        }
+        return new EmptyCredentials();
     }
 }

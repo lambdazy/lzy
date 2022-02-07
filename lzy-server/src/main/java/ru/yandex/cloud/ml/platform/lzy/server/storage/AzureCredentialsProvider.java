@@ -10,6 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AzureSASCredentials;
 
+import static ru.yandex.cloud.ml.platform.lzy.server.utils.azure.StorageUtils.createBucketIfNotExists;
 import static ru.yandex.cloud.ml.platform.lzy.server.utils.azure.StorageUtils.getCredentialsByBucket;
 
 @Singleton
@@ -21,17 +22,12 @@ public class AzureCredentialsProvider implements StorageCredentialsProvider {
 
     @Override
     public StorageCredentials storageCredentials(String uid, String bucket) {
-        return new AzureCredentialsImpl(
-            storageConfigs.getAzure().getConnectionString()
-        );
+        return storageConfigs.credentials();
     }
 
     @Override
     public StorageCredentials separatedStorageCredentials(String uid, String bucket) {
-        AzureSASCredentials credentials = getCredentialsByBucket(uid, bucket, storageConfigs.getAzure());
-        return new AzureSASCredentialsImpl(
-            credentials.signature(),
-            credentials.endpoint()
-        );
+        createBucketIfNotExists(storageConfigs.credentials(), bucket);
+        return getCredentialsByBucket(uid, bucket, storageConfigs.getAzure());
     }
 }

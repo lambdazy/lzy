@@ -34,7 +34,6 @@ public class S3SlotSnapshot implements SlotSnapshot {
     private StreamsWrapper slotStream = null;
     private final Lock lock = new ReentrantLock();
     private final AtomicBoolean nonEmpty = new AtomicBoolean(false);
-    private final AtomicBoolean bucketInited = new AtomicBoolean(false);
 
     public S3SlotSnapshot(String taskId, String bucket, Slot slot, SnapshotStorage storage) {
         this.bucket = bucket;
@@ -66,7 +65,6 @@ public class S3SlotSnapshot implements SlotSnapshot {
             }
             throw new RuntimeException("S3ExecutionSnapshot::createStreams exception while creating streams", e);
         }
-        initBucket();
         final ListenableFuture<UploadState> future = storage.transmitter().upload(new UploadRequestBuilder()
                 .bucket(bucket)
                 .key(generateKey(slot))
@@ -85,14 +83,6 @@ public class S3SlotSnapshot implements SlotSnapshot {
         }
         finally {
             lock.unlock();
-        }
-    }
-
-    private void initBucket() {
-        if (bucketInited.compareAndSet(false, true)) {
-            if (!storage.isBucketExist(bucket)) {
-                storage.createBucket(bucket);
-            }
         }
     }
 
