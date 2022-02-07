@@ -39,6 +39,7 @@ public class S3SlotSnapshotTest {
     @Before
     public void setUp() {
         api.start();
+        client.createBucket(BUCKET);
     }
 
     @After
