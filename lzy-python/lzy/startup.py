@@ -15,7 +15,7 @@ from lzy.api.whiteboard.credentials import AmazonCredentials, AzureCredentials, 
 from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
-from lzy.servant.whiteboard_storage import AmazonClient, AzureClient
+from lzy.api.storage.storage_client import AmazonClient, AzureClient
 
 
 def load_arg(path: Path) -> Any:
