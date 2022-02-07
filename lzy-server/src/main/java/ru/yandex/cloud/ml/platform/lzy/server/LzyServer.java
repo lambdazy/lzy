@@ -24,7 +24,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.cloud.ml.platform.lzy.server.utils.azure.StorageUtils;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -394,8 +393,8 @@ public class LzyServer {
 
             StorageCredentials credentials =
                 storageConfigs.isSeparated() ?
-                    credentialsProvider.separatedStorageCredentials(uid, bucket) :
-                    credentialsProvider.storageCredentials(uid, bucket);
+                    credentialsProvider.credentialsForBucket(uid, bucket) :
+                    credentialsProvider.storageCredentials();
             responseObserver.onNext(to(credentials));
             responseObserver.onCompleted();
         }

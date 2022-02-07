@@ -22,6 +22,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
+import ru.yandex.cloud.ml.platform.lzy.server.utils.azure.StorageUtils;
 import ru.yandex.cloud.ml.platform.lzy.server.utils.yc.RenewableToken;
 
 @Singleton
@@ -40,12 +41,14 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
     ServerConfig serverConfig;
 
     @Override
-    public StorageCredentials storageCredentials(String uid, String bucket) {
+    public StorageCredentials storageCredentials() {
+        StorageUtils.createBucketIfNotExists(storageConfigs.credentials(), storageConfigs.getBucket());
         return storageConfigs.credentials();
     }
 
     @Override
-    public StorageCredentials separatedStorageCredentials(String uid, String bucket) {
+    public StorageCredentials credentialsForBucket(String uid, String bucket) {
+        StorageUtils.createBucketIfNotExists(storageConfigs.credentials(), bucket);
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             UserModel user = session.find(UserModel.class, uid);
