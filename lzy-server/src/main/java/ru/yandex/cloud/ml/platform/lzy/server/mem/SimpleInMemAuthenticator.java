@@ -90,7 +90,7 @@ public class SimpleInMemAuthenticator implements Authenticator {
 
     @Override
     public String bucketForUser(String uid) {
-        if (storageConfigs.isSeparated()){
+        if (!storageConfigs.isSeparated()){
             return storageConfigs.getBucket();
         }
         return uid.toLowerCase(Locale.ROOT);

@@ -45,17 +45,6 @@ public class AzureSnapshotStorage implements SnapshotStorage {
     }
 
     @Override
-    public void createBucket(String bucketName) {
-        LOG.info("Creating bucket {}", bucketName);
-        client.getBlobContainerClient(bucketName).create();
-    }
-
-    @Override
-    public boolean isBucketExist(String bucketName) {
-        return client.getBlobContainerClient(bucketName).exists();
-    }
-
-    @Override
     public URI getURI(String bucketName, String key) {
         try {
             return new URIBuilder().setScheme("azure").setPath(Path.of(bucketName, key).toString()).build();

@@ -35,7 +35,7 @@ public abstract class StorageCredentials {
     public static class EmptyCredentials extends StorageCredentials{
 
         @Override
-        Type type() {
+        public Type type() {
             return Type.Empty;
         }
     }
@@ -47,5 +47,5 @@ public abstract class StorageCredentials {
         Empty
     }
 
-    abstract Type type();
+    public abstract Type type();
 }

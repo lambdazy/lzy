@@ -45,16 +45,6 @@ public class AmazonSnapshotStorage implements SnapshotStorage{
     }
 
     @Override
-    public void createBucket(String bucketName) {
-        client.createBucket(bucketName);
-    }
-
-    @Override
-    public boolean isBucketExist(String bucketName) {
-        return client.doesBucketExistV2(bucketName);
-    }
-
-    @Override
     public URI getURI(String bucketName, String key) {
         try {
             return new URIBuilder().setScheme("s3").setPath(Path.of(bucketName, key).toString()).build();

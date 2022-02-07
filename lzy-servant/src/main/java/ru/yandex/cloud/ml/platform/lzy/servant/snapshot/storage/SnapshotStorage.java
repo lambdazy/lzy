@@ -8,8 +8,6 @@ import java.net.URI;
 
 public interface SnapshotStorage {
     Transmitter transmitter();
-    void createBucket(String bucketName);
-    boolean isBucketExist(String bucketName);
     URI getURI(String bucketName, String key);
 
     String DEFAULT_TRANSMITTER_NAME = "transmitter";

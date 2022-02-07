@@ -11,12 +11,12 @@ import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type;
 @Requires(property = "storage.azure.enabled", value = "false", defaultValue = "false")
 public class SimpleStorageCredentialsProvider implements StorageCredentialsProvider {
     @Override
-    public StorageCredentials storageCredentials(String uid, String bucket) {
+    public StorageCredentials storageCredentials() {
         return new EmptyCredentials();
     }
 
     @Override
-    public StorageCredentials separatedStorageCredentials(String uid, String bucket) {
+    public StorageCredentials credentialsForBucket(String uid, String bucket) {
         return new EmptyCredentials();
     }
 }

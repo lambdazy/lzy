@@ -391,11 +391,11 @@ public class LzyServer {
 
             String bucket = request.getBucket();
 
-            responseObserver.onNext(
+            StorageCredentials credentials =
                 storageConfigs.isSeparated() ?
-                    to(credentialsProvider.separatedStorageCredentials(uid, bucket)) :
-                    to(credentialsProvider.storageCredentials(uid, bucket))
-            );
+                    credentialsProvider.credentialsForBucket(uid, bucket) :
+                    credentialsProvider.storageCredentials();
+            responseObserver.onNext(to(credentials));
             responseObserver.onCompleted();
         }
 

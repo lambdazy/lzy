@@ -6,9 +6,10 @@ import jakarta.inject.Singleton;
 import java.util.Locale;
 import org.apache.commons.lang3.NotImplementedException;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
-import ru.yandex.cloud.ml.platform.lzy.server.storage.AmazonCredentialsImpl;
+import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AmazonCredentials;
 import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
+import ru.yandex.cloud.ml.platform.lzy.server.utils.azure.StorageUtils;
 
 @Singleton
 @Requires(property = "storage.amazon.enabled", value = "true")
@@ -18,16 +19,13 @@ public class InMemAmazonCredentialsProvider implements StorageCredentialsProvide
     StorageConfigs storageConfigs;
 
     @Override
-    public StorageCredentials storageCredentials(String uid, String bucket) {
-        return new AmazonCredentialsImpl(
-            storageConfigs.getAmazon().getEndpoint(),
-            storageConfigs.getAmazon().getAccessToken(),
-            storageConfigs.getAmazon().getSecretToken()
-        );
+    public StorageCredentials storageCredentials() {
+        StorageUtils.createBucketIfNotExists(storageConfigs.credentials(), storageConfigs.getBucket());
+        return storageConfigs.credentials();
     }
 
     @Override
-    public StorageCredentials separatedStorageCredentials(String uid, String bucket) {
+    public StorageCredentials credentialsForBucket(String uid, String bucket) {
         throw new NotImplementedException("Cannot implement separated storage without db");
     }
 }
