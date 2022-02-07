@@ -17,7 +17,7 @@
   <properties>
     <packaging>jar</packaging>
     <micronaut.runtime>netty</micronaut.runtime>
-    <exec.mainClass>ru.yandex.cloud.ml.platform.lzy.iam.LzyIAMServer</exec.mainClass>
+    <exec.mainClass>ru.yandex.cloud.ml.platform.lzy.iam.LzyIAM</exec.mainClass>
   </properties>
 
   <dependencies>

@@ -5,7 +5,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
-public class LzyIAMServer {
+public class LzyIAM {
 
     public static final Logger LOG;
 
@@ -15,7 +15,7 @@ public class LzyIAMServer {
         ProducerConfig.configNames();
         LoggerContext ctx = (LoggerContext) LogManager.getContext();
         ctx.reconfigure();
-        LOG = LogManager.getLogger(LzyIAMServer.class);
+        LOG = LogManager.getLogger(LzyIAM.class);
     }
 
     public static void main(String[] args) {
