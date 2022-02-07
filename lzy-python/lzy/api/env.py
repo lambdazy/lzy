@@ -1,5 +1,4 @@
 import dataclasses
-import hashlib
 import logging
 import os
 from abc import abstractmethod, ABC
@@ -219,6 +218,7 @@ class LzyRemoteEnv(LzyEnvBase):
         self._yaml = conda_yaml_path
         self._servant_client: BashServantClient = BashServantClient() \
             .instance(lzy_mount)
+        self._py_env = None
 
         super().__init__(
             buses=buses,
@@ -238,6 +238,8 @@ class LzyRemoteEnv(LzyEnvBase):
         return self._servant_client
 
     def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
+        if self._py_env is not None:
+            return self._py_env
         if self._yaml is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
@@ -263,11 +265,13 @@ class LzyRemoteEnv(LzyEnvBase):
                 uri = client.write(bucket, key, cloudpickle.dumps(local_module))
                 local_modules_uploaded.append((local_module.__name__, uri))
                 cloudpickle.unregister_pickle_by_value(local_module)
-            return PyEnv(name, yaml, local_modules, local_modules_uploaded)
+                self._py_env = PyEnv(name, yaml, local_modules, local_modules_uploaded)
+            return self._py_env
 
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option
         # TODO: parse yaml and get name?
         with open(self._yaml, "r", encoding=encoding) as file:
             name, yaml = "default", "".join(file.readlines())
-            return PyEnv(name, yaml, [], {})
+            self._py_env = PyEnv(name, yaml, [], {})
+            return self._py_env

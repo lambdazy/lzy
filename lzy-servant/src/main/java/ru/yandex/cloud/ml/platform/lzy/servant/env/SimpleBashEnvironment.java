@@ -14,13 +14,4 @@ public class SimpleBashEnvironment implements Environment {
             throw new LzyExecutionException(e);
         }
     }
-
-    @Override
-    public Process exec(String command, String[] envp) throws EnvironmentInstallationException, LzyExecutionException {
-        try {
-            return Runtime.getRuntime().exec(new String[]{"bash", "-c", command}, envp);
-        } catch (IOException e) {
-            throw new LzyExecutionException(e);
-        }
-    }
 }
