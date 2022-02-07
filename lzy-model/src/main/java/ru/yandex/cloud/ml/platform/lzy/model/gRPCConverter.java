@@ -10,6 +10,8 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AzureCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AzureSASCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Builder;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import javax.annotation.Nullable;
@@ -161,13 +163,38 @@ public abstract class gRPCConverter {
     }
 
     public static LzyWhiteboard.WhiteboardField to(
-            WhiteboardField field, List<WhiteboardField> dependent, boolean empty, String storage) {
-        return LzyWhiteboard.WhiteboardField.newBuilder()
-                .setFieldName(field.name())
-                .setStorageUri(storage)
-                .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()))
-                .setEmpty(empty)
-                .build();
+            WhiteboardField field, List<WhiteboardField> dependent, @Nullable SnapshotEntryStatus entryStatus) {
+        final Builder builder = LzyWhiteboard.WhiteboardField.newBuilder()
+            .setFieldName(field.name())
+            .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()));
+        if (entryStatus == null) {
+            builder.setEmpty(true);
+            builder.setStatus(Status.CREATED);
+        } else {
+            builder.setEmpty(entryStatus.empty());
+            final URI storage = entryStatus.storage();
+            if (storage != null) {
+                builder.setStorageUri(storage.toString());
+            }
+            switch (entryStatus.status()) {
+                case CREATED:
+                    builder.setStatus(Status.CREATED);
+                    break;
+                case IN_PROGRESS:
+                    builder.setStatus(Status.IN_PROGRESS);
+                    break;
+                case FINISHED:
+                    builder.setStatus(Status.FINISHED);
+                    break;
+                case ERRORED:
+                    builder.setStatus(Status.ERRORED);
+                    break;
+                default:
+                    builder.setStatus(Status.UNKNOWN);
+                    break;
+            }
+        }
+        return builder.build();
     }
 
     public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
@@ -187,13 +214,6 @@ public abstract class gRPCConverter {
             default:
                 throw new IllegalArgumentException("Unknown state: " + state);
         }
-    }
-
-    public static LzyWhiteboard.WhiteboardInfo to(WhiteboardInfo wbInfo) {
-        return LzyWhiteboard.WhiteboardInfo.newBuilder()
-                .setId(wbInfo.id().toString())
-                .setWhiteboardStatus(to(wbInfo.state()))
-                .build();
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {

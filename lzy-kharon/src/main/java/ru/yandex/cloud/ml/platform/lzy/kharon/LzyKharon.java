@@ -291,13 +291,6 @@ public class LzyKharon {
         }
 
         @Override
-        public void whiteboards(LzyWhiteboard.WhiteboardsCommand request,
-                                     StreamObserver<LzyWhiteboard.WhiteboardsInfo> responseObserver) {
-            responseObserver.onNext(whiteboard.whiteboards(request));
-            responseObserver.onCompleted();
-        }
-
-        @Override
         public void addLink(LzyWhiteboard.LinkCommand request,
             StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
             responseObserver.onNext(whiteboard.link(request));

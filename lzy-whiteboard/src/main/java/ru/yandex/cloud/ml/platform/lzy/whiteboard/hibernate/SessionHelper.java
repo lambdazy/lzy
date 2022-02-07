@@ -1,6 +1,5 @@
-package ru.yandex.cloud.ml.platform.lzy.whiteboard.mem;
+package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate;
 
-import io.grpc.Status;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
@@ -27,21 +26,24 @@ public class SessionHelper {
         return query.getResultList();
     }
 
-    @SuppressWarnings("unchecked")
-    public static List<WhiteboardModel> getWhiteboardModelsByOwner(String uid, Session session) {
-        String queryWhiteboardModelRequest = "SELECT w FROM WhiteboardModel w JOIN SnapshotModel s " +
-                "ON w.snapshotId = s.snapshotId WHERE s.uid = :uid";
-        Query<WhiteboardModel> queryWhiteboardModel = session.createQuery(queryWhiteboardModelRequest);
-        queryWhiteboardModel.setParameter("uid", uid);
-        return queryWhiteboardModel.list();
+    public static long getNumEntriesWithStateForWhiteboard(String whiteboardId, SnapshotEntryStatus.State state, Session session) {
+        String queryWhiteboardFieldRequest = "SELECT count(*) FROM WhiteboardFieldModel w "
+            + "JOIN SnapshotEntryModel s ON w.entryId = s.entryId "
+            + "WHERE w.wbId = :wbId AND s.entryState = :state";
+        //noinspection unchecked
+        Query<Long> queryWhiteboardField = session.createQuery(queryWhiteboardFieldRequest);
+        queryWhiteboardField.setParameter("wbId", whiteboardId);
+        queryWhiteboardField.setParameter("state", state);
+        return queryWhiteboardField.getSingleResult();
     }
 
-    @SuppressWarnings("unchecked")
-    public static List<WhiteboardFieldModel> getNotCompletedWhiteboardFields(String whiteboardId, Session session) {
-        String queryWhiteboardFieldRequest = "SELECT w FROM WhiteboardFieldModel w WHERE w.wbId = :wbId AND w.entryId is NULL";
-        Query<WhiteboardFieldModel> queryWhiteboardField = session.createQuery(queryWhiteboardFieldRequest);
+    public static long getWhiteboardFieldsNum(String whiteboardId, Session session) {
+        String queryWhiteboardFieldRequest = "SELECT count(*) FROM WhiteboardFieldModel w "
+            + "WHERE w.wbId = :wbId";
+        //noinspection unchecked
+        Query<Long> queryWhiteboardField = session.createQuery(queryWhiteboardFieldRequest);
         queryWhiteboardField.setParameter("wbId", whiteboardId);
-        return queryWhiteboardField.list();
+        return queryWhiteboardField.getSingleResult();
     }
 
     @SuppressWarnings("unchecked")
@@ -98,13 +100,13 @@ public class SessionHelper {
     }
 
     @Nullable
-    public static SnapshotEntryModel resolveSnapshotEntry(WhiteboardFieldModel wbFieldModel, Session session) {
+    public static SnapshotEntryModel resolveSnapshotEntry(String snapshotId, String entryId, Session session) {
         CriteriaBuilder cb = session.getCriteriaBuilder();
         CriteriaQuery<SnapshotEntryModel> cr = cb.createQuery(SnapshotEntryModel.class);
         Root<SnapshotEntryModel> root = cr.from(SnapshotEntryModel.class);
         cr.select(root)
-                .where(cb.equal(root.get("snapshotId"), wbFieldModel.getSnapshotId()))
-                .where(cb.equal(root.get("entryId"), wbFieldModel.getEntryId()));
+                .where(cb.equal(root.get("snapshotId"), snapshotId))
+                .where(cb.equal(root.get("entryId"), entryId));
 
         Query<SnapshotEntryModel> query = session.createQuery(cr);
         List<SnapshotEntryModel> results = query.getResultList();
@@ -128,8 +130,8 @@ public class SessionHelper {
     }
 
     @Nullable
-    public static SnapshotEntry getSnapshotEntry(WhiteboardFieldModel wbFieldModel, Snapshot snapshot, Session session) {
-        SnapshotEntryModel snapshotEntryModel = resolveSnapshotEntry(wbFieldModel, session);
+    public static SnapshotEntry getSnapshotEntry(String entryId, Snapshot snapshot, Session session) {
+        SnapshotEntryModel snapshotEntryModel = resolveSnapshotEntry(snapshot.id().toString(), entryId, session);
         if (snapshotEntryModel == null) {
             return null;
         }
@@ -161,8 +163,11 @@ public class SessionHelper {
         return new Snapshot.Impl(URI.create(spId), URI.create(results.get(0).getUid()));
     }
 
-    public static WhiteboardField getWhiteboardField(WhiteboardFieldModel wbFieldModel, Whiteboard whiteboard, Snapshot snapshot, Session session) {
-        return new WhiteboardField.Impl(wbFieldModel.getFieldName(), getSnapshotEntry(wbFieldModel, snapshot, session), whiteboard);
+    public static WhiteboardField getWhiteboardField(WhiteboardFieldModel wbFieldModel,
+        Whiteboard whiteboard, Snapshot snapshot, Session session) {
+        return new WhiteboardField.Impl(wbFieldModel.getFieldName(),
+            wbFieldModel.getEntryId() == null ? null
+                : getSnapshotEntry(wbFieldModel.getEntryId(), snapshot, session), whiteboard);
     }
 
     @Nullable
@@ -211,7 +216,7 @@ public class SessionHelper {
         List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
         SnapshotEntry entry = new SnapshotEntry.Impl(id, snapshot);
         return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(),snapshotEntryModel.getEntryState(), entry,
-                Set.copyOf(dependentEntryIds), URI.create(snapshotEntryModel.getStorageUri()));
+                Set.copyOf(dependentEntryIds), snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri()));
     }
 
     public static List<String> getWhiteboardIdByNamespaceAndTags(String namespace, List<String> tags, Session session) {
@@ -226,6 +231,7 @@ public class SessionHelper {
                     "GROUP BY w.wbId " +
                     "HAVING count(*) >= :tagsSize ";
         }
+        //noinspection unchecked
         Query<String> query = session.createQuery(whiteboardsByNameAndTagsRequest);
         query.setParameter("namespace", namespace);
         if (!tags.isEmpty()) {

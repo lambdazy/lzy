@@ -11,18 +11,18 @@ import java.util.List;
 
 
 public interface SnapshotRepository {
-    void create(Snapshot snapshot);
+    SnapshotStatus create(Snapshot snapshot);
     @Nullable
     SnapshotStatus resolveSnapshot(URI id);
     void finalize(Snapshot snapshot);
     void error(Snapshot snapshot);
 
+    SnapshotEntryStatus createEntry(Snapshot snapshot, String id);
     void prepare(SnapshotEntry entry, String storage, List<String> dependentEntryIds);
+    void commit(SnapshotEntry entry, boolean empty);
+
     @Nullable
     SnapshotEntry resolveEntry(Snapshot snapshot, String id);
     @Nullable
     SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id);
-    void commit(SnapshotEntry entry, boolean empty);
-    SnapshotEntry createEntry(Snapshot snapshot, String id);
-    // Stream<SnapshotEntry> entries(Snapshot snapshot);
 }

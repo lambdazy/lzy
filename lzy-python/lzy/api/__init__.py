@@ -8,7 +8,7 @@ import sys
 from lzy.api.env import LzyEnvBase, LzyRemoteEnv, LzyLocalEnv
 from lzy.api.lazy_op import LzyLocalOp, LzyRemoteOp
 from lzy.api.utils import infer_return_type, is_lazy_proxy, lazy_proxy
-from lzy.api.whiteboard.api import UUIDEntryIdGenerator
+from lzy.api.whiteboard.model import UUIDEntryIdGenerator
 from lzy.api.result import Nothing
 
 from lzy.model.signatures import FuncSignature, CallSignature

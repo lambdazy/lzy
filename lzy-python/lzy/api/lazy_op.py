@@ -10,7 +10,7 @@ from typing import Optional, Any, TypeVar, Generic
 
 import cloudpickle
 
-from lzy.api.whiteboard.api import EntryIdGenerator
+from lzy.api.whiteboard.model import EntryIdGenerator
 from lzy.api.result import Just, Nothing, Result
 from lzy.model.channel import Channel, Binding, Bindings
 from lzy.model.env import PyEnv

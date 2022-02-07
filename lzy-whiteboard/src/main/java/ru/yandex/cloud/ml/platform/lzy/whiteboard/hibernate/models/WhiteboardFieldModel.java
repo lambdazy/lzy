@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
+import javax.annotation.Nullable;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
@@ -36,6 +37,7 @@ public class WhiteboardFieldModel {
         return fieldName;
     }
 
+    @Nullable
     public String getEntryId() {
         return entryId;
     }

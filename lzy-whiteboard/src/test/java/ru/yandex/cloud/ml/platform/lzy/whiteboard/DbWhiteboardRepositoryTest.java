@@ -10,7 +10,7 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.WhiteboardRepositoryImpl;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbWhiteboardRepository;
 
 import java.net.URI;
 import java.util.*;
@@ -21,9 +21,9 @@ import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State.COMPLETED;
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State.CREATED;
 
-public class WhiteboardRepositoryImplTest {
+public class DbWhiteboardRepositoryTest {
     private ApplicationContext ctx;
-    WhiteboardRepositoryImpl impl;
+    DbWhiteboardRepository impl;
     private DbStorage storage;
 
     private String wbIdFirst;
@@ -51,7 +51,7 @@ public class WhiteboardRepositoryImplTest {
     @Before
     public void setUp() {
         ctx = ApplicationContext.run();
-        impl = ctx.getBean(WhiteboardRepositoryImpl.class);
+        impl = ctx.getBean(DbWhiteboardRepository.class);
         storage = ctx.getBean(DbStorage.class);
 
         wbIdFirst = UUID.randomUUID().toString();
@@ -210,7 +210,7 @@ public class WhiteboardRepositoryImplTest {
     @Test
     public void testAddFieldNotDeclared() {
         Assert.assertThrows(RuntimeException.class,
-                () -> impl.add(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst)));
+                () -> impl.update(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst)));
     }
 
     @Test
@@ -221,7 +221,7 @@ public class WhiteboardRepositoryImplTest {
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
             tx.commit();
         }
-        impl.add(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst));
+        impl.update(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst));
         WhiteboardFieldModel whiteboardFieldModel;
         try (Session session = storage.getSessionFactory().openSession()) {
             whiteboardFieldModel = session.find(WhiteboardFieldModel.class,
@@ -316,36 +316,6 @@ public class WhiteboardRepositoryImplTest {
             }
         }
         Assert.assertTrue(firstFieldPresent && secondFieldPresent && thirdFieldPresent && fourthFieldPresent);
-    }
-
-    @Test
-    public void testWhiteboards() {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst));
-            session.save(new WhiteboardModel(wbIdSecond, COMPLETED, snapshotIdFirst, namespaceFirst));
-            session.save(new WhiteboardModel(wbIdThird, COMPLETED, snapshotIdSecond, namespaceFirst));
-            session.save(new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.FINALIZED, snapshotOwnerFirst));
-            session.save(new SnapshotModel(snapshotIdSecond, SnapshotStatus.State.FINALIZED, snapshotOwnerSecond));
-            tx.commit();
-        }
-        List<WhiteboardInfo> resultFirstUser = impl.whiteboards(URI.create(snapshotOwnerFirst));
-        Assert.assertEquals(2, resultFirstUser.size());
-        Assert.assertTrue(
-            resultFirstUser.get(0).id().equals(URI.create(wbIdFirst)) && resultFirstUser.get(0).state().equals(CREATED) &&
-                    resultFirstUser.get(1).id().equals(URI.create(wbIdSecond)) && resultFirstUser.get(1).state().equals(COMPLETED) ||
-                    resultFirstUser.get(1).id().equals(URI.create(wbIdFirst)) && resultFirstUser.get(1).state().equals(CREATED) &&
-                    resultFirstUser.get(0).id().equals(URI.create(wbIdSecond)) && resultFirstUser.get(0).state().equals(COMPLETED)
-        );
-        List<WhiteboardInfo> resultSecondUser = impl.whiteboards(URI.create(snapshotOwnerSecond));
-        Assert.assertEquals(1, resultSecondUser.size());
-        Assert.assertTrue(resultSecondUser.get(0).id().equals(URI.create(wbIdThird)) && resultSecondUser.get(0).state().equals(COMPLETED));
-    }
-
-    @Test
-    public void testWhiteboardsEmpty() {
-        List<WhiteboardInfo> result = impl.whiteboards(URI.create(UUID.randomUUID().toString()));
-        Assert.assertEquals(0, result.size());
     }
 
     private WhiteboardField createWhiteboardField(

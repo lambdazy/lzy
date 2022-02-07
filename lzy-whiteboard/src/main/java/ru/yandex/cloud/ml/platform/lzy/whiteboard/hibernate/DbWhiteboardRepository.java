@@ -1,11 +1,10 @@
-package ru.yandex.cloud.ml.platform.lzy.whiteboard.mem;
+package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate;
 
 import io.grpc.Status;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -13,35 +12,24 @@ import javax.annotation.Nullable;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.Impl;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardModel;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
-
-import javax.annotation.Nullable;
-import java.net.URI;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardTagModel;
 
 @Singleton
 @Requires(beans = DbStorage.class)
-public class WhiteboardRepositoryImpl implements WhiteboardRepository {
+public class DbWhiteboardRepository implements WhiteboardRepository {
     @Inject
     DbStorage storage;
 
     @Override
-    public void create(Whiteboard whiteboard) {
+    public WhiteboardStatus create(Whiteboard whiteboard) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String wbId = whiteboard.id().toString();
@@ -58,6 +46,7 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
                 whiteboardFieldModels.forEach(session::save);
                 whiteboardTagModels.forEach(session::save);
                 tx.commit();
+                return new Impl(whiteboard, wbModel.getWbState());
             } catch (Exception e) {
                 tx.rollback();
                 throw new RuntimeException(e);
@@ -87,18 +76,7 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
     }
 
     @Override
-    public List<WhiteboardInfo> whiteboards(URI uid) {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            List<WhiteboardModel> wbModelList = SessionHelper.getWhiteboardModelsByOwner(uid.toString(), session);
-            List<WhiteboardInfo> result = wbModelList.stream()
-                    .map(wbModel -> new WhiteboardInfo.Impl(URI.create(wbModel.getWbId()), wbModel.getWbState()))
-                    .collect(Collectors.toList());
-            return result;
-        }
-    }
-
-    @Override
-    public void add(WhiteboardField field) {
+    public void update(WhiteboardField field) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             WhiteboardFieldModel wbModel = session.find(WhiteboardFieldModel.class,
@@ -106,7 +84,10 @@ public class WhiteboardRepositoryImpl implements WhiteboardRepository {
             if (wbModel == null) {
                 throw new RuntimeException(Status.NOT_FOUND.asException());
             }
-            wbModel.setEntryId(field.entry().id());
+            final SnapshotEntry entry = field.entry();
+            if (entry != null) {
+                wbModel.setEntryId(entry.id());
+            }
             try {
                 session.update(wbModel);
                 tx.commit();

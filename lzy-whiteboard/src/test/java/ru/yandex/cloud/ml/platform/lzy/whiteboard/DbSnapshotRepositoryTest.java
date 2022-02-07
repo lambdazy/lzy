@@ -13,7 +13,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.mem.SnapshotRepositoryImpl;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbSnapshotRepository;
 
 
 import java.net.URI;
@@ -26,9 +26,9 @@ import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus.Stat
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus.State.FINALIZED;
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State.*;
 
-public class SnapshotRepositoryImplTest {
+public class DbSnapshotRepositoryTest {
     private ApplicationContext ctx;
-    SnapshotRepositoryImpl impl;
+    DbSnapshotRepository impl;
     private DbStorage storage;
 
     private String snapshotId;
@@ -44,7 +44,7 @@ public class SnapshotRepositoryImplTest {
     @Before
     public void setUp() {
         ctx = ApplicationContext.run();
-        impl = ctx.getBean(SnapshotRepositoryImpl.class);
+        impl = ctx.getBean(DbSnapshotRepository.class);
         storage = ctx.getBean(DbStorage.class);
 
         snapshotId = UUID.randomUUID().toString();
@@ -103,13 +103,21 @@ public class SnapshotRepositoryImplTest {
             session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId, namespace));
             session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId, namespace));
             String fieldNameFirst = "fieldNameFirst";
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
+            final String entryIdFirst = UUID.randomUUID().toString();
+            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, entryIdFirst));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, "", false, FINISHED));
             String fieldNameSecond = "fieldNameSecond";
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, UUID.randomUUID().toString()));
+            final String entryIdSecond = UUID.randomUUID().toString();
+            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, entryIdSecond));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdSecond, "", false, SnapshotEntryStatus.State.CREATED));
             String fieldNameThird = "fieldNameThird";
-            session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameThird, UUID.randomUUID().toString()));
+            String entryIdThird = UUID.randomUUID().toString();
+            session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameThird, entryIdThird));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdThird, "", false, FINISHED));
             String fieldNameFourth = "fieldNameFourth";
-            session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameFourth, UUID.randomUUID().toString()));
+            final String entryIdFourth = UUID.randomUUID().toString();
+            session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameFourth, entryIdFourth));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdFourth, "", false, FINISHED));
             tx.commit();
         }
         impl.finalize(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));

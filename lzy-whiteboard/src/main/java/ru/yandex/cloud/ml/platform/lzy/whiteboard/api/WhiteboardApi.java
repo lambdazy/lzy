@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.api;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
+
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -12,20 +14,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.LzySnapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
@@ -35,8 +32,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
 @Singleton
 @Requires(property = "server.uri")
@@ -58,12 +53,12 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         SnapshotRepository snapshotRepository) {
         URI uri = URI.create(serverConfig.getUri());
         final ManagedChannel serverChannel = ChannelBuilder
-                .forAddress(uri.getHost(), uri.getPort())
-                .usePlaintext()
-                .enableRetry(LzyServerGrpc.SERVICE_NAME)
+            .forAddress(uri.getHost(), uri.getPort())
+            .usePlaintext()
+            .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
         auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel),
-                LzyBackofficeGrpc.newBlockingStub(serverChannel));
+            LzyBackofficeGrpc.newBlockingStub(serverChannel));
         this.whiteboardRepository = whiteboardRepository;
         this.snapshotRepository = snapshotRepository;
     }
@@ -82,14 +77,11 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             return;
         }
         URI wbId = URI.create(UUID.randomUUID().toString());
-        whiteboardRepository.create(
-            new Whiteboard.Impl(wbId, new HashSet<>(request.getFieldNamesList()),
-                    snapshotStatus.snapshot(), new HashSet<>(request.getTagsList()),
-                    resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId())));
-        final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardRepository.resolveWhiteboard(wbId));
-        if (result != null) {
-            responseObserver.onNext(result);
-        }
+        final WhiteboardStatus status = whiteboardRepository.create(
+            new Impl(wbId, new HashSet<>(request.getFieldNamesList()),
+                snapshotStatus.snapshot(), new HashSet<>(request.getTagsList()),
+                resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId())));
+        responseObserver.onNext(buildWhiteboard(status));
         responseObserver.onCompleted();
     }
 
@@ -112,9 +104,10 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             .resolveEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId());
         if (snapshotEntry == null) {
             snapshotEntry = snapshotRepository
-                .createEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId());
+                .createEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId())
+                .entry();
         }
-        whiteboardRepository.add(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry,
+        whiteboardRepository.update(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry,
             whiteboardStatus.whiteboard()));
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
             .newBuilder()
@@ -143,23 +136,24 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     }
 
     private LzyWhiteboard.Whiteboard buildWhiteboard(WhiteboardStatus wb) {
-        if (wb == null) {
-            return null;
-        }
         List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(wb.whiteboard())
-            .filter(field -> field.entry() != null)
             .map(field -> {
+                    final List<WhiteboardField> dependent = whiteboardRepository.dependent(field)
+                        .collect(Collectors.toList());
+                    final SnapshotEntry entry = field.entry();
+                    if (entry == null) {
+                        return gRPCConverter.to(field, dependent, null);
+                    }
                     SnapshotEntryStatus entryStatus = snapshotRepository.resolveEntryStatus(
-                        field.entry().snapshot(), field.entry().id()
+                        entry.snapshot(), entry.id()
                     );
                     if (entryStatus == null) {
-                        return null;
+                        throw new RuntimeException("Cannot find snapshot entry: " + entry.id());
                     }
                     return gRPCConverter.to(
                         field,
-                        whiteboardRepository.dependent(field).collect(Collectors.toList()),
-                        entryStatus.empty(),
-                        entryStatus.storage().toString()
+                        dependent,
+                        entryStatus
                     );
                 }
             )
@@ -178,40 +172,16 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     }
 
     @Override
-    public void whiteboards(LzyWhiteboard.WhiteboardsCommand request, StreamObserver<LzyWhiteboard.WhiteboardsInfo> responseObserver) {
-        boolean ok = true;
-        String uid = "";
-        if (request.hasAuth()) {
-            ok = auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL);
-            uid = request.getAuth().getUser().getUserId();
-        }
-        if (request.hasBackoffice()) {
-            ok = auth.checkPermissions(request.getBackoffice(), Permissions.WHITEBOARD_ALL);
-            uid = request.getBackoffice().getBackofficeCredentials().getUserId();
-        }
-        if (!ok) {
-            responseObserver.onError(Status.PERMISSION_DENIED.asException());
-            return;
-        }
-
-        List<WhiteboardInfo> wbInfoList = whiteboardRepository.whiteboards(URI.create(uid));
-        final LzyWhiteboard.WhiteboardsInfo response = LzyWhiteboard.WhiteboardsInfo
-                .newBuilder()
-                .addAllWhiteboards(wbInfoList.stream().map(gRPCConverter::to).collect(Collectors.toList()))
-                .build();
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
-    }
-
-    @Override
-    public void whiteboardByNamespaceAndTags(LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand request,
-                                             StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
+    public void whiteboardByNamespaceAndTags(
+        LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand request,
+        StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
         final List<WhiteboardStatus> whiteboardStatus = whiteboardRepository.resolveWhiteboards(
-                resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()), request.getTagsList()
+            resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()),
+            request.getTagsList()
         );
         List<LzyWhiteboard.Whiteboard> result = new ArrayList<>();
         for (var entry : whiteboardStatus) {

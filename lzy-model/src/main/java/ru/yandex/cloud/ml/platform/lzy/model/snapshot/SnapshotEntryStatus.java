@@ -3,10 +3,12 @@ package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 public interface SnapshotEntryStatus {
     boolean empty();
     State status();
+    @Nullable
     URI storage();
     SnapshotEntry entry();
     Set<String> dependentEntryIds();
@@ -34,6 +36,7 @@ public interface SnapshotEntryStatus {
             return status;
         }
 
+        @Nullable
         @Override
         public URI storage() {
             return storage;
@@ -54,6 +57,7 @@ public interface SnapshotEntryStatus {
     enum State {
         CREATED,
         IN_PROGRESS,
-        FINISHED
+        FINISHED,
+        ERRORED
     }
 }

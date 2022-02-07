@@ -8,13 +8,12 @@ import java.util.List;
 import java.util.stream.Stream;
 
 public interface WhiteboardRepository {
-    void create(Whiteboard whiteboard);
+    WhiteboardStatus create(Whiteboard whiteboard);
     @Nullable
     WhiteboardStatus resolveWhiteboard(URI id);
     List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags);
-    List<WhiteboardInfo> whiteboards(URI uid);
 
-    void add(WhiteboardField field);
+    void update(WhiteboardField field);
     Stream<WhiteboardField> dependent(WhiteboardField field);
     Stream<WhiteboardField> fields(Whiteboard whiteboard);
 }

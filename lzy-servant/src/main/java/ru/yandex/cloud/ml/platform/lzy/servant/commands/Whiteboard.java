@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -114,16 +113,7 @@ public class Whiteboard implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(whiteboard));
                 break;
             }
-            case "getAll": {
-                final LzyWhiteboard.WhiteboardsInfo whiteboardsInfo = server.whiteboards(LzyWhiteboard.WhiteboardsCommand
-                        .newBuilder()
-                        .setAuth(auth)
-                        .build()
-                );
-                System.out.println(JsonFormat.printer().print(whiteboardsInfo));
-                break;
-            }
-            case "getByNamespaceAndTags": {
+            case "list": {
                 if (!localCmd.hasOption('n')) {
                     throw new IllegalArgumentException("Whiteboard namespace must be specified");
                 }
