@@ -27,7 +27,7 @@ from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
-from lzy.servant.whiteboard_storage import AmazonClient, AzureClient, StorageClient
+from lzy.api.storage.storage_client import AmazonClient, AzureClient, StorageClient
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]
