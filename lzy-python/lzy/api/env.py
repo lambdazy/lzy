@@ -218,7 +218,7 @@ class LzyRemoteEnv(LzyEnvBase):
         self._yaml = conda_yaml_path
         self._servant_client: BashServantClient = BashServantClient() \
             .instance(lzy_mount)
-        self._py_env = None
+        self._py_env: Optional[PyEnv] = None
 
         super().__init__(
             buses=buses,
@@ -265,7 +265,7 @@ class LzyRemoteEnv(LzyEnvBase):
                 uri = client.write(bucket, key, cloudpickle.dumps(local_module))
                 local_modules_uploaded.append((local_module.__name__, uri))
                 cloudpickle.unregister_pickle_by_value(local_module)
-                self._py_env = PyEnv(name, yaml, local_modules, local_modules_uploaded)
+            self._py_env = PyEnv(name, yaml, local_modules, local_modules_uploaded)
             return self._py_env
 
         # TODO: as usually not good idea to read whole file into memory
