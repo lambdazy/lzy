@@ -318,9 +318,9 @@ public class LzyKharon {
         }
 
         @Override
-        public void whiteboardByNamespaceAndTags(LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand request,
+        public void whiteboardsList(LzyWhiteboard.WhiteboardsListCommand request,
                                                  StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
-            responseObserver.onNext(whiteboard.whiteboardByNamespaceAndTags(request));
+            responseObserver.onNext(whiteboard.whiteboardsList(request));
             responseObserver.onCompleted();
         }
     }

@@ -36,7 +36,7 @@ service LzyKharon {
   rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
   rpc AddLink (LinkCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
-  rpc WhiteboardByNamespaceAndTags (WhiteboardByNamespaceAndTagsCommand) returns (WhiteboardsResponse);
+  rpc WhiteboardsList (WhiteboardsListCommand) returns (WhiteboardsResponse);
 
   // Snapshot API
   rpc CreateSnapshot (CreateSnapshotCommand) returns (Snapshot);
