@@ -24,7 +24,6 @@ export const Header = () => {
             <Nav.Link href="/users">Users</Nav.Link>
             <Nav.Link href="/keys">My keys</Nav.Link>
             <Nav.Link href="/tasks">Tasks</Nav.Link>
-            <Nav.Link href="/whiteboards">Whiteboards</Nav.Link>
           </Nav>
           <Navbar.Collapse className="justify-content-end">
               <Navbar.Text>
