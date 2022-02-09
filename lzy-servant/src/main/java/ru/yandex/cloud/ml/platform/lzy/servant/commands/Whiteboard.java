@@ -123,7 +123,7 @@ public class Whiteboard implements LzyCommand {
                     tags = List.of(localCmd.getOptionValue('t').split(","));
                 }
                 final LzyWhiteboard.WhiteboardsResponse whiteboards =
-                    server.whiteboardByNamespaceAndTags(LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand
+                    server.whiteboardsList(LzyWhiteboard.WhiteboardsListCommand
                         .newBuilder()
                         .setAuth(auth)
                         .addAllTags(tags)

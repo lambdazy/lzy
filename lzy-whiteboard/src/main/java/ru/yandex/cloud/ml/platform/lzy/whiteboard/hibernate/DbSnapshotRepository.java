@@ -77,14 +77,28 @@ public class DbSnapshotRepository implements SnapshotRepository {
             if (snapshotModel == null) {
                 throw new RuntimeException(Status.NOT_FOUND.asException());
             }
-            if (snapshotModel.getSnapshotState() == SnapshotStatus.State.ERRORED) {
+            if (snapshotModel.getSnapshotState() == SnapshotStatus.State.ERRORED ||
+                snapshotModel.getSnapshotState() == SnapshotStatus.State.FINALIZED) {
                 return;
             }
-            snapshotModel.setSnapshotState(SnapshotStatus.State.FINALIZED);
+            List<SnapshotEntryModel> snapshotEntries = SessionHelper.getSnapshotEntries(snapshotId, session);
+            for (SnapshotEntryModel spEntry : snapshotEntries) {
+                if (spEntry.getEntryState() != State.FINISHED || spEntry.getStorageUri() == null) {
+                    spEntry.setEntryState(State.ERRORED);
+                    snapshotModel.setSnapshotState(SnapshotStatus.State.ERRORED);
+                }
+            }
+            if (snapshotModel.getSnapshotState() != SnapshotStatus.State.ERRORED) {
+                snapshotModel.setSnapshotState(SnapshotStatus.State.FINALIZED);
+            }
 
             List<WhiteboardModel> whiteboards = SessionHelper.getWhiteboardModels(snapshotId,
                 session);
             for (WhiteboardModel wbModel : whiteboards) {
+                if (snapshotModel.getSnapshotState() == SnapshotStatus.State.ERRORED) {
+                    wbModel.setWbState(WhiteboardStatus.State.ERRORED);
+                    continue;
+                }
                 final long fieldsNum = SessionHelper.getWhiteboardFieldsNum(wbModel.getWbId(),
                     session);
                 final long completeFieldsNum = SessionHelper.getNumEntriesWithStateForWhiteboard(
@@ -98,6 +112,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
             try {
                 session.update(snapshotModel);
+                snapshotEntries.forEach(session::update);
                 whiteboards.forEach(session::update);
                 tx.commit();
             } catch (Exception e) {

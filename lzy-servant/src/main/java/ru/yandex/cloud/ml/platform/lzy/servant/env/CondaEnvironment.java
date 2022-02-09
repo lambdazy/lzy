@@ -1,6 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,14 +22,17 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 public class CondaEnvironment implements Environment {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private final PythonEnv env;
     private final AtomicBoolean envInstalled = new AtomicBoolean(false);
+    private final Lzy.GetS3CredentialsResponse credentials;
 
-    public CondaEnvironment(PythonEnv env) {
+    public CondaEnvironment(PythonEnv env, Lzy.GetS3CredentialsResponse credentials) {
         this.env = env;
+        this.credentials = credentials;
     }
 
     private void installPyenv() throws EnvironmentInstallationException {
@@ -67,11 +77,6 @@ public class CondaEnvironment implements Environment {
 
     @Override
     public Process exec(String command) throws EnvironmentInstallationException, LzyExecutionException {
-        return exec(command, null);
-    }
-
-    @Override
-    public Process exec(String command, String[] envp) throws EnvironmentInstallationException, LzyExecutionException {
         if (envInstalled.compareAndSet(false, true)) {
             final long pyEnvInstallStart = System.currentTimeMillis();
             installPyenv();
@@ -85,9 +90,37 @@ public class CondaEnvironment implements Environment {
             );
         }
         try {
-            return execInEnv(command, envp);
+            List<String> envList = getEnvironmentVariables();
+            envList.addAll(getLocalModules());
+            return execInEnv(command, envList.toArray(String[]::new));
         } catch (IOException e) {
             throw new LzyExecutionException(e);
         }
+    }
+
+    private List<String> getEnvironmentVariables() {
+        Map<String, String> envMap = System.getenv();
+        return envMap.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(Collectors.toList());
+    }
+
+    private List<String> getLocalModules() throws EnvironmentInstallationException {
+        List<String> envList = new ArrayList<>();
+        try {
+            LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
+            env.localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
+            envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(localModules));
+            if (credentials.hasAmazon()) {
+                envList.add("AMAZON=" + JsonFormat.printer().print(credentials.getAmazon()));
+            } else if (credentials.hasAzure()) {
+                envList.add("AZURE=" + JsonFormat.printer().print(credentials.getAzure()));
+            } else {
+                envList.add("AZURE_SAS=" + JsonFormat.printer().print(credentials.getAzureSas()));
+            }
+        } catch (JsonProcessingException | InvalidProtocolBufferException e) {
+            throw new EnvironmentInstallationException(e.getMessage());
+        }
+        return envList;
     }
 }

@@ -20,7 +20,7 @@ service WbApi {
   rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
   rpc Link (LinkCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
-  rpc WhiteboardByNamespaceAndTags (WhiteboardByNamespaceAndTagsCommand) returns (WhiteboardsResponse);
+  rpc WhiteboardsList (WhiteboardsListCommand) returns (WhiteboardsResponse);
 }
 
 message CreateSnapshotCommand {
@@ -124,7 +124,7 @@ message BackofficeCredentials {
   BackofficeUserCredentials credentials = 2;
 }
 
-message WhiteboardByNamespaceAndTagsCommand {
+message WhiteboardsListCommand {
   Auth auth = 1;
   string namespace = 2;
   repeated string tags = 3;
