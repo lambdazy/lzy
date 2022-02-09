@@ -1,8 +1,14 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -29,6 +35,22 @@ public class Whiteboard implements LzyCommand {
         options.addOption(
                 new Option("t", "tags list", true, "Whiteboard tags comma-separated list"));
         options.addOption(new Option("n", "namespace", true, "Whiteboard namespace"));
+        options.addOption(new Option("from", "from", true,
+            "Whiteboard creation date in the format 'YYYY-MM-DD' used in 'list' command for filtering. "
+                + "Command 'list' will return whiteboards with creation date GREATER or EQUAL to the specified."
+                + "If not provided '0001-01-01' will be used as a lower bound"));
+        options.addOption(new Option("to", "to", true,
+            "Whiteboard creation date in the format 'YYYY-MM-DD' used in 'list' command for filtering. "
+                + "Command 'list' will return whiteboards with creation date LESS than the specified."
+                + "If not provided '9999-12-31' will be used as an upper bound"));
+    }
+
+    private static Instant parseFromLocalTimeToUTC(String date) {
+        LocalDate fromDate = LocalDate.parse(date);
+        LocalDateTime ldt = fromDate.atTime(0, 0, 0, 0);
+        ZonedDateTime ldtZoned = ldt.atZone(ZoneId.systemDefault());
+        ZonedDateTime utcZoned = ldtZoned.withZoneSameInstant(ZoneId.of("UTC"));
+        return utcZoned.toInstant();
     }
 
     @Override
@@ -70,6 +92,10 @@ public class Whiteboard implements LzyCommand {
                 }
                 final List<String> fields = List.of(localCmd.getOptionValue('l').split(","));
                 final String namespace = localCmd.getOptionValue('n');
+
+                Instant time = Instant.now();
+                Timestamp timestamp = Timestamp.newBuilder().setSeconds(time.getEpochSecond())
+                    .setNanos(time.getNano()).build();
                 final LzyWhiteboard.Whiteboard whiteboardId = server
                     .createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
                         .newBuilder()
@@ -78,6 +104,7 @@ public class Whiteboard implements LzyCommand {
                         .addAllTags(tags)
                         .setNamespace(namespace)
                         .setAuth(auth)
+                        .setCreationDateUTC(timestamp)
                         .build()
                     );
                 System.out.println(JsonFormat.printer().print(whiteboardId));
@@ -122,12 +149,18 @@ public class Whiteboard implements LzyCommand {
                 if (localCmd.hasOption('t')) {
                     tags = List.of(localCmd.getOptionValue('t').split(","));
                 }
+                Instant from = parseFromLocalTimeToUTC(localCmd.getOptionValue("from", "0001-01-01"));
+                Instant to = parseFromLocalTimeToUTC(localCmd.getOptionValue("to", "9999-12-31"));
                 final LzyWhiteboard.WhiteboardsResponse whiteboards =
                     server.whiteboardByNamespaceAndTags(LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand
                         .newBuilder()
                         .setAuth(auth)
                         .addAllTags(tags)
                         .setNamespace(namespace)
+                        .setFromDateUTC(Timestamp.newBuilder().setSeconds(from.getEpochSecond())
+                            .setNanos(from.getNano()).build())
+                        .setToDateUTC(Timestamp.newBuilder().setSeconds(to.getEpochSecond())
+                            .setNanos(to.getNano()).build())
                         .build()
                     );
                 System.out.println(JsonFormat.printer().print(whiteboards));

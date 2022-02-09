@@ -170,13 +170,18 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String getWhiteboardsByNamespaceAndTags(String namespace, List<String> tags) {
+        default String getWhiteboardsList(String namespace, List<String> tags,
+            String fromDateLocalTimezone, String toDateLocalTimezone) {
             String command = String.join(
-                    " ",
-                    mount() + "/sbin/whiteboard",
-                    "list",
-                    "-n",
-                    namespace
+                " ",
+                mount() + "/sbin/whiteboard",
+                "list",
+                "-n",
+                namespace,
+                "-from",
+                fromDateLocalTimezone,
+                "-to",
+                toDateLocalTimezone
             );
             if (!tags.isEmpty()) {
                 command = String.join(" ", command, "-t", String.join(",", tags));

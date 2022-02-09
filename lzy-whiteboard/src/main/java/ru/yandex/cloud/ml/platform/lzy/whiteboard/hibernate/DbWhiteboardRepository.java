@@ -5,6 +5,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,8 +34,10 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String wbId = whiteboard.id().toString();
-            WhiteboardModel wbModel = new WhiteboardModel(wbId, WhiteboardStatus.State.CREATED,
-                    whiteboard.snapshot().id().toString(), whiteboard.namespace());
+            WhiteboardModel wbModel = new WhiteboardModel(
+                wbId, WhiteboardStatus.State.CREATED, whiteboard.snapshot().id().toString(),
+                whiteboard.namespace(), whiteboard.creationDateUTC()
+            );
             List<WhiteboardFieldModel> whiteboardFieldModels = whiteboard.fieldNames().stream()
                     .map(fieldName -> new WhiteboardFieldModel(wbId, fieldName, null))
                     .collect(Collectors.toList());
@@ -67,10 +70,11 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     }
 
     @Override
-    public List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags) {
+    public List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags,
+        Date fromDateUTCIncluded, Date toDateUTCExcluded) {
         List<String> ids;
         try (Session session = storage.getSessionFactory().openSession()) {
-            ids = SessionHelper.getWhiteboardIdByNamespaceAndTags(namespace, tags, session);
+            ids = SessionHelper.resolveWhiteboardIds(namespace, tags, fromDateUTCIncluded, toDateUTCExcluded, session);
         }
         return ids.stream().map(id -> resolveWhiteboard(URI.create(id))).collect(Collectors.toList());
     }

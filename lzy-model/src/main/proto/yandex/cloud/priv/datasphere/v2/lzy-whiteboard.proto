@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-backoffice.proto";
+import "google/protobuf/timestamp.proto";
 
 package yandex.cloud.priv.datasphere.v2;
 
@@ -38,6 +39,7 @@ message CreateWhiteboardCommand {
   repeated string fieldNames = 3;
   repeated string tags = 4;
   string namespace = 5;
+  google.protobuf.Timestamp creationDateUTC = 6;
 }
 
 message Snapshot {
@@ -128,6 +130,8 @@ message WhiteboardByNamespaceAndTagsCommand {
   Auth auth = 1;
   string namespace = 2;
   repeated string tags = 3;
+  google.protobuf.Timestamp fromDateUTC = 4;
+  google.protobuf.Timestamp toDateUTC = 5;
 }
 
 message WhiteboardsResponse {

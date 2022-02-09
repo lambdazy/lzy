@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 
+import java.util.Date;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 
 import javax.annotation.Nullable;
@@ -11,7 +12,8 @@ public interface WhiteboardRepository {
     WhiteboardStatus create(Whiteboard whiteboard);
     @Nullable
     WhiteboardStatus resolveWhiteboard(URI id);
-    List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags);
+    List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags,
+        Date fromDateUTCIncluded, Date toDateUTCExcluded);
 
     void update(WhiteboardField field);
     Stream<WhiteboardField> dependent(WhiteboardField field);

@@ -77,12 +77,17 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             return;
         }
         URI wbId = URI.create(UUID.randomUUID().toString());
-        final WhiteboardStatus status = whiteboardRepository.create(
-            new Impl(wbId, new HashSet<>(request.getFieldNamesList()),
-                snapshotStatus.snapshot(), new HashSet<>(request.getTagsList()),
-                resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId())));
-        responseObserver.onNext(buildWhiteboard(status));
-        responseObserver.onCompleted();
+        try {
+            final WhiteboardStatus status = whiteboardRepository.create(
+                new Impl(wbId, new HashSet<>(request.getFieldNamesList()),
+                    snapshotStatus.snapshot(), new HashSet<>(request.getTagsList()),
+                    resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()),
+                    gRPCConverter.from(request.getCreationDateUTC())));
+            responseObserver.onNext(buildWhiteboard(status));
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onError(e);
+        }
     }
 
     @Override
@@ -181,7 +186,8 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         final List<WhiteboardStatus> whiteboardStatus = whiteboardRepository.resolveWhiteboards(
             resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()),
-            request.getTagsList()
+            request.getTagsList(), gRPCConverter.from(request.getFromDateUTC()),
+            gRPCConverter.from(request.getToDateUTC())
         );
         List<LzyWhiteboard.Whiteboard> result = new ArrayList<>();
         for (var entry : whiteboardStatus) {

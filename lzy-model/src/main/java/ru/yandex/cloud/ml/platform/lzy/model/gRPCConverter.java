@@ -1,5 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
+import com.google.protobuf.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.*;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
@@ -199,6 +202,10 @@ public abstract class gRPCConverter {
 
     public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
         return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
+    }
+
+    public static Date from(Timestamp date) {
+        return Date.from(Instant.ofEpochSecond(date.getSeconds(), date.getNanos()));
     }
 
     public static LzyWhiteboard.WhiteboardStatus to(WhiteboardStatus.State state) {
