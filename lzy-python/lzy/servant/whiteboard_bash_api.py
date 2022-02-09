@@ -132,13 +132,19 @@ class WhiteboardBashApi(WhiteboardApi):
     def _parse_wb_json_list(res: Dict[str, Any]) -> List[WhiteboardDescription]:
         return [WhiteboardBashApi._parse_wb_json(whiteboard) for whiteboard in res.get("whiteboards", [])]
 
-    def list(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
-        self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags}")
+    def list(self, namespace: str, tags: List[str], from_date: str = None, to_date: str = None)\
+            -> List[WhiteboardDescription]:
+        self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags} "
+                       f"within dates {from_date}-{to_date}")
         command = " ".join([f"{self.__mount}/sbin/whiteboard", "list"])
         if tags:
             command = " ".join([command, "-t", ",".join(tags)])
         if namespace:
             command = " ".join([command, "-n", namespace])
+        if from_date:
+            command = " ".join([command, "-from", from_date])
+        if to_date:
+            command = " ".join([command, "-to", to_date])
         out = exec_bash(command)
         try:
             res = json.loads(out)

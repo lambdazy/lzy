@@ -1,6 +1,8 @@
 import uuid
 from dataclasses import dataclass
 from typing import List
+from datetime import datetime
+from datetime import timedelta
 
 from lzy.api import op, LzyRemoteEnv
 from lzy.api.whiteboard import whiteboard, view
@@ -173,3 +175,24 @@ with LzyRemoteEnv() as env:
     for whiteboard in whiteboards:
         iteration += whiteboard.__class__.__name__ + " "
     print(iteration)
+
+with LzyRemoteEnv() as env:
+    current_datetime_local = datetime.now()
+    current_datetime_string = current_datetime_local.strftime("%Y-%m-%d")
+    current_datetime_local += timedelta(days=1)
+    next_day_datetime_string = current_datetime_local.strftime("%Y-%m-%d")
+    whiteboards = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard],
+                                  from_date=current_datetime_string, to_date=next_day_datetime_string)
+    print("Number of whiteboard when date lower and upper bounds are specified is " + str(len(whiteboards)))
+    whiteboards = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard],
+                                  from_date=current_datetime_string)
+    print("Number of whiteboard when date lower bound is specified is " + str(len(whiteboards)))
+    whiteboards = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard],
+                                  to_date=next_day_datetime_string)
+    print("Number of whiteboard when date upper bounds is specified is " + str(len(whiteboards)))
+    whiteboards = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard],
+                                  from_date=next_day_datetime_string)
+    print("Number of whiteboard when date interval is set for the future is " + str(len(whiteboards)))
+
+
+
