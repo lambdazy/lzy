@@ -66,8 +66,8 @@ message SlotStatus {
 }
 
 message Env {
-    optional PythonEnv pyenv = 1;
-    optional BaseEnv baseEnv = 2;
+    PythonEnv pyenv = 1;
+    BaseEnv dockerEnv = 2;
 }
 
 message LocalModule {

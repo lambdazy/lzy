@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.env;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.DockerEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.BaseEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvConfig.MountDescription;
@@ -16,19 +16,20 @@ public class EnvFactory {
         throws EnvironmentInstallationException {
         final String resourcesPathStr = "/tmp/resources/";
         config.mounts.add(new MountDescription(resourcesPathStr, resourcesPathStr));
-        final BaseEnvironment baseEnv = (zygote == null || !(zygote.env() instanceof DockerEnv)) ?
-            new ProcessEnvironment():
-            new DockerEnvironment(config);
+        final BaseEnvironment baseEnv = (zygote != null && zygote.env() instanceof BaseEnv) ?
+            new DockerEnvironment(config) :
+            new ProcessEnvironment();
 
         if (zygote == null) {
+            LOG.info("Zygote is null, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);
         }
 
         if (zygote.env() instanceof PythonEnv) {
-            LOG.info("Conda environment is provided, using CondaEnvironment");
+            LOG.info("Conda auxEnv provided, using CondaEnvironment");
             return new CondaEnvironment((PythonEnv) zygote.env(), baseEnv);
         } else {
-            LOG.info("No environment provided, using SimpleBashEnvironment");
+            LOG.info("No auxEnv provided, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);
         }
     }
