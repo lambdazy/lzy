@@ -175,8 +175,12 @@ class InMemWhiteboardApi(WhiteboardApi):
     def get(self, wb_id: str) -> WhiteboardDescription:
         return self.__whiteboards[wb_id]
 
-    def list(self, namespace: str, tags: List[str], from_date: str = '0001-01-01', to_date: str = '9999-12-31') \
+    def list(self, namespace: str, tags: List[str], from_date: str = None, to_date: str = None) \
             -> List[WhiteboardDescription]:
+        if not from_date:
+            from_date = '0001-01-01'
+        if not to_date:
+            to_date = '9999-12-31'
         from_local = datetime.strptime(from_date, '%Y-%m-%d')
         from_utc = datetime.fromtimestamp(from_local.timestamp(), tz=timezone.utc)
         to_local = datetime.strptime(to_date, '%Y-%m-%d')
