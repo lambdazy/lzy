@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -89,27 +90,37 @@ public class CondaEnvironment implements Environment {
             );
         }
         try {
-            Map<String, String> envMap = System.getenv();
-            List<String> envList = envMap.entrySet().stream()
-                .map(entry -> entry.getKey() + "=" + entry.getValue())
-                .collect(Collectors.toList());
-            try {
-                LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
-                env.localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
-                envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(localModules));
-                if (credentials.hasAmazon()) {
-                    envList.add("AMAZON=" + JsonFormat.printer().print(credentials.getAmazon()));
-                } else if (credentials.hasAzure()) {
-                    envList.add("AZURE=" + JsonFormat.printer().print(credentials.getAzure()));
-                } else {
-                    envList.add("AZURE_SAS=" + JsonFormat.printer().print(credentials.getAzureSas()));
-                }
-            } catch (JsonProcessingException | InvalidProtocolBufferException e) {
-                throw new EnvironmentInstallationException(e.getMessage());
-            }
+            List<String> envList = getEnvironmentVariables();
+            envList.addAll(getLocalModules());
             return execInEnv(command, envList.toArray(String[]::new));
         } catch (IOException e) {
             throw new LzyExecutionException(e);
         }
+    }
+
+    private List<String> getEnvironmentVariables() {
+        Map<String, String> envMap = System.getenv();
+        return envMap.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(Collectors.toList());
+    }
+
+    private List<String> getLocalModules() throws EnvironmentInstallationException {
+        List<String> envList = new ArrayList<>();
+        try {
+            LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
+            env.localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
+            envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(localModules));
+            if (credentials.hasAmazon()) {
+                envList.add("AMAZON=" + JsonFormat.printer().print(credentials.getAmazon()));
+            } else if (credentials.hasAzure()) {
+                envList.add("AZURE=" + JsonFormat.printer().print(credentials.getAzure()));
+            } else {
+                envList.add("AZURE_SAS=" + JsonFormat.printer().print(credentials.getAzureSas()));
+            }
+        } catch (JsonProcessingException | InvalidProtocolBufferException e) {
+            throw new EnvironmentInstallationException(e.getMessage());
+        }
+        return envList;
     }
 }
