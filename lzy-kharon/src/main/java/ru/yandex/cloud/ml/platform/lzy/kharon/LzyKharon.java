@@ -303,13 +303,6 @@ public class LzyKharon {
         }
 
         @Override
-        public void whiteboardByNamespaceAndTags(
-            LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand request,
-            StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
-            ProxyCall.exec(whiteboard::whiteboardByNamespaceAndTags, request, responseObserver);
-        }
-
-        @Override
         public void getBucket(Lzy.GetBucketRequest request, StreamObserver<Lzy.GetBucketResponse> responseObserver) {
             ProxyCall.exec(server::getBucket, request, responseObserver);
         }

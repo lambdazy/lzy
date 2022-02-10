@@ -70,7 +70,8 @@ public class ServantEndpoint implements Endpoint {
         return invalid;
     }
 
-    protected void invalidate() {
+    @Override
+    public void invalidate() {
         invalid = true;
     }
 

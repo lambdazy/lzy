@@ -232,14 +232,16 @@ public class LzyServer {
             final AtomicBoolean concluded = new AtomicBoolean(false);
             final SnapshotMeta snapshotMeta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : null;
             Task task = tasks.start(uid, parent, workload, assignments, snapshotMeta, auth, progress -> {
-                if (concluded.get())
+                if (concluded.get()) {
                     return;
+                }
                 responseObserver.onNext(progress);
                 if (progress.hasChanged() && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
                     concluded.set(true);
                     responseObserver.onCompleted();
-                    if (parent != null)
+                    if (parent != null) {
                         parent.signal(TasksManager.Signal.CHLD);
+                    }
                 }
             }, auth.bucketForUser(uid));
             UserEventLogger.log(
@@ -255,7 +257,9 @@ public class LzyServer {
             Context.current().addListener(ctxt -> {
                 concluded.set(true);
                 if (!EnumSet.of(FINISHED, DESTROYED).contains(task.state())) {
-                    task.signal(TasksManager.Signal.TERM);
+                    // TODO(d-kruchinin): Now we use raw stop of servant when connection to terminal was lost
+                    // To make stopping process simple and understandable
+                    task.stopServant();
                 }
             }, Runnable::run);
         }

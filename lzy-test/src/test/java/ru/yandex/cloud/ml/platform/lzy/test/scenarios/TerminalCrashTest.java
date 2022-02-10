@@ -80,7 +80,14 @@ public class TerminalCrashTest extends LzyBaseTest {
         terminal = createTerminal();
 
         //Assert
-        Assert.assertEquals("Got exception while channel status (status_code=NOT_FOUND)\n", terminal.channelStatus(channelName));
+        Assert.assertTrue(
+            Utils.waitFlagUp(() -> {
+                final String channelStatus = terminal.channelStatus(channelName);
+                return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");},
+                DEFAULT_TIMEOUT_SEC,
+                TimeUnit.SECONDS
+            )
+        );
         final String sessions = terminal.sessions();
         try {
             final JsonNode node = new ObjectMapper().readTree(sessions);

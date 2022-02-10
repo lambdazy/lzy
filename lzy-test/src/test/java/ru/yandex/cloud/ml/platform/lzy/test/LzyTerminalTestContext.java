@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public interface LzyTerminalTestContext extends AutoCloseable {
+
     ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     Logger LOGGER = LoggerFactory.getLogger(LzyTerminalTestContext.class);
     int DEFAULT_TIMEOUT_SEC = 30;
@@ -27,16 +28,23 @@ public interface LzyTerminalTestContext extends AutoCloseable {
     default Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress) {
         return startTerminalAtPathAndPort(path, port, serverAddress, 5006, TEST_USER, null);
     }
-    Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort, String user, String privateKeyPath);
+
+    Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort,
+        String user, String privateKeyPath);
 
     boolean inDocker();
+
     void close();
 
     interface Terminal {
+
         boolean pathExists(Path path);
+
         String mount();
+
         @SuppressWarnings("unused")
         int port();
+
         String serverAddress();
 
         @SuppressWarnings("UnusedReturnValue")
@@ -46,17 +54,19 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         ExecutionResult execute(Map<String, String> env, String... command);
 
-        default ExecutionResult run(String zygoteName, String arguments, Map<String, String> bindings) {
+        default ExecutionResult run(String zygoteName, String arguments,
+            Map<String, String> bindings) {
             return run(zygoteName, arguments, bindings, Map.of());
         }
 
-        default ExecutionResult run(String zygoteName, String arguments, Map<String, String> bindings, Map<String, String> mappings) {
+        default ExecutionResult run(String zygoteName, String arguments,
+            Map<String, String> bindings, Map<String, String> mappings) {
             try {
                 final ExecutionResult bash = execute(
-                        Collections.emptyMap(),
-                        "bash",
-                        "-c",
-                        "echo '" + OBJECT_MAPPER.writeValueAsString(bindings) + "' > bindings.json"
+                    Collections.emptyMap(),
+                    "bash",
+                    "-c",
+                    "echo '" + OBJECT_MAPPER.writeValueAsString(bindings) + "' > bindings.json"
                 );
                 System.out.println(bash);
             } catch (JsonProcessingException e) {
@@ -65,10 +75,10 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
             try {
                 final ExecutionResult bash = execute(
-                        Collections.emptyMap(),
-                        "bash",
-                        "-c",
-                        "echo '" + OBJECT_MAPPER.writeValueAsString(mappings) + "' > mapping.json"
+                    Collections.emptyMap(),
+                    "bash",
+                    "-c",
+                    "echo '" + OBJECT_MAPPER.writeValueAsString(mappings) + "' > mapping.json"
                 );
                 System.out.println(bash);
             } catch (JsonProcessingException e) {
@@ -76,20 +86,20 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             }
 
             final ExecutionResult execute = execute(
-                    Collections.emptyMap(),
-                    "/bin/bash",
-                    "-c",
-                    String.join(
-                            " ",
-                            mount() + "/bin/" + zygoteName,
-                            "-m",
-                            "bindings.json",
-                            "-s",
-                            "mapping.json",
-                            arguments
-                    )
+                Collections.emptyMap(),
+                "/bin/bash",
+                "-c",
+                String.join(
+                    " ",
+                    mount() + "/bin/" + zygoteName,
+                    "-m",
+                    "bindings.json",
+                    "-s",
+                    "mapping.json",
+                    arguments
+                )
             );
-            LOGGER.info("\u001B[31m\nEXECUTED COMMAND: {}\u001B[30m", zygoteName);
+            LOGGER.info("\u001B[31m\nEXECUTED COMMAND: {}\u001B[0m", zygoteName);
             LOGGER.info("Stdout: {}", execute.stdout());
             LOGGER.info("Stderr: {}", execute.stderr());
             LOGGER.info("Exit code: {}", execute.exitCode());
@@ -143,12 +153,12 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         default String getWhiteboard(String wbId) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                    String.join(
-                            " ",
-                            mount() + "/sbin/whiteboard",
-                            "get",
-                            wbId
-                    )
+                String.join(
+                    " ",
+                    mount() + "/sbin/whiteboard",
+                    "get",
+                    wbId
+                )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
@@ -158,11 +168,11 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         default String getAllWhiteboards() {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                    String.join(
-                            " ",
-                            mount() + "/sbin/whiteboard",
-                            "getAll"
-                    )
+                String.join(
+                    " ",
+                    mount() + "/sbin/whiteboard",
+                    "getAll"
+                )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
@@ -172,11 +182,11 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         default String getWhiteboardsByNamespaceAndTags(String namespace, List<String> tags) {
             String command = String.join(
-                    " ",
-                    mount() + "/sbin/whiteboard",
-                    "list",
-                    "-n",
-                    namespace
+                " ",
+                mount() + "/sbin/whiteboard",
+                "list",
+                "-n",
+                namespace
             );
             if (!tags.isEmpty()) {
                 command = String.join(" ", command, "-t", String.join(",", tags));
@@ -190,11 +200,11 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         default String createSnapshot() {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                    String.join(
-                            " ",
-                            mount() + "/sbin/snapshot",
-                            "create"
-                    )
+                String.join(
+                    " ",
+                    mount() + "/sbin/snapshot",
+                    "create"
+                )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
@@ -202,16 +212,17 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String createWhiteboard(String wbId, List<String> fieldNames, List<String> tags, String namespace) {
+        default String createWhiteboard(String wbId, List<String> fieldNames, List<String> tags,
+            String namespace) {
             String command = String.join(
-                    " ",
-                    mount() + "/sbin/whiteboard",
-                    "create",
-                    wbId,
-                    "-l",
-                    String.join(",", fieldNames),
-                    "-n",
-                    namespace
+                " ",
+                mount() + "/sbin/whiteboard",
+                "create",
+                wbId,
+                "-l",
+                String.join(",", fieldNames),
+                "-n",
+                namespace
             );
             if (!tags.isEmpty()) {
                 command = String.join(" ", command, "-t", String.join(",", tags));
@@ -225,16 +236,16 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         default void link(String wbId, String fieldId, String entryId) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                    String.join(
-                            " ",
-                            mount() + "/sbin/whiteboard",
-                            "link",
-                            wbId,
-                            "-f",
-                            fieldId,
-                            "-e",
-                            entryId
-                    )
+                String.join(
+                    " ",
+                    mount() + "/sbin/whiteboard",
+                    "link",
+                    wbId,
+                    "-f",
+                    fieldId,
+                    "-e",
+                    entryId
+                )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
@@ -244,12 +255,12 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         default void finalizeSnapshot(String spId) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                    String.join(
-                            " ",
-                            mount() + "/sbin/snapshot",
-                            "finalize",
-                            spId
-                    )
+                String.join(
+                    " ",
+                    mount() + "/sbin/snapshot",
+                    "finalize",
+                    spId
+                )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
@@ -258,12 +269,12 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         default void destroyChannel(String channelName) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
-                    String.join(
-                            " ",
-                            mount() + "/sbin/channel",
-                            "destroy",
-                            channelName
-                    )
+                String.join(
+                    " ",
+                    mount() + "/sbin/channel",
+                    "destroy",
+                    channelName
+                )
             );
             if (execute.exitCode() != 0) {
                 throw new RuntimeException(execute.stderr());
@@ -323,7 +334,8 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                 throw new RuntimeException(execute.stderr());
             }
             if (slot.direction() == Slot.Direction.OUTPUT) {
-                Utils.waitFlagUp(() -> pathExists(Path.of(path)), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+                Utils.waitFlagUp(() -> pathExists(Path.of(path)), DEFAULT_TIMEOUT_SEC,
+                    TimeUnit.SECONDS);
             }
         }
 
@@ -340,12 +352,17 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         }
 
         boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit);
+
         boolean waitForShutdown(long timeout, TimeUnit unit);
+
         void shutdownNow();
 
         interface ExecutionResult {
+
             String stdout();
+
             String stderr();
+
             int exitCode();
         }
     }

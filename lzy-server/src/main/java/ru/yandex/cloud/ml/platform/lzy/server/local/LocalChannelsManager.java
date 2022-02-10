@@ -26,14 +26,13 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.DirectChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.EmptyController;
-import ru.yandex.cloud.ml.platform.lzy.server.task.InMemTasksManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 
 @Singleton
 public class LocalChannelsManager implements ChannelsManager {
 
-    private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
+    private static final Logger LOG = LogManager.getLogger(LocalChannelsManager.class);
     private final LockManager lockManager = new LocalLockManager();
     private final Map<String, ChannelEx> channels = new ConcurrentHashMap<>();
 
@@ -155,7 +154,7 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public void unbindAll(UUID sessionId) {
+    public void unbindAll(UUID sessionId, boolean invalidate) {
         LOG.info("LocalChannelsRepository::unbindAll sessionId=" + sessionId);
         for (ChannelEx channel : channels.values()) {
             final Lock lock = lockManager.getOrCreate(channel.name());
@@ -168,6 +167,9 @@ public class LocalChannelsManager implements ChannelsManager {
                     .filter(endpoint -> endpoint.slot().direction() == Direction.INPUT)
                     .forEach(endpoint -> {
                         try {
+                            if (invalidate) {
+                                endpoint.invalidate();
+                            }
                             channel.unbind(endpoint);
                         } catch (ChannelException e) {
                             LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);
@@ -180,6 +182,9 @@ public class LocalChannelsManager implements ChannelsManager {
                     .filter(endpoint -> endpoint.slot().direction() == Direction.OUTPUT)
                     .forEach(endpoint -> {
                         try {
+                            if (invalidate) {
+                                endpoint.invalidate();
+                            }
                             channel.unbind(endpoint);
                         } catch (ChannelException e) {
                             LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);

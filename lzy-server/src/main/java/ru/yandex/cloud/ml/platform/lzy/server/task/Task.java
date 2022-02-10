@@ -27,6 +27,8 @@ public interface Task {
 
     URI servantUri();
     void attachServant(URI uri, LzyServantBlockingStub servant);
+    void stopServant();
+    boolean servantIsAlive();
 
     Stream<Slot> slots();
 

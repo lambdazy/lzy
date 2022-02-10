@@ -4,6 +4,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
@@ -41,8 +42,9 @@ public abstract class BaseTask implements Task {
 
     private State state = State.PREPARING;
     private URI servantUri;
-    private CompletableFuture<LzyServantBlockingStub> servant = new CompletableFuture<>();
+    private final CompletableFuture<LzyServantBlockingStub> servant = new CompletableFuture<>();
     private final String bucket;
+    private final AtomicBoolean alreadyStopped = new AtomicBoolean(false);
 
     public BaseTask(
         String owner,
@@ -188,10 +190,21 @@ public abstract class BaseTask implements Task {
             });
         } finally {
             state(State.FINISHED);
-            LOG.info("Stopping servant {}", servantUri);
-            //noinspection ResultOfMethodCallIgnored
-            servant.stop(IAM.Empty.newBuilder().build());
+            stopServant();
         }
+    }
+
+    @Override
+    public void stopServant() {
+        //noinspection ResultOfMethodCallIgnored
+        servant().stop(IAM.Empty.newBuilder().build());
+        LOG.info("Stopped servant {}", servantUri);
+        alreadyStopped.set(true);
+    }
+
+    @Override
+    public boolean servantIsAlive() {
+        return servant.isDone() && !alreadyStopped.get();
     }
 
     private void progress(Servant.ExecutionProgress progress) {
@@ -211,7 +224,7 @@ public abstract class BaseTask implements Task {
     @Override
     public SlotStatus slotStatus(Slot slot) throws TaskException {
         final Slot definedSlot = workload.slot(slot.name());
-        if (servant == null) {
+        if (!servantIsAlive()) {
             if (definedSlot != null) {
                 return new PreparingSlotStatus(owner, this, definedSlot, assignments.get(slot));
             }
@@ -228,10 +241,8 @@ public abstract class BaseTask implements Task {
 
     @Override
     public void signal(TasksManager.Signal signal) throws TaskException {
-        LOG.info("Sending signal {} to servant {} for task {}", signal.name(), servantUri, tid);
         final LzyServantBlockingStub ser = servant();
-        if (ser == null)
-            throw new TaskException("Illegal task state: " + state());
+        LOG.info("Sending signal {} to servant {} for task {}", signal.name(), servantUri, tid);
         //noinspection ResultOfMethodCallIgnored
         ser.signal(Tasks.TaskSignal.newBuilder().setSigValue(signal.sig()).build());
     }
