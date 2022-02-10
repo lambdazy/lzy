@@ -1,6 +1,7 @@
 import dataclasses
 import logging
 import os
+import uuid
 from abc import abstractmethod, ABC
 from pathlib import Path
 from types import ModuleType
@@ -261,7 +262,8 @@ class LzyRemoteEnv(LzyEnvBase):
             local_modules_uploaded = []
             for local_module in local_modules:
                 cloudpickle.register_pickle_by_value(local_module)
-                key = "local_modules/" + local_module.__name__
+                key = "local_modules/" + local_module.__name__ + "/"\
+                      + str(uuid.uuid4())  # maybe we need to add module versions or some hash here
                 uri = client.write(bucket, key, cloudpickle.dumps(local_module))
                 local_modules_uploaded.append((local_module.__name__, uri))
                 cloudpickle.unregister_pickle_by_value(local_module)
