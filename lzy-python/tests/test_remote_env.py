@@ -80,6 +80,7 @@ class ModulesSearchTests(TestCase):
         self._env._storage_client = self._storage_client
 
     def test_py_env(self):
+        multiprocessing.set_start_method('spawn')
         # Arrange
         from tests.test_modules.level1.level1 import Level1 # type: ignore
         level1 = Level1()
