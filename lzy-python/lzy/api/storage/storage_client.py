@@ -50,9 +50,7 @@ class AzureClient(StorageClient):
         return cloudpickle.loads(data)
 
     def write(self, container: str, blob: str, data):
-        # May not be working
         container_client: ContainerClient = self.client.get_container_client(container)
-        container_client.create_container()
         container_client.get_blob_client(blob).upload_blob(data)
         return f"azure:/{container}/{blob}"
 
