@@ -23,19 +23,19 @@ public class SimpleBashEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public void prepare() throws EnvironmentInstallationException {}
+    public void prepare() throws EnvironmentInstallationException {
+        baseEnv.prepare();
+    }
 
     private LzyProcess execInEnv(String command, String[] envp)
-        throws EnvironmentInstallationException, LzyExecutionException {
+        throws LzyExecutionException {
         LOG.info("Executing command " + command);
         String[] bashCmd = new String[]{"bash", "-c", command};
         return baseEnv.runProcess(bashCmd, envp);
     }
 
     @Override
-    public LzyProcess runProcess(String... command)
-        throws LzyExecutionException {
-
+    public LzyProcess runProcess(String... command) throws LzyExecutionException {
         try {
             LOG.info("bash exec in docker env");
             return execInEnv(String.join(" ", command), null);
@@ -45,9 +45,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String command, String[] envp)
-        throws EnvironmentInstallationException, LzyExecutionException {
-
+    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
         try {
             LOG.info("bash exec in docker env");
             return execInEnv(String.join(" ", command), envp);

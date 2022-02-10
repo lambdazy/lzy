@@ -6,14 +6,14 @@ import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvConfig.MountDescription;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.BaseEnvConfig.MountDescription;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment.LzyProcess;
 
 public class EnvTest {
     @Test
     public void testDockerEnvRunSimple()
         throws Exception {
-        final BaseEnvironment env = new DockerEnvironment(new EnvConfig());
+        final BaseEnvironment env = new DockerEnvironment(BaseEnvConfig.newBuilder().build());
 
         final LzyProcess job = env.runProcess("/bin/bash", "-c", "echo 42 && echo 43 > /dev/stderr");
 
@@ -37,8 +37,10 @@ public class EnvTest {
     @Test
     public void testCondaOnDockerEnv()
         throws Exception {
-        final EnvConfig envConfig = new EnvConfig();
-        envConfig.mounts.add(new MountDescription("/tmp/resources", "/tmp/resources"));
+        final BaseEnvConfig envConfig = BaseEnvConfig
+            .newBuilder()
+            .addMount("/tmp/resources", "/tmp/resources")
+            .build();
         final BaseEnvironment env = new DockerEnvironment(envConfig);
 
         try (FileWriter file = new FileWriter("/tmp/resources/conda.yaml")) {

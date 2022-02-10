@@ -4,6 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.model.BindOptions;
@@ -20,10 +21,12 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,14 +39,24 @@ public class DockerEnvironment implements BaseEnvironment {
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
 
     public final CreateContainerResponse container;
+    public final String sourceImage;
 
-    public String defaultImage() {
-        return "celdwind/lzy:default-env";
-    }
+    public DockerEnvironment(BaseEnvConfig config) {
+        sourceImage = config.image();
+        LOG.info("Pulling image {} ...", sourceImage);
+        final var pullingImage = DOCKER
+            .pullImageCmd(sourceImage)
+            .exec(new PullImageResultCallback());
+        try {
+            pullingImage.awaitCompletion();
+        } catch (InterruptedException e) {
+            LOG.error("Pulling image {} was interrupted", sourceImage);
+            throw new RuntimeException(e);
+        }
+        LOG.info("Pulling image {} done", sourceImage);
 
-    public DockerEnvironment(EnvConfig config) {
-        LOG.info("Creating container: image={}, ", defaultImage());
-        LOG.info("Mount options: {}", config.mounts.toString());
+        LOG.info("Creating container from image={} ...", sourceImage);
+        LOG.info("Mount options: {}", config.mounts().toString());
         final List<Mount> dockerMounts = new ArrayList<>();
         dockerMounts.add(
             new Mount()
@@ -52,7 +65,7 @@ public class DockerEnvironment implements BaseEnvironment {
                 .withType(MountType.BIND)
                 .withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED))
         );
-        config.mounts.forEach(m -> dockerMounts.add(
+        config.mounts().forEach(m -> dockerMounts.add(
             new Mount()
                 .withType(MountType.BIND)
                 .withSource(m.source)
@@ -62,19 +75,7 @@ public class DockerEnvironment implements BaseEnvironment {
         final HostConfig hostConfig = new HostConfig();
         hostConfig.withMounts(dockerMounts);
 
-        LOG.info("Pulling image {} ...", defaultImage());
-        final var pullingImage = DOCKER
-            .pullImageCmd(defaultImage())
-            .exec(new PullImageResultCallback());
-        try {
-            pullingImage.awaitCompletion();
-        } catch (InterruptedException e) {
-            LOG.error("Pulling image {} was interrupted", defaultImage());
-            throw new RuntimeException(e);
-        }
-        LOG.info("Pulling image {} done", defaultImage());
-
-        final CreateContainerCmd createContainerCmd = DOCKER.createContainerCmd(defaultImage())
+        final CreateContainerCmd createContainerCmd = DOCKER.createContainerCmd(sourceImage)
             .withHostConfig(hostConfig)
             .withAttachStdout(true)
             .withAttachStderr(true);
@@ -82,7 +83,7 @@ public class DockerEnvironment implements BaseEnvironment {
         container = createContainerCmd
             .withTty(true)
             .exec();
-        LOG.info("Created env container, id = {}", container.getId());
+        LOG.info("Creating container from image={} done, id={}", sourceImage, container.getId());
 
         LOG.info("Starting env container with id {} ...", container.getId());
         DOCKER.startContainerCmd(container.getId()).exec();
@@ -90,9 +91,16 @@ public class DockerEnvironment implements BaseEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String... command)
-        throws EnvironmentInstallationException, LzyExecutionException {
+    public void prepare() throws EnvironmentInstallationException {
+    }
 
+    @Override
+    public LzyProcess runProcess(String... command) throws LzyExecutionException {
+        return runProcess(command, null);
+    }
+
+    @Override
+    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
         final int bufferSize = 1024;
         final PipedInputStream stdoutPipe = new PipedInputStream(bufferSize);
         final PipedInputStream stderrPipe = new PipedInputStream(bufferSize);
@@ -109,11 +117,14 @@ public class DockerEnvironment implements BaseEnvironment {
         ForkJoinPool.commonPool().execute(() -> {
             try {
                 LOG.info("Creating cmd {}", String.join(" ", command));
-                final ExecCreateCmdResponse exec = DOCKER.execCreateCmd(container.getId())
+                final ExecCreateCmd execCmd = DOCKER.execCreateCmd(container.getId())
                     .withCmd(command)
                     .withAttachStdout(true)
-                    .withAttachStderr(true)
-                    .exec();
+                    .withAttachStderr(true);
+                if (envp != null) {
+                    execCmd.withEnv(Arrays.asList(envp));
+                }
+                final ExecCreateCmdResponse exec = execCmd.exec();
                 LOG.info("Executing cmd {}", String.join(" ", command));
                 DOCKER.execStartCmd(exec.getId())
                     .exec(new ResultCallbackTemplate<>() {
@@ -154,7 +165,7 @@ public class DockerEnvironment implements BaseEnvironment {
                 stderr.close();
                 exitCode.complete(DOCKER.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
             } catch (InterruptedException | IOException e) {
-                LOG.error("Job container with id=" + container.getId() + " image= " + defaultImage()
+                LOG.error("Job container with id=" + container.getId() + " image= " + sourceImage
                     + " was interrupted");
             }
         });

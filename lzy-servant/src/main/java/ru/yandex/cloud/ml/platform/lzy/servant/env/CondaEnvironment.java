@@ -4,9 +4,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
@@ -21,7 +20,8 @@ public class CondaEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
-    private final AtomicBoolean envInstalled = new AtomicBoolean(false);
+    private final AtomicBoolean envPreparingStarted = new AtomicBoolean(false);
+    private final AtomicBoolean envPrepared = new AtomicBoolean(false);
 
     public CondaEnvironment(PythonEnv pythonEnv, BaseEnvironment baseEnv) {
         this.pythonEnv = pythonEnv;
@@ -71,26 +71,26 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    private LzyProcess execInEnv(String command, String[] envp)
-        throws IOException, EnvironmentInstallationException, LzyExecutionException {
+    private LzyProcess execInEnv(String command, String[] envp) throws LzyExecutionException {
         LOG.info("Executing command " + command);
-        return baseEnv.runProcess("bash", "-c",
+        String[] bashCmd = new String[]{"bash", "-c",
             "source /root/miniconda3/etc/profile.d/conda.sh && " +
-                "conda activate " + pythonEnv.name() + " && " + command,
-            envp
-        );
+            "conda activate " + pythonEnv.name() + " && " + command};
+        return baseEnv.runProcess(bashCmd, envp);
     }
 
-    private LzyProcess execInEnv(String command) throws IOException, EnvironmentInstallationException, LzyExecutionException {
+    private LzyProcess execInEnv(String command) throws LzyExecutionException {
         return execInEnv(command, null);
     }
 
     @Override
     public void prepare() throws EnvironmentInstallationException {
-        if (envInstalled.compareAndSet(false, true)) {
+        baseEnv.prepare();
+        if (envPreparingStarted.compareAndSet(false, true)) {
             final long pyEnvInstallStart = System.currentTimeMillis();
             installPyenv();
             final long pyEnvInstallFinish = System.currentTimeMillis();
+            envPrepared.set(true);
             MetricEventLogger.log(
                 new MetricEvent(
                     "time for installing py env millis",
@@ -102,8 +102,13 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String command, String[] envp) throws LzyExecutionException {
-        assert envInstalled.get(): "Environment not prepared";
+    public LzyProcess runProcess(String... command) throws LzyExecutionException {
+        return runProcess(command, null);
+    }
+
+    @Override
+    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
+        assert envPrepared.get() : "Environment not prepared";
         try {
             return execInEnv(String.join(" ", command), envp);
         } catch (Exception e) {
@@ -111,8 +116,5 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    @Override
-    public LzyProcess runProcess(String command) throws LzyExecutionException {
-        return runProcess(command, null);
-    }
+
 }

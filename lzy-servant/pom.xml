@@ -228,6 +228,18 @@
                             <alias>dockerfile</alias>
                             <build>
                                 <contextDir>${project.basedir}/../</contextDir>
+                                <dockerFile>${project.basedir}/docker/Old.Dockerfile</dockerFile>
+                                <noCache>true</noCache>
+                                <imagePullPolicy>IfNotPresent</imagePullPolicy>
+                            </build>
+                        </image>
+                        <!--
+                        TODO (lindvv) 87917: enable it
+                        <image>
+                            <name>lzy-servant</name>
+                            <alias>dockerfile</alias>
+                            <build>
+                                <contextDir>${project.basedir}/../</contextDir>
                                 <dockerFile>${project.basedir}/docker/System.Dockerfile</dockerFile>
                                 <noCache>true</noCache>
                                 <imagePullPolicy>IfNotPresent</imagePullPolicy>
@@ -243,6 +255,7 @@
                                 <imagePullPolicy>IfNotPresent</imagePullPolicy>
                             </build>
                         </image>
+                        -->
                     </images>
                 </configuration>
                 <executions>

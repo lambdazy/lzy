@@ -1,18 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import io.findify.s3mock.S3Mock;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import io.findify.s3mock.S3Mock;
 import org.junit.After;
 import org.junit.Before;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvConfig;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvConfig.MountDescription;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyKharonProcessesContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
@@ -35,6 +32,7 @@ public class LzyBaseTest {
     @Before
     public void setUp() {
         createResourcesFolder();
+        createServantLzyFolder();
         serverContext = new LzyServerProcessesContext();
         serverContext.init();
         whiteboardContext = new LzySnapshotProcessesContext(serverContext.address(false));
@@ -58,10 +56,17 @@ public class LzyBaseTest {
     }
 
     private static void createResourcesFolder() {
-        final Path resourcesPath = Path.of("/tmp/resources/");
-        if (!Files.exists(resourcesPath)) {
+        createFolder(Path.of("/tmp/resources/"));
+    }
+
+    private static void createServantLzyFolder() {
+        createFolder(Path.of("/tmp/servant/lzy/"));
+    }
+
+    private static void createFolder(Path path) {
+        if (!Files.exists(path)) {
             try {
-                Files.createDirectories(resourcesPath);
+                Files.createDirectories(path);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
