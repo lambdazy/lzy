@@ -15,7 +15,7 @@ from lzy.api.whiteboard.model import (
     WhiteboardFieldDescription, get_bucket_from_url
 )
 from lzy.servant.bash_servant_client import exec_bash
-from lzy.servant.servant_client import ServantClient
+from lzy.servant.servant_client import ServantClient, CredentialsTypes
 from lzy.servant.whiteboard_storage import WhiteboardStorage
 
 
@@ -56,7 +56,7 @@ class WhiteboardBashApi(WhiteboardApi):
     def _whiteboard_storage(self, bucket: str) -> WhiteboardStorage:
         if bucket not in self.__credentials:
             self.__credentials[bucket] = self.__client.get_credentials(
-                ServantClient.CredentialsTypes.S3,
+                CredentialsTypes.S3,
                 bucket
             )
         if bucket not in self.__whiteboard_storage_by_bucket:
