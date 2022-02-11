@@ -7,5 +7,5 @@ import java.util.UUID;
 
 public interface ConnectionManager {
     LzyServantBlockingStub getOrCreate(URI uri, UUID sessionId);
-    void shutdownConnection(UUID sesionId);
+    void shutdownConnection(UUID sessionId);
 }

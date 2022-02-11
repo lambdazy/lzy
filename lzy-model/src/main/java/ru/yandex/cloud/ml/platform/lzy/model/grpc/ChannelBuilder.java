@@ -40,15 +40,13 @@ public class ChannelBuilder {
             "CANCELLED",
             "UNKNOWN",
             "DEADLINE_EXCEEDED",
-            "PERMISSION_DENIED",
             "RESOURCE_EXHAUSTED",
             "FAILED_PRECONDITION",
             "ABORTED",
             "OUT_OF_RANGE",
             "INTERNAL",
             "UNAVAILABLE",
-            "DATA_LOSS",
-            "UNAUTHENTICATED"
+            "DATA_LOSS"
         );
     }
 

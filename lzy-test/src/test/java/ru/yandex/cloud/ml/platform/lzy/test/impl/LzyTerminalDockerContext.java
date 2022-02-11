@@ -194,6 +194,11 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
                     return false;
                 }, timeout, unit);
             }
+
+            @Override
+            public void shutdownNow() {
+                servantContainer.stop();
+            }
         };
     }
 

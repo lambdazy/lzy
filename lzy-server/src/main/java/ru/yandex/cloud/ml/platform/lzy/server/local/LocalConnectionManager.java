@@ -55,6 +55,6 @@ public class LocalConnectionManager implements ConnectionManager {
         }
 
         final Connection connection = connections.remove(sessionId);
-        connection.channel.shutdown();
+        connection.channel.shutdownNow();
     }
 }

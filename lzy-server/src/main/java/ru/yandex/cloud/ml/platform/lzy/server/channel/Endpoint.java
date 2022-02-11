@@ -16,5 +16,6 @@ public interface Endpoint {
     int disconnect();
     int destroy();
 
+    void invalidate();
     boolean isInvalid();
 }
