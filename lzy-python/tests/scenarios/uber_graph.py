@@ -4,6 +4,7 @@ from typing import List
 
 from lzy.api import op, LzyRemoteEnv
 from lzy.api.whiteboard import whiteboard, view
+
 from base import Base
 
 '''

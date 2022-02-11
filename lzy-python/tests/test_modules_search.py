@@ -19,8 +19,15 @@ class ModulesSearchTests(TestCase):
         module_names = []
         for module in local:
             module_names.append(module.__name__)
-        self.assertEqual(["tests.test_modules.level1.level2.level3.level3",
-                          "tests.test_modules.level1.level2.level2",
-                          "tests.test_modules.level1.level1"],
+
+        self.assertEqual(['tests',
+                          'tests.test_modules',
+                          'tests.test_modules.level1',
+                          'tests.test_modules.level1.level2',
+                          'tests.test_modules.level1.level2.level3',
+                          'tests.test_modules.level1.level2.level3.level3',
+                          'tests.test_modules.level1.level2.level2',
+                          'tests.test_modules.level1.level1'
+                         ],
                          module_names)
         self.assertEqual({"PyYAML", "s3fs"}, set(remote.keys()))

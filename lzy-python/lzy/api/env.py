@@ -12,6 +12,7 @@ import cloudpickle
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
+from lzy.api.storage.storage_client import StorageClient, from_credentials
 from lzy.api.whiteboard import check_whiteboard, wrap_whiteboard, wrap_whiteboard_for_read
 from lzy.api.whiteboard.model import (
     InMemSnapshotApi,
@@ -21,13 +22,11 @@ from lzy.api.whiteboard.model import (
     WhiteboardList,
     WhiteboardDescription
 )
-from lzy.api.whiteboard.credentials import AmazonCredentials, AzureCredentials
 from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.servant_client import ServantClient
+from lzy.servant.servant_client import ServantClient, CredentialsTypes
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
-from lzy.api.storage.storage_client import AmazonClient, AzureClient, StorageClient
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]
@@ -69,7 +68,7 @@ class LzyEnvBase(ABC):
         check_whiteboard(typ)
         # noinspection PyDataclass
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
-        whiteboard_dict = {}
+        whiteboard_dict: Dict[str, Any] = {}
         for field in wb_.fields:
             if field.storage_uri is None:
                 whiteboard_dict[field.field_name] = None
@@ -221,6 +220,12 @@ class LzyRemoteEnv(LzyEnvBase):
             .instance(lzy_mount)
         self._py_env: Optional[PyEnv] = None
 
+        bucket = self._servant_client.get_bucket()
+        self._bucket = bucket
+
+        credentials = self._servant_client.get_credentials(CredentialsTypes.S3, bucket)
+        self._storage_client: StorageClient = from_credentials(credentials)
+
         super().__init__(
             buses=buses,
             whiteboard=whiteboard,
@@ -249,22 +254,12 @@ class LzyRemoteEnv(LzyEnvBase):
                 installed, local_modules = select_modules(namespace)
                 name, yaml = create_yaml(installed_packages=installed)
 
-            bucket = self._servant_client.get_bucket()
-            credentials = self._servant_client.get_credentials(ServantClient.CredentialsTypes.S3, bucket)
-            client: StorageClient
-            if isinstance(credentials, AmazonCredentials):
-                client = AmazonClient(credentials)
-            elif isinstance(credentials, AzureCredentials):
-                client = AzureClient.from_connection_string(credentials)
-            else:
-                client = AzureClient.from_sas(credentials)
-
             local_modules_uploaded = []
             for local_module in local_modules:
                 cloudpickle.register_pickle_by_value(local_module)
-                key = "local_modules/" + local_module.__name__ + "/"\
+                key = "local_modules/" + local_module.__name__ + "/" \
                       + str(uuid.uuid4())  # maybe we need to add module versions or some hash here
-                uri = client.write(bucket, key, cloudpickle.dumps(local_module))
+                uri = self._storage_client.write(self._bucket, key, cloudpickle.dumps(local_module))
                 local_modules_uploaded.append((local_module.__name__, uri))
                 cloudpickle.unregister_pickle_by_value(local_module)
             self._py_env = PyEnv(name, yaml, local_modules, local_modules_uploaded)

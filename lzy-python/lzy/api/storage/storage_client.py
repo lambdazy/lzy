@@ -8,7 +8,7 @@ from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, Conta
 import cloudpickle
 import s3fs
 import logging
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials, StorageCredentials
 
 
 class StorageClient(ABC):
@@ -88,3 +88,14 @@ class AmazonClient(StorageClient):
         with self.fs_.open(uri.path, "wb") as file:
             file.write(data)
         return url
+
+
+def from_credentials(credentials: StorageCredentials) -> StorageClient:
+    if isinstance(credentials, AmazonCredentials):
+        return AmazonClient(credentials)
+    elif isinstance(credentials, AzureCredentials):
+        return AzureClient.from_connection_string(credentials)
+    elif isinstance(credentials, AzureSasCredentials):
+        return AzureClient.from_sas(credentials)
+    else:
+        raise ValueError("Unknown credentials type: " + type(credentials))
