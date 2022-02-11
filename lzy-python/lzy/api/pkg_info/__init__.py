@@ -127,7 +127,7 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
             module_name = module_name[:last_dot_idx]
             # if parent module_name in local_modules already then all parent 
             # modules there too already
-            if module_name in local_modules:
+            if sys.modules[module_name] in local_modules:
                 break
             local_modules.append(sys.modules[module_name])
 
