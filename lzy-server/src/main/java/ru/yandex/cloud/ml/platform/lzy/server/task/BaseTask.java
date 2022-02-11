@@ -1,28 +1,37 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.*;
+import ru.yandex.cloud.ml.platform.lzy.model.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
-
-import javax.annotation.Nullable;
-import java.net.URI;
-import java.util.*;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 public abstract class BaseTask implements Task {
 
@@ -196,8 +205,12 @@ public abstract class BaseTask implements Task {
 
     @Override
     public void stopServant() {
-        //noinspection ResultOfMethodCallIgnored
-        servant().stop(IAM.Empty.newBuilder().build());
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            servant().stop(IAM.Empty.newBuilder().build());
+        } catch (Exception e) {
+            LOG.warn("Channel for servant uri={} was shutdown; exception={}", servantUri, e);
+        }
         LOG.info("Stopped servant {}", servantUri);
         alreadyStopped.set(true);
     }

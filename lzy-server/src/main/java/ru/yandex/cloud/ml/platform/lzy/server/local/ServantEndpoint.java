@@ -1,6 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import io.grpc.StatusRuntimeException;
+import java.net.URI;
+import java.util.Objects;
+import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -9,10 +12,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-
-import java.net.URI;
-import java.util.Objects;
-import java.util.UUID;
 
 public class ServantEndpoint implements Endpoint {
     private static final Logger LOG = LogManager.getLogger(ServantEndpoint.class);

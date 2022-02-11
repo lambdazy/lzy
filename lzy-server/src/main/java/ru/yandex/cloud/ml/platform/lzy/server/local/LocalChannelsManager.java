@@ -154,7 +154,7 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public void unbindAll(UUID sessionId, boolean invalidate) {
+    public void unbindAll(UUID sessionId) {
         LOG.info("LocalChannelsRepository::unbindAll sessionId=" + sessionId);
         for (ChannelEx channel : channels.values()) {
             final Lock lock = lockManager.getOrCreate(channel.name());
@@ -167,9 +167,6 @@ public class LocalChannelsManager implements ChannelsManager {
                     .filter(endpoint -> endpoint.slot().direction() == Direction.INPUT)
                     .forEach(endpoint -> {
                         try {
-                            if (invalidate) {
-                                endpoint.invalidate();
-                            }
                             channel.unbind(endpoint);
                         } catch (ChannelException e) {
                             LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);
@@ -182,9 +179,6 @@ public class LocalChannelsManager implements ChannelsManager {
                     .filter(endpoint -> endpoint.slot().direction() == Direction.OUTPUT)
                     .forEach(endpoint -> {
                         try {
-                            if (invalidate) {
-                                endpoint.invalidate();
-                            }
                             channel.unbind(endpoint);
                         } catch (ChannelException e) {
                             LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);

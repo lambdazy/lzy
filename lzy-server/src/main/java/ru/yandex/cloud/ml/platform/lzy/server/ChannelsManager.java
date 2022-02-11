@@ -19,10 +19,7 @@ public interface ChannelsManager {
 
     @Nullable
     Channel bound(Endpoint endpoint);
-    default void unbindAll(UUID sessionId) {
-        unbindAll(sessionId, false);
-    }
-    void unbindAll(UUID sessionId, boolean invalidate);
+    void unbindAll(UUID sessionId);
 
     SlotStatus[] connected(Channel channel);
     Stream<Channel> channels();
