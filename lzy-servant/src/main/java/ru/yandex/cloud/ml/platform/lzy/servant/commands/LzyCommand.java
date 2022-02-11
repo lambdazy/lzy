@@ -13,7 +13,7 @@ public interface LzyCommand {
         channel(new Channel()),
         cs(new ChannelsStatus()),
         ts(new TasksStatus()),
-        kill(new TasksStatus()),
+        kill(new Kill()),
         touch(new Touch()),
         status(new TerminalStatus()),
         whiteboard(new Whiteboard()),

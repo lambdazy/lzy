@@ -1,8 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus.RC;
 
 public class TerminalSession {
@@ -28,8 +27,7 @@ public class TerminalSession {
     private StreamObserver<Servant.ExecutionProgress> executionProgress;
     private final StreamObserver<Kharon.TerminalState> terminalStateObserver;
     private final StreamObserver<Kharon.TerminalCommand> terminalController;
-
-    private final DataCarrier dataCarrier = new DataCarrier();
+    private final AtomicBoolean invalid = new AtomicBoolean(false);
 
     private String user;
     private final UUID sessionId = UUID.randomUUID();
@@ -53,7 +51,7 @@ public class TerminalSession {
                 }
                 if (terminalState.getProgressCase()
                     != Kharon.TerminalState.ProgressCase.ATTACHTERMINAL) {
-                    checkConsistency();
+                    checkTerminalAndServantState();
                 }
                 switch (terminalState.getProgressCase()) {
                     case ATTACHTERMINAL: {
@@ -126,6 +124,7 @@ public class TerminalSession {
             @Override
             public void onError(Throwable throwable) {
                 LOG.error("Terminal execution terminated ", throwable);
+                invalidate();
                 if (executionProgress != null) {
                     executionProgress.onError(throwable);
                 }
@@ -134,20 +133,25 @@ public class TerminalSession {
             @Override
             public void onCompleted() {
                 LOG.info("Terminal for " + user + " disconnected; sessionId = " + sessionId);
+                invalidate();
             }
         };
     }
 
-    public StreamObserver<Kharon.TerminalState> getTerminalStateObserver() {
+    public StreamObserver<Kharon.TerminalState> terminalStateObserver() {
         return terminalStateObserver;
     }
 
-    public UUID getSessionId() {
+    public UUID sessionId() {
         return sessionId;
     }
 
     public void setExecutionProgress(StreamObserver<Servant.ExecutionProgress> executionProgress) {
         executeFromServerFuture.complete(executionProgress);
+    }
+
+    public boolean isAlive() {
+        return !invalid.get();
     }
 
     @Nullable
@@ -180,7 +184,7 @@ public class TerminalSession {
         return Servant.SlotCommandStatus.newBuilder().build();
     }
 
-    private void checkConsistency() {
+    private void checkTerminalAndServantState() {
         if (user == null) {
             throw new IllegalStateException("Got terminal state before attachTerminal");
         }
@@ -219,9 +223,18 @@ public class TerminalSession {
 
     public void close() {
         try {
+            invalidate();
             terminalController.onCompleted();
         } catch (Exception e) {
             LOG.error("Failed to close stream with Terminal session_id {}. Already closed.", sessionId);
         }
+    }
+
+    private void invalidate() {
+        if (invalid.get()) {
+            throw new IllegalStateException("Session is already invalid");
+        }
+
+        invalid.set(true);
     }
 }

@@ -1,13 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import jakarta.inject.Singleton;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.server.SessionManager;
@@ -38,7 +37,7 @@ public class LocalSessionManager implements SessionManager {
     }
 
     @Override
-    public List<UUID> getSessionIds(String userId) {
-        return new ArrayList<>(userToSessions.get(userId));
+    public Stream<UUID> sessionIds(String userId) {
+        return userToSessions.get(userId).stream();
     }
 }

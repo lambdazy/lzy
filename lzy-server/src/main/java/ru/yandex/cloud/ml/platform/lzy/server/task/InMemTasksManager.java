@@ -122,7 +122,7 @@ public class InMemTasksManager implements TasksManager {
                 children.getOrDefault(removedTask, new ArrayList<>()).remove(task);
             }
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
-            LOG.info("InMemTaskManager::unbindAll");
+            LOG.info("InMemTaskManager::unbindAll tid={} servantIsAlive={}", task.tid(), task.servantIsAlive());
             channels.unbindAll(task.tid(), !task.servantIsAlive());
             taskChannels.remove(task);
             userTasks.getOrDefault(owners.remove(task), List.of()).remove(task);

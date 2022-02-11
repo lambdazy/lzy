@@ -420,7 +420,7 @@ public class LzyServer {
             }
 
             final Builder builder = GetSessionsResponse.newBuilder();
-            sessionManager.getSessionIds(userId).forEach(
+            sessionManager.sessionIds(userId).forEach(
                 sessionId -> builder.addSessions(SessionDescription.newBuilder().setSessionId(sessionId.toString()))
             );
             responseObserver.onNext(builder.build());

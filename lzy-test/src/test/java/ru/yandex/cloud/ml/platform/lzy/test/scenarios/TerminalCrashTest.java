@@ -82,6 +82,16 @@ public class TerminalCrashTest extends LzyBaseTest {
         //Assert
         Assert.assertTrue(
             Utils.waitFlagUp(() -> {
+                    final String tasksStatus = terminal.tasksStatus();
+                    return tasksStatus.equals("");
+                },
+                DEFAULT_TIMEOUT_SEC,
+                TimeUnit.SECONDS
+            )
+        );
+
+        Assert.assertTrue(
+            Utils.waitFlagUp(() -> {
                 final String channelStatus = terminal.channelStatus(channelName);
                 return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");},
                 DEFAULT_TIMEOUT_SEC,

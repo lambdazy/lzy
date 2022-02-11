@@ -106,6 +106,25 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute;
         }
 
+        default String tasksStatus() {
+            final ExecutionResult execute = execute(
+                Collections.emptyMap(),
+                "bash",
+                "-c",
+                String.join(
+                    " ",
+                    mount() + "/sbin/ts",
+                    "filename",
+                    "-z",
+                    serverAddress() // serverAddress
+                )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+            return execute.stdout();
+        }
+
         default void publish(String zygoteName, AtomicZygote zygote) {
             try {
                 execute(

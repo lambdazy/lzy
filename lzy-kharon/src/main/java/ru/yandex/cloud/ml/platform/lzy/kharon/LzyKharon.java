@@ -325,40 +325,53 @@ public class LzyKharon {
         @Override
         public void execute(Tasks.TaskSpec request,
             StreamObserver<Servant.ExecutionProgress> responseObserver) {
-            final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
-            LOG.info("KharonServantProxyService sessionId = " + session.getSessionId() +
-                "::execute " + JsonUtils.printRequest(request));
-            session.setExecutionProgress(responseObserver);
-            Context.current().addListener(context -> {
-                LOG.info("Execution terminated from server");
-                session.close();
-            }, Runnable::run);
+            try {
+                final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
+                LOG.info("KharonServantProxyService sessionId = " + session.sessionId() +
+                    "::execute " + JsonUtils.printRequest(request));
+                session.setExecutionProgress(responseObserver);
+                Context.current().addListener(context -> {
+                    LOG.info("Execution terminated from server");
+                    session.close();
+                }, Runnable::run);
+            } catch (InvalidSessionRequestException e) {
+                responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            }
         }
 
         @Override
         public void openOutputSlot(Servant.SlotRequest request,
             StreamObserver<Servant.Message> responseObserver) {
-            final TerminalSession session = terminalManager
-                .getTerminalSessionFromSlotUri(request.getSlotUri());
-            LOG.info("KharonServantProxyService sessionId = " + session.getSessionId() +
-                "::openOutputSlot " + JsonUtils.printRequest(request));
-            LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
-            dataCarrier.openServantConnection(URI.create(request.getSlotUri()), responseObserver);
-            session.configureSlot(Servant.SlotCommand.newBuilder()
-                .setSlot(request.getSlot())
-                .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                    .setSlotUri(request.getSlotUri())
-                    .build())
-                .build());
+            try {
+                final TerminalSession session = terminalManager
+                    .getTerminalSessionFromSlotUri(request.getSlotUri());
+                LOG.info("KharonServantProxyService sessionId = " + session.sessionId() +
+                    "::openOutputSlot " + JsonUtils.printRequest(request));
+                LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
+                dataCarrier.openServantConnection(URI.create(request.getSlotUri()),
+                    responseObserver);
+                session.configureSlot(Servant.SlotCommand.newBuilder()
+                    .setSlot(request.getSlot())
+                    .setConnect(Servant.ConnectSlotCommand.newBuilder()
+                        .setSlotUri(request.getSlotUri())
+                        .build())
+                    .build());
+            } catch (InvalidSessionRequestException e) {
+                responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            }
         }
 
         @Override
         public void configureSlot(Servant.SlotCommand request,
             StreamObserver<Servant.SlotCommandStatus> responseObserver) {
-            final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
-            final SlotCommandStatus slotCommandStatus = session.configureSlot(request);
-            responseObserver.onNext(slotCommandStatus);
-            responseObserver.onCompleted();
+            try {
+                final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
+                final SlotCommandStatus slotCommandStatus = session.configureSlot(request);
+                responseObserver.onNext(slotCommandStatus);
+                responseObserver.onCompleted();
+            } catch (InvalidSessionRequestException e) {
+                responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            }
         }
     }
 }
