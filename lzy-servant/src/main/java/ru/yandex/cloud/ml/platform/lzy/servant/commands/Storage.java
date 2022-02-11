@@ -33,7 +33,7 @@ public class Storage implements LzyCommand {
         LzyKharonGrpc.LzyKharonBlockingStub kharon = LzyKharonGrpc.newBlockingStub(serverCh);
 
         switch (command.getArgs()[1]) {
-            case "s3": {
+            case "credentials": {
                 if (command.getArgs().length < 3) {
                     throw new IllegalArgumentException("Please specify bucket name");
                 }

@@ -11,9 +11,11 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
@@ -23,6 +25,8 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.EntryStatusCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.EntryStatusResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 @Singleton
@@ -48,7 +52,8 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
-        StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+                               StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+        LOG.info("SnapshotApi::createSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
@@ -65,7 +70,8 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void prepareToSave(LzyWhiteboard.PrepareCommand request,
-        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                              StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        LOG.info("SnapshotApi::prepareToSave " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
@@ -89,7 +95,8 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void commit(LzyWhiteboard.CommitCommand request,
-        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                       StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        LOG.info("SnapshotApi::commit " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
@@ -117,7 +124,8 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
-        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                                 StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        LOG.info("SnapshotApi::finalizeSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
@@ -134,6 +142,41 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
             .build();
         responseObserver.onNext(status);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void entryStatus(EntryStatusCommand request,
+                            StreamObserver<EntryStatusResponse> responseObserver) {
+        LOG.info("SnapshotApi::entryStatus " + JsonUtils.printRequest(request));
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
+        SnapshotStatus snapshotStatus = repository.resolveSnapshot(URI.create(request.getSnapshotId()));
+        if (snapshotStatus == null) {
+            LOG.info("SnapshotApi::entryStatus snapshot {} not found", request.getSnapshotId());
+            responseObserver.onError(Status.NOT_FOUND.withDescription("Snapshot not found").asException());
+            return;
+        }
+        SnapshotEntryStatus entry = repository.resolveEntryStatus(snapshotStatus.snapshot(), request.getEntryId());
+        if (entry == null) {
+            LOG.info("SnapshotApi::entryStatus entry {} not found", request.getEntryId());
+            responseObserver.onError(Status.NOT_FOUND.withDescription("Entry not found").asException());
+            return;
+        }
+        EntryStatusResponse.Builder builder = EntryStatusResponse.newBuilder()
+            .setSnapshotId(snapshotStatus.snapshot().id().toString())
+            .setEntryId(entry.entry().id())
+            .setStatus(EntryStatusResponse.Status.valueOf(entry.status().name()))
+            .setEmpty(entry.empty());
+        URI storage = entry.storage();
+        if (storage != null) {
+            builder.setStorageUri(storage.toString());
+        }
+        EntryStatusResponse resp = builder.build();
+        LOG.info("SnapshotApi::entryStatus status: " + JsonUtils.printRequest(resp));
+        responseObserver.onNext(resp);
         responseObserver.onCompleted();
     }
 }

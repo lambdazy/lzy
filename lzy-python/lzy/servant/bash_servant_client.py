@@ -13,7 +13,7 @@ from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, 
 from lzy.model.channel import Channel, Bindings
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
-from lzy.servant.servant_client import ServantClient, Execution, ExecutionResult, CredentialsTypes
+from lzy.servant.servant_client import ServantClient, Execution, ExecutionResult
 
 from lzy.model.encoding import ENCODING as encoding
 
@@ -165,10 +165,10 @@ class BashServantClient(ServantClient):
         )
 
     def get_credentials(
-        self, typ: CredentialsTypes, bucket: str
+        self, bucket: str
     ) -> StorageCredentials:
-        self._log.info(f"Getting credentials for {typ}")
-        out = exec_bash(f"{self._mount}/sbin/storage", typ.value, bucket)
+        self._log.info(f"Getting credentials for bucket {bucket}")
+        out = exec_bash(f"{self._mount}/sbin/storage", "credentials", bucket)
         data: dict = json.loads(out)
         if "azure" in data:
             return AzureCredentials(data["azure"]["connectionString"])

@@ -15,11 +15,9 @@ public class SnapshotModel {
     @Id
     @Column(name = "snapshot_id", nullable = false)
     private String snapshotId;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "snapshot_state", nullable = false)
     private SnapshotStatus.State snapshotState;
-
     @Column(name = "uid", nullable = false)
     private String uid;
 

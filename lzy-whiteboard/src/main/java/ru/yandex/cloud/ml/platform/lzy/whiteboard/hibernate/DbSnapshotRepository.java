@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
@@ -30,6 +32,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
     @Inject
     DbStorage storage;
+
+    private static final Logger LOG = LogManager.getLogger(DbSnapshotRepository.class);
 
     @Override
     public SnapshotStatus create(Snapshot snapshot) throws RuntimeException {
@@ -70,6 +74,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
     @Override
     public void finalize(Snapshot snapshot) {
+        LOG.info("Finalizing snapshot {}", snapshot.id());
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = snapshot.id().toString();
@@ -84,6 +89,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
             List<SnapshotEntryModel> snapshotEntries = SessionHelper.getSnapshotEntries(snapshotId, session);
             for (SnapshotEntryModel spEntry : snapshotEntries) {
                 if (spEntry.getEntryState() != State.FINISHED || spEntry.getStorageUri() == null) {
+                    LOG.info("State of entry {} is {} and storageUri is {}",
+                        spEntry.getEntryId(), spEntry.getEntryState(), spEntry.getStorageUri());
                     spEntry.setEntryState(State.ERRORED);
                     snapshotModel.setSnapshotState(SnapshotStatus.State.ERRORED);
                 }

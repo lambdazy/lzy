@@ -12,6 +12,7 @@ from lzy.api.whiteboard.model import UUIDEntryIdGenerator
 from lzy.model.signatures import FuncSignature, CallSignature
 from lzy.model.zygote import Provisioning, Gpu
 
+
 logging.root.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
@@ -81,6 +82,8 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     pyenv,
                     deployed=False,
                     entry_id_generator=id_generator,
+                    snapshot_id_getter=current_env.snapshot_id,
+                    snapshot_api=current_env._execution_context.snapshot_api
                 )
             else:
                 raise RuntimeError(f"Unsupported env type: {type(current_env)}")

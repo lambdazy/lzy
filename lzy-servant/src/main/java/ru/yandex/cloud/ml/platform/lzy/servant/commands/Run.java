@@ -88,8 +88,8 @@ public class Run implements LzyCommand {
             //noinspection unchecked
             bindings.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
             LOG.info("Bindings: " + bindings.entrySet().stream()
-                    .map(e -> e.getKey() + " -> " + e.getValue())
-                    .collect(Collectors.joining(";\n"))
+                .map(e -> e.getKey() + " -> " + e.getValue())
+                .collect(Collectors.joining(";\n"))
             );
         }
 

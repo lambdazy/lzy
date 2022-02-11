@@ -42,6 +42,7 @@ service LzyKharon {
   // Snapshot API
   rpc CreateSnapshot (CreateSnapshotCommand) returns (Snapshot);
   rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
+  rpc EntryStatus (EntryStatusCommand) returns (EntryStatusResponse);
 }
 
 message TerminalState {

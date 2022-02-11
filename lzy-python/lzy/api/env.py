@@ -13,7 +13,7 @@ from lzy.api.lazy_op import LzyOp
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 from lzy.api.utils import zipdir, fileobj_hash
-from lzy.api.storage.storage_client import StorageClient, from_credentials
+from lzy.api.storage.storage_client import StorageClient
 from lzy.api.whiteboard import check_whiteboard, wrap_whiteboard, wrap_whiteboard_for_read
 from lzy.api.whiteboard.model import (
     InMemSnapshotApi,
@@ -26,7 +26,7 @@ from lzy.api.whiteboard.model import (
 from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.servant_client import ServantClient, CredentialsTypes
+from lzy.servant.servant_client import ServantClient
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -227,8 +227,8 @@ class LzyRemoteEnv(LzyEnvBase):
         bucket = self._servant_client.get_bucket()
         self._bucket = bucket
 
-        credentials = self._servant_client.get_credentials(CredentialsTypes.S3, bucket)
-        self._storage_client: StorageClient = from_credentials(credentials)
+        credentials = self._servant_client.get_credentials(bucket)
+        self._storage_client: StorageClient = StorageClient.create(credentials)
         if local_module_paths is None:
             self._local_module_paths: List[str] = []
         else:

@@ -1,7 +1,7 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Type, Dict, List, TypeVar
+from typing import Any, Type, Dict, List, TypeVar, Optional
 
 # noinspection PyProtectedMember
 from lzy.api._proxy import proxy
@@ -12,12 +12,12 @@ from lzy.api.whiteboard.model import (
     WhiteboardApi,
     WhiteboardDescription,
     WhiteboardStatus,
-    WhiteboardFieldDescription, get_bucket_from_url
+    WhiteboardFieldDescription, get_bucket_from_url, SnapshotEntry, SnapshotEntryStatus
 )
 from lzy.servant.bash_servant_client import exec_bash
 from datetime import datetime
-from lzy.servant.servant_client import ServantClient, CredentialsTypes
-from lzy.servant.whiteboard_storage import WhiteboardStorage
+from lzy.servant.servant_client import ServantClient
+from lzy.api.storage.storage_client import StorageClient
 
 
 class SnapshotBashApi(SnapshotApi):
@@ -41,6 +41,18 @@ class SnapshotBashApi(SnapshotApi):
             f"{self.__mount}/sbin/snapshot", "finalize", snapshot_id
         )
 
+    def entry(self, snapshot_id: str, entry_id: str) -> Optional[SnapshotEntry]:
+        self._log.info(f"Getting entry info: snapshot_id={snapshot_id}, entry_id={entry_id}")
+        out = exec_bash(f"{self.__mount}/sbin/snapshot", "entry", snapshot_id, entry_id)
+        try:
+            res = json.loads(out)
+            if res.get("error") and res["code"] == "NOT_FOUND":
+                return None
+            return SnapshotEntry(res['entryId'], res.get('snapshotId'), res['storageUri'],
+                                 res.get('empty', False), SnapshotEntryStatus(res["status"]))
+        except (JSONDecodeError, KeyError) as err:
+            raise RuntimeError(f"Wrong command output format: {out}") from err
+
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -52,16 +64,15 @@ class WhiteboardBashApi(WhiteboardApi):
         self.__client = client
         self._log = logging.getLogger(str(self.__class__))
         self.__credentials: Dict[str, StorageCredentials] = {}
-        self.__whiteboard_storage_by_bucket: Dict[str, WhiteboardStorage] = {}
+        self.__whiteboard_storage_by_bucket: Dict[str, StorageClient] = {}
 
-    def _whiteboard_storage(self, bucket: str) -> WhiteboardStorage:
+    def _whiteboard_storage(self, bucket: str) -> StorageClient:
         if bucket not in self.__credentials:
             self.__credentials[bucket] = self.__client.get_credentials(
-                CredentialsTypes.S3,
                 bucket
             )
         if bucket not in self.__whiteboard_storage_by_bucket:
-            self.__whiteboard_storage_by_bucket[bucket] = WhiteboardStorage.create(self.__credentials[bucket])
+            self.__whiteboard_storage_by_bucket[bucket] = StorageClient.create(self.__credentials[bucket])
         return self.__whiteboard_storage_by_bucket[bucket]
 
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:

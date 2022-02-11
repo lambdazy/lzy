@@ -1,16 +1,19 @@
 import copyreg
 import logging
 import os
+import pathlib
 import uuid
 import time
 
 from abc import abstractmethod, ABC
 from pathlib import Path
-from typing import Optional, Any, TypeVar, Generic
+from typing import Optional, Any, TypeVar, Generic, Callable
+from urllib import parse
 
 import cloudpickle
 
-from lzy.api.whiteboard.model import EntryIdGenerator
+from lzy.api.storage.storage_client import StorageClient
+from lzy.api.whiteboard.model import EntryIdGenerator, SnapshotApi, SnapshotEntryStatus
 from lzy.api.result import Just, Nothing, Result
 from lzy.model.channel import Channel, Binding, Bindings
 from lzy.model.env import PyEnv
@@ -85,6 +88,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         deployed: bool = False,
         entry_id_generator: Optional[EntryIdGenerator] = None,
         return_entry_id: Optional[str] = None,
+        snapshot_id_getter: Optional[Callable[[], str]] = None,
+        snapshot_api: Optional[SnapshotApi] = None
     ):
         if (not provisioning or not env) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
@@ -98,6 +103,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             env,
             provisioning,
         )
+        self._snapshot_id_getter = snapshot_id_getter
+        self._snapshot_api = snapshot_api
 
         if return_entry_id is not None and entry_id_generator is not None:
             raise ValueError("Both entry id and entry id generator are provided")
@@ -142,6 +149,35 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             cloudpickle.dump(obj, handle)
             handle.flush()
             os.fsync(handle.fileno())
+
+    def read_value_from_s3(self, entry_id: str, snapshot_id: str, api: SnapshotApi) -> Result[Any]:
+        path: str
+        while True:
+            entry = api.entry(snapshot_id, entry_id)
+            if entry and entry.status == SnapshotEntryStatus.FINISHED:
+                path = entry.storage_uri
+                break
+            time.sleep(1)
+
+        # noinspection PyBroadException
+        try:
+            uri = parse.urlparse(path)
+            storage_path = pathlib.PurePath(uri.path)
+
+            self._log.info(f"Returned entry {entry_id} with storage uri {path}")
+
+            if storage_path.is_absolute():
+                bucket = storage_path.parts[1]
+            else:
+                bucket = storage_path.parts[0]
+            credentials = self._servant.get_credentials(bucket)
+            client = StorageClient.create(credentials)
+            ret = Just(client.read(path))
+            self._log.info(f"Read data from s3: {ret}")
+            return ret
+        except Exception as e:  # pylint: disable=broad-except
+            self._log.error("Error while reading from s3", exc_info=e)
+            return Nothing()
 
     @staticmethod
     def read_value_from_slot(slot_path: Path) -> Result[Any]:
@@ -193,11 +229,9 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         )
 
     def execution_logic(self) -> T:
-        entry_id_mapping = (
-            {self._zygote.return_slot: self._return_entry_id}
-            if self._return_entry_id else
-            None
-        )
+        assert self._snapshot_id_getter and self._snapshot_api
+
+        entry_id_mapping = {self._zygote.return_slot: self._return_entry_id}
         execution_id = str(uuid.uuid4())
         self._log.info(f"Running zygote {self._zygote.name}, execution id {execution_id}")
         bindings = []
@@ -213,26 +247,33 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             )
 
             self.dump_arguments(execution)
-            return_value = self.read_return_value(execution)
 
             func = self.signature.func
 
-            result = execution.wait_for()
-            rc_ = result.returncode
-            if rc_ == 0 and return_value is not None:
-                self._log.info("Executed task %s for func %s with rc %s",
-                               execution.id()[:4], self.signature.func.name, rc_,)
-                return return_value.value  # type: ignore
+            self._log.info("Starting waiting for execution result")
 
-            message = ""
+            result = execution.wait_for()
+
+            self._log.info(f"Execution completed with rc {result.returncode}")
+
+            rc_ = result.returncode
+
             if rc_ != 0:
                 message = self._execution_exception_message(execution, func, rc_)
                 self._log.error(f"Execution exception with message: {message}")
-            elif isinstance(return_value, Nothing):
+                raise LzyExecutionException(message)
+
+            return_value = self.read_value_from_s3(self.return_entry_id(),
+                                                   self._snapshot_id_getter(), self._snapshot_api)
+
+            if isinstance(return_value, Nothing):
                 message = "Return value deserialization failure"
                 message = self._exception(execution, func, PyReturnCode.DESERIALIZATION_FAILURE.value, message)
+                raise LzyExecutionException(message)
 
-            raise LzyExecutionException(message)
+            self._log.info("Executed task %s for func %s with rc %s",
+                           execution.id()[:4], self.signature.func.name, rc_,)
+            return return_value.value  # type: ignore
 
         finally:
             for binding in bindings:

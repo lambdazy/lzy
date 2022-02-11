@@ -15,7 +15,7 @@ from lzy.model.channel import Bindings, Channel
 from lzy.model.slot import Slot
 from lzy.model.zygote import Zygote
 from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.servant_client import ServantClient, Execution, CredentialsTypes
+from lzy.servant.servant_client import ServantClient, Execution
 
 
 class MockStorageClient(StorageClient):
@@ -58,7 +58,7 @@ class ServantClientMock(ServantClient):
             entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
         pass
 
-    def get_credentials(self, typ: CredentialsTypes, bucket: str) -> StorageCredentials:
+    def get_credentials(self, bucket: str) -> StorageCredentials:
         return AmazonCredentials("", "", "")
 
     def get_bucket(self) -> str:

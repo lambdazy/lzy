@@ -53,6 +53,23 @@ class WhiteboardDescription:
     status: WhiteboardStatus
 
 
+class SnapshotEntryStatus(Enum):
+    UNKNOWN = "UNKNOWN"
+    CREATED = "CREATED"
+    IN_PROGRESS = "IN_PROGRESS"
+    FINISHED = "FINISHED"
+    ERRORED = "ERRORED"
+
+
+@dataclass
+class SnapshotEntry:
+    id: str  # pylint: disable=invalid-name
+    snapshot_id: Optional[str]
+    storage_uri: str
+    empty: bool
+    status: SnapshotEntryStatus
+
+
 class WhiteboardList:
     def __init__(self, wb_list: List[Any]):
         self.wb_list = wb_list
@@ -107,6 +124,10 @@ class SnapshotApi(ABC):
 
     @abstractmethod
     def finalize(self, snapshot_id: str):
+        pass
+
+    @abstractmethod
+    def entry(self, snapshot_id: str, entry_id: str) -> Optional[SnapshotEntry]:
         pass
 
 
@@ -191,6 +212,9 @@ class InMemWhiteboardApi(WhiteboardApi):
 
 
 class InMemSnapshotApi(SnapshotApi):
+    def entry(self, snapshot_id: str, entry_id: str) -> Optional[SnapshotEntry]:
+        raise NotImplementedError("Cannot implement this for InMem")
+
     def create(self) -> SnapshotDescription:
         return SnapshotDescription(str(uuid.uuid1()))
 

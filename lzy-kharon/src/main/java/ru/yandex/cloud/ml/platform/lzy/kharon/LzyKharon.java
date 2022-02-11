@@ -3,9 +3,9 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
@@ -38,6 +38,8 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.EntryStatusCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.EntryStatusResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
@@ -324,6 +326,17 @@ public class LzyKharon {
         public void whiteboardsList(LzyWhiteboard.WhiteboardsListCommand request,
             StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
             ProxyCall.exec(whiteboard::whiteboardsList, request, responseObserver);
+        }
+
+        @Override
+        public void entryStatus(EntryStatusCommand request,
+            StreamObserver<EntryStatusResponse> responseObserver) {
+            try {
+                responseObserver.onNext(snapshot.entryStatus(request));
+                responseObserver.onCompleted();
+            } catch (StatusRuntimeException exception) {
+                responseObserver.onError(exception);
+            }
         }
     }
 

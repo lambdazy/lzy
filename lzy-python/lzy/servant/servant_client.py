@@ -86,7 +86,7 @@ class ServantClient(ABC):
         pass
 
     @abstractmethod
-    def get_credentials(self, typ: CredentialsTypes, bucket: str) -> StorageCredentials:
+    def get_credentials(self, bucket: str) -> StorageCredentials:
         pass
 
     @abstractmethod

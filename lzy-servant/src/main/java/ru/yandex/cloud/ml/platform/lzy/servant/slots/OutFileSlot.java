@@ -28,6 +28,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.S3SlotSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
@@ -126,11 +128,14 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             if (written) {
                 snapshotWrite = pool.submit(() -> {
                     try {
-                        snapshotProvider.slotSnapshot(definition())
-                            .readAll(new FileInputStream(storage.toFile()));
+                        SlotSnapshot snapshot = snapshotProvider.slotSnapshot(definition());
+                        snapshot.readAll(new FileInputStream(storage.toFile()));
                         LOG.info(
                             "Content to slot " + OutFileSlot.this
-                                + " was written; READY=true");
+                                + " was written");
+                        if (snapshot instanceof S3SlotSnapshot) {
+                            suspend();
+                        }
                     } catch (FileNotFoundException e) {
                         throw new RuntimeException(e);
                     }
@@ -179,6 +184,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         channel.position(offset);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<>() {
             private final ByteBuffer bb = ByteBuffer.allocate(4096);
+
 
             @Override
             public boolean hasNext() {

@@ -265,11 +265,11 @@ public class LzyExecution {
                 Set.copyOf(slots.values()).stream()
                     .filter(s -> s instanceof LzyOutputSlot)
                     .map(s -> (LzyOutputSlot) s)
-                    .forEach(LzyOutputSlot::forceClose);
+                    .forEach(LzyOutputSlot::suspend);
             }
             synchronized (slots) {
-                LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
                 while (!slots.isEmpty()) {
+                    LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
                     slots.wait();
                 }
             }

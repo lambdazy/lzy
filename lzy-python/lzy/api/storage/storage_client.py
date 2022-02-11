@@ -9,6 +9,8 @@ import boto3
 import cloudpickle
 from urllib.parse import urlunsplit
 
+import s3fs
+import cloudpickle
 from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
 
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
@@ -28,12 +30,22 @@ class StorageClient(ABC):
         pass
 
     @abstractmethod
+    def write(self, container: str, blob: str, data) -> str:
+        pass
+
     def read_to_file(self, url: str, path: str):
         pass
 
-    @abstractmethod
-    def write(self, container: str, blob: str, data: BinaryIO) -> str:
-        pass
+    @staticmethod
+    def create(credentials: StorageCredentials) -> 'StorageClient':
+        if isinstance(credentials, AmazonCredentials):
+            return AmazonClient(credentials)
+        elif isinstance(credentials, AzureCredentials):
+            return AzureClient.from_connection_string(credentials)
+        elif isinstance(credentials, AzureSasCredentials):
+            return AzureClient.from_sas(credentials)
+        else:
+            raise ValueError("Unknown credentials type: " + type(credentials))
 
 
 class AzureClient(StorageClient):
@@ -67,7 +79,7 @@ class AzureClient(StorageClient):
         data = downloader.readall()
         return cloudpickle.loads(data)
 
-    def write(self, container: str, blob: str, data: BinaryIO):
+    def write(self, container: str, blob: str, data: BinaryIO) -> str:
         container_client: ContainerClient = self.client.get_container_client(container)
         blob_client = container_client.get_blob_client(blob)
         if not blob_client.exists():
@@ -126,14 +138,3 @@ def bucket_from_url(url: str) -> Tuple[str, str]:
         bucket = path.parts[0]
         other = pathlib.PurePath(*path.parts[1:])
     return bucket, str(other)
-
-
-def from_credentials(credentials: StorageCredentials) -> StorageClient:
-    if isinstance(credentials, AmazonCredentials):
-        return AmazonClient(credentials)
-    elif isinstance(credentials, AzureCredentials):
-        return AzureClient.from_connection_string(credentials)
-    elif isinstance(credentials, AzureSasCredentials):
-        return AzureClient.from_sas(credentials)
-    else:
-        raise ValueError("Unknown credentials type: " + type(credentials))
