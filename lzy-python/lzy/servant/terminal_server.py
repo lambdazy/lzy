@@ -30,8 +30,9 @@ class TerminalServer:
     jar_path = jar_path.resolve().absolute()
     start_timeout_sec = 30
 
-    def __init__(self, config: TerminalConfig, custom_log_file: str = "./custom_terminal_log",
-                 terminal_log_path: str = "./terminal_log"):
+    def __init__(self, config: TerminalConfig, custom_log_file: str = "/tmp/lzy-log/custom_terminal_log",
+                 terminal_log_path: str = "/tmp/lzy-log/terminal_log"):
+        Path("/tmp/lzy-log").mkdir(parents=True, exist_ok=True)
         self._config = config
         self._log_file = custom_log_file
         self._terminal_log_path = terminal_log_path
