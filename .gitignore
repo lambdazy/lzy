@@ -161,3 +161,16 @@ lzy-python/*.egg-info
 **/*.env
 lzy-python/*.egg-info
 **/.vscode
+
+# Local .terraform directories
+**/.terraform/*
+
+**/.terraform*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# terraform vars files with sensetive information
+*.tvars.json
+tvars.json
