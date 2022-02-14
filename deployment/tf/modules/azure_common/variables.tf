@@ -10,18 +10,23 @@ variable "oauth-github-client-secret" {
   type = string
 }
 
-variable "agent_count" {
-  type    = number
-  default = 10
-}
-
-variable "cpu_pool_autoscale" {
+variable "cpu_pool_auto_scale" {
   default = true
 }
 
-variable "cpu_count" {
+variable "cpu_pool_size" {
+  type = number
+  default = 5
+}
+
+variable "min_cpu_count" {
   type    = number
-  default = 7
+  default = 5
+}
+
+variable "max_cpu_count" {
+  type    = number
+  default = 10
 }
 
 variable "gpu_count" {
