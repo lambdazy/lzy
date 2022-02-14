@@ -14,24 +14,24 @@ variable "kharon_public_ip" {
   default = ""
 }
 
-variable "need_kharon_service" {
-  default = false
+variable "create_public_kharon_service" {
+  default = true
 }
 
 variable "backoffice_public_ip" {
   default = ""
 }
 
-variable "need_backoffice_service" {
-  default = false
+variable "create_public_backoffice_service" {
+  default = true
 }
 
 variable "grafana_public_ip" {
   default = ""
 }
 
-variable "need_grafana_service" {
-  default = false
+variable "create_public_grafana_service" {
+  default = true
 }
 
 variable "kharon_load_balancer_necessary_annotations" {

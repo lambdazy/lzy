@@ -85,6 +85,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
 
 
 resource "azurerm_public_ip" "lzy_kharon" {
+  count = var.create_public_kharon_service ? 1 : 0
   domain_name_label   = "kharon-${var.installation_name}"
   name                = "lzy-kharon-public-ip"
   location            = azurerm_resource_group.test.location
@@ -94,6 +95,7 @@ resource "azurerm_public_ip" "lzy_kharon" {
 }
 
 resource "azurerm_public_ip" "grafana" {
+  count = var.create_public_grafana_service ? 1 : 0
   domain_name_label   = "grafana-${var.installation_name}"
   name                = "grafana-public-ip"
   location            = azurerm_resource_group.test.location
@@ -109,6 +111,7 @@ resource "azurerm_role_assignment" "test" {
 }
 
 resource "azurerm_public_ip" "lzy_backoffice" {
+  count = var.create_public_backoffice_service ? 1 : 0
   domain_name_label   = "backoffice-${var.installation_name}"
   name                = "lzy-backoffice-public-ip"
   location            = azurerm_resource_group.test.location
@@ -119,12 +122,12 @@ resource "azurerm_public_ip" "lzy_backoffice" {
 
 module "lzy_common" {
   source               = "../lzy_common"
-  kharon_public_ip     = azurerm_public_ip.lzy_kharon.ip_address
-  need_kharon_service = true
-  backoffice_public_ip = azurerm_public_ip.lzy_backoffice.ip_address
-  need_backoffice_service = true
-  grafana_public_ip = azurerm_public_ip.grafana.ip_address
-  need_grafana_service = true
+  kharon_public_ip     = var.create_public_kharon_service ? azurerm_public_ip.lzy_kharon[0].ip_address : ""
+  create_public_kharon_service = var.create_public_kharon_service
+  backoffice_public_ip = var.create_public_backoffice_service ? azurerm_public_ip.lzy_backoffice[0].ip_address : ""
+  create_public_backoffice_service = var.create_public_backoffice_service
+  grafana_public_ip = var.create_public_grafana_service ? azurerm_public_ip.grafana[0].ip_address : ""
+  create_public_grafana_service = var.create_public_grafana_service
   kharon_load_balancer_necessary_annotations = {
     "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
   }
