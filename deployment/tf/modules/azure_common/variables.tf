@@ -30,6 +30,18 @@ variable "gpu_count" {
   default = 1
 }
 
+variable "create_public_kharon_service" {
+  default = true
+}
+
+variable "create_public_backoffice_service" {
+  default = true
+}
+
+variable "create_public_grafana_service" {
+  default = true
+}
+
 variable "location" {
   type    = string
   default = "North Europe"
