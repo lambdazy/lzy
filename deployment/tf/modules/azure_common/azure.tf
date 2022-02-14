@@ -46,11 +46,10 @@ resource "azurerm_kubernetes_cluster" "main" {
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
-  count = var.lzy_count != 0 ? 1 : 0
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   name                  = "lzypool"
   vm_size               = "Standard_D2_v2"
-  node_count            = var.lzy_count
+  node_count            = 6
   node_labels = {
     type = "lzy"
   }
