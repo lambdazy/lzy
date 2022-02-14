@@ -3,7 +3,7 @@ from typing import List, Any, Callable, Optional, Dict
 
 from lzy.api.utils import is_lazy_proxy
 from lzy.api.whiteboard.model import WhiteboardApi, WhiteboardDescription
-from pure_protobuf.dataclasses_ import message
+from pure_protobuf.dataclasses_ import message # type: ignore
 
 ALREADY_WRAPPED = '_already_wrapped_whiteboard'
 ALREADY_WRAPPED_READY = '_already_wrapped_ready_whiteboard'

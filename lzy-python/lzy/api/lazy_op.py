@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, Any, TypeVar, Generic, Type
 
 import cloudpickle
-from pure_protobuf.dataclasses_ import load
+from pure_protobuf.dataclasses_ import load  # type: ignore
 
 from lzy.api.whiteboard.model import EntryIdGenerator
 from lzy.api.result import Just, Nothing, Result
@@ -22,7 +22,6 @@ from lzy.model.slot import Direction, Slot
 from lzy.model.zygote import Zygote, Provisioning
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant_client import ServantClient, Execution
-
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -78,14 +77,14 @@ class LzyExecutionException(Exception):
 
 class LzyRemoteOp(LzyOp, Generic[T]):
     def __init__(
-        self,
-        servant: ServantClient,
-        signature: CallSignature[T],
-        provisioning: Provisioning = None,
-        env: PyEnv = None,
-        deployed: bool = False,
-        entry_id_generator: Optional[EntryIdGenerator] = None,
-        return_entry_id: Optional[str] = None,
+            self,
+            servant: ServantClient,
+            signature: CallSignature[T],
+            provisioning: Provisioning = None,
+            env: PyEnv = None,
+            deployed: bool = False,
+            entry_id_generator: Optional[EntryIdGenerator] = None,
+            return_entry_id: Optional[str] = None,
     ):
         if (not provisioning or not env) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
@@ -180,8 +179,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
     @staticmethod
     def _execution_exception_message(
-                execution: Execution,
-                func: FuncSignature[Any], return_code: int) -> str:
+            execution: Execution,
+            func: FuncSignature[Any], return_code: int) -> str:
 
         if return_code == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR.value:
             message = "Failed to install environment on remote machine"
@@ -228,7 +227,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             rc_ = result.returncode
             if rc_ == 0 and return_value is not None:
                 self._log.info("Executed task %s for func %s with rc %s",
-                               execution.id()[:4], self.signature.func.name, rc_,)
+                               execution.id()[:4], self.signature.func.name, rc_, )
                 return return_value.value  # type: ignore
 
             message = ""
@@ -263,13 +262,13 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     # pylint: disable=too-many-arguments
     @staticmethod
     def restore(
-        servant: ServantClient,
-        materialized: bool,
-        materialization: Any,
-        return_entry_id: Optional[str],
-        call_s: CallSignature[T],
-        provisioning: Provisioning,
-        env: PyEnv,
+            servant: ServantClient,
+            materialized: bool,
+            materialization: Any,
+            return_entry_id: Optional[str],
+            call_s: CallSignature[T],
+            provisioning: Provisioning,
+            env: PyEnv,
     ):
         op_ = LzyRemoteOp(
             servant,

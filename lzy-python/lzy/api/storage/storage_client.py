@@ -8,8 +8,8 @@ from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, Conta
 import cloudpickle
 import s3fs
 import logging
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials
-from pure_protobuf.dataclasses_ import loads, load
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials, StorageCredentials
+from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

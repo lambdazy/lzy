@@ -16,8 +16,7 @@ from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.api.storage.storage_client import AmazonClient, AzureClient
-from pure_protobuf.dataclasses_ import load
-
+from pure_protobuf.dataclasses_ import load  # type: ignore
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
