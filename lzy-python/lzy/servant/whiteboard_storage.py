@@ -2,9 +2,9 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TypeVar, Any, Type
 
-from lzy.api.storage.storage_client import AzureClient, AmazonClient
 from azure.storage.blob import BlobServiceClient
 
+from lzy.api.storage.storage_client import AzureClient, AmazonClient
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
 
 T = TypeVar("T")  # pylint: disable=invalid-name

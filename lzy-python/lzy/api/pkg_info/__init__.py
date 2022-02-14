@@ -78,6 +78,10 @@ def exists_in_pypi(package_name: str) -> bool:
     return result
 
 
+version = "3.9" if sys.version_info > (3, 9) else None
+STDLIB_LIST = stdlib_list(version)
+
+
 def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], List[ModuleType]]:
     dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
 
@@ -96,22 +100,42 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
             return
 
         name = module.__name__.split(".")[0]  # type: ignore
-        if name in stdlib_list():
+        if name in STDLIB_LIST:
             return
 
-        if name in distributions and distributions[name][0] in dist_versions and exists_in_pypi(distributions[name][0]):
-            remote_packages[distributions[name][0]] = dist_versions[distributions[name][0]]
-        else:
-            if module in local_modules:
+        if name in distributions:
+            package_name = distributions[name][0]
+            if package_name in dist_versions and exists_in_pypi(package_name):
+                remote_packages[package_name] = dist_versions[package_name]
                 return
-            local_modules.append(module)
-            for field in dir(module):
-                search(getattr(module, field))
+
+        # if module not found in distributions, try to find it as local one
+        if module in local_modules:
+            return
+
+        local_modules.append(module)
+        for field in dir(module):
+            search(getattr(module, field))
+
+        # add all parent modules
+        module_name = module.__name__ 
+        while True:
+            last_dot_idx = module_name.rfind('.')
+            if last_dot_idx == -1:
+                break
+
+            module_name = module_name[:last_dot_idx]
+            # if parent module_name in local_modules already then all parent 
+            # modules there too already
+            if sys.modules[module_name] in local_modules:
+                break
+            local_modules.append(sys.modules[module_name])
 
     for _, entry in namespace.items():
         search(entry)
 
-    local_modules = list(
-        dict.fromkeys(local_modules))  # remove duplicates and keep order as dict preserves order since python3.7
+    local_modules = list(dict.fromkeys(local_modules))  
+    # remove duplicates and keep order as dict preserves order since python3.7
     local_modules.reverse()
+
     return remote_packages, local_modules  # reverse to ensure the right order: from leaves to the root

@@ -2,6 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import java.net.URI;
 import java.util.Base64;
@@ -87,8 +89,12 @@ public class Channel implements LzyCommand {
                         .setChannelName(channelName)
                         .setState(Channels.ChannelState.newBuilder().build())
                         .build();
-                final Channels.ChannelStatus channelStatus = server.channel(channelReq);
-                System.out.println(JsonFormat.printer().print(channelStatus));
+                try {
+                    final Channels.ChannelStatus channelStatus = server.channel(channelReq);
+                    System.out.println(JsonFormat.printer().print(channelStatus));
+                } catch (StatusRuntimeException e) {
+                    System.out.println("Got exception while channel status (status_code=" + e.getStatus().getCode() + ")");
+                }
                 break;
             }
             case "destroy": {
@@ -102,9 +108,13 @@ public class Channel implements LzyCommand {
                         .setChannelName(channelName)
                         .setDestroy(Channels.ChannelDestroy.newBuilder().build())
                         .build();
-                final Channels.ChannelStatus channelStatus = server.channel(channelReq);
-                System.out.println(JsonFormat.printer().print(channelStatus));
-                System.out.println("Channel destroyed");
+                try {
+                    final Channels.ChannelStatus channelStatus = server.channel(channelReq);
+                    System.out.println(JsonFormat.printer().print(channelStatus));
+                    System.out.println("Channel destroyed");
+                } catch (StatusRuntimeException e) {
+                    System.out.println("Got exception while channel destroy (status_code=" + e.getStatus().getCode() + ")");
+                }
                 break;
             }
         }

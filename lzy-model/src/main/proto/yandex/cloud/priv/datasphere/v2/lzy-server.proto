@@ -31,6 +31,8 @@ service LzyServer {
   rpc GetS3Credentials (GetS3CredentialsRequest) returns (GetS3CredentialsResponse);
 
   rpc GetBucket (GetBucketRequest) returns (GetBucketResponse);
+
+  rpc GetSessions (GetSessionsRequest) returns (GetSessionsResponse);
 }
 
 message PublishRequest {
@@ -93,6 +95,17 @@ message GetS3CredentialsResponse {
   }
 }
 
+message GetSessionsRequest {
+  UserCredentials auth = 1;
+}
+
+message SessionDescription {
+  string session_id = 1;
+}
+
+message GetSessionsResponse {
+  repeated SessionDescription sessions = 1;
+}
 message GetBucketRequest {
   Auth auth = 1;
 }

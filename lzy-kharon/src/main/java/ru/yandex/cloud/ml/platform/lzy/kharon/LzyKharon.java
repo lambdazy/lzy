@@ -2,14 +2,10 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
+import java.util.function.Function;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.*;
 
 import java.io.IOException;
 import java.net.URI;
@@ -22,10 +18,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
@@ -33,12 +25,15 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
@@ -107,25 +102,22 @@ public class LzyKharon {
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
         int servantProxyPort) throws URISyntaxException {
-        final ManagedChannel serverChannel = ChannelBuilder
-                .forAddress(serverUri.getHost(), serverUri.getPort())
-                .usePlaintext()
-                .enableRetry(LzyServerGrpc.SERVICE_NAME)
-                .build();
+        final ManagedChannel serverChannel = ManagedChannelBuilder
+            .forAddress(serverUri.getHost(), serverUri.getPort())
+            .usePlaintext()
+            .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
 
-        final ManagedChannel whiteboardChannel = ChannelBuilder
-                .forAddress(whiteboardUri.getHost(), whiteboardUri.getPort())
-                .usePlaintext()
-                .enableRetry(WbApiGrpc.SERVICE_NAME)
+        final ManagedChannel whiteboardChannel = ManagedChannelBuilder
+            .forAddress(whiteboardUri.getHost(), whiteboardUri.getPort())
+            .usePlaintext()
             .build();
         whiteboard = WbApiGrpc.newBlockingStub(whiteboardChannel);
 
-        final ManagedChannel snapshotChannel = ChannelBuilder
-                .forAddress(snapshotUri.getHost(), snapshotUri.getPort())
-                .usePlaintext()
-                .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
-                .build();
+        final ManagedChannel snapshotChannel = ManagedChannelBuilder
+            .forAddress(snapshotUri.getHost(), snapshotUri.getPort())
+            .usePlaintext()
+            .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(snapshotChannel);
 
         final URI servantProxyAddress = new URI("http", null, host, servantProxyPort, null, null,
@@ -133,15 +125,15 @@ public class LzyKharon {
         terminalManager = new TerminalSessionManager(server, servantProxyAddress);
 
         kharonServer = ServerBuilder
-                .forPort(port)
-                .addService(
+            .forPort(port)
+            .addService(
                 ServerInterceptors.intercept(new KharonService(), new SessionIdInterceptor()))
-                .build();
+            .build();
         kharonServantProxy = ServerBuilder
-                .forPort(servantProxyPort)
-                .addService(ServerInterceptors
+            .forPort(servantProxyPort)
+            .addService(ServerInterceptors
                 .intercept(new KharonServantProxyService(), new SessionIdInterceptor()))
-                .build();
+            .build();
     }
 
     public void start() throws IOException {
@@ -158,6 +150,18 @@ public class LzyKharon {
     public void awaitTermination() throws InterruptedException {
         kharonServer.awaitTermination();
         kharonServantProxy.awaitTermination();
+    }
+
+    private static class ProxyCall {
+        public static <ReqT, RespT> void exec(Function<ReqT, RespT> impl, ReqT request, StreamObserver<RespT> responseObserver) {
+            try {
+                final RespT response = impl.apply(request);
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } catch (Throwable th) {
+                responseObserver.onError(th);
+            }
+        }
     }
 
     private class KharonService extends LzyKharonGrpc.LzyKharonImplBase {
@@ -211,117 +215,108 @@ public class LzyKharon {
         @Override
         public void publish(Lzy.PublishRequest request,
             StreamObserver<Operations.RegisteredZygote> responseObserver) {
-            final Operations.RegisteredZygote publish = server.publish(request);
-            responseObserver.onNext(publish);
-            responseObserver.onCompleted();
+            ProxyCall.exec(server::publish, request, responseObserver);
         }
 
         @Override
         public void zygotes(IAM.Auth request,
             StreamObserver<Operations.ZygoteList> responseObserver) {
-            final Operations.ZygoteList zygotes = server.zygotes(request);
-            responseObserver.onNext(zygotes);
-            responseObserver.onCompleted();
+            ProxyCall.exec(server::zygotes, request, responseObserver);
         }
 
         @Override
         public void task(Tasks.TaskCommand request,
             StreamObserver<Tasks.TaskStatus> responseObserver) {
-            final Tasks.TaskStatus task = server.task(request);
-            responseObserver.onNext(task);
-            responseObserver.onCompleted();
+            ProxyCall.exec(server::task, request, responseObserver);
         }
 
         @Override
         public void start(Tasks.TaskSpec request,
             StreamObserver<Servant.ExecutionProgress> responseObserver) {
             LOG.info("Kharon::start " + JsonUtils.printRequest(request));
-            final Iterator<Servant.ExecutionProgress> start = server.start(request);
-            while (start.hasNext()) {
-                responseObserver.onNext(start.next());
+            try {
+                final Iterator<Servant.ExecutionProgress> start = server.start(request);
+                while (start.hasNext()) {
+                    responseObserver.onNext(start.next());
+                }
+                LOG.info(
+                    "Kharon::start user task completed " + request.getAuth().getUser().getUserId());
+                responseObserver.onCompleted();
+            } catch (Throwable th) {
+                responseObserver.onError(th);
             }
-            LOG.info(
-                "Kharon::start user task completed " + request.getAuth().getUser().getUserId());
-            responseObserver.onCompleted();
         }
 
         @Override
         public void channel(Channels.ChannelCommand request,
             StreamObserver<Channels.ChannelStatus> responseObserver) {
             LOG.info("Kharon::channel " + JsonUtils.printRequest(request));
-            final Channels.ChannelStatus channel = server.channel(request);
-            responseObserver.onNext(channel);
-            responseObserver.onCompleted();
+            ProxyCall.exec(server::channel, request, responseObserver);
         }
 
         @Override
         public void tasksStatus(IAM.Auth request,
             StreamObserver<Tasks.TasksList> responseObserver) {
-            final Tasks.TasksList tasksList = server.tasksStatus(request);
-            responseObserver.onNext(tasksList);
-            responseObserver.onCompleted();
+            ProxyCall.exec(server::tasksStatus, request, responseObserver);
         }
 
         @Override
         public void channelsStatus(IAM.Auth request,
             StreamObserver<Channels.ChannelStatusList> responseObserver) {
-            responseObserver.onNext(server.channelsStatus(request));
-            responseObserver.onCompleted();
+            ProxyCall.exec(server::channelsStatus, request, responseObserver);
         }
 
         @Override
         public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
             StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
-            responseObserver.onNext(snapshot.createSnapshot(request));
-            responseObserver.onCompleted();
+            ProxyCall.exec(snapshot::createSnapshot, request, responseObserver);
         }
 
         @Override
         public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
             StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            responseObserver.onNext(snapshot.finalizeSnapshot(request));
-            responseObserver.onCompleted();
+            ProxyCall.exec(snapshot::finalizeSnapshot, request, responseObserver);
         }
 
         @Override
         public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
             StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-            responseObserver.onNext(whiteboard.createWhiteboard(request));
-            responseObserver.onCompleted();
+            ProxyCall.exec(whiteboard::createWhiteboard, request, responseObserver);
         }
 
         @Override
         public void addLink(LzyWhiteboard.LinkCommand request,
             StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            responseObserver.onNext(whiteboard.link(request));
-            responseObserver.onCompleted();
+            ProxyCall.exec(whiteboard::link, request, responseObserver);
         }
 
         @Override
         public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
             StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-            responseObserver.onNext(whiteboard.getWhiteboard(request));
-            responseObserver.onCompleted();
+            ProxyCall.exec(whiteboard::getWhiteboard, request, responseObserver);
         }
 
         @Override
         public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
-                                     StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
-            responseObserver.onNext(server.getS3Credentials(request));
-            responseObserver.onCompleted();
+            StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+            ProxyCall.exec(server::getS3Credentials, request, responseObserver);
         }
 
         @Override
         public void getBucket(Lzy.GetBucketRequest request, StreamObserver<Lzy.GetBucketResponse> responseObserver) {
-            responseObserver.onNext(server.getBucket(request));
-            responseObserver.onCompleted();
+            ProxyCall.exec(server::getBucket, request, responseObserver);
+        }
+
+        @Override
+        public void getSessions(GetSessionsRequest request,
+            StreamObserver<GetSessionsResponse> responseObserver) {
+            ProxyCall.exec(server::getSessions, request, responseObserver);
         }
 
         @Override
         public void whiteboardsList(LzyWhiteboard.WhiteboardsListCommand request,
                                                  StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
-            responseObserver.onNext(whiteboard.whiteboardsList(request));
-            responseObserver.onCompleted();
+            ProxyCall.exec(whiteboard::whiteboardsList, request, responseObserver);
         }
     }
 
@@ -330,40 +325,53 @@ public class LzyKharon {
         @Override
         public void execute(Tasks.TaskSpec request,
             StreamObserver<Servant.ExecutionProgress> responseObserver) {
-            final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
-            LOG.info("KharonServantProxyService sessionId = " + session.getSessionId() +
+            try {
+                final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
+                LOG.info("KharonServantProxyService sessionId = " + session.sessionId() +
                     "::execute " + JsonUtils.printRequest(request));
-            session.setExecutionProgress(responseObserver);
-            Context.current().addListener(context -> {
-                LOG.info("Execution terminated from server ");
-                session.close();
-            }, Runnable::run);
+                session.setExecutionProgress(responseObserver);
+                Context.current().addListener(context -> {
+                    LOG.info("Execution terminated from server");
+                    session.close();
+                }, Runnable::run);
+            } catch (InvalidSessionRequestException e) {
+                responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            }
         }
 
         @Override
         public void openOutputSlot(Servant.SlotRequest request,
             StreamObserver<Servant.Message> responseObserver) {
-            final TerminalSession session = terminalManager
-                .getTerminalSessionFromSlotUri(request.getSlotUri());
-            LOG.info("KharonServantProxyService sessionId = " + session.getSessionId() +
+            try {
+                final TerminalSession session = terminalManager
+                    .getTerminalSessionFromSlotUri(request.getSlotUri());
+                LOG.info("KharonServantProxyService sessionId = " + session.sessionId() +
                     "::openOutputSlot " + JsonUtils.printRequest(request));
-            LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
-            dataCarrier.openServantConnection(URI.create(request.getSlotUri()), responseObserver);
-            session.configureSlot(Servant.SlotCommand.newBuilder()
+                LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
+                dataCarrier.openServantConnection(URI.create(request.getSlotUri()),
+                    responseObserver);
+                session.configureSlot(Servant.SlotCommand.newBuilder()
                     .setSlot(request.getSlot())
                     .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                            .setSlotUri(request.getSlotUri())
-                            .build())
+                        .setSlotUri(request.getSlotUri())
+                        .build())
                     .build());
+            } catch (InvalidSessionRequestException e) {
+                responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            }
         }
 
         @Override
         public void configureSlot(Servant.SlotCommand request,
             StreamObserver<Servant.SlotCommandStatus> responseObserver) {
-            final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
-            final Servant.SlotCommandStatus slotCommandStatus = session.configureSlot(request);
-            responseObserver.onNext(slotCommandStatus);
-            responseObserver.onCompleted();
+            try {
+                final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
+                final SlotCommandStatus slotCommandStatus = session.configureSlot(request);
+                responseObserver.onNext(slotCommandStatus);
+                responseObserver.onCompleted();
+            } catch (InvalidSessionRequestException e) {
+                responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            }
         }
     }
 }

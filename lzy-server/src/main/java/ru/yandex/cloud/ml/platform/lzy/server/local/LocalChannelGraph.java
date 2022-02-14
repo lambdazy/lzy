@@ -83,9 +83,10 @@ public class LocalChannelGraph implements ChannelGraph {
             throw new ChannelGraphException(String.format("Endpoint %s is not sender", sender));
         }
         if (numConnections(sender) != 0) {
-            throw new ChannelGraphException(
-                "Attempt to unlink sender " + sender + " from channelGraph while there are connected receivers"
-            );
+            LOG.warn("Attempt to unlink sender {} from channelGraph while there are connected receivers", sender);
+            for (Endpoint receiver: edges.get(sender)) {
+                removeReceiver(receiver);
+            }
         }
         senders.remove(sender);
         edges.remove(sender);
@@ -152,7 +153,7 @@ public class LocalChannelGraph implements ChannelGraph {
 
     private long numConnections(Endpoint endpoint) {
         if (senders.contains(endpoint)) {
-            return edges.get(endpoint).size();
+            return !edges.containsKey(endpoint) ? 0 : edges.get(endpoint).size();
         }
         return edges.entrySet().stream()
             .filter(entry -> entry.getValue().contains(endpoint))

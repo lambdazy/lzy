@@ -65,9 +65,7 @@ class AzureClient(StorageClient):
         return loads(obj_type, data)
 
     def write(self, container: str, blob: str, data):
-        # May not be working
         container_client: ContainerClient = self.client.get_container_client(container)
-        container_client.create_container()
         container_client.get_blob_client(blob).upload_blob(data)
         return f"azure:/{container}/{blob}"
 
@@ -111,3 +109,14 @@ class AmazonClient(StorageClient):
         with self.fs_.open(uri.path, "wb") as file:
             file.write(data)
         return url
+
+
+def from_credentials(credentials: StorageCredentials) -> StorageClient:
+    if isinstance(credentials, AmazonCredentials):
+        return AmazonClient(credentials)
+    elif isinstance(credentials, AzureCredentials):
+        return AzureClient.from_connection_string(credentials)
+    elif isinstance(credentials, AzureSasCredentials):
+        return AzureClient.from_sas(credentials)
+    else:
+        raise ValueError("Unknown credentials type: " + type(credentials))

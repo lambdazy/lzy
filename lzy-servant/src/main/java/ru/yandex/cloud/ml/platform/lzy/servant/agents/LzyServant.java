@@ -290,6 +290,10 @@ public class LzyServant extends LzyAgent {
         @Override
         public void signal(Tasks.TaskSignal request,
             StreamObserver<Servant.ExecutionStarted> responseObserver) {
+            if (status.get().getValue() < AgentStatus.EXECUTING.getValue()) {
+                responseObserver.onError(Status.ABORTED.asException());
+                return;
+            }
             if (currentExecution == null) {
                 responseObserver.onError(Status.NOT_FOUND.asException());
                 return;

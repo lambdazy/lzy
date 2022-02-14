@@ -1,6 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConstant;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
@@ -12,6 +14,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TerminalSessionManager {
+    private static final Logger LOG = LogManager.getLogger(TerminalSessionManager.class);
+
     private final Map<UUID, TerminalSession> sessions = new ConcurrentHashMap<>();
     private final LzyServerBlockingStub server;
     private final URI kharonServantAddress;
@@ -23,28 +27,18 @@ public class TerminalSessionManager {
 
     public StreamObserver<TerminalState> createSession(StreamObserver<TerminalCommand> terminalCommandObserver) {
         final TerminalSession terminalSession = new TerminalSession(server, terminalCommandObserver, kharonServantAddress);
-        sessions.put(terminalSession.getSessionId(), terminalSession);
-        return terminalSession.getTerminalStateObserver();
+        sessions.put(terminalSession.sessionId(), terminalSession);
+        return terminalSession.terminalStateObserver();
     }
 
-    public TerminalSession getTerminalSessionFromGrpcContext() {
+    public TerminalSession getTerminalSessionFromGrpcContext() throws InvalidSessionRequestException {
         final UUID sessionId = UUID.fromString(GrpcConstant.SESSION_ID_CTX_KEY.get());
-        final TerminalSession session = sessions.get(sessionId);
-        if (session == null) {
-            throw new IllegalStateException("Failed to parse sessionId from Grpc Context: Unknown sessionId " + sessionId);
-        }
-        return session;
+        return safeGetSession(sessionId);
     }
 
-    public TerminalSession getTerminalSessionFromSlotUri(String slotUri) {
+    public TerminalSession getTerminalSessionFromSlotUri(String slotUri) throws InvalidSessionRequestException {
         final UUID sessionIdFromUri = parseSessionIdFromUri(slotUri);
-        final TerminalSession session = sessions.get(sessionIdFromUri);
-        if (session == null) {
-            throw new IllegalStateException(
-                String.format("Failed to parse sessionId from slot uri %s: Unknown sessionId %s", slotUri, sessionIdFromUri)
-            );
-        }
-        return session;
+        return safeGetSession(sessionIdFromUri);
     }
 
     private UUID parseSessionIdFromUri(String slotUri) {
@@ -57,6 +51,22 @@ public class TerminalSessionManager {
                 return UUID.fromString(value);
             }
         }
-        return null;
+        throw new IllegalStateException("Failed to parse sessionId from uri " + slotUri);
+    }
+
+    private TerminalSession safeGetSession(UUID sessionId) throws InvalidSessionRequestException {
+        final TerminalSession session = sessions.get(sessionId);
+        if (session == null) {
+            LOG.error("Got request with unknown sessionId {}", sessionId);
+            throw new InvalidSessionRequestException(
+                String.format("Unknown sessionId %s", sessionId)
+            );
+        }
+        if (!session.isAlive()) {
+            sessions.remove(sessionId);
+            LOG.error("Got request on invalid session with id = {}", sessionId);
+            throw new InvalidSessionRequestException("Got request on invalid session with id = " + sessionId);
+        }
+        return session;
     }
 }
