@@ -1,6 +1,6 @@
 import pathlib
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Type, TypeVar
 from urllib import parse
 from urllib.parse import urlunsplit
 
@@ -9,6 +9,9 @@ import cloudpickle
 import s3fs
 import logging
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials
+from pure_protobuf.dataclasses_ import loads, load
+
+T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class StorageClient(ABC):
@@ -21,6 +24,10 @@ class StorageClient(ABC):
         pass
 
     @abstractmethod
+    def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
+        pass
+
+    @abstractmethod
     def write(self, container: str, blob: str, data):
         pass
 
@@ -30,7 +37,7 @@ class AzureClient(StorageClient):
         super().__init__()
         self.client: BlobServiceClient = client
 
-    def read(self, url: str) -> Any:
+    def _read_raw_data(self, url: str) -> Any:
         uri = parse.urlparse(url)
         assert uri.scheme == "azure"
         path = pathlib.PurePath(uri.path)
@@ -47,7 +54,15 @@ class AzureClient(StorageClient):
                 .download_blob()
         )
         data = downloader.readall()
+        return data
+
+    def read(self, url: str) -> Any:
+        data = self._read_raw_data(url)
         return cloudpickle.loads(data)
+
+    def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
+        data = self._read_raw_data(url)
+        return loads(obj_type, data)
 
     def write(self, container: str, blob: str, data):
         # May not be working
@@ -80,6 +95,12 @@ class AmazonClient(StorageClient):
         assert uri.scheme == "s3"
         with self.fs_.open(uri.path) as file:
             return cloudpickle.load(file)
+
+    def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
+        uri = parse.urlparse(url)
+        assert uri.scheme == "s3"
+        with self.fs_.open(uri.path) as file:
+            return load(obj_type, file)
 
     def write(self, bucket: str, key: str, data) -> str:
         path = f"/{bucket}/{key}"

@@ -3,6 +3,7 @@ from typing import List, Any, Callable, Optional, Dict
 
 from lzy.api.utils import is_lazy_proxy
 from lzy.api.whiteboard.model import WhiteboardApi, WhiteboardDescription
+from pure_protobuf.dataclasses_ import message
 
 ALREADY_WRAPPED = '_already_wrapped_whiteboard'
 ALREADY_WRAPPED_READY = '_already_wrapped_ready_whiteboard'
@@ -13,7 +14,6 @@ WB_ID_GETTER_NAME = '__id_getter__'
 def whiteboard(tags: List[str], namespace=None):
     def wrap(cls):
         return whiteboard_(cls, namespace, tags)
-
     return wrap
 
 
@@ -46,6 +46,12 @@ def check_whiteboard(obj: Any) -> None:
 def view(func):
     func.LZY_WB_VIEW_DECORATOR = 'view_deco'
     return func
+
+
+def lzy_message(cls):
+    wrapped = message(cls)
+    wrapped.LZY_MESSAGE = 'LZY_WB_MESSAGE'
+    return cls
 
 
 def wrap_whiteboard(

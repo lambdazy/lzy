@@ -6,7 +6,7 @@ from typing import Any
 from collections import OrderedDict
 import time
 from pathlib import Path
-
+from typing import TypeVar, Type
 import cloudpickle
 
 from lzy.api.lazy_op import LzyRemoteOp
@@ -16,15 +16,22 @@ from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.api.storage.storage_client import AmazonClient, AzureClient
+from pure_protobuf.dataclasses_ import load
 
 
-def load_arg(path: Path) -> Any:
+T = TypeVar("T")  # pylint: disable=invalid-name
+
+
+def load_arg(path: Path, inp_type: Type[T]) -> Any:
     with open(path, "rb") as file:
         # Wait for slot become open
         while file.read(1) is None:
             time.sleep(0)  # Thread.yield
         file.seek(0)
-        return cloudpickle.load(file)
+        if hasattr(inp_type, 'LZY_MESSAGE'):
+            return load(inp_type, file)
+        else:
+            return cloudpickle.load(file)
 
 
 def main():
@@ -55,7 +62,7 @@ def main():
     # noinspection PyShadowingNames
     args = tuple(
         lazy_proxy(
-            lambda name=name: load_arg(servant.mount() / func_s.name / name),
+            lambda name=name: load_arg(servant.mount() / func_s.name / name, inp_type),
             inp_type,
             {},
         )
@@ -72,7 +79,10 @@ def main():
     result_path = servant.mount() / func_s.name / "return"
     print(f"Writing result to file {result_path}")
     with open(result_path, "wb") as out_handle:
-        cloudpickle.dump(result, out_handle)
+        if hasattr(func_s.output_type, 'LZY_MESSAGE'):
+            result.dump(out_handle)
+        else:
+            cloudpickle.dump(result, out_handle)
         out_handle.flush()
         os.fsync(out_handle.fileno())
 

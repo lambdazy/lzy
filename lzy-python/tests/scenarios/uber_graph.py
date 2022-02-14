@@ -1,16 +1,20 @@
 import uuid
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from lzy.api import op, LzyRemoteEnv
-from lzy.api.whiteboard import whiteboard, view
+from lzy.api.whiteboard import whiteboard, view, lzy_message
 from base import Base
+from pure_protobuf.dataclasses_ import field
+from pure_protobuf.types import int32
+from enum import IntEnum
 
 '''
 This scenario contains:
     1. Importing local modules
     2. Functions that return None
     3. Whiteboards/Views machinery
+    4. Custom field serialization scenarios
 '''
 
 
@@ -115,6 +119,71 @@ def fun5(a: int) -> int:
     return a * 2
 
 
+class TestEnum(IntEnum):
+    BAR = 1
+    FOO = 2
+    BAZ = 3
+
+
+@lzy_message
+@dataclass
+class Test1:
+    a: int32 = field(1, default=0)
+
+
+@lzy_message
+@dataclass
+class MessageClass:
+    string_field: str = field(1, default='')
+    int_field: int32 = field(2, default=int32(0))
+    list_field: List[int32] = field(3, default_factory=list)
+    optional_field: Optional[int32] = field(4, default=None)
+    inner_field: Test1 = field(5, default_factory=Test1)
+    enum_field: TestEnum = field(6, default=TestEnum.BAR)
+
+
+@dataclass
+@whiteboard(tags=['lzy_message_fields'])
+class WhiteboardWithLzyMessageFields:
+    b: int
+    a: MessageClass = MessageClass()
+
+
+@dataclass
+@whiteboard(tags=['lzy_message_fields'])
+class WhiteboardWithOneLzyMessageField:
+    a: MessageClass = MessageClass()
+
+
+@dataclass
+@whiteboard(tags=['lzy_message_fields'])
+class WhiteboardWithTwoLzyMessageFields:
+    a: MessageClass = MessageClass()
+    c: MessageClass = MessageClass()
+
+
+@op
+def fun6(a: MessageClass) -> MessageClass:
+    list_field: List[int32] = a.list_field
+    list_field.append(int32(10))
+    optional_field: Optional[int32] = a.optional_field
+    optional_field: Optional[int32] = int32(optional_field + 1)
+    test: Test1 = a.inner_field
+    test.a = test.a + 1
+    return MessageClass('fun6:' + a.string_field, int32(a.int_field + 1), list_field, optional_field, test,
+                        TestEnum.BAZ)
+
+
+@op
+def fun7() -> MessageClass:
+    return MessageClass('fun7', int32(2), [int32(1), int32(1)], int32(0), Test1(int32(5)), TestEnum.FOO)
+
+
+@op
+def fun8(a: MessageClass) -> int:
+    return a.int_field
+
+
 wb = SimpleWhiteboard()
 with LzyRemoteEnv(whiteboard=wb):
     just_print()
@@ -173,3 +242,43 @@ with LzyRemoteEnv() as env:
     for whiteboard in whiteboards:
         iteration += whiteboard.__class__.__name__ + " "
     print(iteration)
+
+wb = WhiteboardWithLzyMessageFields(3)
+with LzyRemoteEnv(whiteboard=wb):
+    wb.a = fun6(fun7())
+    wb.b = fun8(wb.a)
+    wb_id = wb.__id__
+
+with LzyRemoteEnv() as env:
+    wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
+    print("string_field value in WhiteboardWithLzyMessageFields is " + wb.a.string_field)
+    print("int_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.int_field))
+    print("list_field length in WhiteboardWithLzyMessageFields is " + str(len(wb.a.list_field)))
+    print("optional_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.optional_field))
+    print("inner_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.inner_field.a))
+    print("enum_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.enum_field))
+    print("non lzy message int field in WhiteboardWithLzyMessageFields is " + str(wb.b))
+
+with LzyRemoteEnv() as env:
+    wb = env.whiteboard(wb_id, WhiteboardWithOneLzyMessageField)
+    print("string_field value in WhiteboardWithOneLzyMessageField is " + wb.a.string_field)
+    print("int_field value in WhiteboardWithOneLzyMessageField is " + str(wb.a.int_field))
+
+with LzyRemoteEnv() as env:
+    try:
+        wb = env.whiteboard(wb_id, WhiteboardWithTwoLzyMessageFields)
+        print("Could create WhiteboardWithTwoLzyMessageFields")
+    except TypeError:
+        print("Could not create WhiteboardWithTwoLzyMessageFields because of a missing field")
+
+wb = WhiteboardWithOneLzyMessageField()
+with LzyRemoteEnv(whiteboard=wb):
+    wb.a = fun7()
+    wb_id = wb.__id__
+
+with LzyRemoteEnv() as env:
+    try:
+        wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
+        print("Could create WhiteboardWithLzyMessageFields")
+    except TypeError:
+        print("Could not create WhiteboardWithLzyMessageFields because of a missing field")

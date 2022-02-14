@@ -6,9 +6,10 @@ import time
 
 from abc import abstractmethod, ABC
 from pathlib import Path
-from typing import Optional, Any, TypeVar, Generic
+from typing import Optional, Any, TypeVar, Generic, Type
 
 import cloudpickle
+from pure_protobuf.dataclasses_ import load
 
 from lzy.api.whiteboard.model import EntryIdGenerator
 from lzy.api.result import Just, Nothing, Result
@@ -131,7 +132,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         return_local_slot = self.resolve_slot(execution, return_slot)
         return_slot_path = self._servant.get_slot_path(return_local_slot)
         self._log.info(f"Reading result from {return_slot_path}")
-        return_value = self.read_value_from_slot(return_slot_path)
+        return_value = self.read_value_from_slot(return_slot_path, self.signature.func.output_type)
         if isinstance(return_value, Nothing):
             self._log.error(f"Failed to read result from {return_slot_path}")
         return return_value
@@ -139,28 +140,34 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     @staticmethod
     def dump_value_to_slot(slot_path: Path, obj: Any):
         with slot_path.open("wb") as handle:
-            cloudpickle.dump(obj, handle)
+            if hasattr(obj, 'LZY_MESSAGE'):
+                obj.dump(handle)
+            else:
+                cloudpickle.dump(obj, handle)
             handle.flush()
             os.fsync(handle.fileno())
 
     @staticmethod
-    def read_value_from_slot(slot_path: Path) -> Result[Any]:
+    def read_value_from_slot(slot_path: Path, obj_type: Type[T]) -> Result[Any]:
         # noinspection PyBroadException
         try:
-            return Just(LzyRemoteOp._read_value_from_slot(slot_path))
+            return Just(LzyRemoteOp._read_value_from_slot(slot_path, obj_type))
         except (OSError, ValueError) as _:
             return Nothing()
         except BaseException as _:  # pylint: disable=broad-except
             return Nothing()
 
     @staticmethod
-    def _read_value_from_slot(slot_path: Path) -> Optional[Any]:
+    def _read_value_from_slot(slot_path: Path, obj_type: Type[T]) -> Optional[Any]:
         with slot_path.open("rb") as handle:
             # Wait for slot to become open
             while handle.read(1) is None:
                 time.sleep(0)  # Thread.yield
             handle.seek(0)
-            value = cloudpickle.load(handle)
+            if hasattr(obj_type, 'LZY_MESSAGE'):
+                value = load(obj_type, handle)
+            else:
+                value = cloudpickle.load(handle)
         return value
 
     @staticmethod

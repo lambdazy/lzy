@@ -1,9 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import TypeVar, Any
+from typing import TypeVar, Any, Type
 
-
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
 from lzy.api.storage.storage_client import AzureClient, AmazonClient
 from azure.storage.blob import BlobServiceClient
 
@@ -25,6 +23,10 @@ class WhiteboardStorage(ABC):
     def read(self, url: str) -> Any:
         pass
 
+    @abstractmethod
+    def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
+        pass
+
     @staticmethod
     def create(credentials: StorageCredentials) -> "WhiteboardStorage":
         if isinstance(credentials, AmazonCredentials):
@@ -42,6 +44,9 @@ class AzureWhiteboardStorage(WhiteboardStorage):
     def read(self, url: str) -> Any:
         return self.client.read(url)
 
+    def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
+        return self.client.read_protobuf(url, obj_type)
+
     @staticmethod
     def from_connection_string(credentials: AzureCredentials) -> 'AzureWhiteboardStorage':
         return AzureWhiteboardStorage(BlobServiceClient.from_connection_string(credentials.connection_string))
@@ -55,6 +60,11 @@ class AmazonWhiteboardStorage(WhiteboardStorage):
     def __init__(self, credentials: AmazonCredentials):
         super().__init__()
         self.client = AmazonClient(credentials)
+        # pylint: disable=unused-private-member
+        self.__logger = logging.getLogger(self.__class__.__name__)
 
     def read(self, url: str) -> Any:
         return self.client.read(url)
+
+    def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
+        return self.client.read_protobuf(url, obj_type)
