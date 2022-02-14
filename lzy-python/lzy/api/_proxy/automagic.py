@@ -67,7 +67,7 @@ def materialize_args_on_fall(func):
         # >>> a
         # NotImplemented
         #
-        # and `(10).__add__` is equivalent to `
+        # and `(10).__add__` is func here
         #
         # TODO: probably try/except is worth too but let's wait and see
         if val is NotImplemented:
@@ -107,7 +107,7 @@ class TrickDescriptor:
         # but if __get__ returned callable then we have function in here
         # so instead of this function we should return a new one,
         # which will try to work as usual but if returned NotImplemented
-        # it will materialize its arguments and try again
+        # it will materialize its arguments before call
         return always_materialize_args_before_call(res)
 
 
@@ -186,10 +186,15 @@ def proxy(
     ):
         def __init__(self):
             if DEBUG:
-                print("Pearl created")
+                print("Pearl __init__ call")
+
             super().__init__()
             for name, attr in obj_attrs.items():
                 setattr(self, name, attr)
+
+        # for cases when user-defined class has custom __new__
+        def __new__(cls):
+            return super().__new__(cls)
 
         def __getattribute__(self, item):
             if DEBUG:
