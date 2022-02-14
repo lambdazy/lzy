@@ -2,6 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
 import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
 
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -10,9 +12,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalDockerContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
-
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public class KuberRunTest {
 

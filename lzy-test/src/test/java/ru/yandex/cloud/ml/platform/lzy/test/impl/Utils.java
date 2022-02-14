@@ -1,14 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
 
 public class Utils {
     public static boolean waitFlagUp(Supplier<Boolean> supplier, long timeout, TimeUnit unit) {

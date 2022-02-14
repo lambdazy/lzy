@@ -4,7 +4,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
-import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,8 +13,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
-
-import java.util.Map;
 
 public class CondaEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);

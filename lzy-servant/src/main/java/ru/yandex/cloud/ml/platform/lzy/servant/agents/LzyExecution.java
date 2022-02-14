@@ -12,10 +12,10 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment.LzyProcess;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment.LzyProcess;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 @SuppressWarnings("WeakerAccess")

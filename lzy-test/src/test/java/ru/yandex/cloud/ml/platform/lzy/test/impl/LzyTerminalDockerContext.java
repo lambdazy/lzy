@@ -44,7 +44,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
 
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         //noinspection deprecation
-        final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-terminal")
+        final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
                 .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
                 .withEnv("USER", user)
                 .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)

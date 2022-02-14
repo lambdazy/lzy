@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
+
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -19,7 +21,6 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import org.apache.commons.io.IOUtils;
 import org.jose4j.json.internal.json_simple.JSONObject;
 import org.jose4j.json.internal.json_simple.parser.JSONParser;
@@ -34,8 +35,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
 
 public class SnapshotTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
