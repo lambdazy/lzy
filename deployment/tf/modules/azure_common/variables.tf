@@ -20,11 +20,6 @@ variable "cpu_count" {
   default = 7
 }
 
-variable "lzy_count" {
-  type    = number
-  default = 5
-}
-
 variable "gpu_count" {
   type    = number
   default = 1
