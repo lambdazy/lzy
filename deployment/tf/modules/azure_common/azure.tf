@@ -120,8 +120,11 @@ resource "azurerm_public_ip" "lzy_backoffice" {
 module "lzy_common" {
   source               = "../lzy_common"
   kharon_public_ip     = azurerm_public_ip.lzy_kharon.ip_address
+  need_kharon_service = true
   backoffice_public_ip = azurerm_public_ip.lzy_backoffice.ip_address
+  need_backoffice_service = true
   grafana_public_ip = azurerm_public_ip.grafana.ip_address
+  need_grafana_service = true
   kharon_load_balancer_necessary_annotations = {
     "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
   }

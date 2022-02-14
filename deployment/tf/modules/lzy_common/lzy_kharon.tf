@@ -90,7 +90,7 @@ resource "kubernetes_deployment" "kharon" {
 }
 
 resource "kubernetes_service" "lzy_kharon" {
-  count = var.kharon_public_ip != "" ? 1 : 0
+  count = var.need_kharon_service ? 1 : 0
   metadata {
     name        = "lzy-kharon-load-balancer"
     annotations = var.kharon_load_balancer_necessary_annotations
