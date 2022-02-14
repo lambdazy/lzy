@@ -248,7 +248,7 @@ public class SnapshotTest extends LzyBaseTest {
         Assert.assertNotNull(wbIdThird);
 
         final String wbIdFourth = createWhiteboard(
-                spIdSecond, List.of("fileNameC"), Collections.emptyList(), firstNamespace);
+                spIdSecond, List.of("fileNameC"), List.of(thirdTag), firstNamespace);
         Assert.assertNotNull(wbIdFourth);
 
         final String wbIdFifth = createWhiteboard(
@@ -262,15 +262,6 @@ public class SnapshotTest extends LzyBaseTest {
                         .map(LzyWhiteboard.Whiteboard::getId)
                         .collect(Collectors.toList())
                         .containsAll(List.of(wbIdFirst, wbIdThird))
-        );
-
-        list = getWhiteboardsByNamespaceAndTags(firstNamespace, Collections.emptyList());
-        Assert.assertEquals(3, list.size());
-        Assert.assertTrue(
-                list.stream()
-                        .map(LzyWhiteboard.Whiteboard::getId)
-                        .collect(Collectors.toList())
-                        .containsAll(List.of(wbIdFirst, wbIdThird, wbIdFourth))
         );
 
         list = getWhiteboardsByNamespaceAndTags(secondNamespace, List.of(firstTag, thirdTag));
