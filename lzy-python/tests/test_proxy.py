@@ -209,3 +209,13 @@ class ProxyTests(TestCase):
         self.assertEqual(prxy_a[0].val, 0)
         self.assertEqual(prxy_a[1].val, 1)
         self.assertEqual(prxy_a[2].val, 2)
+
+    def test_proxy_with_custom_new(self):
+        class ClassWithCustomNew:
+            def __new__(cls):
+                return super().__new__(cls)
+
+            def __init__(self):
+                self.test_attr = 42
+        prxy = proxy(ClassWithCustomNew, ClassWithCustomNew)
+        self.assertEqual(prxy.test_attr, 42)
