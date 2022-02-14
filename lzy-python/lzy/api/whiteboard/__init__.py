@@ -10,7 +10,7 @@ ALREADY_WRAPPED_READY = '_already_wrapped_ready_whiteboard'
 WB_ID_GETTER_NAME = '__id_getter__'
 
 
-def whiteboard(tags: List[str], namespace=None):
+def whiteboard(tags: List[str], namespace='default'):
     def wrap(cls):
         return whiteboard_(cls, namespace, tags)
 
