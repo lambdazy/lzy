@@ -174,3 +174,6 @@ lzy-python/*.egg-info
 # terraform vars files with sensetive information
 *.tvars.json
 tvars.json
+
+# tfplan
+**/tfplan
