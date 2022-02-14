@@ -39,7 +39,7 @@ spec:
         - containerPort: 9999
       securityContext:
         privileged: true
-  restartPolicy: OnFailure
+  restartPolicy: Never
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
