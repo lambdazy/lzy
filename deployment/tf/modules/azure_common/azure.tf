@@ -61,6 +61,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "cpu" {
   name                  = "cpupool"
   vm_size               = "Standard_D2_v2"
   node_count            = var.cpu_count
+  enable_auto_scaling   = var.cpu_pool_autoscale
   node_labels = {
     type = "cpu"
   }

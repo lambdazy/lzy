@@ -15,6 +15,10 @@ variable "agent_count" {
   default = 10
 }
 
+variable "cpu_pool_autoscale" {
+  default = true
+}
+
 variable "cpu_count" {
   type    = number
   default = 7
