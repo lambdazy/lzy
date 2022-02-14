@@ -12,7 +12,7 @@ if [[ $2 == "rebuild" ]]
 then
     if [[ $3 == "base" ]]
         then
-            docker build -t lzydock/lzy-servant-base:"$INSTALLATION" -f lzy-servant/BaseDockerfile .
+            docker build -t lzydock/lzy-servant-base:"$INSTALLATION" -f lzy-servant/old-scheme/Base.Dockerfile .
             docker push lzydock/lzy-servant-base:"$INSTALLATION"
     fi
     mvn clean install -DskipTests

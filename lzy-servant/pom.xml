@@ -228,7 +228,7 @@
                             <alias>dockerfile</alias>
                             <build>
                                 <contextDir>${project.basedir}/../</contextDir>
-                                <dockerFile>${project.basedir}/docker/Old.Dockerfile</dockerFile>
+                                <dockerFile>${project.basedir}/docker/old-scheme/Dockerfile</dockerFile>
                                 <noCache>true</noCache>
                                 <imagePullPolicy>IfNotPresent</imagePullPolicy>
                             </build>

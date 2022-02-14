@@ -30,7 +30,7 @@
         <commons.version>1.4.9</commons.version>
         <junit.version>4.13.1</junit.version>
         <testng.version>7.3.0</testng.version>
-        <testcontainers.version>1.16.3</testcontainers.version>
+        <testcontainers.version>1.16.2</testcontainers.version>
         <com.amazonaws.awsjavasdk.version>1.11.638</com.amazonaws.awsjavasdk.version>
         <s3mock_2.12.version>0.2.4</s3mock_2.12.version>
         <cloud-java.version>20794-7b8a0e7689</cloud-java.version>

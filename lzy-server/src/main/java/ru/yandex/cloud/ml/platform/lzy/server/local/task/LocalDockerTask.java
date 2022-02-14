@@ -3,11 +3,14 @@ package ru.yandex.cloud.ml.platform.lzy.server.local.task;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.ExecCreateCmd;
+import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse.ContainerState;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.BindOptions;
 import com.github.dockerjava.api.model.BindPropagation;
+import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
@@ -17,24 +20,26 @@ import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports.Binding;
 import com.github.dockerjava.api.model.Volume;
 import com.github.dockerjava.core.DockerClientBuilder;
+import com.github.dockerjava.core.command.ExecStartResultCallback;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import lombok.val;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-
-import java.net.URI;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 
 public class LocalDockerTask extends LocalTask {
 
@@ -74,22 +79,18 @@ public class LocalDockerTask extends LocalTask {
         final HostConfig hostConfig = new HostConfig();
         hostConfig
             .withPrivileged(true)
-            .withMounts(Collections.singletonList(
-                new Mount()
-                    .withSource("/tmp/servant/lzy/")
-                    .withTarget("/tmp/lzy/")
-                    .withType(MountType.BIND)
-                    .withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED)))
-            )
             .withBinds(
                 new Bind("/tmp/resources/", new Volume("/tmp/resources/")),
-                new Bind("/var/log/servant/", new Volume("/var/log/servant/")),
-                new Bind("/var/run/docker.sock", new Volume("/var/run/docker.sock"))
+                new Bind("/tmp/log/servant/", new Volume("/tmp/log/servant/"))
             )
             .withPortBindings(
                 new PortBinding(Binding.bindPort(debugPort), ExposedPort.tcp(debugPort)),
                 new PortBinding(Binding.bindPort(servantPort), ExposedPort.tcp(servantPort)))
             .withPublishAllPorts(true);
+
+        if (SystemUtils.IS_OS_LINUX) {
+            hostConfig.withNetworkMode("host");
+        }
 
         final CreateContainerResponse container = DOCKER.createContainerCmd("lzy-servant")
             .withAttachStdout(true)
@@ -97,7 +98,7 @@ public class LocalDockerTask extends LocalTask {
             .withEnv(
                 "LZYTASK=" + tid.toString(),
                 "LZYTOKEN=" + token,
-                "LOG_FILE=" + "/var/log/servant/servant_start_" + uuid,
+                "LOG_FILE=" + "/tmp/log/servant/servant_start_" + uuid,
                 "DEBUG_PORT=" + Integer.toString(debugPort),
                 "SUSPEND_DOCKER=" + "n",
                 "LZYWHITEBOARD=" + System.getenv("LZYWHITEBOARD"),
@@ -121,11 +122,6 @@ public class LocalDockerTask extends LocalTask {
                 + "--lzy-mount /tmp/lzy").split(" "))
             .exec();
         LOG.info("Created servant container id = {}", container.getId());
-
-        // TODO (lindvv)
-        // if (SystemUtils.IS_OS_LINUX) {
-        //     servantContainer = base.withNetworkMode("host");
-        // }
 
         final var attach = DOCKER.attachContainerCmd(container.getId())
             .withFollowStream(true).withStdErr(true).withStdOut(true)

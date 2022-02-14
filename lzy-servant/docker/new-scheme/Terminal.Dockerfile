@@ -20,4 +20,7 @@ RUN chmod -R 700 app/resources
 COPY lzy-servant/docker/terminal-entrypoint.sh /entrypoint.sh
 RUN chmod a+rx /entrypoint.sh
 
+COPY lzy-servant/docker/test_entrypoint.sh /
+RUN chmod a+rx /test_entrypoint.sh
+
 ENTRYPOINT ["/entrypoint.sh"]

@@ -116,7 +116,7 @@ public abstract class gRPCConverter {
             return envFrom(env.getPyenv());
         }
         if (env.hasDockerEnv()) {
-            // TODO 86682: envFrom(env.getBaseEnv());
+            // TODO (lindvv) 86682: envFrom(env.getBaseEnv());
         }
         return null;
     }

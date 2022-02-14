@@ -58,20 +58,20 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             base.withFileSystemBind(private_key_path, private_key_path);
         }
 
-        final GenericContainer<?> servantContainer;
+        final GenericContainer<?> terminalContainer;
         if (SystemUtils.IS_OS_LINUX) {
-            servantContainer = base.withNetworkMode("host");
+            terminalContainer = base.withNetworkMode("host");
         } else {
-            servantContainer = base
+            terminalContainer = base
                     .withFixedExposedPort(exposedPort, exposedPort)
                     .withFixedExposedPort(debugPort, debugPort) //to attach debugger
                     .withExposedPorts(exposedPort, debugPort);
         }
 
-        servantContainer.start();
-        servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
-        startedContainers.add(servantContainer);
-        return servantContainer;
+        terminalContainer.start();
+        terminalContainer.followOutput(new Slf4jLogConsumer(LOGGER));
+        startedContainers.add(terminalContainer);
+        return terminalContainer;
     }
 
     public Terminal createTerminal(
