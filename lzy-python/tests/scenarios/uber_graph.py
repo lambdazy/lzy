@@ -3,8 +3,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from lzy.api import op, LzyRemoteEnv
-from lzy.api.whiteboard import whiteboard, view
-, lzy_message
+from lzy.api.whiteboard import whiteboard, view, lzy_message
 from base import Base
 from pure_protobuf.dataclasses_ import field
 from pure_protobuf.types import int32
