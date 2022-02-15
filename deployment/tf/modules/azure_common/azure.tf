@@ -62,7 +62,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "auto_scale_cpu" {
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "fixed_cpu" {
-  count                 = !var.cpu_pool_auto_scale && var.cpu_pool_size > 0
+  count                 = !var.cpu_pool_auto_scale && var.cpu_pool_size > 0 ? 1 : 0
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   name                  = "cpupool"
   vm_size               = "Standard_D2_v2"
