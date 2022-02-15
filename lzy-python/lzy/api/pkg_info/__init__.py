@@ -88,28 +88,26 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
     distributions = packages_distributions()
     remote_packages = {}
     local_modules: List[ModuleType] = []
+    parents: List[ModuleType] = []
 
     def search(obj: Any) -> None:
-        # try to get module name
-        parent_module = inspect.getmodule(obj)
-        if parent_module is None:
-            return
-
         module = inspect.getmodule(obj)
-        if not module:
+        if module is None:
             return
 
+        # try to get module name
         name = module.__name__.split(".")[0]  # type: ignore
         if name in STDLIB_LIST:
             return
 
+        # and find it among installed ones
         if name in distributions:
             package_name = distributions[name][0]
             if package_name in dist_versions and exists_in_pypi(package_name):
                 remote_packages[package_name] = dist_versions[package_name]
                 return
 
-        # if module not found in distributions, try to find it as local one
+        # if module is not found in distributions, try to find it as local one
         if module in local_modules:
             return
 
@@ -118,24 +116,25 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
             search(getattr(module, field))
 
         # add all parent modules
-        module_name = module.__name__ 
+        full_module_name = module.__name__
+        current_parents: List[ModuleType] = []
         while True:
-            last_dot_idx = module_name.rfind('.')
+            last_dot_idx = full_module_name.rfind('.')
             if last_dot_idx == -1:
                 break
 
-            module_name = module_name[:last_dot_idx]
-            # if parent module_name in local_modules already then all parent 
+            full_module_name = full_module_name[:last_dot_idx]
+            # if parent module_name in local_modules already then all parent
             # modules there too already
-            if sys.modules[module_name] in local_modules:
-                break
-            local_modules.append(sys.modules[module_name])
+            current_parents.append(sys.modules[full_module_name])
+        parents.extend(reversed(current_parents))
 
     for _, entry in namespace.items():
         search(entry)
 
-    local_modules = list(dict.fromkeys(local_modules))  
     # remove duplicates and keep order as dict preserves order since python3.7
-    local_modules.reverse()
+    all_local_modules = dict.fromkeys(parents)
+    all_local_modules.update(dict.fromkeys(reversed(local_modules)))
 
-    return remote_packages, local_modules  # reverse to ensure the right order: from leaves to the root
+    # reverse to ensure the right order: from leaves to the root
+    return remote_packages, list(all_local_modules)
