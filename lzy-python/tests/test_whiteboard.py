@@ -19,17 +19,21 @@ class WB:
 
 class WhiteboardTests(TestCase):
     def setUp(self) -> None:
-        self._num_run_num = 0
+        self._raising_num_run_num = 0
 
     @op
     def num(self) -> int:
-        self._num_run_num += 1
         return 5
 
     @op
     def nums(self, c: int) -> Tuple[int, int]:
         print(c)
         return 5, 5
+
+    @op
+    def raising_num(self) -> int:
+        self._raising_num_run_num += 1
+        raise Exception()
 
     def test_many_wb(self):
         wb = WB(1, 1)
@@ -81,11 +85,9 @@ class WhiteboardTests(TestCase):
     @unittest.skip
     def test_materialization_stops_if_whiteboard_invalid(self):
         wb = WB(1, 1)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(Exception):
             with LzyLocalEnv(whiteboard=wb):
-                wb.a = self.num()
-                self.num()
+                wb.a = self.raising_num()
                 wb.b, wb.c = self.nums(wb.a)
 
-        self.assertEqual(0, self._num_run_num)
-        self.assertTrue('Only @op return values can be assigned to whiteboard' in str(context.exception))
+        self.assertEqual(1, self._raising_num_run_num)
