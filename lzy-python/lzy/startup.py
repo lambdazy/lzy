@@ -52,7 +52,7 @@ def main():
 
         local_modules: OrderedDict = json.loads(os.environ['LOCAL_MODULES'])
         for name, url in local_modules.items():
-            local_module = client.read(url)
+            local_module = cloudpickle.loads(client.read(url))
             sys.modules[name] = local_module
 
     print("Loading function")

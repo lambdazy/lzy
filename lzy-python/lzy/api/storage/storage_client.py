@@ -1,11 +1,10 @@
 import pathlib
 from abc import ABC, abstractmethod
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
 from urllib import parse
 from urllib.parse import urlunsplit
 
 from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
-import cloudpickle
 import s3fs
 import logging
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials, StorageCredentials
@@ -24,10 +23,6 @@ class StorageClient(ABC):
         pass
 
     @abstractmethod
-    def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
-        pass
-
-    @abstractmethod
     def write(self, container: str, blob: str, data):
         pass
 
@@ -37,7 +32,7 @@ class AzureClient(StorageClient):
         super().__init__()
         self.client: BlobServiceClient = client
 
-    def _read_raw_data(self, url: str) -> Any:
+    def read(self, url: str) -> Any:
         uri = parse.urlparse(url)
         assert uri.scheme == "azure"
         path = pathlib.PurePath(uri.path)
@@ -55,14 +50,6 @@ class AzureClient(StorageClient):
         )
         data = downloader.readall()
         return data
-
-    def read(self, url: str) -> Any:
-        data = self._read_raw_data(url)
-        return cloudpickle.loads(data)
-
-    def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
-        data = self._read_raw_data(url)
-        return loads(obj_type, data)
 
     def write(self, container: str, blob: str, data):
         container_client: ContainerClient = self.client.get_container_client(container)
@@ -92,13 +79,7 @@ class AmazonClient(StorageClient):
         uri = parse.urlparse(url)
         assert uri.scheme == "s3"
         with self.fs_.open(uri.path) as file:
-            return cloudpickle.load(file)
-
-    def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
-        uri = parse.urlparse(url)
-        assert uri.scheme == "s3"
-        with self.fs_.open(uri.path) as file:
-            return load(obj_type, file)
+            return file.read()
 
     def write(self, bucket: str, key: str, data) -> str:
         path = f"/{bucket}/{key}"

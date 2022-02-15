@@ -6,6 +6,8 @@ from azure.storage.blob import BlobServiceClient
 
 from lzy.api.storage.storage_client import AzureClient, AmazonClient
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
+from pure_protobuf.dataclasses_ import loads, load  # type: ignore
+import cloudpickle
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -42,10 +44,10 @@ class AzureWhiteboardStorage(WhiteboardStorage):
         self.client: AzureClient = AzureClient(client)
 
     def read(self, url: str) -> Any:
-        return self.client.read(url)
+        return cloudpickle.loads(self.client.read(url))
 
     def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
-        return self.client.read_protobuf(url, obj_type)
+        return loads(obj_type, self.client.read(url))
 
     @staticmethod
     def from_connection_string(credentials: AzureCredentials) -> 'AzureWhiteboardStorage':
@@ -64,7 +66,7 @@ class AmazonWhiteboardStorage(WhiteboardStorage):
         self.__logger = logging.getLogger(self.__class__.__name__)
 
     def read(self, url: str) -> Any:
-        return self.client.read(url)
+        return cloudpickle.loads(self.client.read(url))
 
     def read_protobuf(self, url: str, obj_type: Type[T]) -> Any:
-        return self.client.read_protobuf(url, obj_type)
+        return loads(obj_type, self.client.read(url))
