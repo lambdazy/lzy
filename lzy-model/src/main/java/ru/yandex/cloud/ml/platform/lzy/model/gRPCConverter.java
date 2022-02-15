@@ -18,11 +18,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
-import javax.annotation.Nullable;
-import java.net.URI;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
@@ -47,13 +43,30 @@ public abstract class gRPCConverter {
 
     public static Operations.Env to(Env env) {
         Operations.Env.Builder builder = Operations.Env.newBuilder();
-        if (env instanceof PythonEnv) {
-            builder.setPyenv(to((PythonEnv) env));
+        if (env.baseEnv() != null) {
+            builder.setBaseEnv(to(env.baseEnv()));
         }
-        // TODO (lindvv) 86682: builder.setBaseEnv();
+        if (env.auxEnv() != null) {
+            builder.setAuxEnv(to(env.auxEnv()));
+        }
         return builder.build();
     }
 
+    public static Operations.BaseEnv to(BaseEnv env) {
+        Operations.BaseEnv.Builder builder = Operations.BaseEnv.newBuilder();
+        if (env.name() != null) {
+            builder.setName(env.name());
+        }
+        return builder.build();
+    }
+
+    public static Operations.AuxEnv to(AuxEnv env) {
+        Operations.AuxEnv.Builder builder = Operations.AuxEnv.newBuilder();
+        if (env instanceof PythonEnv) {
+            builder.setPyenv(to((PythonEnv) env));
+        }
+        return builder.build();
+    }
 
     public static Operations.PythonEnv to(PythonEnv env) {
         List<Operations.LocalModule> localModules = new ArrayList<>();
@@ -66,12 +79,6 @@ public abstract class gRPCConverter {
                 .setYaml(env.yaml())
                 .addAllLocalModules(localModules)
                 .build();
-    }
-
-    public static Operations.BaseEnv to(BaseEnv env) {
-        return Operations.BaseEnv.newBuilder()
-            .setName(env.name())
-            .build();
     }
 
     public static Operations.Slot to(Slot slot) {
@@ -111,22 +118,35 @@ public abstract class gRPCConverter {
         return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
     }
 
-    public static Env envFrom(Operations.Env env) {
-        if (env.hasPyenv()) {
-            return envFrom(env.getPyenv());
+    public static Env from(Operations.Env env) {
+        final BaseEnv baseEnv;
+        if (env.hasBaseEnv()) {
+            baseEnv = from(env.getBaseEnv());
+        } else {
+            baseEnv = null;
         }
-        if (env.hasDockerEnv()) {
-            // TODO (lindvv) 86682: envFrom(env.getBaseEnv());
+        final AuxEnv auxEnv;
+        if (env.hasAuxEnv()) {
+            auxEnv = from(env.getAuxEnv());
+        } else {
+            auxEnv = null;
+        }
+        return new EnvImpl(baseEnv, auxEnv);
+    }
+
+    public static BaseEnv from(Operations.BaseEnv env) {
+        return new BaseEnvAdapter(env);
+    }
+
+    public static AuxEnv from(Operations.AuxEnv env) {
+        if (env.hasPyenv()) {
+            return from(env.getPyenv());
         }
         return null;
     }
 
-    private static PythonEnv envFrom(Operations.PythonEnv env) {
+    private static PythonEnv from(Operations.PythonEnv env) {
         return new PythonEnvAdapter(env);
-    }
-
-    private static BaseEnv envFrom(Operations.BaseEnv env) {
-        return new BaseEnvAdapter(env);
     }
 
 
@@ -189,10 +209,6 @@ public abstract class gRPCConverter {
         return assignmentsList.stream()
             .map(ass -> new Context.SlotAssignment(from(ass.getSlot()), ass.getBinding()))
             .collect(Collectors.toList());
-    }
-
-    private static Env from(Operations.Env env) {
-        return envFrom(env);
     }
 
     public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureSASCredentials credentials){
@@ -271,7 +287,13 @@ public abstract class gRPCConverter {
 
         @Override
         public Env env() {
-            return envFrom(operation.getEnv());
+            /* TODO (lindvv):
+                    Why do we interact with ZygoteAdapter
+                    and construct Env (and other stuff) inside getter
+                    instead of creating new class ZygoteImpl
+                    and constructing Env inside ZygoteImpl constructor?
+             */
+            return from(operation.getEnv());
         }
 
         @Override
@@ -398,6 +420,26 @@ public abstract class gRPCConverter {
         }
     }
 
+    private static class EnvImpl implements Env {
+        private final BaseEnv baseEnv;
+        private final AuxEnv auxEnv;
+
+        public EnvImpl(BaseEnv baseEnv, AuxEnv auxEnv) {
+            this.baseEnv = baseEnv;
+            this.auxEnv = auxEnv;
+        }
+
+        @Override
+        public BaseEnv baseEnv() {
+            return baseEnv;
+        }
+
+        @Override
+        public AuxEnv auxEnv() {
+            return auxEnv;
+        }
+    }
+
     private static class PythonEnvAdapter implements PythonEnv {
         private final Operations.PythonEnv env;
         private final List<LocalModule> localModules;
@@ -438,12 +480,10 @@ public abstract class gRPCConverter {
         }
 
         @Override
-        public URI uri() {
-            return URI.create("baseEnv/" + env.getName());
-        }
-
-        @Override
         public String name() {
+            if (env.getName().equals("")) {
+                return null;
+            }
             return env.getName();
         }
     }
