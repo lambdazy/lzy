@@ -1,28 +1,33 @@
 package ru.yandex.cloud.ml.platform.lzy.backoffice.oauth.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class GithubAccessTokenRequest {
 
-    private String client_id;
-    private String client_secret;
+    @JsonProperty(value = "client_id")
+    private String clientId;
+
+    @JsonProperty(value = "client_secret")
+    private String clientSecret;
+
     private String code;
 
-    public String getClient_id() {
-        return client_id;
+    public String getClientId() {
+        return clientId;
     }
 
-    public void setClient_id(String client_id) {
-        this.client_id = client_id;
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
     }
 
-    public String getClient_secret() {
-        return client_secret;
+    public String getClientSecret() {
+        return clientSecret;
     }
 
-    public void setClient_secret(String client_secret) {
-        this.client_secret = client_secret;
+    public void setClientSecret(String clientSecret) {
+        this.clientSecret = clientSecret;
     }
 
     public String getCode() {
