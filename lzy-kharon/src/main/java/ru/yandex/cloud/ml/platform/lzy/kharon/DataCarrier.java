@@ -1,19 +1,20 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.stub.StreamObserver;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotRequest;
 
 public class DataCarrier {
+
     private static final Logger LOG = LogManager.getLogger(DataCarrier.class);
 
     private final Map<URI, StreamObserver<Servant.Message>> openDataConnections = new ConcurrentHashMap<>();
@@ -23,7 +24,8 @@ public class DataCarrier {
         openDataConnections.put(slotUri, responseObserver);
     }
 
-    public StreamObserver<Kharon.SendSlotDataMessage> connectTerminalConnection(StreamObserver<Kharon.ReceivedDataStatus> receiver) {
+    public StreamObserver<Kharon.SendSlotDataMessage> connectTerminalConnection(
+        StreamObserver<Kharon.ReceivedDataStatus> receiver) {
         LOG.info("DataCarrier::connectTerminalConnection");
         return new StreamObserver<>() {
             final CompletableFuture<StreamObserver<Servant.Message>> servantMessageStream = new CompletableFuture<>();
@@ -33,7 +35,7 @@ public class DataCarrier {
                 LOG.info("DataCarrier::onNext " + JsonUtils.printRequest(slotDataMessage));
                 switch (slotDataMessage.getWriteCommandCase()) {
                     case REQUEST: {
-                        final Servant.SlotRequest request = slotDataMessage.getRequest();
+                        final SlotRequest request = slotDataMessage.getRequest();
                         final URI slotUri = URI.create(request.getSlotUri());
                         servantMessageStream.complete(openDataConnections.get(slotUri));
                         break;
@@ -42,6 +44,8 @@ public class DataCarrier {
                         getServantMessageStream().onNext(slotDataMessage.getMessage());
                         break;
                     }
+                    default:
+                        throw new IllegalStateException("Unexpected value: " + slotDataMessage.getWriteCommandCase());
                 }
             }
 
@@ -64,8 +68,8 @@ public class DataCarrier {
                 LOG.info("DataCarrier:: sending completed");
                 receiver.onNext(
                     Kharon.ReceivedDataStatus.newBuilder()
-                    .setStatus(Kharon.ReceivedDataStatus.Status.OK)
-                    .build()
+                        .setStatus(Kharon.ReceivedDataStatus.Status.OK)
+                        .build()
                 );
                 receiver.onCompleted();
             }
