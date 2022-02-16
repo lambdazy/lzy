@@ -177,8 +177,8 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     }
 
     @Override
-    public void whiteboardByNamespaceAndTags(
-        LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand request,
+    public void whiteboardsList(
+        LzyWhiteboard.WhiteboardsListCommand request,
         StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());

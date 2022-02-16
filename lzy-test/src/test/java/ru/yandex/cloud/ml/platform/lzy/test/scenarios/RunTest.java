@@ -7,6 +7,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
@@ -39,6 +40,25 @@ public class RunTest extends LzyBaseTest {
             Collections.emptyList(),
             Collections.emptyList(),
             "echo 42"
+        );
+
+        //Act
+        terminal.publish(echo42.getName(), echo42);
+        final ExecutionResult result = terminal.run(echo42.getName(), "", Map.of());
+
+        //Assert
+        Assert.assertEquals("42\n", result.stdout());
+    }
+
+    @Test
+    @Ignore
+    public void testKeepAlive() {
+        //Arrange
+        final FileIOOperation echo42 = new FileIOOperation(
+            "echo42",
+            Collections.emptyList(),
+            Collections.emptyList(),
+            "sleep 6m; echo 42"
         );
 
         //Act

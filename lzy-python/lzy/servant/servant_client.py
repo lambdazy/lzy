@@ -43,10 +43,11 @@ class Execution(ABC):
         return False
 
 
-class ServantClient(ABC):
-    class CredentialsTypes(Enum):
-        S3 = "s3"
+class CredentialsTypes(Enum):
+    S3 = "s3"
 
+
+class ServantClient(ABC):
     def __init__(self):
         super().__init__()
         self._log = logging.getLogger(str(self.__class__))

@@ -195,7 +195,7 @@ public class LzyExecution {
             );
             Environment session;
             if (zygote.env() instanceof PythonEnv) {
-                session = new CondaEnvironment((PythonEnv) zygote.env());
+                session = new CondaEnvironment((PythonEnv) zygote.env(), credentials);
                 LOG.info("Conda environment is provided, using CondaEnvironment");
             } else {
                 session = new SimpleBashEnvironment();
@@ -215,27 +215,7 @@ public class LzyExecution {
                         envExecStartMillis - startMillis
                     )
                 );
-                Map<String, String> envMap = System.getenv();
-                List<String> envList = envMap.entrySet().stream()
-                        .map(entry -> entry.getKey() + "=" + entry.getValue())
-                        .collect(Collectors.toList());
-                if (zygote.env() instanceof PythonEnv) {
-                    try {
-                        LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
-                        ((PythonEnv) zygote.env()).localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
-                        envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(localModules));
-                        if (credentials.hasAmazon()) {
-                            envList.add("AMAZON=" + JsonFormat.printer().print(credentials.getAmazon()));
-                        } else if (credentials.hasAzure()) {
-                            envList.add("AZURE=" + JsonFormat.printer().print(credentials.getAzure()));
-                        } else {
-                            envList.add("AZURE_SAS=" + JsonFormat.printer().print(credentials.getAzureSas()));
-                        }
-                    } catch (JsonProcessingException | InvalidProtocolBufferException e) {
-                        throw new EnvironmentInstallationException(e.getMessage());
-                    }
-                }
-                this.exec = session.exec(command, envList.toArray(String[]::new));
+                this.exec = session.exec(command);
                 stdinSlot.setStream(new OutputStreamWriter(exec.getOutputStream(), StandardCharsets.UTF_8));
                 stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
                     exec.getInputStream(),

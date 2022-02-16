@@ -6,8 +6,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class ChannelBuilder {
+
+    final static public int IDLE_TIMEOUT_MINS = 5;
+    final static public int KEEP_ALIVE_TIME_MINS = 2;
+    final static public int KEEP_ALIVE_TIMEOUT_SECS = 10;
 
     private final String host;
     private final int port;
@@ -35,15 +40,13 @@ public class ChannelBuilder {
             "CANCELLED",
             "UNKNOWN",
             "DEADLINE_EXCEEDED",
-            "PERMISSION_DENIED",
             "RESOURCE_EXHAUSTED",
             "FAILED_PRECONDITION",
             "ABORTED",
             "OUT_OF_RANGE",
             "INTERNAL",
             "UNAVAILABLE",
-            "DATA_LOSS",
-            "UNAUTHENTICATED"
+            "DATA_LOSS"
         );
     }
 
@@ -96,6 +99,10 @@ public class ChannelBuilder {
         if (!tls) {
             builder.usePlaintext();
         }
+        builder.keepAliveWithoutCalls(true)
+            .idleTimeout(IDLE_TIMEOUT_MINS, TimeUnit.MINUTES)
+            .keepAliveTime(KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
+            .keepAliveTimeout(KEEP_ALIVE_TIMEOUT_SECS, TimeUnit.SECONDS);
         if (retryServiceName != null) {
             configureRetry(builder, retryServiceName);
         }

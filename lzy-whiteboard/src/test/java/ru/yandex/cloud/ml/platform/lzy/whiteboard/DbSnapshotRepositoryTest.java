@@ -99,6 +99,51 @@ public class DbSnapshotRepositoryTest {
     }
 
     @Test
+    public void testFinalizeSnapshotErroredEntries() {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            Transaction tx = session.beginTransaction();
+            session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, storageUri, false, FINISHED));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdSecond, storageUri, false, SnapshotEntryStatus.State.CREATED));
+            tx.commit();
+        }
+        impl.finalize(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
+        SnapshotStatus status = impl.resolveSnapshot(URI.create(snapshotId));
+        Assert.assertNotNull(status);
+        Assert.assertEquals(SnapshotStatus.State.ERRORED, status.state());
+    }
+
+    @Test
+    public void testFinalizeSnapshotOkEntries() {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            Transaction tx = session.beginTransaction();
+            session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, storageUri, false, FINISHED));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdSecond, storageUri, false, FINISHED));
+            tx.commit();
+        }
+        impl.finalize(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
+        SnapshotStatus status = impl.resolveSnapshot(URI.create(snapshotId));
+        Assert.assertNotNull(status);
+        Assert.assertEquals(FINALIZED, status.state());
+    }
+
+    @Test
+    public void testFinalizeSnapshotNullStorageUriEntries() {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            Transaction tx = session.beginTransaction();
+            session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, null, false, FINISHED));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdSecond, storageUri, false, FINISHED));
+            tx.commit();
+        }
+        impl.finalize(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
+        SnapshotStatus status = impl.resolveSnapshot(URI.create(snapshotId));
+        Assert.assertNotNull(status);
+        Assert.assertEquals(SnapshotStatus.State.ERRORED, status.state());
+    }
+
+    @Test
     public void testFinalizeSnapshot() {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
@@ -108,19 +153,19 @@ public class DbSnapshotRepositoryTest {
             String fieldNameFirst = "fieldNameFirst";
             final String entryIdFirst = UUID.randomUUID().toString();
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, entryIdFirst));
-            session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, "", false, FINISHED));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdFirst, storageUri, false, FINISHED));
             String fieldNameSecond = "fieldNameSecond";
             final String entryIdSecond = UUID.randomUUID().toString();
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, entryIdSecond));
-            session.save(new SnapshotEntryModel(snapshotId, entryIdSecond, "", false, SnapshotEntryStatus.State.CREATED));
+            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, null));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdSecond, storageUri, false, FINISHED));
             String fieldNameThird = "fieldNameThird";
             String entryIdThird = UUID.randomUUID().toString();
             session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameThird, entryIdThird));
-            session.save(new SnapshotEntryModel(snapshotId, entryIdThird, "", false, FINISHED));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdThird, storageUri, false, FINISHED));
             String fieldNameFourth = "fieldNameFourth";
             final String entryIdFourth = UUID.randomUUID().toString();
             session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameFourth, entryIdFourth));
-            session.save(new SnapshotEntryModel(snapshotId, entryIdFourth, "", false, FINISHED));
+            session.save(new SnapshotEntryModel(snapshotId, entryIdFourth, storageUri, false, FINISHED));
             tx.commit();
         }
         impl.finalize(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));
@@ -226,6 +271,7 @@ public class DbSnapshotRepositoryTest {
         Assert.assertNotNull(snapshotEntryStatus);
         Assert.assertEquals(snapshotId, snapshotEntryStatus.entry().snapshot().id().toString());
         Assert.assertEquals(entryIdFirst, snapshotEntryStatus.entry().id());
+        Assert.assertNotNull(snapshotEntryStatus.storage());
         Assert.assertEquals(storageUri, snapshotEntryStatus.storage().toString());
         Assert.assertTrue(snapshotEntryStatus.dependentEntryIds().contains(entryIdSecond)
                 && snapshotEntryStatus.dependentEntryIds().contains(entryIdThird));

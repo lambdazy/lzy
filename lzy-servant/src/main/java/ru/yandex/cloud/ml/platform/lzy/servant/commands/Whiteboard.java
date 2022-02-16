@@ -149,7 +149,7 @@ public class Whiteboard implements LzyCommand {
                             .toEpochSecond(ZoneOffset.UTC)))))
                     .build();
                 final LzyWhiteboard.WhiteboardsResponse whiteboards =
-                    server.whiteboardByNamespaceAndTags(LzyWhiteboard.WhiteboardByNamespaceAndTagsCommand
+                    server.whiteboardsList(LzyWhiteboard.WhiteboardsListCommand
                         .newBuilder()
                         .setAuth(auth)
                         .addAllTags(tags)

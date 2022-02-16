@@ -30,13 +30,14 @@ service LzyKharon {
   rpc TasksStatus (Auth) returns (TasksList);
   rpc ChannelsStatus (Auth) returns (ChannelStatusList);
   rpc GetS3Credentials (GetS3CredentialsRequest) returns (GetS3CredentialsResponse);
+  rpc GetSessions (GetSessionsRequest) returns (GetSessionsResponse);
   rpc GetBucket (GetBucketRequest) returns (GetBucketResponse);
 
   // Whiteboard API
   rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
   rpc AddLink (LinkCommand) returns (OperationStatus);
   rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
-  rpc WhiteboardByNamespaceAndTags (WhiteboardByNamespaceAndTagsCommand) returns (WhiteboardsResponse);
+  rpc WhiteboardsList (WhiteboardsListCommand) returns (WhiteboardsResponse);
 
   // Snapshot API
   rpc CreateSnapshot (CreateSnapshotCommand) returns (Snapshot);

@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,10 +10,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.server.ConnectionManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -34,6 +32,7 @@ public class InMemTasksManager implements TasksManager {
     protected final URI serverURI;
     private final ChannelsManager channels;
     private final Map<UUID, Task> tasks = new ConcurrentHashMap<>();
+    private final ConnectionManager connectionManager;
 
     private final Map<String, List<Task>> userTasks = new ConcurrentHashMap<>();
     private final Map<Task, Task> parents = new ConcurrentHashMap<>();
@@ -45,9 +44,10 @@ public class InMemTasksManager implements TasksManager {
 
     private final Map<String, Map<Slot, Channel>> userSlots = new ConcurrentHashMap<>();
 
-    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels) {
+    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels, ConnectionManager connectionManager) {
         this.serverURI = URI.create(serverConfig.getServerUri());
         this.channels = channels;
+        this.connectionManager = connectionManager;
     }
 
     @Override
@@ -125,10 +125,12 @@ public class InMemTasksManager implements TasksManager {
                 children.getOrDefault(removedTask, new ArrayList<>()).remove(task);
             }
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
-            if (task.servant() != null) {
-                LOG.info("InMemTaskManager::unbindAll");
-                channels.unbindAll(task.tid());
+            if (!task.servantIsAlive()) {
+                LOG.info("InMemTaskManager::invalidate connection with servant tid={}", task.tid());
+                connectionManager.shutdownConnection(task.tid());
             }
+            LOG.info("InMemTaskManager::unbindAll tid={}", task.tid());
+            channels.unbindAll(task.tid());
             taskChannels.remove(task);
             userTasks.getOrDefault(owners.remove(task), List.of()).remove(task);
         });

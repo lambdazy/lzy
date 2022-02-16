@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from lzy.api import op, LzyRemoteEnv
 from lzy.api.whiteboard import whiteboard, view
+
 from base import Base
 
 '''
@@ -49,7 +50,7 @@ another_simple_whiteboard_tag = "another_simple_whiteboard_" + str(uuid.uuid4())
 
 
 @dataclass
-@whiteboard(namespace='simple/whiteboard', tags=[simple_whiteboard_tag])
+@whiteboard(tags=[simple_whiteboard_tag])
 class SimpleWhiteboard:
     a: int = 0
     b: List[str] = None
@@ -82,7 +83,7 @@ class AnotherSimpleWhiteboard:
 
 
 @dataclass
-@whiteboard(namespace='simple/whiteboard', tags=[simple_whiteboard_tag])
+@whiteboard(tags=[simple_whiteboard_tag])
 class OneMoreSimpleWhiteboard:
     a: int = 0
     b: List[str] = None
