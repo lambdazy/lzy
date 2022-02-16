@@ -2,19 +2,16 @@ package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.BaseEnv;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
 
 public class EnvironmentFactory {
 
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
 
-    public static Environment create(Env env, BaseEnvConfig config)
-        throws EnvironmentInstallationException {
+    public static Environment create(Env env) throws EnvironmentInstallationException {
         final String resourcesPathStr = "/tmp/resources/";
-        config.addMount(resourcesPathStr, resourcesPathStr);
 
         final BaseEnvironment baseEnv;
         if (env.baseEnv() != null) {
@@ -22,7 +19,10 @@ public class EnvironmentFactory {
             baseEnv = new ProcessEnvironment();
         } else {
             LOG.info("Docker baseEnv provided, using DockerEnvironment");
-            // TODO now (lindvv): put image in config
+            BaseEnvConfig config = BaseEnvConfig.newBuilder()
+                .image(env.baseEnv().name())
+                .addMount(resourcesPathStr, resourcesPathStr)
+                .build();
             baseEnv = new DockerEnvironment(config);
         }
 

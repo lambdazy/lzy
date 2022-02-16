@@ -103,6 +103,8 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             new V1EnvVar().name("LZYWHITEBOARD").value(System.getenv("LZYWHITEBOARD"))
         ).addEnvItem(
             new V1EnvVar().name("BUCKET_NAME").value(bucketName)
+        ).addEnvItem(
+            new V1EnvVar().name("BASE_ENV_DEFAULT_IMAGE").value(System.getenv("BASE_ENV_DEFAULT_IMAGE"))
         );
     }
 }

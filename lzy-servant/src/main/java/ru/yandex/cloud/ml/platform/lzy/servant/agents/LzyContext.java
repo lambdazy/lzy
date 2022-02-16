@@ -168,10 +168,7 @@ public class LzyContext {
             }
         });
 
-        final Environment environment = EnvironmentFactory.create(
-            context.env(),
-            BaseEnvConfig.newBuilder().build()
-        );
+        final Environment environment = EnvironmentFactory.create(context.env());
         try {
             environment.prepare();
         } catch (EnvironmentInstallationException e){
