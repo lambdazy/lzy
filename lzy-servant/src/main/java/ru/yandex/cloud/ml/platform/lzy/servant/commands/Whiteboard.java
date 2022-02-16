@@ -27,7 +27,7 @@ public class Whiteboard implements LzyCommand {
         options.addOption(
             new Option("l", "fields list", true, "Whiteboard fields comma-separated list"));
         options.addOption(
-                new Option("t", "tags list", true, "Whiteboard tags comma-separated list"));
+            new Option("t", "tags list", true, "Whiteboard tags comma-separated list"));
         options.addOption(new Option("n", "namespace", true, "Whiteboard namespace"));
     }
 
@@ -51,9 +51,9 @@ public class Whiteboard implements LzyCommand {
         }
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final ManagedChannel serverCh = ChannelBuilder
-                .forAddress(serverAddr.getHost(), serverAddr.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+            .forAddress(serverAddr.getHost(), serverAddr.getPort())
+            .usePlaintext()
+            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
@@ -132,6 +132,9 @@ public class Whiteboard implements LzyCommand {
                     );
                 System.out.println(JsonFormat.printer().print(whiteboards));
             }
+            break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + command.getArgs()[1]);
         }
         return 0;
     }

@@ -9,23 +9,21 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.Run;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Start;
-
-import java.util.Objects;
 
 public class BashApi {
     private static final Options options = new Options();
     private static final Logger LOG = LogManager.getLogger(BashApi.class);
+
     static {
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
         options.addOption(new Option("a", "auth", true, "Enforce auth"));
         options.addOption(new Option("z", "lzy-address", true, "Lzy server address [host:port]"));
         options.addOption(new Option("m", "lzy-mount", true, "Lzy FS mount point"));
         options.addOption(new Option("h", "host", true, "Servant host name"));
-        options.addOption(new Option("i", "internal-host", true, "Servant host name for connection from another servants"));
+        options.addOption(
+            new Option("i", "internal-host", true, "Servant host name for connection from another servants"));
         options.addOption(new Option("k", "private-key", true, "Path to private key for user auth"));
     }
 
@@ -39,13 +37,14 @@ public class BashApi {
                 commandStr = parse.getArgs()[0];
                 final LzyCommand.Commands command = LzyCommand.Commands.valueOf(commandStr);
                 System.exit(command.execute(parse));
+            } else {
+                new Start().execute(parse);
             }
-            else new Start().execute(parse);
         } catch (ParseException e) {
             System.out.println(e.getMessage());
             cliHelp.printHelp(commandStr, options);
             System.exit(-1);
-        } catch (Exception e){
+        } catch (Exception e) {
             LOG.error(e);
             throw e;
         }

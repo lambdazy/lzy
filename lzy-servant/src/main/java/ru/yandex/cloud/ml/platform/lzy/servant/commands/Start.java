@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
+import java.net.URI;
+import java.nio.file.Path;
 import org.apache.commons.cli.CommandLine;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -7,9 +9,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
-
-import java.net.URI;
-import java.nio.file.Path;
 
 public class Start implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Start.class);

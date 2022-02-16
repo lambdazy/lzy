@@ -2,20 +2,19 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
 import io.grpc.StatusRuntimeException;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-
-import java.io.IOException;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.Iterator;
 
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {
     private static final Logger LOG = LogManager.getLogger(LzyInputSlotBase.class);
@@ -80,8 +79,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             }
         } catch (StatusRuntimeException e) {
             LOG.error("InputSlotBase:: Failed openOutputSlot connection to servant " + connected, e);
-        }
-        finally {
+        } finally {
             LOG.info("Opening slot {}", name());
             state(Operations.SlotStatus.State.OPEN);
         }
@@ -92,7 +90,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
             .setPointer(offset)
-            .setDeclaration(gRPCConverter.to(definition()));
+            .setDeclaration(GrpcConverter.to(definition()));
 
         if (tid != null) {
             builder.setTaskId(tid);

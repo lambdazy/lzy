@@ -4,9 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
@@ -16,12 +21,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 public class CondaEnvironment implements Environment {
@@ -63,11 +62,11 @@ public class CondaEnvironment implements Environment {
 
     private Process execInEnv(String command, String[] envp) throws IOException {
         LOG.info("Executing command " + command);
-        return Runtime.getRuntime().exec(new String[]{
+        return Runtime.getRuntime().exec(new String[] {
             "bash", "-c",
-            "eval \"$(conda shell.bash hook)\" && " +
-                "conda activate " + env.name() + " && " +
-                command
+            "eval \"$(conda shell.bash hook)\" && "
+                + "conda activate " + env.name() + " && "
+                + command
         }, envp);
     }
 

@@ -24,9 +24,9 @@ public class Snapshot implements LzyCommand {
         }
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final ManagedChannel serverCh = ChannelBuilder
-                .forAddress(serverAddr.getHost(), serverAddr.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+            .forAddress(serverAddr.getHost(), serverAddr.getPort())
+            .usePlaintext()
+            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
@@ -51,6 +51,8 @@ public class Snapshot implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(operationStatus));
                 break;
             }
+            default:
+                throw new IllegalStateException("Unexpected value: " + command.getArgs()[1]);
         }
         return 0;
     }

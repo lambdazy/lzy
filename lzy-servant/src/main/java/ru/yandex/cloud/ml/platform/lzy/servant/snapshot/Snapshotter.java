@@ -4,7 +4,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 
 public interface Snapshotter {
     void prepare(Slot slot);
+
     void commit(Slot slot);
+
     SlotSnapshotProvider snapshotProvider();
 
     class DevNullSnapshotter implements Snapshotter {

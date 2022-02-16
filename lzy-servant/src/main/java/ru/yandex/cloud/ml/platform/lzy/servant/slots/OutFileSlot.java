@@ -23,8 +23,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
@@ -43,7 +43,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     private Future<?> snapshotWrite;
 
     protected OutFileSlot(String tid, Slot definition, Path storage,
-        SlotSnapshotProvider snapshotProvider) {
+                          SlotSnapshotProvider snapshotProvider) {
         super(definition, snapshotProvider);
         this.tid = tid;
         this.storage = storage;
@@ -157,7 +157,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     public Operations.SlotStatus status() {
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
-            .setDeclaration(gRPCConverter.to(definition()));
+            .setDeclaration(GrpcConverter.to(definition()));
         if (tid != null) {
             builder.setTaskId(tid);
         }
@@ -171,6 +171,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             try {
                 this.wait();
             } catch (InterruptedException ignore) {
+                // Ignored exception
             }
         }
         LOG.info("Slot {} is ready", name());

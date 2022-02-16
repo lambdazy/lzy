@@ -1,21 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
-import org.apache.commons.cli.CommandLine;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
-
 import java.io.FileReader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.UUID;
 import org.apache.commons.cli.CommandLine;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
@@ -56,8 +47,7 @@ public class Terminal implements LzyCommand {
                 String token = JwtCredentials.buildJWT(System.getenv("USER"), keyReader);
                 builder.token(token);
             }
-        }
-        else {
+        } else {
             builder.token("");
         }
         final LzyAgent terminal = new LzyTerminal(builder.build());

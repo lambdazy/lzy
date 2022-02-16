@@ -1,8 +1,23 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.*;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.LocalModule;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AmazonCredentials;
@@ -14,15 +29,40 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Builder
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
-import javax.annotation.Nullable;
-import java.net.URI;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-public abstract class gRPCConverter {
+public abstract class GrpcConverter {
     public static Zygote from(Operations.Zygote grpcOperation) {
         return new AtomicZygoteAdapter(grpcOperation);
+    }
+
+    public static Slot from(Operations.Slot grpcSlot) {
+        return new SlotAdapter(grpcSlot);
+    }
+
+    public static SlotStatus from(Operations.SlotStatus slotStatus) {
+        return new SlotStatusAdapter(slotStatus);
+    }
+
+    private static Provisioning from(Operations.Provisioning provisioning) {
+        return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
+    }
+
+    private static Env from(Operations.Env env) {
+        if (env.hasPyenv()) {
+            return from(env.getPyenv());
+        }
+        return null;
+    }
+
+    private static PythonEnv from(Operations.PythonEnv env) {
+        return new PythonEnvAdapter(env);
+    }
+
+    public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
+        return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
+    }
+
+    public static DataSchema contentTypeFrom(String contentTypeJson) {
+        return null;
     }
 
     public static Operations.Zygote to(Zygote zygote) {
@@ -33,7 +73,7 @@ public abstract class gRPCConverter {
             builder.setProvisioning(to(atomicZygote.provisioning()));
             builder.setFuze(atomicZygote.fuze());
             Stream.concat(Stream.of(atomicZygote.input()), Stream.of(atomicZygote.output()))
-                    .forEach(slot -> builder.addSlots(to(slot)));
+                .forEach(slot -> builder.addSlots(to(slot)));
         }
         return builder.build();
     }
@@ -46,18 +86,17 @@ public abstract class gRPCConverter {
         return builder.build();
     }
 
-
     public static Operations.PythonEnv to(PythonEnv env) {
         List<Operations.LocalModule> localModules = new ArrayList<>();
         env.localModules().forEach(localModule -> localModules.add(Operations.LocalModule.newBuilder()
-                .setName(localModule.name())
-                .setUri(localModule.uri())
-                .build()));
+            .setName(localModule.name())
+            .setUri(localModule.uri())
+            .build()));
         return Operations.PythonEnv.newBuilder()
-                .setName(env.name())
-                .setYaml(env.yaml())
-                .addAllLocalModules(localModules)
-                .build();
+            .setName(env.name())
+            .setYaml(env.yaml())
+            .addAllLocalModules(localModules)
+            .build();
     }
 
     public static Operations.Slot to(Slot slot) {
@@ -69,45 +108,17 @@ public abstract class gRPCConverter {
             .build();
     }
 
-    public static Slot from(Operations.Slot grpcSlot) {
-        return new SlotAdapter(grpcSlot);
-    }
-
-    public static SlotStatus from(Operations.SlotStatus slotStatus) {
-        return new SlotStatusAdapter(slotStatus);
-    }
-
     public static String to(DataSchema contentType) {
         return "not implemented yet";
     }
 
-    public static DataSchema contentTypeFrom(String contentTypeJson) {
-        return null;
-    }
-
     private static Operations.Provisioning to(Provisioning provisioning) {
         return Operations.Provisioning.newBuilder()
-                .addAllTags(provisioning.tags()
-                        .map(tag -> Operations.Provisioning.Tag.newBuilder().setTag(tag.tag()).build())
-                        .collect(Collectors.toList()))
-                .build();
+            .addAllTags(provisioning.tags()
+                .map(tag -> Operations.Provisioning.Tag.newBuilder().setTag(tag.tag()).build())
+                .collect(Collectors.toList()))
+            .build();
     }
-
-    private static Provisioning from(Operations.Provisioning provisioning) {
-        return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
-    }
-
-    private static Env envFrom(Operations.Env env) {
-        if (env.hasPyenv()) {
-            return envFrom(env.getPyenv());
-        }
-        return null;
-    }
-
-    private static PythonEnv envFrom(Operations.PythonEnv env) {
-        return new PythonEnvAdapter(env);
-    }
-
 
     public static Channels.Channel to(Channel channel) {
         final Channels.Channel.Builder builder = Channels.Channel.newBuilder();
@@ -121,17 +132,20 @@ public abstract class gRPCConverter {
     }
 
     public static Lzy.GetS3CredentialsResponse to(StorageCredentials credentials) {
-        switch (credentials.type()){
-            case Azure: return to((StorageCredentials.AzureCredentials) credentials);
-            case AzureSas: return to((StorageCredentials.AzureSASCredentials) credentials);
-            case Amazon: return to((StorageCredentials.AmazonCredentials)  credentials);
+        switch (credentials.type()) {
+            case Azure:
+                return to((StorageCredentials.AzureCredentials) credentials);
+            case AzureSas:
+                return to((StorageCredentials.AzureSASCredentials) credentials);
+            case Amazon:
+                return to((StorageCredentials.AmazonCredentials) credentials);
             default:
             case Empty:
                 return GetS3CredentialsResponse.newBuilder().build();
         }
     }
 
-    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureCredentials credentials){
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureCredentials credentials) {
         return GetS3CredentialsResponse.newBuilder()
             .setAzure(
                 AzureCredentials.newBuilder()
@@ -141,7 +155,7 @@ public abstract class gRPCConverter {
             .build();
     }
 
-    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AmazonCredentials credentials){
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AmazonCredentials credentials) {
         return GetS3CredentialsResponse.newBuilder()
             .setAmazon(AmazonCredentials.newBuilder()
                 .setEndpoint(credentials.endpoint())
@@ -151,7 +165,7 @@ public abstract class gRPCConverter {
             .build();
     }
 
-    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureSASCredentials credentials){
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureSASCredentials credentials) {
         return GetS3CredentialsResponse.newBuilder()
             .setAzureSas(
                 AzureSASCredentials.newBuilder()
@@ -163,7 +177,9 @@ public abstract class gRPCConverter {
     }
 
     public static LzyWhiteboard.WhiteboardField to(
-            WhiteboardField field, List<WhiteboardField> dependent, @Nullable SnapshotEntryStatus entryStatus) {
+        WhiteboardField field,
+        List<WhiteboardField> dependent,
+        @Nullable SnapshotEntryStatus entryStatus) {
         final Builder builder = LzyWhiteboard.WhiteboardField.newBuilder()
             .setFieldName(field.name())
             .addAllDependentFieldNames(dependent.stream().map(WhiteboardField::name).collect(Collectors.toList()));
@@ -195,10 +211,6 @@ public abstract class gRPCConverter {
             }
         }
         return builder.build();
-    }
-
-    public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
-        return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
     }
 
     public static LzyWhiteboard.WhiteboardStatus to(WhiteboardStatus.State state) {
@@ -245,7 +257,7 @@ public abstract class gRPCConverter {
 
         @Override
         public Env env() {
-            return envFrom(operation.getEnv());
+            return from(operation.getEnv());
         }
 
         @Override
@@ -380,7 +392,7 @@ public abstract class gRPCConverter {
             this.env = env;
             localModules = new ArrayList<>();
             env.getLocalModulesList()
-                    .forEach(localModule -> localModules.add(new LocalModuleAdapter(localModule)));
+                .forEach(localModule -> localModules.add(new LocalModuleAdapter(localModule)));
         }
 
         @Override

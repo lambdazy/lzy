@@ -11,7 +11,7 @@ import org.apache.logging.log4j.Logger;
 import java.net.URI;
 import java.util.UUID;
 
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
@@ -77,7 +77,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
             return;
         }
-        repository.prepare(gRPCConverter.from(request.getEntry(), snapshotStatus.snapshot()),
+        repository.prepare(GrpcConverter.from(request.getEntry(), snapshotStatus.snapshot()),
             request.getEntry().getStorageUri(),
             request.getEntry().getDependentEntryIdsList());
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus

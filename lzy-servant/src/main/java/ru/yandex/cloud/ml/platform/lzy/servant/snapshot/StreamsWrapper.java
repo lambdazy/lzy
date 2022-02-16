@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import com.google.protobuf.ByteString;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

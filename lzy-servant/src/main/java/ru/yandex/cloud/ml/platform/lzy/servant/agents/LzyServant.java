@@ -12,8 +12,8 @@ import java.net.URISyntaxException;
 import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
@@ -75,7 +75,7 @@ public class LzyServant extends LzyAgent {
                     .build()
             );
         credentials = resp;
-        storage =  SnapshotStorage.create(resp);
+        storage = SnapshotStorage.create(resp);
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(
@@ -137,7 +137,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void execute(Tasks.TaskSpec request,
-            StreamObserver<Servant.ExecutionProgress> responseObserver) {
+                            StreamObserver<Servant.ExecutionProgress> responseObserver) {
             final long executeMillis = System.currentTimeMillis();
             status.set(AgentStatus.PREPARING_EXECUTION);
             LOG.info("LzyServant::execute " + JsonUtils.printRequest(request));
@@ -149,7 +149,7 @@ public class LzyServant extends LzyAgent {
             final SnapshotMeta meta =
                 request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta())
                     : SnapshotMeta.empty();
-            final AtomicZygote zygote = (AtomicZygote) gRPCConverter.from(request.getZygote());
+            final AtomicZygote zygote = (AtomicZygote) GrpcConverter.from(request.getZygote());
             final Snapshotter snapshotter = new SnapshotterImpl(auth.getTask(), bucket, zygote,
                 snapshot, meta, storage);
 
@@ -209,7 +209,7 @@ public class LzyServant extends LzyAgent {
 
             for (Tasks.SlotAssignment spec : request.getAssignmentsList()) {
                 final LzySlot lzySlot = currentExecution.configureSlot(
-                    gRPCConverter.from(spec.getSlot()),
+                    GrpcConverter.from(spec.getSlot()),
                     spec.getBinding()
                 );
                 if (lzySlot instanceof LzyFileSlot) {
@@ -247,7 +247,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void openOutputSlot(Servant.SlotRequest request,
-            StreamObserver<Servant.Message> responseObserver) {
+                                   StreamObserver<Servant.Message> responseObserver) {
             final long start = System.currentTimeMillis();
             LOG.info("LzyServant::openOutputSlot " + JsonUtils.printRequest(request));
             if (currentExecution == null || currentExecution.slot(request.getSlot()) == null) {
@@ -289,7 +289,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void signal(Tasks.TaskSignal request,
-            StreamObserver<Servant.ExecutionStarted> responseObserver) {
+                           StreamObserver<Servant.ExecutionStarted> responseObserver) {
             if (status.get().getValue() < AgentStatus.EXECUTING.getValue()) {
                 responseObserver.onError(Status.ABORTED.asException());
                 return;
@@ -305,13 +305,13 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void update(IAM.Auth request,
-            StreamObserver<Servant.ExecutionStarted> responseObserver) {
+                           StreamObserver<Servant.ExecutionStarted> responseObserver) {
             LzyServant.this.update(request, responseObserver);
         }
 
         @Override
         public void status(IAM.Empty request,
-            StreamObserver<Servant.ServantStatus> responseObserver) {
+                           StreamObserver<Servant.ServantStatus> responseObserver) {
             LzyServant.this.status(currentExecution, request, responseObserver);
         }
 

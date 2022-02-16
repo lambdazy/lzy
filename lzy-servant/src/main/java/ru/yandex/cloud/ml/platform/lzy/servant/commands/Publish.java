@@ -25,10 +25,10 @@ public class Publish implements LzyCommand {
         }
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final ManagedChannel channel = ChannelBuilder
-                .forAddress(serverAddr.getHost(), serverAddr.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                .build();
+            .forAddress(serverAddr.getHost(), serverAddr.getPort())
+            .usePlaintext()
+            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+            .build();
         final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(channel);
         final Operations.Zygote.Builder zbuilder = Operations.Zygote.newBuilder();
         JsonFormat.parser()

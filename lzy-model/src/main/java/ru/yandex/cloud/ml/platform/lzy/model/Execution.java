@@ -1,26 +1,31 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
-import javax.annotation.Nullable;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 public interface Execution {
-  Zygote operation();
+    Zygote operation();
 
-  Stream<Communication> incoming();
-  Stream<Communication> outgoing();
-  ReproducibilityLevel rl();
+    Stream<Communication> incoming();
 
-  interface Communication {
-    Slot socket();
-    @Nullable
-    byte[] content();
-    long hash();
-    long duration();
-  }
+    Stream<Communication> outgoing();
 
-  enum ReproducibilityLevel {
-    ByteLevel,
-    StatLevel,
-    SratLevel
-  }
+    ReproducibilityLevel rl();
+
+    enum ReproducibilityLevel {
+        ByteLevel,
+        StatLevel,
+        SratLevel
+    }
+
+    interface Communication {
+        Slot socket();
+
+        @Nullable
+        byte[] content();
+
+        long hash();
+
+        long duration();
+    }
 }

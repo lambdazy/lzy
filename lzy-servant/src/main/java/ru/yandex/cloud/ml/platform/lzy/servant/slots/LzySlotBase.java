@@ -1,26 +1,25 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 public class LzySlotBase implements LzySlot {
     private static final Logger LOG = LogManager.getLogger(LzySlotBase.class);
-    private final Slot definition;
-    private Operations.SlotStatus.State state = Operations.SlotStatus.State.UNBOUND;
-    private final Map<Operations.SlotStatus.State, List<Runnable>> actions = Collections.synchronizedMap(new HashMap<>());
     protected final SlotSnapshotProvider snapshotProvider;
+    private final Slot definition;
+    private final Map<Operations.SlotStatus.State, List<Runnable>> actions =
+        Collections.synchronizedMap(new HashMap<>());
+    private Operations.SlotStatus.State state = Operations.SlotStatus.State.UNBOUND;
 
     protected LzySlotBase(Slot definition, SlotSnapshotProvider snapshotProvider) {
         this.snapshotProvider = snapshotProvider;
@@ -45,8 +44,9 @@ public class LzySlotBase implements LzySlot {
     }
 
     public synchronized void state(Operations.SlotStatus.State newState) {
-        if (state == newState)
+        if (state == newState) {
             return;
+        }
         state = newState;
         notifyAll();
         ForkJoinPool.commonPool().execute(() -> actions.getOrDefault(newState, List.of()).forEach(Runnable::run));
@@ -79,8 +79,9 @@ public class LzySlotBase implements LzySlot {
         while (state != this.state && this.state != Operations.SlotStatus.State.DESTROYED) {
             try {
                 wait();
+            } catch (InterruptedException ignore) {
+                // Ignored exception
             }
-            catch (InterruptedException ignore) {}
         }
     }
 }

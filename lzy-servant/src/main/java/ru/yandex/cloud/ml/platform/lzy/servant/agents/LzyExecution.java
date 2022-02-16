@@ -1,19 +1,32 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
+import java.io.OutputStreamWriter;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvironment;
@@ -22,28 +35,18 @@ import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashEnvironment;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.InFileSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.LineReaderSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.LocalOutFileSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.LzySlotBase;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.OutFileSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.WriterSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
-import java.io.OutputStreamWriter;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.Lock;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
 public class LzyExecution {
@@ -56,16 +59,17 @@ public class LzyExecution {
     private final LineReaderSlot stderrSlot;
     private final URI servantUri;
     private final WriterSlot stdinSlot;
-    private Process exec;
-    private String arguments = "";
     private final Map<String, LzySlot> slots = new ConcurrentHashMap<>();
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final LockManager lockManager = new LocalLockManager();
     private final Snapshotter snapshotter;
     /* temporary bad solution; will go away */
     private final Lzy.GetS3CredentialsResponse credentials;
+    private Process exec;
+    private String arguments = "";
 
-    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, Snapshotter snapshotter, Lzy.GetS3CredentialsResponse credentials) {
+    public LzyExecution(String taskId, AtomicZygote zygote, URI servantUri, Snapshotter snapshotter,
+                        Lzy.GetS3CredentialsResponse credentials) {
         this.taskId = taskId;
         this.zygote = zygote;
         stdinSlot = new WriterSlot(taskId, new TextLinesInSlot("/dev/stdin"), snapshotter.snapshotProvider());
@@ -103,7 +107,7 @@ public class LzyExecution {
                         if (zygote != null || spec.direction() == Slot.Direction.INPUT) {
                             progress(Servant.ExecutionProgress.newBuilder()
                                 .setDetach(Servant.SlotDetach.newBuilder()
-                                    .setSlot(gRPCConverter.to(spec))
+                                    .setSlot(GrpcConverter.to(spec))
                                     .setUri(servantUri.toString() + spec.name())
                                     .build()
                                 ).build()
@@ -129,7 +133,7 @@ public class LzyExecution {
                 progress(Servant.ExecutionProgress.newBuilder().setAttach(
                     Servant.SlotAttach.newBuilder()
                         .setChannel(binding)
-                        .setSlot(gRPCConverter.to(spec))
+                        .setSlot(GrpcConverter.to(spec))
                         .setUri(servantUri.toString() + slotPath)
                         .build()
                 ).build());
@@ -163,17 +167,21 @@ public class LzyExecution {
                             return new InFileSlot(taskId, spec, snapshotter.snapshotProvider());
                         case OUTPUT:
                             if (spec.name().startsWith("local://")) {
-                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()), snapshotter.snapshotProvider());
+                                return new LocalOutFileSlot(taskId, spec, URI.create(spec.name()),
+                                    snapshotter.snapshotProvider());
                             }
                             return new OutFileSlot(taskId, spec, snapshotter.snapshotProvider());
+                        default:
+                            throw new IllegalStateException("Unexpected value: " + spec.direction());
                     }
-                    break;
                 }
                 case ARG:
                     arguments = binding;
-                    return new LzySlotBase(spec, snapshotter.snapshotProvider()) {};
+                    return new LzySlotBase(spec, snapshotter.snapshotProvider()) {
+                    };
+                default:
+                    throw new UnsupportedOperationException("Not implemented yet");
             }
-            throw new UnsupportedOperationException("Not implemented yet");
         } finally {
             lock.unlock();
         }
@@ -256,7 +264,7 @@ public class LzyExecution {
             if (rc != 0) {
                 Set.copyOf(slots.values()).stream()
                     .filter(s -> s instanceof LzyOutputSlot)
-                    .map(s -> (LzyOutputSlot)s)
+                    .map(s -> (LzyOutputSlot) s)
                     .forEach(LzyOutputSlot::forceClose);
             }
             synchronized (slots) {

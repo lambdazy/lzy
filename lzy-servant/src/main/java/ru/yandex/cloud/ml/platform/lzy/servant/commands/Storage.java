@@ -2,14 +2,14 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
-import org.apache.commons.cli.*;
+import java.net.URI;
+import java.util.Base64;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-
-import java.net.URI;
-import java.util.Base64;
 
 public class Storage implements LzyCommand {
 
@@ -18,7 +18,7 @@ public class Storage implements LzyCommand {
     @Override
     public int execute(CommandLine command) throws Exception {
         IAM.Auth auth = IAM.Auth
-                .parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
+            .parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
 
         if (command.getArgs().length < 2) {
             throw new IllegalArgumentException("Please specify operation type");
@@ -26,10 +26,10 @@ public class Storage implements LzyCommand {
 
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final ManagedChannel serverCh = ChannelBuilder
-                .forAddress(serverAddr.getHost(), serverAddr.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                .build();
+            .forAddress(serverAddr.getHost(), serverAddr.getPort())
+            .usePlaintext()
+            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+            .build();
         LzyKharonGrpc.LzyKharonBlockingStub kharon = LzyKharonGrpc.newBlockingStub(serverCh);
 
         switch (command.getArgs()[1]) {
@@ -38,9 +38,9 @@ public class Storage implements LzyCommand {
                     throw new IllegalArgumentException("Please specify bucket name");
                 }
                 Lzy.GetS3CredentialsRequest.Builder builder = Lzy.GetS3CredentialsRequest
-                        .newBuilder()
-                        .setAuth(auth)
-                        .setBucket(command.getArgs()[2]);
+                    .newBuilder()
+                    .setAuth(auth)
+                    .setBucket(command.getArgs()[2]);
 
                 Lzy.GetS3CredentialsResponse resp = kharon.getS3Credentials(builder.build());
                 System.out.println(JsonFormat.printer().print(resp));
@@ -48,8 +48,8 @@ public class Storage implements LzyCommand {
             }
             case "bucket": {
                 Lzy.GetBucketRequest.Builder builder = Lzy.GetBucketRequest
-                        .newBuilder()
-                        .setAuth(auth);
+                    .newBuilder()
+                    .setAuth(auth);
 
                 Lzy.GetBucketResponse resp = kharon.getBucket(builder.build());
                 System.out.println(JsonFormat.printer().print(resp));

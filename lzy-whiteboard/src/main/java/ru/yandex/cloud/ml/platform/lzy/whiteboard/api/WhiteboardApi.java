@@ -1,6 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.api;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
+import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
 
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -14,7 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
@@ -142,7 +142,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                         .collect(Collectors.toList());
                     final SnapshotEntry entry = field.entry();
                     if (entry == null) {
-                        return gRPCConverter.to(field, dependent, null);
+                        return GrpcConverter.to(field, dependent, null);
                     }
                     SnapshotEntryStatus entryStatus = snapshotRepository.resolveEntryStatus(
                         entry.snapshot(), entry.id()
@@ -150,7 +150,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                     if (entryStatus == null) {
                         throw new RuntimeException("Cannot find snapshot entry: " + entry.id());
                     }
-                    return gRPCConverter.to(
+                    return GrpcConverter.to(
                         field,
                         dependent,
                         entryStatus
