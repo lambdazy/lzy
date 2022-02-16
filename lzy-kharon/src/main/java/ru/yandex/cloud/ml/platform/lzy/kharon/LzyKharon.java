@@ -1,16 +1,18 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
-import io.grpc.*;
+import io.grpc.Context;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.ServerInterceptors;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import java.util.function.Function;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Iterator;
+import java.util.function.Function;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -18,6 +20,9 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
@@ -41,15 +46,13 @@ import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 public class LzyKharon {
 
     private static final Logger LOG = LogManager.getLogger(LzyKharon.class);
-    private final LzyServerGrpc.LzyServerBlockingStub server;
-    private final WbApiGrpc.WbApiBlockingStub whiteboard;
-    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
-
-    private final TerminalSessionManager terminalManager;
-    private final DataCarrier dataCarrier = new DataCarrier();
-    private final ServantConnectionManager connectionManager = new ServantConnectionManager();
-
     private static final Options options = new Options();
+    public static String host;
+    public static int port;
+    public static int servantPort;
+    public static URI serverAddress;
+    public static URI whiteboardAddress;
+    public static URI snapshotAddress;
 
     static {
         options.addOption(new Option("h", "host", true, "Kharon host name"));
@@ -63,42 +66,14 @@ public class LzyKharon {
             new Option("lsa", "lzy-snapshot-address", true, "Lzy snapshot address [host:port]"));
     }
 
-    public static String host;
-    public static int port;
-    public static int servantPort;
-    public static URI serverAddress;
-    public static URI whiteboardAddress;
-    public static URI snapshotAddress;
-
+    private final LzyServerGrpc.LzyServerBlockingStub server;
+    private final WbApiGrpc.WbApiBlockingStub whiteboard;
+    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
+    private final TerminalSessionManager terminalManager;
+    private final DataCarrier dataCarrier = new DataCarrier();
+    private final ServantConnectionManager connectionManager = new ServantConnectionManager();
     private final Server kharonServer;
     private final Server kharonServantProxy;
-
-    public static void main(String[] args)
-        throws IOException, InterruptedException, URISyntaxException {
-        final CommandLineParser cliParser = new DefaultParser();
-        final HelpFormatter cliHelp = new HelpFormatter();
-        CommandLine parse = null;
-        try {
-            parse = cliParser.parse(options, args);
-        } catch (ParseException e) {
-            System.out.println(e.getMessage());
-            cliHelp.printHelp("lzy-kharon", options);
-            System.exit(-1);
-        }
-        host = parse.getOptionValue('h', "localhost");
-        port = Integer.parseInt(parse.getOptionValue('p', "8899"));
-        servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
-        serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
-        whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
-        snapshotAddress = URI
-            .create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
-
-        final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, snapshotAddress,
-            host, port, servantPort);
-        kharon.start();
-        kharon.awaitTermination();
-    }
-
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
         int servantProxyPort) throws URISyntaxException {
@@ -136,6 +111,32 @@ public class LzyKharon {
             .build();
     }
 
+    public static void main(String[] args)
+        throws IOException, InterruptedException, URISyntaxException {
+        final CommandLineParser cliParser = new DefaultParser();
+        final HelpFormatter cliHelp = new HelpFormatter();
+        CommandLine parse = null;
+        try {
+            parse = cliParser.parse(options, args);
+        } catch (ParseException e) {
+            System.out.println(e.getMessage());
+            cliHelp.printHelp("lzy-kharon", options);
+            System.exit(-1);
+        }
+        host = parse.getOptionValue('h', "localhost");
+        port = Integer.parseInt(parse.getOptionValue('p', "8899"));
+        servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
+        serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
+        whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
+        snapshotAddress = URI
+            .create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
+
+        final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, snapshotAddress,
+            host, port, servantPort);
+        kharon.start();
+        kharon.awaitTermination();
+    }
+
     public void start() throws IOException {
         kharonServer.start();
         kharonServantProxy.start();
@@ -153,7 +154,9 @@ public class LzyKharon {
     }
 
     private static class ProxyCall {
-        public static <ReqT, RespT> void exec(Function<ReqT, RespT> impl, ReqT request, StreamObserver<RespT> responseObserver) {
+
+        public static <ReqT, RespT> void exec(Function<ReqT, RespT> impl, ReqT request,
+            StreamObserver<RespT> responseObserver) {
             try {
                 final RespT response = impl.apply(request);
                 responseObserver.onNext(response);
@@ -315,7 +318,7 @@ public class LzyKharon {
 
         @Override
         public void whiteboardsList(LzyWhiteboard.WhiteboardsListCommand request,
-                                                 StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
+            StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
             ProxyCall.exec(whiteboard::whiteboardsList, request, responseObserver);
         }
     }
@@ -327,8 +330,8 @@ public class LzyKharon {
             StreamObserver<Servant.ExecutionProgress> responseObserver) {
             try {
                 final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
-                LOG.info("KharonServantProxyService sessionId = " + session.sessionId() +
-                    "::execute " + JsonUtils.printRequest(request));
+                LOG.info("KharonServantProxyService sessionId = " + session.sessionId()
+                    + "::execute " + JsonUtils.printRequest(request));
                 session.setExecutionProgress(responseObserver);
                 Context.current().addListener(context -> {
                     LOG.info("Execution terminated from server");
@@ -345,8 +348,8 @@ public class LzyKharon {
             try {
                 final TerminalSession session = terminalManager
                     .getTerminalSessionFromSlotUri(request.getSlotUri());
-                LOG.info("KharonServantProxyService sessionId = " + session.sessionId() +
-                    "::openOutputSlot " + JsonUtils.printRequest(request));
+                LOG.info("KharonServantProxyService sessionId = " + session.sessionId()
+                    + "::openOutputSlot " + JsonUtils.printRequest(request));
                 LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
                 dataCarrier.openServantConnection(URI.create(request.getSlotUri()),
                     responseObserver);
