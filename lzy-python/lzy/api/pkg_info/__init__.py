@@ -127,14 +127,21 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
             # if parent module_name in local_modules already then all parent
             # modules there too already
             current_parents.append(sys.modules[full_module_name])
-        parents.extend(reversed(current_parents))
+        if len(current_parents) > 0:
+            parents.extend(reversed(current_parents))
+        else:
+            parents.append(module)
 
     for _, entry in namespace.items():
         search(entry)
 
     # remove duplicates and keep order as dict preserves order since python3.7
     parents = list(dict.fromkeys(parents))
-    local_modules = list(dict.fromkeys(local_modules))
+    local_modules_dict = dict.fromkeys(local_modules)
+    for parent in parents:
+        if parent in local_modules_dict:
+            del local_modules_dict[parent]  # remove modules without parents from local modules
+    local_modules = list(local_modules_dict)
     local_modules.reverse()
 
     # reverse to ensure the right order: from leaves to the root
