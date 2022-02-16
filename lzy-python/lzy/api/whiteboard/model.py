@@ -124,7 +124,7 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def list(self, namespace: str, tags: List[str], from_date: str = None, to_date: str = None) -> List[WhiteboardDescription]:
+    def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None) -> List[WhiteboardDescription]:
         pass
 
     @abstractmethod
@@ -175,16 +175,14 @@ class InMemWhiteboardApi(WhiteboardApi):
     def get(self, wb_id: str) -> WhiteboardDescription:
         return self.__whiteboards[wb_id]
 
-    def list(self, namespace: str, tags: List[str], from_date: str = None, to_date: str = None) \
+    def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None) \
             -> List[WhiteboardDescription]:
         if not from_date:
-            from_date = '0001-01-01'
+            from_date = datetime(1, 1, 1, tzinfo=timezone.utc)
         if not to_date:
-            to_date = '9999-12-31'
-        from_local = datetime.strptime(from_date, '%Y-%m-%d')
-        from_utc = datetime.fromtimestamp(from_local.timestamp(), tz=timezone.utc)
-        to_local = datetime.strptime(to_date, '%Y-%m-%d')
-        to_utc = datetime.fromtimestamp(to_local.timestamp(), tz=timezone.utc)
+            to_date = datetime(9999, 12, 31, tzinfo=timezone.utc)
+        from_utc = datetime.fromtimestamp(from_date.timestamp(), tz=timezone.utc)
+        to_utc = datetime.fromtimestamp(to_date.timestamp(), tz=timezone.utc)
         namespace_ids = [k for k, v in self.__namespaces.items() if v == namespace]
         tags_ids = [k for k, v in self.__tags.items() if all(item in v for item in tags)]
         wb_ids = set.intersection(set(namespace_ids), set(tags_ids))

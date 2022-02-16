@@ -13,10 +13,9 @@ import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
@@ -71,8 +70,8 @@ public class SnapshotTest extends LzyBaseTest {
     }
 
     private List<LzyWhiteboard.Whiteboard> getWhiteboardsList(String namespace, List<String> tags,
-            String fromDateLocalTimezone, String toDateLocalTimezone) throws InvalidProtocolBufferException {
-        String whiteboardsJson = terminal.getWhiteboardsList(namespace, tags, fromDateLocalTimezone, toDateLocalTimezone);
+            Long fromDateLocalTimezone, Long toDateLocalTimezone) throws InvalidProtocolBufferException {
+        String whiteboardsJson = terminal.whiteboards(namespace, tags, fromDateLocalTimezone, toDateLocalTimezone);
         LzyWhiteboard.WhiteboardsResponse.Builder builder = LzyWhiteboard.WhiteboardsResponse.newBuilder();
         JsonFormat.parser().merge(whiteboardsJson, builder);
         return builder.build().getWhiteboardsList();
@@ -221,6 +220,11 @@ public class SnapshotTest extends LzyBaseTest {
         final String firstNamespace = "firstNamespace";
         final String secondNamespace = "secondNamespace";
 
+        OffsetDateTime localDateTime = OffsetDateTime.now();
+        Long timestamp = localDateTime.toInstant().getEpochSecond();
+        localDateTime = localDateTime.plusDays(1);
+        Long timestampNextDay = localDateTime.toInstant().getEpochSecond();
+
         final String wbIdFirst = createWhiteboard(
                 spIdFirst, List.of("fileNameX", "fileNameY"), List.of(firstTag, secondTag), firstNamespace
         );
@@ -242,16 +246,8 @@ public class SnapshotTest extends LzyBaseTest {
                 spIdSecond, List.of("fileNameD"), List.of(firstTag, thirdTag), secondNamespace);
         Assert.assertNotNull(wbIdFifth);
 
-        Date currentDate = new Date();
-        LocalDateTime localDateTime = currentDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        String fromDateLocalTimezone = dateFormatter.format(localDateTime);
-        localDateTime = localDateTime.plusDays(1);
-        String toDateLocalTimezone = dateFormatter.format(localDateTime);
-
-
         List<LzyWhiteboard.Whiteboard> list = getWhiteboardsList(
-            firstNamespace, List.of(secondTag), fromDateLocalTimezone, toDateLocalTimezone);
+            firstNamespace, List.of(secondTag), timestamp, timestampNextDay);
         Assert.assertEquals(2, list.size());
         Assert.assertTrue(
                 list.stream()
@@ -260,7 +256,7 @@ public class SnapshotTest extends LzyBaseTest {
                         .containsAll(List.of(wbIdFirst, wbIdThird))
         );
 
-        list = getWhiteboardsList(firstNamespace, Collections.emptyList(), fromDateLocalTimezone, toDateLocalTimezone);
+        list = getWhiteboardsList(firstNamespace, Collections.emptyList(), timestamp, timestampNextDay);
         Assert.assertEquals(3, list.size());
         Assert.assertTrue(
                 list.stream()
@@ -269,7 +265,7 @@ public class SnapshotTest extends LzyBaseTest {
                         .containsAll(List.of(wbIdFirst, wbIdThird, wbIdFourth))
         );
 
-        list = getWhiteboardsList(secondNamespace, List.of(firstTag, thirdTag), fromDateLocalTimezone, toDateLocalTimezone);
+        list = getWhiteboardsList(secondNamespace, List.of(firstTag, thirdTag), timestamp, timestampNextDay);
         Assert.assertEquals(2, list.size());
         Assert.assertTrue(
                 list.stream()
@@ -279,9 +275,9 @@ public class SnapshotTest extends LzyBaseTest {
         );
 
         // intentionally setting the interval to be in the future
-        fromDateLocalTimezone = toDateLocalTimezone;
+        timestamp = timestampNextDay;
 
-        list = getWhiteboardsList(secondNamespace, Collections.emptyList(), fromDateLocalTimezone, toDateLocalTimezone);
+        list = getWhiteboardsList(secondNamespace, Collections.emptyList(), timestamp, timestampNextDay);
         Assert.assertEquals(0, list.size());
     }
 }

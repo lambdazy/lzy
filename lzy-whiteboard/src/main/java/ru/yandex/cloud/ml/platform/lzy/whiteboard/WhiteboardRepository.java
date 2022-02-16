@@ -12,7 +12,7 @@ public interface WhiteboardRepository {
     WhiteboardStatus create(Whiteboard whiteboard);
     @Nullable
     WhiteboardStatus resolveWhiteboard(URI id);
-    List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags,
+    Stream<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags,
         Date fromDateUTCIncluded, Date toDateUTCExcluded);
 
     void update(WhiteboardField field);

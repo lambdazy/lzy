@@ -188,7 +188,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()),
             request.getTagsList(), gRPCConverter.from(request.getFromDateUTC()),
             gRPCConverter.from(request.getToDateUTC())
-        );
+        ).collect(Collectors.toList());
         List<LzyWhiteboard.Whiteboard> result = new ArrayList<>();
         for (var entry : whiteboardStatus) {
             result.add(buildWhiteboard(entry));

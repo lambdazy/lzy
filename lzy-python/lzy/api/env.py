@@ -4,6 +4,7 @@ import os
 from abc import abstractmethod, ABC
 from pathlib import Path
 from types import ModuleType
+from datetime import datetime
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 import cloudpickle
@@ -81,8 +82,8 @@ class LzyEnvBase(ABC):
         wrap_whiteboard_for_read(instance, wb_)
         return instance
 
-    def _whiteboards(self, namespace: str, tags: List[str], typ: Type[T], from_date: str = None, to_date: str = None) \
-            -> List[T]:
+    def _whiteboards(self, namespace: str, tags: List[str], typ: Type[T], from_date: datetime = None,
+                     to_date: datetime = None) -> List[T]:
         check_whiteboard(typ)
         wb_list = self._execution_context.whiteboard_api.list(namespace, tags, from_date, to_date)
         self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags} "
@@ -90,7 +91,7 @@ class LzyEnvBase(ABC):
         result = [self._build_whiteboard(wb_, typ) for wb_ in wb_list]
         return result
 
-    def whiteboards(self, typs: List[Type[T]], from_date: str = None, to_date: str = None) -> WhiteboardList:
+    def whiteboards(self, typs: List[Type[T]], from_date: datetime = None, to_date: datetime = None) -> WhiteboardList:
         whiteboard_dict = {}
         for typ in typs:
             check_whiteboard(typ)

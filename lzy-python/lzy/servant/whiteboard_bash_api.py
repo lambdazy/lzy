@@ -1,6 +1,7 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
+from datetime import datetime
 from typing import Any, Type, Dict, List, TypeVar
 
 # noinspection PyProtectedMember
@@ -132,19 +133,18 @@ class WhiteboardBashApi(WhiteboardApi):
     def _parse_wb_json_list(res: Dict[str, Any]) -> List[WhiteboardDescription]:
         return [WhiteboardBashApi._parse_wb_json(whiteboard) for whiteboard in res.get("whiteboards", [])]
 
-    def list(self, namespace: str, tags: List[str], from_date: str = None, to_date: str = None)\
+    def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None)\
             -> List[WhiteboardDescription]:
-        self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags} "
-                       f"within dates {from_date}-{to_date}")
+        self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags}")
         command = " ".join([f"{self.__mount}/sbin/whiteboard", "list"])
         if tags:
             command = " ".join([command, "-t", ",".join(tags)])
         if namespace:
             command = " ".join([command, "-n", namespace])
         if from_date:
-            command = " ".join([command, "-from", from_date])
+            command = " ".join([command, "-from", str(int(from_date.timestamp()))])
         if to_date:
-            command = " ".join([command, "-to", to_date])
+            command = " ".join([command, "-to", str(int(to_date.timestamp()))])
         out = exec_bash(command)
         try:
             res = json.loads(out)

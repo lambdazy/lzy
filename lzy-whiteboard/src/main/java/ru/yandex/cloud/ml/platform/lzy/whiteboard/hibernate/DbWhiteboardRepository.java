@@ -70,13 +70,13 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     }
 
     @Override
-    public List<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags,
+    public Stream<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags,
         Date fromDateUTCIncluded, Date toDateUTCExcluded) {
         List<String> ids;
         try (Session session = storage.getSessionFactory().openSession()) {
             ids = SessionHelper.resolveWhiteboardIds(namespace, tags, fromDateUTCIncluded, toDateUTCExcluded, session);
         }
-        return ids.stream().map(id -> resolveWhiteboard(URI.create(id))).collect(Collectors.toList());
+        return ids.stream().map(id -> resolveWhiteboard(URI.create(id)));
     }
 
     @Override

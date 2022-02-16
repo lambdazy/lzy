@@ -156,7 +156,8 @@ public class DbWhiteboardRepositoryTest {
     public void testResolveWhiteboardsMultipleWhiteboards() {
         init();
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
-            namespaceFirst, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo);
+            namespaceFirst, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
+        ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardStatusList.size());
         Assert.assertTrue(Objects.equals(whiteboardStatusList.get(0).whiteboard().id().toString(), wbIdFirst) &&
                 Objects.equals(whiteboardStatusList.get(1).whiteboard().id().toString(), wbIdSecond) ||
@@ -169,11 +170,11 @@ public class DbWhiteboardRepositoryTest {
         init();
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
             namespaceFirst, List.of(firstTag, secondTag, thirdTag), creationDateUTCFrom, creationDateUTCTo
-        );
+        ).collect(Collectors.toList());
         Assert.assertEquals(0, whiteboardStatusList.size());
         whiteboardStatusList = impl.resolveWhiteboards(
             namespaceFirst, List.of(firstTag, thirdTag), creationDateUTCFrom, creationDateUTCTo
-        );
+        ).collect(Collectors.toList());
         Assert.assertEquals(0, whiteboardStatusList.size());
     }
 
@@ -182,7 +183,7 @@ public class DbWhiteboardRepositoryTest {
         init();
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
             namespaceFirst, List.of(firstTag), creationDateUTCFrom, creationDateUTCTo
-        );
+        ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardStatusList.size());
     }
 
@@ -196,7 +197,7 @@ public class DbWhiteboardRepositoryTest {
         }
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
             namespaceFirst, Collections.emptyList(), creationDateUTCFrom, creationDateUTCTo
-        );
+        ).collect(Collectors.toList());
         Assert.assertEquals(3, whiteboardStatusList.size());
     }
 
@@ -212,11 +213,11 @@ public class DbWhiteboardRepositoryTest {
         }
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
             namespaceFirst, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
-        );
+        ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardStatusList.size());
         whiteboardStatusList = impl.resolveWhiteboards(
             namespaceSecond, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
-        );
+        ).collect(Collectors.toList());
         Assert.assertEquals(1, whiteboardStatusList.size());
     }
 
@@ -231,15 +232,15 @@ public class DbWhiteboardRepositoryTest {
         }
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
             namespaceFirst, Collections.emptyList(), createDateUTC(1950, 8, 5, 0, 0), createDateUTC(2021, 10, 13, 0, 0)
-        );
+        ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardStatusList.size());
         whiteboardStatusList = impl.resolveWhiteboards(
             namespaceFirst, Collections.emptyList(), createDateUTC(1950, 8, 5, 0, 0), createDateUTC(2021, 10, 14, 0, 0)
-        );
+        ).collect(Collectors.toList());
         Assert.assertEquals(3, whiteboardStatusList.size());
         whiteboardStatusList = impl.resolveWhiteboards(
             namespaceFirst, Collections.emptyList(), createDateUTC(1951, 8, 5, 0, 0), createDateUTC(1963, 10, 14, 0, 0)
-        );
+        ).collect(Collectors.toList());
         Assert.assertEquals(0, whiteboardStatusList.size());
     }
 
