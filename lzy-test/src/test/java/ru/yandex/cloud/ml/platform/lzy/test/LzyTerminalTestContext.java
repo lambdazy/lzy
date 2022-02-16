@@ -7,7 +7,7 @@ import com.google.protobuf.util.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
@@ -131,7 +131,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     Collections.emptyMap(),
                     "bash",
                     "-c",
-                    "echo '" + JsonFormat.printer().print(gRPCConverter.to(zygote)) + "' > filename"
+                    "echo '" + JsonFormat.printer().print(GrpcConverter.to(zygote)) + "' > filename"
                 );
                 execute(
                     Collections.emptyMap(),
@@ -331,7 +331,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     Collections.emptyMap(),
                     "bash",
                     "-c",
-                    "echo '" + JsonFormat.printer().print(gRPCConverter.to(slot)) + "' > slot.json"
+                    "echo '" + JsonFormat.printer().print(GrpcConverter.to(slot)) + "' > slot.json"
                 );
             } catch (InvalidProtocolBufferException e) {
                 throw new RuntimeException(e);

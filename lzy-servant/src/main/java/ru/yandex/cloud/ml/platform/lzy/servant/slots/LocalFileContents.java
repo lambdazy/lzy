@@ -2,11 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import static java.nio.file.StandardOpenOption.WRITE;
 
-import java.util.Arrays;
-import jnr.ffi.Pointer;
-import ru.serce.jnrfuse.ErrorCodes;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -15,9 +10,13 @@ import java.nio.channels.FileChannel;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import jnr.ffi.Pointer;
+import ru.serce.jnrfuse.ErrorCodes;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 
 public class LocalFileContents implements FileContents {
 
@@ -25,6 +24,7 @@ public class LocalFileContents implements FileContents {
     private final FileChannel channel;
     private final AtomicBoolean written = new AtomicBoolean(false);
     private final boolean writable;
+    private final List<Consumer<Boolean>> triggers = new ArrayList<>();
 
     public LocalFileContents(Path file, OpenOption... oo) throws IOException {
         channel = FileChannel.open(file, oo);
@@ -70,8 +70,6 @@ public class LocalFileContents implements FileContents {
         channel.close();
         triggers.forEach(booleanConsumer -> booleanConsumer.accept(written.get()));
     }
-
-    private final List<Consumer<Boolean>> triggers = new ArrayList<>();
 
     public void onClose(Consumer<Boolean> trigger) {
         triggers.add(trigger);

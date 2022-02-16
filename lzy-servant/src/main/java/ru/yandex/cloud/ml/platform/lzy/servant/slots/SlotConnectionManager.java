@@ -23,32 +23,8 @@ public class SlotConnectionManager {
     private final Map<String, List<URI>> connectedChannels = new ConcurrentHashMap<>();
     private final LockManager lockManager = new LocalLockManager();
 
-    private static class Connection {
-
-        private final SlotController controller;
-        private final ManagedChannel channel;
-
-        Connection(URI uri, String serviceName, ControllerCreator controllerCreator) {
-            channel = ChannelBuilder
-                    .forAddress(uri.getHost(), uri.getPort())
-                    .usePlaintext()
-                    .enableRetry(serviceName)
-                    .build();
-            controller = controllerCreator.create(channel);
-        }
-    }
-
-    public interface SlotController {
-
-        Iterator<Servant.Message> openOutputSlot(Servant.SlotRequest request);
-    }
-
-    public interface ControllerCreator {
-
-        SlotController create(ManagedChannel channel);
-    }
-
-    public synchronized SlotController getOrCreate(String slotName, URI slotUri, String serviceName, ControllerCreator controllerCreator) {
+    public synchronized SlotController getOrCreate(String slotName, URI slotUri, String serviceName,
+                                                   ControllerCreator controllerCreator) {
         LOG.info("Create connection to " + slotUri);
         final URI uri = getOnlyHostPortURI(slotUri);
 
@@ -99,6 +75,31 @@ public class SlotConnectionManager {
                 null, null);
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public interface SlotController {
+
+        Iterator<Servant.Message> openOutputSlot(Servant.SlotRequest request);
+    }
+
+    public interface ControllerCreator {
+
+        SlotController create(ManagedChannel channel);
+    }
+
+    private static class Connection {
+
+        private final SlotController controller;
+        private final ManagedChannel channel;
+
+        Connection(URI uri, String serviceName, ControllerCreator controllerCreator) {
+            channel = ChannelBuilder
+                .forAddress(uri.getHost(), uri.getPort())
+                .usePlaintext()
+                .enableRetry(serviceName)
+                .build();
+            controller = controllerCreator.create(channel);
         }
     }
 }

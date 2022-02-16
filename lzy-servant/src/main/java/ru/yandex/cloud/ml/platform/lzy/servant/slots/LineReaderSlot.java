@@ -1,14 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.LineNumberReader;
@@ -20,6 +12,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);
@@ -43,7 +42,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
         return Operations.SlotStatus.newBuilder()
             .setState(state())
             .setPointer(offset)
-            .setDeclaration(gRPCConverter.to(definition()))
+            .setDeclaration(GrpcConverter.to(definition()))
             .setTaskId(tid)
             .build();
     }
@@ -60,6 +59,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
         }
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<>() {
             private String line;
+
             @Override
             public boolean hasNext() {
                 try {
@@ -68,8 +68,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                         snapshotProvider.slotSnapshot(definition()).onFinish();
                     }
                     return line != null;
-                }
-                catch (IOException | InterruptedException | ExecutionException e) {
+                } catch (IOException | InterruptedException | ExecutionException e) {
                     LOG.warn("Unable to read line from reader", e);
                     line = null;
                     snapshotProvider.slotSnapshot(definition()).onFinish();
@@ -79,8 +78,9 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
 
             @Override
             public ByteString next() {
-                if (line == null && !hasNext())
+                if (line == null && !hasNext()) {
                     throw new NoSuchElementException();
+                }
                 final ByteString bytes = ByteString.copyFromUtf8(line + "\n");
                 LineReaderSlot.this.offset += bytes.size();
                 LOG.info("Send from slot {} data {}", name(), line);

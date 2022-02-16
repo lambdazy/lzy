@@ -23,6 +23,7 @@ public interface LzyCommand {
         sessions(new Sessions());
 
         private final LzyCommand command;
+
         Commands(LzyCommand command) {
             this.command = command;
         }

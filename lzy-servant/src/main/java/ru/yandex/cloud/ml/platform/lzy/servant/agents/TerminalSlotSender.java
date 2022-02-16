@@ -13,9 +13,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
-import java.io.IOException;
-import java.net.URI;
-
 
 public class TerminalSlotSender {
 
@@ -26,12 +23,28 @@ public class TerminalSlotSender {
         connectedSlotController = kharonStub;
     }
 
+    private static SendSlotDataMessage createChunkMessage(ByteString chunk) {
+        return SendSlotDataMessage.newBuilder().setMessage(
+            Servant.Message.newBuilder().setChunk(chunk).build()).build();
+    }
+
+    private static SendSlotDataMessage createEosMessage() {
+        return SendSlotDataMessage.newBuilder().setMessage(
+            Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build()).build();
+    }
+
+    public void connect(LzyOutputSlot lzySlot, URI slotUri) {
+        LOG.info("TerminalOutputSlot::connect " + slotUri);
+        final SlotWriter writer = new SlotWriter(lzySlot, slotUri);
+        writer.run();
+    }
+
     private class SlotWriter {
 
         private final LzyOutputSlot lzySlot;
         private final URI slotUri;
-        private long offset = 0;
         private final StreamObserver<SendSlotDataMessage> responseObserver;
+        private long offset = 0;
 
         SlotWriter(LzyOutputSlot lzySlot, URI slotUri) {
             this.lzySlot = lzySlot;
@@ -79,22 +92,6 @@ public class TerminalSlotSender {
                 responseObserver.onError(iae);
             }
         }
-    }
-
-    public void connect(LzyOutputSlot lzySlot, URI slotUri) {
-        LOG.info("TerminalOutputSlot::connect " + slotUri);
-        final SlotWriter writer = new SlotWriter(lzySlot, slotUri);
-        writer.run();
-    }
-
-    private static SendSlotDataMessage createChunkMessage(ByteString chunk) {
-        return SendSlotDataMessage.newBuilder().setMessage(
-            Servant.Message.newBuilder().setChunk(chunk).build()).build();
-    }
-
-    private static SendSlotDataMessage createEosMessage() {
-        return SendSlotDataMessage.newBuilder().setMessage(
-            Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build()).build();
     }
 
 }

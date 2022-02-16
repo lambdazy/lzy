@@ -37,7 +37,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse.Builder;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.SessionDescription;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter.to;
+import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
 
@@ -147,7 +147,7 @@ public class LzyServer {
                 return;
             }
             final Operations.Zygote operation = request.getOperation();
-            if (!operations.publish(request.getName(), gRPCConverter.from(operation))) {
+            if (!operations.publish(request.getName(), GrpcConverter.from(operation))) {
                 responseObserver.onError(Status.ALREADY_EXISTS.asException());
                 return;
             }
@@ -223,9 +223,9 @@ public class LzyServer {
                 return;
             }
             LOG.info("Server::start " + JsonUtils.printRequest(request));
-            final Zygote workload = gRPCConverter.from(request.getZygote());
+            final Zygote workload = GrpcConverter.from(request.getZygote());
             final Map<Slot, String> assignments = new HashMap<>();
-            request.getAssignmentsList().forEach(ass -> assignments.put(gRPCConverter.from(ass.getSlot()), ass.getBinding()));
+            request.getAssignmentsList().forEach(ass -> assignments.put(GrpcConverter.from(ass.getSlot()), ass.getBinding()));
 
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
@@ -297,7 +297,7 @@ public class LzyServer {
                         request.getChannelName(),
                         resolveUser(auth),
                         resolveTask(auth),
-                        gRPCConverter.contentTypeFrom(create.getContentType()));
+                        GrpcConverter.contentTypeFrom(create.getContentType()));
                     if (channel == null)
                         channel = channels.get(request.getChannelName());
                     break;
@@ -459,7 +459,7 @@ public class LzyServer {
                     LOG.info("LzyServer::terminalProgress " + JsonUtils.printRequest(progress));
                     if (progress.hasAttach()) {
                         final Servant.SlotAttach attach = progress.getAttach();
-                        final Slot slot = gRPCConverter.from(attach.getSlot());
+                        final Slot slot = GrpcConverter.from(attach.getSlot());
                         final URI slotUri = URI.create(attach.getUri());
                         final String channelName = attach.getChannel();
                         tasks.addUserSlot(user, slot, channels.get(channelName));
@@ -467,7 +467,7 @@ public class LzyServer {
                     }
                     else if (progress.hasDetach()) {
                         final Servant.SlotDetach detach = progress.getDetach();
-                        final Slot slot = gRPCConverter.from(detach.getSlot());
+                        final Slot slot = GrpcConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
                         tasks.removeUserSlot(user, slot);
                         final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharon);

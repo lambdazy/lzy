@@ -1,6 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.util.concurrent.ForkJoinPool;
 import jnr.ffi.Pointer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,16 +22,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.FileTime;
-import java.util.concurrent.ForkJoinPool;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
 
 public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
@@ -35,7 +34,8 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
         this(tid, definition, Files.createTempFile("lzy", "file-slot"), snapshotProvider);
     }
 
-    public InFileSlot(String tid, Slot definition, Path storage, SlotSnapshotProvider snapshotProvider) throws IOException {
+    public InFileSlot(String tid, Slot definition, Path storage, SlotSnapshotProvider snapshotProvider)
+        throws IOException {
         super(tid, definition, snapshotProvider);
         this.storage = storage;
         outputStream = Files.newOutputStream(storage);
@@ -75,7 +75,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     @Override
     public long ctime() {
         try {
-            return ((FileTime)Files.getAttribute(storage, "unix:creationTime")).toMillis();
+            return ((FileTime) Files.getAttribute(storage, "unix:creationTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -85,7 +85,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     @Override
     public long mtime() {
         try {
-            return ((FileTime)Files.getAttribute(storage, "unix:lastModifiedTime")).toMillis();
+            return ((FileTime) Files.getAttribute(storage, "unix:lastModifiedTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -95,7 +95,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     @Override
     public long atime() {
         try {
-            return ((FileTime)Files.getAttribute(storage, "unix:lastAccessTime")).toMillis();
+            return ((FileTime) Files.getAttribute(storage, "unix:lastAccessTime")).toMillis();
         } catch (IOException e) {
             LOG.warn("Unable to get file creation time", e);
             return 0L;
@@ -131,8 +131,9 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
                 final ByteBuffer bb = ByteBuffer.wrap(bytes);
                 int read = channel.read(bb);
                 LOG.info("Read slot {} from file {}: {}", name(), storage.toString(), read);
-                if (read < 0)
+                if (read < 0) {
                     return 0;
+                }
                 buf.put(0, bytes, 0, read);
                 return read;
             }

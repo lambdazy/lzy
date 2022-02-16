@@ -11,8 +11,8 @@ public enum AuthProviders {
         this.name = name;
     }
 
-    public static AuthProviders fromGrpcMessage(BackOffice.OAuthProviders provider){
-        switch (provider){
+    public static AuthProviders fromGrpcMessage(BackOffice.OAuthProviders provider) {
+        switch (provider) {
             case GITHUB:
                 return GITHUB;
             default:
@@ -20,20 +20,11 @@ public enum AuthProviders {
         }
     }
 
-    public BackOffice.OAuthProviders toGrpcMessage(){
-        switch (this){
-            case GITHUB:
-                return BackOffice.OAuthProviders.GITHUB;
-            default:
-                return BackOffice.OAuthProviders.UNRECOGNIZED;
-        }
-    }
-
-    public static AuthProviders fromString(String s){
-        if (s == null){
+    public static AuthProviders fromString(String s) {
+        if (s == null) {
             return null;
         }
-        switch (s){
+        switch (s) {
             case "github":
                 return GITHUB;
             default:
@@ -41,7 +32,16 @@ public enum AuthProviders {
         }
     }
 
-    public String toString(){
+    public BackOffice.OAuthProviders toGrpcMessage() {
+        switch (this) {
+            case GITHUB:
+                return BackOffice.OAuthProviders.GITHUB;
+            default:
+                return BackOffice.OAuthProviders.UNRECOGNIZED;
+        }
+    }
+
+    public String toString() {
         return name;
     }
 

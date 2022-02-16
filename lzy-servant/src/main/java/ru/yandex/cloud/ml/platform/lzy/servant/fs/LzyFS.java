@@ -37,14 +37,6 @@ public class LzyFS extends FuseStubFS {
     private static final Logger LOG = LogManager.getLogger(LzyFS.class);
 
     private static final int BLOCK_SIZE = 4096;
-    private Map<Path, Set<String>> children = Collections.synchronizedMap(new HashMap<>());
-    private Set<String> roots = Collections.synchronizedSet(new HashSet<>());
-    private Map<Path, LzyScript> executables = Collections.synchronizedMap(new HashMap<>());
-    private Map<Path, LzyFileSlot> slots = Collections.synchronizedMap(new HashMap<>());
-    private Map<Long, FileContents> openFiles = Collections.synchronizedMap(new HashMap<>());
-    private Map<Path, Set<Long>> filesOpen = Collections.synchronizedMap(new HashMap<>());
-
-    private AtomicLong lastFh = new AtomicLong(1000);
     private static long userId;
     private static long groupId;
     private static long startTime;
@@ -59,6 +51,14 @@ public class LzyFS extends FuseStubFS {
         }
     }
 
+    private Map<Path, Set<String>> children = Collections.synchronizedMap(new HashMap<>());
+    private Set<String> roots = Collections.synchronizedSet(new HashSet<>());
+    private Map<Path, LzyScript> executables = Collections.synchronizedMap(new HashMap<>());
+    private Map<Path, LzyFileSlot> slots = Collections.synchronizedMap(new HashMap<>());
+    private Map<Long, FileContents> openFiles = Collections.synchronizedMap(new HashMap<>());
+    private Map<Path, Set<Long>> filesOpen = Collections.synchronizedMap(new HashMap<>());
+    private AtomicLong lastFh = new AtomicLong(1000);
+
     public LzyFS() {
     }
 
@@ -70,14 +70,59 @@ public class LzyFS extends FuseStubFS {
         }
     }
 
+    public static int executeUnsafe(UnsafeIOOperation op) {
+        return executeUnsafeInt(() -> {
+            op.execute();
+            return 0;
+        });
+    }
+
+    public static int executeUnsafeInt(UnsafeIntIOOperation op) {
+        try {
+            try {
+                return op.execute();
+            } catch (IOException ioe) {
+                LOG.info("IOE", ioe);
+                throw ioe;
+            }
+        } catch (FileNotFoundException fnfe) {
+            if (fnfe.getMessage().contains("Is a directory")) {  // standard message for such cases
+                return -ErrorCodes.EISDIR();
+            }
+            return -ErrorCodes.ENOENT();
+        } catch (NoSuchFileException nsfe) {
+            return -ErrorCodes.ENOENT();
+        } catch (FileAlreadyExistsException faee) {
+            return -ErrorCodes.EEXIST();
+        } catch (DirectoryNotEmptyException dnee) {
+            return -ErrorCodes.ENOTEMPTY();
+        } catch (AccessDeniedException ade) {
+            return -ErrorCodes.EACCES();
+        } catch (ClosedChannelException ce) {
+            return -ErrorCodes.EBADF();
+        } catch (IOException e) {
+            LOG.warn("Unexpected exception during I/O operation", e);
+            return -ErrorCodes.EIO();
+        }
+    }
+
+    public static String lineCmd(String cmd) throws IOException, InterruptedException {
+        final Process p = Runtime.getRuntime().exec(cmd);
+        p.waitFor();
+        try (LineNumberReader rd = new LineNumberReader(new InputStreamReader(p.getInputStream()))) {
+            return rd.readLine();
+        }
+    }
+
     @Override
     public void mount(Path mountPoint, boolean blocking, boolean debug, String[] fuseOpts) {
         super.mount(mountPoint, blocking, debug, fuseOpts);
     }
 
     public void addScript(LzyScript script, Path path) {
-        if (executables.put(path, script) == null)
+        if (executables.put(path, script) == null) {
             addPath(path);
+        }
     }
 
     public void addSlot(LzyFileSlot slot) {
@@ -87,23 +132,28 @@ public class LzyFS extends FuseStubFS {
 
     public void removeSlot(String name) {
         final Path path = Paths.get(name);
-        if (slots.remove(path) == null)
+        if (slots.remove(path) == null) {
             return;
+        }
 
         Path parent = path.getParent();
         name = path.getFileName().toString();
-        if (!children.getOrDefault(parent, new HashSet<>()).remove(name))
+        if (!children.getOrDefault(parent, new HashSet<>()).remove(name)) {
             return;
+        }
 
         while (parent != null) {
             final Set<String> children = this.children.computeIfAbsent(parent, p -> new HashSet<>());
-            if (!children.remove(name))
+            if (!children.remove(name)) {
                 break;
-            if (!children.isEmpty())
+            }
+            if (!children.isEmpty()) {
                 break;
+            }
             this.children.remove(parent);
-            if (parent.getFileName() == null) // at root
+            if (parent.getFileName() == null) { // at root
                 break;
+            }
             name = parent.getFileName().toString();
             parent = parent.getParent();
         }
@@ -112,16 +162,19 @@ public class LzyFS extends FuseStubFS {
     private boolean addPath(Path path) {
         String name = path.getFileName().toString();
         Path parent = path.getParent();
-        if (children.getOrDefault(parent, Set.of()).contains(name))
+        if (children.getOrDefault(parent, Set.of()).contains(name)) {
             return false;
+        }
 
         while (parent != null) {
             final Set<String> children = this.children.computeIfAbsent(parent, p -> new HashSet<>());
-            if (children.contains(name))
+            if (children.contains(name)) {
                 break;
+            }
             children.add(name);
-            if (parent.getFileName() == null) // at root
+            if (parent.getFileName() == null) {  // at root
                 break;
+            }
             name = parent.getFileName().toString();
             parent = parent.getParent();
         }
@@ -152,8 +205,7 @@ public class LzyFS extends FuseStubFS {
             filesOpen.computeIfAbsent(path, p -> new HashSet<>()).add(fh);
             fi.fh.set(fh);
             return 0;
-        }
-        else if (slots.containsKey(path)) {
+        } else if (slots.containsKey(path)) {
             return executeUnsafe(() -> {
                 final FileContents open = slots.get(path).open(fi);
                 openFiles.put(fh, open);
@@ -176,11 +228,11 @@ public class LzyFS extends FuseStubFS {
             final Path path = Paths.get(pathStr);
             final Set<Long> fhs = filesOpen.get(path);
             fhs.remove(fi.fh.longValue());
-            if (fhs.isEmpty())
+            if (fhs.isEmpty()) {
                 filesOpen.remove(path);
+            }
             return 0;
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             return -ErrorCodes.EBADF();
         }
     }
@@ -189,8 +241,9 @@ public class LzyFS extends FuseStubFS {
     public int read(String path, Pointer buf, @size_t long size, @off_t long offset, FuseFileInfo fi) {
         final FileContents contents;
         contents = openFiles.get(fi.fh.longValue());
-        if (contents == null)
+        if (contents == null) {
             return -ErrorCodes.EBADFD();
+        }
         return executeUnsafeInt(() -> contents.read(buf, offset, size));
     }
 
@@ -198,8 +251,9 @@ public class LzyFS extends FuseStubFS {
     public int write(String path, Pointer buf, @size_t long size, @off_t long offset, FuseFileInfo fi) {
         final FileContents contents;
         contents = openFiles.get(fi.fh.longValue());
-        if (contents == null)
+        if (contents == null) {
             return -ErrorCodes.EBADFD();
+        }
         return executeUnsafeInt(() -> contents.write(buf, offset, size));
     }
 
@@ -212,40 +266,39 @@ public class LzyFS extends FuseStubFS {
             stat.st_mode.set(0750 | FileStat.S_IFDIR);
             final long size = children.getOrDefault(path, Set.of()).stream().mapToLong(String::length).sum() + 64;
             stat.st_size.set(size);
-        }
-        else if (executables.containsKey(path)) { // declared operation
+        } else if (executables.containsKey(path)) { // declared operation
             final LzyScript executable = executables.get(path);
             stat.st_mode.set(0750 | FileStat.S_IFREG);
             stat.st_size.set(executable.scriptText().length());
-        }
-        else if (slots.containsKey(path)) {
+        } else if (slots.containsKey(path)) {
             final LzyFileSlot slot = slots.get(path);
             time = -1;
-            {
-                final long mtime = slot.mtime();
-                stat.st_mtim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(mtime));
-                stat.st_mtim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(mtime));
-            }
-            {
-                final long atime = slot.atime();
-                stat.st_atim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(atime));
-                stat.st_atim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(atime));
-            }
-            {
-                final long ctime = slot.ctime();
-                stat.st_ctim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(ctime));
-                stat.st_ctim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(ctime));
-            }
+                {
+                    final long mtime = slot.mtime();
+                    stat.st_mtim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(mtime));
+                    stat.st_mtim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(mtime));
+                }
+                {
+                    final long atime = slot.atime();
+                    stat.st_atim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(atime));
+                    stat.st_atim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(atime));
+                }
+                {
+                    final long ctime = slot.ctime();
+                    stat.st_ctim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(ctime));
+                    stat.st_ctim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(ctime));
+                }
             stat.st_mode.set(0640 | slot.mtype());
             stat.st_size.set(4096); //set page size & disable caches
+        } else {
+            return -ErrorCodes.ENOENT();
         }
-        else return -ErrorCodes.ENOENT();
 
         stat.st_uid.set(userId);
         stat.st_gid.set(groupId);
 
         stat.st_blksize.set(BLOCK_SIZE);
-        stat.st_blocks.set((long)Math.ceil(stat.st_size.longValue() / (double)BLOCK_SIZE));
+        stat.st_blocks.set((long) Math.ceil(stat.st_size.longValue() / (double) BLOCK_SIZE));
         if (time > 0) {
             stat.st_mtim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(time));
             stat.st_mtim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(time));
@@ -259,8 +312,10 @@ public class LzyFS extends FuseStubFS {
     public int readdir(String pathStr, Pointer buf, FuseFillDir filter, @off_t long offset, FuseFileInfo fi) {
         final Path path = Paths.get(pathStr);
         final Set<String> children = this.children.getOrDefault(path, Set.of());
-        if (children == null)
-            return this.executables.containsKey(path) || this.slots.containsKey(path) ? -ErrorCodes.ENOTDIR() : -ErrorCodes.ENOENT();
+        if (children == null) {
+            return this.executables.containsKey(path) || this.slots.containsKey(path) ? -ErrorCodes.ENOTDIR() :
+                -ErrorCodes.ENOENT();
+        }
         children.stream().sorted().forEach(child -> {
             final FileStat lstat = new FileStat(buf.getRuntime());
             if (getattr(path.resolve(child).toString(), lstat) == 0) {
@@ -284,7 +339,6 @@ public class LzyFS extends FuseStubFS {
     public int utimens(String path, Timespec[] timespec) {
         return -ErrorCodes.EACCES();
     }
-
 
     // TODO: implement for default version of executable
     //@Override
@@ -324,24 +378,22 @@ public class LzyFS extends FuseStubFS {
     @Override
     public int unlink(String pathStr) {
         final Path path = Paths.get(pathStr);
-        if (filesOpen.containsKey(path))
+        if (filesOpen.containsKey(path)) {
             return -ErrorCodes.EBUSY();
+        }
         if (children.containsKey(path)) {
             if (children.get(path).isEmpty()) {
                 children.remove(path);
                 final Path parent = path.getParent();
                 if (parent != null) {
                     children.get(parent).remove(path.getFileName().toString());
-                }
-                else {
+                } else {
                     roots.remove(path.getFileName().toString());
                 }
             }
-        }
-        else if (executables.containsKey(path)) {
+        } else if (executables.containsKey(path)) {
             return -ErrorCodes.EACCES();
-        }
-        else if (slots.containsKey(path)) {
+        } else if (slots.containsKey(path)) {
             final LzyFileSlot slot = slots.remove(path);
             return executeUnsafe(slot::remove);
         }
@@ -352,58 +404,9 @@ public class LzyFS extends FuseStubFS {
 
         void execute() throws IOException;
     }
+
     public interface UnsafeIntIOOperation {
 
         int execute() throws IOException;
-    }
-    public static int executeUnsafe(UnsafeIOOperation op) {
-        return executeUnsafeInt(() -> {
-            op.execute();
-            return 0;
-        });
-    }
-
-    public static int executeUnsafeInt(UnsafeIntIOOperation op) {
-        try {
-            try {
-                return op.execute();
-            }
-            catch (IOException ioe) {
-                LOG.info("IOE", ioe);
-                throw ioe;
-            }
-        }
-        catch (FileNotFoundException fnfe) {
-            if (fnfe.getMessage().contains("Is a directory")) // standard message for such cases
-                return -ErrorCodes.EISDIR();
-            return -ErrorCodes.ENOENT();
-        }
-        catch (NoSuchFileException nsfe) {
-            return -ErrorCodes.ENOENT();
-        }
-        catch (FileAlreadyExistsException faee) {
-            return -ErrorCodes.EEXIST();
-        }
-        catch (DirectoryNotEmptyException dnee) {
-            return -ErrorCodes.ENOTEMPTY();
-        }
-        catch (AccessDeniedException ade) {
-            return -ErrorCodes.EACCES();
-        }
-        catch (ClosedChannelException ce) {
-            return -ErrorCodes.EBADF();
-        }
-        catch (IOException e) {
-            LOG.warn("Unexpected exception during I/O operation", e);
-            return -ErrorCodes.EIO();
-        }
-    }
-
-    public static String lineCmd(String cmd) throws IOException, InterruptedException {
-        final Process p = Runtime.getRuntime().exec(cmd);
-        p.waitFor();
-        try (LineNumberReader rd = new LineNumberReader(new InputStreamReader(p.getInputStream()))) {
-            return rd.readLine();
-        }
     }
 }

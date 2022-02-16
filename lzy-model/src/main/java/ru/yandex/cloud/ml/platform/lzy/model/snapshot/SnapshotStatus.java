@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 
 public interface SnapshotStatus {
     Snapshot snapshot();
+
     State state();
 
     enum State {

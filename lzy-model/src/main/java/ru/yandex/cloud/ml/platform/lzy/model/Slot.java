@@ -5,33 +5,37 @@ import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 
 public interface Slot {
-  String name();
-  Media media();
-  Direction direction();
-  DataSchema contentType();
+    Slot ARGS = new TextLinesInSlot("/dev/args");
+    Slot STDIN = new TextLinesInSlot("/dev/stdin");
+    Slot STDOUT = new TextLinesOutSlot("/dev/stdout");
+    Slot STDERR = new TextLinesOutSlot("/dev/stderr");
 
-  Slot ARGS = new TextLinesInSlot("/dev/args");
-  Slot STDIN = new TextLinesInSlot("/dev/stdin");
-  Slot STDOUT = new TextLinesOutSlot("/dev/stdout");
-  Slot STDERR = new TextLinesOutSlot("/dev/stderr");
+    String name();
 
-  enum Direction {
-    INPUT,
-    OUTPUT
-  }
+    Media media();
 
-  enum Media {
-    FILE(java.nio.file.Path.class),
-    PIPE(java.nio.file.Path.class),
-    ARG(java.lang.String.class);
+    Direction direction();
 
-    private final Class type;
+    DataSchema contentType();
 
-    public Class of() {
-      return type;
+    enum Direction {
+        INPUT,
+        OUTPUT
     }
-    Media(Class type) {
-      this.type = type;
+
+    enum Media {
+        FILE(java.nio.file.Path.class),
+        PIPE(java.nio.file.Path.class),
+        ARG(java.lang.String.class);
+
+        private final Class type;
+
+        Media(Class type) {
+            this.type = type;
+        }
+
+        public Class of() {
+            return type;
+        }
     }
-  }
 }

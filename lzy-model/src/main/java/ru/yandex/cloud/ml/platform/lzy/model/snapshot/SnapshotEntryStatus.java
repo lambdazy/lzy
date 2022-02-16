@@ -7,11 +7,25 @@ import javax.annotation.Nullable;
 
 public interface SnapshotEntryStatus {
     boolean empty();
+
     State status();
+
     @Nullable
     URI storage();
+
     SnapshotEntry entry();
+
     Set<String> dependentEntryIds();
+
+    // CREATED --> created but not assigned to storage and slots
+    // IN_PROGRESS --> started saving data
+    // FINISHED --> finished saving data
+    enum State {
+        CREATED,
+        IN_PROGRESS,
+        FINISHED,
+        ERRORED
+    }
 
     class Impl implements SnapshotEntryStatus {
         private final boolean empty;
@@ -49,15 +63,5 @@ public interface SnapshotEntryStatus {
         public Set<String> dependentEntryIds() {
             return deps;
         }
-    }
-
-    // CREATED --> created but not assigned to storage and slots
-    // IN_PROGRESS --> started saving data
-    // FINISHED --> finished saving data
-    enum State {
-        CREATED,
-        IN_PROGRESS,
-        FINISHED,
-        ERRORED
     }
 }

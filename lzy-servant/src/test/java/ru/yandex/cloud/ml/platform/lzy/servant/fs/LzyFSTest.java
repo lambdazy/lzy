@@ -10,7 +10,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -32,8 +31,7 @@ public class LzyFSTest {
     public void setUp() {
         if (SystemUtils.IS_OS_MAC) {
             lzyFS = new LzyMacosFsManagerImpl();
-        }
-        else {
+        } else {
             lzyFS = new LzyLinuxFsManagerImpl();
         }
         lzyFS.mount(Path.of("/tmp/lzy"));

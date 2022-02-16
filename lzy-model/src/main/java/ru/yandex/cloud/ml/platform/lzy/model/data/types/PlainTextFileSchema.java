@@ -1,10 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.model.data.types;
 
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataPage;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-
 import java.util.List;
 import java.util.Map;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataPage;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 
 public class PlainTextFileSchema implements DataSchema {
     @Override

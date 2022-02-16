@@ -4,6 +4,7 @@ import java.net.URI;
 
 public interface Snapshot {
     URI id();
+
     URI uid();
 
     class Impl implements Snapshot {

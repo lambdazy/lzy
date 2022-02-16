@@ -6,9 +6,13 @@ import java.util.Set;
 
 public interface Whiteboard {
     URI id();
+
     Set<String> fieldNames();
+
     Set<String> tags();
+
     Snapshot snapshot();
+
     String namespace();
 
     class Impl implements Whiteboard {

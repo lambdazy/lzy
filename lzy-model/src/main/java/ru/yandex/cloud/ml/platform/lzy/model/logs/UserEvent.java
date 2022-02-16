@@ -3,7 +3,18 @@ package ru.yandex.cloud.ml.platform.lzy.model.logs;
 import java.util.Map;
 
 public class UserEvent extends BaseEvent {
-    public enum UserEventType{
+    private final UserEventType type;
+
+    public UserEvent(String description, Map<String, String> tags, UserEventType type) {
+        super(description, tags);
+        this.type = type;
+    }
+
+    public UserEventType getType() {
+        return type;
+    }
+
+    public enum UserEventType {
         TaskCreate,
         TaskStartUp,
         ExecutionPreparing,
@@ -11,15 +22,5 @@ public class UserEvent extends BaseEvent {
         ExecutionProgress,
         ExecutionComplete,
         TaskStop,
-    }
-    private final UserEventType type;
-
-    public UserEventType getType() {
-        return type;
-    }
-
-    public UserEvent(String description, Map<String, String> tags, UserEventType type){
-        super(description, tags);
-        this.type = type;
     }
 }

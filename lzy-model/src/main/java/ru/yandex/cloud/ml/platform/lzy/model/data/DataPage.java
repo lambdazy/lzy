@@ -6,13 +6,17 @@ import java.util.Map;
 import java.util.UUID;
 
 public interface DataPage {
-  URI id();
-  List<Item> contents();
-  DataSchema schema();
+    URI id();
 
-  interface Item extends Map<String, Object> {
-    UUID id();
-    Item[] dependsOn();
-    DataPage page();
-  }
+    List<Item> contents();
+
+    DataSchema schema();
+
+    interface Item extends Map<String, Object> {
+        UUID id();
+
+        Item[] dependsOn();
+
+        DataPage page();
+    }
 }

@@ -1,10 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
-import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.net.URI;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.logging.log4j.LogManager;
@@ -12,17 +15,9 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
-import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
-import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadState;
-
-import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.net.URI;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class S3SlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
@@ -31,9 +26,9 @@ public class S3SlotSnapshot implements SlotSnapshot {
     private final String taskId;
     private final String bucket;
     private final Slot slot;
-    private StreamsWrapper slotStream = null;
     private final Lock lock = new ReentrantLock();
     private final AtomicBoolean nonEmpty = new AtomicBoolean(false);
+    private StreamsWrapper slotStream = null;
 
     public S3SlotSnapshot(String taskId, String bucket, Slot slot, SnapshotStorage storage) {
         this.bucket = bucket;
@@ -66,22 +61,21 @@ public class S3SlotSnapshot implements SlotSnapshot {
             throw new RuntimeException("S3ExecutionSnapshot::createStreams exception while creating streams", e);
         }
         final ListenableFuture<UploadState> future = storage.transmitter().upload(new UploadRequestBuilder()
-                .bucket(bucket)
-                .key(generateKey(slot))
-                .metadata(Metadata.empty())
-                .stream(() -> is)
-                .build());
+            .bucket(bucket)
+            .key(generateKey(slot))
+            .metadata(Metadata.empty())
+            .stream(() -> is)
+            .build());
         return new StreamsWrapper(is, os, future);
     }
 
     private void initStream() {
-        try{
+        try {
             lock.lock();
             if (slotStream == null) {
                 slotStream = createStreams();
             }
-        }
-        finally {
+        } finally {
             lock.unlock();
         }
     }
@@ -114,13 +108,12 @@ public class S3SlotSnapshot implements SlotSnapshot {
         LOG.info("S3ExecutionSnapshot::onFinish invoked with slot " + slot.name());
         try {
             lock.lock();
-            if (slotStream == null){
+            if (slotStream == null) {
                 return;
             }
             slotStream.close();
             slotStream = null;
-        }
-        finally {
+        } finally {
             lock.unlock();
         }
 

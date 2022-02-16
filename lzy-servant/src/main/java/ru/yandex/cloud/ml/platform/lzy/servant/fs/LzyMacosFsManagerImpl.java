@@ -16,12 +16,12 @@ public class LzyMacosFsManagerImpl implements LzyFSManager {
     public void mount(Path mountPoint) {
         createFsDirectories(mountPoint);
         baseMount.mount(mountPoint, false, false,
-            SystemUtils.IS_OS_MAC ? new String[]{"-o", "direct_io,allow_recursion"}
-                : new String[]{"-o", "direct_io"});
+            SystemUtils.IS_OS_MAC ? new String[] {"-o", "direct_io,allow_recursion"}
+                : new String[] {"-o", "direct_io"});
         binMount.mount(Path.of(mountPoint + "/bin"), false, false,
-            SystemUtils.IS_OS_MAC ? new String[]{"-o", "allow_recursion"} : new String[]{});
+            SystemUtils.IS_OS_MAC ? new String[] {"-o", "allow_recursion"} : new String[] {});
         sbinMount.mount(Path.of(mountPoint + "/sbin"), false, false,
-            SystemUtils.IS_OS_MAC ? new String[]{"-o", "allow_recursion"} : new String[]{});
+            SystemUtils.IS_OS_MAC ? new String[] {"-o", "allow_recursion"} : new String[] {});
     }
 
     @Override

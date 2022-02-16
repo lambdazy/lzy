@@ -10,9 +10,9 @@ import java.util.concurrent.TimeUnit;
 
 public class ChannelBuilder {
 
-    final static public int IDLE_TIMEOUT_MINS = 5;
-    final static public int KEEP_ALIVE_TIME_MINS = 2;
-    final static public int KEEP_ALIVE_TIMEOUT_SECS = 10;
+    public static final int IDLE_TIMEOUT_MINS = 5;
+    public static final int KEEP_ALIVE_TIME_MINS = 2;
+    public static final int KEEP_ALIVE_TIMEOUT_SECS = 10;
 
     private final String host;
     private final int port;

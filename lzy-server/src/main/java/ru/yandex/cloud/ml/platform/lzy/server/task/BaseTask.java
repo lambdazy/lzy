@@ -22,7 +22,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
@@ -134,13 +134,13 @@ public abstract class BaseTask implements Task {
                     .setTaskId(tid.toString())
                     .build())
                 .build())
-            .setZygote(gRPCConverter.to(workload));
+            .setZygote(GrpcConverter.to(workload));
         if (snapshotMeta != null) {
             builder.setSnapshotMeta(SnapshotMeta.to(snapshotMeta));
         }
         assignments.forEach((slot, binding) ->
             builder.addAssignmentsBuilder()
-                .setSlot(gRPCConverter.to(slot))
+                .setSlot(GrpcConverter.to(slot))
                 .setBinding(binding)
                 .build()
         );
@@ -157,7 +157,7 @@ public abstract class BaseTask implements Task {
                         break;
                     case ATTACH: {
                         final Servant.SlotAttach attach = progress.getAttach();
-                        final Slot slot = gRPCConverter.from(attach.getSlot());
+                        final Slot slot = GrpcConverter.from(attach.getSlot());
                         final URI slotUri = URI.create(attach.getUri());
                         final String channelName;
                         if (attach.getChannel().isEmpty()) {
@@ -182,7 +182,7 @@ public abstract class BaseTask implements Task {
                     }
                     case DETACH: {
                         final Servant.SlotDetach detach = progress.getDetach();
-                        final Slot slot = gRPCConverter.from(detach.getSlot());
+                        final Slot slot = GrpcConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
                         final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, servant);
                         final Channel channel = channels.bound(endpoint);
@@ -249,7 +249,7 @@ public abstract class BaseTask implements Task {
                 .setStatus(Servant.StatusCommand.newBuilder().build())
                 .build()
         );
-        return gRPCConverter.from(slotStatus.getStatus());
+        return GrpcConverter.from(slotStatus.getStatus());
     }
 
     @Override

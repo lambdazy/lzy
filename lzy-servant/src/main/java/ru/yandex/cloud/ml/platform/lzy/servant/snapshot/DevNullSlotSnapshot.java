@@ -2,13 +2,12 @@ package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import com.google.protobuf.ByteString;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
-
-import java.net.URI;
-import java.net.URISyntaxException;
 
 public class DevNullSlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
@@ -41,7 +40,8 @@ public class DevNullSlotSnapshot implements SlotSnapshot {
     }
 
     @Override
-    public void readAll(InputStream stream) {}
+    public void readAll(InputStream stream) {
+    }
 
     @Override
     public void onFinish() {

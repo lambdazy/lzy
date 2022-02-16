@@ -9,9 +9,12 @@ public interface LzyFSManager {
     }
 
     void mount(Path mountPoint);
+
     void umount();
 
     void addScript(LzyScript exec, boolean isSystem);
+
     void addSlot(LzyFileSlot slot);
+
     void removeSlot(String name);
 }

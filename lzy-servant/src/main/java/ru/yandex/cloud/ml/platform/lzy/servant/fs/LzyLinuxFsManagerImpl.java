@@ -1,7 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.fs;
 
-import org.apache.commons.lang3.SystemUtils;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,7 +13,7 @@ public class LzyLinuxFsManagerImpl implements LzyFSManager {
     public void mount(Path mountPoint) {
         createFsDirectories(mountPoint);
         baseMount.mount(mountPoint, false, false,
-            new String[]{"-o", "direct_io"}
+            new String[] {"-o", "direct_io"}
         );
     }
 

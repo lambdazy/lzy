@@ -20,19 +20,24 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.*;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyLinuxFsManagerImpl;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyMacosFsManagerImpl;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyScript;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -59,8 +64,7 @@ public abstract class LzyAgent implements Closeable {
         this.serverAddress = config.getServerAddress();
         if (SystemUtils.IS_OS_MAC) {
             this.lzyFS = new LzyMacosFsManagerImpl();
-        }
-        else{
+        } else {
             this.lzyFS = new LzyLinuxFsManagerImpl();
         }
         LOG.info("Mounting LZY FS: " + mount);
@@ -88,17 +92,6 @@ public abstract class LzyAgent implements Closeable {
         );
     }
 
-    abstract protected void onStartUp();
-
-    abstract protected Server server();
-
-    public interface LzyServerApi {
-
-        Operations.ZygoteList zygotes(IAM.Auth auth);
-    }
-
-    abstract protected LzyServerApi lzyServerApi();
-
     private static IAM.Auth getAuth(LzyAgentConfig config) {
         final IAM.Auth.Builder authBuilder = IAM.Auth.newBuilder();
         if (config.getUser() != null) {
@@ -116,6 +109,12 @@ public abstract class LzyAgent implements Closeable {
         }
         return authBuilder.build();
     }
+
+    protected abstract void onStartUp();
+
+    protected abstract Server server();
+
+    protected abstract LzyServerApi lzyServerApi();
 
     public void start() throws IOException {
         final Server agentServer = server();
@@ -195,7 +194,7 @@ public abstract class LzyAgent implements Closeable {
             lzyFS.addScript(new LzyScript() {
                 @Override
                 public Zygote operation() {
-                    return gRPCConverter.from(z);
+                    return GrpcConverter.from(z);
                 }
 
                 @Override
@@ -210,6 +209,7 @@ public abstract class LzyAgent implements Closeable {
             }, z == null);
 
         } catch (InvalidProtocolBufferException ignore) {
+            // Ignored
         }
     }
 
@@ -250,7 +250,7 @@ public abstract class LzyAgent implements Closeable {
         switch (request.getCommandCase()) {
             case CREATE:
                 final Servant.CreateSlotCommand create = request.getCreate();
-                final Slot slotSpec = gRPCConverter.from(create.getSlot());
+                final Slot slotSpec = GrpcConverter.from(create.getSlot());
                 final LzySlot lzySlot = currentExecution.configureSlot(
                     slotSpec,
                     create.getChannelId()
@@ -297,7 +297,7 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public void update(IAM.Auth request,
-        StreamObserver<Servant.ExecutionStarted> responseObserver) {
+                       StreamObserver<Servant.ExecutionStarted> responseObserver) {
         final Operations.ZygoteList zygotes = lzyServerApi().zygotes(auth);
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
             publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());
@@ -307,7 +307,7 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public void status(@Nullable LzyExecution currentExecution, IAM.Empty request,
-        StreamObserver<Servant.ServantStatus> responseObserver) {
+                       StreamObserver<Servant.ServantStatus> responseObserver) {
         final Servant.ServantStatus.Builder builder = Servant.ServantStatus.newBuilder();
         builder.setStatus(status.get().toGrpcServantStatus());
         if (currentExecution != null) {
@@ -322,5 +322,10 @@ public abstract class LzyAgent implements Closeable {
         }
         responseObserver.onNext(builder.build());
         responseObserver.onCompleted();
+    }
+
+    public interface LzyServerApi {
+
+        Operations.ZygoteList zygotes(IAM.Auth auth);
     }
 }
