@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 @Lazy
 @Service("DistributedLeaderElection")
 public class DistributedLeaderElection implements LeaderElection {
+
     private final LeaderLatch leaderLatch;
 
     @Autowired

@@ -3,11 +3,10 @@ package ru.yandex.cloud.ml.platform.model.util.property;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import lombok.Builder;
-import lombok.Value;
-
 import java.util.Objects;
 import java.util.function.Consumer;
+import lombok.Builder;
+import lombok.Value;
 
 public interface PropertyManager<T> {
 
@@ -18,6 +17,7 @@ public interface PropertyManager<T> {
     void updateConfig(T config);
 
     class WorkerConfig {
+
         @JsonProperty("backendTag")
         private final String backendTag;
         @JsonProperty("copyJupyterKernelTag")
@@ -117,7 +117,9 @@ public interface PropertyManager<T> {
             return pushClientTag;
         }
 
-        public String metricsAgentTag() { return metricsAgentTag; }
+        public String metricsAgentTag() {
+            return metricsAgentTag;
+        }
 
         @Override
         public boolean equals(Object o) {
@@ -147,6 +149,7 @@ public interface PropertyManager<T> {
     @JsonDeserialize(builder = SiteConfig.Builder.class)
     @Builder(builderClassName = "Builder", toBuilder = true)
     class SiteConfig {
+
         @JsonProperty
         String siteTag;
 

@@ -1,24 +1,24 @@
 package ru.yandex.qe.s3.transfer.upload;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 import ru.yandex.qe.s3.transfer.TransferState;
 import ru.yandex.qe.s3.transfer.TransferStatistic;
 import ru.yandex.qe.s3.transfer.TransferStatus;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
-
 /**
- * Established by terry
- * on 18.01.16.
+ * Established by terry on 18.01.16.
  */
 @Immutable
 public class UploadState implements TransferState {
+
     private final TransferStatus transferStatus;
     private final TransferStatistic transferStatistic;
     private final UploadRequest uploadRequest;
 
-    public UploadState(@Nonnull TransferStatus transferStatus, @Nullable TransferStatistic transferStatistic, @Nonnull UploadRequest uploadRequest) {
+    public UploadState(@Nonnull TransferStatus transferStatus, @Nullable TransferStatistic transferStatistic,
+        @Nonnull UploadRequest uploadRequest) {
         this.transferStatus = transferStatus;
         this.transferStatistic = transferStatistic;
         this.uploadRequest = uploadRequest;
@@ -43,10 +43,10 @@ public class UploadState implements TransferState {
 
     @Override
     public String toString() {
-        return "UploadState{" +
-                "transferStatus=" + transferStatus +
-                ", transferStatistic=" + transferStatistic +
-                ", uploadRequest=" + uploadRequest +
-                '}';
+        return "UploadState{"
+            + "transferStatus=" + transferStatus
+            + ", transferStatistic=" + transferStatistic
+            + ", uploadRequest=" + uploadRequest
+            + '}';
     }
 }

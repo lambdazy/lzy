@@ -1,7 +1,7 @@
 package ru.yandex.qe.s3.transfer.buffers;
 
+import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
-
 import java.util.LinkedHashSet;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -9,24 +9,19 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import com.google.common.base.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import ru.yandex.qe.s3.util.HumanReadable;
 
 /**
- * Byte buffer pool that pre-allocates all the buffers.<br>
- * Useful for debugging {@code OutOfMemoryError}s.
+ * Byte buffer pool that pre-allocates all the buffers.<br> Useful for debugging {@code OutOfMemoryError}s.
  *
  * @author entropia
  */
 public final class StaticByteBufferPool implements ByteBufferPool {
+
     private static final Logger LOG = LoggerFactory.getLogger(StaticByteBufferPool.class);
 
     private final Object poolLock = new Object();
@@ -46,7 +41,7 @@ public final class StaticByteBufferPool implements ByteBufferPool {
             available.add(buf);
         }
         LOG.debug("pre-allocated {} byte buffer(s) totaling {}", count,
-                HumanReadable.fileSize(((long) count) * bufSizeBytes));
+            HumanReadable.fileSize(((long) count) * bufSizeBytes));
     }
 
     @Nonnull
@@ -96,6 +91,7 @@ public final class StaticByteBufferPool implements ByteBufferPool {
     }
 
     private static final class ObjWrapper<T> {
+
         private final T obj;
 
         private ObjWrapper(@Nonnull T obj) {
@@ -104,8 +100,12 @@ public final class StaticByteBufferPool implements ByteBufferPool {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof ObjWrapper)) return false;
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ObjWrapper)) {
+                return false;
+            }
 
             ObjWrapper<?> that = (ObjWrapper<?>) o;
             return obj == that.obj;

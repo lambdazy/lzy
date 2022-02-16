@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.model.util.lock;
 
+import java.io.IOException;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
@@ -7,9 +8,8 @@ import org.apache.curator.test.TestingCluster;
 import org.junit.After;
 import org.junit.Before;
 
-import java.io.IOException;
-
 public class DistributedLockManagerTest extends LockManagerBaseTest {
+
     private TestingCluster zkServer;
     private CuratorFramework curatorClient;
     private DistributedLockManager lockManager;

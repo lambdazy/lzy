@@ -3,11 +3,11 @@ package ru.yandex.qe.s3.transfer;
 import javax.annotation.concurrent.Immutable;
 
 /**
- * Established by terry
- * on 20.01.16.
+ * Established by terry on 20.01.16.
  */
 @Immutable
 public class TransferStatistic {
+
     public static final long UNDEFINED_LENGTH = -1;
 
     private final long objectContentLength;
@@ -41,11 +41,11 @@ public class TransferStatistic {
 
     @Override
     public String toString() {
-        return "TransferStatistic{" +
-                "objectContentLength=" + objectContentLength +
-                ", chunkSize=" + chunkSize +
-                ", chunksCount=" + chunksCount +
-                ", chunksTransferred=" + chunksTransferred +
-                '}';
+        return "TransferStatistic{"
+            + "objectContentLength=" + objectContentLength
+            + ", chunkSize=" + chunkSize
+            + ", chunksCount=" + chunksCount
+            + ", chunksTransferred=" + chunksTransferred
+            + '}';
     }
 }

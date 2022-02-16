@@ -1,8 +1,7 @@
 package ru.yandex.qe.s3.transfer;
 
 /**
- * Established by terry
- * on 20.01.16.
+ * Established by terry on 20.01.16.
  */
 public enum TransferStatus {
     /**
@@ -12,8 +11,7 @@ public enum TransferStatus {
     /**
      * Some data has been transferred.
      * <br>Note that the transfer can just go from an {@link #isInitial() initial} status to
-     * a {@link #isFinal() final} one without passing through {@code IN_PROGRESS}, e.g.,
-     * for very short transfers.
+     * a {@link #isFinal() final} one without passing through {@code IN_PROGRESS}, e.g., for very short transfers.
      */
     IN_PROGRESS,
     /**
@@ -43,8 +41,8 @@ public enum TransferStatus {
     }
 
     /**
-     * @return {@code true} if this is an <em>initial</em> state, i.e., no data has yet been transferred;<br>
-     *         {@code false} otherwise
+     * @return {@code true} if this is an <em>initial</em> state, i.e., no data has yet been transferred;<br> {@code
+     * false} otherwise
      */
     public boolean isInitial() {
         return this == STARTED;

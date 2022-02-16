@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.model.util.election;
 
+import java.util.Arrays;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -10,9 +11,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
-
 public class DistributedLeaderElectionTest {
+
     private TestingCluster zkServer;
 
     @Before
@@ -28,7 +28,7 @@ public class DistributedLeaderElectionTest {
 
     @Test
     public void testLeaderElection() {
-        final CuratorFramework[] curators = new CuratorFramework[]{
+        final CuratorFramework[] curators = new CuratorFramework[] {
             getClient(zkServer.getConnectString()),
             getClient(zkServer.getConnectString()),
             getClient(zkServer.getConnectString())

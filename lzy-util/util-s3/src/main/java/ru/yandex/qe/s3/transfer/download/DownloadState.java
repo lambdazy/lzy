@@ -1,20 +1,19 @@
 package ru.yandex.qe.s3.transfer.download;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 import ru.yandex.qe.s3.transfer.TransferState;
 import ru.yandex.qe.s3.transfer.TransferStatistic;
 import ru.yandex.qe.s3.transfer.TransferStatus;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
-
 /**
- * Established by terry
- * on 18.01.16.
+ * Established by terry on 18.01.16.
  */
 @Immutable
 public class DownloadState implements TransferState {
+
     private final TransferStatus transferStatus;
     private final TransferStatistic transferStatistic;
 
@@ -23,7 +22,7 @@ public class DownloadState implements TransferState {
     private final Metadata objectMetadata;
 
     public DownloadState(@Nonnull TransferStatus transferStatus, @Nullable TransferStatistic transferStatistic,
-                         @Nonnull DownloadRequest downloadRequest, @Nullable Metadata objectMetadata) {
+        @Nonnull DownloadRequest downloadRequest, @Nullable Metadata objectMetadata) {
         this.transferStatus = transferStatus;
         this.transferStatistic = transferStatistic;
         this.downloadRequest = downloadRequest;
@@ -53,11 +52,11 @@ public class DownloadState implements TransferState {
 
     @Override
     public String toString() {
-        return "DownloadState{" +
-                "transferStatus=" + transferStatus +
-                ", transferStatistic=" + transferStatistic +
-                ", downloadRequest=" + downloadRequest +
-                ", objectMetadata=" + objectMetadata +
-                '}';
+        return "DownloadState{"
+            + "transferStatus=" + transferStatus
+            + ", transferStatistic=" + transferStatistic
+            + ", downloadRequest=" + downloadRequest
+            + ", objectMetadata=" + objectMetadata
+            + '}';
     }
 }

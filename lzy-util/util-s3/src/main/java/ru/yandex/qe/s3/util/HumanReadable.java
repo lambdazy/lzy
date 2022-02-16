@@ -1,21 +1,27 @@
 package ru.yandex.qe.s3.util;
 
-import static java.util.concurrent.TimeUnit.*;
-
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
+import static java.util.concurrent.TimeUnit.DAYS;
+import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
-
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
@@ -23,15 +29,16 @@ import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 
 /**
- * Formatting utilities that output file timestamps, event duration, and file sizes in a simple human-readable
- * format inspired by the {@code ls} utility.
+ * Formatting utilities that output file timestamps, event duration, and file sizes in a simple human-readable format
+ * inspired by the {@code ls} utility.
  *
  * @author entropia
  */
 public final class HumanReadable {
+
     /**
-     * Default human-readable format for date & time, similar to one used by the {@code ls} command line utility:
-     * {@code Jan 1, 2015 14:32}
+     * Default human-readable format for date & time, similar to one used by the {@code ls} command line utility: {@code
+     * Jan 1, 2015 14:32}
      *
      * @see #dateTime(Instant)
      * @see #dateTime(org.joda.time.Instant)
@@ -42,23 +49,22 @@ public final class HumanReadable {
      * Default period formatter, which outputs time periods in the {@code HH:mm:ss.ms} format.
      */
     public static final PeriodFormatter DEFAULT_PERIOD_FORMATTER = new PeriodFormatterBuilder()
-            .printZeroAlways()
-            .minimumPrintedDigits(2)
-            .appendHours()
-            .appendSuffix(":")
-            .appendMinutes()
-            .appendSuffix(":")
-            .appendSeconds()
-            .appendSuffix(".")
-            .appendMillis3Digit()
-            .toFormatter();
-
-    private HumanReadable() {}
-
-    private static final String[] SIZE_SUFFIXES = new String[]{"", "K", "M", "G", "T", "P", "E", "Z", "Y"};
+        .printZeroAlways()
+        .minimumPrintedDigits(2)
+        .appendHours()
+        .appendSuffix(":")
+        .appendMinutes()
+        .appendSuffix(":")
+        .appendSeconds()
+        .appendSuffix(".")
+        .appendMillis3Digit()
+        .toFormatter();
+    private static final String[] SIZE_SUFFIXES = new String[] {"", "K", "M", "G", "T", "P", "E", "Z", "Y"};
     private static final BigInteger _1024 = BigInteger.valueOf(1024);
     private static final BigInteger[] POW1024 = new BigInteger[SIZE_SUFFIXES.length];
     private static final BigDecimal[] D_POW1024 = new BigDecimal[POW1024.length];
+    private static final Map<TimeUnit, String> TRUNCATING_TIME_UNITS;
+
     static {
         BigInteger last = BigInteger.ONE;
         POW1024[0] = last;
@@ -72,7 +78,6 @@ public final class HumanReadable {
         }
     }
 
-    private static final Map<TimeUnit, String> TRUNCATING_TIME_UNITS;
     static {
         final LinkedHashMap<TimeUnit, String> map = new LinkedHashMap<>(3);
         map.put(NANOSECONDS, "ns");
@@ -81,14 +86,15 @@ public final class HumanReadable {
         TRUNCATING_TIME_UNITS = Collections.unmodifiableMap(map);
     }
 
+    private HumanReadable() {
+    }
+
     /**
-     * Returns human-readable string describing file size (e.g., "150" for 150 bytes,
-     * "28K" for 28 kilobytes, "56G" for 56 gigabytes, and so on.
+     * Returns human-readable string describing file size (e.g., "150" for 150 bytes, "28K" for 28 kilobytes, "56G" for
+     * 56 gigabytes, and so on.
      *
      * @param size file size in bytes
-     *
      * @return human-readable file size string
-     *
      * @throws IllegalArgumentException {@code size < 0}
      */
     @Nonnull
@@ -97,15 +103,13 @@ public final class HumanReadable {
     }
 
     /**
-     * Returns human-readable string describing file size (e.g., "150" for 150 bytes,
-     * "28K" for 28 kilobytes, "56G" for 56 gigabytes, and so on.
+     * Returns human-readable string describing file size (e.g., "150" for 150 bytes, "28K" for 28 kilobytes, "56G" for
+     * 56 gigabytes, and so on.
      *
      * @param size file size in bytes
-     *
      * @return human-readable file size string
-     *
      * @throws IllegalArgumentException {@code size < 0}
-     * @throws NullPointerException {@code size == null}
+     * @throws NullPointerException     {@code size == null}
      */
     @Nonnull
     public static String fileSize(@Nonnull BigInteger size) {
@@ -117,8 +121,8 @@ public final class HumanReadable {
 
         final String units = SIZE_SUFFIXES[log1024];
         final BigDecimal sizeInUnits = new BigDecimal(size)
-                .setScale(2, BigDecimal.ROUND_HALF_UP)
-                .divide(D_POW1024[log1024], BigDecimal.ROUND_HALF_UP);
+            .setScale(2, BigDecimal.ROUND_HALF_UP)
+            .divide(D_POW1024[log1024], BigDecimal.ROUND_HALF_UP);
 
         final DecimalFormat fmt = new DecimalFormat("#0.##");
         fmt.setDecimalFormatSymbols(DecimalFormatSymbols.getInstance(Locale.US));
@@ -131,8 +135,8 @@ public final class HumanReadable {
             BigInteger start = POW1024[i];
             BigInteger end = (i == POW1024.length - 1 ? null : POW1024[i + 1]);
 
-            if (value.compareTo(start) >= 0 &&
-                    (end == null || value.compareTo(end) < 0)) {
+            if (value.compareTo(start) >= 0
+                && (end == null || value.compareTo(end) < 0)) {
                 pow = i;
                 break;
             }
@@ -143,9 +147,7 @@ public final class HumanReadable {
 
     /**
      * @param instant instant in time
-     *
      * @return date and time appropriately formatted using the current time zone, e.g. {@code Jan 1, 2015 00:01}
-     *
      * @see #LS_DATE_TIME_PATTERN
      */
     @Nonnull
@@ -156,24 +158,20 @@ public final class HumanReadable {
     /**
      * @param instant instant in time
      * @param pattern date & time format pattern
-     *
      * @return date & time formatted using the current time zone and format pattern
-     *
-     * @throws IllegalArgumentException illegal format pattern
+     * @throws IllegalArgumentException    illegal format pattern
      * @throws java.time.DateTimeException could not format date & time
      */
     @Nonnull
     public static String dateTime(@Nonnull Instant instant, @Nonnull String pattern) {
         return DateTimeFormatter
-                .ofPattern(pattern, Locale.US)
-                .format(ZonedDateTime.ofInstant(instant, ZoneId.systemDefault()));
+            .ofPattern(pattern, Locale.US)
+            .format(ZonedDateTime.ofInstant(instant, ZoneId.systemDefault()));
     }
 
     /**
      * @param instant instant in time
-     *
      * @return date and time appropriately formatted using the current time zone, e.g. {@code Jan 1, 2015 00:01}
-     *
      * @see #LS_DATE_TIME_PATTERN
      */
     @Nonnull
@@ -184,26 +182,23 @@ public final class HumanReadable {
     /**
      * @param instant instant in time
      * @param pattern date & time format pattern
-     *
      * @return date & time formatted using the current time zone and format pattern
      */
     @Nonnull
     public static String dateTime(@Nonnull org.joda.time.Instant instant, @Nonnull String pattern) {
         return DateTimeFormat
-                .forPattern(pattern)
-                .withLocale(Locale.US)
-                .withZone(DateTimeZone.getDefault())
-                .print(instant);
+            .forPattern(pattern)
+            .withLocale(Locale.US)
+            .withZone(DateTimeZone.getDefault())
+            .print(instant);
     }
 
     /**
-     * Converts a duration of time expressed in nanoseconds into a human-readable representation,
-     * e.g. 999 ns into "999ns", 1001 ns into "1us".
+     * Converts a duration of time expressed in nanoseconds into a human-readable representation, e.g. 999 ns into
+     * "999ns", 1001 ns into "1us".
      *
      * @param duration duration of time in nanoseconds
-     *
      * @return human-readable representation of the time duration
-     *
      * @see #duration(long, TimeUnit)
      */
     public static String durationNanos(long duration) {
@@ -211,13 +206,11 @@ public final class HumanReadable {
     }
 
     /**
-     * Converts a duration of time expressed in microseconds into a human-readable representation,
-     * e.g. 999 us into "999us", 1001 us into "1ms".
+     * Converts a duration of time expressed in microseconds into a human-readable representation, e.g. 999 us into
+     * "999us", 1001 us into "1ms".
      *
      * @param duration duration of time in microseconds
-     *
      * @return human-readable representation of the time duration
-     *
      * @see #duration(long, TimeUnit)
      */
     @Nonnull
@@ -226,14 +219,11 @@ public final class HumanReadable {
     }
 
     /**
-     * Converts a duration of time expressed in milliseconds into a human-readable representation,
-     * e.g. 150 ms into "150ms", 63000 ms into "00:01:03.000", 3675025 ms into "01:01:15.025",
-     * 3615000 ms into "01:00:15.000".
+     * Converts a duration of time expressed in milliseconds into a human-readable representation, e.g. 150 ms into
+     * "150ms", 63000 ms into "00:01:03.000", 3675025 ms into "01:01:15.025", 3615000 ms into "01:00:15.000".
      *
      * @param duration duration of time in milliseconds
-     *
      * @return human-readable representation of the time duration
-     *
      * @see #duration(long, TimeUnit)
      */
     @Nonnull
@@ -242,13 +232,11 @@ public final class HumanReadable {
     }
 
     /**
-     * Converts a duration of time expressed in seconds into a human-readable representation,
-     * e.g. 5 seconds into "00:00:05.000", 63 seconds into "00:01:03.000".
+     * Converts a duration of time expressed in seconds into a human-readable representation, e.g. 5 seconds into
+     * "00:00:05.000", 63 seconds into "00:01:03.000".
      *
      * @param duration duration of time in seconds
-     *
      * @return human-readable representation of the time duration
-     *
      * @see #duration(long, TimeUnit)
      */
     @Nonnull
@@ -257,13 +245,11 @@ public final class HumanReadable {
     }
 
     /**
-     * Converts a duration of time expressed in minutes into a human-readable representation,
-     * e.g. 65 minutes into "01:05:00.000".
+     * Converts a duration of time expressed in minutes into a human-readable representation, e.g. 65 minutes into
+     * "01:05:00.000".
      *
      * @param duration duration of time in minutes
-     *
      * @return human-readable representation of the time duration
-     *
      * @see #duration(long, TimeUnit)
      */
     @Nonnull
@@ -272,13 +258,11 @@ public final class HumanReadable {
     }
 
     /**
-     * Converts a duration of time expressed in hours into a human-readable representation,
-     * e.g. 3 hours into "03:00:00.000".
+     * Converts a duration of time expressed in hours into a human-readable representation, e.g. 3 hours into
+     * "03:00:00.000".
      *
      * @param duration duration of time in hours
-     *
      * @return human-readable representation of the time duration
-     *
      * @see #duration(long, TimeUnit)
      */
     @Nonnull
@@ -287,13 +271,11 @@ public final class HumanReadable {
     }
 
     /**
-     * Converts a duration of time expressed in days into a human-readable representation,
-     * e.g. 2 days into "48:00:00.000".
+     * Converts a duration of time expressed in days into a human-readable representation, e.g. 2 days into
+     * "48:00:00.000".
      *
      * @param duration duration of time in days
-     *
      * @return human-readable representation of the time duration
-     *
      * @see #duration(long, TimeUnit)
      */
     @Nonnull
@@ -302,18 +284,15 @@ public final class HumanReadable {
     }
 
     /**
-     * Converts a duration of time into a human-readable representation, e.g.
-     * 999 ns into "999ns", 1001 ns into "1us", 150 ms into "150ms",
-     * 63000 ms into "00:01:03.000", 65 min into "01:05:00.000",
-     * 3675025 ms into "01:01:15.025", 3615000 ms into "01:00:15.000".
+     * Converts a duration of time into a human-readable representation, e.g. 999 ns into "999ns", 1001 ns into "1us",
+     * 150 ms into "150ms", 63000 ms into "00:01:03.000", 65 min into "01:05:00.000", 3675025 ms into "01:01:15.025",
+     * 3615000 ms into "01:00:15.000".
      * <p>
-     * Small time units (ns, us, ms) are truncated to the largest unit.
-     * Ordinary time units (s, min, h, d) are formatted as {@code HH:mm:ss.SSS}
-     * (hours, minutes, seconds and microseconds).
+     * Small time units (ns, us, ms) are truncated to the largest unit. Ordinary time units (s, min, h, d) are formatted
+     * as {@code HH:mm:ss.SSS} (hours, minutes, seconds and microseconds).
      *
-     * @param duration duration of time
+     * @param duration       duration of time
      * @param sourceTimeUnit time unit used
-     *
      * @return human-readable representation of the time duration
      */
     @Nonnull
@@ -322,26 +301,22 @@ public final class HumanReadable {
     }
 
     /**
-     * Converts a duration of time into a human-readable representation, e.g.
-     * 999 ns into "999ns", 1001 ns into "1us", 150 ms into "150ms",
-     * 63000 ms into "00:01:03.000", 65 min into "01:05:00.000",
-     * 3675025 ms into "01:01:15.025", 3615000 ms into "01:00:15.000".
+     * Converts a duration of time into a human-readable representation, e.g. 999 ns into "999ns", 1001 ns into "1us",
+     * 150 ms into "150ms", 63000 ms into "00:01:03.000", 65 min into "01:05:00.000", 3675025 ms into "01:01:15.025",
+     * 3615000 ms into "01:00:15.000".
      * <p>
-     * Small time units (ns, us, ms) are truncated to the largest unit.
-     * Ordinary time units (s, min, h, d) are formatted as {@code HH:mm:ss.SSS}
-     * (hours, minutes, seconds and microseconds).
+     * Small time units (ns, us, ms) are truncated to the largest unit. Ordinary time units (s, min, h, d) are formatted
+     * as {@code HH:mm:ss.SSS} (hours, minutes, seconds and microseconds).
      *
-     * @param duration duration of time
+     * @param duration       duration of time
      * @param sourceTimeUnit time unit used
-     * @param formatter period formatter used for ordinary time units (seconds, minutes, hours and days)
-     *
+     * @param formatter      period formatter used for ordinary time units (seconds, minutes, hours and days)
      * @return human-readable representation of the time duration
-     *
      * @see #DEFAULT_PERIOD_FORMATTER
      */
     @Nonnull
     public static String duration(long duration, @Nonnull TimeUnit sourceTimeUnit,
-                                  @Nonnull PeriodFormatter formatter) {
+        @Nonnull PeriodFormatter formatter) {
         final TimeUnit[] units = TimeUnit.values();
 
         // find the largest unit which can still represent the duration

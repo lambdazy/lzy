@@ -1,43 +1,52 @@
 package ru.yandex.qe.s3.transfer.loop;
 
-import com.google.common.util.concurrent.*;
-
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Runnables;
+import com.google.common.util.concurrent.Uninterruptibles;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.OptionalInt;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
 import ru.yandex.qe.s3.transfer.TransferStatistic;
 import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-
-import org.slf4j.LoggerFactory;
-
 /**
- * Established by terry
- * on 22.07.15.
+ * Established by terry on 22.07.15.
  */
 @NotThreadSafe
 public abstract class ProcessingLoop<R> implements Callable<R> {
-    private static final Logger LOG = LoggerFactory.getLogger(ProcessingLoop.class);
 
     protected static final long WAIT_QUANTUM = TimeUnit.MILLISECONDS.toMillis(100);
-
+    private static final Logger LOG = LoggerFactory.getLogger(ProcessingLoop.class);
+    protected final List<ChunkTask> chunkTasks;
     private final ByteBufferPool byteBufferPool;
     private final ListeningExecutorService taskExecutor;
     private final TransferAbortPolicy abortPolicy;
-
     private final AtomicBoolean running;
-
-    protected final List<ChunkTask> chunkTasks;
     protected ByteBuffer loopThreadBuffer = null;
 
     private TransferStatistic currentStatistic;
@@ -47,7 +56,7 @@ public abstract class ProcessingLoop<R> implements Callable<R> {
     }
 
     public ProcessingLoop(@Nonnull ByteBufferPool byteBufferPool, @Nonnull ListeningExecutorService taskExecutor,
-                          @Nonnull TransferAbortPolicy abortPolicy) {
+        @Nonnull TransferAbortPolicy abortPolicy) {
         this.byteBufferPool = byteBufferPool;
         this.taskExecutor = taskExecutor;
         this.chunkTasks = new CopyOnWriteArrayList<>();
@@ -83,12 +92,14 @@ public abstract class ProcessingLoop<R> implements Callable<R> {
 
     protected synchronized TransferStatistic initCurrentStatistic(long contentLength) {
         return currentStatistic = new TransferStatistic(contentLength, chunkSize(),
-                contentLength != TransferStatistic.UNDEFINED_LENGTH ? chunksCount(contentLength) : TransferStatistic.UNDEFINED_LENGTH, 0);
+            contentLength != TransferStatistic.UNDEFINED_LENGTH ? chunksCount(contentLength)
+                : TransferStatistic.UNDEFINED_LENGTH, 0);
     }
 
     protected synchronized TransferStatistic incrementCurrentStatistic() {
         return currentStatistic = new TransferStatistic(currentStatistic.getObjectContentLength(),
-                currentStatistic.getChunkSize(), currentStatistic.getExpectedChunksCount(), currentStatistic.getChunksTransferred() + 1);
+            currentStatistic.getChunkSize(), currentStatistic.getExpectedChunksCount(),
+            currentStatistic.getChunksTransferred() + 1);
     }
 
     protected long chunksCount(long contentLength) {
@@ -141,13 +152,14 @@ public abstract class ProcessingLoop<R> implements Callable<R> {
                     chunkTask.get(WAIT_QUANTUM, TimeUnit.MILLISECONDS);
                     byteBufferPool.returnObject(chunkTask.getBuffer());
                     chunkTasks.remove(chunkTask);
-                } catch (TimeoutException e) {//ignore
+                } catch (TimeoutException e) { //ignore
                 }
             }
         }
     }
 
-    protected void loopHeartbeat(TransferStatistic transferStatistic) {}
+    protected void loopHeartbeat(TransferStatistic transferStatistic) {
+    }
 
     @Nullable
     protected ChunkTask executeNewTask(ChunkRunnable chunkRunnable, FutureCallback<Void> callback) {
@@ -157,7 +169,7 @@ public abstract class ProcessingLoop<R> implements Callable<R> {
 
         final ChunkTask newTask = new ChunkTask(chunkRunnable, loopThreadBuffer, taskExecutor);
         chunkTasks.add(newTask);
-        loopThreadBuffer = null;//buffer was distributed to chunk task
+        loopThreadBuffer = null; //buffer was distributed to chunk task
         Futures.addCallback(newTask, callback, MoreExecutors.directExecutor());
         return newTask;
     }
@@ -194,13 +206,14 @@ public abstract class ProcessingLoop<R> implements Callable<R> {
 
         boolean wasInterrupted = false;
         LoggerFactory.getLogger(getClass()).debug("awaiting termination of chunk tasks: {}", chunkTasks.stream()
-                .map(t -> '"' + t.toString() + '"')
-                .collect(Collectors.joining(", ")));
+            .map(t -> '"' + t.toString() + '"')
+            .collect(Collectors.joining(", ")));
         for (ChunkTask chunkTask : chunkTasks) {
             try {
                 chunkTask.awaitTermination();
             } catch (CancellationException e) {
-                LoggerFactory.getLogger(getClass()).debug("chunk task \"{}\" was canceled before it got a chance to run", chunkTask);
+                LoggerFactory.getLogger(getClass())
+                    .debug("chunk task \"{}\" was canceled before it got a chance to run", chunkTask);
             } catch (InterruptedException e) {
                 wasInterrupted = true;
             }
@@ -240,24 +253,28 @@ public abstract class ProcessingLoop<R> implements Callable<R> {
     @Nullable
     protected final InterruptedException interruptedException(@Nullable Throwable t) {
         return t instanceof InterruptedException
-                ? (InterruptedException) t
-                : (t == null ? null : interruptedException(t.getCause()));
+            ? (InterruptedException) t
+            : (t == null ? null : interruptedException(t.getCause()));
     }
 
     private static final class UncheckedInterruptedException extends RuntimeException {
+
         private UncheckedInterruptedException(@Nonnull String message, @Nonnull InterruptedException cause) {
             super(message, cause);
         }
     }
 
     protected abstract class ChunkRunnable implements Runnable {
+
         private final CountDownLatch terminationLatch = new CountDownLatch(1);
         private final AtomicBoolean started = new AtomicBoolean();
 
         protected abstract void doRun();
 
         public abstract int getPartNumber();
-        @Nonnull public abstract String getName();
+
+        @Nonnull
+        public abstract String getName();
 
         @Override
         public final void run() {
@@ -274,7 +291,7 @@ public abstract class ProcessingLoop<R> implements Callable<R> {
 
         /**
          * @throws CancellationException task hasn't been started
-         * @throws InterruptedException current thread was interrupted while waiting for the task to terminate
+         * @throws InterruptedException  current thread was interrupted while waiting for the task to terminate
          */
         public final void awaitTermination() throws CancellationException, InterruptedException {
             if (!started.get()) {
@@ -289,17 +306,20 @@ public abstract class ProcessingLoop<R> implements Callable<R> {
             }
 
             if (!isRunning()) {
-                LoggerFactory.getLogger(getClass()).debug("processing loop has been stopped, but chunk task \"{}\" is still running", getName());
+                LoggerFactory.getLogger(getClass())
+                    .debug("processing loop has been stopped, but chunk task \"{}\" is still running", getName());
             }
         }
     }
 
     protected class ChunkTask implements ListenableFuture<Void> {
+
         private final ChunkRunnable runnable;
         private final ByteBuffer buffer;
         private final ListenableFuture<?> delegate;
 
-        public ChunkTask(@Nonnull ChunkRunnable runnable, @Nonnull ByteBuffer buffer, @Nonnull ListeningExecutorService executor) {
+        public ChunkTask(@Nonnull ChunkRunnable runnable, @Nonnull ByteBuffer buffer,
+            @Nonnull ListeningExecutorService executor) {
             this.runnable = runnable;
             this.buffer = buffer;
             this.delegate = executor.submit(runnable);
@@ -340,14 +360,15 @@ public abstract class ProcessingLoop<R> implements Callable<R> {
             return null;
         }
 
-        public void awaitTermination() throws InterruptedException {
-            runnable.awaitTermination();
-        }
-
         @Override
-        public Void get(long timeout, @Nonnull TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        public Void get(long timeout, @Nonnull TimeUnit unit)
+            throws InterruptedException, ExecutionException, TimeoutException {
             delegate.get(timeout, unit);
             return null;
+        }
+
+        public void awaitTermination() throws InterruptedException {
+            runnable.awaitTermination();
         }
 
         @Override

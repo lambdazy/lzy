@@ -3,8 +3,7 @@ package ru.yandex.qe.s3.amazon.policy;
 import com.amazonaws.AmazonClientException;
 
 /**
- * Established by terry
- * on 18.12.15.
+ * Established by terry on 18.12.15.
  */
 public class RetryUtils {
 

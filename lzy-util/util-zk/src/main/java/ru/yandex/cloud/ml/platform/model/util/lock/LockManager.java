@@ -4,6 +4,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 
 public interface LockManager {
+
     LockManager withPrefix(String prefix);
 
 

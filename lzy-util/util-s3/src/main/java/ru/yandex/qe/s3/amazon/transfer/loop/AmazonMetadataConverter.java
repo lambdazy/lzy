@@ -2,14 +2,12 @@ package ru.yandex.qe.s3.amazon.transfer.loop;
 
 import com.amazonaws.services.s3.Headers;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import java.util.Map;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
 
-import java.util.Map;
-
 /**
- * Established by terry
- * on 18.01.16.
+ * Established by terry on 18.01.16.
  */
 public class AmazonMetadataConverter {
 
@@ -20,8 +18,8 @@ public class AmazonMetadataConverter {
         }
         for (Map.Entry<String, Object> entry : metadata.getUserMetadata().entrySet()) {
             if (entry.getValue() instanceof String) {
-                amazonMetadata.addUserMetadata(entry.getKey(), (String)entry.getValue());
-            }//skip not string objects
+                amazonMetadata.addUserMetadata(entry.getKey(), (String) entry.getValue());
+            } //skip not string objects
         }
         if (metadata.getObjectContentLength() != Metadata.UNDEFINED_LENGTH) {
             amazonMetadata.setContentLength(metadata.getObjectContentLength());
@@ -31,12 +29,12 @@ public class AmazonMetadataConverter {
 
     public static Metadata to(ObjectMetadata amazonMetadata) {
         final MetadataBuilder metadataBuilder = new MetadataBuilder()
-                .addMetadata(amazonMetadata.getRawMetadata());
+            .addMetadata(amazonMetadata.getRawMetadata());
         for (Map.Entry<String, String> entry : amazonMetadata.getUserMetadata().entrySet()) {
             metadataBuilder.addUserMetadata(entry.getKey(), entry.getValue());
         }
 
-        final Long length = (Long)amazonMetadata.getRawMetadataValue(Headers.CONTENT_LENGTH);
+        final Long length = (Long) amazonMetadata.getRawMetadataValue(Headers.CONTENT_LENGTH);
         if (length != null) {
             metadataBuilder.setObjectContentLength(length);
         }
