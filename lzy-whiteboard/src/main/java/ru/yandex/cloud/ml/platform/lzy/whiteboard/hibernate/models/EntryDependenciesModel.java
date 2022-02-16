@@ -1,15 +1,20 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
-import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.IdClass;
+import javax.persistence.Table;
 
 @Entity
 @Table(name = "entry_dependencies")
 @IdClass(EntryDependenciesModel.EntryDependenciesPk.class)
 public class EntryDependenciesModel {
+
     @Id
-    @Column(name="snapshot_id")
+    @Column(name = "snapshot_id")
     private String snapshotId;
 
     @Id
@@ -34,6 +39,7 @@ public class EntryDependenciesModel {
     }
 
     public static class EntryDependenciesPk implements Serializable {
+
         protected String snapshotId;
         protected String entryIdFrom;
         protected String entryIdTo;
@@ -44,16 +50,21 @@ public class EntryDependenciesModel {
             this.entryIdTo = slotName;
         }
 
-        public EntryDependenciesPk() {}
+        public EntryDependenciesPk() {
+        }
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             EntryDependenciesPk storagePk = (EntryDependenciesPk) o;
-            return snapshotId.equals(storagePk.snapshotId) &&
-                    entryIdFrom.equals(storagePk.entryIdFrom) &&
-                    entryIdTo.equals(storagePk.entryIdTo);
+            return snapshotId.equals(storagePk.snapshotId)
+                && entryIdFrom.equals(storagePk.entryIdFrom)
+                && entryIdTo.equals(storagePk.entryIdTo);
         }
 
         @Override

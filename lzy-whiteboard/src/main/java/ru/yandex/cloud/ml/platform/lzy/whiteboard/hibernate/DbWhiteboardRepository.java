@@ -25,6 +25,7 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardTag
 @Singleton
 @Requires(beans = DbStorage.class)
 public class DbWhiteboardRepository implements WhiteboardRepository {
+
     @Inject
     DbStorage storage;
 
@@ -34,13 +35,13 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
             Transaction tx = session.beginTransaction();
             String wbId = whiteboard.id().toString();
             WhiteboardModel wbModel = new WhiteboardModel(wbId, WhiteboardStatus.State.CREATED,
-                    whiteboard.snapshot().id().toString(), whiteboard.namespace());
+                whiteboard.snapshot().id().toString(), whiteboard.namespace());
             List<WhiteboardFieldModel> whiteboardFieldModels = whiteboard.fieldNames().stream()
-                    .map(fieldName -> new WhiteboardFieldModel(wbId, fieldName, null))
-                    .collect(Collectors.toList());
+                .map(fieldName -> new WhiteboardFieldModel(wbId, fieldName, null))
+                .collect(Collectors.toList());
             List<WhiteboardTagModel> whiteboardTagModels = whiteboard.tags().stream()
-                    .map(tag -> new WhiteboardTagModel(wbId, tag))
-                    .collect(Collectors.toList());
+                .map(tag -> new WhiteboardTagModel(wbId, tag))
+                .collect(Collectors.toList());
             try {
                 session.save(wbModel);
                 whiteboardFieldModels.forEach(session::save);
@@ -80,7 +81,7 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             WhiteboardFieldModel wbModel = session.find(WhiteboardFieldModel.class,
-                    new WhiteboardFieldModel.WhiteboardFieldPk(field.whiteboard().id().toString(), field.name()));
+                new WhiteboardFieldModel.WhiteboardFieldPk(field.whiteboard().id().toString(), field.name()));
             if (wbModel == null) {
                 throw new RuntimeException(Status.NOT_FOUND.asException());
             }
@@ -103,10 +104,11 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
         try (Session session = storage.getSessionFactory().openSession()) {
             Snapshot snapshot = SessionHelper.getSnapshot(field.whiteboard().snapshot().id().toString(), session);
             Whiteboard whiteboard = SessionHelper.getWhiteboard(field.whiteboard().id().toString(), snapshot, session);
-            List<WhiteboardFieldModel> wbFieldModelList = SessionHelper.getFieldDependencies(field.whiteboard().id().toString(), field.name(), session);
+            List<WhiteboardFieldModel> wbFieldModelList =
+                SessionHelper.getFieldDependencies(field.whiteboard().id().toString(), field.name(), session);
             List<WhiteboardField> result = wbFieldModelList.stream()
-                    .map(w -> SessionHelper.getWhiteboardField(w, whiteboard, snapshot, session))
-                    .collect(Collectors.toList());
+                .map(w -> SessionHelper.getWhiteboardField(w, whiteboard, snapshot, session))
+                .collect(Collectors.toList());
             return result.stream();
         }
     }
@@ -115,10 +117,11 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     public Stream<WhiteboardField> fields(Whiteboard whiteboard) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Snapshot snapshot = SessionHelper.getSnapshot(whiteboard.snapshot().id().toString(), session);
-            List<WhiteboardFieldModel> wbFieldModelList = SessionHelper.getWhiteboardFields(whiteboard.id().toString(), session);
+            List<WhiteboardFieldModel> wbFieldModelList =
+                SessionHelper.getWhiteboardFields(whiteboard.id().toString(), session);
             List<WhiteboardField> result = wbFieldModelList.stream()
-                    .map(w -> SessionHelper.getWhiteboardField(w, whiteboard, snapshot, session))
-                    .collect(Collectors.toList());
+                .map(w -> SessionHelper.getWhiteboardField(w, whiteboard, snapshot, session))
+                .collect(Collectors.toList());
             return result.stream();
         }
     }
