@@ -43,11 +43,13 @@ public abstract class gRPCConverter {
 
     public static Operations.Env to(Env env) {
         Operations.Env.Builder builder = Operations.Env.newBuilder();
-        if (env.baseEnv() != null) {
-            builder.setBaseEnv(to(env.baseEnv()));
-        }
-        if (env.auxEnv() != null) {
-            builder.setAuxEnv(to(env.auxEnv()));
+        if (env != null) {
+            if (env.baseEnv() != null) {
+                builder.setBaseEnv(to(env.baseEnv()));
+            }
+            if (env.auxEnv() != null) {
+                builder.setAuxEnv(to(env.auxEnv()));
+            }
         }
         return builder.build();
     }

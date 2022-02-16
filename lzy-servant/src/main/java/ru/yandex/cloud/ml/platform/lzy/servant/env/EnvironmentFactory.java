@@ -15,15 +15,15 @@ public class EnvironmentFactory {
 
         final BaseEnvironment baseEnv;
         if (env.baseEnv() != null) {
-            LOG.info("No baseEnv provided, using ProcessEnvironment");
-            baseEnv = new ProcessEnvironment();
-        } else {
             LOG.info("Docker baseEnv provided, using DockerEnvironment");
             BaseEnvConfig config = BaseEnvConfig.newBuilder()
                 .image(env.baseEnv().name())
                 .addMount(resourcesPathStr, resourcesPathStr)
                 .build();
             baseEnv = new DockerEnvironment(config);
+        } else {
+            LOG.info("No baseEnv provided, using ProcessEnvironment");
+            baseEnv = new ProcessEnvironment();
         }
 
         if (env.auxEnv() instanceof PythonEnv) {

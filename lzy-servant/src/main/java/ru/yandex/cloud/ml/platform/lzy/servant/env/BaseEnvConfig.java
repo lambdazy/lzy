@@ -8,7 +8,6 @@ import java.util.Map;
 public class BaseEnvConfig {
 
     public static final String DEFAULT_IMAGE_PROP = "BASE_ENV_DEFAULT_IMAGE";
-    // TODO (lindvv): get DEFAULT_IMAGE from System.getProperty(...) from server
 
     private final String image;
     private final List<MountDescription> mounts;
