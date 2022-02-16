@@ -2,38 +2,50 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
-
-import javax.annotation.Nullable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM.Auth;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM.UserCredentials;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AttachServant;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionProgress;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotAttach;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus.RC;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotDetach;
 
 public class TerminalSession {
 
-    private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
     public static final String SESSION_ID_KEY = "kharon_session_id";
-
-    private final CompletableFuture<StreamObserver<Servant.ExecutionProgress>> executeFromServerFuture = new CompletableFuture<>();
-    private StreamObserver<Servant.ExecutionProgress> executionProgress;
+    private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
+    private final CompletableFuture<StreamObserver<Servant.ExecutionProgress>> executeFromServerFuture =
+        new CompletableFuture<>();
     private final StreamObserver<Kharon.TerminalState> terminalStateObserver;
     private final StreamObserver<Kharon.TerminalCommand> terminalController;
     private final AtomicBoolean invalid = new AtomicBoolean(false);
-
-    private String user;
     private final UUID sessionId = UUID.randomUUID();
     private final URI kharonServantProxyAddress;
-
     private final Map<UUID, CompletableFuture<Kharon.TerminalState>> tasks = new ConcurrentHashMap<>();
+    private StreamObserver<Servant.ExecutionProgress> executionProgress;
+    private String user;
 
     public TerminalSession(
         LzyServerGrpc.LzyServerBlockingStub lzyServer,
@@ -55,15 +67,15 @@ public class TerminalSession {
                 }
                 switch (terminalState.getProgressCase()) {
                     case ATTACHTERMINAL: {
-                        final Kharon.AttachTerminal attachTerminal = terminalState.getAttachTerminal();
+                        final AttachTerminal attachTerminal = terminalState.getAttachTerminal();
                         if (user != null) {
                             throw new IllegalStateException(
                                 "Double attach to terminal from user " + user);
                         }
-                        final IAM.UserCredentials auth = attachTerminal.getAuth();
+                        final UserCredentials auth = attachTerminal.getAuth();
                         user = auth.getUserId();
 
-                        final IAM.UserCredentials userCredentials = IAM.UserCredentials.newBuilder()
+                        final UserCredentials userCredentials = UserCredentials.newBuilder()
                             .setUserId(user)
                             .setToken(auth.getToken())
                             .build();
@@ -74,8 +86,8 @@ public class TerminalSession {
                         }
                         try {
                             //noinspection ResultOfMethodCallIgnored
-                            lzyServer.registerServant(Lzy.AttachServant.newBuilder()
-                                .setAuth(IAM.Auth.newBuilder()
+                            lzyServer.registerServant(AttachServant.newBuilder()
+                                .setAuth(Auth.newBuilder()
                                     .setUser(userCredentials)
                                     .build())
                                 .setServantURI(servantAddr)
@@ -88,9 +100,9 @@ public class TerminalSession {
                         break;
                     }
                     case ATTACH: {
-                        final Servant.SlotAttach attach = terminalState.getAttach();
-                        executionProgress.onNext(Servant.ExecutionProgress.newBuilder()
-                            .setAttach(Servant.SlotAttach.newBuilder()
+                        final SlotAttach attach = terminalState.getAttach();
+                        executionProgress.onNext(ExecutionProgress.newBuilder()
+                            .setAttach(SlotAttach.newBuilder()
                                 .setSlot(attach.getSlot())
                                 .setUri(convertToKharonServantUri(attach.getUri()))
                                 .setChannel(attach.getChannel())
@@ -99,9 +111,9 @@ public class TerminalSession {
                         break;
                     }
                     case DETACH: {
-                        final Servant.SlotDetach detach = terminalState.getDetach();
-                        executionProgress.onNext(Servant.ExecutionProgress.newBuilder()
-                            .setDetach(Servant.SlotDetach.newBuilder()
+                        final SlotDetach detach = terminalState.getDetach();
+                        executionProgress.onNext(ExecutionProgress.newBuilder()
+                            .setDetach(SlotDetach.newBuilder()
                                 .setSlot(detach.getSlot())
                                 .setUri(convertToKharonServantUri(detach.getUri()))
                                 .build())
@@ -109,7 +121,7 @@ public class TerminalSession {
                         break;
                     }
                     case SLOTSTATUS: {
-                        final CompletableFuture<Kharon.TerminalState> future = tasks.get(
+                        final CompletableFuture<TerminalState> future = tasks.get(
                             UUID.fromString(terminalState.getCommandId()));
                         if (future == null) {
                             throw new IllegalStateException(
@@ -118,6 +130,8 @@ public class TerminalSession {
                         future.complete(terminalState);
                         break;
                     }
+                    default:
+                        throw new IllegalStateException("Unexpected value: " + terminalState.getProgressCase());
                 }
             }
 
