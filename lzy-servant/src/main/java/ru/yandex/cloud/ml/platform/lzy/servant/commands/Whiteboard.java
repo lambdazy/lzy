@@ -34,13 +34,13 @@ public class Whiteboard implements LzyCommand {
                 new Option("t", "tags list", true, "Whiteboard tags comma-separated list"));
         options.addOption(new Option("n", "namespace", true, "Whiteboard namespace"));
         options.addOption(new Option("from", "from", true,
-            "Whiteboard creation date in the format 'YYYY-MM-DD' used in 'list' command for filtering. "
+            "Whiteboard creation date in epoch seconds used in 'list' command for filtering. "
                 + "Command 'list' will return whiteboards with creation date GREATER or EQUAL to the specified."
-                + "If not provided '0001-01-01' will be used as a lower bound"));
+                + "If not provided epoch seconds for '0001-01-01' will be used as a lower bound"));
         options.addOption(new Option("to", "to", true,
-            "Whiteboard creation date in the format 'YYYY-MM-DD' used in 'list' command for filtering. "
+            "Whiteboard creation date in epoch seconds used in 'list' command for filtering. "
                 + "Command 'list' will return whiteboards with creation date LESS than the specified."
-                + "If not provided '9999-12-31' will be used as an upper bound"));
+                + "If not provided epoch seconds for '9999-12-31' will be used as an upper bound"));
     }
 
     @Override
