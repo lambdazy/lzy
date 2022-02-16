@@ -4,15 +4,20 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
-import org.apache.commons.cli.*;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.WhiteboardApi;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.Map;
 
 public class LzySnapshot {
 
@@ -47,12 +52,12 @@ public class LzySnapshot {
             lzyWhiteboardHost = DEFAULT_LZY_SNAPSHOT_LOCALHOST;
         }
         final int port = Integer.parseInt(parse.getOptionValue('p', "8999"));
-        URI snapshotURI = URI.create(lzyWhiteboardHost + ":" + port);
-        LOG.info("Starting at: " + snapshotURI);
+        URI snapshotUri = URI.create(lzyWhiteboardHost + ":" + port);
+        LOG.info("Starting at: " + snapshotUri);
         try (ApplicationContext context = ApplicationContext.run(
             PropertySource.of(
                 Map.of(
-                    "snapshot.uri", snapshotURI.toString(),
+                    "snapshot.uri", snapshotUri.toString(),
                     "server.uri", serverAddress.toString()
                 )
             )

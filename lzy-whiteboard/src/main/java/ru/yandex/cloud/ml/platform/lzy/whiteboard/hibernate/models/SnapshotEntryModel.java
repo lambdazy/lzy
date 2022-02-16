@@ -1,18 +1,24 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
-import javax.annotation.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
-
-import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.Nullable;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Id;
+import javax.persistence.IdClass;
+import javax.persistence.Table;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 
 @Entity
 @Table(name = "snapshot_entry")
 @IdClass(SnapshotEntryModel.SnapshotEntryPk.class)
 public class SnapshotEntryModel {
+
     @Id
-    @Column(name="snapshot_id", nullable = false)
+    @Column(name = "snapshot_id", nullable = false)
     private String snapshotId;
 
     @Id
@@ -30,7 +36,7 @@ public class SnapshotEntryModel {
     private SnapshotEntryStatus.State entryState;
 
     public SnapshotEntryModel(String snapshotId, String entryId, String storageUri,
-                              boolean emptyContent, SnapshotEntryStatus.State entryStatus) {
+        boolean emptyContent, SnapshotEntryStatus.State entryStatus) {
         this.snapshotId = snapshotId;
         this.entryId = entryId;
         this.storageUri = storageUri;
@@ -83,6 +89,7 @@ public class SnapshotEntryModel {
     }
 
     public static class SnapshotEntryPk implements Serializable {
+
         protected String snapshotId;
         protected String entryId;
 
@@ -91,15 +98,20 @@ public class SnapshotEntryModel {
             this.entryId = entryId;
         }
 
-        public SnapshotEntryPk() {}
+        public SnapshotEntryPk() {
+        }
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             SnapshotEntryPk storagePk = (SnapshotEntryPk) o;
-            return snapshotId.equals(storagePk.snapshotId) &&
-                    entryId.equals(storagePk.entryId);
+            return snapshotId.equals(storagePk.snapshotId)
+                && entryId.equals(storagePk.entryId);
         }
 
         @Override

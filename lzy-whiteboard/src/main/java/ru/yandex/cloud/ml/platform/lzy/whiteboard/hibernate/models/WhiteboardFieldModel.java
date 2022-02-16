@@ -1,16 +1,23 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
-import javax.annotation.Nullable;
-import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.Nullable;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.IdClass;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 
 @Entity
 @Table(name = "whiteboard_field")
 @IdClass(WhiteboardFieldModel.WhiteboardFieldPk.class)
 public class WhiteboardFieldModel {
+
     @Id
-    @Column(name="wb_id")
+    @Column(name = "wb_id")
     private String wbId;
 
     @Id
@@ -21,7 +28,7 @@ public class WhiteboardFieldModel {
     private String entryId;
 
     @ManyToOne
-    @JoinColumn(name="wb_id", nullable=false, insertable = false, updatable = false)
+    @JoinColumn(name = "wb_id", nullable = false, insertable = false, updatable = false)
     private WhiteboardModel whiteboardModel;
 
     public WhiteboardFieldModel(String wbId, String fieldName, String entryId) {
@@ -51,6 +58,7 @@ public class WhiteboardFieldModel {
     }
 
     public static class WhiteboardFieldPk implements Serializable {
+
         protected String wbId;
         protected String fieldName;
 
@@ -59,15 +67,20 @@ public class WhiteboardFieldModel {
             this.fieldName = fieldName;
         }
 
-        public WhiteboardFieldPk() {}
+        public WhiteboardFieldPk() {
+        }
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             WhiteboardFieldModel.WhiteboardFieldPk storagePk = (WhiteboardFieldModel.WhiteboardFieldPk) o;
-            return wbId.equals(storagePk.wbId) &&
-                    fieldName.equals(storagePk.fieldName);
+            return wbId.equals(storagePk.wbId)
+                && fieldName.equals(storagePk.fieldName);
         }
 
         @Override
