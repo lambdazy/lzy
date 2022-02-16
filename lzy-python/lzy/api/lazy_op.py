@@ -72,7 +72,10 @@ class LzyLocalOp(LzyOp, Generic[T]):
 
 
 class LzyExecutionException(Exception):
-    pass
+    def __init__(self, message, *args):
+        message += "If you are going to ask for help of cloud support," \
+                   " please send the following trace files: /tmp/lzy-log/"
+        super().__init__(message, *args)
 
 
 class LzyRemoteOp(LzyOp, Generic[T]):
