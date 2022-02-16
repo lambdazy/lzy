@@ -1,3 +1,7 @@
+import unittest
+
+from typing import Tuple
+
 import dataclasses
 from unittest import TestCase
 
@@ -10,30 +14,43 @@ from lzy.api.whiteboard import whiteboard
 class WB:
     a: int
     b: int
-
-
-@op
-def num() -> int:
-    return 5
+    c: int = 3
 
 
 class WhiteboardTests(TestCase):
+    def setUp(self) -> None:
+        self._raising_num_run_num = 0
+
+    @op
+    def num(self) -> int:
+        return 5
+
+    @op
+    def nums(self, c: int) -> Tuple[int, int]:
+        print(c)
+        return 5, 5
+
+    @op
+    def raising_num(self) -> int:
+        self._raising_num_run_num += 1
+        raise Exception()
+
     def test_many_wb(self):
         wb = WB(1, 1)
         with LzyLocalEnv(whiteboard=wb):
-            wb.a = num()
-            wb.b = num()
+            wb.a = self.num()
+            wb.b = self.num()
         self.assertEqual(5, wb.a)
         self.assertEqual(5, wb.b)
 
     def test_multiple_instances(self):
         wb = WB(1, 1)
         with LzyLocalEnv(whiteboard=wb):
-            wb.a = num()
+            wb.a = self.num()
 
         wb2 = WB(1, 1)
         with LzyLocalEnv(whiteboard=wb):
-            wb2.b = num()
+            wb2.b = self.num()
 
         self.assertEqual(5, wb.a)
         self.assertEqual(5, wb2.b)
@@ -42,7 +59,7 @@ class WhiteboardTests(TestCase):
         with self.assertRaises(ValueError) as context:
             wb = WB(1, 1)
             with LzyLocalEnv(whiteboard=wb):
-                wb.a = num()
+                wb.a = self.num()
                 wb.b = 5
         self.assertTrue('Only @op return values can be assigned to whiteboard' in str(context.exception))
 
@@ -50,6 +67,27 @@ class WhiteboardTests(TestCase):
         with self.assertRaises(ValueError) as context:
             wb = WB(1, 1)
             with LzyLocalEnv(whiteboard=wb):
-                wb.a = num()
-                wb.a = num()
+                wb.a = self.num()
+                wb.a = self.num()
         self.assertTrue('Whiteboard field can be assigned only once' in str(context.exception))
+
+    @unittest.skip
+    def test_execution_stop_if_whiteboard_invalid(self):
+        wb = WB(1, 1)
+        with self.assertRaises(ValueError) as context:
+            with LzyLocalEnv(whiteboard=wb):
+                wb.a = self.num()
+                wb.b = 5
+
+        self.assertEqual(1, wb.a)
+        self.assertTrue('Only @op return values can be assigned to whiteboard' in str(context.exception))
+
+    @unittest.skip
+    def test_materialization_stops_if_whiteboard_invalid(self):
+        wb = WB(1, 1)
+        with self.assertRaises(Exception):
+            with LzyLocalEnv(whiteboard=wb):
+                wb.a = self.raising_num()
+                wb.b, wb.c = self.nums(wb.a)
+
+        self.assertEqual(1, self._raising_num_run_num)
