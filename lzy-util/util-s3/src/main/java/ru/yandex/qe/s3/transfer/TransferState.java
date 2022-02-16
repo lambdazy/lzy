@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
  * @author entropia
  */
 public interface TransferState {
+
     @Nonnull
     TransferStatus getTransferStatus();
 

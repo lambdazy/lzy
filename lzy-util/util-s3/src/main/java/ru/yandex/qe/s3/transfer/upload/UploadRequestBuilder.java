@@ -1,21 +1,20 @@
 package ru.yandex.qe.s3.transfer.upload;
 
-import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
-import ru.yandex.qe.s3.transfer.meta.Metadata;
-import ru.yandex.qe.s3.transfer.ThrowingSupplier;
-import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
-
-import javax.annotation.concurrent.NotThreadSafe;
-import java.io.InputStream;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.InputStream;
+import javax.annotation.concurrent.NotThreadSafe;
+import ru.yandex.qe.s3.transfer.ThrowingSupplier;
+import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
+import ru.yandex.qe.s3.transfer.meta.Metadata;
+import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
+
 /**
- * Established by terry
- * on 01.07.15.
+ * Established by terry on 01.07.15.
  */
 @NotThreadSafe
 public class UploadRequestBuilder {
+
     private String bucket;
     private String key;
 
@@ -89,6 +88,6 @@ public class UploadRequestBuilder {
         checkNotNull(streamSupplier, "streamSupplier not specified!");
 
         return new UploadRequest(bucket, key, objectMetadata != null ? objectMetadata : new MetadataBuilder().build(),
-                streamSupplier, maxConcurrencyLevel, allowEmptyStream, concurrencyConflictResolve, abortPolicy);
+            streamSupplier, maxConcurrencyLevel, allowEmptyStream, concurrencyConflictResolve, abortPolicy);
     }
 }

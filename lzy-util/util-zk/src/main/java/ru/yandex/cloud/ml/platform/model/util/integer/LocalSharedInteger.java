@@ -3,9 +3,12 @@ package ru.yandex.cloud.ml.platform.model.util.integer;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class LocalSharedInteger implements SharedInteger {
+
     private final AtomicInteger integer;
 
-    LocalSharedInteger(int value) {integer = new AtomicInteger(value);}
+    LocalSharedInteger(int value) {
+        integer = new AtomicInteger(value);
+    }
 
 
     @Override

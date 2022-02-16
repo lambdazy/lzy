@@ -1,8 +1,7 @@
 package ru.yandex.qe.s3.transfer.buffers;
 
 /**
- * Established by terry
- * on 14.07.15.
+ * Established by terry on 14.07.15.
  */
 public enum ByteBufferSizeType {
 

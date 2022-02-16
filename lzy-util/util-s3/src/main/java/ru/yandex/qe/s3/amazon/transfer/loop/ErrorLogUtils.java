@@ -1,12 +1,11 @@
 package ru.yandex.qe.s3.amazon.transfer.loop;
 
-import com.amazonaws.services.s3.model.AmazonS3Exception;
-
 import static java.lang.String.format;
 
+import com.amazonaws.services.s3.model.AmazonS3Exception;
+
 /**
- * Established by terry
- * on 19.01.16.
+ * Established by terry on 19.01.16.
  */
 public class ErrorLogUtils {
 

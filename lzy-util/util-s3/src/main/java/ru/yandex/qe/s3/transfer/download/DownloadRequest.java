@@ -2,15 +2,14 @@ package ru.yandex.qe.s3.transfer.download;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
-
 import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
 
 /**
- * Established by terry
- * on 16.07.15.
+ * Established by terry on 16.07.15.
  */
 @Immutable
 public class DownloadRequest {
+
     public static final int UNDEFF_BOUND_VALUE = -1;
 
     private final String bucket;
@@ -28,7 +27,7 @@ public class DownloadRequest {
     }
 
     public DownloadRequest(@Nonnull String bucket, @Nonnull String key, long start, long end, int maxConcurrencyLevel,
-                           @Nonnull TransferAbortPolicy abortPolicy) {
+        @Nonnull TransferAbortPolicy abortPolicy) {
         this.bucket = bucket;
         this.key = key;
         this.start = start;
@@ -66,13 +65,13 @@ public class DownloadRequest {
 
     @Override
     public String toString() {
-        return "DownloadRequest{" +
-                "bucket='" + bucket + '\'' +
-                ", key='" + key + '\'' +
-                ", start=" + start +
-                ", end=" + end +
-                ", maxConcurrencyLevel=" + maxConcurrencyLevel +
-                ", abortPolicy=" + abortPolicy +
-                '}';
+        return "DownloadRequest{"
+            + "bucket='" + bucket + '\''
+            + ", key='" + key + '\''
+            + ", start=" + start
+            + ", end=" + end
+            + ", maxConcurrencyLevel=" + maxConcurrencyLevel
+            + ", abortPolicy=" + abortPolicy
+            + '}';
     }
 }

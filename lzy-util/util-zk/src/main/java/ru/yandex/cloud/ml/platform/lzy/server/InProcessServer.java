@@ -3,11 +3,12 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.micronaut.context.ApplicationContext;
-
 import java.io.IOException;
 
 /**
- * InProcessServer that manages startup/shutdown of a service within the same process as the client is running. Used for unit testing purposes.
+ * InProcessServer that manages startup/shutdown of a service within the same process as the client is running. Used for
+ * unit testing purposes.
+ *
  * @author be
  */
 public class InProcessServer<T extends io.grpc.BindableService> {
@@ -17,17 +18,17 @@ public class InProcessServer<T extends io.grpc.BindableService> {
     private T instance;
     private ApplicationContext ctx;
 
-    public InProcessServer(T instance){
+    public InProcessServer(T instance) {
         this.instance = instance;
     }
 
-    public void start() throws IOException{
+    public void start() throws IOException {
         server = InProcessServerBuilder
-                .forName("test")
-                .directExecutor()
-                .addService(instance)
-                .build()
-                .start();
+            .forName("test")
+            .directExecutor()
+            .addService(instance)
+            .build()
+            .start();
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {

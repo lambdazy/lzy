@@ -4,14 +4,12 @@ import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import javax.annotation.Nonnull;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.annotation.Required;
 
-import javax.annotation.Nonnull;
-
 /**
- * Established by terry
- * on 01.07.15.
+ * Established by terry on 01.07.15.
  */
 public class AmazonS3FactoryBean implements FactoryBean<AmazonS3> {
 

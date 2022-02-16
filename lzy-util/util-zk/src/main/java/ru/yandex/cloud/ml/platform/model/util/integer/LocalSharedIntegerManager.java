@@ -1,10 +1,9 @@
 package ru.yandex.cloud.ml.platform.model.util.integer;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 @Service("LocalSharedIntegerManager")
 public class LocalSharedIntegerManager implements SharedIntegerManager {

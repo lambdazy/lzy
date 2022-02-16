@@ -1,5 +1,9 @@
 package ru.yandex.cloud.ml.platform.model.util.latch;
 
+import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 import org.apache.curator.framework.CuratorFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -7,14 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Nullable;
-import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 @Lazy
 @Service("DistributedLatchManager")
 public class DistributedLatchManager implements LatchManager {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedLatchManager.class);
 
     private final Map<String, DistributedLatch> latches;
@@ -31,9 +31,9 @@ public class DistributedLatchManager implements LatchManager {
     }
 
     private DistributedLatchManager(CuratorFramework zookeeperClient,
-                                    Map<String, DistributedLatch> latches,
-                                    String prefix,
-                                    int latchTimeoutMins) {
+        Map<String, DistributedLatch> latches,
+        String prefix,
+        int latchTimeoutMins) {
         this.zookeeperClient = zookeeperClient;
         this.latches = latches;
         this.prefix = prefix;
@@ -47,12 +47,12 @@ public class DistributedLatchManager implements LatchManager {
 
     @Override
     public Latch create(String key, int count) {
-        {
-            final DistributedLatch latch = latches.get(this.prefix + "-" + key);
-            if (latch != null && latch.count() >= 0 && !isExpired(key, latch)) {
-                throw new RuntimeException("Cannot create latch for key " + key + ": latch already exists");
+            {
+                final DistributedLatch latch = latches.get(this.prefix + "-" + key);
+                if (latch != null && latch.count() >= 0 && !isExpired(key, latch)) {
+                    throw new RuntimeException("Cannot create latch for key " + key + ": latch already exists");
+                }
             }
-        }
         final DistributedLatch latch = new DistributedLatch(zookeeperClient, count, this.prefix + "-" + key);
         latches.put(this.prefix + "-" + key, latch);
         return latch;
@@ -76,7 +76,9 @@ public class DistributedLatchManager implements LatchManager {
             latches.remove(this.prefix + "-" + key);
             latch.close();
 
-            LOGGER.warn("Latch for key " + key + " expired " + (Instant.now().toEpochMilli() - latch.createdAt() - latchTimeoutMins * 60L * 1000) / 1000.0 / 60 + " minutes ago" );
+            LOGGER.warn("Latch for key " + key + " expired "
+                + (Instant.now().toEpochMilli() - latch.createdAt() - latchTimeoutMins * 60L * 1000) / 1000.0 / 60
+                + " minutes ago");
             return true;
         }
 

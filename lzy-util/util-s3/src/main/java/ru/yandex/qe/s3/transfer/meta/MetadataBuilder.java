@@ -1,14 +1,17 @@
 package ru.yandex.qe.s3.transfer.meta;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.*;
 
 /**
- * Established by terry
- * on 20.01.16.
+ * Established by terry on 20.01.16.
  */
 @NotThreadSafe
 public class MetadataBuilder {
+
     private Map<String, Object> metadata = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private Map<String, Object> userMetadata = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 

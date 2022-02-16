@@ -1,16 +1,18 @@
 package ru.yandex.qe.s3.transfer;
 
 import com.gc.iotools.stream.is.InputStreamFromOutputStream;
-import ru.yandex.qe.s3.util.function.ThrowingConsumer;
-
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
+import ru.yandex.qe.s3.util.function.ThrowingConsumer;
 
 /**
- * Established by terry
- * on 13.07.15.
- * !!Upload implementation will invoke supplier only once and close it in finally block!!
+ * Established by terry on 13.07.15. !!Upload implementation will invoke supplier only once and close it in finally
+ * block!!
  */
 public class StreamSuppliers {
 
@@ -26,7 +28,8 @@ public class StreamSuppliers {
         return new FileStreamSupplier(file);
     }
 
-    public static ThrowingSupplier<InputStream> lazy(ThrowingConsumer<OutputStream> consumer, ExecutorService executorService, int pipedChunkSize) {
+    public static ThrowingSupplier<InputStream> lazy(ThrowingConsumer<OutputStream> consumer,
+        ExecutorService executorService, int pipedChunkSize) {
         return new OutputConsumerStreamSupplier(consumer, executorService, pipedChunkSize);
     }
 
@@ -59,12 +62,14 @@ public class StreamSuppliers {
     }
 
     private static class OutputConsumerStreamSupplier implements ThrowingSupplier<InputStream> {
+
         private final ThrowingConsumer<OutputStream> consumer;
         private final ExecutorService executorService;
         private final int pipedChunkSize;
 
 
-        public OutputConsumerStreamSupplier(ThrowingConsumer<OutputStream> consumer, ExecutorService executorService, int pipedChunkSize) {
+        public OutputConsumerStreamSupplier(ThrowingConsumer<OutputStream> consumer, ExecutorService executorService,
+            int pipedChunkSize) {
             this.consumer = consumer;
             this.executorService = executorService;
             this.pipedChunkSize = pipedChunkSize;

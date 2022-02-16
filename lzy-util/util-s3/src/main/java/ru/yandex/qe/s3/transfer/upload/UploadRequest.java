@@ -1,19 +1,18 @@
 package ru.yandex.qe.s3.transfer.upload;
 
-import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
-import ru.yandex.qe.s3.transfer.meta.Metadata;
-import ru.yandex.qe.s3.transfer.ThrowingSupplier;
-
+import java.io.InputStream;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
-import java.io.InputStream;
+import ru.yandex.qe.s3.transfer.ThrowingSupplier;
+import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
+import ru.yandex.qe.s3.transfer.meta.Metadata;
 
 /**
- * Established by terry
- * on 01.07.15.
+ * Established by terry on 01.07.15.
  */
 @Immutable
 public class UploadRequest {
+
     private final String bucket;
     private final String key;
 
@@ -28,14 +27,15 @@ public class UploadRequest {
     private final TransferAbortPolicy abortPolicy;
 
     public UploadRequest(@Nonnull String bucket, @Nonnull String key, @Nonnull Metadata objectMetadata,
-                         @Nonnull ThrowingSupplier<InputStream> streamSupplier, int maxConcurrencyLevel, boolean allowEmptyStream,
-                         @Nonnull ConcurrencyConflictResolve concurrencyConflictResolve) {
-        this(bucket, key, objectMetadata, streamSupplier, maxConcurrencyLevel, allowEmptyStream, concurrencyConflictResolve, TransferAbortPolicy.RETURN_IMMEDIATELY);
+        @Nonnull ThrowingSupplier<InputStream> streamSupplier, int maxConcurrencyLevel, boolean allowEmptyStream,
+        @Nonnull ConcurrencyConflictResolve concurrencyConflictResolve) {
+        this(bucket, key, objectMetadata, streamSupplier, maxConcurrencyLevel, allowEmptyStream,
+            concurrencyConflictResolve, TransferAbortPolicy.RETURN_IMMEDIATELY);
     }
 
     public UploadRequest(@Nonnull String bucket, @Nonnull String key, @Nonnull Metadata objectMetadata,
-                         @Nonnull ThrowingSupplier<InputStream> streamSupplier, int maxConcurrencyLevel, boolean allowEmptyStream,
-                         @Nonnull ConcurrencyConflictResolve concurrencyConflictResolve, @Nonnull TransferAbortPolicy abortPolicy) {
+        @Nonnull ThrowingSupplier<InputStream> streamSupplier, int maxConcurrencyLevel, boolean allowEmptyStream,
+        @Nonnull ConcurrencyConflictResolve concurrencyConflictResolve, @Nonnull TransferAbortPolicy abortPolicy) {
         this.bucket = bucket;
         this.key = key;
         this.objectMetadata = objectMetadata;
@@ -86,14 +86,14 @@ public class UploadRequest {
 
     @Override
     public String toString() {
-        return "UploadRequest{" +
-                "bucket='" + bucket + '\'' +
-                ", key='" + key + '\'' +
-                ", objectMetadata=" + objectMetadata +
-                ", maxConcurrencyLevel=" + maxConcurrencyLevel +
-                ", allowEmptyStream=" + allowEmptyStream +
-                ", concurrencyConflictResolve=" + concurrencyConflictResolve +
-                ", abortPolicy=" + abortPolicy +
-                '}';
+        return "UploadRequest{"
+            + "bucket='" + bucket + '\''
+            + ", key='" + key + '\''
+            + ", objectMetadata=" + objectMetadata
+            + ", maxConcurrencyLevel=" + maxConcurrencyLevel
+            + ", allowEmptyStream=" + allowEmptyStream
+            + ", concurrencyConflictResolve=" + concurrencyConflictResolve
+            + ", abortPolicy=" + abortPolicy
+            + '}';
     }
 }

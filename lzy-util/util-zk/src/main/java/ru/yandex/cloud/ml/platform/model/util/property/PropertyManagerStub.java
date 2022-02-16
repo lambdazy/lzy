@@ -6,8 +6,9 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class PropertyManagerStub<T> implements PropertyManager<T> {
-    private T config;
+
     private final List<Consumer<T>> listeners = Collections.synchronizedList(new ArrayList<>());
+    private T config;
 
     public PropertyManagerStub(T initialValue) {
         config = initialValue;

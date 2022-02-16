@@ -1,14 +1,17 @@
 package ru.yandex.qe.s3.transfer;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import org.apache.commons.io.IOUtils;
 import ru.yandex.qe.s3.transfer.download.MetaAndStream;
 import ru.yandex.qe.s3.util.function.ThrowingConsumer;
 
-import java.io.*;
-
 /**
- * Established by terry
- * on 16.07.15.
+ * Established by terry on 16.07.15.
  */
 public class DownloadConsumers {
 
