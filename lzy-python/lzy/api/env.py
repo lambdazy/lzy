@@ -250,20 +250,30 @@ class LzyRemoteEnv(LzyEnvBase):
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
                 local_modules: List[ModuleType] = []
+                parents: List[ModuleType] = []
             else:
-                installed, local_modules = select_modules(namespace)
+                installed, parents, local_modules = select_modules(namespace)
                 name, yaml = create_yaml(installed_packages=installed)
 
-            local_modules_uploaded = []
-            for local_module in local_modules:
-                cloudpickle.register_pickle_by_value(local_module)
-                key = "local_modules/" + local_module.__name__ + "/" \
-                      + str(uuid.uuid4())  # maybe we need to add module versions or some hash here
-                uri = self._storage_client.write(self._bucket, key, cloudpickle.dumps(local_module))
-                local_modules_uploaded.append((local_module.__name__, uri))
-                cloudpickle.unregister_pickle_by_value(local_module)
-            self._py_env = PyEnv(name, yaml, local_modules, local_modules_uploaded)
-            return self._py_env
+            try:
+                for local_module in parents:
+                    cloudpickle.register_pickle_by_value(local_module)
+                for local_module in local_modules:
+                    cloudpickle.register_pickle_by_value(local_module)
+
+                local_modules_uploaded = []
+                for local_module in parents:
+                    key = "local_modules/" + local_module.__name__ + "/" \
+                          + str(uuid.uuid4())  # maybe we need to add module versions or some hash here
+                    uri = self._storage_client.write(self._bucket, key, cloudpickle.dumps(local_module))
+                    local_modules_uploaded.append((local_module.__name__, uri))
+                self._py_env = PyEnv(name, yaml, parents, local_modules_uploaded)
+                return self._py_env
+            finally:
+                for local_module in local_modules:
+                    cloudpickle.unregister_pickle_by_value(local_module)
+                for local_module in parents:
+                    cloudpickle.unregister_pickle_by_value(local_module)
 
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option

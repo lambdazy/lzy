@@ -82,7 +82,7 @@ version = "3.9" if sys.version_info > (3, 9) else None
 STDLIB_LIST = stdlib_list(version)
 
 
-def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], List[ModuleType]]:
+def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], List[ModuleType], List[ModuleType]]:
     dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
 
     distributions = packages_distributions()
@@ -133,8 +133,9 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
         search(entry)
 
     # remove duplicates and keep order as dict preserves order since python3.7
-    all_local_modules = dict.fromkeys(parents)
-    all_local_modules.update(dict.fromkeys(reversed(local_modules)))
+    parents = list(dict.fromkeys(parents))
+    local_modules = list(dict.fromkeys(local_modules))
+    local_modules.reverse()
 
     # reverse to ensure the right order: from leaves to the root
-    return remote_packages, list(all_local_modules)
+    return remote_packages, parents, local_modules
