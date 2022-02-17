@@ -66,7 +66,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "fixed_cpu" {
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   name                  = "cpupool"
   vm_size               = "Standard_D2_v2"
-  node_count            = var.min_cpu_count
+  node_count            = var.cpu_pool_size
   enable_auto_scaling   = false
   node_labels           = {
     type = "cpu"
