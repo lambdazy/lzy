@@ -32,6 +32,5 @@ jobs:
           images: lzydock/lzy-server/
           tags: test-tag
 
-      - name: 'ls'
-        run: ls
-#        run: echo "{{steps.tags.outputs.tags}}" | awk '{for (i = 1; i <= NF; i++) {print $i}}' | bash deployment/docker-push.sh {{branch}} rebuild update-version
+      - name: 'push-docker'
+        run: echo "{{steps.tags.outputs.tags}}" | awk '{for (i = 1; i <= NF; i++) {print $i}}' | bash deployment/push-docker.sh {{branch}} rebuild update-version
