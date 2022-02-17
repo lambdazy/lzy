@@ -17,9 +17,9 @@ jobs:
       - uses: actions/checkout@v2
 
       - uses: actions/login-docker@v1
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - uses: actions/setup-java@v2
         with:
