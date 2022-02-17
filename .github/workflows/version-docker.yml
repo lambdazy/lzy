@@ -1,15 +1,11 @@
 name: Update docker tag in push
 on:
   push:
-    branches-ignore:
-      - master
 
 jobs:
 
   # TODO
-  # 1) get lzydock access -
   # 2) increment tags -
-  # 3) push +- (build-and-push)
   update-docker-tags:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -33,11 +29,8 @@ jobs:
         id: tags
         uses: docker/metadata-action@v3
         with:
-          images: lzydock/lzy-server
+          images: lzydock/lzy-server/
           tags: test-tag
 
       - name: 'push'
-        uses: docker/build-push-action@v2
-        with:
-          push: true
-          tags: ${{ steps.tags.outputs.tags }}
+        run: echo "{{steps.tags.outputs.tags}}" | awk '{for (i = 1; i <= NF; i++) {print $i}}' | bash deployment/docker-push.sh {{branch}} rebuild update-version
