@@ -22,8 +22,8 @@ jobs:
           distribution: 'adopt'
           java-version: '11'
 
-      - name: 'java build'
-        run: mvn clean install -DskipTests
+#      - name: 'java build'
+#        run: mvn clean install -DskipTests
 
       - name: 'extract docker tags'
         id: tags
@@ -32,5 +32,6 @@ jobs:
           images: lzydock/lzy-server/
           tags: test-tag
 
-      - name: 'push'
-        run: echo "{{steps.tags.outputs.tags}}" | awk '{for (i = 1; i <= NF; i++) {print $i}}' | bash deployment/docker-push.sh {{branch}} rebuild update-version
+      - name: 'ls'
+        run: ls
+#        run: echo "{{steps.tags.outputs.tags}}" | awk '{for (i = 1; i <= NF; i++) {print $i}}' | bash deployment/docker-push.sh {{branch}} rebuild update-version
