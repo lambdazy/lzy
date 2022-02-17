@@ -33,4 +33,4 @@ jobs:
           tags: test-tag
 
       - name: 'push-docker'
-        run: echo "{{steps.tags.outputs.tags}}" | awk '{for (i = 1; i <= NF; i++) {print $i}}' | bash deployment/push-docker.sh {{branch}} rebuild update-version
+        run: echo ${{steps.tags.outputs.tags}} | awk '{for (i = 1; i <= NF; i++) {print $i}}' | bash deployment/push-docker.sh {{branch}} rebuild update-version
