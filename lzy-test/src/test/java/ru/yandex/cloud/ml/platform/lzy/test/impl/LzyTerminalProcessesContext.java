@@ -1,9 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
-import org.apache.commons.io.IOUtils;
-import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -15,14 +12,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
+import org.apache.commons.io.IOUtils;
+import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
 public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
     private final List<Process> servantProcesses = new ArrayList<>();
 
     @Override
-    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user, String privateKeyPath) {
+    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user,
+                                               String privateKeyPath) {
         final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String[] lzyArgs = {
             "--lzy-address",
