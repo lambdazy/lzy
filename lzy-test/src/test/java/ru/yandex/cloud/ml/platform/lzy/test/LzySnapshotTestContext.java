@@ -7,8 +7,10 @@ public interface LzySnapshotTestContext {
     String address(boolean fromDocker);
 
     WbApiGrpc.WbApiBlockingStub wbClient();
+
     SnapshotApiGrpc.SnapshotApiBlockingStub snapshotClient();
 
     void init();
+
     void close();
 }
