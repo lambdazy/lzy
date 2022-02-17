@@ -18,11 +18,11 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
@@ -39,21 +39,19 @@ public abstract class BaseTask implements Task {
 
     protected final String owner;
     protected final UUID tid;
-    private final Zygote workload;
-    private final Map<Slot, String> assignments;
-    private final ChannelsManager channels;
     protected final URI serverURI;
     @Nullable
     protected final SnapshotMeta snapshotMeta;
-
+    private final Zygote workload;
+    private final Map<Slot, String> assignments;
+    private final ChannelsManager channels;
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
     private final Map<Slot, Channel> attachedSlots = new HashMap<>();
-
-    private State state = State.PREPARING;
-    private URI servantUri;
     private final CompletableFuture<LzyServantBlockingStub> servant = new CompletableFuture<>();
     private final String bucket;
     private final AtomicBoolean alreadyStopped = new AtomicBoolean(false);
+    private State state = State.PREPARING;
+    private URI servantUri;
 
     public BaseTask(
         String owner,
@@ -95,6 +93,17 @@ public abstract class BaseTask implements Task {
         return state;
     }
 
+    @SuppressWarnings("WeakerAccess")
+    protected void state(State newState) {
+        if (newState != state) {
+            state = newState;
+            progress(Servant.ExecutionProgress.newBuilder()
+                .setChanged(Servant.StateChanged.newBuilder()
+                    .setNewState(Servant.StateChanged.State.valueOf(newState.name())).build())
+                .build());
+        }
+    }
+
     @Override
     public SnapshotMeta wbMeta() {
         return snapshotMeta;
@@ -111,17 +120,6 @@ public abstract class BaseTask implements Task {
             .filter(s -> s.name().equals(slotName))
             .findFirst()
             .orElse(workload.slot(slotName));
-    }
-
-    @SuppressWarnings("WeakerAccess")
-    protected void state(State newState) {
-        if (newState != state) {
-            state = newState;
-            progress(Servant.ExecutionProgress.newBuilder()
-                .setChanged(Servant.StateChanged.newBuilder()
-                    .setNewState(Servant.StateChanged.State.valueOf(newState.name())).build())
-                .build());
-        }
     }
 
     @Override
@@ -162,8 +160,8 @@ public abstract class BaseTask implements Task {
                         final String channelName;
                         if (attach.getChannel().isEmpty()) {
                             final String binding = assignments.getOrDefault(slot, "");
-                            channelName = binding.startsWith("channel:") ?
-                                binding.substring("channel:".length()) :
+                            channelName = binding.startsWith("channel:")
+                                ? binding.substring("channel:".length()) :
                                 null;
                         } else {
                             channelName = attach.getChannel();
@@ -195,6 +193,8 @@ public abstract class BaseTask implements Task {
                     case EXIT:
                         state(State.FINISHED);
                         break;
+                    default:
+                        throw new IllegalStateException("Unexpected value: " + progress.getStatusCase());
                 }
             });
         } finally {

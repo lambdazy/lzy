@@ -3,19 +3,15 @@ package ru.yandex.cloud.ml.platform.lzy.server.mem;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.util.Locale;
-import org.hibernate.Session;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
-import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
-import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
-import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
+import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
+import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 @Singleton
 @Requires(property = "database.enabled", value = "false", defaultValue = "false")
@@ -90,7 +86,7 @@ public class SimpleInMemAuthenticator implements Authenticator {
 
     @Override
     public String bucketForUser(String uid) {
-        if (!storageConfigs.isSeparated()){
+        if (!storageConfigs.isSeparated()) {
             return storageConfigs.getBucket();
         }
         return uid.toLowerCase(Locale.ROOT);

@@ -3,12 +3,10 @@ package ru.yandex.cloud.ml.platform.lzy.server.mem;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.util.Locale;
 import org.apache.commons.lang3.NotImplementedException;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AmazonCredentials;
-import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
+import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.utils.azure.StorageUtils;
 
 @Singleton

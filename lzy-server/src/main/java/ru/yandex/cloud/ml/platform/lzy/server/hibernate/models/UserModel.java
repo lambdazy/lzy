@@ -1,54 +1,54 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate.models;
 
-import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
-
-import javax.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.ManyToMany;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
 
 @Entity
 @Table(name = "users")
 public class UserModel {
+
+    @Id
+    @Column(name = "user_id", nullable = false)
+    private String userId;
+    @OneToMany(mappedBy = "owner")
+    private Set<TaskModel> tasks;
+    @OneToMany(mappedBy = "user")
+    private Set<PublicKeyModel> publicKeys;
+    @ManyToMany(mappedBy = "users")
+    private Set<UserRoleModel> roles = new HashSet<>();
+    @OneToMany(mappedBy = "owner")
+    private Set<BackofficeSessionModel> sessions;
+    @Column(name = "auth_provider")
+    private String authProvider;
+    @Column(name = "provider_user_id")
+    private String providerUserId;
+    @Column(name = "access_key")
+    private String accessKey;
+    @Column(name = "secret_key")
+    private String secretKey;
+    @Column(name = "service_account_id")
+    private String serviceAccountId;
+    @Column(name = "bucket")
+    private String bucket;
 
     public UserModel(String userId, String bucket) {
         this.userId = userId;
         this.bucket = bucket;
     }
 
-    @Id
-    @Column(name = "user_id", nullable = false)
-    private String userId;
-
-    @OneToMany(mappedBy = "owner")
-    private Set<TaskModel> tasks;
-
-    @OneToMany(mappedBy = "user")
-    private Set<PublicKeyModel> publicKeys;
-
-    @ManyToMany(mappedBy = "users")
-    private Set<UserRoleModel> roles = new HashSet<>();
-
-    @OneToMany(mappedBy = "owner")
-    private Set<BackofficeSessionModel> sessions;
+    public UserModel() {
+    }
 
     public Set<BackofficeSessionModel> getSessions() {
         return sessions;
     }
-
-    @Column(name = "auth_provider")
-    private String authProvider;
-
-    @Column(name = "provider_user_id")
-    private String providerUserId;
-
-    @Column(name = "access_key")
-    private String accessKey;
-
-    @Column(name = "secret_key")
-    private String secretKey;
-
-    @Column(name = "service_account_id")
-    private String serviceAccountId;
 
     public String getServiceAccountId() {
         return serviceAccountId;
@@ -82,11 +82,12 @@ public class UserModel {
         this.bucket = bucket;
     }
 
-    @Column(name = "bucket")
-    private String bucket;
-
     public AuthProviders getAuthProviderEnum() {
         return AuthProviders.fromString(authProvider);
+    }
+
+    public void setAuthProviderEnum(AuthProviders authProvider) {
+        this.authProvider = authProvider.toString();
     }
 
     public String getAuthProvider() {
@@ -97,10 +98,6 @@ public class UserModel {
         this.authProvider = authProvider;
     }
 
-    public void setAuthProviderEnum(AuthProviders authProvider) {
-        this.authProvider = authProvider.toString();
-    }
-
     public String getProviderUserId() {
         return providerUserId;
     }
@@ -108,8 +105,6 @@ public class UserModel {
     public void setProviderUserId(String providerUserId) {
         this.providerUserId = providerUserId;
     }
-
-    public UserModel() {}
 
     public String getUserId() {
         return userId;

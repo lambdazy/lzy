@@ -1,15 +1,21 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate.models;
 
-import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.IdClass;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 
 @Entity
 @Table(name = "public_keys")
 @IdClass(PublicKeyModel.PublicKeyPk.class)
 public class PublicKeyModel {
     @Id
-    @Column(name="name")
+    @Column(name = "name")
     private String name;
 
     @Id
@@ -20,8 +26,23 @@ public class PublicKeyModel {
     private String value;
 
     @ManyToOne()
-    @JoinColumn(name="user_id", nullable=false, insertable = false, updatable = false)
+    @JoinColumn(name = "user_id", nullable = false, insertable = false, updatable = false)
     private UserModel user;
+
+    public PublicKeyModel(String name, String value, UserModel user) {
+        this.name = name;
+        this.value = value;
+        this.userId = user.getUserId();
+    }
+
+    public PublicKeyModel(String name, String value, String userId) {
+        this.name = name;
+        this.value = value;
+        this.userId = userId;
+    }
+
+    public PublicKeyModel() {
+    }
 
     public String getUserId() {
         return userId;
@@ -51,24 +72,14 @@ public class PublicKeyModel {
         this.user = user;
     }
 
-    public PublicKeyModel(String name, String value, UserModel user) {
-        this.name = name;
-        this.value = value;
-        this.userId = user.getUserId();
-    }
-
-    public PublicKeyModel(String name, String value, String userId) {
-        this.name = name;
-        this.value = value;
-        this.userId = userId;
-    }
-
-    public PublicKeyModel() {}
-
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (getClass() != o.getClass()) {
+            return false;
+        }
         PublicKeyModel token = (PublicKeyModel) o;
         return value.equals(token.value);
     }
@@ -78,7 +89,7 @@ public class PublicKeyModel {
         return Objects.hash(value);
     }
 
-    public static class PublicKeyPk implements Serializable{
+    public static class PublicKeyPk implements Serializable {
         protected String name;
         protected String userId;
 
@@ -87,12 +98,17 @@ public class PublicKeyModel {
             this.userId = userId;
         }
 
-        public PublicKeyPk() {}
+        public PublicKeyPk() {
+        }
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             PublicKeyPk tokenPk = (PublicKeyPk) o;
             return name.equals(tokenPk.name) && userId.equals(tokenPk.userId);
         }

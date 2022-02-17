@@ -1,7 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.server.utils.yc;
 
-import jakarta.inject.Singleton;
-
 import java.util.Date;
 import java.util.function.Supplier;
 

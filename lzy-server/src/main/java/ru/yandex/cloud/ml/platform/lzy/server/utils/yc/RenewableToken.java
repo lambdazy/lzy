@@ -15,10 +15,10 @@ import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 
 @Context  //To make static initialization
 @Requires(property = "server.yc.enabled", value = "true")
-public class RenewableToken{
+public class RenewableToken {
     private static RenewableTokenInstance instance;
 
-    public RenewableToken(ServerConfig serverConfig){
+    public RenewableToken(ServerConfig serverConfig) {
         PemObject privateKeyPem;
         try (PemReader reader = new PemReader(new StringReader(serverConfig.getYc().getPrivateKey()))) {
             privateKeyPem = reader.readPemObject();

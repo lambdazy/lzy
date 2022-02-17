@@ -9,7 +9,10 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.*;
+import com.amazonaws.services.s3.model.AccessControlList;
+import com.amazonaws.services.s3.model.CanonicalGrantee;
+import com.amazonaws.services.s3.model.Grantee;
+import com.amazonaws.services.s3.model.Permission;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -52,7 +55,7 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             UserModel user = session.find(UserModel.class, uid);
-            if (user.getAccessKey() == null || user.getSecretKey() == null){
+            if (user.getAccessKey() == null || user.getSecretKey() == null) {
                 try {
                     CloseableHttpClient httpclient = HttpClients.createDefault();
                     String serviceAccountId = createServiceAccount(
@@ -72,24 +75,23 @@ public class DbYcCredentialsProvider implements StorageCredentialsProvider {
                     user.setServiceAccountId(serviceAccountId);
                     session.save(user);
                     tx.commit();
-                }
-                catch (Exception e){
+                } catch (Exception e) {
                     tx.rollback();
                     throw new RuntimeException(e);
                 }
             }
             AmazonS3 client = AmazonS3Client.builder().withCredentials(
-                    new AWSStaticCredentialsProvider(
-                            new BasicAWSCredentials(
-                                    storageConfigs.getAmazon().getAccessToken(),
-                                    storageConfigs.getAmazon().getSecretToken()
-                            )
+                new AWSStaticCredentialsProvider(
+                    new BasicAWSCredentials(
+                        storageConfigs.getAmazon().getAccessToken(),
+                        storageConfigs.getAmazon().getSecretToken()
                     )
+                )
             ).withEndpointConfiguration(
-                    new AwsClientBuilder.EndpointConfiguration(storageConfigs.getAmazon().getEndpoint(), "us-west-1")
+                new AwsClientBuilder.EndpointConfiguration(storageConfigs.getAmazon().getEndpoint(), "us-west-1")
             ).build();
 
-            if (!client.doesBucketExistV2(bucket)){
+            if (!client.doesBucketExistV2(bucket)) {
                 client.createBucket(bucket);
             }
             AccessControlList acl = client.getBucketAcl(bucket);
