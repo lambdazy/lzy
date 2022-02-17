@@ -1,24 +1,20 @@
 package ru.yandex.qe.s3.transfer.buffers;
 
+import com.google.common.collect.ImmutableMap;
+import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 
-import java.nio.ByteBuffer;
-
-import java.util.Map;
-import java.util.function.Supplier;
-
-import javax.annotation.Nonnull;
-
-import com.google.common.collect.ImmutableMap;
-
 /**
- * Established by terry
- * on 14.07.15.
+ * Established by terry on 14.07.15.
  */
 public class DynamicByteBufferPool extends GenericObjectPool<ByteBuffer> implements ByteBufferPool {
+
     private final ByteBufferSizeType byteBufferSizeType;
 
     public DynamicByteBufferPool(ByteBufferSizeType byteBufferSizeType, int poolSize) {

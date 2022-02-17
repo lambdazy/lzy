@@ -9,20 +9,21 @@ import org.springframework.stereotype.Service;
 @Lazy
 @Service("DistributedPropertyManagerFactory")
 public class DistributedPropertyManagerFactory implements PropertyManagerFactory {
+
     private final CuratorFramework zkClient;
     private final ObjectMapper objectMapper;
 
     public DistributedPropertyManagerFactory(CuratorFramework zkClient,
-                                             @Qualifier("objectMapper") ObjectMapper objectMapper) {
+        @Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.zkClient = zkClient;
         this.objectMapper = objectMapper;
     }
 
     @Override
     public <T> PropertyManager<T> propertyManager(T initialValue,
-                                                  Class<T> tClass,
-                                                  String configKey,
-                                                  boolean updateTagsOnStartup) {
+        Class<T> tClass,
+        String configKey,
+        boolean updateTagsOnStartup) {
         return new DistributedPropertyManager<>(
             zkClient,
             initialValue,

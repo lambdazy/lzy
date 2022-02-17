@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 @Service("LocalLeaderElection")
 public class LocalLeaderElection implements LeaderElection {
+
     @Override
     public boolean isLeader() {
         return true;

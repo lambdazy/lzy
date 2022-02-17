@@ -5,6 +5,7 @@ import org.apache.curator.framework.recipes.shared.SharedCount;
 import org.apache.curator.framework.recipes.shared.VersionedValue;
 
 public class DistributedSharedInteger implements SharedInteger {
+
     private final SharedCount sharedCount;
 
     DistributedSharedInteger(CuratorFramework zookeeperClient, String key, int defaultValue) {

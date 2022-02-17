@@ -77,8 +77,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
             if (snapshotModel == null) {
                 throw new RuntimeException(Status.NOT_FOUND.asException());
             }
-            if (snapshotModel.getSnapshotState() == SnapshotStatus.State.ERRORED ||
-                snapshotModel.getSnapshotState() == SnapshotStatus.State.FINALIZED) {
+            if (snapshotModel.getSnapshotState() == SnapshotStatus.State.ERRORED
+                || snapshotModel.getSnapshotState() == SnapshotStatus.State.FINALIZED) {
                 return;
             }
             List<SnapshotEntryModel> snapshotEntries = SessionHelper.getSnapshotEntries(snapshotId, session);

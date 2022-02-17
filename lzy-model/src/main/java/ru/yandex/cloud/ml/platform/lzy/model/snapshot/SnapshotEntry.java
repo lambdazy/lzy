@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 
 public interface SnapshotEntry {
     String id();
+
     Snapshot snapshot();
 
     class Impl implements SnapshotEntry {

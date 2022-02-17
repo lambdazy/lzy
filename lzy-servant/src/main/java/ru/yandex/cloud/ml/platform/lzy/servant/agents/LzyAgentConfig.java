@@ -4,7 +4,19 @@ import java.net.URI;
 import java.nio.file.Path;
 
 public class LzyAgentConfig {
-    private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentName, String agentInternalName, String token, Path root, String user, String task, int agentPort, String bucket) {
+    private final URI serverAddress;
+    private final URI whiteboardAddress;
+    private final String agentName;
+    private final String agentInternalName;
+    private final String token;
+    private final Path root;
+    private final String user;
+    private final String task;
+    private final String bucket;
+    private final int agentPort;
+
+    private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentName, String agentInternalName,
+                           String token, Path root, String user, String task, int agentPort, String bucket) {
         this.serverAddress = serverAddress;
         this.whiteboardAddress = whiteboardAddress;
         this.agentName = agentName;
@@ -17,23 +29,48 @@ public class LzyAgentConfig {
         this.bucket = bucket;
     }
 
-    private final URI serverAddress;
-    private final URI whiteboardAddress;
-    private final String agentName;
-    private final String agentInternalName;
-    private final String token;
-    private final Path root;
-    private final String user;
-    private final String task;
-    private final String bucket;
-    private final int agentPort;
-
     public static LzyAgentConfigBuilder builder() {
         return new LzyAgentConfigBuilder();
     }
 
     public String getBucket() {
         return bucket;
+    }
+
+    public URI getServerAddress() {
+        return serverAddress;
+    }
+
+    public URI getWhiteboardAddress() {
+        return whiteboardAddress;
+    }
+
+    public String getAgentName() {
+        return agentName;
+    }
+
+    public String getAgentInternalName() {
+        return agentInternalName;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public Path getRoot() {
+        return root;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public String getTask() {
+        return task;
+    }
+
+    public int getAgentPort() {
+        return agentPort;
     }
 
     public static class LzyAgentConfigBuilder {
@@ -99,43 +136,8 @@ public class LzyAgentConfig {
         }
 
         public LzyAgentConfig build() {
-            return new LzyAgentConfig(serverAddress, whiteboardAddress, agentName, agentInternalName, token, root, user, task, agentPort, bucket);
+            return new LzyAgentConfig(serverAddress, whiteboardAddress, agentName, agentInternalName, token, root, user,
+                task, agentPort, bucket);
         }
-    }
-
-    public URI getServerAddress() {
-        return serverAddress;
-    }
-
-    public URI getWhiteboardAddress() {
-        return whiteboardAddress;
-    }
-
-    public String getAgentName() {
-        return agentName;
-    }
-
-    public String getAgentInternalName() {
-        return agentInternalName;
-    }
-
-    public String getToken() {
-        return token;
-    }
-
-    public Path getRoot() {
-        return root;
-    }
-
-    public String getUser() {
-        return user;
-    }
-
-    public String getTask() {
-        return task;
-    }
-
-    public int getAgentPort() {
-        return agentPort;
     }
 }

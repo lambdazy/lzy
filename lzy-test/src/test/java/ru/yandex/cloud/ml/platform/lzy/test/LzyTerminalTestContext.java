@@ -4,19 +4,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.gRPCConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
-
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public interface LzyTerminalTestContext extends AutoCloseable {
 
@@ -30,7 +29,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
     }
 
     Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort,
-        String user, String privateKeyPath);
+                                        String user, String privateKeyPath);
 
     boolean inDocker();
 
@@ -55,12 +54,12 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         ExecutionResult execute(Map<String, String> env, String... command);
 
         default ExecutionResult run(String zygoteName, String arguments,
-            Map<String, String> bindings) {
+                                    Map<String, String> bindings) {
             return run(zygoteName, arguments, bindings, Map.of());
         }
 
         default ExecutionResult run(String zygoteName, String arguments,
-            Map<String, String> bindings, Map<String, String> mappings) {
+                                    Map<String, String> bindings, Map<String, String> mappings) {
             try {
                 final ExecutionResult bash = execute(
                     Collections.emptyMap(),
@@ -131,7 +130,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     Collections.emptyMap(),
                     "bash",
                     "-c",
-                    "echo '" + JsonFormat.printer().print(gRPCConverter.to(zygote)) + "' > filename"
+                    "echo '" + JsonFormat.printer().print(GrpcConverter.to(zygote)) + "' > filename"
                 );
                 execute(
                     Collections.emptyMap(),
@@ -232,7 +231,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         }
 
         default String createWhiteboard(String wbId, List<String> fieldNames, List<String> tags,
-            String namespace) {
+                                        String namespace) {
             String command = String.join(
                 " ",
                 mount() + "/sbin/whiteboard",
@@ -331,7 +330,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     Collections.emptyMap(),
                     "bash",
                     "-c",
-                    "echo '" + JsonFormat.printer().print(gRPCConverter.to(slot)) + "' > slot.json"
+                    "echo '" + JsonFormat.printer().print(GrpcConverter.to(slot)) + "' > slot.json"
                 );
             } catch (InvalidProtocolBufferException e) {
                 throw new RuntimeException(e);

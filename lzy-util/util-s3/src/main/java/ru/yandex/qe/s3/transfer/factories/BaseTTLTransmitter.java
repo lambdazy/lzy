@@ -2,6 +2,9 @@ package ru.yandex.qe.s3.transfer.factories;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import org.joda.time.Duration;
 import ru.yandex.qe.s3.transfer.TTLTransmitter;
 import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
@@ -11,13 +14,8 @@ import ru.yandex.qe.s3.transfer.upload.UploadState;
 import ru.yandex.qe.s3.ttl.S3Type;
 import ru.yandex.qe.s3.ttl.TTLRegister;
 
-import javax.annotation.Nonnull;
-import java.util.concurrent.Executor;
-import java.util.function.Consumer;
-
 /**
- * Established by terry
- * on 30.01.16.
+ * Established by terry on 30.01.16.
  */
 public abstract class BaseTTLTransmitter extends BaseTransmitter implements TTLTransmitter {
 
@@ -25,8 +23,8 @@ public abstract class BaseTTLTransmitter extends BaseTransmitter implements TTLT
     private final Duration defaultTTL;
 
     public BaseTTLTransmitter(@Nonnull TTLRegister ttlRegister, @Nonnull Duration defaultTTL,
-                              @Nonnull ByteBufferPool byteBufferPool, @Nonnull ListeningExecutorService transferExecutor,
-                              @Nonnull ListeningExecutorService chunksExecutor, @Nonnull ListeningExecutorService consumeExecutor) {
+        @Nonnull ByteBufferPool byteBufferPool, @Nonnull ListeningExecutorService transferExecutor,
+        @Nonnull ListeningExecutorService chunksExecutor, @Nonnull ListeningExecutorService consumeExecutor) {
         super(byteBufferPool, transferExecutor, chunksExecutor, consumeExecutor);
         this.ttlRegister = ttlRegister;
         this.defaultTTL = defaultTTL;
@@ -44,19 +42,23 @@ public abstract class BaseTTLTransmitter extends BaseTransmitter implements TTLT
         if (request instanceof TTLUploadRequest) {
             ttl = ((TTLUploadRequest) request).getTTL();
         }
-        ttlRegister.add(geS3Type().name(), getS3Endpoint(), request.getBucket(), request.getKey(), ttl.getStandardSeconds());
+        ttlRegister.add(geS3Type().name(), getS3Endpoint(), request.getBucket(), request.getKey(),
+            ttl.getStandardSeconds());
         return super.upload(request);
     }
 
     @Override
     public ListenableFuture<UploadState> upload(@Nonnull TTLUploadRequest request) {
-        ttlRegister.add(geS3Type().name(), getS3Endpoint(), request.getBucket(), request.getKey(), request.getTTL().getStandardSeconds());
+        ttlRegister.add(geS3Type().name(), getS3Endpoint(), request.getBucket(), request.getKey(),
+            request.getTTL().getStandardSeconds());
         return super.upload(request);
     }
 
     @Override
-    public ListenableFuture<UploadState> upload(@Nonnull TTLUploadRequest request, @Nonnull Consumer<UploadState> progressListener, @Nonnull Executor notifyExecutor) {
-        ttlRegister.add(geS3Type().name(), getS3Endpoint(), request.getBucket(), request.getKey(), request.getTTL().getStandardSeconds());
+    public ListenableFuture<UploadState> upload(@Nonnull TTLUploadRequest request,
+        @Nonnull Consumer<UploadState> progressListener, @Nonnull Executor notifyExecutor) {
+        ttlRegister.add(geS3Type().name(), getS3Endpoint(), request.getBucket(), request.getKey(),
+            request.getTTL().getStandardSeconds());
         return super.upload(request, progressListener, notifyExecutor);
     }
 }

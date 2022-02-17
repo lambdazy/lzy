@@ -1,5 +1,11 @@
 package ru.yandex.cloud.ml.platform.model.util.lock;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import javax.annotation.Nonnull;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.locks.InterProcessMutex;
 import org.apache.curator.framework.recipes.locks.InterProcessReadWriteLock;
@@ -7,16 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Nonnull;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
-
 @Lazy
 @Service("DistributedLockManager")
 public class DistributedLockManager extends BaseLockManager {
+
     private final CuratorFramework zookeeperClient;
     private final String prefix;
     private final int lockTimeoutSec;
@@ -78,6 +78,7 @@ public class DistributedLockManager extends BaseLockManager {
     }
 
     private static class DistributedLock implements Lock {
+
         private final InterProcessMutex mutex;
         private final int lockTimeoutSec;
 

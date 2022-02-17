@@ -1,12 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
 import com.google.protobuf.ByteString;
-import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
-
 import java.io.IOException;
 import java.io.Writer;
+import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
 
 public class WriterSlot extends LzyInputSlotBase {
     private Writer writer;

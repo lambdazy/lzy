@@ -1,13 +1,13 @@
 package ru.yandex.cloud.ml.platform.model.util.latch;
 
-import org.springframework.stereotype.Service;
-
-import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
+import org.springframework.stereotype.Service;
 
 @Service("LocalLatchManager")
 public class LocalLatchManager implements LatchManager {
+
     private final Map<String, LocalLatch> latches;
     private final String prefix;
 
@@ -40,12 +40,12 @@ public class LocalLatchManager implements LatchManager {
     @Nullable
     @Override
     public Latch get(String key) {
-        return latches.get(prefix + "-"  + key);
+        return latches.get(prefix + "-" + key);
     }
 
     @Override
     public void remove(String key) {
-        final LocalLatch latch = latches.remove(prefix + "-"  + key);
+        final LocalLatch latch = latches.remove(prefix + "-" + key);
         if (latch != null) {
             while (latch.getCount() > 0) {
                 latch.countDown();

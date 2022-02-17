@@ -7,33 +7,33 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.google.protobuf.ByteString;
-import org.apache.commons.io.IOUtils;
-import org.junit.*;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-
+import io.findify.s3mock.S3Mock;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-
-import io.findify.s3mock.S3Mock;
+import org.apache.commons.io.IOUtils;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.AmazonSnapshotStorage;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
-import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
-import ru.yandex.qe.s3.transfer.Transmitter;
 
 public class S3SlotSnapshotTest {
-    private final String SERVICE_ENDPOINT = "http://localhost:8001";
-    private final String BUCKET = "lzy-bucket";
+    private static final String SERVICE_ENDPOINT = "http://localhost:8001";
+    private static final String BUCKET = "lzy-bucket";
 
     private final S3Mock api = new S3Mock.Builder().withPort(8001).withInMemoryBackend().build();
-    private final SnapshotStorage storage = new AmazonSnapshotStorage("", "", URI.create(SERVICE_ENDPOINT), "transmitter", 10, 10);
+    private final SnapshotStorage storage =
+        new AmazonSnapshotStorage("", "", URI.create(SERVICE_ENDPOINT), "transmitter", 10, 10);
     private final AmazonS3 client = AmazonS3ClientBuilder
-            .standard()
-            .withPathStyleAccessEnabled(true)
-            .withEndpointConfiguration(new EndpointConfiguration(SERVICE_ENDPOINT, "us-west-2"))
-            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
-            .build();
+        .standard()
+        .withPathStyleAccessEnabled(true)
+        .withEndpointConfiguration(new EndpointConfiguration(SERVICE_ENDPOINT, "us-west-2"))
+        .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+        .build();
 
 
     @Before
@@ -77,9 +77,9 @@ public class S3SlotSnapshotTest {
 
     private String getObjectContent(String key) throws IOException {
         return IOUtils.toString(
-                client.getObject(new GetObjectRequest(BUCKET, key))
-                        .getObjectContent(),
-                StandardCharsets.UTF_8
+            client.getObject(new GetObjectRequest(BUCKET, key))
+                .getObjectContent(),
+            StandardCharsets.UTF_8
         );
     }
 
@@ -123,24 +123,24 @@ public class S3SlotSnapshotTest {
         snapshotProvider.slotSnapshot(fifthSlot).onFinish();
 
         Assert.assertEquals(
-                getObjectContent(getKey("first-task-id", "first")),
-                "Hello world!"
+            getObjectContent(getKey("first-task-id", "first")),
+            "Hello world!"
         );
         Assert.assertEquals(
-                getObjectContent(getKey("first-task-id", "second")),
-                "Bonjour le monde"
+            getObjectContent(getKey("first-task-id", "second")),
+            "Bonjour le monde"
         );
         Assert.assertEquals(
-                getObjectContent(getKey("second-task-id", "third")),
-                "Hola mundo!"
+            getObjectContent(getKey("second-task-id", "third")),
+            "Hola mundo!"
         );
         Assert.assertEquals(
-                getObjectContent(getKey("second-task-id", "fourth")),
-                "Moni Dziko Lapansi!"
+            getObjectContent(getKey("second-task-id", "fourth")),
+            "Moni Dziko Lapansi!"
         );
         Assert.assertEquals(
-                getObjectContent(getKey("third-task-id", "fifth")),
-                "Ciao mondo!"
+            getObjectContent(getKey("third-task-id", "fifth")),
+            "Ciao mondo!"
         );
     }
 }

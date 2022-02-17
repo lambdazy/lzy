@@ -4,6 +4,15 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.framework.api.CuratorEventType;
@@ -25,17 +34,9 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-
 public class MyDistributedQueue<T> implements QueueBase<T> {
+
+    private static final String QUEUE_ITEM_NAME = "queue-";
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final CuratorFramework client;
     private final QueueSerializer<T> serializer;
@@ -43,28 +44,15 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
     private final AtomicReference<State> state = new AtomicReference<>(State.LATENT);
     private final String lockPath;
     private final AtomicReference<ErrorMode> errorMode = new AtomicReference<ErrorMode>(ErrorMode.REQUEUE);
-    private final ListenerContainer<QueuePutListener<T>> putListenerContainer = new ListenerContainer<QueuePutListener<T>>();
+    private final ListenerContainer<QueuePutListener<T>> putListenerContainer =
+        new ListenerContainer<QueuePutListener<T>>();
     private final AtomicInteger lastChildCount = new AtomicInteger(0);
-    private int maxItems;
     private final int finalFlushMs = 5000;
     private final boolean putInBackground;
     private final MyChildrenCache childrenCache;
 
     private final AtomicInteger putCount = new AtomicInteger(0);
-
-    private enum State {
-        LATENT,
-        STARTED,
-        STOPPED
-    }
-
-    @VisibleForTesting
-    protected enum ProcessType {
-        NORMAL,
-        REMOVE
-    }
-
-    private static final String QUEUE_ITEM_NAME = "queue-";
+    private int maxItems;
 
     public MyDistributedQueue(
         CuratorFramework client,
@@ -88,7 +76,8 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
 
         if (putInBackground) {
             log.warn(
-                "Bounded queues should set putInBackground(false) in the builder. Putting in the background will result in spotty maxItem consistency.");
+                "Bounded queues should set putInBackground(false) in the builder."
+                    + " Putting in the background will result in spotty maxItem consistency.");
         }
     }
 
@@ -146,7 +135,7 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
         long timeoutMillis = unit.toMillis(timeout);
         try {
             while (state.get() == State.STARTED) {
-                long startTime = System.currentTimeMillis();
+                final long startTime = System.currentTimeMillis();
                 MyChildrenCache.Data data = childrenCache.blockingNextGetData(
                     currentVersion,
                     timeoutMillis,
@@ -199,8 +188,8 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
     }
 
     /**
-     * Used when the queue is created with a {@link QueueBuilder#lockPath(String)}. Determines
-     * the behavior when the queue consumer throws an exception
+     * Used when the queue is created with a {@link QueueBuilder#lockPath(String)}. Determines the behavior when the
+     * queue consumer throws an exception
      *
      * @param newErrorMode the new error mode (the default is {@link ErrorMode#REQUEUE}
      */
@@ -209,7 +198,8 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
         Preconditions.checkNotNull(lockPath, "lockPath cannot be null");
 
         if (newErrorMode == ErrorMode.REQUEUE) {
-            log.warn("ErrorMode.REQUEUE requires ZooKeeper version 3.4.x+ - make sure you are not using a prior version");
+            log.warn(
+                "ErrorMode.REQUEUE requires ZooKeeper version 3.4.x+ - make sure you are not using a prior version");
         }
 
         errorMode.set(newErrorMode);
@@ -244,10 +234,9 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
     }
 
     /**
-     * Add an item into the queue. Adding is done in the background - thus, this method will
-     * return quickly.<br><br>
-     * NOTE: if an upper bound was set via maxItems, this method will
-     * block until there is available space in the queue.
+     * Add an item into the queue. Adding is done in the background - thus, this method will return quickly.<br><br>
+     * NOTE: if an upper bound was set via maxItems, this method will block until there is available space in the
+     * queue.
      *
      * @param item item to add
      * @throws Exception connection issues
@@ -263,7 +252,7 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
      * @param maxWait maximum wait
      * @param unit    wait unit
      * @return true if items was added, false if timed out
-     * @throws Exception
+     * @throws Exception .
      */
     public boolean put(T item, int maxWait, TimeUnit unit) throws Exception {
         checkState();
@@ -273,10 +262,9 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
     }
 
     /**
-     * Add a set of items into the queue. Adding is done in the background - thus, this method will
-     * return quickly.<br><br>
-     * NOTE: if an upper bound was set via maxItems, this method will
-     * block until there is available space in the queue.
+     * Add a set of items into the queue. Adding is done in the background - thus, this method will return
+     * quickly.<br><br> NOTE: if an upper bound was set via maxItems, this method will block until there is available
+     * space in the queue.
      *
      * @param items items to add
      * @throws Exception connection issues
@@ -292,7 +280,7 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
      * @param maxWait maximum wait
      * @param unit    wait unit
      * @return true if items was added, false if timed out
-     * @throws Exception
+     * @throws Exception .
      */
     public boolean putMulti(MultiItem<T> items, int maxWait, TimeUnit unit) throws Exception {
         checkState();
@@ -302,8 +290,7 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
     }
 
     /**
-     * Return the most recent message count from the queue. This is useful for debugging/information
-     * purposes only.
+     * Return the most recent message count from the queue. This is useful for debugging/information purposes only.
      *
      * @return count (can be 0)
      */
@@ -313,7 +300,7 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
     }
 
     private boolean internalPut(final T item, MultiItem<T> multiItem, String path, int maxWait, TimeUnit unit) throws
-                                                                                                               Exception {
+        Exception {
         if (!blockIfMaxed(maxWait, unit)) {
             return false;
         }
@@ -335,27 +322,26 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
     }
 
     private void doPutInForeground(final T item, String path, final MultiItem<T> givenMultiItem, byte[] bytes) throws
-                                                                                                               Exception {
+        Exception {
         client.create().withMode(CreateMode.PERSISTENT_SEQUENTIAL).forPath(path, bytes);
         synchronized (putCount) {
             putCount.decrementAndGet();
             putCount.notifyAll();
         }
-        putListenerContainer.forEach
-            (
-                listener -> {
-                    if (item != null) {
-                        listener.putCompleted(item);
-                    } else {
-                        listener.putMultiCompleted(givenMultiItem);
-                    }
-                    return null;
+        putListenerContainer.forEach(
+            listener -> {
+                if (item != null) {
+                    listener.putCompleted(item);
+                } else {
+                    listener.putMultiCompleted(givenMultiItem);
                 }
-            );
+                return null;
+            }
+        );
     }
 
     private void doPutInBackground(final T item, String path, final MultiItem<T> givenMultiItem, byte[] bytes) throws
-                                                                                                               Exception {
+        Exception {
         BackgroundCallback callback = (client, event) -> {
             if (event.getResultCode() != KeeperException.Code.OK.intValue()) {
                 return;
@@ -368,20 +354,19 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
                 }
             }
 
-            putListenerContainer.forEach
-                (
-                    new Function<QueuePutListener<T>, Void>() {
-                        @Override
-                        public Void apply(QueuePutListener<T> listener) {
-                            if (item != null) {
-                                listener.putCompleted(item);
-                            } else {
-                                listener.putMultiCompleted(givenMultiItem);
-                            }
-                            return null;
+            putListenerContainer.forEach(
+                new Function<QueuePutListener<T>, Void>() {
+                    @Override
+                    public Void apply(QueuePutListener<T> listener) {
+                        if (item != null) {
+                            listener.putCompleted(item);
+                        } else {
+                            listener.putMultiCompleted(givenMultiItem);
                         }
+                        return null;
                     }
-                );
+                }
+            );
         };
         internalCreateNode(path, bytes, callback);
     }
@@ -464,11 +449,6 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
             log.warn("Failed to process children ", e);
             return null;
         }
-    }
-
-    private enum ProcessMessageBytesCode {
-        NORMAL,
-        REQUEUE
     }
 
     private T processMessageBytes(String itemNode, byte[] bytes) throws Exception {
@@ -567,6 +547,23 @@ public class MyDistributedQueue<T> implements QueueBase<T> {
 
     protected String makeRequeueItemPath(String itemPath) {
         return makeItemPath();
+    }
+
+    private enum State {
+        LATENT,
+        STARTED,
+        STOPPED
+    }
+
+    @VisibleForTesting
+    protected enum ProcessType {
+        NORMAL,
+        REMOVE
+    }
+
+    private enum ProcessMessageBytesCode {
+        NORMAL,
+        REQUEUE
     }
 
 }

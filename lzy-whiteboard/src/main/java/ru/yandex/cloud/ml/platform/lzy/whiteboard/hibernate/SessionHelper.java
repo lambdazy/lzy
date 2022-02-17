@@ -1,21 +1,30 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate;
 
-import org.hibernate.Session;
-import org.hibernate.query.Query;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.*;
-
-import javax.annotation.Nullable;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
+import org.hibernate.Session;
+import org.hibernate.query.Query;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardTagModel;
 
 public class SessionHelper {
+
     public static List<SnapshotEntryModel> getSnapshotEntries(String snapshotId, Session session) {
         CriteriaBuilder cb = session.getCriteriaBuilder();
         CriteriaQuery<SnapshotEntryModel> cr = cb.createQuery(SnapshotEntryModel.class);
@@ -36,7 +45,8 @@ public class SessionHelper {
         return query.getResultList();
     }
 
-    public static long getNumEntriesWithStateForWhiteboard(String whiteboardId, SnapshotEntryStatus.State state, Session session) {
+    public static long getNumEntriesWithStateForWhiteboard(String whiteboardId, SnapshotEntryStatus.State state,
+        Session session) {
         String queryWhiteboardFieldRequest = "SELECT count(*) FROM WhiteboardFieldModel w "
             + "JOIN SnapshotEntryModel s ON w.entryId = s.entryId "
             + "WHERE w.wbId = :wbId AND s.entryState = :state";
@@ -57,11 +67,12 @@ public class SessionHelper {
     }
 
     @SuppressWarnings("unchecked")
-    public static List<SnapshotEntryModel> getEntryDependencies(SnapshotEntryModel snapshotEntryModel, Session session) {
-        String queryEntryDependenciesRequest = "SELECT s2 FROM SnapshotEntryModel s1 " +
-                "JOIN EntryDependenciesModel e ON s1.entryId = e.entryIdTo " +
-                "JOIN SnapshotEntryModel s2 ON s2.entryId = e.entryIdFrom " +
-                "WHERE s1.snapshotId = :spId AND s1.entryId = :entryId";
+    public static List<SnapshotEntryModel> getEntryDependencies(SnapshotEntryModel snapshotEntryModel,
+        Session session) {
+        String queryEntryDependenciesRequest = "SELECT s2 FROM SnapshotEntryModel s1 "
+            + "JOIN EntryDependenciesModel e ON s1.entryId = e.entryIdTo "
+            + "JOIN SnapshotEntryModel s2 ON s2.entryId = e.entryIdFrom "
+            + "WHERE s1.snapshotId = :spId AND s1.entryId = :entryId";
         Query<SnapshotEntryModel> query = session.createQuery(queryEntryDependenciesRequest);
         query.setParameter("spId", snapshotEntryModel.getSnapshotId());
         query.setParameter("entryId", snapshotEntryModel.getEntryId());
@@ -71,8 +82,8 @@ public class SessionHelper {
     public static List<String> getEntryDependenciesName(SnapshotEntryModel snapshotEntryModel, Session session) {
         List<SnapshotEntryModel> entryModels = getEntryDependencies(snapshotEntryModel, session);
         return entryModels.stream()
-                .map(SnapshotEntryModel::getEntryId)
-                .collect(Collectors.toList());
+            .map(SnapshotEntryModel::getEntryId)
+            .collect(Collectors.toList());
     }
 
     public static Set<String> getWhiteboardFieldNames(String wbId, Session session) {
@@ -115,8 +126,8 @@ public class SessionHelper {
         CriteriaQuery<SnapshotEntryModel> cr = cb.createQuery(SnapshotEntryModel.class);
         Root<SnapshotEntryModel> root = cr.from(SnapshotEntryModel.class);
         cr.select(root)
-                .where(cb.equal(root.get("snapshotId"), snapshotId))
-                .where(cb.equal(root.get("entryId"), entryId));
+            .where(cb.equal(root.get("snapshotId"), snapshotId))
+            .where(cb.equal(root.get("entryId"), entryId));
 
         Query<SnapshotEntryModel> query = session.createQuery(cr);
         List<SnapshotEntryModel> results = query.getResultList();
@@ -128,11 +139,11 @@ public class SessionHelper {
 
     @SuppressWarnings("unchecked")
     public static List<WhiteboardFieldModel> getFieldDependencies(String wbId, String fieldName, Session session) {
-        String queryFieldDependenciesRequest = "SELECT f1 FROM WhiteboardModel w " +
-                "JOIN WhiteboardFieldModel f1 ON w.wbId = f1.wbId " +
-                "JOIN EntryDependenciesModel e ON e.snapshotId = w.snapshotId AND e.entryIdFrom = f1.entryId " +
-                "JOIN WhiteboardFieldModel f2 ON e.entryIdTo = f2.entryId " +
-                "WHERE w.wbId = :wbId AND f2.fieldName = :fName";
+        String queryFieldDependenciesRequest = "SELECT f1 FROM WhiteboardModel w "
+            + "JOIN WhiteboardFieldModel f1 ON w.wbId = f1.wbId "
+            + "JOIN EntryDependenciesModel e ON e.snapshotId = w.snapshotId AND e.entryIdFrom = f1.entryId "
+            + "JOIN WhiteboardFieldModel f2 ON e.entryIdTo = f2.entryId "
+            + "WHERE w.wbId = :wbId AND f2.fieldName = :fName";
         Query<WhiteboardFieldModel> query = session.createQuery(queryFieldDependenciesRequest);
         query.setParameter("wbId", wbId);
         query.setParameter("fName", fieldName);
@@ -197,11 +208,11 @@ public class SessionHelper {
         }
         String spId = wbModel.getSnapshotId();
         return new Whiteboard.Impl(
-                URI.create(wbId),
-                SessionHelper.getWhiteboardFieldNames(wbId, session),
-                resolveSnapshot(spId, session),
-                SessionHelper.getWhiteboardTags(wbId, session),
-                wbModel.getNamespace()
+            URI.create(wbId),
+            SessionHelper.getWhiteboardFieldNames(wbId, session),
+            resolveSnapshot(spId, session),
+            SessionHelper.getWhiteboardTags(wbId, session),
+            wbModel.getNamespace()
         );
     }
 
@@ -218,28 +229,29 @@ public class SessionHelper {
     public static SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id, Session session) {
         String snapshotId = snapshot.id().toString();
         SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
-                new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
+            new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
         if (snapshotEntryModel == null) {
             return null;
         }
 
         List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
         SnapshotEntry entry = new SnapshotEntry.Impl(id, snapshot);
-        return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(),snapshotEntryModel.getEntryState(), entry,
-                Set.copyOf(dependentEntryIds), snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri()));
+        return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(), snapshotEntryModel.getEntryState(), entry,
+            Set.copyOf(dependentEntryIds),
+            snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri()));
     }
 
     public static List<String> getWhiteboardIdByNamespaceAndTags(String namespace, List<String> tags, Session session) {
         String whiteboardsByNameAndTagsRequest;
         if (tags.isEmpty()) {
-            whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w " +
-                    "WHERE w.namespace = :namespace ";
+            whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w "
+                + "WHERE w.namespace = :namespace ";
         } else {
-            whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w " +
-                    "JOIN WhiteboardTagModel t ON w.wbId = t.wbId " +
-                    "WHERE w.namespace = :namespace AND t.tag in (:tags) " +
-                    "GROUP BY w.wbId " +
-                    "HAVING count(*) >= :tagsSize ";
+            whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w "
+                + "JOIN WhiteboardTagModel t ON w.wbId = t.wbId "
+                + "WHERE w.namespace = :namespace AND t.tag in (:tags) "
+                + "GROUP BY w.wbId "
+                + "HAVING count(*) >= :tagsSize ";
         }
         //noinspection unchecked
         Query<String> query = session.createQuery(whiteboardsByNameAndTagsRequest);

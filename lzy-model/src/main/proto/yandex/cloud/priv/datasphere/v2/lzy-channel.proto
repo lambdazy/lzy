@@ -10,22 +10,22 @@ option java_outer_classname = "Channels";
 option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 message Channel {
-    string channelId = 1;
-    string contentType = 2;
+  string channelId = 1;
+  string contentType = 2;
 }
 
 message ChannelCommand {
-    Auth auth = 1;
-    string channelName = 2;
-    oneof command {
-        ChannelCreate create = 3;
-        ChannelDestroy destroy = 4;
-        ChannelState state = 5;
-    }
+  Auth auth = 1;
+  string channelName = 2;
+  oneof command {
+    ChannelCreate create = 3;
+    ChannelDestroy destroy = 4;
+    ChannelState state = 5;
+  }
 }
 
 message ChannelCreate {
-    string contentType = 1;
+  string contentType = 1;
 }
 
 message ChannelDestroy {
@@ -35,33 +35,33 @@ message ChannelState {
 }
 
 message BindRequest {
-    TaskCredentials auth = 1;
+  TaskCredentials auth = 1;
 
-    string channelId = 2;
-    string slotName = 3;
+  string channelId = 2;
+  string slotName = 3;
 
-    string offset = 4;
+  string offset = 4;
 }
 
 message Binding {
-    Status status = 1;
+  Status status = 1;
 
-    enum Status {
-        OK = 0;
-        FAILED = 1;
-    }
+  enum Status {
+    OK = 0;
+    FAILED = 1;
+  }
 }
 
 message ChannelStatus {
-    Channel channel = 1;
-    repeated SlotStatus connected = 2;
+  Channel channel = 1;
+  repeated SlotStatus connected = 2;
 }
 
 message ChannelStatusList {
-    repeated ChannelStatus statuses = 1;
+  repeated ChannelStatus statuses = 1;
 }
 
 message OpenChannelRequest {
-    Auth auth = 1;
-    string channelId = 2;
+  Auth auth = 1;
+  string channelId = 2;
 }

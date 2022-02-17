@@ -1,12 +1,17 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Id;
+import javax.persistence.Table;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
-
-import javax.persistence.*;
 
 @Entity
 @Table(name = "snapshot")
 public class SnapshotModel {
+
     @Id
     @Column(name = "snapshot_id", nullable = false)
     private String snapshotId;
@@ -27,16 +32,16 @@ public class SnapshotModel {
     public SnapshotModel() {
     }
 
-    public void setSnapshotState(SnapshotStatus.State snapshotState) {
-        this.snapshotState = snapshotState;
-    }
-
     public String getSnapshotId() {
         return snapshotId;
     }
 
     public SnapshotStatus.State getSnapshotState() {
         return snapshotState;
+    }
+
+    public void setSnapshotState(SnapshotStatus.State snapshotState) {
+        this.snapshotState = snapshotState;
     }
 
     public String getUid() {

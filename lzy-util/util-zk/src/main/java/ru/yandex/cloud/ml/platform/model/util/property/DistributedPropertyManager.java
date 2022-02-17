@@ -1,6 +1,10 @@
 package ru.yandex.cloud.ml.platform.model.util.property;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.shared.SharedValue;
 import org.apache.curator.framework.recipes.shared.SharedValueListener;
@@ -10,12 +14,8 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
-
 public class DistributedPropertyManager<T> implements PropertyManager<T> {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedPropertyManager.class);
 
     private final ObjectMapper mapper;
@@ -25,21 +25,21 @@ public class DistributedPropertyManager<T> implements PropertyManager<T> {
     private T oldValue;
 
     public DistributedPropertyManager(CuratorFramework zkClient,
-                                      T initialValue,
-                                      Class<? extends T> tClass,
-                                      String key,
-                                      ObjectMapper mapper,
-                                      boolean updateTagsOnStartup) {
+        T initialValue,
+        Class<? extends T> tClass,
+        String key,
+        ObjectMapper mapper,
+        boolean updateTagsOnStartup) {
         this(zkClient, initialValue, tClass, "/DistributedPropertyManager", key, mapper, updateTagsOnStartup);
     }
 
     public DistributedPropertyManager(CuratorFramework zkClient,
-                                      T initialValue,
-                                      Class<? extends T> tClass,
-                                      String prefix,
-                                      String key,
-                                      ObjectMapper mapper,
-                                      boolean updateTagsOnStartup) {
+        T initialValue,
+        Class<? extends T> tClass,
+        String prefix,
+        String key,
+        ObjectMapper mapper,
+        boolean updateTagsOnStartup) {
         this.mapper = mapper;
         this.tClass = tClass;
         this.oldValue = initialValue;

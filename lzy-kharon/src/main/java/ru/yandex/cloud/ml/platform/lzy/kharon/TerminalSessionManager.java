@@ -1,6 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.stub.StreamObserver;
+import java.net.URI;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConstant;
@@ -8,12 +12,8 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc.LzyServerBlockingStub;
 
-import java.net.URI;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
 public class TerminalSessionManager {
+
     private static final Logger LOG = LogManager.getLogger(TerminalSessionManager.class);
 
     private final Map<UUID, TerminalSession> sessions = new ConcurrentHashMap<>();
@@ -26,7 +26,8 @@ public class TerminalSessionManager {
     }
 
     public StreamObserver<TerminalState> createSession(StreamObserver<TerminalCommand> terminalCommandObserver) {
-        final TerminalSession terminalSession = new TerminalSession(server, terminalCommandObserver, kharonServantAddress);
+        final TerminalSession terminalSession =
+            new TerminalSession(server, terminalCommandObserver, kharonServantAddress);
         sessions.put(terminalSession.sessionId(), terminalSession);
         return terminalSession.terminalStateObserver();
     }
@@ -43,7 +44,7 @@ public class TerminalSessionManager {
 
     private UUID parseSessionIdFromUri(String slotUri) {
         final URI uri = URI.create(slotUri);
-        for (String queryPart: uri.getQuery().split("\\?")) {
+        for (String queryPart : uri.getQuery().split("\\?")) {
             final int equalPos = queryPart.indexOf('=');
             final String key = queryPart.substring(0, equalPos);
             final String value = queryPart.substring(equalPos + 1);

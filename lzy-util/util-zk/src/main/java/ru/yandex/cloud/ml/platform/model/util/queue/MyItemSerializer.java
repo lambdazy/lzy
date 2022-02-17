@@ -1,27 +1,19 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements.  See the NOTICE
+ * file distributed with this work for additional information regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
  * <p>
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations under the License.
  */
+
 package ru.yandex.cloud.ml.platform.model.util.queue;
 
 import com.google.common.collect.Lists;
-import org.apache.curator.framework.recipes.queue.MultiItem;
-import org.apache.curator.framework.recipes.queue.QueueSerializer;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -29,14 +21,20 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.curator.framework.recipes.queue.MultiItem;
+import org.apache.curator.framework.recipes.queue.QueueSerializer;
 
 class MyItemSerializer {
+
     private static final int VERSION = 0x00010001;
 
     private static final byte ITEM_OPCODE = 0x01;
     private static final byte EOF_OPCODE = 0x02;
 
     private static final int INITIAL_BUFFER_SIZE = 0x1000;
+
+    private MyItemSerializer() {
+    }
 
     static <T> MultiItem<T> deserialize(byte[] bytes, QueueSerializer<T> serializer) throws Exception {
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
@@ -90,8 +88,5 @@ class MyItemSerializer {
         out.close();
 
         return bytes.toByteArray();
-    }
-
-    private MyItemSerializer() {
     }
 }

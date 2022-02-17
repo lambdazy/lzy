@@ -1,54 +1,54 @@
 package ru.yandex.qe.s3.repository;
 
+import static java.util.concurrent.Executors.newFixedThreadPool;
+
 import com.google.common.base.Throwables;
+import java.io.InputStream;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+import javax.annotation.Nonnull;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import ru.yandex.qe.s3.transfer.StreamSuppliers;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 
-import javax.annotation.Nonnull;
-import java.io.InputStream;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-
-import static java.util.concurrent.Executors.newFixedThreadPool;
-
 /**
- * Established by terry
- * on 02.07.15.
+ * Established by terry on 02.07.15.
  */
 public abstract class S3Repository<T> {
 
     protected static final int PIPED_CHUNK_SIZE = 64 * 1024;
-
-    protected Transmitter transmitter;
-    protected ExecutorService consumerExecutor;
     protected final BiDirectS3Converter<T> converter;
-
     private final String bucketPrefix;
     private final int bucketsCount;
     private final Function<String, Integer> keyHashFunction;
+    protected Transmitter transmitter;
+    protected ExecutorService consumerExecutor;
 
-    public S3Repository(Transmitter transmitter, int toStreamPoolSize, String bucketName, BiDirectS3Converter<T> converter) {
+    public S3Repository(Transmitter transmitter, int toStreamPoolSize, String bucketName,
+        BiDirectS3Converter<T> converter) {
         this(transmitter, toStreamPoolSize, bucketName, 0, key -> Math.abs(key.hashCode()), converter);
     }
 
-    public S3Repository(Transmitter transmitter, int toStreamPoolSize, String bucketPrefix, int bucketsCount, BiDirectS3Converter<T> converter) {
+    public S3Repository(Transmitter transmitter, int toStreamPoolSize, String bucketPrefix, int bucketsCount,
+        BiDirectS3Converter<T> converter) {
         this(transmitter, toStreamPoolSize, bucketPrefix, bucketsCount, key -> Math.abs(key.hashCode()), converter);
     }
 
-    public S3Repository(Transmitter transmitter, int toStreamPoolSize, String bucketPrefix, int bucketsCount, Function<String, Integer> keyHashFunction,
-                        BiDirectS3Converter<T> converter) {
+    public S3Repository(Transmitter transmitter, int toStreamPoolSize, String bucketPrefix, int bucketsCount,
+        Function<String, Integer> keyHashFunction,
+        BiDirectS3Converter<T> converter) {
         this(transmitter, newFixedThreadPool(toStreamPoolSize, new BasicThreadFactory.Builder()
-                        .namingPattern("s3-repository-producer-%d").daemon(true).priority(Thread.NORM_PRIORITY).build()),
-                bucketPrefix, bucketsCount, keyHashFunction, converter
+                .namingPattern("s3-repository-producer-%d").daemon(true).priority(Thread.NORM_PRIORITY).build()),
+            bucketPrefix, bucketsCount, keyHashFunction, converter
         );
     }
 
-    public S3Repository(Transmitter transmitter, ExecutorService consumerExecutor, String bucketPrefix, int bucketsCount, Function<String, Integer> keyHashFunction,
-                        BiDirectS3Converter<T> converter) {
+    public S3Repository(Transmitter transmitter, ExecutorService consumerExecutor, String bucketPrefix,
+        int bucketsCount, Function<String, Integer> keyHashFunction,
+        BiDirectS3Converter<T> converter) {
         this.bucketPrefix = bucketPrefix;
         this.bucketsCount = bucketsCount;
         this.keyHashFunction = keyHashFunction;
@@ -78,7 +78,8 @@ public abstract class S3Repository<T> {
         final String bucket = selectBucket(key);
         try {
             transmitter.upload(new UploadRequestBuilder().key(key).bucket(bucket)
-                    .stream(StreamSuppliers.lazy(outputStream -> converter.toStream(value, outputStream), consumerExecutor, PIPED_CHUNK_SIZE)).build()).get();
+                .stream(StreamSuppliers.lazy(outputStream -> converter.toStream(value, outputStream), consumerExecutor,
+                    PIPED_CHUNK_SIZE)).build()).get();
         } catch (InterruptedException | ExecutionException e) {
             throw Throwables.propagate(e);
         }
@@ -87,11 +88,12 @@ public abstract class S3Repository<T> {
     public T get(@Nonnull String key) {
         final String bucket = selectBucket(key);
         try {
-            return transmitter.downloadF(new DownloadRequestBuilder().bucket(bucket).key(key).build(), metaAndStream -> {
-                try (InputStream inputStream = metaAndStream.getInputStream()) {
-                    return converter.fromStream(inputStream);
-                }
-            }).get().getProcessingResult();
+            return transmitter.downloadF(new DownloadRequestBuilder().bucket(bucket).key(key).build(),
+                metaAndStream -> {
+                    try (InputStream inputStream = metaAndStream.getInputStream()) {
+                        return converter.fromStream(inputStream);
+                    }
+                }).get().getProcessingResult();
         } catch (InterruptedException | ExecutionException e) {
             throw Throwables.propagate(e);
         }

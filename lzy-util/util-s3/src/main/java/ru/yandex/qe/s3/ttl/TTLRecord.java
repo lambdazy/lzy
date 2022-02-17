@@ -2,16 +2,16 @@ package ru.yandex.qe.s3.ttl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.joda.time.DateTime;
-
-import javax.annotation.Nonnull;
 import java.util.Objects;
+import javax.annotation.Nonnull;
+import org.joda.time.DateTime;
 
 /**
  * @author nkey
  * @since 28.01.2015
  */
 public class TTLRecord {
+
     @Nonnull
     @JsonProperty("bucket")
     private final String bucket;
@@ -24,8 +24,8 @@ public class TTLRecord {
 
     @JsonCreator
     public TTLRecord(@JsonProperty("bucket") @Nonnull String bucket,
-                     @JsonProperty("ket") @Nonnull String key,
-                     @JsonProperty("expire-at") @Nonnull DateTime expireAt) {
+        @JsonProperty("ket") @Nonnull String key,
+        @JsonProperty("expire-at") @Nonnull DateTime expireAt) {
         this.bucket = bucket;
         this.key = key;
         this.expireAt = expireAt;
@@ -60,6 +60,7 @@ public class TTLRecord {
             return false;
         }
         final TTLRecord other = (TTLRecord) obj;
-        return Objects.equals(this.bucket, other.bucket) && Objects.equals(this.key, other.key) && Objects.equals(this.expireAt, other.expireAt);
+        return Objects.equals(this.bucket, other.bucket) && Objects.equals(this.key, other.key) && Objects.equals(
+            this.expireAt, other.expireAt);
     }
 }

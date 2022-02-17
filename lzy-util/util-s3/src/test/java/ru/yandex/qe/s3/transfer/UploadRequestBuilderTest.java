@@ -1,5 +1,6 @@
 package ru.yandex.qe.s3.transfer;
 
+import java.io.ByteArrayInputStream;
 import org.hamcrest.core.Is;
 import org.junit.Assert;
 import org.springframework.test.context.ActiveProfiles;
@@ -9,11 +10,8 @@ import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 
-import java.io.ByteArrayInputStream;
-
 /**
- * Established by terry
- * on 30.07.15.
+ * Established by terry on 30.07.15.
  */
 @ActiveProfiles("testing")
 public class UploadRequestBuilderTest {
@@ -23,12 +21,12 @@ public class UploadRequestBuilderTest {
         new UploadRequestBuilder().bucket("bucket").build();
     }
 
-    @Test (expectedExceptions = NullPointerException.class)
+    @Test(expectedExceptions = NullPointerException.class)
     public void fail_to_create_if_bucket_not_set() {
         new UploadRequestBuilder().key("key").build();
     }
 
-    @Test (expectedExceptions = NullPointerException.class)
+    @Test(expectedExceptions = NullPointerException.class)
     public void fail_to_create_if_stream_supplier_not_set() {
         new UploadRequestBuilder().key("key").bucket("bucket").build();
     }
@@ -37,7 +35,7 @@ public class UploadRequestBuilderTest {
     public void ok_creating_with_key_and_bucket_and_stream() {
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[0]);
         final UploadRequest request = new UploadRequestBuilder().key("key").bucket("bucket")
-                .stream(StreamSuppliers.of(inputStream)).build();
+            .stream(StreamSuppliers.of(inputStream)).build();
 
         Assert.assertThat(request.getKey(), Is.is("key"));
         Assert.assertThat(request.getBucket(), Is.is("bucket"));
@@ -52,9 +50,9 @@ public class UploadRequestBuilderTest {
         final Metadata objectMetadata = new MetadataBuilder().setObjectContentLength(10).build();
 
         final UploadRequest request = new UploadRequestBuilder().key("key").bucket("bucket")
-                .maxConcurrency(4)
-                .metadata(objectMetadata)
-                .stream(StreamSuppliers.of(inputStream)).build();
+            .maxConcurrency(4)
+            .metadata(objectMetadata)
+            .stream(StreamSuppliers.of(inputStream)).build();
 
         Assert.assertThat(request.getKey(), Is.is("key"));
         Assert.assertThat(request.getBucket(), Is.is("bucket"));

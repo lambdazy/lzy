@@ -1,15 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import java.io.FileReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
 import org.junit.Assert;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
-
-import java.io.FileReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.UUID;
 
 public class SignTokenTest {
     @Test

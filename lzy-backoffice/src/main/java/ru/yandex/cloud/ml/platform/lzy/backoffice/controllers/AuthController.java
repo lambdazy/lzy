@@ -49,7 +49,7 @@ public class AuthController {
     Client client;
 
     @Inject
-    OAuthSecretsProvider oAuthConfig;
+    OAuthSecretsProvider authConfig;
 
     @Inject
     private HttpHostResolver httpHostResolver;
@@ -85,6 +85,8 @@ public class AuthController {
             case WRONG_USER:
             case EXISTS:
                 throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad session id");
+            default:
+                break;
         }
         AuthProviders provider = AuthProviders.fromString(body.getProvider());
         if (provider == null) {
@@ -93,16 +95,16 @@ public class AuthController {
         switch (provider) {
             case GITHUB: {
                 LoginResponse resp = new LoginResponse();
-                String redirectURL = UriBuilder.of(
+                String redirectUrl = UriBuilder.of(
                         new URI("https://github.com/login/oauth/authorize"))
-                    .queryParam("client_id", oAuthConfig.getGithub().getClientId())
+                    .queryParam("client_id", authConfig.getGithub().getClientId())
                     .queryParam("state", body.getSessionId() + "," + body.getRedirectUrl())
-                    .queryParam("redirect_uri", httpHostResolver.resolve(request) +
-                        uriNamingStrategy.resolveUri(AuthController.class) + "/code/"
+                    .queryParam("redirect_uri", httpHostResolver.resolve(request)
+                        + uriNamingStrategy.resolveUri(AuthController.class) + "/code/"
                         + body.getProvider()
                     )
                     .build().toString();
-                resp.setRedirectUrl(redirectURL);
+                resp.setRedirectUrl(redirectUrl);
                 return HttpResponse.ok(resp);
             }
             default:
@@ -112,7 +114,7 @@ public class AuthController {
 
     @Get("/code/github{?code,state}")
     public HttpResponse<UserCredentials> authCodeGitHub(@QueryValue String code,
-        @QueryValue String state) {
+                                                        @QueryValue String state) {
         String[] stateValues = state.split(",");
         if (stateValues.length < 2) {
             throw new HttpStatusException(HttpStatus.BAD_REQUEST, "Wrong state");
@@ -128,11 +130,12 @@ public class AuthController {
             case WRONG_USER:
             case EXISTS:
                 throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad session id");
+            default: break;
         }
         GithubAccessTokenRequest tokenRequest = new GithubAccessTokenRequest();
         tokenRequest.setCode(code);
-        tokenRequest.setClient_id(oAuthConfig.getGithub().getClientId());
-        tokenRequest.setClient_secret(oAuthConfig.getGithub().getClientSecret());
+        tokenRequest.setClientId(authConfig.getGithub().getClientId());
+        tokenRequest.setClientSecret(authConfig.getGithub().getClientSecret());
         HttpResponse<GithubAccessTokenResponse> resp;
         LOG.info("Checking github code: " + code);
         try {
@@ -150,7 +153,7 @@ public class AuthController {
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
         GithubAccessTokenResponse body = resp.getBody().orElseThrow();
-        if (body.getAccess_token() == null) {
+        if (body.getAccessToken() == null) {
             LOG.info("Body is null");
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
@@ -160,7 +163,7 @@ public class AuthController {
         try {
             result = githubApiClient.toBlocking().exchange(
                 HttpRequest.GET("/user")
-                    .header("Authorization", "token " + body.getAccess_token())
+                    .header("Authorization", "token " + body.getAccessToken())
                     .header("User-Agent", "request")
                     .accept(MediaType.APPLICATION_JSON_TYPE),
                 GitHubGetUserResponse.class

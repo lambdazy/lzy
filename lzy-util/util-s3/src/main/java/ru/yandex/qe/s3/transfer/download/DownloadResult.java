@@ -1,8 +1,7 @@
 package ru.yandex.qe.s3.transfer.download;
 
 /**
- * Established by terry
- * on 16.07.15.
+ * Established by terry on 16.07.15.
  */
 public class DownloadResult<T> {
 

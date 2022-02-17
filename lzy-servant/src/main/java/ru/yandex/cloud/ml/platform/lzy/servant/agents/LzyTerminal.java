@@ -55,6 +55,58 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         return agentServer;
     }
 
+    @Override
+    protected void onStartUp() {
+        commandHandler = new CommandHandler();
+        status.set(AgentStatus.PREPARING_EXECUTION);
+        currentExecution = new LzyExecution(null, null, agentInternalAddress,
+            new Snapshotter.DevNullSnapshotter(), null);
+        status.set(AgentStatus.EXECUTING);
+
+        Context.current().addListener(context -> {
+            if (currentExecution != null) {
+                LOG.info("Execution terminated from server ");
+                System.exit(1);
+            }
+        }, Runnable::run);
+
+        currentExecution.onProgress(progress -> {
+            LOG.info("LzyTerminal::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
+            if (progress.hasAttach()) {
+                final TerminalState terminalState = TerminalState.newBuilder()
+                    .setAttach(progress.getAttach())
+                    .build();
+                commandHandler.onNext(terminalState);
+            } else if (progress.hasDetach()) {
+                final TerminalState terminalState = TerminalState.newBuilder()
+                    .setDetach(progress.getDetach())
+                    .build();
+                commandHandler.onNext(terminalState);
+            } else {
+                LOG.info("Skipping to send progress from terminal to server :" + JsonUtils
+                    .printRequest(progress));
+            }
+
+            if (progress.hasExit()) {
+                LOG.info("LzyTerminal::exit {}", agentAddress);
+                currentExecution = null;
+                commandHandler.onCompleted();
+            }
+        });
+    }
+
+    @Override
+    protected LzyServerApi lzyServerApi() {
+        return kharonBlockingStub::zygotes;
+    }
+
+    @Override
+    public void close() {
+        super.close();
+        commandHandler.onCompleted();
+        channel.shutdown();
+    }
+
     private class CommandHandler {
 
         private final StreamObserver<TerminalState> responseObserver;
@@ -150,58 +202,6 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         }
     }
 
-    @Override
-    protected void onStartUp() {
-        commandHandler = new CommandHandler();
-        status.set(AgentStatus.PREPARING_EXECUTION);
-        currentExecution = new LzyExecution(null, null, agentInternalAddress,
-            new Snapshotter.DevNullSnapshotter(), null);
-        status.set(AgentStatus.EXECUTING);
-
-        Context.current().addListener(context -> {
-            if (currentExecution != null) {
-                LOG.info("Execution terminated from server ");
-                System.exit(1);
-            }
-        }, Runnable::run);
-
-        currentExecution.onProgress(progress -> {
-            LOG.info("LzyTerminal::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
-            if (progress.hasAttach()) {
-                final TerminalState terminalState = TerminalState.newBuilder()
-                    .setAttach(progress.getAttach())
-                    .build();
-                commandHandler.onNext(terminalState);
-            } else if (progress.hasDetach()) {
-                final TerminalState terminalState = TerminalState.newBuilder()
-                    .setDetach(progress.getDetach())
-                    .build();
-                commandHandler.onNext(terminalState);
-            } else {
-                LOG.info("Skipping to send progress from terminal to server :" + JsonUtils
-                    .printRequest(progress));
-            }
-
-            if (progress.hasExit()) {
-                LOG.info("LzyTerminal::exit {}", agentAddress);
-                currentExecution = null;
-                commandHandler.onCompleted();
-            }
-        });
-    }
-
-    @Override
-    protected LzyServerApi lzyServerApi() {
-        return kharonBlockingStub::zygotes;
-    }
-
-    @Override
-    public void close() {
-        super.close();
-        commandHandler.onCompleted();
-        channel.shutdown();
-    }
-
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
 
         @Override
@@ -215,13 +215,13 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
         @Override
         public void update(IAM.Auth request,
-            StreamObserver<Servant.ExecutionStarted> responseObserver) {
+                           StreamObserver<Servant.ExecutionStarted> responseObserver) {
             LzyTerminal.this.update(request, responseObserver);
         }
 
         @Override
         public void status(IAM.Empty request,
-            StreamObserver<Servant.ServantStatus> responseObserver) {
+                           StreamObserver<Servant.ServantStatus> responseObserver) {
             LzyTerminal.this.status(currentExecution, request, responseObserver);
         }
     }

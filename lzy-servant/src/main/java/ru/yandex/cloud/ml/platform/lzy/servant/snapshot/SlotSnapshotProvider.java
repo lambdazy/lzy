@@ -1,10 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 
 public interface SlotSnapshotProvider {
     SlotSnapshot slotSnapshot(Slot slot);

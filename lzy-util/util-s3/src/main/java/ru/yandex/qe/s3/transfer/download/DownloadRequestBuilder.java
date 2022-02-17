@@ -1,20 +1,19 @@
 package ru.yandex.qe.s3.transfer.download;
 
-import javax.annotation.concurrent.NotThreadSafe;
-
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static ru.yandex.qe.s3.transfer.download.DownloadRequest.UNDEFF_BOUND_VALUE;
 
+import javax.annotation.concurrent.NotThreadSafe;
 import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
 
 /**
- * Established by terry
- * on 16.07.15.
+ * Established by terry on 16.07.15.
  */
 @NotThreadSafe
 public class DownloadRequestBuilder {
+
     private String bucket;
     private String key;
 
@@ -55,7 +54,7 @@ public class DownloadRequestBuilder {
         checkNotNull(bucket, "bucket not specified!");
         checkNotNull(key, "key not specified!");
         if (start != UNDEFF_BOUND_VALUE) {
-            checkArgument(start>= 0, format("start must no negative, but is %s", start));
+            checkArgument(start >= 0, format("start must no negative, but is %s", start));
         }
         if (end != UNDEFF_BOUND_VALUE) {
             checkArgument(start <= end, format("end must be <= then start but start is %s, and end is %s", start, end));

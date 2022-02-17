@@ -1,15 +1,22 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
-import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.IdClass;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 
 @Entity
 @Table(name = "whiteboard_tag")
 @IdClass(WhiteboardTagModel.WhiteboardTagPk.class)
 public class WhiteboardTagModel {
+
     @Id
-    @Column(name="wb_id")
+    @Column(name = "wb_id")
     private String wbId;
 
     @Id
@@ -17,7 +24,7 @@ public class WhiteboardTagModel {
     private String tag;
 
     @ManyToOne
-    @JoinColumn(name="wb_id", nullable=false, insertable = false, updatable = false)
+    @JoinColumn(name = "wb_id", nullable = false, insertable = false, updatable = false)
     private WhiteboardModel whiteboardModel;
 
     public WhiteboardTagModel(String wbId, String tag) {
@@ -37,6 +44,7 @@ public class WhiteboardTagModel {
     }
 
     public static class WhiteboardTagPk implements Serializable {
+
         protected String wbId;
         protected String tag;
 
@@ -45,15 +53,20 @@ public class WhiteboardTagModel {
             this.tag = tag;
         }
 
-        public WhiteboardTagPk() {}
+        public WhiteboardTagPk() {
+        }
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             WhiteboardTagModel.WhiteboardTagPk storagePk = (WhiteboardTagModel.WhiteboardTagPk) o;
-            return wbId.equals(storagePk.wbId) &&
-                    tag.equals(storagePk.tag);
+            return wbId.equals(storagePk.wbId)
+                && tag.equals(storagePk.tag);
         }
 
         @Override

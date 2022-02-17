@@ -1,29 +1,32 @@
 package ru.yandex.cloud.ml.platform.lzy.model.utils;
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemReader;
+import static java.security.Security.addProvider;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.*;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.UUID;
-
-import static java.security.Security.*;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
 
 public class Credentials {
     public static String signToken(UUID token, Reader privateKeyReader) throws
-            InvalidKeySpecException,
-            NoSuchAlgorithmException,
-            InvalidKeyException,
-            SignatureException,
-            IOException {
+        InvalidKeySpecException,
+        NoSuchAlgorithmException,
+        InvalidKeyException,
+        SignatureException,
+        IOException {
         addProvider(new BouncyCastleProvider());
         KeyFactory factory = KeyFactory.getInstance("RSA");
         try (PemReader pemReader = new PemReader(privateKeyReader)) {
@@ -36,9 +39,10 @@ public class Credentials {
         }
     }
 
-    public static String signToken(UUID token, PrivateKey privateKey) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+    public static String signToken(UUID token, PrivateKey privateKey)
+        throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         java.security.Security.addProvider(
-                new org.bouncycastle.jce.provider.BouncyCastleProvider()
+            new org.bouncycastle.jce.provider.BouncyCastleProvider()
         );
 
         final String tokenSignature;
@@ -49,7 +53,8 @@ public class Credentials {
         return tokenSignature;
     }
 
-    public static boolean checkToken(Reader keyReader, String token, String tokenSign) throws IOException, InvalidKeyException, SignatureException, InvalidKeySpecException {
+    public static boolean checkToken(Reader keyReader, String token, String tokenSign)
+        throws IOException, InvalidKeyException, SignatureException, InvalidKeySpecException {
         try (PemReader pemReader = new PemReader(keyReader)) {
             KeyFactory factory = KeyFactory.getInstance("RSA");
             PemObject pemObject = pemReader.readPemObject();

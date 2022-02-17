@@ -1,13 +1,18 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Id;
+import javax.persistence.Table;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-
-import javax.persistence.*;
 
 
 @Entity
 @Table(name = "whiteboard")
 public class WhiteboardModel {
+
     @Id
     @Column(name = "wb_id", nullable = false)
     private String wbId;
@@ -32,12 +37,12 @@ public class WhiteboardModel {
     public WhiteboardModel() {
     }
 
-    public void setWbState(WhiteboardStatus.State wbStatus) {
-        this.wbState = wbStatus;
-    }
-
     public WhiteboardStatus.State getWbState() {
         return wbState;
+    }
+
+    public void setWbState(WhiteboardStatus.State wbStatus) {
+        this.wbState = wbStatus;
     }
 
     public String getWbId() {

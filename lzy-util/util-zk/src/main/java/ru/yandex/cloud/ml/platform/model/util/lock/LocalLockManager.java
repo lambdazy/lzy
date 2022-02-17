@@ -1,15 +1,15 @@
 package ru.yandex.cloud.ml.platform.model.util.lock;
 
-import org.springframework.stereotype.Service;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.springframework.stereotype.Service;
 
 @Service("LocalLockManager")
 public class LocalLockManager extends BaseLockManager {
+
     private final String prefix;
     private final ConcurrentHashMap<String, ReadWriteLock> prefixReadWriteLock = new ConcurrentHashMap<>();
 

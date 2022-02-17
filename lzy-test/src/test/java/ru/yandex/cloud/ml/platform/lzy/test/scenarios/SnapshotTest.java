@@ -38,14 +38,14 @@ public class SnapshotTest extends LzyBaseTest {
     public void setUp() {
         super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                9999,
-                kharonContext.serverAddress(terminalContext.inDocker())
+            LZY_MOUNT,
+            9999,
+            kharonContext.serverAddress(terminalContext.inDocker())
         );
         terminal.waitForStatus(
-                AgentStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
-                TimeUnit.SECONDS
+            AgentStatus.EXECUTING,
+            DEFAULT_TIMEOUT_SEC,
+            TimeUnit.SECONDS
         );
     }
 
@@ -60,13 +60,15 @@ public class SnapshotTest extends LzyBaseTest {
         return (String) spIdObject.get("snapshotId");
     }
 
-    private String createWhiteboard(String spId, List<String> fileNames, List<String> tags, String namespace) throws ParseException {
+    private String createWhiteboard(String spId, List<String> fileNames, List<String> tags, String namespace)
+        throws ParseException {
         String wbIdJson = terminal.createWhiteboard(spId, fileNames, tags, namespace);
         JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
         return (String) wbIdObject.get("id");
     }
 
-    private List<LzyWhiteboard.Whiteboard> getWhiteboardsByNamespaceAndTags(String namespace, List<String> tags) throws InvalidProtocolBufferException {
+    private List<LzyWhiteboard.Whiteboard> getWhiteboardsByNamespaceAndTags(String namespace, List<String> tags)
+        throws InvalidProtocolBufferException {
         String whiteboardsJson = terminal.getWhiteboardsByNamespaceAndTags(namespace, tags);
         LzyWhiteboard.WhiteboardsResponse.Builder builder = LzyWhiteboard.WhiteboardsResponse.newBuilder();
         JsonFormat.parser().merge(whiteboardsJson, builder);
@@ -86,10 +88,10 @@ public class SnapshotTest extends LzyBaseTest {
         final String channelOutName = "channel2";
 
         final FileIOOperation cat_to_file = new FileIOOperation(
-                "cat_to_file_lzy",
-                List.of(fileName.substring(LZY_MOUNT.length())),
-                List.of(fileOutName.substring(LZY_MOUNT.length())),
-                "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName
+            "cat_to_file_lzy",
+            List.of(fileName.substring(LZY_MOUNT.length())),
+            List.of(fileOutName.substring(LZY_MOUNT.length())),
+            "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName
         );
 
         //Act
@@ -99,11 +101,12 @@ public class SnapshotTest extends LzyBaseTest {
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
 
         ForkJoinPool.commonPool()
-                .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
+            .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file.getName(), cat_to_file);
-        final LzyTerminalTestContext.Terminal.ExecutionResult[] result1 = new LzyTerminalTestContext.Terminal.ExecutionResult[1];
+        final LzyTerminalTestContext.Terminal.ExecutionResult[] result1 =
+            new LzyTerminalTestContext.Terminal.ExecutionResult[1];
         ForkJoinPool.commonPool()
-                .execute(() -> result1[0] = terminal.execute("bash", "-c", "/tmp/lzy/sbin/cat " + localFileOutName));
+            .execute(() -> result1[0] = terminal.execute("bash", "-c", "/tmp/lzy/sbin/cat " + localFileOutName));
         final String spId = createSnapshot();
         Assert.assertNotNull(spId);
 
@@ -111,7 +114,8 @@ public class SnapshotTest extends LzyBaseTest {
         final String secondTag = "secondTag";
         final String namespace = "namespace";
 
-        final String wbId = createWhiteboard(spId, List.of(localFileName, localFileOutName), List.of(firstTag, secondTag), namespace);
+        final String wbId =
+            createWhiteboard(spId, List.of(localFileName, localFileOutName), List.of(firstTag, secondTag), namespace);
         Assert.assertNotNull(wbId);
 
         final String firstEntryId = "firstEntryId";
@@ -120,19 +124,19 @@ public class SnapshotTest extends LzyBaseTest {
         final String stdoutEntryId = "stdoutEntryId";
         final String stdinEntryId = "stdinEntryId";
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.run(
-                cat_to_file.getName(),
-                "",
-                Map.of(
-                        fileName.substring(LZY_MOUNT.length()), channelName,
-                        fileOutName.substring(LZY_MOUNT.length()), channelOutName
-                ),
-                Map.of(
-                        fileName.substring(LZY_MOUNT.length()), spId + "/" + firstEntryId,
-                        fileOutName.substring(LZY_MOUNT.length()), spId + "/" + secondEntryId,
-                        "/dev/stderr", spId + "/" + stderrEntryId,
-                        "/dev/stdout", spId + "/" + stdoutEntryId,
-                        "/dev/stdin", spId + "/" + stdinEntryId
-                )
+            cat_to_file.getName(),
+            "",
+            Map.of(
+                fileName.substring(LZY_MOUNT.length()), channelName,
+                fileOutName.substring(LZY_MOUNT.length()), channelOutName
+            ),
+            Map.of(
+                fileName.substring(LZY_MOUNT.length()), spId + "/" + firstEntryId,
+                fileOutName.substring(LZY_MOUNT.length()), spId + "/" + secondEntryId,
+                "/dev/stderr", spId + "/" + stderrEntryId,
+                "/dev/stdout", spId + "/" + stdoutEntryId,
+                "/dev/stdin", spId + "/" + stdinEntryId
+            )
         );
 
         //Assert
@@ -140,11 +144,12 @@ public class SnapshotTest extends LzyBaseTest {
         Assert.assertEquals(0, result.exitCode());
 
         final AmazonS3 client = AmazonS3ClientBuilder
-                .standard()
-                .withPathStyleAccessEnabled(true)
-                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://localhost:" + S3_PORT, "us-west-2"))
-                .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
-                .build();
+            .standard()
+            .withPathStyleAccessEnabled(true)
+            .withEndpointConfiguration(
+                new AwsClientBuilder.EndpointConfiguration("http://localhost:" + S3_PORT, "us-west-2"))
+            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+            .build();
 
         List<Bucket> bucketList = client.listBuckets();
         Assert.assertEquals(1, bucketList.size());
@@ -155,9 +160,9 @@ public class SnapshotTest extends LzyBaseTest {
         for (var obj : objects) {
             String key = obj.getKey();
             String content = IOUtils.toString(
-                    client.getObject(new GetObjectRequest(bucketName, key))
-                            .getObjectContent(),
-                    StandardCharsets.UTF_8
+                client.getObject(new GetObjectRequest(bucketName, key))
+                    .getObjectContent(),
+                StandardCharsets.UTF_8
             );
             Assert.assertEquals(fileContent + "\n", content);
         }
@@ -179,8 +184,10 @@ public class SnapshotTest extends LzyBaseTest {
         Assert.assertEquals(LzyWhiteboard.WhiteboardStatus.COMPLETED, wb.getStatus());
 
         Assert.assertTrue(
-                (localFileName.equals(fieldsList.get(0).getFieldName()) && localFileOutName.equals(fieldsList.get(1).getFieldName())) ||
-                        (localFileName.equals(fieldsList.get(1).getFieldName()) && localFileOutName.equals(fieldsList.get(0).getFieldName()))
+            (localFileName.equals(fieldsList.get(0).getFieldName()) &&
+                localFileOutName.equals(fieldsList.get(1).getFieldName())) ||
+                (localFileName.equals(fieldsList.get(1).getFieldName()) &&
+                    localFileOutName.equals(fieldsList.get(0).getFieldName()))
         );
 
         Assert.assertTrue(fieldsList.get(0).getStorageUri().length() > 0);
@@ -189,8 +196,8 @@ public class SnapshotTest extends LzyBaseTest {
         final List<String> tagsList = wb.getTagsList();
         Assert.assertEquals(2, tagsList.size());
         Assert.assertTrue(
-                (firstTag.equals(tagsList.get(0)) && secondTag.equals(tagsList.get(1))) ||
-                        (firstTag.equals(tagsList.get(1)) && secondTag.equals(tagsList.get(0)))
+            (firstTag.equals(tagsList.get(0)) && secondTag.equals(tagsList.get(1))) ||
+                (firstTag.equals(tagsList.get(1)) && secondTag.equals(tagsList.get(0)))
         );
 
         if (localFileName.equals(fieldsList.get(0).getFieldName())) {
@@ -210,13 +217,16 @@ public class SnapshotTest extends LzyBaseTest {
         final String spIdSecond = createSnapshot();
         Assert.assertNotNull(spIdSecond);
 
-        final String wbIdFirst = createWhiteboard(spIdFirst, List.of("fileNameX", "fileNameY"), List.of("tag"), "namespace");
+        final String wbIdFirst =
+            createWhiteboard(spIdFirst, List.of("fileNameX", "fileNameY"), List.of("tag"), "namespace");
         Assert.assertNotNull(wbIdFirst);
 
-        final String wbIdSecond = createWhiteboard(spIdFirst, List.of("fileNameZ", "fileNameW"), List.of("tag"), "namespace");
+        final String wbIdSecond =
+            createWhiteboard(spIdFirst, List.of("fileNameZ", "fileNameW"), List.of("tag"), "namespace");
         Assert.assertNotNull(wbIdSecond);
 
-        final String wbIdThird = createWhiteboard(spIdSecond, List.of("fileNameA", "fileNameB"), List.of("tag"), "namespace");
+        final String wbIdThird =
+            createWhiteboard(spIdSecond, List.of("fileNameA", "fileNameB"), List.of("tag"), "namespace");
         Assert.assertNotNull(wbIdThird);
     }
 
@@ -235,42 +245,42 @@ public class SnapshotTest extends LzyBaseTest {
         final String secondNamespace = "secondNamespace";
 
         final String wbIdFirst = createWhiteboard(
-                spIdFirst, List.of("fileNameX", "fileNameY"), List.of(firstTag, secondTag), firstNamespace
+            spIdFirst, List.of("fileNameX", "fileNameY"), List.of(firstTag, secondTag), firstNamespace
         );
         Assert.assertNotNull(wbIdFirst);
 
         final String wbIdSecond = createWhiteboard(
-                spIdFirst, List.of("fileNameZ", "fileNameW"), List.of(firstTag, secondTag, thirdTag), secondNamespace);
+            spIdFirst, List.of("fileNameZ", "fileNameW"), List.of(firstTag, secondTag, thirdTag), secondNamespace);
         Assert.assertNotNull(wbIdSecond);
 
         final String wbIdThird = createWhiteboard(
-                spIdSecond, List.of("fileNameA", "fileNameB"), List.of(secondTag, thirdTag), firstNamespace);
+            spIdSecond, List.of("fileNameA", "fileNameB"), List.of(secondTag, thirdTag), firstNamespace);
         Assert.assertNotNull(wbIdThird);
 
         final String wbIdFourth = createWhiteboard(
-                spIdSecond, List.of("fileNameC"), List.of(thirdTag), firstNamespace);
+            spIdSecond, List.of("fileNameC"), List.of(thirdTag), firstNamespace);
         Assert.assertNotNull(wbIdFourth);
 
         final String wbIdFifth = createWhiteboard(
-                spIdSecond, List.of("fileNameD"), List.of(firstTag, thirdTag), secondNamespace);
+            spIdSecond, List.of("fileNameD"), List.of(firstTag, thirdTag), secondNamespace);
         Assert.assertNotNull(wbIdFifth);
 
         List<LzyWhiteboard.Whiteboard> list = getWhiteboardsByNamespaceAndTags(firstNamespace, List.of(secondTag));
         Assert.assertEquals(2, list.size());
         Assert.assertTrue(
-                list.stream()
-                        .map(LzyWhiteboard.Whiteboard::getId)
-                        .collect(Collectors.toList())
-                        .containsAll(List.of(wbIdFirst, wbIdThird))
+            list.stream()
+                .map(LzyWhiteboard.Whiteboard::getId)
+                .collect(Collectors.toList())
+                .containsAll(List.of(wbIdFirst, wbIdThird))
         );
 
         list = getWhiteboardsByNamespaceAndTags(secondNamespace, List.of(firstTag, thirdTag));
         Assert.assertEquals(2, list.size());
         Assert.assertTrue(
-                list.stream()
-                        .map(LzyWhiteboard.Whiteboard::getId)
-                        .collect(Collectors.toList())
-                        .containsAll(List.of(wbIdSecond, wbIdFifth))
+            list.stream()
+                .map(LzyWhiteboard.Whiteboard::getId)
+                .collect(Collectors.toList())
+                .containsAll(List.of(wbIdSecond, wbIdFifth))
         );
     }
 }

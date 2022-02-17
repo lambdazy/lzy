@@ -1,5 +1,6 @@
 package ru.yandex.qe.s3.transfer;
 
+import java.io.ByteArrayInputStream;
 import org.hamcrest.core.Is;
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -10,11 +11,8 @@ import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
 import ru.yandex.qe.s3.transfer.ttl.TTLUploadRequest;
 import ru.yandex.qe.s3.transfer.ttl.TTLUploadRequestBuilder;
 
-import java.io.ByteArrayInputStream;
-
 /**
- * Established by terry
- * on 30.07.15.
+ * Established by terry on 30.07.15.
  */
 @ActiveProfiles("testing")
 public class TTLUploadRequestBuilderTest {
@@ -23,8 +21,8 @@ public class TTLUploadRequestBuilderTest {
     public void fail_if_ttl_not_set() {
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[0]);
         new TTLUploadRequestBuilder().key("key").bucket("bucket")
-                .stream(StreamSuppliers.of(inputStream))
-                .build();
+            .stream(StreamSuppliers.of(inputStream))
+            .build();
     }
 
     @Test
@@ -34,10 +32,10 @@ public class TTLUploadRequestBuilderTest {
 
         final Duration ttl = new Duration(1000);
         final TTLUploadRequest request = new TTLUploadRequestBuilder().ttl(ttl).key("key").bucket("bucket")
-                .maxConcurrency(4)
-                .metadata(objectMetadata)
-                .stream(StreamSuppliers.of(inputStream))
-                .build();
+            .maxConcurrency(4)
+            .metadata(objectMetadata)
+            .stream(StreamSuppliers.of(inputStream))
+            .build();
 
         Assert.assertThat(request.getTTL(), Is.is(ttl));
         Assert.assertThat(request.getKey(), Is.is("key"));

@@ -1,14 +1,12 @@
 package ru.yandex.qe.s3.transfer.download;
 
-import ru.yandex.qe.s3.transfer.meta.Metadata;
-
+import java.io.InputStream;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
-import java.io.InputStream;
+import ru.yandex.qe.s3.transfer.meta.Metadata;
 
 /**
- * Established by terry
- * on 17.07.15.
+ * Established by terry on 17.07.15.
  */
 @Immutable
 public class MetaAndStream {

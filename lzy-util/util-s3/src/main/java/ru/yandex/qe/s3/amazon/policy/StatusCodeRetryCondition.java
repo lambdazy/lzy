@@ -4,12 +4,10 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.retry.RetryPolicy;
-
 import java.util.List;
 
 /**
- * Established by terry
- * on 01.07.15.
+ * Established by terry on 01.07.15.
  */
 public class StatusCodeRetryCondition implements RetryPolicy.RetryCondition {
 
@@ -20,7 +18,8 @@ public class StatusCodeRetryCondition implements RetryPolicy.RetryCondition {
     }
 
     @Override
-    public boolean shouldRetry(AmazonWebServiceRequest originalRequest, AmazonClientException exception, int retriesAttempted) {
+    public boolean shouldRetry(AmazonWebServiceRequest originalRequest, AmazonClientException exception,
+        int retriesAttempted) {
         if (exception instanceof AmazonServiceException) {
             AmazonServiceException ase = (AmazonServiceException) exception;
             return badStatusCodes.contains(ase.getStatusCode());

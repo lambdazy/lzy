@@ -3,12 +3,10 @@ package ru.yandex.qe.s3.amazon.policy;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.retry.RetryPolicy;
-
 import java.util.Collection;
 
 /**
- * Established by terry
- * on 18.12.15.
+ * Established by terry on 18.12.15.
  */
 public class AndRetryCondition implements RetryPolicy.RetryCondition {
 
@@ -19,7 +17,8 @@ public class AndRetryCondition implements RetryPolicy.RetryCondition {
     }
 
     @Override
-    public boolean shouldRetry(AmazonWebServiceRequest originalRequest, AmazonClientException exception, int retriesAttempted) {
+    public boolean shouldRetry(AmazonWebServiceRequest originalRequest, AmazonClientException exception,
+        int retriesAttempted) {
         for (RetryPolicy.RetryCondition condition : conditions) {
             if (!condition.shouldRetry(originalRequest, exception, retriesAttempted)) {
                 return false;

@@ -4,8 +4,10 @@ import javax.annotation.Nullable;
 
 public interface WhiteboardField {
     String name();
+
     @Nullable
     SnapshotEntry entry();
+
     Whiteboard whiteboard();
 
     class Impl implements WhiteboardField {

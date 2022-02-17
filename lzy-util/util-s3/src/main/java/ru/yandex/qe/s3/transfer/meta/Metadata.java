@@ -1,16 +1,18 @@
 package ru.yandex.qe.s3.transfer.meta;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.*;
 
 /**
- * Established by terry
- * on 18.01.16.
+ * Established by terry on 18.01.16.
  */
 @NotThreadSafe
 @Immutable
 public class Metadata {
+
     public static final long UNDEFINED_LENGTH = -1;
 
     private Map<String, Object> metadata;
@@ -20,15 +22,16 @@ public class Metadata {
 
     private long objectContentLength = UNDEFINED_LENGTH;
 
-    public static Metadata empty() {
-        return new Metadata(Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), UNDEFINED_LENGTH);
-    }
-
-    public Metadata(Map<String, Object> metadata, Map<String, Object> userMetadata, List<Object> aclObjects, long objectContentLength) {
+    public Metadata(Map<String, Object> metadata, Map<String, Object> userMetadata, List<Object> aclObjects,
+        long objectContentLength) {
         this.metadata = metadata;
         this.userMetadata = userMetadata;
         this.aclObjects = aclObjects;
         this.objectContentLength = objectContentLength;
+    }
+
+    public static Metadata empty() {
+        return new Metadata(Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), UNDEFINED_LENGTH);
     }
 
     public Map<String, Object> getMetadata() {
@@ -56,24 +59,35 @@ public class Metadata {
     @Override
     public Metadata clone() {
         return new MetadataBuilder()
-                .addMetadata(getMetadata())
-                .addUserMetadata(getUserMetadata())
-                .addAclObjects(getAclObjects())
-                .setObjectContentLength(getObjectContentLength()).build();
+            .addMetadata(getMetadata())
+            .addUserMetadata(getUserMetadata())
+            .addAclObjects(getAclObjects())
+            .setObjectContentLength(getObjectContentLength()).build();
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         Metadata metadata1 = (Metadata) o;
 
-        if (objectContentLength != metadata1.objectContentLength) return false;
-        if (aclObjects != null ? !aclObjects.equals(metadata1.aclObjects) : metadata1.aclObjects != null) return false;
-        if (metadata != null ? !metadata.equals(metadata1.metadata) : metadata1.metadata != null) return false;
-        if (userMetadata != null ? !userMetadata.equals(metadata1.userMetadata) : metadata1.userMetadata != null)
+        if (objectContentLength != metadata1.objectContentLength) {
             return false;
+        }
+        if (aclObjects != null ? !aclObjects.equals(metadata1.aclObjects) : metadata1.aclObjects != null) {
+            return false;
+        }
+        if (metadata != null ? !metadata.equals(metadata1.metadata) : metadata1.metadata != null) {
+            return false;
+        }
+        if (userMetadata != null ? !userMetadata.equals(metadata1.userMetadata) : metadata1.userMetadata != null) {
+            return false;
+        }
 
         return true;
     }
@@ -89,11 +103,11 @@ public class Metadata {
 
     @Override
     public String toString() {
-        return "Metadata{" +
-                "metadata=" + metadata +
-                ", userMetadata=" + userMetadata +
-                ", aclObjects=" + aclObjects +
-                ", objectContentLength=" + objectContentLength +
-                '}';
+        return "Metadata{"
+            + "metadata=" + metadata
+            + ", userMetadata=" + userMetadata
+            + ", aclObjects=" + aclObjects
+            + ", objectContentLength=" + objectContentLength
+            + '}';
     }
 }
