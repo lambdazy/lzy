@@ -95,13 +95,13 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         input_types: Tuple[type, ...] = ()
         for input_type in signature.func.input_types:
             if issubclass(input_type, Message):
-                input_type.LZY_MESSAGE = property(lambda x: 'LZY_WB_MESSAGE')
+                setattr(input_type, 'LZY_MESSAGE', 'LZY_WB_MESSAGE')
             input_types = input_types + (input_type,)
         signature.func.input_types = input_types
 
         output_type = signature.func.output_type
         if issubclass(output_type, Message):
-            output_type.LZY_MESSAGE = property(lambda x: 'LZY_WB_MESSAGE')
+            setattr(output_type, 'LZY_MESSAGE', 'LZY_WB_MESSAGE')
         signature.func.output_type = output_type
 
         self._zygote = ZygotePythonFunc(
