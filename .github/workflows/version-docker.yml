@@ -29,8 +29,7 @@ jobs:
         id: tags
         uses: docker/metadata-action@v3
         with:
-          images: lzydock/lzy-server/
-          tags: test-tag
+          images: lzydock/lzy-server
 
       - name: 'push-docker'
         run: echo ${{steps.tags.outputs.tags}} | awk '{for (i = 1; i <= NF; i++) {print $i}}' | bash deployment/push-docker.sh {{branch}} rebuild update-version
