@@ -33,7 +33,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.BaseEnvConfig;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvFactory;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvironmentFactory;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
@@ -168,10 +168,7 @@ public class LzyContext {
             }
         });
 
-        final Environment environment = EnvFactory.create(
-            context.env(),
-            BaseEnvConfig.newBuilder().build()
-        );
+        final Environment environment = EnvironmentFactory.create(context.env());
         try {
             environment.prepare();
         } catch (EnvironmentInstallationException e){

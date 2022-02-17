@@ -4,7 +4,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 public interface AtomicZygote extends Zygote {
-  Env env(); // TODO (lindvv) 86682: add BaseEnv;
+  Env env();
   String description();
   String fuze();
   Provisioning provisioning();

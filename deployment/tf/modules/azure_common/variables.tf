@@ -50,6 +50,11 @@ variable "servant-image" {
   default = "lzydock/lzy-servant:master"
 }
 
+variable "base-env-default-image" {
+  type    = string
+  default = "lzydock/default-env:master"
+}
+
 variable "clickhouse-image" {
   type    = string
   default = "clickhouse/clickhouse-server"

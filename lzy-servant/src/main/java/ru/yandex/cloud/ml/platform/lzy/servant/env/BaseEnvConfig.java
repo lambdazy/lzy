@@ -6,14 +6,14 @@ import java.util.List;
 import java.util.Map;
 
 public class BaseEnvConfig {
-    private static final String DEFAULT_IMAGE = "celdwind/lzy:default-env";
-    // TODO (lindvv): get DEFAULT_IMAGE from System.getProperty(...) from server
+
+    public static final String DEFAULT_IMAGE_PROP = "BASE_ENV_DEFAULT_IMAGE";
 
     private final String image;
     private final List<MountDescription> mounts;
 
     private BaseEnvConfig(String image, Map<String, String> mounts) {
-        this.image = (image == null) ? DEFAULT_IMAGE : image;
+        this.image = (image == null) ? System.getProperty(BaseEnvConfig.DEFAULT_IMAGE_PROP) : image;
         this.mounts = new ArrayList<>();
         mounts.forEach((source, target) ->
             this.mounts.add(new MountDescription(source, target))
