@@ -1,20 +1,25 @@
 package ru.yandex.cloud.ml.platform.lzy.backoffice.oauth.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class GithubAccessTokenResponse {
 
-    private String access_token;
-    private String scope;
-    private String token_type;
+    @JsonProperty(value = "access_token")
+    private String accessToken;
 
-    public String getAccess_token() {
-        return access_token;
+    private String scope;
+
+    @JsonProperty(value = "token_type")
+    private String tokenType;
+
+    public String getAccessToken() {
+        return accessToken;
     }
 
-    public void setAccess_token(String access_token) {
-        this.access_token = access_token;
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
     }
 
     public String getScope() {
@@ -25,11 +30,11 @@ public class GithubAccessTokenResponse {
         this.scope = scope;
     }
 
-    public String getToken_type() {
-        return token_type;
+    public String getTokenType() {
+        return tokenType;
     }
 
-    public void setToken_type(String token_type) {
-        this.token_type = token_type;
+    public void setTokenType(String tokenType) {
+        this.tokenType = tokenType;
     }
 }

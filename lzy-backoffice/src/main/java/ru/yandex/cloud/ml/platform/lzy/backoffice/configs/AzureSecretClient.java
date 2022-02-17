@@ -10,12 +10,8 @@ import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.io.StringReader;
-import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.UUID;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
