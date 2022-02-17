@@ -1,13 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.iam.resources;
 
 public enum AuthPermission {
+
     WORKFLOW_GET("lzy.workflow.get"),
-    WORKFLOW_STOP("lzy.workflow.stop"),
     WORKFLOW_RUN("lzy.workflow.run"),
+    WORKFLOW_STOP("lzy.workflow.stop"),
     WORKFLOW_DELETE("lzy.workflow.delete"),
+
     WHITEBOARD_GET("lzy.whiteboard.get"),
-    WHITEBOARD_UPDATE("lzy.whiteboard.update"),
     WHITEBOARD_CREATE("lzy.whiteboard.create"),
+    WHITEBOARD_UPDATE("lzy.whiteboard.update"),
     WHITEBOARD_DELETE("lzy.whiteboard.delete"),
     ;
 

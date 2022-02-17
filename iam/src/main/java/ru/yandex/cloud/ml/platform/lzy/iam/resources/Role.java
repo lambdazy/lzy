@@ -6,6 +6,19 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public enum Role {
+
+    LZY_WORKFLOW_OWNER("lzy.workflow.owner", Set.of(
+        AuthPermission.WORKFLOW_GET,
+        AuthPermission.WORKFLOW_STOP,
+        AuthPermission.WORKFLOW_RUN,
+        AuthPermission.WORKFLOW_DELETE
+    )),
+    LZY_WHITEBOARD_OWNER("lzy.whiteboard.owner", Set.of(
+        AuthPermission.WHITEBOARD_GET,
+        AuthPermission.WHITEBOARD_CREATE,
+        AuthPermission.WHITEBOARD_UPDATE,
+        AuthPermission.WHITEBOARD_DELETE
+    )),
     ;
 
     private final String role;

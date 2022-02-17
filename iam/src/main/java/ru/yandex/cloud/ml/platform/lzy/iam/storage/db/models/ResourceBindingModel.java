@@ -6,13 +6,13 @@ import javax.persistence.Table;
 
 @Entity
 @Table(name = "user_resource_roles")
-public class RoleModel {
+public class ResourceBindingModel {
 
 
-    public RoleModel() {
+    public ResourceBindingModel() {
     }
 
-    public RoleModel(String userId, String resourceId, String resourceType, String role) {
+    public ResourceBindingModel(String userId, String resourceId, String resourceType, String role) {
         this.userId = userId;
         this.resourceId = resourceId;
         this.resourceType = resourceType;
@@ -61,13 +61,5 @@ public class RoleModel {
 
     public void setRole(String role) {
         this.role = role;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Long getId() {
-        return id;
     }
 }
