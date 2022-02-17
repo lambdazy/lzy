@@ -66,7 +66,7 @@ public class Whiteboard implements LzyCommand {
                 }
                 List<String> tags = List.of(localCmd.getOptionValue('t').split(","));
                 final List<String> fields = List.of(localCmd.getOptionValue('l').split(","));
-                final String namespace = localCmd.getOptionValue('n', "");
+                final String namespace = localCmd.getOptionValue('n', "default");
                 final LzyWhiteboard.Whiteboard whiteboardId = server
                     .createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
                         .newBuilder()
