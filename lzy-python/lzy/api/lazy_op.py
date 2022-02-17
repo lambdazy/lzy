@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, Any, TypeVar, Generic, Type
 
 import cloudpickle
-from pure_protobuf.dataclasses_ import load  # type: ignore
+from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 
 from lzy.api.whiteboard.model import EntryIdGenerator
 from lzy.api.result import Just, Nothing, Result
@@ -92,6 +92,18 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         self._deployed = deployed
         self._servant = servant
         self._env = env
+        input_types = ()
+        for input_type in signature.func.input_types:
+            if issubclass(input_type, Message):
+                input_type.LZY_MESSAGE = 'LZY_WB_MESSAGE'
+            input_types = input_types + (input_type,)
+        signature.func.input_types = input_types
+
+        output_type = signature.func.output_type
+        if issubclass(output_type, Message):
+            output_type.LZY_MESSAGE = 'LZY_WB_MESSAGE'
+        signature.func.output_type = output_type
+
         self._zygote = ZygotePythonFunc(
             signature.func,
             # self._servant.mount(),

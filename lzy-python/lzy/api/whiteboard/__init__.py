@@ -48,12 +48,6 @@ def view(func):
     return func
 
 
-def lzy_message(cls):
-    wrapped = message(cls)
-    wrapped.LZY_MESSAGE = 'LZY_WB_MESSAGE'
-    return cls
-
-
 def wrap_whiteboard(
         instance: Any,
         whiteboard_api: WhiteboardApi,

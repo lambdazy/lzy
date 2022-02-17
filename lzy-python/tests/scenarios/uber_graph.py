@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from lzy.api import op, LzyRemoteEnv
-from lzy.api.whiteboard import whiteboard, view, lzy_message
+from lzy.api.whiteboard import whiteboard, view
 from base import Base
-from pure_protobuf.dataclasses_ import field
+from pure_protobuf.dataclasses_ import field, message
 from pure_protobuf.types import int32
 from enum import IntEnum
 
@@ -124,14 +124,13 @@ class TestEnum(IntEnum):
     FOO = 2
     BAZ = 3
 
-
-@lzy_message
+@message
 @dataclass
 class Test1:
     a: int32 = field(1, default=0)
 
 
-@lzy_message
+@message
 @dataclass
 class MessageClass:
     string_field: str = field(1, default='')
