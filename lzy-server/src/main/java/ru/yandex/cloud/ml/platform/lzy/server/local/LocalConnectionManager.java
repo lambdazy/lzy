@@ -4,7 +4,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.stub.MetadataUtils;
 import jakarta.inject.Singleton;
-
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,24 +17,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 public class LocalConnectionManager implements ConnectionManager {
 
     private final Map<UUID, Connection> connections = new HashMap<>();
-
-    private static class Connection {
-
-        private final LzyServantGrpc.LzyServantBlockingStub stub;
-        private final ManagedChannel channel;
-
-        Connection(URI uri, UUID sessionId) {
-            channel = ChannelBuilder
-                    .forAddress(uri.getHost(), uri.getPort())
-                    .usePlaintext()
-                    .enableRetry(LzyServantGrpc.SERVICE_NAME)
-                    .build();
-
-            final Metadata metadata = new Metadata();
-            metadata.put(GrpcConstant.SESSION_ID_METADATA_KEY, sessionId.toString());
-            stub = MetadataUtils.attachHeaders(LzyServantGrpc.newBlockingStub(channel), metadata);
-        }
-    }
 
     @Override
     public synchronized LzyServantGrpc.LzyServantBlockingStub getOrCreate(URI uri, UUID sessionId) {
@@ -56,5 +37,23 @@ public class LocalConnectionManager implements ConnectionManager {
 
         final Connection connection = connections.remove(sessionId);
         connection.channel.shutdownNow();
+    }
+
+    private static class Connection {
+
+        private final LzyServantGrpc.LzyServantBlockingStub stub;
+        private final ManagedChannel channel;
+
+        Connection(URI uri, UUID sessionId) {
+            channel = ChannelBuilder
+                .forAddress(uri.getHost(), uri.getPort())
+                .usePlaintext()
+                .enableRetry(LzyServantGrpc.SERVICE_NAME)
+                .build();
+
+            final Metadata metadata = new Metadata();
+            metadata.put(GrpcConstant.SESSION_ID_METADATA_KEY, sessionId.toString());
+            stub = MetadataUtils.attachHeaders(LzyServantGrpc.newBlockingStub(channel), metadata);
+        }
     }
 }

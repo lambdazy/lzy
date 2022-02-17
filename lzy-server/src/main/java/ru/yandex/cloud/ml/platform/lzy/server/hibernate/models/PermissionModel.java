@@ -1,25 +1,37 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate.models;
 
-import javax.persistence.*;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.Table;
 
 @Entity
 @Table(name = "permissions")
 public class PermissionModel {
 
+    @ManyToMany()
+    @JoinTable(
+        name = "permission_to_role",
+        joinColumns = {@JoinColumn(name = "permission_id")},
+        inverseJoinColumns = {@JoinColumn(name = "role_id")}
+    )
+    Set<UserRoleModel> roles = new HashSet<>();
     @Id
     @Column(name = "name")
     private String name;
 
-    @ManyToMany()
-    @JoinTable(
-            name="permission_to_role",
-            joinColumns = {@JoinColumn(name = "permission_id")},
-            inverseJoinColumns = {@JoinColumn(name = "role_id")}
-    )
-    Set<UserRoleModel> roles = new HashSet<>();
+    public PermissionModel(String name) {
+        this.name = name;
+    }
+
+    public PermissionModel() {
+    }
 
     public String getName() {
         return name;
@@ -37,14 +49,14 @@ public class PermissionModel {
         this.roles = roles;
     }
 
-    public PermissionModel(String name) {
-        this.name = name;
-    }
-
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         PermissionModel that = (PermissionModel) o;
         return name.equals(that.name);
     }
@@ -53,6 +65,4 @@ public class PermissionModel {
     public int hashCode() {
         return Objects.hash(name);
     }
-
-    public PermissionModel() {}
 }

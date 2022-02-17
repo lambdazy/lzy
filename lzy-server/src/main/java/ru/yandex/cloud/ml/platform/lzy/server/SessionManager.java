@@ -5,6 +5,8 @@ import java.util.stream.Stream;
 
 public interface SessionManager {
     void registerSession(String userId, UUID sessionId);
+
     void deleteSession(String userId, UUID sessionId);
+
     Stream<UUID> sessionIds(String userId);
 }

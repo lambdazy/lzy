@@ -3,6 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.io.StringReader;
+import java.security.Security;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -12,18 +14,16 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
-import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
-import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
+import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PermissionModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-
-import java.io.StringReader;
-import java.security.Security;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.utils.Credentials.checkToken;
 
 
 @Singleton
@@ -48,7 +48,7 @@ public class DbAuthenticator implements Authenticator {
         LOG.info("checkTask tid=" + tid);
         try (Session session = storage.getSessionFactory().openSession()) {
             TaskModel taskModel = session.find(TaskModel.class, UUID.fromString(tid));
-            if (taskModel == null){
+            if (taskModel == null) {
                 return false;
             }
             return taskModel.getToken().equals(token);
@@ -72,12 +72,13 @@ public class DbAuthenticator implements Authenticator {
 
     @Override
     public String userForTask(Task task) {
-        if (task == null)
+        if (task == null) {
             return null;
+        }
         LOG.info("User for task tid=" + task.tid());
         try (Session session = storage.getSessionFactory().openSession()) {
             TaskModel taskModel = session.find(TaskModel.class, task.tid());
-            if (taskModel == null){
+            if (taskModel == null) {
                 return null;
             }
             return taskModel.getOwner().getUserId();
@@ -98,8 +99,7 @@ public class DbAuthenticator implements Authenticator {
                 TaskModel taskModel = new TaskModel(task.tid(), token, user);
                 session.save(taskModel);
                 tx.commit();
-            }
-            catch (Exception e){
+            } catch (Exception e) {
                 tx.rollback();
                 throw e;
             }
@@ -111,20 +111,20 @@ public class DbAuthenticator implements Authenticator {
     public boolean hasPermission(String uid, String permission) {
         try (Session session = storage.getSessionFactory().openSession()) {
             UserModel user = session.find(UserModel.class, uid);
-            if (user == null){
+            if (user == null) {
                 return false;
             }
             List<?> permissions = session.createSQLQuery(
-                 "SELECT(permissions.*)\n" +
-                    "FROM users\n" +
-                    "JOIN role_to_user on users.user_id = role_to_user.user_id\n" +
-                    "JOIN permission_to_role on role_to_user.role_id = permission_to_role.role_id\n" +
-                    "JOIN permissions on permissions.name = permission_to_role.permission_id\n" +
-                    "WHERE users.user_id = :userId"
-            )
-                    .setParameter("userId", user.getUserId())
-                    .addEntity(PermissionModel.class)
-                    .list();
+                    "SELECT(permissions.*)\n"
+                        + "FROM users\n"
+                        + "JOIN role_to_user on users.user_id = role_to_user.user_id\n"
+                        + "JOIN permission_to_role on role_to_user.role_id = permission_to_role.role_id\n"
+                        + "JOIN permissions on permissions.name = permission_to_role.permission_id\n"
+                        + "WHERE users.user_id = :userId"
+                )
+                .setParameter("userId", user.getUserId())
+                .addEntity(PermissionModel.class)
+                .list();
             return permissions.contains(new PermissionModel(permission));
         }
     }
@@ -139,8 +139,7 @@ public class DbAuthenticator implements Authenticator {
         try (Session session = storage.getSessionFactory().openSession()) {
             BackofficeSessionModel sessionModel = session.find(BackofficeSessionModel.class, sessionId);
             return Objects.equals(sessionModel.getOwner().getUserId(), userId);
-        }
-        catch (Exception e){
+        } catch (Exception e) {
             return false;
         }
     }
@@ -152,7 +151,7 @@ public class DbAuthenticator implements Authenticator {
 
     @Override
     public String bucketForUser(String uid) {
-        if (!storageConfigs.isSeparated()){
+        if (!storageConfigs.isSeparated()) {
             return storageConfigs.getBucket();
         }
         try (Session session = storage.getSessionFactory().openSession()) {
@@ -174,7 +173,7 @@ public class DbAuthenticator implements Authenticator {
             }
 
             Security.addProvider(new BouncyCastleProvider());
-            for (PublicKeyModel userToken: user.getPublicKeys()) {
+            for (PublicKeyModel userToken : user.getPublicKeys()) {
                 try (StringReader keyReader = new StringReader(userToken.getValue())) {
                     if (JwtCredentials.checkJWT(keyReader, token, userId)) {
                         LOG.info("Successfully checked user token " + userId);

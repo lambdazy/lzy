@@ -4,6 +4,11 @@ import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
+import java.net.URI;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -18,19 +23,13 @@ import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProviderImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.task.BaseTask;
 
-import java.net.URI;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-
 public class KuberTask extends BaseTask {
     private static final Logger LOG = LoggerFactory.getLogger(KuberTask.class);
 
     private final ServantPodProvider servantPodProvider = new ServantPodProviderImpl();
 
     public KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
-                     SnapshotMeta meta, ChannelsManager channels, URI serverURI, String bucket) {
+        SnapshotMeta meta, ChannelsManager channels, URI serverURI, String bucket) {
         super(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
     }
 
@@ -70,7 +69,8 @@ public class KuberTask extends BaseTask {
                     LOG.error("Not found pod " + podName);
                     break;
                 }
-                if (queriedPod.get().getStatus() == null || Objects.requireNonNull(queriedPod.get().getStatus()).getPhase() == null) {
+                if (queriedPod.get().getStatus() == null
+                    || Objects.requireNonNull(queriedPod.get().getStatus()).getPhase() == null) {
                     continue;
                 }
                 final String phase = Objects.requireNonNull(queriedPod.get().getStatus()).getPhase();

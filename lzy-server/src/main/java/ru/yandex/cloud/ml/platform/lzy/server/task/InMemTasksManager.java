@@ -1,21 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
-import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.server.ConnectionManager;
-import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
-import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +10,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
+import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.server.ConnectionManager;
+import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 @Singleton
 public class InMemTasksManager implements TasksManager {
@@ -53,8 +52,9 @@ public class InMemTasksManager implements TasksManager {
     @Override
     public Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom) {
         final Channel channel = channels.create(name, contentTypeFrom);
-        if (channel == null)
+        if (channel == null) {
             return null;
+        }
         if (parent != null) {
             taskChannels.computeIfAbsent(parent, task -> new ArrayList<>()).add(channel);
         } else {
@@ -101,8 +101,9 @@ public class InMemTasksManager implements TasksManager {
 
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments,
-                      SnapshotMeta wbMeta, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer, String bucket) {
-        final Task task = TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, wbMeta, channels, serverURI, bucket);
+        SnapshotMeta wbMeta, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer, String bucket) {
+        final Task task =
+            TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, wbMeta, channels, serverURI, bucket);
         tasks.put(task.tid(), task);
         if (parent != null) {
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);
@@ -112,12 +113,14 @@ public class InMemTasksManager implements TasksManager {
         owners.put(task, uid);
         task.onProgress(state -> {
             consumer.accept(state);
-            if (!state.hasChanged() ||
-                (state.getChanged().getNewState() != Servant.StateChanged.State.FINISHED &&
-                    state.getChanged().getNewState() != Servant.StateChanged.State.DESTROYED))
+            if (!state.hasChanged()
+                || (state.getChanged().getNewState() != Servant.StateChanged.State.FINISHED
+                    && state.getChanged().getNewState() != Servant.StateChanged.State.DESTROYED)) {
                 return;
-            if (tasks.remove(task.tid()) == null) // idempotence support
+            }
+            if (tasks.remove(task.tid()) == null) { // idempotence support
                 return;
+            }
             children.getOrDefault(task, List.of()).forEach(child -> child.signal(Signal.TERM));
             children.remove(task);
             final Task removedTask = parents.remove(task);

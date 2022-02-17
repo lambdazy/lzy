@@ -3,11 +3,10 @@ package ru.yandex.cloud.ml.platform.lzy.server.kuber;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.jetbrains.annotations.NotNull;
 
 public class KuberUtils {
     private KuberUtils() {

@@ -46,6 +46,16 @@ public class StorageConfigs {
         this.azure = azure;
     }
 
+    public StorageCredentials credentials() {
+        if (amazon.isEnabled()) {
+            return new AmazonCredentialsImpl(amazon.endpoint, amazon.accessToken, amazon.secretToken);
+        }
+        if (azure.isEnabled()) {
+            return new AzureCredentialsImpl(azure.connectionString);
+        }
+        return new EmptyCredentials();
+    }
+
     @ConfigurationProperties("azure")
     public static class AzureCredentials {
         private String connectionString;
@@ -107,15 +117,5 @@ public class StorageConfigs {
         public void setSecretToken(String secretToken) {
             this.secretToken = secretToken;
         }
-    }
-
-    public StorageCredentials credentials(){
-        if (amazon.isEnabled()){
-            return new AmazonCredentialsImpl(amazon.endpoint, amazon.accessToken, amazon.secretToken);
-        }
-        if (azure.isEnabled()){
-            return new AzureCredentialsImpl(azure.connectionString);
-        }
-        return new EmptyCredentials();
     }
 }

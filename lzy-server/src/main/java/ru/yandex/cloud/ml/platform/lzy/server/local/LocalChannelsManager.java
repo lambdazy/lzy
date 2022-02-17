@@ -86,7 +86,7 @@ public class LocalChannelsManager implements ChannelsManager {
             final Slot slot = endpoint.slot();
             switch (slot.direction()) { // type checking
                 case INPUT:
-                    //if (!slot.contentType().isAssignableFrom(channel.contentType())) {
+                    // if (!slot.contentType().isAssignableFrom(channel.contentType())) {
                     //    throw new ChannelException(
                     //        "Channel content type " + channel.contentType() + " does not fit slot type " + slot
                     //            .contentType());
@@ -99,6 +99,8 @@ public class LocalChannelsManager implements ChannelsManager {
                     //            .contentType());
                     //}
                     break;
+                default:
+                    throw new IllegalStateException("Unexpected value: " + slot.direction());
             }
             channel.bind(endpoint);
         } finally {
@@ -215,8 +217,8 @@ public class LocalChannelsManager implements ChannelsManager {
 
         private final String id;
         private final DataSchema contentType;
-        private ChannelController logic; // pluggable channel logic
         private final ChannelGraph channelGraph;
+        private ChannelController logic; // pluggable channel logic
 
         ChannelImpl(String id, DataSchema contentType) {
             this.id = id;

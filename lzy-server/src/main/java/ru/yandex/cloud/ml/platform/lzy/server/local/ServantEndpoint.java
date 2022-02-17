@@ -6,9 +6,9 @@ import java.util.Objects;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -19,8 +19,8 @@ public class ServantEndpoint implements Endpoint {
     private final URI uri;
     private final Slot slot;
     private final UUID sessionId;
-    private boolean invalid = false;
     private final LzyServantBlockingStub servant;
+    private boolean invalid = false;
 
     public ServantEndpoint(Slot slot, URI uri, UUID sessionId, LzyServantBlockingStub servant) {
         this.uri = uri;

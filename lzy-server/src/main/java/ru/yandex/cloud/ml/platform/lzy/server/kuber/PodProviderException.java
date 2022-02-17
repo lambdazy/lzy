@@ -16,7 +16,8 @@ public class PodProviderException extends Exception {
         super(cause);
     }
 
-    public PodProviderException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+    public PodProviderException(String message, Throwable cause, boolean enableSuppression,
+        boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 }

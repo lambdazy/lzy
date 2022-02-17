@@ -1,67 +1,93 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import io.grpc.*;
+import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
+
 import io.grpc.Context;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.exceptions.NoSuchBeanException;
 import jakarta.inject.Inject;
-import org.apache.commons.cli.*;
+import java.io.IOException;
+import java.net.URI;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.*;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
+import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.server.TasksManager.Signal;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.*;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
+import yandex.cloud.priv.datasphere.v2.lzy.Channels;
+import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelCreate;
+import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelStatus;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse.Builder;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.SessionDescription;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
-import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
-import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskSignal;
 
 public class LzyServer {
 
     private static final Logger LOG;
+    private static final Options options = new Options();
+    private static final String LZY_SERVER_HOST_ENV = "LZY_SERVER_HOST";
+    private static final String DEFAULT_LZY_SERVER_LOCALHOST = "http://localhost";
 
-    static{
+    static {
         // This is to avoid this bug: https://issues.apache.org/jira/browse/LOG4J2-2375
         // KafkaLogsConfiguration will fall, so then we must call reconfigure
         ProducerConfig.configNames();
-        LoggerContext ctx = (LoggerContext)LogManager.getContext();
+        LoggerContext ctx = (LoggerContext) LogManager.getContext();
         ctx.reconfigure();
         LOG = LogManager.getLogger(LzyServer.class);
     }
 
-
-    private static final Options options = new Options();
     static {
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
     }
-
-    private static final String LZY_SERVER_HOST_ENV = "LZY_SERVER_HOST";
-    private static final String DEFAULT_LZY_SERVER_LOCALHOST = "http://localhost";
 
     public static void main(String[] args) throws IOException, InterruptedException {
         final CommandLineParser cliParser = new DefaultParser();
@@ -92,12 +118,11 @@ public class LzyServer {
         )) {
             Impl impl = context.getBean(Impl.class);
             ServerBuilder<?> builder = ServerBuilder.forPort(port)
-                    .addService(impl);
-            try{
+                .addService(impl);
+            try {
                 BackOfficeService backoffice = context.getBean(BackOfficeService.class);
                 builder.addService(backoffice);
-            }
-            catch (NoSuchBeanException e){
+            } catch (NoSuchBeanException e) {
                 LOG.info("Running in inmemory mode without backoffice");
             }
             final Server server = builder.build();
@@ -133,6 +158,42 @@ public class LzyServer {
 
         @Inject
         private StorageConfigs storageConfigs;
+
+        public static Tasks.TaskStatus taskStatus(Task task, TasksManager tasks) {
+            final Tasks.TaskStatus.Builder builder = Tasks.TaskStatus.newBuilder();
+            try {
+                builder.setTaskId(task.tid().toString());
+
+                builder.setZygote(
+                    ((AtomicZygote) task.workload()).zygote()
+                );
+
+                builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
+                if (task.servantUri() != null) {
+                    builder.setServant(task.servantUri().toString());
+                }
+                builder.setOwner(tasks.owner(task.tid()));
+                Stream.concat(Stream.of(task.workload().input()), Stream.of(task.workload().output()))
+                    .map(task::slotStatus)
+                    .forEach(slotStatus -> {
+                        final Operations.SlotStatus.Builder slotStateBuilder = builder.addConnectionsBuilder();
+                        slotStateBuilder.setTaskId(task.tid().toString());
+                        slotStateBuilder.setDeclaration(to(slotStatus.slot()));
+                        URI connected = slotStatus.connected();
+                        if (connected != null) {
+                            slotStateBuilder.setConnectedTo(connected.toString());
+                        }
+                        slotStateBuilder.setPointer(slotStatus.pointer());
+                        LOG.info("Getting status of slot with state: " + slotStatus.state().name());
+                        slotStateBuilder.setState(Operations.SlotStatus.State.valueOf(slotStatus.state().name()));
+                        builder.addConnections(slotStateBuilder.build());
+                    });
+            } catch (TaskException te) {
+                builder.setExplanation(te.getMessage());
+            }
+
+            return builder.build();
+        }
 
         @Override
         public void publish(Lzy.PublishRequest request, StreamObserver<Operations.RegisteredZygote> responseObserver) {
@@ -192,7 +253,7 @@ public class LzyServer {
                 case STATE:
                 case SIGNAL: {
                     task = tasks.task(UUID.fromString(request.getTid()));
-                    final Tasks.TaskSignal signal = request.getSignal();
+                    final TaskSignal signal = request.getSignal();
                     if (task == null) {
                         responseObserver.onError(Status.NOT_FOUND.asException());
                         return;
@@ -202,18 +263,21 @@ public class LzyServer {
                         return;
                     }
                     if (request.hasSignal()) {
-                        task.signal(TasksManager.Signal.valueOf(signal.getSigValue()));
+                        task.signal(Signal.valueOf(signal.getSigValue()));
                     }
                     break;
                 }
                 case COMMAND_NOT_SET:
                     break;
+                default:
+                    throw new IllegalStateException("Unexpected value: " + request.getCommandCase());
             }
             if (task != null) {
                 responseObserver.onNext(taskStatus(task, tasks));
                 responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(new IllegalArgumentException());
             }
-            else responseObserver.onError(new IllegalArgumentException());
         }
 
         @Override
@@ -225,18 +289,21 @@ public class LzyServer {
             LOG.info("Server::start " + JsonUtils.printRequest(request));
             final Zygote workload = GrpcConverter.from(request.getZygote());
             final Map<Slot, String> assignments = new HashMap<>();
-            request.getAssignmentsList().forEach(ass -> assignments.put(GrpcConverter.from(ass.getSlot()), ass.getBinding()));
+            request.getAssignmentsList()
+                .forEach(ass -> assignments.put(GrpcConverter.from(ass.getSlot()), ass.getBinding()));
 
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
             final AtomicBoolean concluded = new AtomicBoolean(false);
-            final SnapshotMeta snapshotMeta = request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : null;
+            final SnapshotMeta snapshotMeta =
+                request.hasSnapshotMeta() ? SnapshotMeta.from(request.getSnapshotMeta()) : null;
             Task task = tasks.start(uid, parent, workload, assignments, snapshotMeta, auth, progress -> {
                 if (concluded.get()) {
                     return;
                 }
                 responseObserver.onNext(progress);
-                if (progress.hasChanged() && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
+                if (progress.hasChanged()
+                    && progress.getChanged().getNewState() == Servant.StateChanged.State.DESTROYED) {
                     concluded.set(true);
                     responseObserver.onCompleted();
                     if (parent != null) {
@@ -289,39 +356,44 @@ public class LzyServer {
                 return;
             }
 
-            Channel channel = null;
+            Channel channel;
             switch (request.getCommandCase()) {
                 case CREATE: {
-                    final Channels.ChannelCreate create = request.getCreate();
+                    final ChannelCreate create = request.getCreate();
                     channel = tasks.createChannel(
                         request.getChannelName(),
                         resolveUser(auth),
                         resolveTask(auth),
                         GrpcConverter.contentTypeFrom(create.getContentType()));
-                    if (channel == null)
+                    if (channel == null) {
                         channel = channels.get(request.getChannelName());
+                    }
                     break;
                 }
                 case DESTROY: {
                     channel = channels.get(request.getChannelName());
                     if (channel != null) {
                         channels.destroy(channel);
-                        final Channels.ChannelStatus status = channelStatus(channel);
+                        final ChannelStatus status = channelStatus(channel);
                         responseObserver.onNext(status);
                         responseObserver.onCompleted();
                         return;
                     }
+                    break;
                 }
                 case STATE: {
                     channel = channels.get(request.getChannelName());
                     break;
                 }
+                default:
+                    throw new IllegalStateException("Unexpected value: " + request.getCommandCase());
             }
             if (channel != null) {
                 responseObserver.onNext(channelStatus(channel));
                 responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(Status.NOT_FOUND.asException());
             }
-            else responseObserver.onError(Status.NOT_FOUND.asException());
         }
 
         @Override
@@ -338,7 +410,8 @@ public class LzyServer {
         }
 
         @Override
-        public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request, StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
+        public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request,
+            StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
             LOG.info("Server::checkPermissions " + JsonUtils.printRequest(request));
             IAM.Auth requestAuth = request.getAuth();
             if (!checkAuth(requestAuth, responseObserver)) {
@@ -346,7 +419,7 @@ public class LzyServer {
                 responseObserver.onCompleted();
                 return;
             }
-            for (String permission: request.getPermissionsList()) {
+            for (String permission : request.getPermissionsList()) {
                 if (!auth.hasPermission(resolveUser(requestAuth), permission)) {
                     responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
                     responseObserver.onCompleted();
@@ -377,8 +450,7 @@ public class LzyServer {
                 if (auth.hasTask()) {
                     final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
                     task.attachServant(servantUri, servant);
-                }
-                else {
+                } else {
                     runTerminal(auth, servant, sessionId);
                 }
                 connectionManager.shutdownConnection(sessionId);
@@ -386,14 +458,15 @@ public class LzyServer {
         }
 
         @Override
-        public void getS3Credentials(Lzy.GetS3CredentialsRequest request, StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+        public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
+            StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
             LOG.info("Server::getS3Credentials " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-            if (!this.auth.canAccessBucket(resolveUser(auth), request.getBucket())){
+            if (!this.auth.canAccessBucket(resolveUser(auth), request.getBucket())) {
                 responseObserver.onError(
                     Status.PERMISSION_DENIED.withDescription("Cannot access bucket " + request.getBucket())
                         .asException());
@@ -404,8 +477,8 @@ public class LzyServer {
             String bucket = request.getBucket();
 
             StorageCredentials credentials =
-                storageConfigs.isSeparated() ?
-                    credentialsProvider.credentialsForBucket(uid, bucket) :
+                storageConfigs.isSeparated()
+                    ? credentialsProvider.credentialsForBucket(uid, bucket) :
                     credentialsProvider.storageCredentials();
             responseObserver.onNext(to(credentials));
             responseObserver.onCompleted();
@@ -463,9 +536,9 @@ public class LzyServer {
                         final URI slotUri = URI.create(attach.getUri());
                         final String channelName = attach.getChannel();
                         tasks.addUserSlot(user, slot, channels.get(channelName));
-                        this.channels.bind(channels.get(channelName), new ServantEndpoint(slot, slotUri, sessionId, kharon));
-                    }
-                    else if (progress.hasDetach()) {
+                        this.channels.bind(channels.get(channelName),
+                            new ServantEndpoint(slot, slotUri, sessionId, kharon));
+                    } else if (progress.hasDetach()) {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = GrpcConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
@@ -478,11 +551,9 @@ public class LzyServer {
                     }
                 });
                 LOG.info("Terminal for " + user + " disconnected");
-            }
-            catch (StatusRuntimeException th) {
+            } catch (StatusRuntimeException th) {
                 LOG.error("Terminal execution terminated ", th);
-            }
-            finally {
+            } finally {
                 LOG.info("unbindAll from runTerminal");
                 //Clean up slots if terminal did not send detach
                 tasks.slots(user).keySet().forEach(slot -> tasks.removeUserSlot(user, slot));
@@ -490,42 +561,6 @@ public class LzyServer {
                 tasks.destroyUserChannels(user);
                 sessionManager.deleteSession(user, sessionId);
             }
-        }
-
-        public static Tasks.TaskStatus taskStatus(Task task, TasksManager tasks) {
-            final Tasks.TaskStatus.Builder builder = Tasks.TaskStatus.newBuilder();
-            try {
-                builder.setTaskId(task.tid().toString());
-
-                builder.setZygote(
-                        ((AtomicZygote)task.workload()).zygote()
-                );
-
-                builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
-                if (task.servantUri() != null) {
-                    builder.setServant(task.servantUri().toString());
-                }
-                builder.setOwner(tasks.owner(task.tid()));
-                Stream.concat(Stream.of(task.workload().input()), Stream.of(task.workload().output()))
-                    .map(task::slotStatus)
-                    .forEach(slotStatus -> {
-                        final Operations.SlotStatus.Builder slotStateBuilder = builder.addConnectionsBuilder();
-                        slotStateBuilder.setTaskId(task.tid().toString());
-                        slotStateBuilder.setDeclaration(to(slotStatus.slot()));
-                        URI connected = slotStatus.connected();
-                        if (connected != null)
-                            slotStateBuilder.setConnectedTo(connected.toString());
-                        slotStateBuilder.setPointer(slotStatus.pointer());
-                        LOG.info("Getting status of slot with state: " + slotStatus.state().name());
-                        slotStateBuilder.setState(Operations.SlotStatus.State.valueOf(slotStatus.state().name()));
-                        builder.addConnections(slotStateBuilder.build());
-                    });
-            }
-            catch (TaskException te) {
-                builder.setExplanation(te.getMessage());
-            }
-
-            return builder.build();
         }
 
         private Channels.ChannelStatus channelStatus(Channel channel) {
@@ -536,8 +571,9 @@ public class LzyServer {
                 if (state.tid() != null) {
                     builder.setTaskId(state.tid().toString());
                     builder.setUser(tasks.owner(state.tid()));
+                } else {
+                    builder.setUser(state.user());
                 }
-                else builder.setUser(state.user());
 
                 builder.setConnectedTo(channel.name())
                     .setDeclaration(to(state.slot()))
@@ -553,11 +589,9 @@ public class LzyServer {
             if (auth == null) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.asException());
                 return false;
-            }
-            else if (auth.hasUser()) {
+            } else if (auth.hasUser()) {
                 return this.auth.checkUser(auth.getUser().getUserId(), auth.getUser().getToken());
-            }
-            else if (auth.hasTask()) {
+            } else if (auth.hasTask()) {
                 return this.auth.checkTask(auth.getTask().getTaskId(), auth.getTask().getToken());
             }
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
