@@ -11,6 +11,7 @@ import com.github.dockerjava.api.model.BindOptions;
 import com.github.dockerjava.api.model.BindPropagation;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Image;
 import com.github.dockerjava.api.model.Mount;
 import com.github.dockerjava.api.model.MountType;
 import com.github.dockerjava.core.DockerClientBuilder;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Collectors;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,21 +42,11 @@ public class DockerEnvironment implements BaseEnvironment {
     public final String sourceImage;
 
     public DockerEnvironment(BaseEnvConfig config) {
-        sourceImage = config.image();
-        LOG.info("Pulling image {} ...", sourceImage);
-        final var pullingImage = DOCKER
-            .pullImageCmd(sourceImage)
-            .exec(new PullImageResultCallback());
-        try {
-            pullingImage.awaitCompletion();
-        } catch (InterruptedException e) {
-            LOG.error("Pulling image {} was interrupted", sourceImage);
-            throw new RuntimeException(e);
-        }
-        LOG.info("Pulling image {} done", sourceImage);
+        sourceImage = prepareImage(config);
 
         LOG.info("Creating container from image={} ...", sourceImage);
-        LOG.info("Mount options: {}", config.mounts().toString());
+        LOG.info("Mount options:\n\t{}",
+            config.mounts().stream().map(it -> it.source + " -> " + it.target).collect(Collectors.joining("\n\t")));
         final List<Mount> dockerMounts = new ArrayList<>();
         dockerMounts.add(
             new Mount()
@@ -95,7 +87,7 @@ public class DockerEnvironment implements BaseEnvironment {
 
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
-        final int bufferSize = 1024;
+        final int bufferSize = 4096;
         final PipedInputStream stdoutPipe = new PipedInputStream(bufferSize);
         final PipedInputStream stderrPipe = new PipedInputStream(bufferSize);
         final PipedOutputStream stdout;
@@ -127,11 +119,6 @@ public class DockerEnvironment implements BaseEnvironment {
                             switch (item.getStreamType()) {
                                 case STDOUT:
                                     try {
-                                        LOG.info(
-                                            "attempt to write #{} bytes str:{}",
-                                            item.getPayload().length,
-                                            new String(item.getPayload(), StandardCharsets.UTF_8)
-                                        );
                                         stdout.write(item.getPayload());
                                         stdout.flush();
                                     } catch (IOException e) {
@@ -201,5 +188,32 @@ public class DockerEnvironment implements BaseEnvironment {
     @Override
     public void close() throws Exception {
         DOCKER.killContainerCmd(container.getId()).exec();
+    }
+
+    private String prepareImage(BaseEnvConfig config) {
+        if (config.image().equals(config.defaultImage())) {
+            LOG.info("Default image {} detected", config.image());
+            String cachedImageName = "default-env:from-tar";
+            final List<Image> cachedImages = DOCKER.listImagesCmd().withImageNameFilter(cachedImageName).exec();
+            if (!cachedImages.isEmpty()) {
+                LOG.info("Cached image {} found", cachedImageName);
+                return cachedImageName;
+            } else {
+                LOG.info("No cached images found");
+            }
+
+        }
+        LOG.info("Pulling image {} ...", config.image());
+        final var pullingImage = DOCKER
+            .pullImageCmd(config.image())
+            .exec(new PullImageResultCallback());
+        try {
+            pullingImage.awaitCompletion();
+        } catch (InterruptedException e) {
+            LOG.error("Pulling image {} was interrupted", config.image());
+            throw new RuntimeException(e);
+        }
+        LOG.info("Pulling image {} done", config.image());
+        return config.image();
     }
 }

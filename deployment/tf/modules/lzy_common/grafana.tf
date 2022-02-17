@@ -73,7 +73,7 @@ resource "kubernetes_deployment" "grafana" {
 }
 
 resource "kubernetes_service" "grafana_service" {
-  count = var.create_public_grafana_service ? 1 : 0
+  // count = var.create_public_grafana_service != "" ? 1 : 0
   metadata {
     name = "grafana-service"
     annotations = var.grafana_load_balancer_necessary_annotations

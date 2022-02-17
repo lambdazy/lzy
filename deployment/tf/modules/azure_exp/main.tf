@@ -20,5 +20,6 @@ module "azure_common" {
   gpu_count                  = 0
   servant-image              = "celdwind/lzy:lzy-servant"
   server-image              = "celdwind/lzy:lzy-server"
+  kharon-image              = "celdwind/lzy:lzy-kharon"
 }
 

@@ -1,4 +1,4 @@
-FROM celdwind/lzy:default-env-base
+FROM default-env-base
 
 ### copy lzy-py sources & install
 COPY lzy-python/ lzy-python

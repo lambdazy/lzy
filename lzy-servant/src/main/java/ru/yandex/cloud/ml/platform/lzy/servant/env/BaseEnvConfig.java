@@ -28,6 +28,10 @@ public class BaseEnvConfig {
         return this.image;
     }
 
+    public String defaultImage() {
+        return System.getProperty(BaseEnvConfig.DEFAULT_IMAGE_PROP);
+    }
+
     public BaseEnvConfig addMount(String source, String target) {
         this.mounts.add(new MountDescription(source, target));
         return this;
