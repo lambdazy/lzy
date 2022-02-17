@@ -1,6 +1,8 @@
 name: Update docker tag in push
 on:
   push:
+    branches-ignore:
+      - master
 
 jobs:
 
