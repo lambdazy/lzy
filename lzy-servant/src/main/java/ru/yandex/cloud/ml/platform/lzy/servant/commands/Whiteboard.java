@@ -1,8 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -29,6 +33,14 @@ public class Whiteboard implements LzyCommand {
         options.addOption(
             new Option("t", "tags list", true, "Whiteboard tags comma-separated list"));
         options.addOption(new Option("n", "namespace", true, "Whiteboard namespace"));
+        options.addOption(new Option("from", "from", true,
+            "Whiteboard creation date in epoch seconds used in 'list' command for filtering. "
+                + "Command 'list' will return whiteboards with creation date GREATER or EQUAL to the specified."
+                + "If not provided epoch seconds for '0001-01-01' will be used as a lower bound"));
+        options.addOption(new Option("to", "to", true,
+            "Whiteboard creation date in epoch seconds used in 'list' command for filtering. "
+                + "Command 'list' will return whiteboards with creation date LESS than the specified."
+                + "If not provided epoch seconds for '9999-12-31' will be used as an upper bound"));
     }
 
     @Override
@@ -70,6 +82,9 @@ public class Whiteboard implements LzyCommand {
                 }
                 final List<String> fields = List.of(localCmd.getOptionValue('l').split(","));
                 final String namespace = localCmd.getOptionValue('n');
+
+                Instant time = Instant.now();
+                Timestamp timestamp = Timestamp.newBuilder().setSeconds(time.getEpochSecond()).build();
                 final LzyWhiteboard.Whiteboard whiteboardId = server
                     .createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand
                         .newBuilder()
@@ -77,6 +92,7 @@ public class Whiteboard implements LzyCommand {
                         .addAllFieldNames(fields)
                         .addAllTags(tags)
                         .setNamespace(namespace)
+                        .setCreationDateUTC(timestamp)
                         .setAuth(auth)
                         .build()
                     );
@@ -122,12 +138,24 @@ public class Whiteboard implements LzyCommand {
                 if (localCmd.hasOption('t')) {
                     tags = List.of(localCmd.getOptionValue('t').split(","));
                 }
+                Timestamp from = Timestamp.newBuilder()
+                    .setSeconds(Long.parseLong(localCmd.getOptionValue("from",
+                        String.valueOf(LocalDateTime.of(1, 1, 1, 0, 0, 0, 0)
+                            .toEpochSecond(ZoneOffset.UTC)))))
+                    .build();
+                Timestamp to = Timestamp.newBuilder()
+                    .setSeconds(Long.parseLong(localCmd.getOptionValue("to",
+                        String.valueOf(LocalDateTime.of(9999, 12, 31, 0, 0, 0, 0)
+                            .toEpochSecond(ZoneOffset.UTC)))))
+                    .build();
                 final LzyWhiteboard.WhiteboardsResponse whiteboards =
                     server.whiteboardsList(LzyWhiteboard.WhiteboardsListCommand
                         .newBuilder()
                         .setAuth(auth)
                         .addAllTags(tags)
                         .setNamespace(namespace)
+                        .setFromDateUTC(from)
+                        .setToDateUTC(to)
                         .build()
                     );
                 System.out.println(JsonFormat.printer().print(whiteboards));

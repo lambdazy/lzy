@@ -198,13 +198,18 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String getWhiteboardsByNamespaceAndTags(String namespace, List<String> tags) {
+        default String whiteboards(String namespace, List<String> tags,
+            Long fromDateLocalTimezone, Long toDateLocalTimezone) {
             String command = String.join(
                 " ",
                 mount() + "/sbin/whiteboard",
                 "list",
                 "-n",
-                namespace
+                namespace,
+                "-from",
+                fromDateLocalTimezone.toString(),
+                "-to",
+                toDateLocalTimezone.toString()
             );
             if (!tags.isEmpty()) {
                 command = String.join(" ", command, "-t", String.join(",", tags));
