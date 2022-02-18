@@ -83,7 +83,7 @@ class ModulesSearchTests(TestCase):
         self._storage_client = MockStorageClient()
         self._env._storage_client = self._storage_client
 
-    @unittest.SkipTest
+    @unittest.skip("Not used now")
     def test_py_env(self):
         multiprocessing.set_start_method('spawn')
         # Arrange
