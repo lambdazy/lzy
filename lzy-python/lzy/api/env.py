@@ -1,17 +1,16 @@
 import dataclasses
 import logging
 import os
-import uuid
+import tempfile
 from abc import abstractmethod, ABC
 from pathlib import Path
-from types import ModuleType
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
-
-import cloudpickle
 
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
+import zipfile
+from lzy.api.utils import zipdir, fileobj_hash
 from lzy.api.storage.storage_client import StorageClient, from_credentials
 from lzy.api.whiteboard import check_whiteboard, wrap_whiteboard, wrap_whiteboard_for_read
 from lzy.api.whiteboard.model import (
@@ -213,7 +212,8 @@ class LzyRemoteEnv(LzyEnvBase):
             eager: bool = False,
             conda_yaml_path: Optional[Path] = None,
             whiteboard: Any = None,
-            buses: Optional[BusList] = None
+            buses: Optional[BusList] = None,
+            local_module_paths: Optional[List[str]] = None
     ):
         self._yaml = conda_yaml_path
         self._servant_client: BashServantClient = BashServantClient() \
@@ -225,6 +225,10 @@ class LzyRemoteEnv(LzyEnvBase):
 
         credentials = self._servant_client.get_credentials(CredentialsTypes.S3, bucket)
         self._storage_client: StorageClient = from_credentials(credentials)
+        if local_module_paths is None:
+            self._local_module_paths: List[str] = []
+        else:
+            self._local_module_paths = local_module_paths
 
         super().__init__(
             buses=buses,
@@ -249,20 +253,27 @@ class LzyRemoteEnv(LzyEnvBase):
         if self._yaml is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
-                local_modules: List[ModuleType] = []
             else:
-                installed, local_modules = select_modules(namespace)
+                installed, _ = select_modules(namespace)
                 name, yaml = create_yaml(installed_packages=installed)
 
             local_modules_uploaded = []
-            for local_module in local_modules:
-                cloudpickle.register_pickle_by_value(local_module)
-                key = "local_modules/" + local_module.__name__ + "/" \
-                      + str(uuid.uuid4())  # maybe we need to add module versions or some hash here
-                uri = self._storage_client.write(self._bucket, key, cloudpickle.dumps(local_module))
-                local_modules_uploaded.append((local_module.__name__, uri))
-                cloudpickle.unregister_pickle_by_value(local_module)
-            self._py_env = PyEnv(name, yaml, local_modules, local_modules_uploaded)
+
+            for local_module in self._local_module_paths:
+                with tempfile.NamedTemporaryFile("rb") as archive:
+                    if not os.path.isdir(local_module):
+                        with zipfile.ZipFile(archive.name, "w") as z:
+                            z.write(local_module, os.path.basename(local_module))
+                    else:
+                        with zipfile.ZipFile(archive.name, "w") as z:
+                            zipdir(local_module, z)
+                    archive.seek(0)
+                    key = "local_modules/" + os.path.basename(local_module) + "/" \
+                          + fileobj_hash(archive.file)  # type: ignore
+                    archive.seek(0)
+                    uri = self._storage_client.write(self._bucket, key, archive)  # type: ignore
+                local_modules_uploaded.append((os.path.basename(local_module), uri))
+            self._py_env = PyEnv(name, yaml, local_modules_uploaded)
             return self._py_env
 
         # TODO: as usually not good idea to read whole file into memory
@@ -270,5 +281,5 @@ class LzyRemoteEnv(LzyEnvBase):
         # TODO: parse yaml and get name?
         with open(self._yaml, "r", encoding=encoding) as file:
             name, yaml = "default", "".join(file.readlines())
-            self._py_env = PyEnv(name, yaml, [], {})
+            self._py_env = PyEnv(name, yaml, [])
             return self._py_env

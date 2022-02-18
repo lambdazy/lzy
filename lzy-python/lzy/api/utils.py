@@ -1,3 +1,5 @@
+import os
+from io import BytesIO
 from typing import (
     Any,
     Callable,
@@ -7,8 +9,11 @@ from typing import (
     TypeVar,
     get_type_hints,
 )
+import hashlib
 
 # noinspection PyProtectedMember
+from zipfile import ZipFile
+
 from lzy.api._proxy import proxy
 from lzy.api.result import Result, Just, Nothing
 
@@ -56,3 +61,25 @@ def lazy_proxy(
         cls_attrs={"__lzy_proxied__": True},
         obj_attrs=obj_attrs,
     )
+
+
+def zipdir(path: str, zipfile: ZipFile):
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            zipfile.write(
+                os.path.join(root, file),
+                os.path.relpath(os.path.join(root, file), os.path.join(path, '..'))
+            )
+
+
+def fileobj_hash(fileobj: BytesIO) -> str:
+    buf_size = 65536  # 64kb
+
+    md5 = hashlib.md5()
+
+    while True:
+        data = fileobj.read(buf_size)
+        if not data:
+            break
+        md5.update(data)
+    return md5.hexdigest()
