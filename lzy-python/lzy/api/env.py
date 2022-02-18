@@ -213,7 +213,7 @@ class LzyRemoteEnv(LzyEnvBase):
             conda_yaml_path: Optional[Path] = None,
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
-            modules: Optional[List[str]] = None
+            local_module_paths: Optional[List[str]] = None
     ):
         self._yaml = conda_yaml_path
         self._servant_client: BashServantClient = BashServantClient() \
@@ -225,10 +225,10 @@ class LzyRemoteEnv(LzyEnvBase):
 
         credentials = self._servant_client.get_credentials(CredentialsTypes.S3, bucket)
         self._storage_client: StorageClient = from_credentials(credentials)
-        if modules is None:
-            self._local_modules: List[str] = []
+        if local_module_paths is None:
+            self._local_module_paths: List[str] = []
         else:
-            self._local_modules = modules
+            self._local_module_paths = local_module_paths
 
         super().__init__(
             buses=buses,
@@ -259,8 +259,8 @@ class LzyRemoteEnv(LzyEnvBase):
 
             local_modules_uploaded = []
 
-            for local_module in self._local_modules:
-                with tempfile.NamedTemporaryFile() as archive:
+            for local_module in self._local_module_paths:
+                with tempfile.NamedTemporaryFile("rb") as archive:
                     if not os.path.isdir(local_module):
                         with zipfile.ZipFile(archive.name, "w") as z:
                             z.write(local_module, os.path.basename(local_module))
@@ -269,9 +269,9 @@ class LzyRemoteEnv(LzyEnvBase):
                             zipdir(local_module, z)
                     archive.seek(0)
                     key = "local_modules/" + os.path.basename(local_module) + "/" \
-                          + fileobj_hash(archive)
+                          + fileobj_hash(archive.file)  # type: ignore
                     archive.seek(0)
-                    uri = self._storage_client.write(self._bucket, key, archive)
+                    uri = self._storage_client.write(self._bucket, key, archive)  # type: ignore
                 local_modules_uploaded.append((os.path.basename(local_module), uri))
             self._py_env = PyEnv(name, yaml, local_modules_uploaded)
             return self._py_env
