@@ -2,7 +2,7 @@ import multiprocessing
 import pathlib
 import sys
 from pathlib import Path
-from typing import Any, Optional, Mapping
+from typing import Any, Optional, Mapping, AnyStr
 from unittest import TestCase
 
 import cloudpickle
@@ -25,7 +25,7 @@ class MockStorageClient(StorageClient):
     def read(self, url: str) -> Any:
         return self._storage[url]
 
-    def write(self, container: str, blob: str, data):
+    def write(self, container: str, blob: str, data: AnyStr):
         uri = container + "/" + blob
         self._storage[uri] = data
         return uri

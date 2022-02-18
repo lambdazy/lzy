@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import logging
 from types import ModuleType
-from typing import Dict, Tuple, Iterable
+from typing import Dict, Tuple, Iterable, List
 
 
 class Env(ABC):
@@ -22,11 +22,10 @@ class Env(ABC):
 
 
 class PyEnv(Env):
-    def __init__(self, env_name: str, yaml: str, local_packages: Iterable[ModuleType], local_modules_uploaded):
+    def __init__(self, env_name: str, yaml: str, local_modules_uploaded: List[Tuple[str, str]]):
         super().__init__()
         self._name = env_name
         self._yaml = yaml
-        self._local_packages = local_packages
         self._log = logging.getLogger(str(self.__class__))
         self._local_modules_uploaded = local_modules_uploaded
 
@@ -35,9 +34,6 @@ class PyEnv(Env):
 
     def name(self) -> str:
         return self._name
-
-    def local_modules(self) -> Iterable[ModuleType]:
-        return self._local_packages
 
     def yaml(self) -> str:
         return self._yaml
