@@ -54,7 +54,6 @@ def main():
                 client.read_to_file(url, f.name)
                 with zipfile.ZipFile(f, "r") as z:
                     z.extractall("/local_modules")
-                    print(os.listdir("/local_modules"))
 
     print("Loading function")
     func_s: FuncSignature = cloudpickle.loads(base64.b64decode(argv[0].encode("ascii")))
