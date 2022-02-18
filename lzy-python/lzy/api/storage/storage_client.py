@@ -69,7 +69,9 @@ class AzureClient(StorageClient):
 
     def write(self, container: str, blob: str, data: BinaryIO):
         container_client: ContainerClient = self.client.get_container_client(container)
-        container_client.get_blob_client(blob).upload_blob(data)
+        blob_client = container_client.get_blob_client(blob)
+        if not blob_client.exists():
+            blob_client.upload_blob(data)
         return f"azure:/{container}/{blob}"
 
     @staticmethod
