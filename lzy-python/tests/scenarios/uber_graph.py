@@ -48,6 +48,7 @@ class AnotherSimpleView:
 
 simple_whiteboard_tag = "simple_whiteboard_" + str(uuid.uuid4())
 another_simple_whiteboard_tag = "another_simple_whiteboard_" + str(uuid.uuid4())
+lzy_message_fields_tag = "lzy_message_fields_" + str(uuid.uuid4())
 
 
 @dataclass
@@ -142,20 +143,20 @@ class MessageClass:
 
 
 @dataclass
-@whiteboard(tags=['lzy_message_fields'])
+@whiteboard(tags=[lzy_message_fields_tag])
 class WhiteboardWithLzyMessageFields:
     b: int
     a: MessageClass = MessageClass()
 
 
 @dataclass
-@whiteboard(tags=['lzy_message_fields'])
+@whiteboard(tags=[lzy_message_fields_tag])
 class WhiteboardWithOneLzyMessageField:
     a: MessageClass = MessageClass()
 
 
 @dataclass
-@whiteboard(tags=['lzy_message_fields'])
+@whiteboard(tags=[lzy_message_fields_tag])
 class WhiteboardWithTwoLzyMessageFields:
     a: MessageClass = MessageClass()
     c: MessageClass = MessageClass()
