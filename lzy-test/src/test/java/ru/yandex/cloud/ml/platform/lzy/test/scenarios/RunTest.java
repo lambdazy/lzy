@@ -33,13 +33,33 @@ public class RunTest extends LzyBaseTest {
     }
 
     @Test
-    public void testEcho42() {
+    public void testProcessEcho42() {
         //Arrange
         final FileIOOperation echo42 = new FileIOOperation(
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "echo 42"
+            "echo 42",
+            false
+        );
+
+        //Act
+        terminal.publish(echo42.getName(), echo42);
+        final ExecutionResult result = terminal.run(echo42.getName(), "", Map.of());
+
+        //Assert
+        Assert.assertEquals("42\n", result.stdout());
+    }
+
+    @Test
+    public void testDockerEcho42() {
+        //Arrange
+        final FileIOOperation echo42 = new FileIOOperation(
+            "echo42",
+            Collections.emptyList(),
+            Collections.emptyList(),
+            "echo 42",
+            true
         );
 
         //Act
@@ -58,7 +78,8 @@ public class RunTest extends LzyBaseTest {
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "sleep 20m; echo 42"
+            "sleep 20m; echo 42",
+            false
         );
 
         //Act
@@ -85,7 +106,8 @@ public class RunTest extends LzyBaseTest {
             "cat_to_file_lzy",
             List.of(fileName.substring(LZY_MOUNT.length())),
             List.of(fileOutName.substring(LZY_MOUNT.length())),
-            "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName
+            "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName,
+            false
         );
 
         //Act

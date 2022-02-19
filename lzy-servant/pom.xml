@@ -254,6 +254,7 @@
                     <images>
                         <image>
                             <name>lzy-servant</name>
+                            <name>lzy-terminal</name>
                             <alias>dockerfile</alias>
                             <build>
                                 <contextDir>${project.basedir}/../</contextDir>

@@ -13,7 +13,7 @@ public class BaseEnvConfig {
     private final List<MountDescription> mounts;
 
     private BaseEnvConfig(String image, Map<String, String> mounts) {
-        this.image = (image == null) ? System.getProperty(BaseEnvConfig.DEFAULT_IMAGE_PROP) : image;
+        this.image = (image == null) ? System.getenv(BaseEnvConfig.DEFAULT_IMAGE_PROP) : image;
         this.mounts = new ArrayList<>();
         mounts.forEach((source, target) ->
             this.mounts.add(new MountDescription(source, target))
@@ -29,7 +29,7 @@ public class BaseEnvConfig {
     }
 
     public String defaultImage() {
-        return System.getProperty(BaseEnvConfig.DEFAULT_IMAGE_PROP);
+        return System.getenv(BaseEnvConfig.DEFAULT_IMAGE_PROP);
     }
 
     public BaseEnvConfig addMount(String source, String target) {
