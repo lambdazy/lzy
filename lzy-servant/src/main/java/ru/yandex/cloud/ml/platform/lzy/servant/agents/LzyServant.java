@@ -69,7 +69,7 @@ public class LzyServant extends LzyAgent {
         snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
         agentServer = NettyServerBuilder.forPort(config.getAgentPort())
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(impl).build();
         bucket = config.getBucket();
         Lzy.GetS3CredentialsResponse resp = server

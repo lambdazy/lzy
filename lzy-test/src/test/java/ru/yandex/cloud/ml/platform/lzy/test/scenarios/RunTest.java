@@ -51,7 +51,6 @@ public class RunTest extends LzyBaseTest {
     }
 
     @Test
-    @Ignore
     public void testKeepAlive() {
         //Arrange
         final FileIOOperation echo42 = new FileIOOperation(

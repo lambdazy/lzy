@@ -43,7 +43,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         final LzyTerminal.Impl impl = new Impl();
         agentServer = NettyServerBuilder.forPort(config.getAgentPort())
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(impl).build();
         channel = ChannelBuilder
             .forAddress(serverAddress.getHost(), serverAddress.getPort())

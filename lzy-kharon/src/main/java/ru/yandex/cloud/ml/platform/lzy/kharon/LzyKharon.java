@@ -103,13 +103,13 @@ public class LzyKharon {
 
         kharonServer = NettyServerBuilder.forPort(port)
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(
                 ServerInterceptors.intercept(new KharonService(), new SessionIdInterceptor()))
             .build();
         kharonServantProxy = NettyServerBuilder.forPort(servantProxyPort)
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors
                 .intercept(new KharonServantProxyService(), new SessionIdInterceptor()))
             .build();

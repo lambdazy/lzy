@@ -122,7 +122,7 @@ public class LzyServer {
             Impl impl = context.getBean(Impl.class);
             ServerBuilder<?> builder = NettyServerBuilder.forPort(port)
                 .permitKeepAliveWithoutCalls(true)
-                .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
+                .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
                 .addService(impl);
             try {
                 BackOfficeService backoffice = context.getBean(BackOfficeService.class);
