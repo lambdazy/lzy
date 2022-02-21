@@ -6,7 +6,11 @@ import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.St
 
 import io.micronaut.context.ApplicationContext;
 import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -46,6 +50,11 @@ public class DbWhiteboardRepositoryTest {
     private final String storageUri = "storageUri";
     private final String namespaceFirst = "namespaceFirst";
     private final String namespaceSecond = "namespaceSecond";
+    private final Date creationDateUTC = Date.from(Instant.now());
+    private final Date creationDateUTCFrom = Date.from(LocalDateTime
+        .of(1, 1, 1, 0, 0).toInstant(ZoneOffset.UTC));
+    private final Date creationDateUTCTo = Date.from(LocalDateTime
+        .of(9999, 1, 1, 0, 0).toInstant(ZoneOffset.UTC));
     DbWhiteboardRepository impl;
     private ApplicationContext ctx;
     private DbStorage storage;
@@ -60,6 +69,11 @@ public class DbWhiteboardRepositoryTest {
     private String entryIdFourth;
     private String snapshotOwnerFirst;
     private String snapshotOwnerSecond;
+
+    private Date createDateUTC(int year, int month, int day, int hour, int minute) {
+        return Date.from(LocalDateTime.of(year, month, day, hour, minute).toInstant(ZoneOffset.UTC));
+    }
+
 
     @Before
     public void setUp() {
@@ -89,7 +103,7 @@ public class DbWhiteboardRepositoryTest {
     public void testCreate() {
         impl.create(new Whiteboard.Impl(URI.create(wbIdFirst), Set.of(fieldNameFirst, fieldNameSecond),
             new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst)),
-            Set.of(firstTag, secondTag), namespaceFirst));
+            Set.of(firstTag, secondTag), namespaceFirst, creationDateUTC));
 
         WhiteboardModel whiteboardModel;
         WhiteboardFieldModel firstWhiteboardField;
@@ -134,7 +148,7 @@ public class DbWhiteboardRepositoryTest {
     public void testResolveWhiteboardById() {
         try (Session session = storage.getSessionFactory().openSession()) {
             final Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst));
+            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst, creationDateUTC));
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, entryIdSecond));
             session.save(new WhiteboardTagModel(wbIdFirst, firstTag));
@@ -154,10 +168,11 @@ public class DbWhiteboardRepositoryTest {
     }
 
     @Test
-    public void testResolveWhiteboardsByNamespaceAndTagsMultipleWhiteboards() {
+    public void testResolveWhiteboardsMultipleWhiteboards() {
         init();
-        List<WhiteboardStatus> whiteboardStatusList =
-            impl.resolveWhiteboards(namespaceFirst, List.of(firstTag, secondTag));
+        List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
+            namespaceFirst, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
+        ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardStatusList.size());
         Assert.assertTrue(Objects.equals(whiteboardStatusList.get(0).whiteboard().id().toString(), wbIdFirst)
             && Objects.equals(whiteboardStatusList.get(1).whiteboard().id().toString(), wbIdSecond)
@@ -166,59 +181,85 @@ public class DbWhiteboardRepositoryTest {
     }
 
     @Test
-    public void testResolveWhiteboardsByNamespaceAndTagsNonMatchingTags() {
+    public void testResolveWhiteboardsNonMatchingTags() {
         init();
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
-            namespaceFirst, List.of(firstTag, secondTag, thirdTag)
-        );
+            namespaceFirst, List.of(firstTag, secondTag, thirdTag), creationDateUTCFrom, creationDateUTCTo
+        ).collect(Collectors.toList());
         Assert.assertEquals(0, whiteboardStatusList.size());
         whiteboardStatusList = impl.resolveWhiteboards(
-            namespaceFirst, List.of(firstTag, thirdTag)
-        );
+            namespaceFirst, List.of(firstTag, thirdTag), creationDateUTCFrom, creationDateUTCTo
+        ).collect(Collectors.toList());
         Assert.assertEquals(0, whiteboardStatusList.size());
     }
 
     @Test
-    public void testResolveWhiteboardsByNamespaceAndTagsMatchingTags() {
+    public void testResolveWhiteboardsMatchingTags() {
         init();
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
-            namespaceFirst, List.of(firstTag)
-        );
+            namespaceFirst, List.of(firstTag), creationDateUTCFrom, creationDateUTCTo
+        ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardStatusList.size());
     }
 
     @Test
-    public void testResolveWhiteboardsByNamespaceAndTagsEmptyTags() {
+    public void testResolveWhiteboardsEmptyTags() {
         init();
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdThird, CREATED, snapshotIdFirst, namespaceFirst));
+            session.save(new WhiteboardModel(wbIdThird, CREATED, snapshotIdFirst, namespaceFirst, creationDateUTC));
             tx.commit();
         }
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
-            namespaceFirst, Collections.emptyList()
-        );
+            namespaceFirst, Collections.emptyList(), creationDateUTCFrom, creationDateUTCTo
+        ).collect(Collectors.toList());
         Assert.assertEquals(3, whiteboardStatusList.size());
     }
 
     @Test
-    public void testResolveWhiteboardsByNamespaceAndTagsDifferentNamespace() {
+    public void testResolveWhiteboardsDifferentNamespace() {
         init();
         try (Session session = storage.getSessionFactory().openSession()) {
             final Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdThird, CREATED, snapshotIdFirst, namespaceSecond));
+            session.save(new WhiteboardModel(wbIdThird, CREATED, snapshotIdFirst, namespaceSecond, creationDateUTC));
             session.save(new WhiteboardTagModel(wbIdThird, firstTag));
             session.save(new WhiteboardTagModel(wbIdThird, secondTag));
             tx.commit();
         }
         List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
-            namespaceFirst, List.of(firstTag, secondTag)
-        );
+            namespaceFirst, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
+        ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardStatusList.size());
         whiteboardStatusList = impl.resolveWhiteboards(
-            namespaceSecond, List.of(firstTag, secondTag)
-        );
+            namespaceSecond, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
+        ).collect(Collectors.toList());
         Assert.assertEquals(1, whiteboardStatusList.size());
+    }
+
+    @Test
+    public void testResolveWhiteboardsFilterTime() {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            final Transaction tx = session.beginTransaction();
+            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst,
+                createDateUTC(1982, 11, 14, 0, 0)));
+            session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotIdFirst, namespaceFirst,
+                createDateUTC(2021, 10, 13, 0, 0)));
+            session.save(new WhiteboardModel(wbIdThird, CREATED, snapshotIdFirst, namespaceFirst,
+                createDateUTC(1950, 8, 5, 0, 0)));
+            tx.commit();
+        }
+        List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
+            namespaceFirst, Collections.emptyList(), createDateUTC(1950, 8, 5, 0, 0), createDateUTC(2021, 10, 13, 0, 0)
+        ).collect(Collectors.toList());
+        Assert.assertEquals(2, whiteboardStatusList.size());
+        whiteboardStatusList = impl.resolveWhiteboards(
+            namespaceFirst, Collections.emptyList(), createDateUTC(1950, 8, 5, 0, 0), createDateUTC(2021, 10, 14, 0, 0)
+        ).collect(Collectors.toList());
+        Assert.assertEquals(3, whiteboardStatusList.size());
+        whiteboardStatusList = impl.resolveWhiteboards(
+            namespaceFirst, Collections.emptyList(), createDateUTC(1951, 8, 5, 0, 0), createDateUTC(1963, 10, 14, 0, 0)
+        ).collect(Collectors.toList());
+        Assert.assertEquals(0, whiteboardStatusList.size());
     }
 
     @Test
@@ -231,7 +272,7 @@ public class DbWhiteboardRepositoryTest {
     public void testAddField() {
         try (Session session = storage.getSessionFactory().openSession()) {
             final Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst));
+            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst, creationDateUTC));
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
             tx.commit();
         }
@@ -248,7 +289,7 @@ public class DbWhiteboardRepositoryTest {
     public void testDependentEntryIdNotBound() {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst));
+            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst, creationDateUTC));
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
             tx.commit();
         }
@@ -298,7 +339,8 @@ public class DbWhiteboardRepositoryTest {
                 Set.of(fieldNameFirst, fieldNameSecond, fieldNameThird, fieldNameFourth),
                 new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst)),
                 Set.of(firstTag, secondTag),
-                namespaceFirst
+                namespaceFirst,
+                creationDateUTC
             )
         ).collect(Collectors.toList());
         Assert.assertEquals(4, whiteboardFieldList.size());
@@ -337,14 +379,14 @@ public class DbWhiteboardRepositoryTest {
     ) {
         Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), URI.create(snapshotOwnerFirst));
         return new WhiteboardField.Impl(fieldName, new SnapshotEntry.Impl(entryId, snapshot),
-            new Whiteboard.Impl(URI.create(wbId), Collections.emptySet(), snapshot, Collections.emptySet(),
-                namespaceFirst));
+            new Whiteboard.Impl(URI.create(wbId), Collections.emptySet(), snapshot,
+                Collections.emptySet(), namespaceFirst, creationDateUTC));
     }
 
     private void init() {
         try (Session session = storage.getSessionFactory().openSession()) {
             final Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst));
+            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst, creationDateUTC));
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, entryIdFirst));
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, entryIdSecond));
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameThird, entryIdThird));
@@ -356,7 +398,7 @@ public class DbWhiteboardRepositoryTest {
             session.save(new SnapshotEntryModel(snapshotIdFirst, entryIdSecond, storageUri, true, IN_PROGRESS));
             session.save(new SnapshotEntryModel(snapshotIdFirst, entryIdThird, storageUri, true, IN_PROGRESS));
             session.save(new SnapshotEntryModel(snapshotIdFirst, entryIdFourth, storageUri, true, IN_PROGRESS));
-            session.save(new WhiteboardModel(wbIdSecond, COMPLETED, snapshotIdSecond, namespaceFirst));
+            session.save(new WhiteboardModel(wbIdSecond, COMPLETED, snapshotIdSecond, namespaceFirst, creationDateUTC));
             session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameSecond, entryIdSecond));
             session.save(new WhiteboardTagModel(wbIdFirst, firstTag));
             session.save(new WhiteboardTagModel(wbIdFirst, secondTag));

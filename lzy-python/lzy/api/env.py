@@ -4,6 +4,8 @@ import os
 import tempfile
 from abc import abstractmethod, ABC
 from pathlib import Path
+from types import ModuleType
+from datetime import datetime
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 from lzy.api.buses import Bus
@@ -80,18 +82,20 @@ class LzyEnvBase(ABC):
         wrap_whiteboard_for_read(instance, wb_)
         return instance
 
-    def _whiteboards(self, namespace: str, tags: List[str], typ: Type[T]) -> List[T]:
+    def _whiteboards(self, namespace: str, tags: List[str], typ: Type[T], from_date: datetime = None,
+                     to_date: datetime = None) -> List[T]:
         check_whiteboard(typ)
-        wb_list = self._execution_context.whiteboard_api.list(namespace, tags)
-        self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags}")
+        wb_list = self._execution_context.whiteboard_api.list(namespace, tags, from_date, to_date)
+        self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags} "
+                       f"within dates {from_date} - {to_date}")
         result = [self._build_whiteboard(wb_, typ) for wb_ in wb_list]
         return result
 
-    def whiteboards(self, typs: List[Type[T]]) -> WhiteboardList:
+    def whiteboards(self, typs: List[Type[T]], from_date: datetime = None, to_date: datetime = None) -> WhiteboardList:
         whiteboard_dict = {}
         for typ in typs:
             check_whiteboard(typ)
-            whiteboard_dict[typ] = self._whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ)  # type: ignore
+            whiteboard_dict[typ] = self._whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ, from_date, to_date)  # type: ignore
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
         return WhiteboardList([wb for wbs_list in list_of_wb_lists for wb in wbs_list])

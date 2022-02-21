@@ -1,5 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -67,9 +70,9 @@ public class SnapshotTest extends LzyBaseTest {
         return (String) wbIdObject.get("id");
     }
 
-    private List<LzyWhiteboard.Whiteboard> getWhiteboardsByNamespaceAndTags(String namespace, List<String> tags)
-        throws InvalidProtocolBufferException {
-        String whiteboardsJson = terminal.getWhiteboardsByNamespaceAndTags(namespace, tags);
+    private List<LzyWhiteboard.Whiteboard> getWhiteboardsList(String namespace, List<String> tags,
+        Long fromDateLocalTimezone, Long toDateLocalTimezone) throws InvalidProtocolBufferException {
+        String whiteboardsJson = terminal.whiteboards(namespace, tags, fromDateLocalTimezone, toDateLocalTimezone);
         LzyWhiteboard.WhiteboardsResponse.Builder builder = LzyWhiteboard.WhiteboardsResponse.newBuilder();
         JsonFormat.parser().merge(whiteboardsJson, builder);
         return builder.build().getWhiteboardsList();
@@ -210,28 +213,7 @@ public class SnapshotTest extends LzyBaseTest {
     }
 
     @Test
-    public void testWhiteboardsResolving() throws ParseException {
-        final String spIdFirst = createSnapshot();
-        Assert.assertNotNull(spIdFirst);
-
-        final String spIdSecond = createSnapshot();
-        Assert.assertNotNull(spIdSecond);
-
-        final String wbIdFirst =
-            createWhiteboard(spIdFirst, List.of("fileNameX", "fileNameY"), List.of("tag"), "namespace");
-        Assert.assertNotNull(wbIdFirst);
-
-        final String wbIdSecond =
-            createWhiteboard(spIdFirst, List.of("fileNameZ", "fileNameW"), List.of("tag"), "namespace");
-        Assert.assertNotNull(wbIdSecond);
-
-        final String wbIdThird =
-            createWhiteboard(spIdSecond, List.of("fileNameA", "fileNameB"), List.of("tag"), "namespace");
-        Assert.assertNotNull(wbIdThird);
-    }
-
-    @Test
-    public void testWhiteboardsResolvingByNamespaceAndTags() throws ParseException, InvalidProtocolBufferException {
+    public void testWhiteboardsResolving() throws ParseException, InvalidProtocolBufferException {
         final String spIdFirst = createSnapshot();
         Assert.assertNotNull(spIdFirst);
 
@@ -243,6 +225,11 @@ public class SnapshotTest extends LzyBaseTest {
         final String thirdTag = "thirdTag";
         final String firstNamespace = "firstNamespace";
         final String secondNamespace = "secondNamespace";
+
+        OffsetDateTime localDateTime = OffsetDateTime.now();
+        Long timestamp = localDateTime.toInstant().getEpochSecond();
+        localDateTime = localDateTime.plusDays(1);
+        Long timestampNextDay = localDateTime.toInstant().getEpochSecond();
 
         final String wbIdFirst = createWhiteboard(
             spIdFirst, List.of("fileNameX", "fileNameY"), List.of(firstTag, secondTag), firstNamespace
@@ -265,7 +252,8 @@ public class SnapshotTest extends LzyBaseTest {
             spIdSecond, List.of("fileNameD"), List.of(firstTag, thirdTag), secondNamespace);
         Assert.assertNotNull(wbIdFifth);
 
-        List<LzyWhiteboard.Whiteboard> list = getWhiteboardsByNamespaceAndTags(firstNamespace, List.of(secondTag));
+        List<LzyWhiteboard.Whiteboard> list = getWhiteboardsList(
+            firstNamespace, List.of(secondTag), timestamp, timestampNextDay);
         Assert.assertEquals(2, list.size());
         Assert.assertTrue(
             list.stream()
@@ -274,7 +262,7 @@ public class SnapshotTest extends LzyBaseTest {
                 .containsAll(List.of(wbIdFirst, wbIdThird))
         );
 
-        list = getWhiteboardsByNamespaceAndTags(firstNamespace, Collections.emptyList());
+        list = getWhiteboardsList(firstNamespace, Collections.emptyList(), timestamp, timestampNextDay);
         Assert.assertEquals(3, list.size());
         Assert.assertTrue(
             list.stream()
@@ -283,7 +271,7 @@ public class SnapshotTest extends LzyBaseTest {
                 .containsAll(List.of(wbIdFirst, wbIdThird, wbIdFourth))
         );
 
-        list = getWhiteboardsByNamespaceAndTags(secondNamespace, List.of(firstTag, thirdTag));
+        list = getWhiteboardsList(secondNamespace, List.of(firstTag, thirdTag), timestamp, timestampNextDay);
         Assert.assertEquals(2, list.size());
         Assert.assertTrue(
             list.stream()
@@ -291,5 +279,11 @@ public class SnapshotTest extends LzyBaseTest {
                 .collect(Collectors.toList())
                 .containsAll(List.of(wbIdSecond, wbIdFifth))
         );
+
+        // intentionally setting the interval to be in the future
+        timestamp = timestampNextDay;
+
+        list = getWhiteboardsList(secondNamespace, Collections.emptyList(), timestamp, timestampNextDay);
+        Assert.assertEquals(0, list.size());
     }
 }

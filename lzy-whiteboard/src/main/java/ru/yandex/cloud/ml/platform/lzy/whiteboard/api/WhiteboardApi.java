@@ -9,7 +9,11 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -77,12 +81,17 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             return;
         }
         URI wbId = URI.create(UUID.randomUUID().toString());
-        final WhiteboardStatus status = whiteboardRepository.create(
-            new Impl(wbId, new HashSet<>(request.getFieldNamesList()),
-                snapshotStatus.snapshot(), new HashSet<>(request.getTagsList()),
-                resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId())));
-        responseObserver.onNext(buildWhiteboard(status));
-        responseObserver.onCompleted();
+        try {
+            final WhiteboardStatus status = whiteboardRepository.create(
+                new Impl(wbId, new HashSet<>(request.getFieldNamesList()),
+                    snapshotStatus.snapshot(), new HashSet<>(request.getTagsList()),
+                    resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()),
+                    GrpcConverter.from(request.getCreationDateUTC())));
+            responseObserver.onNext(buildWhiteboard(status));
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onError(e);
+        }
     }
 
     @Override
@@ -179,10 +188,20 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
+        Date fromDate = Date.from(Instant.ofEpochSecond(LocalDateTime.of(1, 1, 1, 0, 0, 0, 0)
+            .toEpochSecond(ZoneOffset.UTC)));
+        Date toDate = Date.from(Instant.ofEpochSecond(LocalDateTime.of(9999, 12, 31, 23, 59, 59)
+            .toEpochSecond(ZoneOffset.UTC)));
+        if (request.hasFromDateUTC()) {
+            fromDate = GrpcConverter.from(request.getFromDateUTC());
+        }
+        if (request.hasToDateUTC()) {
+            toDate = GrpcConverter.from(request.getToDateUTC());
+        }
         final List<WhiteboardStatus> whiteboardStatus = whiteboardRepository.resolveWhiteboards(
             resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()),
-            request.getTagsList()
-        );
+            request.getTagsList(), fromDate, toDate
+        ).collect(Collectors.toList());
         List<LzyWhiteboard.Whiteboard> result = new ArrayList<>();
         for (var entry : whiteboardStatus) {
             result.add(buildWhiteboard(entry));

@@ -1,7 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
+import com.google.protobuf.Timestamp;
 import java.net.URI;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -59,6 +62,10 @@ public abstract class GrpcConverter {
 
     public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
         return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
+    }
+
+    public static Date from(Timestamp date) {
+        return Date.from(Instant.ofEpochSecond(date.getSeconds(), date.getNanos()));
     }
 
     public static DataSchema contentTypeFrom(String contentTypeJson) {
