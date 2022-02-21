@@ -58,7 +58,7 @@ public class RunTest extends LzyBaseTest {
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "sleep 6m; echo 42"
+            "sleep 20m; echo 42"
         );
 
         //Act
