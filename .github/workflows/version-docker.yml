@@ -21,4 +21,4 @@ jobs:
           java-version: '11'
 
       - name: 'push-docker'
-        run: bash deployment/push-docker.sh {{branch}} rebuild update-version
+        run: bash deployment/push-docker.sh {{branch}} --rebuild --update

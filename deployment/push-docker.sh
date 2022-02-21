@@ -1,15 +1,15 @@
 #!/bin/bash
 
 if [[ $# -lt 1 || -z $1 ]]; then
-  echo "Usage: $0 <installation-tag> [rebuild [base]]"
+  echo "Usage: $0 <installation-tag> [--rebuild [--base [--update]]]"
   exit
 fi
 
 INSTALLATION=$1
 SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
 
-if [[ $2 == "rebuild" ]]; then
-  if [[ $3 == "base" ]]; then
+if [[ $2 == "--rebuild" ]]; then
+  if [[ $3 == "--base" ]]; then
     docker build -f lzy-servant/BaseDockerfile .
     SERVICES="$SERVICES lzy-servant-base"
   fi
@@ -21,7 +21,7 @@ fi
 LAST_ARG=$(echo "$@" | awk '{print $NF}')
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
-  if [[ $LAST_ARG == "update-version" ]]; then
+  if [[ $LAST_ARG == "--update-version" ]]; then
     MAX_TAG=-1
     for TAG in $(wget -q https://registry.hub.docker.com/v1/repositories/lzydock/$SERVICE/tags -O - | sed -e 's/[][]//g' -e 's/"//g' -e 's/ //g' | tr '}' '\n' | awk -F ":" '{print $3}'); do
       if [[ "$TAG" =~ [0-9]* && "$MAX_TAG" -lt "$TAG" ]]; then
