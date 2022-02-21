@@ -1,7 +1,7 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Type, Dict, List, TypeVar
+from typing import Any, Type, Dict, List, TypeVar, Optional
 
 # noinspection PyProtectedMember
 from lzy.api._proxy import proxy
@@ -17,7 +17,6 @@ from lzy.api.whiteboard.model import (
 from lzy.servant.bash_servant_client import exec_bash
 from lzy.servant.servant_client import ServantClient, CredentialsTypes
 from lzy.servant.whiteboard_storage import WhiteboardStorage
-from lzy.api.whiteboard import check_message_field
 
 
 class SnapshotBashApi(SnapshotApi):
@@ -64,7 +63,9 @@ class WhiteboardBashApi(WhiteboardApi):
             self.__whiteboard_storage_by_bucket[bucket] = WhiteboardStorage.create(self.__credentials[bucket])
         return self.__whiteboard_storage_by_bucket[bucket]
 
-    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
+    def resolve(self, field_url: Optional[str], field_type: Type[Any]) -> Any:
+        if field_url is None:
+            return None
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
 
         bucket = get_bucket_from_url(field_url)

@@ -126,7 +126,7 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
+    def resolve(self, field_url: Optional[str], field_type: Type[Any]) -> Any:
         pass
 
 
@@ -145,7 +145,7 @@ class UUIDEntryIdGenerator(EntryIdGenerator):
 
 
 class InMemWhiteboardApi(WhiteboardApi):
-    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
+    def resolve(self, field_url: Optional[str], field_type: Type[Any]) -> Any:
         return None
 
     def __init__(self) -> None:
