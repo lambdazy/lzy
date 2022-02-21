@@ -4,7 +4,6 @@ from typing import List, Optional
 
 from lzy.api import op, LzyRemoteEnv
 from lzy.api.whiteboard import whiteboard, view
-from base import Base
 from pure_protobuf.dataclasses_ import field, message
 from pure_protobuf.types import int32
 from enum import IntEnum
