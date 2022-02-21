@@ -68,10 +68,7 @@ class WhiteboardBashApi(WhiteboardApi):
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
 
         bucket = get_bucket_from_url(field_url)
-        if check_message_field(field_type):
-            return proxy(lambda: self._whiteboard_storage(bucket).read_protobuf(field_url, field_type), field_type)
-        else:
-            return proxy(lambda: self._whiteboard_storage(bucket).read(field_url), field_type)
+        return proxy(lambda: self._whiteboard_storage(bucket).read(field_url, field_type), field_type)
         # type: ignore[no-any-return]
 
     def create(self, fields: List[str], snapshot_id: str, namespace: str, tags: List[str]) -> WhiteboardDescription:
