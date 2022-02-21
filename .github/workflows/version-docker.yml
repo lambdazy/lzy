@@ -4,8 +4,6 @@ on:
 
 jobs:
 
-  # TODO
-  # 2) increment tags -
   update-docker-tags:
     runs-on: ubuntu-latest
     timeout-minutes: 60
