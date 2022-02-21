@@ -5,11 +5,13 @@ import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.Status;
+import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
@@ -65,7 +67,10 @@ public class LzyServant extends LzyAgent {
             .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
             .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
-        agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
+        agentServer = NettyServerBuilder.forPort(config.getAgentPort())
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .addService(impl).build();
         bucket = config.getBucket();
         Lzy.GetS3CredentialsResponse resp = server
             .getS3Credentials(
