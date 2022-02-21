@@ -6,11 +6,12 @@ if [[ $# -lt 1 || -z $1 ]]; then
 fi
 
 INSTALLATION=$1
+SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
 
 if [[ $2 == "rebuild" ]]; then
   if [[ $3 == "base" ]]; then
-    docker build -t lzydock/lzy-servant-base:"$INSTALLATION" -f lzy-servant/BaseDockerfile .
-    docker push lzydock/lzy-servant-base:"$INSTALLATION"
+    docker build -f lzy-servant/BaseDockerfile .
+    SERVICES="$SERVICES lzy-servant-base"
   fi
   mvn clean install -DskipTests
 #  docker build -t lzydock/lzy-backoffice-backend:"$INSTALLATION" lzy-backoffice/Dockerfile
@@ -18,7 +19,6 @@ if [[ $2 == "rebuild" ]]; then
 fi
 
 LAST_ARG=$(echo "$@" | awk '{print $NF}')
-SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
   if [[ $LAST_ARG == "update-version" ]]; then
@@ -29,14 +29,13 @@ for SERVICE in $SERVICES; do
       fi
     done
     NEW_TAG=$((MAX_TAG + 1))
-    echo "pushing lzydock/$SERVICE:$NEW_TAG"
-    docker tag "$SERVICE" lzydock/$SERVICE:$NEW_TAG
-    docker push "lzydock/$SERVICE:$NEW_TAG"
+    TAG="$NEW_TAG"
   else
-    echo "pushing lzydock/$SERVICE:$INSTALLATION"
-    docker tag "$SERVICE" "lzydock/$SERVICE:$INSTALLATION"
-    docker push "lzydock/$SERVICE:$INSTALLATION"
+    TAG="$INSTALLATION"
   fi
+  echo "pushing lzydock/$SERVICE:$TAG"
+  docker tag "$SERVICE" "lzydock/$SERVICE:$TAG"
+  docker push "lzydock/$SERVICE:$TAG"
   echo ""
 done
 
