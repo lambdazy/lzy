@@ -22,6 +22,7 @@ from lzy.model.slot import Direction, Slot
 from lzy.model.zygote import Zygote, Provisioning
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant_client import ServantClient, Execution
+from lzy.api.whiteboard import check_message_field
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -151,7 +152,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     @staticmethod
     def dump_value_to_slot(slot_path: Path, obj: Any):
         with slot_path.open("wb") as handle:
-            if hasattr(obj, 'LZY_MESSAGE'):
+            if check_message_field(obj):
                 obj.dump(handle)
             else:
                 cloudpickle.dump(obj, handle)
@@ -175,7 +176,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             while handle.read(1) is None:
                 time.sleep(0)  # Thread.yield
             handle.seek(0)
-            if hasattr(obj_type, 'LZY_MESSAGE'):
+            if check_message_field(obj_type):
                 value = load(obj_type, handle)
             else:
                 value = cloudpickle.load(handle)

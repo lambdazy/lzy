@@ -19,7 +19,8 @@ from lzy.api.whiteboard.model import (
     SnapshotApi,
     WhiteboardApi,
     WhiteboardList,
-    WhiteboardDescription
+    WhiteboardDescription,
+    WhiteboardFieldStatus
 )
 from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
@@ -70,9 +71,7 @@ class LzyEnvBase(ABC):
         whiteboard_dict: Dict[str, Any] = {}
         for field in wb_.fields:
             if field.field_name in field_types:
-                if field.storage_uri is None:
-                    whiteboard_dict[field.field_name] = None
-                else:
+                if field.status is WhiteboardFieldStatus.FINISHED:
                     whiteboard_dict[field.field_name] = self._execution_context \
                         .whiteboard_api \
                         .resolve(field.storage_uri, field_types[field.field_name])

@@ -17,6 +17,7 @@ from lzy.api.whiteboard.model import (
 from lzy.servant.bash_servant_client import exec_bash
 from lzy.servant.servant_client import ServantClient, CredentialsTypes
 from lzy.servant.whiteboard_storage import WhiteboardStorage
+from lzy.api.whiteboard import check_message_field
 
 
 class SnapshotBashApi(SnapshotApi):
@@ -67,7 +68,7 @@ class WhiteboardBashApi(WhiteboardApi):
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
 
         bucket = get_bucket_from_url(field_url)
-        if hasattr(field_type, 'LZY_MESSAGE'):
+        if check_message_field(field_type):
             return proxy(lambda: self._whiteboard_storage(bucket).read_protobuf(field_url, field_type), field_type)
         else:
             return proxy(lambda: self._whiteboard_storage(bucket).read(field_url), field_type)

@@ -21,6 +21,7 @@ from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
 from lzy.api.storage.storage_client import AmazonClient, AzureClient
 from pure_protobuf.dataclasses_ import load  # type: ignore
+from lzy.api.whiteboard import check_message_field
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -31,7 +32,7 @@ def load_arg(path: Path, inp_type: Type[T]) -> Any:
         while file.read(1) is None:
             time.sleep(0)  # Thread.yield
         file.seek(0)
-        if hasattr(inp_type, 'LZY_MESSAGE'):
+        if check_message_field(inp_type):
             return load(inp_type, file)
         else:
             return cloudpickle.load(file)
@@ -86,7 +87,7 @@ def main():
     result_path = servant.mount() / func_s.name / "return"
     print(f"Writing result to file {result_path}")
     with open(result_path, "wb") as out_handle:
-        if hasattr(func_s.output_type, 'LZY_MESSAGE'):
+        if check_message_field(func_s.output_type):
             result.dump(out_handle)
         else:
             cloudpickle.dump(result, out_handle)
