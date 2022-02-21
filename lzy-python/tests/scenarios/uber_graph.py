@@ -9,6 +9,15 @@ from pure_protobuf.dataclasses_ import field, message
 from pure_protobuf.types import int32
 from enum import IntEnum
 
+from base_module.base import Base
+from some_imported_file import foo
+import os
+
+local_modules = [
+    os.path.abspath("lzy-python/tests/scenarios/base_module"),
+    os.path.abspath("lzy-python/tests/scenarios/some_imported_file.py")
+]
+
 '''
 This scenario contains:
     1. Importing local modules
@@ -21,6 +30,7 @@ This scenario contains:
 @op
 def just_print() -> None:
     base = Base(1, "before")
+    print(foo())
     print(base.echo())
     print("Just print some text")
 
@@ -185,37 +195,37 @@ def fun8(a: MessageClass) -> int:
 
 
 wb = SimpleWhiteboard()
-with LzyRemoteEnv(whiteboard=wb):
+with LzyRemoteEnv(whiteboard=wb, local_module_paths=local_modules):
     just_print()
     wb.a = fun1()
     wb.b = fun2(wb.a)
     wb_id = wb.__id__
 
-with LzyRemoteEnv() as env:
+with LzyRemoteEnv(local_module_paths=local_modules) as env:
     wb = env.whiteboard(wb_id, SimpleWhiteboard)
     print(wb.a, wb.a)
     print("Len: " + str(len(wb.b)))
 
 wb = AnotherSimpleWhiteboard()
-with LzyRemoteEnv(whiteboard=wb):
+with LzyRemoteEnv(whiteboard=wb, local_module_paths=local_modules):
     wb.a = fun3(3)
     wb.b = fun4(3)
     wb.c = fun5(4)
 
 wb = OneMoreSimpleWhiteboard()
-with LzyRemoteEnv(whiteboard=wb):
+with LzyRemoteEnv(whiteboard=wb, local_module_paths=local_modules):
     wb.a = fun1()
     wb.b = fun2(wb.a)
 
 # Simulate crash before whiteboard is finished
 wb = OneMoreSimpleWhiteboard()
-with LzyRemoteEnv(whiteboard=wb) as env:
+with LzyRemoteEnv(whiteboard=wb, local_module_paths=local_modules) as env:
     wb.a = fun1()
     wb.b = fun2(wb.a)
     # noinspection PyProtectedMember
     env._ops.clear()
 
-with LzyRemoteEnv() as env:
+with LzyRemoteEnv(local_module_paths=local_modules) as env:
     views = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard]).views(SimpleView)
     print("Number of SimpleView views " + str(len(views)))
     simple_view_ids = "Ids of SimpleView "
@@ -234,7 +244,7 @@ with LzyRemoteEnv() as env:
         another_simple_view_ids += view.id + ";"
     print(another_simple_view_ids)
 
-with LzyRemoteEnv() as env:
+with LzyRemoteEnv(local_module_paths=local_modules) as env:
     whiteboards = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard])
     print("Number of whiteboard is " + str(len(whiteboards)))
     print("First whiteboard type is " + whiteboards[0].__class__.__name__)

@@ -7,6 +7,10 @@ from collections import OrderedDict
 import time
 from pathlib import Path
 from typing import TypeVar, Type
+import zipfile
+import tempfile
+
+
 import cloudpickle
 
 from lzy.api.lazy_op import LzyRemoteOp
@@ -51,9 +55,13 @@ def main():
             raise ValueError('No storage credentials are provided')
 
         local_modules: OrderedDict = json.loads(os.environ['LOCAL_MODULES'])
+        os.mkdir("/local_modules")
+        sys.path.append("/local_modules")
         for name, url in local_modules.items():
-            local_module = cloudpickle.loads(client.read(url))
-            sys.modules[name] = local_module
+            with tempfile.NamedTemporaryFile() as f:
+                client.read_to_file(url, f.name)
+                with zipfile.ZipFile(f, "r") as z:
+                    z.extractall("/local_modules")
 
     print("Loading function")
     func_s: FuncSignature = cloudpickle.loads(base64.b64decode(argv[0].encode("ascii")))

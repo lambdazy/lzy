@@ -1,5 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
+import java.text.MessageFormat;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.lang.NonNull;
@@ -9,16 +17,25 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraphException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 
-import java.text.MessageFormat;
-import java.util.*;
-import java.util.concurrent.ForkJoinPool;
-import java.util.stream.Collectors;
-
 public class LocalChannelGraph implements ChannelGraph {
     private static final Logger LOG = LogManager.getLogger(LocalChannelGraph.class);
     private final Set<Endpoint> senders = new HashSet<>();
     private final Set<Endpoint> receivers = new HashSet<>();
     private final Map<Endpoint, HashSet<Endpoint>> edges = new HashMap<>();
+
+    private static void checkConsistency(Endpoint sender, Endpoint receiver) {
+        if (sender.slot().direction() != Slot.Direction.OUTPUT) {
+            throw new ChannelGraphException(
+                "Endpoint input: " + sender + " was passed as sender but has direction " + sender.slot().direction()
+            );
+        }
+        if (receiver.slot().direction() != Slot.Direction.INPUT) {
+            throw new ChannelGraphException(
+                "Endpoint output: " + receiver + " was passed as receiver but has direction " + receiver.slot()
+                    .direction()
+            );
+        }
+    }
 
     @Override
     public Set<Endpoint> senders() {
@@ -84,7 +101,7 @@ public class LocalChannelGraph implements ChannelGraph {
         }
         if (numConnections(sender) != 0) {
             LOG.warn("Attempt to unlink sender {} from channelGraph while there are connected receivers", sender);
-            for (Endpoint receiver: edges.get(sender)) {
+            for (Endpoint receiver : edges.get(sender)) {
                 removeReceiver(receiver);
             }
         }
@@ -110,7 +127,7 @@ public class LocalChannelGraph implements ChannelGraph {
             throw new ChannelException("Failed to unbind " + receiver);
         }
 
-        for (final Endpoint adjSender: getSenders(receiver)) {
+        for (final Endpoint adjSender : getSenders(receiver)) {
             final HashSet<Endpoint> adjacent = edges.get(adjSender);
             adjacent.remove(receiver);
             if (adjacent.isEmpty()) {
@@ -128,19 +145,6 @@ public class LocalChannelGraph implements ChannelGraph {
     @Override
     public boolean hasBound(@NonNull Endpoint endpoint) {
         return senders.contains(endpoint) || receivers.contains(endpoint);
-    }
-
-    private static void checkConsistency(Endpoint sender, Endpoint receiver) {
-        if (sender.slot().direction() != Slot.Direction.OUTPUT) {
-            throw new ChannelGraphException(
-                "Endpoint input: " + sender + " was passed as sender but has direction " + sender.slot().direction()
-            );
-        }
-        if (receiver.slot().direction() != Slot.Direction.INPUT) {
-            throw new ChannelGraphException(
-                "Endpoint output: " + receiver + " was passed as receiver but has direction " + receiver.slot().direction()
-            );
-        }
     }
 
     private Set<Endpoint> getSenders(Endpoint receiver) {

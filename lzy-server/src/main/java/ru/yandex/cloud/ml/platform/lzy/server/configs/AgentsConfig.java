@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
-
 import java.util.List;
 
 @ConfigurationProperties("agents")

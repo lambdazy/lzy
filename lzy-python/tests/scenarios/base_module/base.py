@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from base_internal import BaseInternal
+from .base_internal import BaseInternal
 
 
 @dataclass

@@ -31,7 +31,7 @@ class ModulesSearchTests(TestCase):
                           'tests.test_modules.level1.level1'
                          ],
                          module_names)
-        self.assertEqual({"PyYAML", "s3fs"}, set(remote.keys()))
+        self.assertEqual({"PyYAML", "boto3"}, set(remote.keys()))
 
     def test_modules_search_2(self):
         _, local = select_modules({
