@@ -22,13 +22,5 @@ jobs:
           distribution: 'adopt'
           java-version: '11'
 
-      - name: 'extract docker tags'
-        id: tags
-        uses: docker/metadata-action@v3
-        with:
-          images: lzydock/lzy-server,lzydock/lzy-kharon,lzydock/lzy-servant,lzydock/lzy-whiteboard
-          tags: |
-            type=semver,pattern={{version}}
-
       - name: 'push-docker'
-        run: echo "${{steps.tags.outputs.tags}}" | | awk '{for (i = 1; i <= NF; i++) {print $i}}' | awk -F ":" '{print $2}' | bash deployment/push-docker.sh {{branch}} rebuild update-version
+        run: bash deployment/push-docker.sh {{branch}} rebuild update-version
