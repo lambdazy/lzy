@@ -9,7 +9,11 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -184,10 +188,19 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
+        Date fromDate = Date.from(Instant.ofEpochSecond(LocalDateTime.of(1, 1, 1, 0, 0, 0, 0)
+            .toEpochSecond(ZoneOffset.UTC)));
+        Date toDate = Date.from(Instant.ofEpochSecond(LocalDateTime.of(9999, 12, 31, 23, 59, 59)
+            .toEpochSecond(ZoneOffset.UTC)));
+        if (request.hasFromDateUTC()) {
+            fromDate = GrpcConverter.from(request.getFromDateUTC());
+        }
+        if (request.hasToDateUTC()) {
+            toDate = GrpcConverter.from(request.getToDateUTC());
+        }
         final List<WhiteboardStatus> whiteboardStatus = whiteboardRepository.resolveWhiteboards(
             resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()),
-            request.getTagsList(), GrpcConverter.from(request.getFromDateUTC()),
-            GrpcConverter.from(request.getToDateUTC())
+            request.getTagsList(), fromDate, toDate
         ).collect(Collectors.toList());
         List<LzyWhiteboard.Whiteboard> result = new ArrayList<>();
         for (var entry : whiteboardStatus) {

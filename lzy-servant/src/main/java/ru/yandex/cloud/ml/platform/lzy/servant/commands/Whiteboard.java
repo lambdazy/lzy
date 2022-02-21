@@ -138,26 +138,22 @@ public class Whiteboard implements LzyCommand {
                 if (localCmd.hasOption('t')) {
                     tags = List.of(localCmd.getOptionValue('t').split(","));
                 }
-                Timestamp from = Timestamp.newBuilder()
-                    .setSeconds(Long.parseLong(localCmd.getOptionValue("from",
-                        String.valueOf(LocalDateTime.of(1, 1, 1, 0, 0, 0, 0)
-                            .toEpochSecond(ZoneOffset.UTC)))))
-                    .build();
-                Timestamp to = Timestamp.newBuilder()
-                    .setSeconds(Long.parseLong(localCmd.getOptionValue("to",
-                        String.valueOf(LocalDateTime.of(9999, 12, 31, 0, 0, 0, 0)
-                            .toEpochSecond(ZoneOffset.UTC)))))
-                    .build();
-                final LzyWhiteboard.WhiteboardsResponse whiteboards =
-                    server.whiteboardsList(LzyWhiteboard.WhiteboardsListCommand
-                        .newBuilder()
-                        .setAuth(auth)
-                        .addAllTags(tags)
-                        .setNamespace(namespace)
-                        .setFromDateUTC(from)
-                        .setToDateUTC(to)
-                        .build()
-                    );
+                var wbBuilder = LzyWhiteboard.WhiteboardsListCommand
+                    .newBuilder()
+                    .setAuth(auth)
+                    .addAllTags(tags)
+                    .setNamespace(namespace);
+                if (localCmd.hasOption("from")) {
+                    wbBuilder.setFromDateUTC(Timestamp.newBuilder()
+                        .setSeconds(Long.parseLong(localCmd.getOptionValue("from")))
+                        .build());
+                }
+                if (localCmd.hasOption("to")) {
+                    wbBuilder.setToDateUTC(Timestamp.newBuilder()
+                        .setSeconds(Long.parseLong(localCmd.getOptionValue("to")))
+                        .build());
+                }
+                final LzyWhiteboard.WhiteboardsResponse whiteboards = server.whiteboardsList(wbBuilder.build());
                 System.out.println(JsonFormat.printer().print(whiteboards));
             }
             break;
