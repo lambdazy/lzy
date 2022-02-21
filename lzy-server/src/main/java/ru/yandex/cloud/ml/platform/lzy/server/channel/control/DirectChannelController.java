@@ -1,11 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
+import java.util.Set;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
-
-import java.util.Set;
 
 public class DirectChannelController implements ChannelController {
     @Override
@@ -32,6 +31,8 @@ public class DirectChannelController implements ChannelController {
                 }
                 break;
             }
+            default:
+                throw new IllegalStateException("Unexpected value: " + endpoint.slot().direction());
         }
     }
 
@@ -46,6 +47,8 @@ public class DirectChannelController implements ChannelController {
                 channelGraph.removeSender(endpoint);
                 break;
             }
+            default:
+                throw new IllegalStateException("Unexpected value: " + endpoint.slot().direction());
         }
     }
 

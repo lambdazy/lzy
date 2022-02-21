@@ -1,17 +1,19 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
+import java.util.UUID;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
-import java.util.UUID;
-
 public interface Authenticator {
     boolean checkUser(String userId, String token);
+
     boolean checkTask(String tid, String token);
 
     boolean canPublish(String userId);
+
     boolean canAccess(String zygoteName, String user);
+
     boolean canAccess(Task task, String user);
 
     String userForTask(Task task);

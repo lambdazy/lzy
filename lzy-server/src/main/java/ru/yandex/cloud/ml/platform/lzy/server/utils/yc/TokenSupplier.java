@@ -2,6 +2,11 @@ package ru.yandex.cloud.ml.platform.lzy.server.utils.yc;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.io.IOException;
+import java.security.PrivateKey;
+import java.time.Instant;
+import java.util.Date;
+import java.util.function.Supplier;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -9,12 +14,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
-
-import java.io.IOException;
-import java.security.PrivateKey;
-import java.time.Instant;
-import java.util.Date;
-import java.util.function.Supplier;
 
 public class TokenSupplier implements Supplier<String> {
     private final String serviceAccountId;
@@ -33,26 +32,26 @@ public class TokenSupplier implements Supplier<String> {
         this(serviceAccountId, keyId, privateKey, 16);
     }
 
-    private String generateJWT(){
+    private String generateJWT() {
 
         Instant now = Instant.now();
 
         return Jwts.builder()
-                .setHeaderParam("kid", keyId)
-                .setIssuer(serviceAccountId)
-                .setAudience("https://iam.api.cloud.yandex.net/iam/v1/tokens")
-                .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plusSeconds(360)))
-                .signWith(privateKey, SignatureAlgorithm.PS256)
-                .compact();
+            .setHeaderParam("kid", keyId)
+            .setIssuer(serviceAccountId)
+            .setAudience("https://iam.api.cloud.yandex.net/iam/v1/tokens")
+            .setIssuedAt(Date.from(now))
+            .setExpiration(Date.from(now.plusSeconds(360)))
+            .signWith(privateKey, SignatureAlgorithm.PS256)
+            .compact();
     }
 
     private String getIAM(CloseableHttpClient httpclient) throws IOException {
         String jwt = generateJWT();
         HttpPost request = new HttpPost("https://iam.api.cloud.yandex.net/iam/v1/tokens/");
         String requestBody = new JSONObject()
-                .put("jwt", jwt)
-                .toString();
+            .put("jwt", jwt)
+            .toString();
         StringEntity requestEntity = new StringEntity(requestBody);
         request.setEntity(requestEntity);
         CloseableHttpResponse response = httpclient.execute(request);

@@ -4,7 +4,6 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.EmptyCredentials;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.Type;
 
 @Singleton
 @Requires(property = "storage.amazon.enabled", value = "false", defaultValue = "false")

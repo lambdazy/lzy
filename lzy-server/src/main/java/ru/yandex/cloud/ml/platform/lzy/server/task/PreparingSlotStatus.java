@@ -1,11 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-
-import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.UUID;
+import javax.annotation.Nullable;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 
 public class PreparingSlotStatus implements SlotStatus {
     private final String channelName;
