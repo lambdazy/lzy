@@ -1,6 +1,7 @@
 FROM lzy-servant-base
 
 COPY lzy-python/ lzy-python
+COPY lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar lzy-python/lzy/lzy-servant.jar
 RUN ./conda_prepare.sh pylzy_install 'lzy-python'
 
 COPY lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar app/app.jar

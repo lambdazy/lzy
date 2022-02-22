@@ -6,7 +6,6 @@ import java.io.OutputStream;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
-// TODO (lindvv): deprecate it
 public class ProcessEnvironment implements BaseEnvironment {
 
     @Override

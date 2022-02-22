@@ -12,7 +12,7 @@ from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 from lzy.api.whiteboard.model import EntryIdGenerator
 from lzy.api.result import Just, Nothing, Result
 from lzy.model.channel import Channel, Binding, Bindings
-from lzy.model.env import PyEnv
+from lzy.model.env import PyEnv, Env
 from lzy.model.file_slots import create_slot
 from lzy.model.return_codes import PyReturnCode, ReturnCode
 from lzy.model.signatures import CallSignature, FuncSignature
@@ -108,7 +108,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         self._zygote = ZygotePythonFunc(
             signature.func,
             # self._servant.mount(),
-            env,
+            Env(aux_env = env),
             provisioning,
         )
 

@@ -17,7 +17,7 @@ class ZygotePythonFunc(Zygote, Generic[T]):
         self,
         sign: FuncSignature[T],
         # lzy_mount: Path,
-        env: Optional[Env],
+        env: Env,
         provisioning: Optional[Provisioning],
     ):
         # TODO: find out if lzy_mount is really needed here
