@@ -27,6 +27,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
@@ -135,9 +136,7 @@ public abstract class BaseTask implements Task {
         servantUri = uri;
         this.servant.complete(servant);
         LOG.info("Server is attached to servant {}", servantUri);
-        // will be removed while server refactoring
-        final CountDownLatch contextStarted = new CountDownLatch(1);
-        final AtomicBoolean contextHasError = new AtomicBoolean(false);
+        final CompletableFuture<Void> contextStarted = new CompletableFuture<>();
         Operations.Zygote zygote = GrpcConverter.to(workload);
         final Tasks.ContextSpec.Builder contextBuilder = Tasks.ContextSpec.newBuilder()
             .setEnv(zygote.getEnv())
@@ -201,7 +200,7 @@ public abstract class BaseTask implements Task {
                     }
                     case START: {
                         LOG.info("Context " + uri + " started");
-                        contextStarted.countDown();
+                        contextStarted.complete(null);
                         break;
                     }
                     case EXIT: {
@@ -219,23 +218,22 @@ public abstract class BaseTask implements Task {
                                     .build())
                                 .build()
                         );
-                        contextHasError.set(true);
-                        contextStarted.countDown();
+                        contextStarted.completeExceptionally(new EnvironmentInstallationException(progress.getError().getDescription()));
                     }
                 }
             }));
 
         try {
-            contextStarted.await();
-            if (contextHasError.get()) {
-                state(State.FINISHED);
-                LOG.info("Stopping servant {}", servantUri);
-                stopServant();
-                return;
-            }
+            contextStarted.get();
         } catch (InterruptedException e) {
-            LOG.error(e);
+            LOG.error("Context installation was interrupted", e);
             throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            LOG.error("Error while preparing context", e);
+            state(State.FINISHED);
+            LOG.info("Stopping servant {}", servantUri);
+            stopServant();
+            return;
         }
 
         final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()

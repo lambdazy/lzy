@@ -22,8 +22,12 @@ import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvironment;
@@ -166,15 +170,14 @@ public class LzyContext {
             }
         });
 
-        if (context.env() instanceof PythonEnv) {
-            env = new CondaEnvironment((PythonEnv) context.env(), credentials);
-            LOG.info("Conda environment is provided, using CondaEnvironment");
-        } else {
-            env = new SimpleBashEnvironment();
-            LOG.info("No environment provided, using SimpleBashEnvironment");
-        }
         try {
-            env.prepare();
+            if (context.env() instanceof PythonEnv) {
+                env = new CondaEnvironment((PythonEnv) context.env(), credentials);
+                LOG.info("Conda environment is provided, using CondaEnvironment");
+            } else {
+                env = new SimpleBashEnvironment();
+                LOG.info("No environment provided, using SimpleBashEnvironment");
+            }
         } catch (EnvironmentInstallationException e) {
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
             Set.copyOf(slots.values()).stream()
@@ -195,7 +198,8 @@ public class LzyContext {
     }
 
     public LzyExecution execute(AtomicZygote zygote, Consumer<ExecutionProgress> onProgress)
-        throws LzyExecutionException {
+        throws LzyExecutionException, InterruptedException {
+        final long start = System.currentTimeMillis();
         if (env == null) {
             throw new LzyExecutionException(new RuntimeException("Cannot execute before prepare"));
         }
@@ -220,6 +224,18 @@ public class LzyContext {
                 .map(s -> (LzyOutputSlot) s)
                 .forEach(LzyOutputSlot::forceClose);
         }
+        final long executed = System.currentTimeMillis();
+        MetricEventLogger.log(new MetricEvent(
+            "time of task executing",
+            Map.of("metric_type", "system_metric"),
+            executed - start)
+        );
+        waitForSlots();
+        MetricEventLogger.log(new MetricEvent(
+            "time of waiting for slots",
+            Map.of("metric_type", "system_metric"),
+            System.currentTimeMillis() - executed)
+        );
         return execution;
     }
 
@@ -273,7 +289,7 @@ public class LzyContext {
         listeners.add(listener);
     }
 
-    public void waitForSlots() throws InterruptedException {
+    private void waitForSlots() throws InterruptedException {
         while (!slots.isEmpty()) {
             synchronized (slots) {
                 LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));

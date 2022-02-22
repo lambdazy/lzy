@@ -16,11 +16,11 @@ import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 public class CondaEnvironment implements Environment {
@@ -29,9 +29,11 @@ public class CondaEnvironment implements Environment {
     private final AtomicBoolean envInstalled = new AtomicBoolean(false);
     private final Lzy.GetS3CredentialsResponse credentials;
 
-    public CondaEnvironment(PythonEnv env, Lzy.GetS3CredentialsResponse credentials) {
+    public CondaEnvironment(PythonEnv env, Lzy.GetS3CredentialsResponse credentials)
+        throws EnvironmentInstallationException {
         this.env = env;
         this.credentials = credentials;
+        prepare();
     }
 
     private void installPyenv() throws EnvironmentInstallationException {
@@ -74,8 +76,7 @@ public class CondaEnvironment implements Environment {
         return execInEnv(command, null);
     }
 
-    @Override
-    public synchronized void prepare() throws EnvironmentInstallationException {
+    private synchronized void prepare() throws EnvironmentInstallationException {
         if (!envInstalled.get()) {
             final long pyEnvInstallStart = System.currentTimeMillis();
             installPyenv();

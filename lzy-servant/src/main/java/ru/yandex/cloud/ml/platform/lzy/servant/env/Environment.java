@@ -1,10 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
 public interface Environment {
-    void prepare() throws EnvironmentInstallationException;
-
     Process exec(String command) throws LzyExecutionException;
 }

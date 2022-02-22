@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -58,6 +59,8 @@ public abstract class LzyAgent implements Closeable {
     protected final AtomicReference<AgentStatus> status = new AtomicReference<>(
         AgentStatus.STARTED);
     protected final SlotConnectionManager slotConnectionManager = new SlotConnectionManager();
+    protected final AtomicBoolean inContext = new AtomicBoolean(false);
+    protected LzyContext context;
 
     protected LzyAgent(LzyAgentConfig config) throws URISyntaxException {
         final long start = System.currentTimeMillis();
@@ -215,12 +218,11 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public void configureSlot(
-        @Nonnull LzyContext context,
         Servant.SlotCommand request,
         StreamObserver<Servant.SlotCommandStatus> responseObserver
     ) {
         try {
-            final Servant.SlotCommandStatus slotCommandStatus = configureSlot(context, request);
+            final Servant.SlotCommandStatus slotCommandStatus = configureSlot(request);
             responseObserver.onNext(slotCommandStatus);
             responseObserver.onCompleted();
         } catch (StatusException e) {
@@ -229,7 +231,6 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public Servant.SlotCommandStatus configureSlot(
-        @Nonnull LzyContext context,
         Servant.SlotCommand request
     ) throws StatusException {
         LOG.info("Agent::configureSlot " + JsonUtils.printRequest(request));
@@ -303,11 +304,11 @@ public abstract class LzyAgent implements Closeable {
         responseObserver.onCompleted();
     }
 
-    public void status(@Nullable LzyContext context, IAM.Empty request,
+    public void status(IAM.Empty request,
                        StreamObserver<Servant.ServantStatus> responseObserver) {
         final Servant.ServantStatus.Builder builder = Servant.ServantStatus.newBuilder();
         builder.setStatus(status.get().toGrpcServantStatus());
-        if (context != null) {
+        if (inContext.get()) {
             builder.addAllConnections(context.slots().map(slot -> {
                 final Operations.SlotStatus.Builder status = Operations.SlotStatus
                     .newBuilder(slot.status());

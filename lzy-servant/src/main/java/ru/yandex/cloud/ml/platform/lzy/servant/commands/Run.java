@@ -169,9 +169,12 @@ public class Run implements LzyCommand {
                 LOG.info(JsonFormat.printer().print(progress));
                 if (progress.hasExit()) {
                     exit[0] = progress.getExit();
+                    System.in.close();
                 }
             } catch (InvalidProtocolBufferException e) {
                 LOG.warn("Unable to parse execution progress", e);
+            } catch (IOException e) {
+                LOG.error("Unable to close stdin", e);
             }
         });
         final int rc = exit[0].getRc();
