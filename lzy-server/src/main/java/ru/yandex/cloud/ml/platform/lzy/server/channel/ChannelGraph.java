@@ -1,7 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel;
 
 import java.util.Set;
-import org.springframework.lang.NonNull;
+import javax.validation.constraints.NotNull;
 
 public interface ChannelGraph {
     Set<Endpoint> senders();
@@ -16,15 +16,15 @@ public interface ChannelGraph {
         return receivers().iterator().next();
     }
 
-    void addSender(@NonNull Endpoint sender);
+    void addSender(@NotNull Endpoint sender);
 
-    void addReceiver(@NonNull Endpoint receiver);
+    void addReceiver(@NotNull Endpoint receiver);
 
-    void link(@NonNull Endpoint from, @NonNull Endpoint to);
+    void link(@NotNull Endpoint from, @NotNull Endpoint to);
 
-    void removeSender(@NonNull Endpoint sender);
+    void removeSender(@NotNull Endpoint sender);
 
-    void removeReceiver(@NonNull Endpoint receiver);
+    void removeReceiver(@NotNull Endpoint receiver);
 
-    boolean hasBound(@NonNull Endpoint endpoint);
+    boolean hasBound(@NotNull Endpoint endpoint);
 }

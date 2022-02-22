@@ -73,10 +73,6 @@
       <groupId>com.fasterxml.jackson.core</groupId>
     </dependency>
     <dependency>
-      <artifactId>spring-beans</artifactId>
-      <groupId>org.springframework</groupId>
-    </dependency>
-    <dependency>
       <artifactId>aws-java-sdk-core</artifactId>
       <groupId>com.amazonaws</groupId>
     </dependency>
@@ -91,11 +87,6 @@
     <dependency>
       <artifactId>aws-java-sdk-cloudwatchmetrics</artifactId>
       <groupId>com.amazonaws</groupId>
-    </dependency>
-    <dependency>
-      <artifactId>spring-test</artifactId>
-      <groupId>org.springframework</groupId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <artifactId>jackson-databind</artifactId>

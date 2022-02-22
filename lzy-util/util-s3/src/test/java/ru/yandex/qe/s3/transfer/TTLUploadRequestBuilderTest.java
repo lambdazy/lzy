@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import org.hamcrest.core.Is;
 import org.joda.time.Duration;
 import org.junit.Assert;
-import org.springframework.test.context.ActiveProfiles;
 import org.testng.annotations.Test;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
@@ -14,7 +13,6 @@ import ru.yandex.qe.s3.transfer.ttl.TTLUploadRequestBuilder;
 /**
  * Established by terry on 30.07.15.
  */
-@ActiveProfiles("testing")
 public class TTLUploadRequestBuilderTest {
 
     @Test(expectedExceptions = NullPointerException.class)

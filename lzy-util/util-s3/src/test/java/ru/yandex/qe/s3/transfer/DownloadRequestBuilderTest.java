@@ -5,7 +5,6 @@ import static ru.yandex.qe.s3.transfer.download.DownloadRequest.UNDEFF_BOUND_VAL
 
 import org.hamcrest.core.Is;
 import org.junit.Assert;
-import org.springframework.test.context.ActiveProfiles;
 import org.testng.annotations.Test;
 import ru.yandex.qe.s3.transfer.download.DownloadRequest;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
@@ -13,7 +12,6 @@ import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 /**
  * Established by terry on 30.07.15.
  */
-@ActiveProfiles("testing")
 public class DownloadRequestBuilderTest {
 
     @Test(expectedExceptions = NullPointerException.class)

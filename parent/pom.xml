@@ -20,11 +20,6 @@
         <nirvana-client.version>3.202</nirvana-client.version>
         <yql-jdbc.version>1.0.31</yql-jdbc.version>
         <iceberg-inside-yt-version>5696584</iceberg-inside-yt-version>
-        <springframework.version>5.1.9.RELEASE</springframework.version>
-        <spring-boot.version>2.1.7.RELEASE</spring-boot.version>
-        <spring-boot-starter-web.version>2.1.7.RELEASE</spring-boot-starter-web.version>
-        <spring-boot-starter-jdbc.version>2.1.7.RELEASE</spring-boot-starter-jdbc.version>
-        <spring-boot-starter-thymeleaf.version>2.1.7.RELEASE</spring-boot-starter-thymeleaf.version>
         <tomcat-version>9.0.22</tomcat-version>
         <javax.servlet-api-version>4.0.1</javax.servlet-api-version>
         <commons.version>1.4.9</commons.version>
@@ -60,22 +55,15 @@
         <jackson-dataformat-yaml.version>2.12.5</jackson-dataformat-yaml.version>
         <jackson-datatype-jdk8.version>2.12.5</jackson-datatype-jdk8.version>
         <jackson-datatype-jsr310.version>2.12.5</jackson-datatype-jsr310.version>
-        <lombok.version>1.18.20</lombok.version>
         <bcprov-jdk15on.version>1.64</bcprov-jdk15on.version>
         <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
         <curator.version>4.2.0</curator.version>
         <mockito-core.version>3.5.15</mockito-core.version>
-        <grpc-server-spring-boot-starter.version>2.4.0.RELEASE</grpc-server-spring-boot-starter.version>
-        <spring-boot-starter-log4j2.version>2.2.4.RELEASE</spring-boot-starter-log4j2.version>
-        <spring-boot-starter-websocket.version>2.1.7.RELEASE</spring-boot-starter-websocket.version>
-        <spring-boot-starter-webflux.version>2.1.7.RELEASE</spring-boot-starter-webflux.version>
         <commons-cli.version>1.4</commons-cli.version>
         <commons-s3-amazon.version>6.3287</commons-s3-amazon.version>
         <net.razorvine-pickle.version>1.0</net.razorvine-pickle.version>
         <jeromq.version>0.5.1</jeromq.version>
         <cxf.version>3.3.6</cxf.version>
-        <cxf-spring-boot-starter-jaxrs.version>3.3.6</cxf-spring-boot-starter-jaxrs.version>
-        <spring-websocket.version>5.1.9.RELEASE</spring-websocket.version>
         <javax.mail.version>1.4.7</javax.mail.version>
         <zt-exec.version>1.12</zt-exec.version>
         <zt-process-killer.version>1.10</zt-process-killer.version>
@@ -111,9 +99,7 @@
         <joda-time.version>2.10.13</joda-time.version>
         <easystream.version>1.2.15</easystream.version>
         <hamcrest-core.version>2.2</hamcrest-core.version>
-        <spring-beans.version>5.3.13</spring-beans.version>
         <aws-java-sdk-cloudwatchmetrics.version>1.12.112</aws-java-sdk-cloudwatchmetrics.version>
-        <spring-test.version>5.3.13</spring-test.version>
         <jackson-annotations.version>2.13.0</jackson-annotations.version>
         <javax.ws.rs.version>2.1.1</javax.ws.rs.version>
         <clickhouse.version>0.3.1</clickhouse.version>
@@ -267,47 +253,6 @@
                 <groupId>ru.yandex</groupId>
                 <artifactId>unified_agent_java_client</artifactId>
                 <version>${unified-agent-client.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-core</artifactId>
-                <version>${springframework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-context</artifactId>
-                <version>${springframework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot</artifactId>
-                <version>${spring-boot.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-autoconfigure</artifactId>
-                <version>${spring-boot.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-web</artifactId>
-                <version>${spring-boot-starter-web.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-tomcat</artifactId>
-                <version>${spring-boot-starter-web.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-jdbc</artifactId>
-                <version>${spring-boot-starter-jdbc.version}</version>
-                <scope>compile</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-thymeleaf</artifactId>
-                <version>${spring-boot-starter-thymeleaf.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
@@ -561,11 +506,6 @@
                 <version>${protobuf-java-util.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>${lombok.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>javax.annotation</groupId>
                 <artifactId>javax.annotation-api</artifactId>
                 <version>${javax.annotation-api.version}</version>
@@ -591,44 +531,9 @@
                 <version>${bcprov-jdk15on.version}</version>
             </dependency>
             <dependency>
-                <groupId>net.devh</groupId>
-                <artifactId>grpc-server-spring-boot-starter</artifactId>
-                <version>${grpc-server-spring-boot-starter.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>io.grpc</groupId>
-                        <artifactId>grpc-core</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>io.grpc</groupId>
-                        <artifactId>grpc-netty-shaded</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.integration</groupId>
-                <artifactId>spring-integration-ip</artifactId>
-                <version>${springframework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-log4j2</artifactId>
-                <version>${spring-boot-starter-log4j2.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-websocket</artifactId>
-                <version>${spring-boot-starter-websocket.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>io.prometheus</groupId>
                 <artifactId>simpleclient_log4j2</artifactId>
                 <version>${prometheus.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-webflux</artifactId>
-                <version>${spring-boot-starter-webflux.version}</version>
             </dependency>
             <dependency>
                 <groupId>commons-cli</groupId>
@@ -814,20 +719,9 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-beans</artifactId>
-                <version>${spring-beans.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-cloudwatchmetrics</artifactId>
                 <version>${aws-java-sdk-cloudwatchmetrics.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-test</artifactId>
-                <version>${spring-test.version}</version>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>

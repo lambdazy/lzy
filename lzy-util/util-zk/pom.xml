@@ -39,15 +39,6 @@
 
   <dependencies>
     <dependency>
-      <artifactId>spring-core</artifactId>
-      <groupId>org.springframework</groupId>
-    </dependency>
-    <dependency>
-      <artifactId>spring-context</artifactId>
-      <groupId>org.springframework</groupId>
-    </dependency>
-
-    <dependency>
       <artifactId>junit</artifactId>
       <groupId>junit</groupId>
       <scope>test</scope>
@@ -65,11 +56,6 @@
       <artifactId>curator-test</artifactId>
       <groupId>org.apache.curator</groupId>
       <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <artifactId>lombok</artifactId>
-      <groupId>org.projectlombok</groupId>
     </dependency>
     <dependency>
       <artifactId>streamex</artifactId>

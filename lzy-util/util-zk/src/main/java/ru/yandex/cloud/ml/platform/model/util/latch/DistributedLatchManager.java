@@ -7,12 +7,7 @@ import javax.annotation.Nullable;
 import org.apache.curator.framework.CuratorFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Service;
 
-@Lazy
-@Service("DistributedLatchManager")
 public class DistributedLatchManager implements LatchManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedLatchManager.class);
@@ -22,7 +17,6 @@ public class DistributedLatchManager implements LatchManager {
     private final String prefix;
     private final int latchTimeoutMins;
 
-    @Autowired
     public DistributedLatchManager(CuratorFramework zookeeperClient, int latchTimeoutMins) {
         this.zookeeperClient = zookeeperClient;
         this.latches = new ConcurrentHashMap<>();
