@@ -50,7 +50,7 @@ jobs:
       - name: 'push-docker'
         run: |
           FLAGS="--rebuild"
-          if [[ ${{ github.event.inputs.servant-base }} == true ]]; then FLAGS="--base"; fi
+          if [[ ${{ github.event.inputs.servant-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
           if [[ ${{ github.event.inputs.update }} == true ]]; then FLAGS="$FLAGS --update"; fi
           if [[ ${{ github.event.inputs.major }} == true ]]; then FLAGS="$FLAGS --major"; fi
           bash deployment/push-docker.sh "${{ github.event.inputs.tag }}" $FLAGS
