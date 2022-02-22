@@ -13,7 +13,7 @@ from lzy.api.whiteboard.model import (
     WhiteboardApi,
     WhiteboardDescription,
     WhiteboardStatus,
-    WhiteboardFieldDescription, get_bucket_from_url
+    WhiteboardFieldDescription, get_bucket_from_url, WhiteboardFieldStatus
 )
 from lzy.servant.bash_servant_client import exec_bash
 from datetime import datetime
@@ -123,7 +123,7 @@ class WhiteboardBashApi(WhiteboardApi):
         fields = [
             WhiteboardFieldDescription(
                 field["fieldName"],
-                field["status"],
+                WhiteboardFieldStatus(field["status"]),
                 field.get("dependentFieldNames"),
                 field.get("storageUri")
             )
