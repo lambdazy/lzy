@@ -21,6 +21,9 @@ for ARG in "$@"; do
   --update)
     UPDATE=true
     ;;
+  --major)
+    MAJOR=true
+    ;;
   esac
 done
 
@@ -55,6 +58,9 @@ for SERVICE in $SERVICES; do
       fi
     done
     MINOR=$((MINOR + 1))
+    if [[ $MAJOR = true ]]; then
+      MAJOR=$((MAJOR + 1))
+    fi
     TAG="$MAJOR.$MINOR"
   else
     TAG="$INSTALLATION"
