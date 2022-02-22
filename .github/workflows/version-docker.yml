@@ -1,0 +1,44 @@
+name: Update docker tag in push
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        type: boolean
+        description: 'Update base servant docker image'
+        required: false
+        default: 'false'
+      update:
+        type: boolean
+        description: 'Update version'
+        required: false
+        default: 'false'
+      major:
+        type: boolean
+        description: 'Update MAJOR version'
+        required: false
+        default: 'false'
+jobs:
+
+  update-docker-tags:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: '11'
+
+      - name: 'push-docker'
+        run: |
+          FLAGS="--rebuild"
+          if [[ ${{ github.event.inputs.base }} == true ]]; then FLAGS="--base"; fi
+          if [[ ${{ github.event.inputs.update }} == true ]]; then FLAGS="$FLAGS --update"; fi
+          if [[ ${{ github.event.inputs.major }} == true ]]; then FLAGS="$FLAGS --major"; fi
+          bash deployment/push-docker.sh {{branch}} $FLAGS
