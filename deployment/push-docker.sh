@@ -8,6 +8,7 @@ fi
 BASE=false
 REBUILD=false
 UPDATE=false
+MAJOR=false
 
 for ARG in "$@"; do
   case "$ARG" in
@@ -41,14 +42,20 @@ fi
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
   if [[ $UPDATE = true ]]; then
-    MAX_TAG=-1
+    MAJOR=1
+    MINOR=-1
     for TAG in $(wget -q "https://registry.hub.docker.com/v1/repositories/lzydock/$SERVICE/tags" -O - | jq -r '.[].name'); do
-      if [[ "$TAG" =~ [0-9]* && "$MAX_TAG" -lt "$TAG" ]]; then
-        MAX_TAG="$TAG"
+      if [[ "$TAG" =~ [0-9]*.[0-9]* ]]; then
+        CUR_MAJOR=$(echo "$TAG" | awk -F. '{print $1}')
+        CUR_MINOR=$(echo "$TAG" | awk -F. '{print $2}')
+        if [[ "$MAJOR" -lt "$CUR_MAJOR" || ("$MAJOR" = "$CUR_MAJOR" && "$MINOR" -lt "$CUR_MINOR") ]]; then
+          MAJOR="$CUR_MAJOR"
+          MINOR="$CUR_MINOR"
+        fi
       fi
     done
-    NEW_TAG=$((MAX_TAG + 1))
-    TAG="$NEW_TAG"
+    MINOR=$((MINOR + 1))
+    TAG="$MAJOR:$MINOR"
   else
     TAG="$INSTALLATION"
   fi
