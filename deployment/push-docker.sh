@@ -1,7 +1,10 @@
 #!/bin/bash
 
+echo "flags: $*"
+exit 0
+
 if [[ $# -lt 1 || -z $1 ]]; then
-  echo "Usage: $0 <installation-tag> [--rebuild [--base [--update]]]"
+  echo "Usage: $0 <installation-tag> [--rebuild [--base [--update [--major]]]]"
   exit
 fi
 
