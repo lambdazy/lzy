@@ -34,7 +34,7 @@ class WhiteboardFieldDescription:
     field_name: str
     status: WhiteboardFieldStatus
     dependent_field_names: Optional[List[str]]  # protobuf makes no distinction between empty list and null list
-    storage_uri: Optional[str]
+    storage_uri: str
 
 
 class WhiteboardStatus(Enum):
@@ -128,7 +128,7 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def resolve(self, field_url: Optional[str], field_type: Type[Any]) -> Any:
+    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         pass
 
 
@@ -147,7 +147,7 @@ class UUIDEntryIdGenerator(EntryIdGenerator):
 
 
 class InMemWhiteboardApi(WhiteboardApi):
-    def resolve(self, field_url: Optional[str], field_type: Type[Any]) -> Any:
+    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         return None
 
     def __init__(self) -> None:

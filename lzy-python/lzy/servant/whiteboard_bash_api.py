@@ -66,9 +66,7 @@ class WhiteboardBashApi(WhiteboardApi):
             self.__whiteboard_storage_by_bucket[bucket] = WhiteboardStorage.create(self.__credentials[bucket])
         return self.__whiteboard_storage_by_bucket[bucket]
 
-    def resolve(self, field_url: Optional[str], field_type: Type[Any]) -> Any:
-        if field_url is None:
-            return None
+    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
 
         bucket = get_bucket_from_url(field_url)
