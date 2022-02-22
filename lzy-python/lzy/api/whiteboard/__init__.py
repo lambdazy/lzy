@@ -50,6 +50,8 @@ def view(func):
 
 
 def check_message_field(obj: Any) -> bool:
+    if obj is None:
+        return False
     return hasattr(obj, 'LZY_MESSAGE')
 
 

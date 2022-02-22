@@ -4,7 +4,6 @@ import os
 import tempfile
 from abc import abstractmethod, ABC
 from pathlib import Path
-from types import ModuleType
 from datetime import datetime
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
@@ -73,7 +72,7 @@ class LzyEnvBase(ABC):
         whiteboard_dict: Dict[str, Any] = {}
         for field in wb_.fields:
             if field.field_name in field_types:
-                if field.status is WhiteboardFieldStatus.FINISHED:
+                if WhiteboardFieldStatus[field.status] is WhiteboardFieldStatus.FINISHED:
                     whiteboard_dict[field.field_name] = self._execution_context \
                         .whiteboard_api \
                         .resolve(field.storage_uri, field_types[field.field_name])

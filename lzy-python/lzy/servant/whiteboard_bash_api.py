@@ -6,6 +6,7 @@ from typing import Any, Type, Dict, List, TypeVar, Optional
 # noinspection PyProtectedMember
 from lzy.api._proxy import proxy
 from lzy.api.whiteboard.credentials import StorageCredentials
+from lzy.api.serializer.serializer import Serializer
 from lzy.api.whiteboard.model import (
     SnapshotApi,
     SnapshotDescription,
@@ -53,6 +54,7 @@ class WhiteboardBashApi(WhiteboardApi):
         self._log = logging.getLogger(str(self.__class__))
         self.__credentials: Dict[str, StorageCredentials] = {}
         self.__whiteboard_storage_by_bucket: Dict[str, WhiteboardStorage] = {}
+        self.__serializer = Serializer()
 
     def _whiteboard_storage(self, bucket: str) -> WhiteboardStorage:
         if bucket not in self.__credentials:
@@ -70,7 +72,8 @@ class WhiteboardBashApi(WhiteboardApi):
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
 
         bucket = get_bucket_from_url(field_url)
-        return proxy(lambda: self._whiteboard_storage(bucket).read(field_url, field_type), field_type) # type: ignore
+        return proxy(lambda: self.__serializer.deserialize_from_byte_string(
+            self._whiteboard_storage(bucket).read(field_url), field_type), field_type) # type: ignore
         # type: ignore[no-any-return]
 
     def create(self, fields: List[str], snapshot_id: str, namespace: str, tags: List[str]) -> WhiteboardDescription:

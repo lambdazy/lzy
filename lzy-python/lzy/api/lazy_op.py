@@ -7,10 +7,8 @@ import time
 from abc import abstractmethod, ABC
 from pathlib import Path
 from typing import Optional, Any, TypeVar, Generic, Type, Tuple
-
-import cloudpickle
+from lzy.api.serializer.serializer import Serializer
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
-
 from lzy.api.whiteboard.model import EntryIdGenerator
 from lzy.api.result import Just, Nothing, Result
 from lzy.model.channel import Channel, Binding, Bindings
@@ -22,7 +20,6 @@ from lzy.model.slot import Direction, Slot
 from lzy.model.zygote import Zygote, Provisioning
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant_client import ServantClient, Execution
-from lzy.api.whiteboard import check_message_field
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -152,10 +149,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     @staticmethod
     def dump_value_to_slot(slot_path: Path, obj: Any):
         with slot_path.open("wb") as handle:
-            if check_message_field(obj):
-                obj.dump(handle)
-            else:
-                cloudpickle.dump(obj, handle)
+            serializer = Serializer()
+            serializer.serialize_to_file(obj, handle)
             handle.flush()
             os.fsync(handle.fileno())
 
@@ -176,10 +171,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             while handle.read(1) is None:
                 time.sleep(0)  # Thread.yield
             handle.seek(0)
-            if check_message_field(obj_type):
-                value = load(obj_type, handle)
-            else:
-                value = cloudpickle.load(handle)
+            serializer = Serializer()
+            value = serializer.deserialize_from_file(handle, obj_type)
         return value
 
     @staticmethod
