@@ -10,7 +10,9 @@ import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.St
 
 import io.micronaut.context.ApplicationContext;
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import org.hibernate.Session;
@@ -45,6 +47,8 @@ public class DbSnapshotRepositoryTest {
     private String entryIdSecond;
     private String entryIdThird;
     private URI snapshotOwner;
+    private final Date creationDateUTC = Date.from(Instant.now());
+
 
     @Before
     public void setUp() {
@@ -152,8 +156,8 @@ public class DbSnapshotRepositoryTest {
         try (Session session = storage.getSessionFactory().openSession()) {
             final Transaction tx = session.beginTransaction();
             session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId, namespace));
-            session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId, namespace));
+            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId, namespace, creationDateUTC));
+            session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId, namespace, creationDateUTC));
             String fieldNameFirst = "fieldNameFirst";
             final String entryIdFirst = UUID.randomUUID().toString();
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, entryIdFirst));
@@ -197,8 +201,8 @@ public class DbSnapshotRepositoryTest {
         try (Session session = storage.getSessionFactory().openSession()) {
             final Transaction tx = session.beginTransaction();
             session.save(new SnapshotModel(snapshotId, State.CREATED, snapshotOwner.toString()));
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId, namespace));
-            session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId, namespace));
+            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotId, namespace, creationDateUTC));
+            session.save(new WhiteboardModel(wbIdSecond, CREATED, snapshotId, namespace, creationDateUTC));
             tx.commit();
         }
         impl.error(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner));

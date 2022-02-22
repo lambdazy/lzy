@@ -2,16 +2,17 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
+import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -23,6 +24,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
@@ -77,19 +79,19 @@ public class LzyKharon {
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
         int servantProxyPort) throws URISyntaxException {
-        final ManagedChannel serverChannel = ManagedChannelBuilder
+        final ManagedChannel serverChannel = ChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
             .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
 
-        final ManagedChannel whiteboardChannel = ManagedChannelBuilder
+        final ManagedChannel whiteboardChannel = ChannelBuilder
             .forAddress(whiteboardUri.getHost(), whiteboardUri.getPort())
             .usePlaintext()
             .build();
         whiteboard = WbApiGrpc.newBlockingStub(whiteboardChannel);
 
-        final ManagedChannel snapshotChannel = ManagedChannelBuilder
+        final ManagedChannel snapshotChannel = ChannelBuilder
             .forAddress(snapshotUri.getHost(), snapshotUri.getPort())
             .usePlaintext()
             .build();
@@ -99,13 +101,15 @@ public class LzyKharon {
             null);
         terminalManager = new TerminalSessionManager(server, servantProxyAddress);
 
-        kharonServer = ServerBuilder
-            .forPort(port)
+        kharonServer = NettyServerBuilder.forPort(port)
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(
                 ServerInterceptors.intercept(new KharonService(), new SessionIdInterceptor()))
             .build();
-        kharonServantProxy = ServerBuilder
-            .forPort(servantProxyPort)
+        kharonServantProxy = NettyServerBuilder.forPort(servantProxyPort)
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors
                 .intercept(new KharonServantProxyService(), new SessionIdInterceptor()))
             .build();

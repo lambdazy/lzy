@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
+import java.util.Date;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -27,11 +28,16 @@ public class WhiteboardModel {
     @Column(name = "namespace")
     private String namespace;
 
-    public WhiteboardModel(String wbId, WhiteboardStatus.State wbStatus, String snapshotId, String namespace) {
+    @Column(name = "creation_date_UTC", nullable = false)
+    private Date creationDateUTC;
+
+    public WhiteboardModel(String wbId, WhiteboardStatus.State wbStatus, String snapshotId,
+        String namespace, Date creationDateUTC) {
         this.wbId = wbId;
         this.wbState = wbStatus;
         this.snapshotId = snapshotId;
         this.namespace = namespace;
+        this.creationDateUTC = creationDateUTC;
     }
 
     public WhiteboardModel() {
@@ -55,5 +61,9 @@ public class WhiteboardModel {
 
     public String getNamespace() {
         return namespace;
+    }
+
+    public Date getCreationDateUTC() {
+        return creationDateUTC;
     }
 }

@@ -5,6 +5,8 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from datetime import datetime
+from datetime import timezone
 from inspect import Signature
 from typing import Dict, List, Optional, Any, Type, TypeVar
 from urllib import parse
@@ -122,7 +124,7 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def list(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+    def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None) -> List[WhiteboardDescription]:
         pass
 
     @abstractmethod
@@ -152,6 +154,7 @@ class InMemWhiteboardApi(WhiteboardApi):
         self.__whiteboards: Dict[str, WhiteboardDescription] = {}
         self.__namespaces: Dict[str, str] = {}
         self.__tags: Dict[str, List[str]] = {}
+        self.__creation_date: Dict[str, datetime] = {}
 
     def create(self, fields: List[str], snapshot_id: str, namespace: str, tags: List[str]) -> WhiteboardDescription:
         wb_id = str(uuid.uuid1())
@@ -163,6 +166,7 @@ class InMemWhiteboardApi(WhiteboardApi):
         )
         self.__namespaces[wb_id] = namespace
         self.__tags[wb_id] = tags
+        self.__creation_date[wb_id] = datetime.now(timezone.utc)
         return self.__whiteboards[wb_id]
 
     def link(self, wb_id: str, field_name: str, entry_id: str):
@@ -171,11 +175,19 @@ class InMemWhiteboardApi(WhiteboardApi):
     def get(self, wb_id: str) -> WhiteboardDescription:
         return self.__whiteboards[wb_id]
 
-    def list(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+    def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None) \
+            -> List[WhiteboardDescription]:
+        if not from_date:
+            from_date = datetime(1, 1, 1, tzinfo=timezone.utc)
+        if not to_date:
+            to_date = datetime(9999, 12, 31, tzinfo=timezone.utc)
+        from_utc = datetime.fromtimestamp(from_date.timestamp(), tz=timezone.utc)
+        to_utc = datetime.fromtimestamp(to_date.timestamp(), tz=timezone.utc)
         namespace_ids = [k for k, v in self.__namespaces.items() if v == namespace]
         tags_ids = [k for k, v in self.__tags.items() if all(item in v for item in tags)]
         wb_ids = set.intersection(set(namespace_ids), set(tags_ids))
-        return [self.__whiteboards[id_] for id_ in wb_ids]
+        wb_ids_filtered_by_date = [id for id in wb_ids if from_utc <= self.__creation_date[id] < to_utc]
+        return [self.__whiteboards[id_] for id_ in wb_ids_filtered_by_date]
 
 
 class InMemSnapshotApi(SnapshotApi):

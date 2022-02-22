@@ -11,7 +11,8 @@ import java.util.concurrent.TimeUnit;
 public class ChannelBuilder {
 
     public static final int IDLE_TIMEOUT_MINS = 5;
-    public static final int KEEP_ALIVE_TIME_MINS = 2;
+    public static final int KEEP_ALIVE_TIME_MINS = 3;
+    public static final int KEEP_ALIVE_TIME_MINS_ALLOWED = 2;
     public static final int KEEP_ALIVE_TIMEOUT_SECS = 10;
 
     private final String host;

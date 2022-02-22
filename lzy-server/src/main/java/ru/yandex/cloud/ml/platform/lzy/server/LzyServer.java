@@ -9,6 +9,7 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -22,6 +23,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import org.apache.commons.cli.CommandLine;
@@ -43,6 +45,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
@@ -117,7 +120,9 @@ public class LzyServer {
             )
         )) {
             Impl impl = context.getBean(Impl.class);
-            ServerBuilder<?> builder = ServerBuilder.forPort(port)
+            ServerBuilder<?> builder = NettyServerBuilder.forPort(port)
+                .permitKeepAliveWithoutCalls(true)
+                .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
                 .addService(impl);
             try {
                 BackOfficeService backoffice = context.getBean(BackOfficeService.class);

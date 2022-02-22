@@ -129,6 +129,15 @@ public class PyApiTest extends LzyBaseTest {
         Assert.assertTrue(result.stdout().contains("Number of whiteboard is 4"));
         Assert.assertTrue(result.stdout().contains("First whiteboard type is SimpleWhiteboard"));
 
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date lower and upper "
+            + "bounds are specified is 7"));
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date lower bound is "
+            + "specified is 7"));
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date upper bounds "
+            + "is specified is 7"));
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date interval is set "
+            + "for the future is 0"));
+
         Assert.assertTrue(result.stdout().contains("string_field value in WhiteboardWithLzyMessageFields is fun6:fun7"));
         Assert.assertTrue(result.stdout().contains("int_field value in WhiteboardWithLzyMessageFields is 3"));
         Assert.assertTrue(result.stdout().contains("list_field length in WhiteboardWithLzyMessageFields is 3"));

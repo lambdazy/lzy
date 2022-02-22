@@ -1,11 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate;
 
 import java.net.URI;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import javax.persistence.TemporalType;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
@@ -166,7 +168,8 @@ public class SessionHelper {
         }
         Set<String> fieldNames = getWhiteboardFieldNames(wbId, session);
         Set<String> tags = getWhiteboardTags(wbId, session);
-        return new Whiteboard.Impl(URI.create(wbId), fieldNames, snapshot, tags, wbModel.getNamespace());
+        return new Whiteboard.Impl(URI.create(wbId), fieldNames, snapshot, tags,
+            wbModel.getNamespace(), wbModel.getCreationDateUTC());
     }
 
     @Nullable
@@ -212,7 +215,8 @@ public class SessionHelper {
             SessionHelper.getWhiteboardFieldNames(wbId, session),
             resolveSnapshot(spId, session),
             SessionHelper.getWhiteboardTags(wbId, session),
-            wbModel.getNamespace()
+            wbModel.getNamespace(),
+            wbModel.getCreationDateUTC()
         );
     }
 
@@ -241,21 +245,25 @@ public class SessionHelper {
             snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri()));
     }
 
-    public static List<String> getWhiteboardIdByNamespaceAndTags(String namespace, List<String> tags, Session session) {
+    public static List<String> resolveWhiteboardIds(String namespace, List<String> tags,
+        Date fromDateUTCIncluded, Date toDateUTCExcluded, Session session) {
         String whiteboardsByNameAndTagsRequest;
         if (tags.isEmpty()) {
             whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w "
-                + "WHERE w.namespace = :namespace ";
+                + "WHERE w.namespace = :namespace AND w.creationDateUTC >= :dateFrom AND w.creationDateUTC < :dateTo";
         } else {
             whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w "
                 + "JOIN WhiteboardTagModel t ON w.wbId = t.wbId "
-                + "WHERE w.namespace = :namespace AND t.tag in (:tags) "
+                + "WHERE w.namespace = :namespace AND t.tag in (:tags) AND "
+                + "w.creationDateUTC >= :dateFrom AND w.creationDateUTC < :dateTo "
                 + "GROUP BY w.wbId "
                 + "HAVING count(*) >= :tagsSize ";
         }
         //noinspection unchecked
         Query<String> query = session.createQuery(whiteboardsByNameAndTagsRequest);
         query.setParameter("namespace", namespace);
+        query.setParameter("dateFrom", fromDateUTCIncluded, TemporalType.TIMESTAMP);
+        query.setParameter("dateTo", toDateUTCExcluded, TemporalType.TIMESTAMP);
         if (!tags.isEmpty()) {
             query.setParameter("tagsSize", (long) tags.size());
             query.setParameterList("tags", tags);

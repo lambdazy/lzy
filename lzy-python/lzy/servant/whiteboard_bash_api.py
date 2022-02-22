@@ -15,6 +15,7 @@ from lzy.api.whiteboard.model import (
     WhiteboardFieldDescription, get_bucket_from_url
 )
 from lzy.servant.bash_servant_client import exec_bash
+from datetime import datetime
 from lzy.servant.servant_client import ServantClient, CredentialsTypes
 from lzy.servant.whiteboard_storage import WhiteboardStorage
 
@@ -133,13 +134,18 @@ class WhiteboardBashApi(WhiteboardApi):
     def _parse_wb_json_list(res: Dict[str, Any]) -> List[WhiteboardDescription]:
         return [WhiteboardBashApi._parse_wb_json(whiteboard) for whiteboard in res.get("whiteboards", [])]
 
-    def list(self, namespace: str, tags: List[str]) -> List[WhiteboardDescription]:
+    def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None) \
+            -> List[WhiteboardDescription]:
         self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags}")
         command = " ".join([f"{self.__mount}/sbin/whiteboard", "list"])
         if tags:
             command = " ".join([command, "-t", ",".join(tags)])
         if namespace:
             command = " ".join([command, "-n", namespace])
+        if from_date:
+            command = " ".join([command, "-from", str(int(from_date.timestamp()))])
+        if to_date:
+            command = " ".join([command, "-to", str(int(to_date.timestamp()))])
         out = exec_bash(command)
         try:
             res = json.loads(out)

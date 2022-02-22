@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +27,7 @@ public class ServantConnectionManager {
 
         Connection(URI uri) {
             LOG.info("Creating connection for uri " + uri);
-            channel = ManagedChannelBuilder
+            channel = ChannelBuilder
                 .forAddress(uri.getHost(), uri.getPort())
                 .usePlaintext()
                 .build();

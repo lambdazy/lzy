@@ -3,14 +3,15 @@ package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -40,7 +41,10 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     public LzyTerminal(LzyAgentConfig config) throws URISyntaxException {
         super(config);
         final LzyTerminal.Impl impl = new Impl();
-        agentServer = ServerBuilder.forPort(config.getAgentPort()).addService(impl).build();
+        agentServer = NettyServerBuilder.forPort(config.getAgentPort())
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .addService(impl).build();
         channel = ChannelBuilder
             .forAddress(serverAddress.getHost(), serverAddress.getPort())
             .usePlaintext()
