@@ -8,7 +8,7 @@ fi
 BASE=false
 REBUILD=false
 UPDATE=false
-MAJOR=false
+INC_MAJOR=false
 
 for ARG in "$@"; do
   case "$ARG" in
@@ -22,7 +22,7 @@ for ARG in "$@"; do
     UPDATE=true
     ;;
   --major)
-    MAJOR=true
+    INC_MAJOR=true
     ;;
   esac
 done
@@ -58,8 +58,9 @@ for SERVICE in $SERVICES; do
       fi
     done
     MINOR=$((MINOR + 1))
-    if [[ $MAJOR = true ]]; then
+    if [[ $INC_MAJOR = true ]]; then
       MAJOR=$((MAJOR + 1))
+      MINOR=0
     fi
     TAG="$MAJOR.$MINOR"
   else
