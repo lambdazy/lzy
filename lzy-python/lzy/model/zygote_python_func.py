@@ -2,13 +2,12 @@ import base64
 import os
 from typing import Generic, TypeVar, Optional
 
-import cloudpickle
-
 from lzy.model.signatures import FuncSignature
 from lzy.model.env import Env
 from lzy.model.slot import Direction
 from lzy.model.file_slots import create_slot
 from lzy.model.zygote import Zygote, Provisioning
+from lzy.api.serializer.serializer import Serializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -39,6 +38,6 @@ class ZygotePythonFunc(Zygote, Generic[T]):
             "$(python -c 'import site; print(site.getsitepackages()[0])')",
             "/lzy/startup.py "
         ])
-        serialized_func = base64.b64encode(
-            cloudpickle.dumps(self.signature)).decode('ascii')
+        serializer = Serializer()
+        serialized_func = base64.b64encode(serializer.serialize_to_byte_string(self.signature)).decode('ascii')
         return _com + serialized_func

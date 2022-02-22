@@ -6,10 +6,9 @@ import time
 
 from abc import abstractmethod, ABC
 from pathlib import Path
-from typing import Optional, Any, TypeVar, Generic
-
-import cloudpickle
-
+from typing import Optional, Any, TypeVar, Generic, Type, Tuple
+from lzy.api.serializer.serializer import Serializer
+from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 from lzy.api.whiteboard.model import EntryIdGenerator
 from lzy.api.result import Just, Nothing, Result
 from lzy.model.channel import Channel, Binding, Bindings
@@ -21,7 +20,6 @@ from lzy.model.slot import Direction, Slot
 from lzy.model.zygote import Zygote, Provisioning
 from lzy.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.servant_client import ServantClient, Execution
-
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -80,14 +78,14 @@ class LzyExecutionException(Exception):
 
 class LzyRemoteOp(LzyOp, Generic[T]):
     def __init__(
-        self,
-        servant: ServantClient,
-        signature: CallSignature[T],
-        provisioning: Provisioning = None,
-        env: PyEnv = None,
-        deployed: bool = False,
-        entry_id_generator: Optional[EntryIdGenerator] = None,
-        return_entry_id: Optional[str] = None,
+            self,
+            servant: ServantClient,
+            signature: CallSignature[T],
+            provisioning: Provisioning = None,
+            env: PyEnv = None,
+            deployed: bool = False,
+            entry_id_generator: Optional[EntryIdGenerator] = None,
+            return_entry_id: Optional[str] = None,
     ):
         if (not provisioning or not env) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
@@ -95,6 +93,18 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         self._deployed = deployed
         self._servant = servant
         self._env = env
+        input_types: Tuple[type, ...] = ()
+        for input_type in signature.func.input_types:
+            if issubclass(input_type, Message):
+                setattr(input_type, 'LZY_MESSAGE', 'LZY_WB_MESSAGE')
+            input_types = input_types + (input_type,)
+        signature.func.input_types = input_types
+
+        output_type = signature.func.output_type
+        if issubclass(output_type, Message):
+            setattr(output_type, 'LZY_MESSAGE', 'LZY_WB_MESSAGE')
+        signature.func.output_type = output_type
+
         self._zygote = ZygotePythonFunc(
             signature.func,
             # self._servant.mount(),
@@ -108,6 +118,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             return_entry_id = entry_id_generator.generate(self._zygote.return_slot)
 
         super().__init__(signature, str(return_entry_id))
+
+    serializer: Serializer = Serializer()
 
     @property
     def zygote(self) -> Zygote:
@@ -134,50 +146,51 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         return_local_slot = self.resolve_slot(execution, return_slot)
         return_slot_path = self._servant.get_slot_path(return_local_slot)
         self._log.info(f"Reading result from {return_slot_path}")
-        return_value = self.read_value_from_slot(return_slot_path)
+        return_value = self.read_value_from_slot(return_slot_path, self.signature.func.output_type)
         if isinstance(return_value, Nothing):
             self._log.error(f"Failed to read result from {return_slot_path}")
         return return_value
 
-    @staticmethod
-    def dump_value_to_slot(slot_path: Path, obj: Any):
+    @classmethod
+    def dump_value_to_slot(cls, slot_path: Path, obj: Any):
         with slot_path.open("wb") as handle:
-            cloudpickle.dump(obj, handle)
+            cls.serializer.serialize_to_file(obj, handle)
             handle.flush()
             os.fsync(handle.fileno())
 
-    @staticmethod
-    def read_value_from_slot(slot_path: Path) -> Result[Any]:
+    @classmethod
+    def read_value_from_slot(cls, slot_path: Path, obj_type: Type[T]) -> Result[Any]:
         # noinspection PyBroadException
         try:
-            return Just(LzyRemoteOp._read_value_from_slot(slot_path))
+            return Just(LzyRemoteOp._read_value_from_slot(slot_path, obj_type))
         except (OSError, ValueError) as _:
             return Nothing()
         except BaseException as _:  # pylint: disable=broad-except
             return Nothing()
 
-    @staticmethod
-    def _read_value_from_slot(slot_path: Path) -> Optional[Any]:
+    @classmethod
+    def _read_value_from_slot(cls, slot_path: Path, obj_type: Type[T]) -> Optional[Any]:
         with slot_path.open("rb") as handle:
             # Wait for slot to become open
             while handle.read(1) is None:
                 time.sleep(0)  # Thread.yield
             handle.seek(0)
-            value = cloudpickle.load(handle)
+            value = cls.serializer.deserialize_from_file(handle, obj_type)
         return value
 
-    @staticmethod
-    def resolve_slot(execution: Execution, local_slot: Slot) -> Slot:
+    @classmethod
+    def resolve_slot(cls, execution: Execution, local_slot: Slot) -> Slot:
         slot = execution.bindings().local_slot(local_slot)
         if slot is None:
             raise RuntimeError(f"Slot {local_slot.name} not binded")
 
         return slot
 
-    @staticmethod
+    @classmethod
     def _execution_exception_message(
-                execution: Execution,
-                func: FuncSignature[Any], return_code: int) -> str:
+            cls,
+            execution: Execution,
+            func: FuncSignature[Any], return_code: int) -> str:
 
         if return_code == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR.value:
             message = "Failed to install environment on remote machine"
@@ -187,8 +200,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             message = "Execution error"
         return LzyRemoteOp._exception(execution, func, return_code, message)
 
-    @staticmethod
-    def _exception(execution: Execution, func: FuncSignature[Any],
+    @classmethod
+    def _exception(cls, execution: Execution, func: FuncSignature[Any],
                    returncode: int, message: str) -> str:
         return (
             f"Task {execution.id()[:4]} failed in func {func.name}"
@@ -224,7 +237,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             rc_ = result.returncode
             if rc_ == 0 and return_value is not None:
                 self._log.info("Executed task %s for func %s with rc %s",
-                               execution.id()[:4], self.signature.func.name, rc_,)
+                               execution.id()[:4], self.signature.func.name, rc_, )
                 return return_value.value  # type: ignore
 
             message = ""
@@ -259,13 +272,13 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     # pylint: disable=too-many-arguments
     @staticmethod
     def restore(
-        servant: ServantClient,
-        materialized: bool,
-        materialization: Any,
-        return_entry_id: Optional[str],
-        call_s: CallSignature[T],
-        provisioning: Provisioning,
-        env: PyEnv,
+            servant: ServantClient,
+            materialized: bool,
+            materialization: Any,
+            return_entry_id: Optional[str],
+            call_s: CallSignature[T],
+            provisioning: Provisioning,
+            env: PyEnv,
     ):
         op_ = LzyRemoteOp(
             servant,

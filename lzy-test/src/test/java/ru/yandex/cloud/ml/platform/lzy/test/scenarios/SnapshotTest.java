@@ -245,7 +245,7 @@ public class SnapshotTest extends LzyBaseTest {
         Assert.assertNotNull(wbIdThird);
 
         final String wbIdFourth = createWhiteboard(
-            spIdSecond, List.of("fileNameC"), Collections.emptyList(), firstNamespace);
+            spIdSecond, List.of("fileNameC"), List.of(thirdTag), firstNamespace);
         Assert.assertNotNull(wbIdFourth);
 
         final String wbIdFifth = createWhiteboard(

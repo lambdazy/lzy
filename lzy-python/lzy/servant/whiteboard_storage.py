@@ -6,6 +6,7 @@ from azure.storage.blob import BlobServiceClient
 
 from lzy.api.storage.storage_client import AzureClient, AmazonClient
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
+from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -53,6 +54,8 @@ class AmazonWhiteboardStorage(WhiteboardStorage):
     def __init__(self, credentials: AmazonCredentials):
         super().__init__()
         self.client = AmazonClient(credentials)
+        # pylint: disable=unused-private-member
+        self.__logger = logging.getLogger(self.__class__.__name__)
 
     def read(self, url: str) -> Any:
         return self.client.read(url)

@@ -3,6 +3,7 @@ from typing import List, Any, Callable, Optional, Dict
 
 from lzy.api.utils import is_lazy_proxy
 from lzy.api.whiteboard.model import WhiteboardApi, WhiteboardDescription
+from pure_protobuf.dataclasses_ import message  # type: ignore
 
 ALREADY_WRAPPED = '_already_wrapped_whiteboard'
 ALREADY_WRAPPED_READY = '_already_wrapped_ready_whiteboard'
@@ -46,6 +47,12 @@ def check_whiteboard(obj: Any) -> None:
 def view(func):
     func.LZY_WB_VIEW_DECORATOR = 'view_deco'
     return func
+
+
+def check_message_field(obj: Any) -> bool:
+    if obj is None:
+        return False
+    return hasattr(obj, 'LZY_MESSAGE')
 
 
 def wrap_whiteboard(

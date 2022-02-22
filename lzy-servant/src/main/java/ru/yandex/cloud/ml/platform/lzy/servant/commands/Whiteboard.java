@@ -73,15 +73,12 @@ public class Whiteboard implements LzyCommand {
                 if (!localCmd.hasOption('l')) {
                     throw new IllegalArgumentException("Whiteboard fields list must be specified");
                 }
-                if (!localCmd.hasOption('n')) {
-                    throw new IllegalArgumentException("Whiteboard namespace must be specified");
+                if (!localCmd.hasOption('t')) {
+                    throw new IllegalArgumentException("Whiteboard tags must be specified");
                 }
-                List<String> tags = new ArrayList<>();
-                if (localCmd.hasOption('t')) {
-                    tags = List.of(localCmd.getOptionValue('t').split(","));
-                }
+                List<String> tags = List.of(localCmd.getOptionValue('t').split(","));
                 final List<String> fields = List.of(localCmd.getOptionValue('l').split(","));
-                final String namespace = localCmd.getOptionValue('n');
+                final String namespace = localCmd.getOptionValue('n', "default");
 
                 Instant time = Instant.now();
                 Timestamp timestamp = Timestamp.newBuilder().setSeconds(time.getEpochSecond()).build();

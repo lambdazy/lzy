@@ -4,7 +4,6 @@ import os
 import tempfile
 from abc import abstractmethod, ABC
 from pathlib import Path
-from types import ModuleType
 from datetime import datetime
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
@@ -21,7 +20,8 @@ from lzy.api.whiteboard.model import (
     SnapshotApi,
     WhiteboardApi,
     WhiteboardList,
-    WhiteboardDescription
+    WhiteboardDescription,
+    WhiteboardFieldStatus
 )
 from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
@@ -71,12 +71,11 @@ class LzyEnvBase(ABC):
         field_types = {field.name: field.type for field in dataclasses.fields(typ)}
         whiteboard_dict: Dict[str, Any] = {}
         for field in wb_.fields:
-            if field.storage_uri is None:
-                whiteboard_dict[field.field_name] = None
-            else:
-                whiteboard_dict[field.field_name] = self._execution_context \
-                    .whiteboard_api \
-                    .resolve(field.storage_uri, field_types[field.field_name])
+            if field.field_name in field_types:
+                if field.status is WhiteboardFieldStatus.FINISHED:
+                    whiteboard_dict[field.field_name] = self._execution_context \
+                        .whiteboard_api \
+                        .resolve(field.storage_uri, field_types[field.field_name])
         # noinspection PyArgumentList
         instance = typ(**whiteboard_dict)
         wrap_whiteboard_for_read(instance, wb_)
@@ -88,7 +87,13 @@ class LzyEnvBase(ABC):
         wb_list = self._execution_context.whiteboard_api.list(namespace, tags, from_date, to_date)
         self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags} "
                        f"within dates {from_date} - {to_date}")
-        result = [self._build_whiteboard(wb_, typ) for wb_ in wb_list]
+        result = []
+        for wb_ in wb_list:
+            try:
+                wb = self._build_whiteboard(wb_, typ)
+                result.append(wb)
+            except TypeError:
+                self._log.warning(f"Could not create whiteboard with type {typ}")
         return result
 
     def whiteboards(self, typs: List[Type[T]], from_date: datetime = None, to_date: datetime = None) -> WhiteboardList:

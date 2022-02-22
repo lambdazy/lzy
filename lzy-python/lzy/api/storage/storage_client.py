@@ -3,20 +3,20 @@ import os.path
 import pathlib
 import tempfile
 from abc import ABC, abstractmethod
-from typing import Any, Tuple, BinaryIO
+from typing import Any, TypeVar, Tuple, BinaryIO
 from urllib import parse
 import boto3
-import cloudpickle
-from urllib.parse import urlunsplit
 
 from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
-
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
+import logging
+from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials, StorageCredentials
+from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
 logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
     logging.WARNING
 )
 
+T = TypeVar("T")  # pylint: disable=invalid-name
 
 class StorageClient(ABC):
     def __init__(self):
@@ -65,7 +65,7 @@ class AzureClient(StorageClient):
                 .download_blob()
         )
         data = downloader.readall()
-        return cloudpickle.loads(data)
+        return data
 
     def write(self, container: str, blob: str, data: BinaryIO):
         container_client: ContainerClient = self.client.get_container_client(container)
@@ -108,7 +108,7 @@ class AmazonClient(StorageClient):
         with tempfile.TemporaryFile() as file:
             self._client.download_fileobj(bucket, key, file)
             file.seek(0)
-            return cloudpickle.load(file)
+            return file.read()
 
     def write(self, bucket: str, key: str, data: BinaryIO) -> str:
         self._client.upload_fileobj(data, bucket, key)
