@@ -116,6 +116,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
         super().__init__(signature, str(return_entry_id))
 
+    serializer: Serializer = Serializer()
+
     @property
     def zygote(self) -> Zygote:
         return self._zygote
@@ -146,16 +148,15 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             self._log.error(f"Failed to read result from {return_slot_path}")
         return return_value
 
-    @staticmethod
-    def dump_value_to_slot(slot_path: Path, obj: Any):
+    @classmethod
+    def dump_value_to_slot(cls, slot_path: Path, obj: Any):
         with slot_path.open("wb") as handle:
-            serializer = Serializer()
-            serializer.serialize_to_file(obj, handle)
+            cls.serializer.serialize_to_file(obj, handle)
             handle.flush()
             os.fsync(handle.fileno())
 
-    @staticmethod
-    def read_value_from_slot(slot_path: Path, obj_type: Type[T]) -> Result[Any]:
+    @classmethod
+    def read_value_from_slot(cls, slot_path: Path, obj_type: Type[T]) -> Result[Any]:
         # noinspection PyBroadException
         try:
             return Just(LzyRemoteOp._read_value_from_slot(slot_path, obj_type))
@@ -164,27 +165,27 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         except BaseException as _:  # pylint: disable=broad-except
             return Nothing()
 
-    @staticmethod
-    def _read_value_from_slot(slot_path: Path, obj_type: Type[T]) -> Optional[Any]:
+    @classmethod
+    def _read_value_from_slot(cls, slot_path: Path, obj_type: Type[T]) -> Optional[Any]:
         with slot_path.open("rb") as handle:
             # Wait for slot to become open
             while handle.read(1) is None:
                 time.sleep(0)  # Thread.yield
             handle.seek(0)
-            serializer = Serializer()
-            value = serializer.deserialize_from_file(handle, obj_type)
+            value = cls.serializer.deserialize_from_file(handle, obj_type)
         return value
 
-    @staticmethod
-    def resolve_slot(execution: Execution, local_slot: Slot) -> Slot:
+    @classmethod
+    def resolve_slot(cls, execution: Execution, local_slot: Slot) -> Slot:
         slot = execution.bindings().local_slot(local_slot)
         if slot is None:
             raise RuntimeError(f"Slot {local_slot.name} not binded")
 
         return slot
 
-    @staticmethod
+    @classmethod
     def _execution_exception_message(
+            cls,
             execution: Execution,
             func: FuncSignature[Any], return_code: int) -> str:
 
@@ -196,8 +197,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             message = "Execution error"
         return LzyRemoteOp._exception(execution, func, return_code, message)
 
-    @staticmethod
-    def _exception(execution: Execution, func: FuncSignature[Any],
+    @classmethod
+    def _exception(cls, execution: Execution, func: FuncSignature[Any],
                    returncode: int, message: str) -> str:
         return (
             f"Task {execution.id()[:4]} failed in func {func.name}"
