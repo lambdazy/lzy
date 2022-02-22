@@ -17,8 +17,10 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
@@ -57,6 +59,8 @@ public abstract class LzyAgent implements Closeable {
     protected final AtomicReference<AgentStatus> status = new AtomicReference<>(
         AgentStatus.STARTED);
     protected final SlotConnectionManager slotConnectionManager = new SlotConnectionManager();
+    protected final AtomicBoolean inContext = new AtomicBoolean(false);
+    protected LzyContext context;
 
     protected LzyAgent(LzyAgentConfig config) throws URISyntaxException {
         final long start = System.currentTimeMillis();
@@ -214,12 +218,11 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public void configureSlot(
-        @Nullable LzyExecution execution,
         Servant.SlotCommand request,
         StreamObserver<Servant.SlotCommandStatus> responseObserver
     ) {
         try {
-            final Servant.SlotCommandStatus slotCommandStatus = configureSlot(execution, request);
+            final Servant.SlotCommandStatus slotCommandStatus = configureSlot(request);
             responseObserver.onNext(slotCommandStatus);
             responseObserver.onCompleted();
         } catch (StatusException e) {
@@ -228,22 +231,17 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public Servant.SlotCommandStatus configureSlot(
-        @Nullable LzyExecution currentExecution,
         Servant.SlotCommand request
     ) throws StatusException {
         LOG.info("Agent::configureSlot " + JsonUtils.printRequest(request));
-        if (currentExecution == null) {
-            LOG.error("Agent::configureSlot NO_LZY_EXECUTION");
-            throw Status.NOT_FOUND.asException();
-        }
-        final LzySlot slot = currentExecution.slot(request.getSlot()); // null for create
+        final LzySlot slot = context.slot(request.getSlot()); // null for create
         if (slot == null && request.getCommandCase() != Servant.SlotCommand.CommandCase.CREATE) {
             return Servant.SlotCommandStatus.newBuilder()
                 .setRc(
                     Servant.SlotCommandStatus.RC.newBuilder()
                         .setCodeValue(1)
                         .setDescription(
-                            "Slot " + request.getSlot() + " is not found in LzyExecution")
+                            "Slot " + request.getSlot() + " is not found in LzyContext")
                         .build()
                 ).build();
         }
@@ -251,7 +249,7 @@ public abstract class LzyAgent implements Closeable {
             case CREATE:
                 final Servant.CreateSlotCommand create = request.getCreate();
                 final Slot slotSpec = GrpcConverter.from(create.getSlot());
-                final LzySlot lzySlot = currentExecution.configureSlot(
+                final LzySlot lzySlot = context.configureSlot(
                     slotSpec,
                     create.getChannelId()
                 );
@@ -306,12 +304,12 @@ public abstract class LzyAgent implements Closeable {
         responseObserver.onCompleted();
     }
 
-    public void status(@Nullable LzyExecution currentExecution, IAM.Empty request,
+    public void status(IAM.Empty request,
                        StreamObserver<Servant.ServantStatus> responseObserver) {
         final Servant.ServantStatus.Builder builder = Servant.ServantStatus.newBuilder();
         builder.setStatus(status.get().toGrpcServantStatus());
-        if (currentExecution != null) {
-            builder.addAllConnections(currentExecution.slots().map(slot -> {
+        if (inContext.get()) {
+            builder.addAllConnections(context.slots().map(slot -> {
                 final Operations.SlotStatus.Builder status = Operations.SlotStatus
                     .newBuilder(slot.status());
                 if (auth.hasUser()) {

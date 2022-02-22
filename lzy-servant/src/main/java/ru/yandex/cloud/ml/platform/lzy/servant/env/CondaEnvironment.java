@@ -16,11 +16,11 @@ import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecutionException;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 public class CondaEnvironment implements Environment {
@@ -29,9 +29,11 @@ public class CondaEnvironment implements Environment {
     private final AtomicBoolean envInstalled = new AtomicBoolean(false);
     private final Lzy.GetS3CredentialsResponse credentials;
 
-    public CondaEnvironment(PythonEnv env, Lzy.GetS3CredentialsResponse credentials) {
+    public CondaEnvironment(PythonEnv env, Lzy.GetS3CredentialsResponse credentials)
+        throws EnvironmentInstallationException {
         this.env = env;
         this.credentials = credentials;
+        prepare();
     }
 
     private void installPyenv() throws EnvironmentInstallationException {
@@ -74,11 +76,11 @@ public class CondaEnvironment implements Environment {
         return execInEnv(command, null);
     }
 
-    @Override
-    public Process exec(String command) throws EnvironmentInstallationException, LzyExecutionException {
-        if (envInstalled.compareAndSet(false, true)) {
+    private synchronized void prepare() throws EnvironmentInstallationException {
+        if (!envInstalled.get()) {
             final long pyEnvInstallStart = System.currentTimeMillis();
             installPyenv();
+            envInstalled.set(true);
             final long pyEnvInstallFinish = System.currentTimeMillis();
             MetricEventLogger.log(
                 new MetricEvent(
@@ -87,13 +89,6 @@ public class CondaEnvironment implements Environment {
                     pyEnvInstallFinish - pyEnvInstallStart
                 )
             );
-        }
-        try {
-            List<String> envList = getEnvironmentVariables();
-            envList.addAll(getLocalModules());
-            return execInEnv(command, envList.toArray(String[]::new));
-        } catch (IOException e) {
-            throw new LzyExecutionException(e);
         }
     }
 
@@ -104,7 +99,7 @@ public class CondaEnvironment implements Environment {
             .collect(Collectors.toList());
     }
 
-    private List<String> getLocalModules() throws EnvironmentInstallationException {
+    private List<String> getLocalModules() throws LzyExecutionException {
         List<String> envList = new ArrayList<>();
         try {
             LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
@@ -118,8 +113,22 @@ public class CondaEnvironment implements Environment {
                 envList.add("AZURE_SAS=" + JsonFormat.printer().print(credentials.getAzureSas()));
             }
         } catch (JsonProcessingException | InvalidProtocolBufferException e) {
-            throw new EnvironmentInstallationException(e.getMessage());
+            throw new LzyExecutionException(e);
         }
         return envList;
+    }
+
+    @Override
+    public Process exec(String command) throws LzyExecutionException {
+        if (!envInstalled.get()) {
+            throw new RuntimeException("Environment not installed");
+        }
+        try {
+            List<String> envList = getEnvironmentVariables();
+            envList.addAll(getLocalModules());
+            return execInEnv(command, envList.toArray(String[]::new));
+        } catch (IOException e) {
+            throw new LzyExecutionException(e);
+        }
     }
 }

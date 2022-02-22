@@ -16,27 +16,22 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM.Auth;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM.UserCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AttachServant;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionProgress;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotAttach;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus.RC;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotDetach;
 
 public class TerminalSession {
 
     public static final String SESSION_ID_KEY = "kharon_session_id";
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
-    private final CompletableFuture<StreamObserver<Servant.ExecutionProgress>> executeFromServerFuture =
+    private final CompletableFuture<StreamObserver<Servant.ContextProgress>> executeFromServerFuture =
         new CompletableFuture<>();
     private final StreamObserver<Kharon.TerminalState> terminalStateObserver;
     private final StreamObserver<Kharon.TerminalCommand> terminalController;
@@ -44,7 +39,7 @@ public class TerminalSession {
     private final UUID sessionId = UUID.randomUUID();
     private final URI kharonServantProxyAddress;
     private final Map<UUID, CompletableFuture<Kharon.TerminalState>> tasks = new ConcurrentHashMap<>();
-    private StreamObserver<Servant.ExecutionProgress> executionProgress;
+    private StreamObserver<Servant.ContextProgress> executionProgress;
     private String user;
 
     public TerminalSession(
@@ -100,9 +95,9 @@ public class TerminalSession {
                         break;
                     }
                     case ATTACH: {
-                        final SlotAttach attach = terminalState.getAttach();
-                        executionProgress.onNext(ExecutionProgress.newBuilder()
-                            .setAttach(SlotAttach.newBuilder()
+                        final Servant.SlotAttach attach = terminalState.getAttach();
+                        executionProgress.onNext(Servant.ContextProgress.newBuilder()
+                            .setAttach(Servant.SlotAttach.newBuilder()
                                 .setSlot(attach.getSlot())
                                 .setUri(convertToKharonServantUri(attach.getUri()))
                                 .setChannel(attach.getChannel())
@@ -111,9 +106,9 @@ public class TerminalSession {
                         break;
                     }
                     case DETACH: {
-                        final SlotDetach detach = terminalState.getDetach();
-                        executionProgress.onNext(ExecutionProgress.newBuilder()
-                            .setDetach(SlotDetach.newBuilder()
+                        final Servant.SlotDetach detach = terminalState.getDetach();
+                        executionProgress.onNext(Servant.ContextProgress.newBuilder()
+                            .setDetach(Servant.SlotDetach.newBuilder()
                                 .setSlot(detach.getSlot())
                                 .setUri(convertToKharonServantUri(detach.getUri()))
                                 .build())
@@ -160,7 +155,7 @@ public class TerminalSession {
         return sessionId;
     }
 
-    public void setExecutionProgress(StreamObserver<Servant.ExecutionProgress> executionProgress) {
+    public void setExecutionProgress(StreamObserver<Servant.ContextProgress> executionProgress) {
         executeFromServerFuture.complete(executionProgress);
     }
 

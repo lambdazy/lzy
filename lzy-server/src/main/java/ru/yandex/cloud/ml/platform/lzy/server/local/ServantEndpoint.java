@@ -141,6 +141,7 @@ public class ServantEndpoint implements Endpoint {
 
     @Override
     public int destroy() {
+        LOG.info("Destroying slot " + slot().name() + " for servant " + uri());
         if (isInvalid()) { // skip invalid connections
             return 0;
         }

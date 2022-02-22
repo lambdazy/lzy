@@ -12,6 +12,7 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service LzyServant {
   /** Only one execution at a time */
+  rpc Prepare (ContextSpec) returns (stream ContextProgress);
   rpc Execute (TaskSpec) returns (stream ExecutionProgress);
   rpc OpenOutputSlot (SlotRequest) returns (stream Message);
   rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
@@ -95,12 +96,31 @@ message ExecutionProgress {
     ExecutionStarted started = 1;
     ExecutionConcluded exit = 2;
     StateChanged changed = 3;
-    SlotAttach attach = 4;
-    SlotDetach detach = 5;
+  }
+}
+
+message ContextProgress {
+  oneof status {
+    ContextStarted start = 1;
+    SlotAttach attach = 2;
+    SlotDetach detach = 3;
+    ContextConcluded exit = 4;
+    PreparationError error = 5;
   }
 }
 
 message ExecutionStarted {
+}
+
+message ContextStarted {
+}
+
+message ContextConcluded {
+}
+
+message PreparationError {
+  string description = 1;
+  int32  rc = 2;
 }
 
 message StateChanged {

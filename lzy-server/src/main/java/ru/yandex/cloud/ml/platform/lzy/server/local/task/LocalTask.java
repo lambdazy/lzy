@@ -30,5 +30,5 @@ public abstract class LocalTask extends BaseTask {
 
     @SuppressWarnings("SameParameterValue")
     protected abstract void runServantAndWaitFor(String serverHost, int serverPort, String servantHost, int servantPort,
-        UUID tid, String token);
+                                                 UUID tid, String token);
 }

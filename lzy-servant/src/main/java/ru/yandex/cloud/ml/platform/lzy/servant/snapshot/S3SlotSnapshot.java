@@ -82,7 +82,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
 
     @Override
     public void onChunk(ByteString chunk) {
-        LOG.info("S3ExecutionSnapshot::onChunk invoked with slot " + slot.name());
+        LOG.info("S3SlotSnapshot::onChunk invoked with slot " + slot.name());
         initStream();
         slotStream.write(chunk);
         nonEmpty.set(true);
@@ -90,13 +90,13 @@ public class S3SlotSnapshot implements SlotSnapshot {
 
     @Override
     public boolean isEmpty() {
-        LOG.info("S3ExecutionSnapshot::isEmpty invoked with slot " + slot.name());
+        LOG.info("S3SlotSnapshot::isEmpty invoked with slot " + slot.name());
         return !nonEmpty.get();
     }
 
     @Override
     public void readAll(InputStream stream) {
-        LOG.info("S3ExecutionSnapshot::onChunk invoked with slot " + slot.name());
+        LOG.info("S3SlotSnapshot::readAll invoked with slot " + slot.name());
         initStream();
         slotStream.write(stream);
         nonEmpty.set(true);
@@ -105,7 +105,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
 
     @Override
     public void onFinish() {
-        LOG.info("S3ExecutionSnapshot::onFinish invoked with slot " + slot.name());
+        LOG.info("S3SlotSnapshot::onFinish invoked with slot " + slot.name());
         try {
             lock.lock();
             if (slotStream == null) {

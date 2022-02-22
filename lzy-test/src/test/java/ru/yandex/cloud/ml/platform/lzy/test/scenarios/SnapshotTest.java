@@ -1,8 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -79,7 +77,7 @@ public class SnapshotTest extends LzyBaseTest {
     }
 
     @Test
-    public void testTaskPersistent() throws IOException, ParseException {
+    public void testTaskPersistent() throws IOException, ParseException, InterruptedException {
         //Arrange
         final String fileContent = "fileContent";
         final String fileName = "/tmp/lzy/kek/some_file.txt";
@@ -141,6 +139,9 @@ public class SnapshotTest extends LzyBaseTest {
                 "/dev/stdin", spId + "/" + stdinEntryId
             )
         );
+
+        terminal.destroyChannel(channelName);
+        terminal.destroyChannel(channelOutName);
 
         //Assert
         Assert.assertEquals(fileContent + "\n", result1[0].stdout());

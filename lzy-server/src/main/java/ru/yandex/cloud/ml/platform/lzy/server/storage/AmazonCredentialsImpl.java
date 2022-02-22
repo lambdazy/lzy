@@ -9,7 +9,7 @@ public class AmazonCredentialsImpl extends AmazonCredentials {
     private final String secretToken;
 
     public AmazonCredentialsImpl(String endpoint, String accessToken,
-        String secretToken) {
+                                 String secretToken) {
         this.endpoint = endpoint;
         this.accessToken = accessToken;
         this.secretToken = secretToken;

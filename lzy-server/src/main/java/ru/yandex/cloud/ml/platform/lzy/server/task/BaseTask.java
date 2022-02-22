@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,12 +10,14 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Channel;
@@ -23,6 +26,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
@@ -30,8 +34,12 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionProgress;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 
 public abstract class BaseTask implements Task {
 
@@ -40,7 +48,7 @@ public abstract class BaseTask implements Task {
     protected final String owner;
     protected final UUID tid;
     protected final URI serverURI;
-    @Nullable
+    @Nonnull
     protected final SnapshotMeta snapshotMeta;
     private final Zygote workload;
     private final Map<Slot, String> assignments;
@@ -58,7 +66,7 @@ public abstract class BaseTask implements Task {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        @Nullable SnapshotMeta snapshotMeta,
+        @Nonnull SnapshotMeta snapshotMeta,
         ChannelsManager channels,
         URI serverURI,
         String bucket
@@ -126,34 +134,32 @@ public abstract class BaseTask implements Task {
     public void attachServant(URI uri, LzyServantBlockingStub servant) {
         servantUri = uri;
         this.servant.complete(servant);
-        final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
-            .setAuth(IAM.Auth.newBuilder()
-                .setTask(IAM.TaskCredentials.newBuilder()
-                    .setTaskId(tid.toString())
-                    .build())
-                .build())
-            .setZygote(GrpcConverter.to(workload));
-        if (snapshotMeta != null) {
-            builder.setSnapshotMeta(SnapshotMeta.to(snapshotMeta));
-        }
+        LOG.info("Server is attached to servant {}", servantUri);
+        final CompletableFuture<Void> contextStarted = new CompletableFuture<>();
+        Operations.Zygote zygote = GrpcConverter.to(workload);
+        final Tasks.ContextSpec.Builder contextBuilder = Tasks.ContextSpec.newBuilder()
+            .setEnv(zygote.getEnv())
+            .setProvisioning(zygote.getProvisioning());
+        contextBuilder.setSnapshotMeta(SnapshotMeta.to(snapshotMeta));
         assignments.forEach((slot, binding) ->
-            builder.addAssignmentsBuilder()
+            contextBuilder.addAssignmentsBuilder()
                 .setSlot(GrpcConverter.to(slot))
                 .setBinding(binding)
                 .build()
         );
-        final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
+
+        final ContextSpec spec = contextBuilder.build();
+
+        final Iterator<Servant.ContextProgress> contextProgress = servant.prepare(spec);
+        LOG.info("Preparing context " + JsonUtils.printRequest(spec));
+
         state(State.CONNECTED);
-        LOG.info("Server is attached to servant {}", servantUri);
-        try {
-            progressIt.forEachRemaining(progress -> {
-                LOG.info("BaseTask::Progress " + JsonUtils.printRequest(progress));
-                this.progress(progress);
+
+        final ForkJoinTask<?> task =
+            ForkJoinPool.commonPool().submit(() -> contextProgress.forEachRemaining(progress -> {
                 switch (progress.getStatusCase()) {
-                    case STARTED:
-                        state(State.RUNNING);
-                        break;
                     case ATTACH: {
+                        LOG.info("BaseTask::attach " + JsonUtils.printRequest(progress));
                         final Servant.SlotAttach attach = progress.getAttach();
                         final Slot slot = GrpcConverter.from(attach.getSlot());
                         final URI slotUri = URI.create(attach.getUri());
@@ -179,6 +185,7 @@ public abstract class BaseTask implements Task {
                         break;
                     }
                     case DETACH: {
+                        LOG.info("BaseTask::detach " + JsonUtils.printRequest(progress));
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = GrpcConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
@@ -190,16 +197,85 @@ public abstract class BaseTask implements Task {
                         }
                         break;
                     }
-                    case EXIT:
-                        state(State.FINISHED);
+                    case START: {
+                        LOG.info("Context " + uri + " started");
+                        contextStarted.complete(null);
                         break;
+                    }
+                    case EXIT: {
+                        LOG.info("Context " + uri + " exited");
+                        break;
+                    }
                     default:
-                        throw new IllegalStateException("Unexpected value: " + progress.getStatusCase());
+                    case ERROR: {
+                        LOG.info("Error in context " + JsonUtils.printRequest(progress));
+                        this.progress(
+                            ExecutionProgress.newBuilder()
+                                .setExit(ExecutionConcluded.newBuilder()
+                                    .setDescription(progress.getError().getDescription())
+                                    .setRc(progress.getError().getRc())
+                                    .build())
+                                .build()
+                        );
+                        contextStarted.completeExceptionally(new EnvironmentInstallationException(progress
+                            .getError().getDescription()));
+                    }
+                }
+            }));
+
+        try {
+            contextStarted.get();
+        } catch (InterruptedException e) {
+            LOG.error("Context installation was interrupted", e);
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            LOG.error("Error while preparing context", e);
+            state(State.FINISHED);
+            LOG.info("Stopping servant {}", servantUri);
+            stopServant();
+            return;
+        }
+
+        final Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
+            .setAuth(IAM.Auth.newBuilder()
+                .setTask(IAM.TaskCredentials.newBuilder()
+                    .setTaskId(tid.toString())
+                    .build())
+                .build())
+            .setZygote(GrpcConverter.to(workload));
+
+        builder.setSnapshotMeta(SnapshotMeta.to(snapshotMeta));
+        assignments.forEach((slot, binding) ->
+            builder.addAssignmentsBuilder()
+                .setSlot(GrpcConverter.to(slot))
+                .setBinding(binding)
+                .build()
+        );
+        final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
+        try {
+            progressIt.forEachRemaining(progress -> {
+                LOG.info("BaseTask::Progress " + JsonUtils.printRequest(progress));
+                this.progress(progress);
+                switch (progress.getStatusCase()) {
+                    case STARTED: {
+                        state(State.RUNNING);
+                        LOG.info("Execution started");
+                        return;
+                    }
+                    default:
+                    case EXIT: {
+                        LOG.info("Execution finished");
+                        state(State.FINISHED);
+                    }
                 }
             });
+            task.join();
+        } catch (Exception e) {
+            LOG.error(e);
+            throw new RuntimeException(e);
         } finally {
-            state(State.FINISHED);
             stopServant();
+            state(State.DESTROYED);
         }
     }
 

@@ -101,7 +101,8 @@ public class InMemTasksManager implements TasksManager {
 
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments,
-        SnapshotMeta wbMeta, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer, String bucket) {
+                      SnapshotMeta wbMeta, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer,
+                      String bucket) {
         final Task task =
             TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, wbMeta, channels, serverURI, bucket);
         tasks.put(task.tid(), task);
@@ -114,8 +115,7 @@ public class InMemTasksManager implements TasksManager {
         task.onProgress(state -> {
             consumer.accept(state);
             if (!state.hasChanged()
-                || (state.getChanged().getNewState() != Servant.StateChanged.State.FINISHED
-                    && state.getChanged().getNewState() != Servant.StateChanged.State.DESTROYED)) {
+                || (state.getChanged().getNewState() != Servant.StateChanged.State.DESTROYED)) {
                 return;
             }
             if (tasks.remove(task.tid()) == null) { // idempotence support

@@ -78,3 +78,10 @@ message TaskStatus {
 message TasksList {
   repeated TaskStatus tasks = 1;
 }
+
+message ContextSpec {
+  Env env = 1;
+  Provisioning provisioning = 2;
+  repeated SlotAssignment assignments = 3;
+  SnapshotMeta snapshotMeta = 4;
+}
