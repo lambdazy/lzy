@@ -2,19 +2,29 @@ name: Update docker tag in push
 on:
   workflow_dispatch:
     inputs:
-      base:
-        type: boolean
-        description: 'Update base servant docker image'
+      branch:
+        type: string
+        description: 'Branch to take code from'
         required: false
-        default: 'false'
+        default: 'master'
+      tag:
+        type: string
+        description: 'Tag name for images'
+        required: false
+        default: ''
       update:
         type: boolean
-        description: 'Update version'
+        description: 'Tag with new version instead of custom tag for images'
         required: false
         default: 'false'
       major:
         type: boolean
         description: 'Update MAJOR version'
+        required: false
+        default: 'false'
+      servant-base:
+        type: boolean
+        description: 'Update base servant docker image'
         required: false
         default: 'false'
 jobs:
@@ -24,6 +34,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
       - uses: docker/login-action@v1
         with:
@@ -38,7 +50,7 @@ jobs:
       - name: 'push-docker'
         run: |
           FLAGS="--rebuild"
-          if [[ ${{ github.event.inputs.base }} == true ]]; then FLAGS="--base"; fi
+          if [[ ${{ github.event.inputs.servant-base }} == true ]]; then FLAGS="--base"; fi
           if [[ ${{ github.event.inputs.update }} == true ]]; then FLAGS="$FLAGS --update"; fi
           if [[ ${{ github.event.inputs.major }} == true ]]; then FLAGS="$FLAGS --major"; fi
-          bash deployment/push-docker.sh {{branch}} $FLAGS
+          bash deployment/push-docker.sh "${{ github.event.inputs.tag }}" $FLAGS
