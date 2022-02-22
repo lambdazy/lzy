@@ -45,7 +45,7 @@ for SERVICE in $SERVICES; do
     MAJOR=1
     MINOR=-1
     for TAG in $(wget -q "https://registry.hub.docker.com/v1/repositories/lzydock/$SERVICE/tags" -O - | jq -r '.[].name'); do
-      if [[ "$TAG" =~ [0-9]*.[0-9]* ]]; then
+      if [[ "$TAG" =~ [0-9]+\.[0-9]+ ]]; then
         CUR_MAJOR=$(echo "$TAG" | awk -F. '{print $1}')
         CUR_MINOR=$(echo "$TAG" | awk -F. '{print $2}')
         if [[ "$MAJOR" -lt "$CUR_MAJOR" || ("$MAJOR" = "$CUR_MAJOR" && "$MINOR" -lt "$CUR_MINOR") ]]; then
@@ -55,7 +55,7 @@ for SERVICE in $SERVICES; do
       fi
     done
     MINOR=$((MINOR + 1))
-    TAG="$MAJOR:$MINOR"
+    TAG="$MAJOR.$MINOR"
   else
     TAG="$INSTALLATION"
   fi
