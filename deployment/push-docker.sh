@@ -5,23 +5,42 @@ if [[ $# -lt 1 || -z $1 ]]; then
   exit
 fi
 
-INSTALLATION=$1
-SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
+BASE=false
+REBUILD=false
+UPDATE=false
 
-if [[ $2 == "--rebuild" ]]; then
-  if [[ $3 == "--base" ]]; then
+for ARG in "$@"; do
+  case "$ARG" in
+  --rebuild)
+    REBUILD=true
+    ;;
+  --base)
+    BASE=true
+    ;;
+  --update)
+    UPDATE=true
+    ;;
+  esac
+done
+
+SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
+if [[ $BASE = true ]]; then
+  SERVICES="lzy-servant-base $SERVICES"
+fi
+INSTALLATION=$1
+
+if [[ $REBUILD = true ]]; then
+  if [[ $BASE = true ]]; then
     docker build -f lzy-servant/BaseDockerfile .
-    SERVICES="$SERVICES lzy-servant-base"
   fi
   mvn clean install -DskipTests
 #  docker build -t lzydock/lzy-backoffice-backend:"$INSTALLATION" lzy-backoffice/Dockerfile
 #  docker build -t lzydock/lzy-backoffice-frontend:"$INSTALLATION" lzy-backoffice/frontend/Dockerfile
 fi
 
-LAST_ARG=$(echo "$@" | awk '{print $NF}')
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
-  if [[ $LAST_ARG == "--update-version" ]]; then
+  if [[ $UPDATE = true ]]; then
     MAX_TAG=-1
     for TAG in $(wget -q https://registry.hub.docker.com/v1/repositories/lzydock/$SERVICE/tags -O - | sed -e 's/[][]//g' -e 's/"//g' -e 's/ //g' | tr '}' '\n' | awk -F ":" '{print $3}'); do
       if [[ "$TAG" =~ [0-9]* && "$MAX_TAG" -lt "$TAG" ]]; then
