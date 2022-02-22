@@ -17,6 +17,23 @@ on:
         description: 'Update MAJOR version'
         required: false
         default: 'false'
+  workflow_call:
+    inputs:
+      base:
+        type: boolean
+        description: 'Update base servant docker image'
+        required: false
+        default: 'false'
+      update:
+        type: boolean
+        description: 'Update version'
+        required: false
+        default: 'false'
+      major:
+        type: boolean
+        description: 'Update MAJOR version'
+        required: false
+        default: 'false'
 jobs:
 
   update-docker-tags:

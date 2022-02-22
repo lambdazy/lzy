@@ -1,0 +1,13 @@
+name: Temp action to call version-docker
+on:
+  push:
+jobs:
+
+  call-version-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/version-docker
+        with:
+          base: true
+          update: true
+          major: true
