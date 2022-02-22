@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
+      - run: ls ./.github/workflows/
       - uses: ./.github/workflows/version-docker.yml
         with:
           base: true
