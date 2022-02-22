@@ -2,10 +2,7 @@ package ru.yandex.cloud.ml.platform.model.util.integer;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
-@Service("LocalSharedIntegerManager")
 public class LocalSharedIntegerManager implements SharedIntegerManager {
 
     private final Map<String, SharedInteger> integers;
@@ -16,7 +13,6 @@ public class LocalSharedIntegerManager implements SharedIntegerManager {
         this.prefix = prefix;
     }
 
-    @Autowired
     public LocalSharedIntegerManager() {
         this.integers = new ConcurrentHashMap<>();
         this.prefix = "LocalSharedIntegerManager-";

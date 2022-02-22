@@ -9,7 +9,6 @@ import java.nio.ByteBuffer;
 import java.util.NoSuchElementException;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.Is;
-import org.springframework.test.context.ActiveProfiles;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import ru.yandex.qe.s3.transfer.buffers.ByteBufferSizeType;
@@ -19,7 +18,6 @@ import ru.yandex.qe.s3.transfer.buffers.StaticByteBufferPool;
 /**
  * Established by terry on 30.07.15.
  */
-@ActiveProfiles("testing")
 public class ByteBufferPoolTest {
 
     @Test

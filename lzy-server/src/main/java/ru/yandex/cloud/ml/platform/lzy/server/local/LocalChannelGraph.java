@@ -8,9 +8,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
+import javax.validation.constraints.NotNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.lang.NonNull;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
@@ -48,7 +48,7 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public synchronized void addSender(@NonNull Endpoint sender) {
+    public synchronized void addSender(@NotNull Endpoint sender) {
         if (senders.contains(sender)) {
             LOG.warn("Endpoint input: " + sender + " already connected to channelGraph");
         }
@@ -56,7 +56,7 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public synchronized void addReceiver(@NonNull Endpoint receiver) {
+    public synchronized void addReceiver(@NotNull Endpoint receiver) {
         if (receivers.contains(receiver)) {
             LOG.warn("Endpoint output: " + receiver + " already connected to channelGraph");
         }
@@ -64,7 +64,7 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public void link(@NonNull Endpoint sender, @NonNull Endpoint receiver) {
+    public void link(@NotNull Endpoint sender, @NotNull Endpoint receiver) {
         LOG.info("Linking sender " + sender + " to receiver " + receiver);
 
         checkConsistency(sender, receiver);
@@ -93,7 +93,7 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public void removeSender(@NonNull Endpoint sender) {
+    public void removeSender(@NotNull Endpoint sender) {
         LOG.info("Removing sender " + sender);
 
         if (!senders.contains(sender)) {
@@ -114,7 +114,7 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public void removeReceiver(@NonNull Endpoint receiver) {
+    public void removeReceiver(@NotNull Endpoint receiver) {
         LOG.info("Removing receiver " + receiver);
 
         if (!receivers.contains(receiver)) {
@@ -143,7 +143,7 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public boolean hasBound(@NonNull Endpoint endpoint) {
+    public boolean hasBound(@NotNull Endpoint endpoint) {
         return senders.contains(endpoint) || receivers.contains(endpoint);
     }
 

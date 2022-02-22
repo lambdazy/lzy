@@ -3,9 +3,7 @@ package ru.yandex.cloud.ml.platform.model.util.latch;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
-import org.springframework.stereotype.Service;
 
-@Service("LocalLatchManager")
 public class LocalLatchManager implements LatchManager {
 
     private final Map<String, LocalLatch> latches;
