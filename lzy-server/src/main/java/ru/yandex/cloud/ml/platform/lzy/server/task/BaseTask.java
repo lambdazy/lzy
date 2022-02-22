@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
@@ -218,7 +217,8 @@ public abstract class BaseTask implements Task {
                                     .build())
                                 .build()
                         );
-                        contextStarted.completeExceptionally(new EnvironmentInstallationException(progress.getError().getDescription()));
+                        contextStarted.completeExceptionally(new EnvironmentInstallationException(progress
+                            .getError().getDescription()));
                     }
                 }
             }));
