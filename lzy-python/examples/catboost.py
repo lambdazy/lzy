@@ -23,7 +23,7 @@ def dataset() -> DataSet:
 
 @op(gpu=Gpu.any())
 def learn(data_set: DataSet) -> CatBoostClassifier:
-    cb_model = CatBoostClassifier(iterations=1000, task_type="CPU", devices='0:1', train_dir='/tmp/catboost')
+    cb_model = CatBoostClassifier(iterations=1000, task_type="GPU", devices='0:1', train_dir='/tmp/catboost')
     cb_model.fit(data_set.data, data_set.labels, verbose=False)
     return cb_model
 
