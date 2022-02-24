@@ -40,5 +40,14 @@ resource "helm_release" "lzy_kafka" {
     value = "true"
   }
 
+  set {
+    name  = "metadata.labels,app"
+    value = "kafka"
+  }
+
+  values = [
+    file("lzy_node_selector_and_pod_anti_affinity.yaml")
+  ]
+
   depends_on = [kubernetes_secret.lzy_kafka_clickhouse]
 }

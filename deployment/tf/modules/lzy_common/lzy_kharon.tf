@@ -66,15 +66,28 @@ resource "kubernetes_deployment" "kharon" {
           pod_anti_affinity {
             required_during_scheduling_ignored_during_execution {
               label_selector {
+                match_expressions {}
                 match_expressions {
                   key      = "app"
                   operator = "In"
                   values = [
                     "lzy-servant",
                     "lzy-server",
+                    "lzy-server-db",
                     "lzy-kharon",
                     "lzy-backoffice",
-                    "whiteboard"
+                    "whiteboard",
+                    "whiteboard-db",
+                    "grafana",
+                    "kafka",
+                    "clickhouse"
+                  ]
+                }
+                match_expressions {
+                  key      = "app.kubernetes.io/managed-by"
+                  operator = "In"
+                  values = [
+                    "Helm"
                   ]
                 }
               }
