@@ -90,9 +90,9 @@ public class RunTest extends LzyBaseTest {
 
         //Act
         terminal.createChannel(channelName);
-        terminal.createSlot(localFileName, channelName, Utils.outFileSot());
+        terminal.createSlot(localFileName, channelName, Utils.outFileSlot());
         terminal.createChannel(channelOutName);
-        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
+        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
             .execute(() -> terminal.execute("bash", "-c",

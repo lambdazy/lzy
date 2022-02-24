@@ -20,12 +20,12 @@ import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
@@ -48,8 +48,6 @@ public abstract class BaseTask implements Task {
     protected final String owner;
     protected final UUID tid;
     protected final URI serverURI;
-    @Nonnull
-    protected final SnapshotMeta snapshotMeta;
     private final Zygote workload;
     private final Map<Slot, String> assignments;
     private final ChannelsManager channels;
@@ -66,7 +64,6 @@ public abstract class BaseTask implements Task {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        @Nonnull SnapshotMeta snapshotMeta,
         ChannelsManager channels,
         URI serverURI,
         String bucket
@@ -75,7 +72,6 @@ public abstract class BaseTask implements Task {
         this.tid = tid;
         this.workload = workload;
         this.assignments = assignments;
-        this.snapshotMeta = snapshotMeta;
         this.channels = channels;
         this.serverURI = serverURI;
         this.bucket = bucket;
@@ -113,11 +109,6 @@ public abstract class BaseTask implements Task {
     }
 
     @Override
-    public SnapshotMeta wbMeta() {
-        return snapshotMeta;
-    }
-
-    @Override
     public void onProgress(Consumer<Servant.ExecutionProgress> listener) {
         listeners.add(listener);
     }
@@ -140,7 +131,6 @@ public abstract class BaseTask implements Task {
         final Tasks.ContextSpec.Builder contextBuilder = Tasks.ContextSpec.newBuilder()
             .setEnv(zygote.getEnv())
             .setProvisioning(zygote.getProvisioning());
-        contextBuilder.setSnapshotMeta(SnapshotMeta.to(snapshotMeta));
         assignments.forEach((slot, binding) ->
             contextBuilder.addAssignmentsBuilder()
                 .setSlot(GrpcConverter.to(slot))
@@ -243,14 +233,6 @@ public abstract class BaseTask implements Task {
                     .build())
                 .build())
             .setZygote(GrpcConverter.to(workload));
-
-        builder.setSnapshotMeta(SnapshotMeta.to(snapshotMeta));
-        assignments.forEach((slot, binding) ->
-            builder.addAssignmentsBuilder()
-                .setSlot(GrpcConverter.to(slot))
-                .setBinding(binding)
-                .build()
-        );
         final Iterator<Servant.ExecutionProgress> progressIt = servant.execute(builder.build());
         try {
             progressIt.forEachRemaining(progress -> {

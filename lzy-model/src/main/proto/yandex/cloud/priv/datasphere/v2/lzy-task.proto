@@ -31,7 +31,6 @@ message TaskSpec {
   Auth auth = 1;
   Zygote zygote = 2;
   repeated SlotAssignment assignments = 3;
-  SnapshotMeta snapshotMeta = 4;
 }
 
 message TaskSignal {
@@ -83,5 +82,4 @@ message ContextSpec {
   Env env = 1;
   Provisioning provisioning = 2;
   repeated SlotAssignment assignments = 3;
-  SnapshotMeta snapshotMeta = 4;
 }

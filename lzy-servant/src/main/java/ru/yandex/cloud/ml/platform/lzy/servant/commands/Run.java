@@ -56,7 +56,6 @@ public class Run implements LzyCommand {
 
     static {
         options.addOption(new Option("m", "mapping", true, "Slot-channel mapping"));
-        options.addOption(new Option("s", "slot-mapping", true, "Slot-entryId mapping"));
         options.addOption(new Option("n", "name", true, "Task name"));
     }
 
@@ -123,22 +122,6 @@ public class Run implements LzyCommand {
         final Tasks.TaskSpec.Builder taskSpec = Tasks.TaskSpec.newBuilder();
         taskSpec.setAuth(auth);
         taskSpec.setZygote(grpcZygote);
-        if (localCmd.hasOption('s')) {
-            final String mappingsFile = localCmd.getOptionValue('s');
-            //noinspection unchecked
-            final Map<String, String> mappings = new HashMap<String, String>(
-                objectMapper.readValue(new File(mappingsFile), Map.class));
-            final List<Tasks.SlotMapping> slotMappings = new ArrayList<>();
-            for (var entry : mappings.entrySet()) {
-                slotMappings.add(Tasks.SlotMapping
-                    .newBuilder()
-                    .setSlotName(entry.getKey())
-                    .setEntryId(entry.getValue())
-                    .build());
-            }
-            taskSpec.setSnapshotMeta(
-                Tasks.SnapshotMeta.newBuilder().addAllMappings(slotMappings).build());
-        }
         zygote.slots().forEach(slot -> {
             LOG.info("Resolving slot " + slot.name());
             final String binding;

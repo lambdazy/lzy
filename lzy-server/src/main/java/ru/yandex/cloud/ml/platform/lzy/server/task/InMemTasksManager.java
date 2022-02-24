@@ -12,11 +12,10 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
@@ -50,8 +49,8 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Channel createChannel(String name, String uid, Task parent, DataSchema contentTypeFrom) {
-        final Channel channel = channels.create(name, contentTypeFrom);
+    public Channel createChannel(String uid, Task parent, Channel channelSpec) {
+        final Channel channel = channels.create(channelSpec);
         if (channel == null) {
             return null;
         }
@@ -101,10 +100,10 @@ public class InMemTasksManager implements TasksManager {
 
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments,
-                      SnapshotMeta wbMeta, Authenticator auth, Consumer<Servant.ExecutionProgress> consumer,
+                      Authenticator auth, Consumer<Servant.ExecutionProgress> consumer,
                       String bucket) {
         final Task task =
-            TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, wbMeta, channels, serverURI, bucket);
+            TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI, bucket);
         tasks.put(task.tid(), task);
         if (parent != null) {
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);

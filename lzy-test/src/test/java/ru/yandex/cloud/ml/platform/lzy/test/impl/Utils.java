@@ -50,7 +50,7 @@ public class Utils {
         return command;
     }
 
-    public static Slot outFileSot() {
+    public static Slot outFileSlot() {
         return new Slot() {
             @Override
             public String name() {
@@ -74,7 +74,7 @@ public class Utils {
         };
     }
 
-    public static Slot inFileSot() {
+    public static Slot inFileSlot() {
         return new Slot() {
             @Override
             public String name() {

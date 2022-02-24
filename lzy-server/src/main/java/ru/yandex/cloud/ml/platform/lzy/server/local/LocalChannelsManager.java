@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import jakarta.inject.Singleton;
+import java.net.URI;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
@@ -13,11 +14,14 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot.Direction;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.DirectChannelSpec;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.SnapshotChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelEx;
@@ -26,8 +30,12 @@ import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.DirectChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.EmptyController;
+import ru.yandex.cloud.ml.platform.lzy.server.channel.control.SnapshotChannelController;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 @Singleton
 public class LocalChannelsManager implements ChannelsManager {
@@ -35,6 +43,13 @@ public class LocalChannelsManager implements ChannelsManager {
     private static final Logger LOG = LogManager.getLogger(LocalChannelsManager.class);
     private final LockManager lockManager = new LocalLockManager();
     private final Map<String, ChannelEx> channels = new ConcurrentHashMap<>();
+    private SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
+    private final ServerConfig config;
+
+    LocalChannelsManager(ServerConfig config) {
+        this.config = config;
+    }
+
 
     @Override
     public Channel get(String cid) {
@@ -42,19 +57,35 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public Channel create(String name, DataSchema contentTypeFrom) {
-        final Lock lock = lockManager.getOrCreate(name);
+    public Channel create(Channel spec) {
+        final Lock lock = lockManager.getOrCreate(spec.name());
         lock.lock();
         try {
-            if (channels.containsKey(name)) {
+            if (channels.containsKey(spec.name())) {
                 return null;
             }
-            final ChannelEx channel = new ChannelImpl(
-                name == null ? UUID.randomUUID().toString() : name,
-                contentTypeFrom
-            );
-            channels.put(channel.name(), channel);
-            return channel;
+            final String name = spec.name() == null ? UUID.randomUUID().toString() : spec.name();
+            if (spec instanceof DirectChannelSpec) {
+                final ChannelEx channel = new ChannelImpl(
+                    name,
+                    spec.contentType()
+                );
+                channels.put(channel.name(), channel);
+                return channel;
+            }
+            if (spec instanceof SnapshotChannelSpec) {
+                SnapshotChannelSpec snapshotSpec = (SnapshotChannelSpec) spec;
+                final ChannelEx channel = new SnapshotChannelImpl(
+                    name,
+                    spec.contentType(),
+                    snapshotSpec.snapshotId(),
+                    snapshotSpec.entryId(),
+                    snapshotSpec.auth()
+                );
+                channels.put(channel.name(), channel);
+                return channel;
+            }
+            throw new RuntimeException("Wrong type of channel spec");
         } finally {
             lock.unlock();
         }
@@ -213,6 +244,23 @@ public class LocalChannelsManager implements ChannelsManager {
         return channels.values().stream().map(s -> s);
     }
 
+    private SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi() {
+        if (snapshotApi != null) {
+            return snapshotApi;
+        }
+        String url = config.getWhiteboardUrl();
+        if (url.contains("host.docker.internal")) {
+            url = url.replace("host.docker.internal", "localhost");
+        }
+        URI snapshotUri = URI.create(url);
+        io.grpc.Channel channel = ChannelBuilder.forAddress(snapshotUri.getHost(), snapshotUri.getPort())
+            .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
+            .usePlaintext()
+            .build();
+        snapshotApi = SnapshotApiGrpc.newBlockingStub(channel);
+        return snapshotApi;
+    }
+
     private static class ChannelImpl implements ChannelEx {
 
         private final String id;
@@ -221,9 +269,13 @@ public class LocalChannelsManager implements ChannelsManager {
         private ChannelController logic; // pluggable channel logic
 
         ChannelImpl(String id, DataSchema contentType) {
+            this(id, contentType, new DirectChannelController());
+        }
+
+        ChannelImpl(String id, DataSchema contentType, ChannelController logic) {
             this.id = id;
             this.contentType = contentType;
-            this.logic = new DirectChannelController();
+            this.logic = logic;
             this.channelGraph = new LocalChannelGraph();
         }
 
@@ -297,6 +349,13 @@ public class LocalChannelsManager implements ChannelsManager {
         @Override
         public int hashCode() {
             return Objects.hash(id);
+        }
+    }
+
+    private class SnapshotChannelImpl extends LocalChannelsManager.ChannelImpl {
+        SnapshotChannelImpl(String id, DataSchema contentType, String snapshotId, String entryId, IAM.Auth auth) {
+            super(id, contentType,
+                new SnapshotChannelController(entryId, snapshotId, LocalChannelsManager.this.snapshotApi(), auth));
         }
     }
 }

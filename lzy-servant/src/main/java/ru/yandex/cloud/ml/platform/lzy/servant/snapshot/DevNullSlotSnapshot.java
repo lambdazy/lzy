@@ -4,10 +4,12 @@ import com.google.protobuf.ByteString;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
+import ru.yandex.qe.s3.util.function.ThrowingConsumer;
 
 public class DevNullSlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
@@ -40,12 +42,16 @@ public class DevNullSlotSnapshot implements SlotSnapshot {
     }
 
     @Override
-    public void readAll(InputStream stream) {
+    public void readToStorage(InputStream stream) {
     }
 
     @Override
     public void onFinish() {
         // do nothing
         LOG.info("EmptyExecutionSnapshot::onFinish invoked with slot " + slot.name());
+    }
+
+    @Override
+    public void readFromStorage(String bucket, String key, ThrowingConsumer<ByteString> onChunk, Runnable onComplete) {
     }
 }

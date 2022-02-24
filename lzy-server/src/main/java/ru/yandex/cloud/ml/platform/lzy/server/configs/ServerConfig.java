@@ -6,6 +6,8 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 public class ServerConfig {
     private String serverUri;
 
+    private String whiteboardUrl;
+
     private YcCredentials yc;
 
     public String getServerUri() {
@@ -22,6 +24,14 @@ public class ServerConfig {
 
     public void setYc(YcCredentials yc) {
         this.yc = yc;
+    }
+
+    public String getWhiteboardUrl() {
+        return whiteboardUrl;
+    }
+
+    public void setWhiteboardUrl(String whiteboardUrl) {
+        this.whiteboardUrl = whiteboardUrl;
     }
 
     @ConfigurationProperties("yc")

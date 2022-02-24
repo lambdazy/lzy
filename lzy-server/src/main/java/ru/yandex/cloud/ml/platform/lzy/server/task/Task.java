@@ -41,8 +41,6 @@ public interface Task {
 
     void start(String token);
 
-    SnapshotMeta wbMeta();
-
     enum State {
         PREPARING, CONNECTED, RUNNING, SUSPENDED, FINISHED, DESTROYED;
     }

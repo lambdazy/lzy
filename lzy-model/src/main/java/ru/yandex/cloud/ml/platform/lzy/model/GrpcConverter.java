@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
@@ -69,15 +70,10 @@ public abstract class GrpcConverter {
         return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
     }
 
-    private static SnapshotMeta from(Tasks.SnapshotMeta snapshotMeta) {
-        return SnapshotMeta.from(snapshotMeta);
-    }
-
     public static Context from(ContextSpec spec) {
         return new ContextImpl(
             from(spec.getEnv()),
             from(spec.getProvisioning()),
-            from(spec.getSnapshotMeta()),
             from(spec.getAssignmentsList().stream())
         );
     }

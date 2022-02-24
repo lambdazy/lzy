@@ -5,14 +5,16 @@ import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -24,8 +26,8 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     private URI connected;
     private SlotController slotController;
 
-    LzyInputSlotBase(String tid, Slot definition, SlotSnapshotProvider snapshotProvider) {
-        super(definition, snapshotProvider);
+    LzyInputSlotBase(String tid, Slot definition, Snapshotter snapshotter) {
+        super(definition, snapshotter);
         this.tid = tid;
     }
 
@@ -63,7 +65,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                     try {
                         LOG.info("From {} chunk received {}", name(), chunk.toString(StandardCharsets.UTF_8));
                         onChunk(chunk);
-                        snapshotProvider.slotSnapshot(definition()).onChunk(chunk);
                     } catch (IOException ioe) {
                         LOG.warn(
                             "Unable write chunk of data of size " + chunk.size() + " to input slot " + name(),
@@ -73,7 +74,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                         offset += chunk.size();
                     }
                 } else if (next.getControl() == Servant.Message.Controls.EOS) {
-                    snapshotProvider.slotSnapshot(definition()).onFinish();
                     break;
                 }
             }
@@ -83,6 +83,26 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             LOG.info("Opening slot {}", name());
             state(Operations.SlotStatus.State.OPEN);
         }
+    }
+
+    protected void readAllFromSnapshot() {
+        String storageUrl = snapshotter.storageUrlForEntry(snapshotId, entryId);
+        String storagePath = URI.create(storageUrl).getPath();
+        String[] parts = storagePath.split("/");
+        String bucket;
+        String key;
+        if (storagePath.startsWith("/")) {
+            bucket = parts[1];
+            key = Arrays.stream(parts).skip(2).collect(Collectors.joining("/"));
+        } else {
+            bucket = parts[0];
+            key = Arrays.stream(parts).skip(1).collect(Collectors.joining("/"));
+        }
+        snapshotter.snapshotProvider().slotSnapshot(definition())
+            .readFromStorage(bucket, key, data -> {
+                LOG.info("From {} chunk received {}", name(), data.toString(StandardCharsets.UTF_8));
+                onChunk(data);
+            }, () -> state(Operations.SlotStatus.State.OPEN));
     }
 
     @Override
@@ -102,4 +122,10 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     }
 
     protected abstract void onChunk(ByteString bytes) throws IOException;
+
+    @Override
+    public void snapshot(String snapshotId, String entryId) {
+        super.snapshot(snapshotId, entryId);
+        readAllFromSnapshot();
+    }
 }
