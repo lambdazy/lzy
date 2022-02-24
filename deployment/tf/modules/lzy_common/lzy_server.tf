@@ -194,9 +194,21 @@ resource "kubernetes_deployment" "server" {
                   values = [
                     "lzy-servant",
                     "lzy-server",
+                    "lzy-server-db",
                     "lzy-kharon",
                     "lzy-backoffice",
-                    "whiteboard"
+                    "whiteboard",
+                    "whiteboard-db",
+                    "grafana",
+                    "kafka",
+                    "clickhouse"
+                  ]
+                }
+                match_expressions {
+                  key      = "app.kubernetes.io/managed-by"
+                  operator = "In"
+                  values = [
+                    "Helm"
                   ]
                 }
               }

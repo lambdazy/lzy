@@ -28,7 +28,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   default_node_pool {
     name        = "lzypool"
     vm_size     = "Standard_D2_v2"
-    node_count  = 6
+    node_count  = 10
     node_labels = {
       type = "lzy"
     }
