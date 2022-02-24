@@ -97,7 +97,8 @@ public class LocalDockerTask extends LocalTask {
                 "USE_S3_PROXY=" + String.valueOf(Objects.equals(System.getenv("USE_S3_PROXY"), "true")),
                 "S3_PROXY_PROVIDER=" + System.getenv("S3_PROXY_PROVIDER"),
                 "S3_PROXY_IDENTITY=" + System.getenv("S3_PROXY_IDENTITY"),
-                "S3_PROXY_CREDENTIALS=" + System.getenv("S3_PROXY_CREDENTIALS")
+                "S3_PROXY_CREDENTIALS=" + System.getenv("S3_PROXY_CREDENTIALS"),
+                "BASE_ENV_DEFAULT_IMAGE=" + System.getenv("BASE_ENV_DEFAULT_IMAGE")
             )
             .withExposedPorts(ExposedPort.tcp(debugPort), ExposedPort.tcp(servantPort))
             .withHostConfig(hostConfig)

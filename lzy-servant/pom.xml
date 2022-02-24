@@ -252,7 +252,6 @@
                     <verbose>true</verbose>
                     <autoPull>always</autoPull>
                     <images>
-                        <!--
                         <image>
                             <name>lzy-servant</name>
                             <alias>dockerfile</alias>
@@ -263,7 +262,6 @@
                                 <imagePullPolicy>IfNotPresent</imagePullPolicy>
                             </build>
                         </image>
-                        -->
                         <!--
                         TODO (lindvv) 87917: enable it
                         <image>

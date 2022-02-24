@@ -29,9 +29,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.BaseEnvConfig;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvFactory;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvironmentFactory;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
@@ -170,11 +169,7 @@ public class LzyContext {
         });
 
         try {
-            env = EnvFactory.create(
-                context.env(),
-                BaseEnvConfig.newBuilder().build(),
-                credentials
-            );
+            env = EnvironmentFactory.create(context.env(), credentials);
         } catch (EnvironmentInstallationException e) {
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
             Set.copyOf(slots.values()).stream()

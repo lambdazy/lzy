@@ -60,7 +60,7 @@ public class KuberTask extends BaseTask {
                     "app=lzy-servant",
                     Integer.MAX_VALUE,
                     null,
-                    null,
+                     null,
                     Boolean.FALSE
                 );
                 String podName = pod.getMetadata().getName();
