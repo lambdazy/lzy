@@ -204,13 +204,6 @@ resource "kubernetes_deployment" "server" {
                     "clickhouse"
                   ]
                 }
-                match_expressions {
-                  key      = "app.kubernetes.io/managed-by"
-                  operator = "In"
-                  values = [
-                    "Helm"
-                  ]
-                }
               }
               topology_key = "kubernetes.io/hostname"
             }

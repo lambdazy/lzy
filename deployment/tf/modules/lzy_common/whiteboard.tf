@@ -85,13 +85,6 @@ resource "kubernetes_deployment" "whiteboard" {
                     "clickhouse"
                   ]
                 }
-                match_expressions {
-                  key      = "app.kubernetes.io/managed-by"
-                  operator = "In"
-                  values = [
-                    "Helm"
-                  ]
-                }
               }
               topology_key = "kubernetes.io/hostname"
             }
