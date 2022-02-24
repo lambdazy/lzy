@@ -83,13 +83,6 @@ resource "kubernetes_deployment" "kharon" {
                     "clickhouse"
                   ]
                 }
-                match_expressions {
-                  key      = "app.kubernetes.io/managed-by"
-                  operator = "In"
-                  values = [
-                    "Helm"
-                  ]
-                }
               }
               topology_key = "kubernetes.io/hostname"
             }
