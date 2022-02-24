@@ -14,12 +14,7 @@ on:
         default: ''
       update:
         type: boolean
-        description: 'Tag with new version instead of custom tag for images'
-        required: false
-        default: 'false'
-      major:
-        type: boolean
-        description: 'Update MAJOR version'
+        description: 'Tag with new minor version instead of custom tag for images'
         required: false
         default: 'false'
       servant-base:
@@ -50,7 +45,6 @@ jobs:
       - name: 'push-docker'
         run: |
           FLAGS="--rebuild"
-          if [[ ${{ github.event.inputs.servant-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
           if [[ ${{ github.event.inputs.update }} == true ]]; then FLAGS="$FLAGS --update"; fi
-          if [[ ${{ github.event.inputs.major }} == true ]]; then FLAGS="$FLAGS --major"; fi
+          if [[ ${{ github.event.inputs.servant-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
           bash deployment/push-docker.sh "${{ github.event.inputs.tag }}" $FLAGS
