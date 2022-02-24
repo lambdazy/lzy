@@ -55,5 +55,4 @@ RUN ./conda_prepare.sh init
 
 ### cached default-env
 # docker save -o default-env-image.tar default-env:from-tar
-COPY lzy-servant/docker/new-scheme/default-env-image.tar /
-RUN chmod +r /default-env-image.tar
+COPY --chmod=444 lzy-servant/docker/new-scheme/default-env-image.tar /

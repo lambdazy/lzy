@@ -54,7 +54,8 @@ public class TerminalCrashTest extends LzyBaseTest {
             "cat_lzy",
             List.of(fileName.substring(LZY_MOUNT.length())),
             Collections.emptyList(),
-            "/tmp/lzy/sbin/cat " + fileName
+            "/tmp/lzy/sbin/cat " + fileName,
+            false
         );
 
         //Act
@@ -120,7 +121,8 @@ public class TerminalCrashTest extends LzyBaseTest {
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "echo 42"
+            "echo 42",
+            false
         );
         terminal1.publish(echo42.getName(), echo42);
         terminal2.update();

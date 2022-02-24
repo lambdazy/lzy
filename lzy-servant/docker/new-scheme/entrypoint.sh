@@ -4,6 +4,7 @@ export LOGS_APPENDER="${LOGS_APPENDER:-LogFile}"
 
 dockerd &> var/log/dockerd.log &
 sleep 5
+mkdir tmp/resources
 mount --make-shared /
 
 docker load -i default-env-image.tar

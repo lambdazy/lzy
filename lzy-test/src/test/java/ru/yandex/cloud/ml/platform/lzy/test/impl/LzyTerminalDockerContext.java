@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.output.ToStringConsumer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
@@ -65,7 +67,8 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             terminalContainer = base
                     .withFixedExposedPort(exposedPort, exposedPort)
                     .withFixedExposedPort(debugPort, debugPort) //to attach debugger
-                    .withExposedPorts(exposedPort, debugPort);
+                    .withExposedPorts(exposedPort, debugPort)
+                    .withStartupTimeout(Duration.ofSeconds(150));
         }
 
         terminalContainer.start();
