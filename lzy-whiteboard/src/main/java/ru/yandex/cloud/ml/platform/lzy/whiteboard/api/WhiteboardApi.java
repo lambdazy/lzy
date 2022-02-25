@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
@@ -45,13 +46,6 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     private final SnapshotRepository snapshotRepository;
     private final Authenticator auth;
 
-    private String resolveNamespace(String namespace, String uid) {
-        if (!namespace.startsWith(uid + ":")) {
-            return uid + ":" + namespace;
-        }
-        return namespace;
-    }
-
     @Inject
     public WhiteboardApi(ServerConfig serverConfig, WhiteboardRepository whiteboardRepository,
         SnapshotRepository snapshotRepository) {
@@ -67,6 +61,13 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         this.snapshotRepository = snapshotRepository;
     }
 
+    private String resolveNamespace(String namespace, String uid) {
+        if (!namespace.startsWith(uid + ":")) {
+            return uid + ":" + namespace;
+        }
+        return namespace;
+    }
+
     @Override
     public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
         StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
@@ -76,7 +77,8 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         final SnapshotStatus snapshotStatus = snapshotRepository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
-        if (snapshotStatus == null) {
+        if (snapshotStatus == null
+            || !Objects.equals(snapshotStatus.snapshot().uid().toString(), request.getAuth().getUser().getUserId())) {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
             return;
         }
@@ -103,7 +105,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         final WhiteboardStatus whiteboardStatus = whiteboardRepository
             .resolveWhiteboard(URI.create(request.getWhiteboardId()));
-        if (whiteboardStatus == null) {
+        if (whiteboardStatus == null
+            || !Objects.equals(whiteboardStatus.whiteboard().snapshot().uid().toString(),
+            request.getAuth().getUser().getUserId())) {
             responseObserver.onError(Status.INVALID_ARGUMENT
                 .withDescription("Cannot find whiteboard " + request.getWhiteboardId())
                 .asException());
@@ -135,7 +139,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         final WhiteboardStatus whiteboardStatus = whiteboardRepository
             .resolveWhiteboard(URI.create(request.getWhiteboardId()));
-        if (whiteboardStatus == null) {
+        if (whiteboardStatus == null
+            || !Objects.equals(whiteboardStatus.whiteboard().snapshot().uid().toString(),
+            request.getAuth().getUser().getUserId())) {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
             return;
         }

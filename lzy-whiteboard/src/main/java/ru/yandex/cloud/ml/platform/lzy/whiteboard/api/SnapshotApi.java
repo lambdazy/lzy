@@ -7,6 +7,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.Objects;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -129,7 +130,8 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         }
         final SnapshotStatus snapshotStatus = repository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
-        if (snapshotStatus == null) {
+        if (snapshotStatus == null
+            || !Objects.equals(snapshotStatus.snapshot().uid().toString(), request.getAuth().getUser().getUserId())) {
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
             return;
         }
