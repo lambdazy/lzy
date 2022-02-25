@@ -79,7 +79,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             .resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null
             || !Objects.equals(snapshotStatus.snapshot().uid().toString(), request.getAuth().getUser().getUserId())) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         URI wbId = URI.create(UUID.randomUUID().toString());
@@ -108,7 +108,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         if (whiteboardStatus == null
             || !Objects.equals(whiteboardStatus.whiteboard().snapshot().uid().toString(),
             request.getAuth().getUser().getUserId())) {
-            responseObserver.onError(Status.INVALID_ARGUMENT
+            responseObserver.onError(Status.NOT_FOUND
                 .withDescription("Cannot find whiteboard " + request.getWhiteboardId())
                 .asException());
             return;
@@ -142,7 +142,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         if (whiteboardStatus == null
             || !Objects.equals(whiteboardStatus.whiteboard().snapshot().uid().toString(),
             request.getAuth().getUser().getUserId())) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus);

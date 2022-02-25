@@ -77,7 +77,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         final SnapshotStatus snapshotStatus = repository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         repository.prepare(GrpcConverter.from(request.getEntry(), snapshotStatus.snapshot()),
@@ -102,13 +102,13 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         final SnapshotStatus snapshotStatus = repository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         final SnapshotEntry entry = repository
             .resolveEntry(snapshotStatus.snapshot(), request.getEntryId());
         if (entry == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         repository.commit(entry, request.getEmpty());
@@ -132,7 +132,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             .resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null
             || !Objects.equals(snapshotStatus.snapshot().uid().toString(), request.getAuth().getUser().getUserId())) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         repository.finalize(snapshotStatus.snapshot());
