@@ -49,14 +49,15 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
-                               StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+        StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
         LOG.info("SnapshotApi::createSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
         URI snapshotId = URI.create(UUID.randomUUID().toString());
-        repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId())));
+        repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
+            GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName()));
         final LzyWhiteboard.Snapshot result = LzyWhiteboard.Snapshot
             .newBuilder()
             .setSnapshotId(snapshotId.toString())
@@ -67,7 +68,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void prepareToSave(LzyWhiteboard.PrepareCommand request,
-                              StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::prepareToSave " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -92,7 +93,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void commit(LzyWhiteboard.CommitCommand request,
-                       StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::commit " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -121,7 +122,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
-                                 StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::finalizeSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -139,6 +140,24 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
             .build();
         responseObserver.onNext(status);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
+        StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+        LOG.info("SnapshotApi::finalizeSnapshot " + JsonUtils.printRequest(request));
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
+        final SnapshotStatus snapshotStatus = repository.lastSnapshot(request.getWorkflowName(),
+            request.getAuth().getUser().getUserId());
+        final LzyWhiteboard.Snapshot.Builder result = LzyWhiteboard.Snapshot.newBuilder();
+        if (snapshotStatus != null) {
+            result.setSnapshotId(snapshotStatus.snapshot().id().toString());
+        }
+        responseObserver.onNext(result.build());
         responseObserver.onCompleted();
     }
 }

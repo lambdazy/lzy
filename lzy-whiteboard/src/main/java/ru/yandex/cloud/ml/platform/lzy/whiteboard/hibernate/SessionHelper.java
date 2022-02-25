@@ -16,6 +16,7 @@ import org.hibernate.query.Query;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
@@ -180,11 +181,12 @@ public class SessionHelper {
         cr.select(root).where(cb.equal(root.get("snapshotId"), spId));
 
         Query<SnapshotModel> query = session.createQuery(cr);
-        List<SnapshotModel> results = query.getResultList();
-        if (results.isEmpty()) {
+        SnapshotModel result = query.getSingleResult();
+        if (result == null) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId), URI.create(results.get(0).getUid()));
+        return new Snapshot.Impl(URI.create(spId), URI.create(result.getUid()), result.creationDateUTC(),
+            result.workflowName());
     }
 
     public static WhiteboardField getWhiteboardField(WhiteboardFieldModel wbFieldModel,
@@ -200,7 +202,8 @@ public class SessionHelper {
         if (spModel == null) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId), URI.create(spModel.getUid()));
+        return new Snapshot.Impl(URI.create(spId), URI.create(spModel.getUid()), spModel.creationDateUTC(),
+            spModel.workflowName());
     }
 
     @Nullable
@@ -269,5 +272,19 @@ public class SessionHelper {
             query.setParameterList("tags", tags);
         }
         return query.list();
+    }
+
+    public static SnapshotStatus lastSnapshot(String workflowName, String uid, Session session) {
+        String queryLastSnapshot = "SELECT s FROM SnapshotModel s "
+            + "WHERE s.uid = :uid AND s.workflowName = :workflowName AND s.creationDate = ("
+            + "SELECT MAX(s1.creationDate) FROM SnapshotModel s1 "
+            + "WHERE s1.uid = :uid AND s1.workflowName = :workflowName)";
+        Query<SnapshotModel> query = session.createQuery(queryLastSnapshot);
+        query.setParameter("workflowName", workflowName);
+        query.setParameter("uid", uid);
+        SnapshotModel spModel = query.getSingleResult();
+        return new SnapshotStatus.Impl(new Snapshot.Impl(
+            URI.create(spModel.getSnapshotId()), URI.create(spModel.getUid()), spModel.creationDateUTC(),
+            spModel.workflowName()), spModel.getSnapshotState());
     }
 }

@@ -5,7 +5,6 @@ import tempfile
 from abc import ABC, abstractmethod
 from typing import Any, TypeVar, Tuple, BinaryIO
 from urllib import parse
-import boto3
 
 from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
 import logging

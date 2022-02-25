@@ -50,6 +50,7 @@ public class DbWhiteboardRepositoryTest {
     private final String storageUri = "storageUri";
     private final String namespaceFirst = "namespaceFirst";
     private final String namespaceSecond = "namespaceSecond";
+    private final String workflowName = "workflow";
     private final Date creationDateUTC = Date.from(Instant.now());
     private final Date creationDateUTCFrom = Date.from(LocalDateTime
         .of(1, 1, 1, 0, 0).toInstant(ZoneOffset.UTC));
@@ -102,7 +103,8 @@ public class DbWhiteboardRepositoryTest {
     @Test
     public void testCreate() {
         impl.create(new Whiteboard.Impl(URI.create(wbIdFirst), Set.of(fieldNameFirst, fieldNameSecond),
-            new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst)),
+            new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
+                workflowName),
             Set.of(firstTag, secondTag), namespaceFirst, creationDateUTC));
 
         WhiteboardModel whiteboardModel;
@@ -153,7 +155,9 @@ public class DbWhiteboardRepositoryTest {
             session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, entryIdSecond));
             session.save(new WhiteboardTagModel(wbIdFirst, firstTag));
             session.save(new WhiteboardTagModel(wbIdFirst, secondTag));
-            session.save(new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.CREATED, snapshotOwnerFirst));
+            session.save(
+                new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.CREATED, snapshotOwnerFirst, creationDateUTC,
+                    workflowName));
             tx.commit();
         }
         WhiteboardStatus whiteboardStatus = impl.resolveWhiteboard(URI.create(wbIdFirst));
@@ -337,7 +341,8 @@ public class DbWhiteboardRepositoryTest {
             new Whiteboard.Impl(
                 URI.create(wbIdFirst),
                 Set.of(fieldNameFirst, fieldNameSecond, fieldNameThird, fieldNameFourth),
-                new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst)),
+                new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
+                    workflowName),
                 Set.of(firstTag, secondTag),
                 namespaceFirst,
                 creationDateUTC
@@ -377,7 +382,8 @@ public class DbWhiteboardRepositoryTest {
     private WhiteboardField createWhiteboardField(
         String fieldName, String entryId, String snapshotId, String wbId
     ) {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), URI.create(snapshotOwnerFirst));
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), URI.create(snapshotOwnerFirst), creationDateUTC, workflowName);
         return new WhiteboardField.Impl(fieldName, new SnapshotEntry.Impl(entryId, snapshot),
             new Whiteboard.Impl(URI.create(wbId), Collections.emptySet(), snapshot,
                 Collections.emptySet(), namespaceFirst, creationDateUTC));
@@ -404,8 +410,12 @@ public class DbWhiteboardRepositoryTest {
             session.save(new WhiteboardTagModel(wbIdFirst, secondTag));
             session.save(new WhiteboardTagModel(wbIdSecond, firstTag));
             session.save(new WhiteboardTagModel(wbIdSecond, secondTag));
-            session.save(new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.CREATED, snapshotOwnerFirst));
-            session.save(new SnapshotModel(snapshotIdSecond, SnapshotStatus.State.CREATED, snapshotOwnerFirst));
+            session.save(
+                new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.CREATED, snapshotOwnerFirst, creationDateUTC,
+                    workflowName));
+            session.save(
+                new SnapshotModel(snapshotIdSecond, SnapshotStatus.State.CREATED, snapshotOwnerFirst, creationDateUTC,
+                    workflowName));
             tx.commit();
         }
     }

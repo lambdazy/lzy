@@ -46,7 +46,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
             Transaction tx = session.beginTransaction();
             snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED,
-                snapshot.uid().toString());
+                snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName());
             try {
                 session.save(snapshotStatus);
                 tx.commit();
@@ -67,7 +67,12 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 return null;
             }
             return new SnapshotStatus.Impl(
-                new Snapshot.Impl(id, URI.create(snapshotModel.getUid())),
+                new Snapshot.Impl(
+                    id,
+                    URI.create(snapshotModel.getUid()),
+                    snapshotModel.creationDateUTC(),
+                    snapshotModel.workflowName()
+                ),
                 snapshotModel.getSnapshotState());
         }
     }
@@ -213,6 +218,14 @@ public class DbSnapshotRepository implements SnapshotRepository {
     public SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id) {
         try (Session session = storage.getSessionFactory().openSession()) {
             return SessionHelper.resolveEntryStatus(snapshot, id, session);
+        }
+    }
+
+    @Nullable
+    @Override
+    public SnapshotStatus lastSnapshot(String workflowName, String uid) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            return SessionHelper.lastSnapshot(workflowName, uid, session);
         }
     }
 
