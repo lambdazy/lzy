@@ -4,7 +4,7 @@ import logging
 import sys
 from typing import Callable
 
-from lzy.api.env import LzyEnvBase, LzyRemoteEnv, LzyLocalEnv
+from lzy.api.env import LzyWorkflowBase, LzyRemoteWorkflow, LzyLocalWorkflow, LzyRemoteEnv, LzyLocalEnv
 from lzy.api.lazy_op import LzyLocalOp, LzyRemoteOp
 from lzy.api.result import Nothing
 from lzy.api.utils import infer_return_type, is_lazy_proxy, lazy_proxy
@@ -55,24 +55,24 @@ def op_(provisioning: Provisioning, *, output_type=None):
                 for arg in args
             )
 
-            current_env = LzyEnvBase.get_active()
-            if current_env is None:
+            current_workflow = LzyWorkflowBase.get_active()
+            if current_workflow is None:
                 return f(*args)
 
             signature = CallSignature(FuncSignature(f, input_types, output_type), args)
 
-            if isinstance(current_env, LzyLocalEnv):
+            if isinstance(current_workflow, LzyLocalWorkflow):
                 lzy_op = LzyLocalOp(signature)
-            elif isinstance(current_env, LzyRemoteEnv):
-                servant = current_env.servant()
+            elif isinstance(current_workflow, LzyRemoteWorkflow):
+                servant = current_workflow.servant()
                 if not servant:
                     raise RuntimeError("Cannot find servant")
-                id_generator = UUIDEntryIdGenerator(current_env.snapshot_id())
+                id_generator = UUIDEntryIdGenerator(current_workflow.snapshot_id())
 
                 # we need specify globals() for caller site to find all
                 # required modules
                 caller_globals = inspect.stack()[1].frame.f_globals
-                pyenv = current_env.py_env(caller_globals)
+                pyenv = current_workflow.py_env(caller_globals)
 
                 lzy_op = LzyRemoteOp(
                     servant,
@@ -83,8 +83,8 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     entry_id_generator=id_generator,
                 )
             else:
-                raise RuntimeError(f"Unsupported env type: {type(current_env)}")
-            current_env.register_op(lzy_op)
+                raise RuntimeError(f"Unsupported env type: {type(current_workflow)}")
+            current_workflow.register_op(lzy_op)
 
             # Special case for NoneType, just leave op registered and return
             # the real None. LzyEnv later will materialize it anyway.

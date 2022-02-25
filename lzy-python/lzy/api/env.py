@@ -9,6 +9,7 @@ from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Op
 
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
+from lzy.api.restart_policy import RestartPolicy
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 from lzy.api.utils import zipdir, fileobj_hash
@@ -34,35 +35,18 @@ BusList = List[Tuple[Callable, Bus]]
 
 
 class LzyEnvBase(ABC):
-    instances: List["LzyEnvBase"] = []
-
     # pylint: disable=too-many-arguments
     def __init__(self,
-                 buses: Optional[BusList],
-                 whiteboard: Any,
                  whiteboard_api: WhiteboardApi,
                  snapshot_api: SnapshotApi,
-                 eager: bool):
-        self._execution_context = WhiteboardExecutionContext(
-            whiteboard_api, snapshot_api, whiteboard
-        )
-
-        if self._execution_context.whiteboard is not None:
-            check_whiteboard(whiteboard)
-            wrap_whiteboard(
-                self._execution_context.whiteboard,
-                self._execution_context.whiteboard_api,
-                self.whiteboard_id,
-            )
-
-        self._ops: List[LzyOp] = []
-        self._buses = list(buses or [])
-        self._eager = eager
+                 ):
+        self._whiteboard_api = whiteboard_api
+        self._snapshot_api = snapshot_api
         self._log = logging.getLogger(str(self.__class__))
 
     def whiteboard(self, wid: str, typ: Type[Any]) -> Any:
         check_whiteboard(typ)
-        wb_ = self._execution_context.whiteboard_api.get(wid)
+        wb_ = self._whiteboard_api.get(wid)
         return self._build_whiteboard(wb_, typ)
 
     def _build_whiteboard(self, wb_: WhiteboardDescription, typ: Type[Any]) -> Any:
@@ -73,8 +57,7 @@ class LzyEnvBase(ABC):
         for field in wb_.fields:
             if field.field_name in field_types:
                 if field.status is WhiteboardFieldStatus.FINISHED:
-                    whiteboard_dict[field.field_name] = self._execution_context \
-                        .whiteboard_api \
+                    whiteboard_dict[field.field_name] = self._whiteboard_api \
                         .resolve(field.storage_uri, field_types[field.field_name])
         # noinspection PyArgumentList
         instance = typ(**whiteboard_dict)
@@ -84,7 +67,7 @@ class LzyEnvBase(ABC):
     def _whiteboards(self, namespace: str, tags: List[str], typ: Type[T], from_date: datetime = None,
                      to_date: datetime = None) -> List[T]:
         check_whiteboard(typ)
-        wb_list = self._execution_context.whiteboard_api.list(namespace, tags, from_date, to_date)
+        wb_list = self._whiteboard_api.list(namespace, tags, from_date, to_date)
         self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags} "
                        f"within dates {from_date} - {to_date}")
         result = []
@@ -100,62 +83,11 @@ class LzyEnvBase(ABC):
         whiteboard_dict = {}
         for typ in typs:
             check_whiteboard(typ)
-            whiteboard_dict[typ] = self._whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ, from_date, to_date)  # type: ignore
+            whiteboard_dict[typ] = self._whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ, from_date,
+                                                     to_date)  # type: ignore
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
         return WhiteboardList([wb for wbs_list in list_of_wb_lists for wb in wbs_list])
-
-    def register_op(self, lzy_op: LzyOp) -> None:
-        self._ops.append(lzy_op)
-        if self._eager:
-            lzy_op.materialize()
-
-    def whiteboard_id(self) -> Optional[str]:
-        return self._execution_context.whiteboard_id
-
-    def snapshot_id(self) -> Optional[str]:
-        return self._execution_context.snapshot_id
-
-    def registered_ops(self) -> Iterable[LzyOp]:
-        # if self.get_active() is None:
-        #    raise ValueError("Fetching ops on a non-entered environment")
-        return list(self._ops)
-
-    def run(self) -> None:
-        assert self.get_active() is not None
-        for wrapper in self._ops:
-            wrapper.materialize()
-
-    @abstractmethod
-    def activate(self):
-        pass
-
-    @abstractmethod
-    def deactivate(self):
-        pass
-
-    @classmethod
-    def get_active(cls) -> "LzyEnvBase":
-        assert len(cls.instances) > 0, "There is not active LzyEnv"
-        return cls.instances[-1]
-
-    def __enter__(self) -> "LzyEnvBase":
-        self.activate()
-        type(self).instances.append(self)
-        return self
-
-    def __exit__(self, *_) -> None:
-        try:
-            self.run()
-            context = self._execution_context
-            # pylint: disable=protected-access
-            # noinspection PyProtectedMember
-            if context._snapshot_id is not None:
-                # noinspection PyProtectedMember
-                context.snapshot_api.finalize(context._snapshot_id)
-        finally:
-            self.deactivate()
-            type(self).instances.pop()
 
 
 class WhiteboardExecutionContext:
@@ -193,38 +125,165 @@ class WhiteboardExecutionContext:
 
 
 class LzyLocalEnv(LzyEnvBase):
-    def __init__(
-            self,
-            eager: bool = False,
-            whiteboard: Any = None,
-            buses: Optional[BusList] = None,
-    ):
+    def __init__(self):
         super().__init__(
-            buses=buses,
-            whiteboard=whiteboard,
             whiteboard_api=InMemWhiteboardApi(),
             snapshot_api=InMemSnapshotApi(),
-            eager=eager
         )
 
-    def activate(self):
-        pass
-
-    def deactivate(self):
-        pass
+    def workflow(
+            self,
+            name: str,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None
+    ):
+        return LzyLocalWorkflow(
+            name=name,
+            eager=eager,
+            whiteboard=whiteboard,
+            buses=buses
+        )
 
 
 class LzyRemoteEnv(LzyEnvBase):
     def __init__(
             self,
             lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
+    ):
+        self._servant_client: BashServantClient = BashServantClient() \
+            .instance(lzy_mount)
+        self._lzy_mount = lzy_mount
+        super().__init__(
+            whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
+            snapshot_api=SnapshotBashApi(lzy_mount),
+        )
+
+    def workflow(
+            self,
+            name: str,
+            restart_policy: RestartPolicy = RestartPolicy.IGNORE_SNAPSHOTS,
             eager: bool = False,
-            conda_yaml_path: Optional[Path] = None,
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
-            local_module_paths: Optional[List[str]] = None
+            conda_yaml_path: Optional[Path] = None,
+            local_module_paths: Optional[List[str]] = None,
+    ):
+        return LzyRemoteWorkflow(
+            name=name,
+            lzy_mount=self._lzy_mount,
+            conda_yaml_path=conda_yaml_path,
+            local_module_paths=local_module_paths,
+            restart_policy=restart_policy,
+            eager=eager,
+            whiteboard=whiteboard,
+            buses=buses
+        )
+
+
+class LzyWorkflowBase(ABC):
+    instances: List["LzyWorkflowBase"] = []
+
+    def __init__(
+            self,
+            whiteboard_api: WhiteboardApi,
+            snapshot_api: SnapshotApi,
+            name: str,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None
+    ):
+        self._execution_context = WhiteboardExecutionContext(
+            whiteboard_api, snapshot_api, whiteboard
+        )
+
+        if self._execution_context.whiteboard is not None:
+            check_whiteboard(whiteboard)
+            wrap_whiteboard(
+                self._execution_context.whiteboard,
+                self._execution_context.whiteboard_api,
+                self.whiteboard_id,
+            )
+
+        self._ops: List[LzyOp] = []
+        self._buses = list(buses or [])
+        self._eager = eager
+        self._name = name
+        self._log = logging.getLogger(str(self.__class__))
+
+    def register_op(self, lzy_op: LzyOp) -> None:
+        self._ops.append(lzy_op)
+        if self._eager:
+            lzy_op.materialize()
+
+    def whiteboard_id(self) -> Optional[str]:
+        return self._execution_context.whiteboard_id
+
+    def snapshot_id(self) -> Optional[str]:
+        return self._execution_context.snapshot_id
+
+    def registered_ops(self) -> Iterable[LzyOp]:
+        # if self.get_active() is None:
+        #    raise ValueError("Fetching ops on a non-entered environment")
+        return list(self._ops)
+
+    def run(self) -> None:
+        assert self.get_active() is not None
+        for wrapper in self._ops:
+            wrapper.materialize()
+
+    @abstractmethod
+    def activate(self):
+        pass
+
+    @abstractmethod
+    def deactivate(self):
+        pass
+
+    @classmethod
+    def get_active(cls) -> "LzyWorkflowBase":
+        assert len(cls.instances) > 0, "There is not active LzyEnv"
+        return cls.instances[-1]
+
+    def __enter__(self) -> "LzyWorkflowBase":
+        self.activate()
+        type(self).instances.append(self)
+        return self
+
+    def __exit__(self, *_) -> None:
+        try:
+            self.run()
+            context = self._execution_context
+            # pylint: disable=protected-access
+            # noinspection PyProtectedMember
+            if context._snapshot_id is not None:
+                # noinspection PyProtectedMember
+                context.snapshot_api.finalize(context._snapshot_id)
+        finally:
+            self.deactivate()
+            type(self).instances.pop()
+
+
+class LzyRemoteWorkflow(LzyWorkflowBase):
+    def activate(self):
+        pass
+
+    def deactivate(self):
+        pass
+
+    def __init__(
+            self,
+            name: str,
+            lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
+            conda_yaml_path: Optional[Path] = None,
+            local_module_paths: Optional[List[str]] = None,
+            restart_policy: RestartPolicy = RestartPolicy.IGNORE_SNAPSHOTS,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None
     ):
         self._yaml = conda_yaml_path
+        self._restart_policy = restart_policy
         self._servant_client: BashServantClient = BashServantClient() \
             .instance(lzy_mount)
         self._py_env: Optional[PyEnv] = None
@@ -240,18 +299,13 @@ class LzyRemoteEnv(LzyEnvBase):
             self._local_module_paths = local_module_paths
 
         super().__init__(
-            buses=buses,
-            whiteboard=whiteboard,
+            name=name,
             whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
             snapshot_api=SnapshotBashApi(lzy_mount),
-            eager=eager
+            eager=eager,
+            whiteboard=whiteboard,
+            buses=buses
         )
-
-    def activate(self):
-        pass
-
-    def deactivate(self):
-        pass
 
     def servant(self) -> Optional[ServantClient]:
         return self._servant_client
@@ -292,3 +346,27 @@ class LzyRemoteEnv(LzyEnvBase):
             name, yaml = "default", "".join(file.readlines())
             self._py_env = PyEnv(name, yaml, [])
             return self._py_env
+
+
+class LzyLocalWorkflow(LzyWorkflowBase):
+    def activate(self):
+        pass
+
+    def deactivate(self):
+        pass
+
+    def __init__(
+            self,
+            name: str,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None
+    ):
+        super().__init__(
+            name=name,
+            whiteboard_api=InMemWhiteboardApi(),
+            snapshot_api=InMemSnapshotApi(),
+            eager=eager,
+            whiteboard=whiteboard,
+            buses=buses
+        )
