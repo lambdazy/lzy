@@ -2,8 +2,10 @@ import functools
 import inspect
 import logging
 import sys
-from typing import Callable
+from typing import Callable, Any
 
+# noinspection PyProtectedMember
+from lzy.api._proxy.automagic import create_and_cache, is_proxy
 from lzy.api.env import LzyEnvBase, LzyRemoteEnv, LzyLocalEnv
 from lzy.api.lazy_op import LzyLocalOp, LzyRemoteOp
 from lzy.api.result import Nothing
@@ -105,3 +107,12 @@ def op_(provisioning: Provisioning, *, output_type=None):
         return lazy
 
     return deco
+
+
+def run(func: Callable[..., Any], *, provisioning: Provisioning = Provisioning(), local=False) -> Any:
+    ops = op_(provisioning, output_type=dict)(func)
+    lzy_env = LzyLocalEnv() if local else LzyRemoteEnv()
+    with lzy_env:
+        res = ops()
+        # noinspection PyProtectedMember
+        return create_and_cache(type(res), type(res)._constructor)

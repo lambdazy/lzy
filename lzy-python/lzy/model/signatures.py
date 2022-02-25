@@ -25,6 +25,7 @@ class FuncSignature(Generic[T]):
 
     def __post_init__(self):
         self.argspec = inspect.getfullargspec(self.callable)
+        self.callable.__name__ = self.encode(self.callable.__name__)
 
     @property
     def param_names(self) -> Iterable[str]:
@@ -40,6 +41,10 @@ class FuncSignature(Generic[T]):
         if not hasattr(self.callable, "__name__"):
             return repr(self.callable)
         return self.callable.__name__
+
+    @staticmethod
+    def encode(s: str) -> str:
+        return s.replace('<', '').replace('>', '')  # handle case of '<lambda>'
 
     def __repr__(self) -> str:
         input_types = ", ".join(str(t) for t in self.input_types)

@@ -14,6 +14,7 @@ import hashlib
 # noinspection PyProtectedMember
 from zipfile import ZipFile
 
+# noinspection PyProtectedMember
 from lzy.api._proxy import proxy
 from lzy.api.result import Result, Just, Nothing
 
