@@ -2,6 +2,7 @@ import numpy as np
 from catboost import CatBoostClassifier
 
 from lzy.api import op, LzyRemoteEnv, Gpu
+import uuid
 
 '''
 This scenario contains:
@@ -27,8 +28,10 @@ def predict(cb_model: CatBoostClassifier, point: np.array) -> np.int64:
     return cb_model.predict(point)
 
 
+WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
+
 if __name__ == '__main__':
-    with LzyRemoteEnv():
+    with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
         model = learn()
         result = predict(model, np.array([9, 1]))
     print("Prediction: " + str(result))

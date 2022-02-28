@@ -2,8 +2,9 @@ import multiprocessing
 import pathlib
 import sys
 import unittest
+import uuid
 from pathlib import Path
-from typing import Any, Optional, Mapping, AnyStr, BinaryIO
+from typing import Any, Optional, Mapping, BinaryIO
 from unittest import TestCase
 
 import cloudpickle
@@ -78,18 +79,19 @@ def worker(shared):
 
 class ModulesSearchTests(TestCase):
     def setUp(self):
+        WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
         BashServantClient.instance = lambda s, x: ServantClientMock()
-        self._env = LzyRemoteEnv()
+        self._workflow = LzyRemoteEnv().workflow(name=WORKFLOW_NAME)
         self._storage_client = MockStorageClient()
-        self._env._storage_client = self._storage_client
+        self._workflow._storage_client = self._storage_client
 
     @unittest.skip("Not used now")
     def test_py_env(self):
         multiprocessing.set_start_method('spawn')
         # Arrange
-        from tests.test_modules.level1.level1 import Level1 # type: ignore
+        from tests.test_modules.level1.level1 import Level1  # type: ignore
         level1 = Level1()
-        py_env = self._env.py_env({
+        py_env = self._workflow.py_env({
             'level1': level1
         })
         manager = multiprocessing.Manager()

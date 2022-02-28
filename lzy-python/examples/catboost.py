@@ -3,6 +3,7 @@ from catboost import CatBoostClassifier
 
 from lzy.api import op, LzyRemoteEnv, Gpu
 import numpy as np
+import uuid
 
 
 @dataclass
@@ -33,8 +34,10 @@ def predict(cb_model: CatBoostClassifier, point: np.array) -> np.int64:
     return cb_model.predict(point)
 
 
+WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
+
 if __name__ == '__main__':
-    with LzyRemoteEnv():
+    with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
         data = dataset()
         model = learn(data)
         result = predict(model, np.array([9, 1]))

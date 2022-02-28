@@ -7,6 +7,7 @@ from unittest import TestCase
 
 from lzy.api import LzyLocalEnv, op
 from lzy.api.whiteboard import whiteboard
+import uuid
 
 
 @dataclasses.dataclass
@@ -15,6 +16,9 @@ class WB:
     a: int
     b: int
     c: int = 3
+
+
+WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
 
 class WhiteboardTests(TestCase):
@@ -37,7 +41,7 @@ class WhiteboardTests(TestCase):
 
     def test_many_wb(self):
         wb = WB(1, 1)
-        with LzyLocalEnv(whiteboard=wb):
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
             wb.a = self.num()
             wb.b = self.num()
         self.assertEqual(5, wb.a)
@@ -45,11 +49,11 @@ class WhiteboardTests(TestCase):
 
     def test_multiple_instances(self):
         wb = WB(1, 1)
-        with LzyLocalEnv(whiteboard=wb):
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
             wb.a = self.num()
 
         wb2 = WB(1, 1)
-        with LzyLocalEnv(whiteboard=wb):
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
             wb2.b = self.num()
 
         self.assertEqual(5, wb.a)
@@ -58,7 +62,7 @@ class WhiteboardTests(TestCase):
     def test_non_op_assign(self):
         with self.assertRaises(ValueError) as context:
             wb = WB(1, 1)
-            with LzyLocalEnv(whiteboard=wb):
+            with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
                 wb.a = self.num()
                 wb.b = 5
         self.assertTrue('Only @op return values can be assigned to whiteboard' in str(context.exception))
@@ -66,7 +70,7 @@ class WhiteboardTests(TestCase):
     def test_multiple_assigns(self):
         with self.assertRaises(ValueError) as context:
             wb = WB(1, 1)
-            with LzyLocalEnv(whiteboard=wb):
+            with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
                 wb.a = self.num()
                 wb.a = self.num()
         self.assertTrue('Whiteboard field can be assigned only once' in str(context.exception))
@@ -75,7 +79,7 @@ class WhiteboardTests(TestCase):
     def test_execution_stop_if_whiteboard_invalid(self):
         wb = WB(1, 1)
         with self.assertRaises(ValueError) as context:
-            with LzyLocalEnv(whiteboard=wb):
+            with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
                 wb.a = self.num()
                 wb.b = 5
 
@@ -86,7 +90,7 @@ class WhiteboardTests(TestCase):
     def test_materialization_stops_if_whiteboard_invalid(self):
         wb = WB(1, 1)
         with self.assertRaises(Exception):
-            with LzyLocalEnv(whiteboard=wb):
+            with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
                 wb.a = self.raising_num()
                 wb.b, wb.c = self.nums(wb.a)
 

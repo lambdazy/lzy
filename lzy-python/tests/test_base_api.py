@@ -1,8 +1,10 @@
 from typing import List
 from unittest import TestCase
+import uuid
 
 from lzy.api import op, LzyLocalEnv
 
+WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
 class BaseApiTests(TestCase):
     def test_lazy_and_eager_ops(self):
@@ -30,7 +32,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyLocalEnv() as env:
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME) as env:
             s = source()
             r = process(s)
             sink(r)
@@ -42,7 +44,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyLocalEnv(eager=True) as env:
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME, eager=True) as env:
             s = source()
             r = process(s)
             sink(r)
@@ -68,7 +70,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyLocalEnv() as env:
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME) as env:
             n = get_int()
             s = 0.0
             for i in range(n):
@@ -92,7 +94,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyLocalEnv() as env:
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME) as env:
             n = get_int()
             s = 0.0
             for i in range(n):
@@ -131,7 +133,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyLocalEnv() as env:
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME) as env:
             a_res = a()
             b_res = b(a_res)
 
@@ -156,7 +158,7 @@ class BaseApiTests(TestCase):
 
         # Act
         # noinspection PyUnusedLocal
-        with LzyLocalEnv() as env:
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME) as env:
             a_res = none_func()
             b_res = none_receiver_func(a_res)
 

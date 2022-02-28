@@ -1,5 +1,6 @@
 import tempfile
 from pathlib import Path
+import uuid
 
 from lzy.api import op, LzyRemoteEnv
 
@@ -8,6 +9,8 @@ from lzy.api import op, LzyRemoteEnv
 def main() -> int:
     return 0
 
+
+WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
 if __name__ == "__main__":
     with tempfile.NamedTemporaryFile(mode="w", dir="/tmp", suffix=".yaml") as f:
@@ -24,5 +27,5 @@ if __name__ == "__main__":
         )
         f.flush()
 
-        with LzyRemoteEnv(conda_yaml_path=Path(f.name)):
+        with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, conda_yaml_path=Path(f.name)):
             main()
