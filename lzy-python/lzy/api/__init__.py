@@ -83,7 +83,7 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     entry_id_generator=id_generator,
                 )
             else:
-                raise RuntimeError(f"Unsupported env type: {type(current_workflow)}")
+                raise TypeError(f"Unsupported env type: {type(current_workflow)}")
             current_workflow.register_op(lzy_op)
 
             # Special case for NoneType, just leave op registered and return

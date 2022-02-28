@@ -83,7 +83,8 @@ class LzyEnvBase(ABC):
         whiteboard_dict = {}
         for typ in typs:
             check_whiteboard(typ)
-            whiteboard_dict[typ] = self._whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ, from_date, to_date)  # type: ignore
+            whiteboard_dict[typ] = self._whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ, from_date,
+                                                     to_date)  # type: ignore
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
         return WhiteboardList([wb for wbs_list in list_of_wb_lists for wb in wbs_list])
@@ -110,17 +111,20 @@ class WhiteboardExecutionContext:
     def whiteboard_id(self) -> Optional[str]:
         if self._whiteboard_id is not None:
             return self._whiteboard_id
-        if self.whiteboard_api is not None and self.whiteboard is not None:
-            fields = dataclasses.fields(self.whiteboard)
-            snapshot_id = self.snapshot_id
-            if snapshot_id is None:
-                raise RuntimeError("Cannot create snapshot")
-            self._whiteboard_id = self.whiteboard_api.create(
-                [field.name for field in fields], snapshot_id,
-                self.whiteboard.LZY_WB_NAMESPACE, self.whiteboard.LZY_WB_TAGS
-            ).id
-            return self._whiteboard_id
-        return None
+
+        if self.whiteboard_api is None or self.whiteboard is None:
+            return None
+
+        snapshot_id = self.snapshot_id
+        if self.snapshot_id is None:
+            raise RuntimeError("Cannot create snapshot")
+
+        fields = dataclasses.fields(self.whiteboard)
+        self._whiteboard_id = self.whiteboard_api.create(
+            [field.name for field in fields], snapshot_id,
+            self.whiteboard.LZY_WB_NAMESPACE, self.whiteboard.LZY_WB_TAGS
+        ).id
+        return self._whiteboard_id
 
 
 class LzyLocalEnv(LzyEnvBase):
