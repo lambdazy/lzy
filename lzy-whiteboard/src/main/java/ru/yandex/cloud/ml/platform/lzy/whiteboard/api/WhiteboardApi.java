@@ -147,7 +147,8 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             return;
         }
         if (whiteboardStatus.state().equals(State.ERRORED)) {
-            responseObserver.onError(Status.UNKNOWN.withDescription("Whiteboard is in errored condition").asException());
+            responseObserver.onError(
+                Status.UNKNOWN.withDescription("Whiteboard is in errored condition").asException());
             return;
         }
         if (!whiteboardStatus.state().equals(State.COMPLETED)) {
