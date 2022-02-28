@@ -83,8 +83,7 @@ class LzyEnvBase(ABC):
         whiteboard_dict = {}
         for typ in typs:
             check_whiteboard(typ)
-            whiteboard_dict[typ] = self._whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ, from_date,
-                                                     to_date)  # type: ignore
+            whiteboard_dict[typ] = self._whiteboards(typ.LZY_WB_NAMESPACE, typ.LZY_WB_TAGS, typ, from_date, to_date)  # type: ignore
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
         return WhiteboardList([wb for wbs_list in list_of_wb_lists for wb in wbs_list])
@@ -116,7 +115,7 @@ class WhiteboardExecutionContext:
             return None
 
         snapshot_id = self.snapshot_id
-        if self.snapshot_id is None:
+        if snapshot_id is None:
             raise RuntimeError("Cannot create snapshot")
 
         fields = dataclasses.fields(self.whiteboard)
