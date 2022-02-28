@@ -77,7 +77,7 @@ public class SnapshotTest extends LzyBaseTest {
     }
 
     @Test
-    public void testTaskPersistent() throws IOException, ParseException, InterruptedException {
+    public void testTaskPersistent() throws IOException, ParseException {
         //Arrange
         final String fileContent = "fileContent";
         final String fileName = "/tmp/lzy/kek/some_file.txt";
@@ -211,80 +211,5 @@ public class SnapshotTest extends LzyBaseTest {
             Assert.assertEquals(Collections.emptyList(), fieldsList.get(1).getDependentFieldNamesList());
             Assert.assertEquals(List.of(localFileName), fieldsList.get(0).getDependentFieldNamesList());
         }
-    }
-
-    @Test
-    public void testWhiteboardsResolving() throws ParseException, InvalidProtocolBufferException {
-        final String spIdFirst = createSnapshot();
-        Assert.assertNotNull(spIdFirst);
-
-        final String spIdSecond = createSnapshot();
-        Assert.assertNotNull(spIdSecond);
-
-        final String firstTag = "firstTag";
-        final String secondTag = "secondTag";
-        final String thirdTag = "thirdTag";
-        final String firstNamespace = "firstNamespace";
-        final String secondNamespace = "secondNamespace";
-
-        OffsetDateTime localDateTime = OffsetDateTime.now();
-        Long timestamp = localDateTime.toInstant().getEpochSecond();
-        localDateTime = localDateTime.plusDays(1);
-        Long timestampNextDay = localDateTime.toInstant().getEpochSecond();
-
-        final String wbIdFirst = createWhiteboard(
-            spIdFirst, List.of("fileNameX", "fileNameY"), List.of(firstTag, secondTag), firstNamespace
-        );
-        Assert.assertNotNull(wbIdFirst);
-
-        final String wbIdSecond = createWhiteboard(
-            spIdFirst, List.of("fileNameZ", "fileNameW"), List.of(firstTag, secondTag, thirdTag), secondNamespace);
-        Assert.assertNotNull(wbIdSecond);
-
-        final String wbIdThird = createWhiteboard(
-            spIdSecond, List.of("fileNameA", "fileNameB"), List.of(secondTag, thirdTag), firstNamespace);
-        Assert.assertNotNull(wbIdThird);
-
-        final String wbIdFourth = createWhiteboard(
-            spIdSecond, List.of("fileNameC"), List.of(thirdTag), firstNamespace);
-        Assert.assertNotNull(wbIdFourth);
-
-        final String wbIdFifth = createWhiteboard(
-            spIdSecond, List.of("fileNameD"), List.of(firstTag, thirdTag), secondNamespace);
-        Assert.assertNotNull(wbIdFifth);
-
-        List<LzyWhiteboard.Whiteboard> list = getWhiteboardsList(
-            firstNamespace, List.of(secondTag), timestamp, timestampNextDay);
-        Assert.assertEquals(2, list.size());
-        Assert.assertTrue(
-            list.stream()
-                .map(LzyWhiteboard.Whiteboard::getId)
-                .collect(Collectors.toList())
-                .containsAll(List.of(wbIdFirst, wbIdThird))
-        );
-
-        list = getWhiteboardsList(firstNamespace, Collections.emptyList(), timestamp, timestampNextDay);
-        Assert.assertEquals(3, list.size());
-        Assert.assertTrue(
-            list.stream()
-                .map(LzyWhiteboard.Whiteboard::getId)
-                .collect(Collectors.toList())
-                .containsAll(List.of(wbIdFirst, wbIdThird, wbIdFourth))
-        );
-
-        list = getWhiteboardsList(secondNamespace, List.of(firstTag, thirdTag), timestamp, timestampNextDay);
-        Assert.assertEquals(2, list.size());
-        Assert.assertTrue(
-            list.stream()
-                .map(LzyWhiteboard.Whiteboard::getId)
-                .collect(Collectors.toList())
-                .containsAll(List.of(wbIdSecond, wbIdFifth))
-        );
-
-        // intentionally setting the interval to be in the future
-        timestamp = timestampNextDay;
-
-        list = getWhiteboardsList(secondNamespace, Collections.emptyList(), timestamp, timestampNextDay);
-        Assert.assertEquals(0, list.size());
     }
 }
