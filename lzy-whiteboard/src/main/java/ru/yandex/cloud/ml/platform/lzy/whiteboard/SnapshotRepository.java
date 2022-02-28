@@ -13,6 +13,8 @@ public interface SnapshotRepository {
 
     SnapshotStatus create(Snapshot snapshot);
 
+    SnapshotStatus createFromSnapshot(String fromSnapshotId, Snapshot snapshot);
+
     @Nullable
     SnapshotStatus resolveSnapshot(URI id);
 

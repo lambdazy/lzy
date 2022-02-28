@@ -274,15 +274,20 @@ public class SessionHelper {
         return query.list();
     }
 
+    @Nullable
     public static SnapshotStatus lastSnapshot(String workflowName, String uid, Session session) {
         String queryLastSnapshot = "SELECT s FROM SnapshotModel s "
-            + "WHERE s.uid = :uid AND s.workflowName = :workflowName AND s.creationDate = ("
-            + "SELECT MAX(s1.creationDate) FROM SnapshotModel s1 "
+            + "WHERE s.uid = :uid AND s.workflowName = :workflowName AND s.creationDateUTC = "
+            + "(SELECT MAX(s1.creationDateUTC) FROM SnapshotModel s1 "
             + "WHERE s1.uid = :uid AND s1.workflowName = :workflowName)";
+        //noinspection unchecked
         Query<SnapshotModel> query = session.createQuery(queryLastSnapshot);
         query.setParameter("workflowName", workflowName);
         query.setParameter("uid", uid);
         SnapshotModel spModel = query.getSingleResult();
+        if (spModel == null) {
+            return null;
+        }
         return new SnapshotStatus.Impl(new Snapshot.Impl(
             URI.create(spModel.getSnapshotId()), URI.create(spModel.getUid()), spModel.creationDateUTC(),
             spModel.workflowName()), spModel.getSnapshotState());

@@ -8,6 +8,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -51,6 +52,53 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 session.save(snapshotStatus);
                 tx.commit();
                 return new SnapshotStatus.Impl(snapshot, snapshotStatus.getSnapshotState());
+            } catch (Exception e) {
+                tx.rollback();
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Override
+    public SnapshotStatus createFromSnapshot(String fromSnapshotId, Snapshot snapshot) throws RuntimeException {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            SnapshotModel fromSnapshotModel = session.find(SnapshotModel.class, fromSnapshotId);
+            if (fromSnapshotModel == null) {
+                throw new RuntimeException("Snapshot with id "
+                    + fromSnapshotId + " does not exists; snapshot with id "
+                    + snapshot.id() + " could not be created"
+                );
+            }
+
+            if (!Objects.equals(fromSnapshotModel.workflowName(), snapshot.workflowName())) {
+                throw new RuntimeException("Workflow name for parent snapshot with id "
+                    + fromSnapshotId
+                    + " is " + fromSnapshotModel.workflowName()
+                    + "; which should be equal to workflow name of child snapshot: " + snapshot.workflowName());
+            }
+
+            URI snapshotId = snapshot.id();
+            SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
+            if (snapshotModel != null) {
+                throw new RuntimeException("Snapshot with id " + snapshotId + " already exists");
+            }
+
+            Transaction tx = session.beginTransaction();
+            snapshotModel = new SnapshotModel(snapshotId.toString(), SnapshotStatus.State.CREATED,
+                snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName());
+            List<SnapshotEntryModel> fromSnapshotEntries = SessionHelper.getSnapshotEntries(fromSnapshotId, session);
+            List<SnapshotEntryModel> snapshotEntries = fromSnapshotEntries.stream()
+                .map(fromSnapshotEntry -> new SnapshotEntryModel(snapshotId.toString(), fromSnapshotEntry.getEntryId(),
+                    fromSnapshotEntry.getStorageUri(), fromSnapshotEntry.isEmpty(), fromSnapshotEntry.getEntryState()))
+                .toList();
+            // TODO: manage entry dependencies
+            try {
+                session.save(snapshotModel);
+                for (var entryModel : snapshotEntries) {
+                    session.save(entryModel);
+                }
+                tx.commit();
+                return new SnapshotStatus.Impl(snapshot, snapshotModel.getSnapshotState());
             } catch (Exception e) {
                 tx.rollback();
                 throw new RuntimeException(e);

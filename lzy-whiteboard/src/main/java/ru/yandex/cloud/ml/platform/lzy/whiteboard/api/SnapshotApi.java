@@ -7,6 +7,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.Objects;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -56,8 +57,14 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             return;
         }
         URI snapshotId = URI.create(UUID.randomUUID().toString());
-        repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
-            GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName()));
+        String fromSnapshotId = request.getFromSnapshot();
+        if (!Objects.equals(fromSnapshotId, "")) {
+            repository.createFromSnapshot(fromSnapshotId, new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
+                GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName()));
+        } else {
+            repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
+                GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName()));
+        }
         final LzyWhiteboard.Snapshot result = LzyWhiteboard.Snapshot
             .newBuilder()
             .setSnapshotId(snapshotId.toString())
