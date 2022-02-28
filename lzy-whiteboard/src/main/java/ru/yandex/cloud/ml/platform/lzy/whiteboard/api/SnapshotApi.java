@@ -59,8 +59,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         URI snapshotId = URI.create(UUID.randomUUID().toString());
         String fromSnapshotId = request.getFromSnapshot();
         if (!Objects.equals(fromSnapshotId, "")) {
-            repository.createFromSnapshot(fromSnapshotId, new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
-                GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName()));
+            repository.createFromSnapshot(fromSnapshotId,
+                new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
+                    GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName()));
         } else {
             repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
                 GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName()));
