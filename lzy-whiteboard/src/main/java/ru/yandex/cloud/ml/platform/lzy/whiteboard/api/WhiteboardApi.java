@@ -27,6 +27,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
@@ -143,6 +144,14 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             || !Objects.equals(whiteboardStatus.whiteboard().snapshot().uid().toString(),
             request.getAuth().getUser().getUserId())) {
             responseObserver.onError(Status.NOT_FOUND.asException());
+            return;
+        }
+        if (whiteboardStatus.state().equals(State.ERRORED)) {
+            responseObserver.onError(Status.UNKNOWN.withDescription("Whiteboard is in errored condition").asException());
+            return;
+        }
+        if (!whiteboardStatus.state().equals(State.COMPLETED)) {
+            responseObserver.onError(Status.FAILED_PRECONDITION.asException());
             return;
         }
         final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus);
