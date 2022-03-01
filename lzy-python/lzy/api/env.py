@@ -253,7 +253,9 @@ class LzyWorkflowBase(ABC):
         type(self).instances.append(self)
         return self
 
-    def __exit__(self, *_) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if exc_val:
+            return
         try:
             self.run()
             context = self._execution_context

@@ -31,13 +31,14 @@ class WhiteboardTests(TestCase):
 
     @op
     def nums(self, c: int) -> Tuple[int, int]:
-        print(c)
-        return 5, 5
+        print(c)  # Materialize c if it is proxy
+        return 42, 42
 
     @op
     def raising_num(self) -> int:
         self._raising_num_run_num += 1
-        raise Exception()
+        raise Exception("Some exception")
+        return 1
 
     def test_many_wb(self):
         wb = WB(1, 1)
@@ -93,12 +94,12 @@ class WhiteboardTests(TestCase):
         self.assertEqual(1, wb.a)
         self.assertTrue('Only @op return values can be assigned to whiteboard' in str(context.exception))
 
-    @unittest.skip
     def test_materialization_stops_if_whiteboard_invalid(self):
-        wb = WB(1, 1)
         with self.assertRaises(Exception):
-            with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
-                wb.a = self.raising_num()
-                wb.b, wb.c = self.nums(wb.a)
+            with LzyLocalEnv().workflow(name=WORKFLOW_NAME):
+                a = self.raising_num()
+                b = self.nums(a)
+                c, d = b
+                print(c, d)
 
         self.assertEqual(1, self._raising_num_run_num)
