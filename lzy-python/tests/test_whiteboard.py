@@ -38,7 +38,6 @@ class WhiteboardTests(TestCase):
     def raising_num(self) -> int:
         self._raising_num_run_num += 1
         raise Exception("Some exception")
-        return 1
 
     def test_many_wb(self):
         wb = WB(1, 1)
