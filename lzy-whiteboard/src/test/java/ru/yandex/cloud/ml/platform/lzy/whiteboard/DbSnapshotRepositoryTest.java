@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus.State.FINISHED;
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus.State;
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus.State.FINALIZED;
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State.ERRORED;
@@ -7,6 +8,8 @@ import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.St
 import io.micronaut.context.ApplicationContext;
 import java.net.URI;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -41,6 +44,10 @@ public class DbSnapshotRepositoryTest {
     private String entryIdThird;
     private URI snapshotOwner;
 
+    private Date createDateUTC(int year, int month, int day, int hour, int minute) {
+        return Date.from(LocalDateTime.of(year, month, day, hour, minute).toInstant(ZoneOffset.UTC));
+    }
+
     @Before
     public void setUp() {
         ctx = ApplicationContext.run();
@@ -70,6 +77,41 @@ public class DbSnapshotRepositoryTest {
         Assert.assertEquals(snapshotOwner, snapshotResolved.snapshot().uid());
         Assert.assertEquals(creationDateUTC, snapshotResolved.snapshot().creationDateUTC());
         Assert.assertEquals(workflowName, snapshotResolved.snapshot().workflowName());
+    }
+
+    @Test
+    public void testCreateFromSnapshot() {
+        Snapshot parentSnapshot =
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
+        implSnapshotRepository.create(parentSnapshot);
+        SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, parentSnapshot);
+        implSnapshotRepository.prepare(firstEntry, storageUri, Collections.emptyList());
+        implSnapshotRepository.commit(firstEntry, false);
+        SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, parentSnapshot);
+        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
+
+        String childSnapshotId = UUID.randomUUID().toString();
+        Date childCreationDateUTC = Date.from(Instant.now());
+
+        Snapshot childSnapshot =
+            new Snapshot.Impl(URI.create(childSnapshotId), snapshotOwner, childCreationDateUTC, workflowName);
+        implSnapshotRepository.createFromSnapshot(snapshotId, childSnapshot);
+
+        SnapshotStatus snapshotResolved = implSnapshotRepository.resolveSnapshot(URI.create(childSnapshotId));
+        Assert.assertNotNull(snapshotResolved);
+        Assert.assertEquals(State.CREATED, snapshotResolved.state());
+        Assert.assertEquals(snapshotOwner, snapshotResolved.snapshot().uid());
+        Assert.assertEquals(childCreationDateUTC, snapshotResolved.snapshot().creationDateUTC());
+        Assert.assertEquals(workflowName, snapshotResolved.snapshot().workflowName());
+
+        SnapshotEntryStatus firstEntryStatus = implSnapshotRepository.resolveEntryStatus(childSnapshot, entryIdFirst);
+        Assert.assertNotNull(firstEntryStatus);
+        Assert.assertEquals(FINISHED, firstEntryStatus.status());
+        Assert.assertEquals(storageUri, Objects.requireNonNull(firstEntryStatus.storage()).toString());
+        Assert.assertFalse(firstEntryStatus.empty());
+
+        SnapshotEntryStatus secondEntryStatus = implSnapshotRepository.resolveEntryStatus(childSnapshot, entryIdSecond);
+        Assert.assertNull(secondEntryStatus);
     }
 
     @Test
@@ -219,5 +261,53 @@ public class DbSnapshotRepositoryTest {
                 new Snapshot.Impl(URI.create(UUID.randomUUID().toString()), snapshotOwner, creationDateUTC,
                     workflowName)), true)
         );
+    }
+
+    @Test
+    public void testLastSnapshotAny() {
+        String snapshotIdFinalized = UUID.randomUUID().toString();
+        Snapshot snapshotFinalized =
+            new Snapshot.Impl(URI.create(snapshotIdFinalized), snapshotOwner, createDateUTC(2000, 8, 5, 0, 0),
+                workflowName);
+        implSnapshotRepository.create(snapshotFinalized);
+        implSnapshotRepository.finalize(snapshotFinalized);
+
+        String snapshotIdCreated = UUID.randomUUID().toString();
+        Snapshot snapshotCreated =
+            new Snapshot.Impl(URI.create(snapshotIdCreated), snapshotOwner, createDateUTC(2002, 3, 2, 0, 0),
+                workflowName);
+        implSnapshotRepository.create(snapshotCreated);
+
+        SnapshotStatus snapshot = implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString(), null);
+        Assert.assertNotNull(snapshot);
+        Assert.assertEquals(snapshot.snapshot().id().toString(), snapshotIdCreated);
+    }
+
+    @Test
+    public void testLastSnapshotFinalized() {
+        String snapshotIdFinalized = UUID.randomUUID().toString();
+        Snapshot snapshotFinalized =
+            new Snapshot.Impl(URI.create(snapshotIdFinalized), snapshotOwner, createDateUTC(2000, 8, 5, 0, 0),
+                workflowName);
+        implSnapshotRepository.create(snapshotFinalized);
+        implSnapshotRepository.finalize(snapshotFinalized);
+
+        String snapshotIdCreated = UUID.randomUUID().toString();
+        Snapshot snapshotCreated =
+            new Snapshot.Impl(URI.create(snapshotIdCreated), snapshotOwner, createDateUTC(2002, 3, 2, 0, 0),
+                workflowName);
+        implSnapshotRepository.create(snapshotCreated);
+
+        String snapshotIdFinalizedDifferentOwner = UUID.randomUUID().toString();
+        Snapshot snapshotFinalizedDifferentOwner =
+            new Snapshot.Impl(URI.create(snapshotIdFinalizedDifferentOwner), URI.create(UUID.randomUUID().toString()),
+                createDateUTC(2005, 8, 5, 0, 0), workflowName);
+        implSnapshotRepository.create(snapshotFinalizedDifferentOwner);
+        implSnapshotRepository.finalize(snapshotFinalizedDifferentOwner);
+
+        SnapshotStatus snapshot =
+            implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString(), FINALIZED);
+        Assert.assertNotNull(snapshot);
+        Assert.assertEquals(snapshot.snapshot().id().toString(), snapshotIdFinalized);
     }
 }

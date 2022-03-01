@@ -66,29 +66,23 @@ public class DbSnapshotRepository implements SnapshotRepository {
             if (fromSnapshotModel == null) {
                 throw new RuntimeException("Snapshot with id "
                     + fromSnapshotId + " does not exists; snapshot with id "
-                    + snapshot.id() + " could not be created"
+                    + snapshot.id().toString() + " could not be created"
                 );
             }
 
-            if (!Objects.equals(fromSnapshotModel.workflowName(), snapshot.workflowName())) {
-                throw new RuntimeException("Workflow name for parent snapshot with id "
-                    + fromSnapshotId
-                    + " is " + fromSnapshotModel.workflowName()
-                    + "; which should be equal to workflow name of child snapshot: " + snapshot.workflowName());
-            }
-
-            URI snapshotId = snapshot.id();
+            String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
             if (snapshotModel != null) {
                 throw new RuntimeException("Snapshot with id " + snapshotId + " already exists");
             }
 
             Transaction tx = session.beginTransaction();
-            snapshotModel = new SnapshotModel(snapshotId.toString(), SnapshotStatus.State.CREATED,
+            snapshotModel = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED,
                 snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName());
             List<SnapshotEntryModel> fromSnapshotEntries = SessionHelper.getSnapshotEntries(fromSnapshotId, session);
             List<SnapshotEntryModel> snapshotEntries = fromSnapshotEntries.stream()
-                .map(fromSnapshotEntry -> new SnapshotEntryModel(snapshotId.toString(), fromSnapshotEntry.getEntryId(),
+                .filter(fromSnapshotEntry -> Objects.equals(fromSnapshotEntry.getEntryState(), State.FINISHED))
+                .map(fromSnapshotEntry -> new SnapshotEntryModel(snapshotId, fromSnapshotEntry.getEntryId(),
                     fromSnapshotEntry.getStorageUri(), fromSnapshotEntry.isEmpty(), fromSnapshotEntry.getEntryState()))
                 .toList();
             // TODO: manage entry dependencies
@@ -271,9 +265,9 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
     @Nullable
     @Override
-    public SnapshotStatus lastSnapshot(String workflowName, String uid) {
+    public SnapshotStatus lastSnapshot(String workflowName, String uid, @Nullable SnapshotStatus.State state) {
         try (Session session = storage.getSessionFactory().openSession()) {
-            return SessionHelper.lastSnapshot(workflowName, uid, session);
+            return SessionHelper.lastSnapshot(workflowName, uid, state, session);
         }
     }
 

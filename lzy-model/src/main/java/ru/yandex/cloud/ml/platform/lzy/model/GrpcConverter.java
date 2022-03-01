@@ -20,6 +20,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus.State;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
@@ -89,6 +91,19 @@ public abstract class GrpcConverter {
 
     public static Date from(Timestamp date) {
         return Date.from(Instant.ofEpochSecond(date.getSeconds(), date.getNanos()));
+    }
+
+    public static SnapshotStatus.State from(LzyWhiteboard.LastSnapshotCommand.Status state) {
+        switch (state) {
+            case CREATED:
+                return State.CREATED;
+            case FINALIZED:
+                return State.FINALIZED;
+            case ERRORED:
+                return State.ERRORED;
+            default:
+                throw new IllegalArgumentException("Unknown state: " + state);
+        }
     }
 
     public static DataSchema contentTypeFrom(String contentTypeJson) {

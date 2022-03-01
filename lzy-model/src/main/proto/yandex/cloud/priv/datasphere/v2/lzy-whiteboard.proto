@@ -145,4 +145,12 @@ message WhiteboardsResponse {
 message LastSnapshotCommand {
   Auth auth = 1;
   string workflowName = 2;
+  Status status = 3;
+
+  enum Status {
+    UNKNOWN = 0;
+    CREATED = 1;
+    FINALIZED = 2;
+    ERRORED = 3;
+  }
 }
