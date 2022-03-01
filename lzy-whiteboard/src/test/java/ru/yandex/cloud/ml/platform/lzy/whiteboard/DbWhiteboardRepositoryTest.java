@@ -26,7 +26,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbSnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbWhiteboardRepository;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM.Empty;
 
 public class DbWhiteboardRepositoryTest {
 
@@ -92,8 +91,9 @@ public class DbWhiteboardRepositoryTest {
 
     @Test
     public void testCreate() {
-        Snapshot snapshot =  new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
-            workflowName);
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
+                workflowName);
         implSnapshotRepository.create(snapshot);
         implWhiteboardRepository.create(
             new Whiteboard.Impl(URI.create(wbIdFirst), Set.of(fieldNameFirst, fieldNameSecond),
@@ -190,8 +190,9 @@ public class DbWhiteboardRepositoryTest {
 
     @Test
     public void testResolveWhiteboardsFilterTime() {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
-            workflowName);
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
+                workflowName);
         implSnapshotRepository.create(snapshot);
         implWhiteboardRepository.create(
             new Whiteboard.Impl(
