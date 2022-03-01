@@ -257,7 +257,7 @@
                             <alias>dockerfile</alias>
                             <build>
                                 <contextDir>${project.basedir}/../</contextDir>
-                                <dockerFile>${project.basedir}/docker/new-scheme/System.Dockerfile</dockerFile>
+                                <dockerFile>${project.basedir}/docker/System.Dockerfile</dockerFile>
                                 <noCache>true</noCache>
                                 <imagePullPolicy>IfNotPresent</imagePullPolicy>
                             </build>

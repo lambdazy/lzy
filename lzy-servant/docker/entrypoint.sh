@@ -2,10 +2,14 @@
 
 export LOGS_APPENDER="${LOGS_APPENDER:-LogFile}"
 
+dockerd &> var/log/dockerd.log &
+sleep 5
 mkdir tmp/resources
 mount --make-shared /
 
-java \
+docker load -i default-env-image.tar
+
+docker ps && java \
 -Xmx4G \
 -Dsun.jnu.encoding=UTF-8 \
 -Dfile.encoding=UTF-8 \

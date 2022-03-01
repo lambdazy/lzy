@@ -12,11 +12,11 @@ ENV DOCKER_CHANNEL=stable \
 	DOCKER_COMPOSE_VERSION=1.29.2 \
 	DEBUG=false
 
-COPY lzy-servant/docker/new-scheme/docker_installer.sh /
+COPY lzy-servant/docker/docker_installer.sh /
 RUN chmod a+rx /docker_installer.sh
 RUN ./docker_installer.sh
 
-COPY lzy-servant/docker/new-scheme/modprobe /usr/local/bin/modprobe
+COPY lzy-servant/docker/modprobe /usr/local/bin/modprobe
 RUN chmod +x /usr/local/bin/modprobe
 
 VOLUME /var/lib/docker
@@ -55,4 +55,4 @@ RUN ./conda_prepare.sh init
 
 ### cached default-env
 # docker save -o default-env-image.tar default-env:from-tar
-COPY --chmod=444 lzy-servant/docker/new-scheme/default-env-image.tar /
+COPY --chmod=444 lzy-servant/docker/default-env-image.tar /
