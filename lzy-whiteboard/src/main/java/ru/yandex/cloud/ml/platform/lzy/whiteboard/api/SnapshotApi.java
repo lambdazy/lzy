@@ -61,11 +61,6 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
                 Status.INVALID_ARGUMENT.withDescription("Snapshot creation date must be provided").asException());
             return;
         }
-        if (Objects.equals(request.getWorkflowName(), "")) {
-            responseObserver.onError(
-                Status.INVALID_ARGUMENT.withDescription("Snapshot workflow name must be provided").asException());
-            return;
-        }
         URI snapshotId = URI.create(UUID.randomUUID().toString());
         String fromSnapshotId = request.getFromSnapshot();
         if (!Objects.equals(fromSnapshotId, "")) {

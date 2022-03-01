@@ -2,6 +2,7 @@ import logging
 import os.path
 import pathlib
 import tempfile
+import boto3
 from abc import ABC, abstractmethod
 from typing import Any, TypeVar, Tuple, BinaryIO
 from urllib import parse
