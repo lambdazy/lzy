@@ -1,9 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus.State.FINISHED;
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus.State;
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus.State.FINALIZED;
-import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State.CREATED;
 import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State.ERRORED;
 
 import io.micronaut.context.ApplicationContext;
@@ -14,8 +12,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -24,27 +20,19 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbSnapshotRepository;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbWhiteboardRepository;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.EntryDependenciesModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardModel;
 
 public class DbSnapshotRepositoryTest {
 
     private final String storageUri = "storageUri";
-    private final String namespace = "namespace";
     private final Date creationDateUTC = Date.from(Instant.now());
     private final String workflowName = "workflow";
     DbSnapshotRepository implSnapshotRepository;
     DbWhiteboardRepository implWhiteboardRepository;
     private ApplicationContext ctx;
-    private DbStorage storage;
     private String snapshotId;
     private String wbIdFirst;
     private String wbIdSecond;
@@ -58,7 +46,6 @@ public class DbSnapshotRepositoryTest {
         ctx = ApplicationContext.run();
         implSnapshotRepository = ctx.getBean(DbSnapshotRepository.class);
         implWhiteboardRepository = ctx.getBean(DbWhiteboardRepository.class);
-        storage = ctx.getBean(DbStorage.class);
         snapshotId = UUID.randomUUID().toString();
         wbIdFirst = UUID.randomUUID().toString();
         wbIdSecond = UUID.randomUUID().toString();
@@ -87,7 +74,8 @@ public class DbSnapshotRepositoryTest {
 
     @Test
     public void testResolveSnapshotNull() {
-        SnapshotStatus snapshotStatus = implSnapshotRepository.resolveSnapshot(URI.create(UUID.randomUUID().toString()));
+        SnapshotStatus snapshotStatus =
+            implSnapshotRepository.resolveSnapshot(URI.create(UUID.randomUUID().toString()));
         Assert.assertNull(snapshotStatus);
     }
 
@@ -102,7 +90,8 @@ public class DbSnapshotRepositoryTest {
     public void testFinalizeSnapshotErroredEntries() {
         Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
         implSnapshotRepository.create(snapshot);
-        implSnapshotRepository.prepare(new SnapshotEntry.Impl(entryIdFirst, snapshot), storageUri, Collections.emptyList());
+        implSnapshotRepository.prepare(new SnapshotEntry.Impl(entryIdFirst, snapshot), storageUri,
+            Collections.emptyList());
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
         implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
         implSnapshotRepository.commit(secondEntry, false);
@@ -147,18 +136,22 @@ public class DbSnapshotRepositoryTest {
     @Test
     public void testErrorSnapshotNotFound() {
         Assert.assertThrows(RuntimeException.class,
-            () -> implSnapshotRepository.error(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName)));
+            () -> implSnapshotRepository.error(
+                new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName)));
     }
 
     @Test
     public void testErrorSnapshot() {
         Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
         implSnapshotRepository.create(snapshot);
+        String namespace = "namespace";
         implWhiteboardRepository.create(
-            new Impl(URI.create(wbIdFirst), Collections.emptySet(), snapshot, Collections.emptySet(), namespace, creationDateUTC)
+            new Impl(URI.create(wbIdFirst), Collections.emptySet(), snapshot, Collections.emptySet(), namespace,
+                creationDateUTC)
         );
         implWhiteboardRepository.create(
-            new Impl(URI.create(wbIdSecond), Collections.emptySet(), snapshot, Collections.emptySet(), namespace, creationDateUTC)
+            new Impl(URI.create(wbIdSecond), Collections.emptySet(), snapshot, Collections.emptySet(), namespace,
+                creationDateUTC)
         );
         implSnapshotRepository.error(snapshot);
         WhiteboardStatus firstWhiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdFirst));
@@ -186,7 +179,8 @@ public class DbSnapshotRepositoryTest {
     @Test
     public void testResolveEntryNotFound() {
         Assert.assertNull(
-            implSnapshotRepository.resolveEntry(new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName),
+            implSnapshotRepository.resolveEntry(
+                new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName),
                 entryIdFirst));
     }
 
