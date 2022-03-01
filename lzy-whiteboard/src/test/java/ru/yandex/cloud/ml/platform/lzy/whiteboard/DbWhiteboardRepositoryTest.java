@@ -123,11 +123,8 @@ public class DbWhiteboardRepositoryTest {
         List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
         ).collect(Collectors.toList());
-        Assert.assertEquals(2, whiteboardStatusList.size());
-        Assert.assertTrue(Objects.equals(whiteboardStatusList.get(0).whiteboard().id().toString(), wbIdFirst)
-            && Objects.equals(whiteboardStatusList.get(1).whiteboard().id().toString(), wbIdSecond)
-            || Objects.equals(whiteboardStatusList.get(1).whiteboard().id().toString(), wbIdFirst)
-            && Objects.equals(whiteboardStatusList.get(0).whiteboard().id().toString(), wbIdSecond));
+        Assert.assertEquals(1, whiteboardStatusList.size());
+        Assert.assertEquals(whiteboardStatusList.get(0).whiteboard().id().toString(), wbIdSecond);
     }
 
     @Test
@@ -149,7 +146,7 @@ public class DbWhiteboardRepositoryTest {
         List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, List.of(firstTag), creationDateUTCFrom, creationDateUTCTo
         ).collect(Collectors.toList());
-        Assert.assertEquals(2, whiteboardStatusList.size());
+        Assert.assertEquals(1, whiteboardStatusList.size());
     }
 
     @Test
@@ -168,7 +165,7 @@ public class DbWhiteboardRepositoryTest {
         List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, Collections.emptyList(), creationDateUTCFrom, creationDateUTCTo
         ).collect(Collectors.toList());
-        Assert.assertEquals(3, whiteboardStatusList.size());
+        Assert.assertEquals(2, whiteboardStatusList.size());
     }
 
     @Test

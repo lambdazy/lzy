@@ -20,6 +20,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
@@ -253,12 +254,14 @@ public class SessionHelper {
         String whiteboardsByNameAndTagsRequest;
         if (tags.isEmpty()) {
             whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w "
-                + "WHERE w.namespace = :namespace AND w.creationDateUTC >= :dateFrom AND w.creationDateUTC < :dateTo";
+                + "WHERE w.namespace = :namespace AND w.creationDateUTC >= :dateFrom AND w.creationDateUTC < :dateTo "
+                + "AND w.wbState = :state";
         } else {
             whiteboardsByNameAndTagsRequest = "SELECT w.wbId FROM WhiteboardModel w "
                 + "JOIN WhiteboardTagModel t ON w.wbId = t.wbId "
                 + "WHERE w.namespace = :namespace AND t.tag in (:tags) AND "
                 + "w.creationDateUTC >= :dateFrom AND w.creationDateUTC < :dateTo "
+                + "AND w.wbState = :state "
                 + "GROUP BY w.wbId "
                 + "HAVING count(*) >= :tagsSize ";
         }
@@ -267,6 +270,7 @@ public class SessionHelper {
         query.setParameter("namespace", namespace);
         query.setParameter("dateFrom", fromDateUTCIncluded, TemporalType.TIMESTAMP);
         query.setParameter("dateTo", toDateUTCExcluded, TemporalType.TIMESTAMP);
+        query.setParameter("state", State.COMPLETED);
         if (!tags.isEmpty()) {
             query.setParameter("tagsSize", (long) tags.size());
             query.setParameterList("tags", tags);

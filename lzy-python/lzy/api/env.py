@@ -9,6 +9,7 @@ from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Op
 
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
+from lzy.api.restart_policy import RestartPolicy
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 from lzy.api.utils import zipdir, fileobj_hash
@@ -34,35 +35,18 @@ BusList = List[Tuple[Callable, Bus]]
 
 
 class LzyEnvBase(ABC):
-    instances: List["LzyEnvBase"] = []
-
     # pylint: disable=too-many-arguments
     def __init__(self,
-                 buses: Optional[BusList],
-                 whiteboard: Any,
                  whiteboard_api: WhiteboardApi,
                  snapshot_api: SnapshotApi,
-                 eager: bool):
-        self._execution_context = WhiteboardExecutionContext(
-            whiteboard_api, snapshot_api, whiteboard
-        )
-
-        if self._execution_context.whiteboard is not None:
-            check_whiteboard(whiteboard)
-            wrap_whiteboard(
-                self._execution_context.whiteboard,
-                self._execution_context.whiteboard_api,
-                self.whiteboard_id,
-            )
-
-        self._ops: List[LzyOp] = []
-        self._buses = list(buses or [])
-        self._eager = eager
+                 ):
+        self._whiteboard_api = whiteboard_api
+        self._snapshot_api = snapshot_api
         self._log = logging.getLogger(str(self.__class__))
 
     def whiteboard(self, wid: str, typ: Type[Any]) -> Any:
         check_whiteboard(typ)
-        wb_ = self._execution_context.whiteboard_api.get(wid)
+        wb_ = self._whiteboard_api.get(wid)
         return self._build_whiteboard(wb_, typ)
 
     def _build_whiteboard(self, wb_: WhiteboardDescription, typ: Type[Any]) -> Any:
@@ -73,8 +57,7 @@ class LzyEnvBase(ABC):
         for field in wb_.fields:
             if field.field_name in field_types:
                 if field.status is WhiteboardFieldStatus.FINISHED:
-                    whiteboard_dict[field.field_name] = self._execution_context \
-                        .whiteboard_api \
+                    whiteboard_dict[field.field_name] = self._whiteboard_api \
                         .resolve(field.storage_uri, field_types[field.field_name])
         # noinspection PyArgumentList
         instance = typ(**whiteboard_dict)
@@ -84,7 +67,7 @@ class LzyEnvBase(ABC):
     def _whiteboards(self, namespace: str, tags: List[str], typ: Type[T], from_date: datetime = None,
                      to_date: datetime = None) -> List[T]:
         check_whiteboard(typ)
-        wb_list = self._execution_context.whiteboard_api.list(namespace, tags, from_date, to_date)
+        wb_list = self._whiteboard_api.list(namespace, tags, from_date, to_date)
         self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags} "
                        f"within dates {from_date} - {to_date}")
         result = []
@@ -104,6 +87,131 @@ class LzyEnvBase(ABC):
         self._log.info(f"Whiteboard dict is {whiteboard_dict}")
         list_of_wb_lists = list(whiteboard_dict.values())
         return WhiteboardList([wb for wbs_list in list_of_wb_lists for wb in wbs_list])
+
+
+class WhiteboardExecutionContext:
+    def __init__(
+            self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any
+    ):
+        self._snapshot_id: Optional[str] = None
+        self._whiteboard_id: Optional[str] = None
+        self.whiteboard_api = whiteboard_api
+        self.snapshot_api = snapshot_api
+        self.whiteboard = whiteboard
+
+    @property
+    def snapshot_id(self) -> Optional[str]:
+        if self._snapshot_id is not None:
+            return self._snapshot_id
+        self._snapshot_id = self.snapshot_api.create().snapshot_id
+        return self._snapshot_id
+
+    @property
+    def whiteboard_id(self) -> Optional[str]:
+        if self._whiteboard_id is not None:
+            return self._whiteboard_id
+
+        if self.whiteboard_api is None or self.whiteboard is None:
+            return None
+
+        snapshot_id = self.snapshot_id
+        if snapshot_id is None:
+            raise RuntimeError("Cannot create snapshot")
+
+        fields = dataclasses.fields(self.whiteboard)
+        self._whiteboard_id = self.whiteboard_api.create(
+            [field.name for field in fields], snapshot_id,
+            self.whiteboard.LZY_WB_NAMESPACE, self.whiteboard.LZY_WB_TAGS
+        ).id
+        return self._whiteboard_id
+
+
+class LzyLocalEnv(LzyEnvBase):
+    def __init__(self):
+        super().__init__(
+            whiteboard_api=InMemWhiteboardApi(),
+            snapshot_api=InMemSnapshotApi(),
+        )
+
+    def workflow(
+            self,
+            name: str,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None
+    ):
+        return LzyLocalWorkflow(
+            name=name,
+            eager=eager,
+            whiteboard=whiteboard,
+            buses=buses
+        )
+
+
+class LzyRemoteEnv(LzyEnvBase):
+    def __init__(
+            self,
+            lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
+    ):
+        self._servant_client: BashServantClient = BashServantClient() \
+            .instance(lzy_mount)
+        self._lzy_mount = lzy_mount
+        super().__init__(
+            whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
+            snapshot_api=SnapshotBashApi(lzy_mount),
+        )
+
+    def workflow(
+            self,
+            name: str,
+            restart_policy: RestartPolicy = RestartPolicy.IGNORE_SNAPSHOTS,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None,
+            conda_yaml_path: Optional[Path] = None,
+            local_module_paths: Optional[List[str]] = None,
+    ):
+        return LzyRemoteWorkflow(
+            name=name,
+            lzy_mount=self._lzy_mount,
+            conda_yaml_path=conda_yaml_path,
+            local_module_paths=local_module_paths,
+            restart_policy=restart_policy,
+            eager=eager,
+            whiteboard=whiteboard,
+            buses=buses
+        )
+
+
+class LzyWorkflowBase(ABC):
+    instances: List["LzyWorkflowBase"] = []
+
+    def __init__(
+            self,
+            whiteboard_api: WhiteboardApi,
+            snapshot_api: SnapshotApi,
+            name: str,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None
+    ):
+        self._execution_context = WhiteboardExecutionContext(
+            whiteboard_api, snapshot_api, whiteboard
+        )
+
+        if self._execution_context.whiteboard is not None:
+            check_whiteboard(whiteboard)
+            wrap_whiteboard(
+                self._execution_context.whiteboard,
+                self._execution_context.whiteboard_api,
+                self.whiteboard_id,
+            )
+
+        self._ops: List[LzyOp] = []
+        self._buses = list(buses or [])
+        self._eager = eager
+        self._name = name
+        self._log = logging.getLogger(str(self.__class__))
 
     def register_op(self, lzy_op: LzyOp) -> None:
         self._ops.append(lzy_op)
@@ -135,11 +243,11 @@ class LzyEnvBase(ABC):
         pass
 
     @classmethod
-    def get_active(cls) -> "LzyEnvBase":
+    def get_active(cls) -> "LzyWorkflowBase":
         assert len(cls.instances) > 0, "There is not active LzyEnv"
         return cls.instances[-1]
 
-    def __enter__(self) -> "LzyEnvBase":
+    def __enter__(self) -> "LzyWorkflowBase":
         self.activate()
         type(self).instances.append(self)
         return self
@@ -158,73 +266,26 @@ class LzyEnvBase(ABC):
             type(self).instances.pop()
 
 
-class WhiteboardExecutionContext:
-    def __init__(
-            self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any
-    ):
-        self._snapshot_id: Optional[str] = None
-        self._whiteboard_id: Optional[str] = None
-        self.whiteboard_api = whiteboard_api
-        self.snapshot_api = snapshot_api
-        self.whiteboard = whiteboard
-
-    @property
-    def snapshot_id(self) -> Optional[str]:
-        if self._snapshot_id is not None:
-            return self._snapshot_id
-        self._snapshot_id = self.snapshot_api.create().snapshot_id
-        return self._snapshot_id
-
-    @property
-    def whiteboard_id(self) -> Optional[str]:
-        if self._whiteboard_id is not None:
-            return self._whiteboard_id
-        if self.whiteboard_api is not None and self.whiteboard is not None:
-            fields = dataclasses.fields(self.whiteboard)
-            snapshot_id = self.snapshot_id
-            if snapshot_id is None:
-                raise RuntimeError("Cannot create snapshot")
-            self._whiteboard_id = self.whiteboard_api.create(
-                [field.name for field in fields], snapshot_id,
-                self.whiteboard.LZY_WB_NAMESPACE, self.whiteboard.LZY_WB_TAGS
-            ).id
-            return self._whiteboard_id
-        return None
-
-
-class LzyLocalEnv(LzyEnvBase):
-    def __init__(
-            self,
-            eager: bool = False,
-            whiteboard: Any = None,
-            buses: Optional[BusList] = None,
-    ):
-        super().__init__(
-            buses=buses,
-            whiteboard=whiteboard,
-            whiteboard_api=InMemWhiteboardApi(),
-            snapshot_api=InMemSnapshotApi(),
-            eager=eager
-        )
-
+class LzyRemoteWorkflow(LzyWorkflowBase):
     def activate(self):
         pass
 
     def deactivate(self):
         pass
 
-
-class LzyRemoteEnv(LzyEnvBase):
     def __init__(
             self,
+            name: str,
             lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
-            eager: bool = False,
             conda_yaml_path: Optional[Path] = None,
+            local_module_paths: Optional[List[str]] = None,
+            restart_policy: RestartPolicy = RestartPolicy.IGNORE_SNAPSHOTS,
+            eager: bool = False,
             whiteboard: Any = None,
-            buses: Optional[BusList] = None,
-            local_module_paths: Optional[List[str]] = None
+            buses: Optional[BusList] = None
     ):
         self._yaml = conda_yaml_path
+        self._restart_policy = restart_policy
         self._servant_client: BashServantClient = BashServantClient() \
             .instance(lzy_mount)
         self._py_env: Optional[PyEnv] = None
@@ -240,18 +301,13 @@ class LzyRemoteEnv(LzyEnvBase):
             self._local_module_paths = local_module_paths
 
         super().__init__(
-            buses=buses,
-            whiteboard=whiteboard,
+            name=name,
             whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
             snapshot_api=SnapshotBashApi(lzy_mount),
-            eager=eager
+            eager=eager,
+            whiteboard=whiteboard,
+            buses=buses
         )
-
-    def activate(self):
-        pass
-
-    def deactivate(self):
-        pass
 
     def servant(self) -> Optional[ServantClient]:
         return self._servant_client
@@ -292,3 +348,27 @@ class LzyRemoteEnv(LzyEnvBase):
             name, yaml = "default", "".join(file.readlines())
             self._py_env = PyEnv(name, yaml, [])
             return self._py_env
+
+
+class LzyLocalWorkflow(LzyWorkflowBase):
+    def activate(self):
+        pass
+
+    def deactivate(self):
+        pass
+
+    def __init__(
+            self,
+            name: str,
+            eager: bool = False,
+            whiteboard: Any = None,
+            buses: Optional[BusList] = None
+    ):
+        super().__init__(
+            name=name,
+            whiteboard_api=InMemWhiteboardApi(),
+            snapshot_api=InMemSnapshotApi(),
+            eager=eager,
+            whiteboard=whiteboard,
+            buses=buses
+        )

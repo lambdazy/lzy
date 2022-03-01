@@ -1,8 +1,7 @@
-CREATE TABLE backoffice_sessions
-(
-    id  uuid PRIMARY KEY,
+CREATE TABLE backoffice_sessions(
+    id uuid PRIMARY KEY,
     uid text null,
-    FOREIGN KEY (uid) references users (user_id) ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY (uid) references users(user_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 ALTER TABLE users

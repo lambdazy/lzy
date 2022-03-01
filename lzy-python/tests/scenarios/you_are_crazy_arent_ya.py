@@ -1,5 +1,6 @@
 from typing import Callable
 from lzy.api import op, LzyLocalEnv  # pylint: disable=no-name-in-module
+import uuid
 
 SOME_GLOBAL: int = 0
 
@@ -44,8 +45,10 @@ def heh(surely: SurelytType) -> int:
     return surely()()
 
 
+WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
+
 if __name__ == "__main__":
-    with LzyLocalEnv():
+    with LzyLocalEnv().workflow(name=WORKFLOW_NAME):
         value: int = heh(im())
         # or
         nothing: None = no()
