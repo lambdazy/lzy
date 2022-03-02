@@ -48,7 +48,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
             Transaction tx = session.beginTransaction();
             snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED,
-                snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName());
+                snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName(),
+                snapshot.parentSnapshotId());
             try {
                 session.save(snapshotStatus);
                 tx.commit();
@@ -79,7 +80,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
             Transaction tx = session.beginTransaction();
             snapshotModel = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED,
-                snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName());
+                snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName(), fromSnapshotId);
             List<SnapshotEntryModel> fromSnapshotEntries = SessionHelper.getSnapshotEntries(fromSnapshotId, session);
             List<SnapshotEntryModel> snapshotEntries = fromSnapshotEntries.stream()
                 .filter(fromSnapshotEntry -> Objects.equals(fromSnapshotEntry.getEntryState(), State.FINISHED))
@@ -114,7 +115,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
                     id,
                     URI.create(snapshotModel.getUid()),
                     snapshotModel.creationDateUTC(),
-                    snapshotModel.workflowName()
+                    snapshotModel.workflowName(),
+                    snapshotModel.parentSnapshotId()
                 ),
                 snapshotModel.getSnapshotState());
         }

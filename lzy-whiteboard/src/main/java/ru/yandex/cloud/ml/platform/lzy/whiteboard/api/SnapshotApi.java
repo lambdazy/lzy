@@ -81,10 +81,10 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             }
             repository.createFromSnapshot(fromSnapshotId,
                 new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
-                    GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName()));
+                    GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName(), fromSnapshotId));
         } else {
             repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
-                GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName()));
+                GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName(), null));
         }
         final LzyWhiteboard.Snapshot result = LzyWhiteboard.Snapshot
             .newBuilder()

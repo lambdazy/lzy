@@ -69,7 +69,8 @@ public class DbSnapshotRepositoryTest {
 
     @Test
     public void testCreate() {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(snapshot);
         SnapshotStatus snapshotResolved = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
         Assert.assertNotNull(snapshotResolved);
@@ -82,7 +83,7 @@ public class DbSnapshotRepositoryTest {
     @Test
     public void testCreateFromSnapshot() {
         Snapshot parentSnapshot =
-            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(parentSnapshot);
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, parentSnapshot);
         implSnapshotRepository.prepare(firstEntry, storageUri, Collections.emptyList());
@@ -94,7 +95,7 @@ public class DbSnapshotRepositoryTest {
         Date childCreationDateUTC = Date.from(Instant.now());
 
         Snapshot childSnapshot =
-            new Snapshot.Impl(URI.create(childSnapshotId), snapshotOwner, childCreationDateUTC, workflowName);
+            new Snapshot.Impl(URI.create(childSnapshotId), snapshotOwner, childCreationDateUTC, workflowName, null);
         implSnapshotRepository.createFromSnapshot(snapshotId, childSnapshot);
 
         SnapshotStatus snapshotResolved = implSnapshotRepository.resolveSnapshot(URI.create(childSnapshotId));
@@ -125,12 +126,13 @@ public class DbSnapshotRepositoryTest {
     public void testFinalizeSnapshotNotFound() {
         Assert.assertThrows(RuntimeException.class,
             () -> implSnapshotRepository.finalize(
-                new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName)));
+                new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null)));
     }
 
     @Test
     public void testFinalizeSnapshotErroredEntries() {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(snapshot);
         implSnapshotRepository.prepare(new SnapshotEntry.Impl(entryIdFirst, snapshot), storageUri,
             Collections.emptyList());
@@ -145,7 +147,8 @@ public class DbSnapshotRepositoryTest {
 
     @Test
     public void testFinalizeSnapshotOkEntries() {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(snapshot);
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
@@ -161,7 +164,8 @@ public class DbSnapshotRepositoryTest {
 
     @Test
     public void testFinalizeSnapshotNullStorageUriEntries() {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(snapshot);
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
@@ -179,12 +183,13 @@ public class DbSnapshotRepositoryTest {
     public void testErrorSnapshotNotFound() {
         Assert.assertThrows(RuntimeException.class,
             () -> implSnapshotRepository.error(
-                new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName)));
+                new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null)));
     }
 
     @Test
     public void testErrorSnapshot() {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(snapshot);
         String namespace = "namespace";
         implWhiteboardRepository.create(
@@ -209,7 +214,8 @@ public class DbSnapshotRepositoryTest {
 
     @Test
     public void testPrepareEntryExists() {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(snapshot);
         SnapshotEntry entry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         implSnapshotRepository.prepare(entry, storageUri, Collections.emptyList());
@@ -222,13 +228,14 @@ public class DbSnapshotRepositoryTest {
     public void testResolveEntryNotFound() {
         Assert.assertNull(
             implSnapshotRepository.resolveEntry(
-                new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName),
+                new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null),
                 entryIdFirst));
     }
 
     @Test
     public void testResolveEntryStatus() {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName);
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(snapshot);
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         implSnapshotRepository.prepare(firstEntry, storageUri, List.of(entryIdSecond, entryIdThird));
@@ -243,7 +250,7 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.commit(thirdEntry, false);
 
         SnapshotEntryStatus snapshotEntryStatus = implSnapshotRepository.resolveEntryStatus(
-            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName), entryIdFirst
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null), entryIdFirst
         );
         Assert.assertNotNull(snapshotEntryStatus);
         Assert.assertEquals(snapshotId, snapshotEntryStatus.entry().snapshot().id().toString());
@@ -259,7 +266,7 @@ public class DbSnapshotRepositoryTest {
         Assert.assertThrows(RuntimeException.class,
             () -> implSnapshotRepository.commit(new SnapshotEntry.Impl(UUID.randomUUID().toString(),
                 new Snapshot.Impl(URI.create(UUID.randomUUID().toString()), snapshotOwner, creationDateUTC,
-                    workflowName)), true)
+                    workflowName, null)), true)
         );
     }
 
@@ -268,14 +275,14 @@ public class DbSnapshotRepositoryTest {
         String snapshotIdFinalized = UUID.randomUUID().toString();
         Snapshot snapshotFinalized =
             new Snapshot.Impl(URI.create(snapshotIdFinalized), snapshotOwner, createDateUTC(2000, 8, 5, 0, 0),
-                workflowName);
+                workflowName, null);
         implSnapshotRepository.create(snapshotFinalized);
         implSnapshotRepository.finalize(snapshotFinalized);
 
         String snapshotIdCreated = UUID.randomUUID().toString();
         Snapshot snapshotCreated =
             new Snapshot.Impl(URI.create(snapshotIdCreated), snapshotOwner, createDateUTC(2002, 3, 2, 0, 0),
-                workflowName);
+                workflowName, null);
         implSnapshotRepository.create(snapshotCreated);
 
         SnapshotStatus snapshot = implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString());
@@ -288,13 +295,13 @@ public class DbSnapshotRepositoryTest {
         String snapshotIdCreated = UUID.randomUUID().toString();
         Snapshot snapshotCreated =
             new Snapshot.Impl(URI.create(snapshotIdCreated), snapshotOwner, createDateUTC(2002, 3, 2, 0, 0),
-                workflowName);
+                workflowName, null);
         implSnapshotRepository.create(snapshotCreated);
 
         String snapshotIdFinalizedDifferentOwner = UUID.randomUUID().toString();
         Snapshot snapshotFinalizedDifferentOwner =
             new Snapshot.Impl(URI.create(snapshotIdFinalizedDifferentOwner), URI.create(UUID.randomUUID().toString()),
-                createDateUTC(2005, 8, 5, 0, 0), workflowName);
+                createDateUTC(2005, 8, 5, 0, 0), workflowName, null);
         implSnapshotRepository.create(snapshotFinalizedDifferentOwner);
         implSnapshotRepository.finalize(snapshotFinalizedDifferentOwner);
 

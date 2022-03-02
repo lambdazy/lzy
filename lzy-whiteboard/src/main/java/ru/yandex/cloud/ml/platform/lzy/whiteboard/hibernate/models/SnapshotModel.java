@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models;
 
 import java.util.Date;
+import javax.annotation.Nullable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -30,18 +31,23 @@ public class SnapshotModel {
     @Column(name = "workflow_name", nullable = false)
     private String workflowName;
 
+    @Column(name = "parent_snapshot_id")
+    private String parentSnapshotId;
+
     public SnapshotModel(
         String snapshotId,
         SnapshotStatus.State snapshotState,
         String uid,
         Date creationDateUTC,
-        String workflowName
+        String workflowName,
+        @Nullable String parentSnapshotId
     ) {
         this.snapshotId = snapshotId;
         this.snapshotState = snapshotState;
         this.uid = uid;
         this.creationDateUTC = creationDateUTC;
         this.workflowName = workflowName;
+        this.parentSnapshotId = parentSnapshotId;
     }
 
     public SnapshotModel() {
@@ -69,5 +75,10 @@ public class SnapshotModel {
 
     public String workflowName() {
         return workflowName;
+    }
+
+    @Nullable
+    public String parentSnapshotId() {
+        return parentSnapshotId;
     }
 }

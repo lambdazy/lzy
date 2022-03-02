@@ -187,7 +187,7 @@ public class SessionHelper {
             return null;
         }
         return new Snapshot.Impl(URI.create(spId), URI.create(result.getUid()), result.creationDateUTC(),
-            result.workflowName());
+            result.workflowName(), result.parentSnapshotId());
     }
 
     public static WhiteboardField getWhiteboardField(WhiteboardFieldModel wbFieldModel,
@@ -204,7 +204,7 @@ public class SessionHelper {
             return null;
         }
         return new Snapshot.Impl(URI.create(spId), URI.create(spModel.getUid()), spModel.creationDateUTC(),
-            spModel.workflowName());
+            spModel.workflowName(), spModel.parentSnapshotId());
     }
 
     @Nullable
@@ -294,6 +294,6 @@ public class SessionHelper {
         }
         return new SnapshotStatus.Impl(new Snapshot.Impl(
             URI.create(spModel.getSnapshotId()), URI.create(spModel.getUid()), spModel.creationDateUTC(),
-            spModel.workflowName()), spModel.getSnapshotState());
+            spModel.workflowName(), spModel.parentSnapshotId()), spModel.getSnapshotState());
     }
 }

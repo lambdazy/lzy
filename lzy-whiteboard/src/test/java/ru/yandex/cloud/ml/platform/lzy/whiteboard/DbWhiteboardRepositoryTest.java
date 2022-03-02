@@ -93,7 +93,7 @@ public class DbWhiteboardRepositoryTest {
     public void testCreate() {
         Snapshot snapshot =
             new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
-                workflowName);
+                workflowName, null);
         implSnapshotRepository.create(snapshot);
         implWhiteboardRepository.create(
             new Whiteboard.Impl(URI.create(wbIdFirst), Set.of(fieldNameFirst, fieldNameSecond),
@@ -152,7 +152,7 @@ public class DbWhiteboardRepositoryTest {
                 URI.create(wbIdThird),
                 Collections.emptySet(),
                 new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
-                    workflowName),
+                    workflowName, null),
                 Collections.emptySet(),
                 namespaceSecond,
                 creationDateUTC
@@ -172,7 +172,7 @@ public class DbWhiteboardRepositoryTest {
                 URI.create(wbIdThird),
                 Collections.emptySet(),
                 new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
-                    workflowName),
+                    workflowName, null),
                 Set.of(firstTag, secondTag),
                 namespaceSecond,
                 creationDateUTC
@@ -192,7 +192,7 @@ public class DbWhiteboardRepositoryTest {
     public void testResolveWhiteboardsFilterTime() {
         Snapshot snapshot =
             new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
-                workflowName);
+                workflowName, null);
         implSnapshotRepository.create(snapshot);
         implWhiteboardRepository.create(
             new Whiteboard.Impl(
@@ -282,7 +282,7 @@ public class DbWhiteboardRepositoryTest {
                 URI.create(wbIdFirst),
                 Set.of(fieldNameFirst, fieldNameSecond, fieldNameThird, fieldNameFourth),
                 new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
-                    workflowName),
+                    workflowName, null),
                 Set.of(firstTag, secondTag),
                 namespaceFirst,
                 creationDateUTC
@@ -322,7 +322,8 @@ public class DbWhiteboardRepositoryTest {
         String fieldName, String entryId, String snapshotId, String wbId
     ) {
         Snapshot snapshot =
-            new Snapshot.Impl(URI.create(snapshotId), URI.create(snapshotOwnerFirst), creationDateUTC, workflowName);
+            new Snapshot.Impl(URI.create(snapshotId), URI.create(snapshotOwnerFirst), creationDateUTC, workflowName,
+                null);
         return new WhiteboardField.Impl(fieldName, new SnapshotEntry.Impl(entryId, snapshot),
             new Whiteboard.Impl(URI.create(wbId), Collections.emptySet(), snapshot,
                 Collections.emptySet(), namespaceFirst, creationDateUTC));
@@ -333,7 +334,8 @@ public class DbWhiteboardRepositoryTest {
             URI.create(snapshotIdFirst),
             URI.create(snapshotOwnerFirst),
             creationDateUTC,
-            workflowName
+            workflowName,
+            null
         );
         implSnapshotRepository.create(snapshotFirst);
         Whiteboard whiteboardFirst = new Impl(
@@ -367,7 +369,8 @@ public class DbWhiteboardRepositoryTest {
             URI.create(snapshotIdSecond),
             URI.create(snapshotOwnerFirst),
             creationDateUTC,
-            workflowName
+            workflowName,
+            null
         );
         implSnapshotRepository.create(snapshotSecond);
         Whiteboard whiteboardSecond = new Impl(
@@ -387,13 +390,15 @@ public class DbWhiteboardRepositoryTest {
             URI.create(snapshotIdFirst),
             URI.create(snapshotOwnerFirst),
             creationDateUTC,
-            workflowName
+            workflowName,
+            null
         ));
         implSnapshotRepository.finalize(new Snapshot.Impl(
             URI.create(snapshotIdSecond),
             URI.create(snapshotOwnerFirst),
             creationDateUTC,
-            workflowName
+            workflowName,
+            null
         ));
     }
 }
