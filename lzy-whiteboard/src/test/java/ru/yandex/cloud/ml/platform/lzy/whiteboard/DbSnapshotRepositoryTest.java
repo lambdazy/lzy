@@ -278,20 +278,13 @@ public class DbSnapshotRepositoryTest {
                 workflowName);
         implSnapshotRepository.create(snapshotCreated);
 
-        SnapshotStatus snapshot = implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString(), null);
+        SnapshotStatus snapshot = implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString());
         Assert.assertNotNull(snapshot);
         Assert.assertEquals(snapshot.snapshot().id().toString(), snapshotIdCreated);
     }
 
     @Test
-    public void testLastSnapshotFinalized() {
-        String snapshotIdFinalized = UUID.randomUUID().toString();
-        Snapshot snapshotFinalized =
-            new Snapshot.Impl(URI.create(snapshotIdFinalized), snapshotOwner, createDateUTC(2000, 8, 5, 0, 0),
-                workflowName);
-        implSnapshotRepository.create(snapshotFinalized);
-        implSnapshotRepository.finalize(snapshotFinalized);
-
+    public void testLastSnapshotDifferentOwner() {
         String snapshotIdCreated = UUID.randomUUID().toString();
         Snapshot snapshotCreated =
             new Snapshot.Impl(URI.create(snapshotIdCreated), snapshotOwner, createDateUTC(2002, 3, 2, 0, 0),
@@ -306,8 +299,8 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.finalize(snapshotFinalizedDifferentOwner);
 
         SnapshotStatus snapshot =
-            implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString(), FINALIZED);
+            implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString());
         Assert.assertNotNull(snapshot);
-        Assert.assertEquals(snapshot.snapshot().id().toString(), snapshotIdFinalized);
+        Assert.assertEquals(snapshot.snapshot().id().toString(), snapshotIdCreated);
     }
 }

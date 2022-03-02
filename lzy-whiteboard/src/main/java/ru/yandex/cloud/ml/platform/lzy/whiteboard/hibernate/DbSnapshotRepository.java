@@ -266,9 +266,9 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
     @Nullable
     @Override
-    public SnapshotStatus lastSnapshot(String workflowName, String uid, @Nullable SnapshotStatus.State state) {
+    public SnapshotStatus lastSnapshot(String workflowName, String uid) {
         try (Session session = storage.getSessionFactory().openSession()) {
-            return SessionHelper.lastSnapshot(workflowName, uid, state, session);
+            return SessionHelper.lastSnapshot(workflowName, uid, session);
         }
     }
 

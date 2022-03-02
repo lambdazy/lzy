@@ -35,5 +35,5 @@ public interface SnapshotRepository {
     SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id);
 
     @Nullable
-    SnapshotStatus lastSnapshot(String workflowName, String uid, @Nullable SnapshotStatus.State state);
+    SnapshotStatus lastSnapshot(String workflowName, String uid);
 }

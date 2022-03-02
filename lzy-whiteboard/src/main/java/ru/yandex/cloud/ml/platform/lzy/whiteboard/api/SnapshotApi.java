@@ -180,14 +180,8 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
-        SnapshotStatus.State state = null;
-        try {
-            state = GrpcConverter.from(request.getStatus());
-        } catch (IllegalArgumentException e) {
-            LOG.info("Received snapshot status " + request.getStatus() + " which could not be parsed");
-        }
         final SnapshotStatus snapshotStatus = repository.lastSnapshot(request.getWorkflowName(),
-            request.getAuth().getUser().getUserId(), state);
+            request.getAuth().getUser().getUserId());
         final LzyWhiteboard.Snapshot.Builder result = LzyWhiteboard.Snapshot.newBuilder();
         if (snapshotStatus != null) {
             result.setSnapshotId(snapshotStatus.snapshot().id().toString());

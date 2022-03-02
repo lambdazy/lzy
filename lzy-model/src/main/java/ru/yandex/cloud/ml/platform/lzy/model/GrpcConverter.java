@@ -93,19 +93,6 @@ public abstract class GrpcConverter {
         return Date.from(Instant.ofEpochSecond(date.getSeconds(), date.getNanos()));
     }
 
-    public static SnapshotStatus.State from(LzyWhiteboard.LastSnapshotCommand.Status state) {
-        switch (state) {
-            case CREATED:
-                return State.CREATED;
-            case FINALIZED:
-                return State.FINALIZED;
-            case ERRORED:
-                return State.ERRORED;
-            default:
-                throw new IllegalArgumentException("Unknown state: " + state);
-        }
-    }
-
     public static DataSchema contentTypeFrom(String contentTypeJson) {
         return null;
     }
