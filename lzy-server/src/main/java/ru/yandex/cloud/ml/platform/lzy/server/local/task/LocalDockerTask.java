@@ -57,7 +57,7 @@ public class LocalDockerTask extends LocalTask {
         final String updatedServerHost = SystemUtils.IS_OS_LINUX ? serverHost
             : serverHost.replace("localhost", "host.docker.internal");
         final String internalHost = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
-        LOG.info("Servant s3 service endpoint id " + System.getenv("SERVICE_ENDPOINT"));
+        LOG.info("Servant s3 service endpoint id {}", System.getenv("SERVICE_ENDPOINT"));
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         final int debugPort = FreePortFinder.find(5000, 6000);
         LOG.info("Found port for servant {}", debugPort);
@@ -131,21 +131,18 @@ public class LocalDockerTask extends LocalTask {
                 }
             });
 
-        LOG.info("Starting servant container with id = " + container.getId());
+        LOG.info("Starting servant container with id={}", container.getId());
         DOCKER.startContainerCmd(container.getId()).exec();
-        LOG.info("Started servant container with id = " + container.getId());
+        LOG.info("Started servant container with id={}", container.getId());
 
         try {
             attach.awaitCompletion();
         } catch (InterruptedException e) {
             LOG.error("Servant container with id=" + container.getId() + " was interrupted");
-        }
-        // TODO (lindvv): Check if container is alive
-        final InspectContainerResponse inspectContainerResponse =
-            DOCKER.inspectContainerCmd(container.getId()).exec();
-        final ContainerState state = inspectContainerResponse.getState();
-        if (state != null && state.getRunning() != null && state.getRunning()) {
-            DOCKER.killContainerCmd(container.getId()).exec();
+        } finally {
+            LOG.info("Removing servant container with id={} ...", container.getId());
+            DOCKER.removeContainerCmd(container.getId()).withForce(true).exec();
+            LOG.info("Removing servant container with id={} done", container.getId());
         }
     }
 }
