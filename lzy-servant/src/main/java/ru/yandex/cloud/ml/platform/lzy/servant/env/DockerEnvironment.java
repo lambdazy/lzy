@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
 public class DockerEnvironment implements BaseEnvironment {
@@ -41,7 +42,7 @@ public class DockerEnvironment implements BaseEnvironment {
     public final CreateContainerResponse container;
     public final String sourceImage;
 
-    public DockerEnvironment(BaseEnvConfig config) {
+    public DockerEnvironment(BaseEnvConfig config) throws EnvironmentInstallationException {
         sourceImage = prepareImage(config);
 
         LOG.info("Creating container from image={} ...", sourceImage);
@@ -190,10 +191,19 @@ public class DockerEnvironment implements BaseEnvironment {
         DOCKER.killContainerCmd(container.getId()).exec();
     }
 
-    private String prepareImage(BaseEnvConfig config) {
+    private String prepareImage(BaseEnvConfig config) throws EnvironmentInstallationException {
         if (config.image().equals(config.defaultImage())) {
-            LOG.info("Default image {} detected", config.image());
+            LOG.info("Default image {} requested", config.image());
+
             String cachedImageName = "default-env:from-tar";
+            String loadImageCmd = "docker load -i default-env-image.tar";
+            try {
+                Runtime.getRuntime().exec(new String[] {"bash", "-c", loadImageCmd}).waitFor();
+            } catch (InterruptedException | IOException e) {
+                LOG.error("Failed to load image {} from tar", cachedImageName);
+                throw new EnvironmentInstallationException(e);
+            }
+
             final List<Image> cachedImages = DOCKER.listImagesCmd().withImageNameFilter(cachedImageName).exec();
             if (!cachedImages.isEmpty()) {
                 LOG.info("Cached image {} found", cachedImageName);

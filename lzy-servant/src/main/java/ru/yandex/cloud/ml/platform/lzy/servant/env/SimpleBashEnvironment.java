@@ -18,8 +18,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
         return baseEnv;
     }
 
-    private LzyProcess execInEnv(String command, String[] envp)
-        throws LzyExecutionException, EnvironmentInstallationException {
+    private LzyProcess execInEnv(String command, String[] envp) throws LzyExecutionException {
         LOG.info("Executing command " + command);
         String[] bashCmd = new String[]{"bash", "-c", command};
         return baseEnv.runProcess(bashCmd, envp);

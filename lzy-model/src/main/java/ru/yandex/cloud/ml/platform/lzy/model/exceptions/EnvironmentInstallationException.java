@@ -7,7 +7,7 @@ public class EnvironmentInstallationException extends Exception {
         super(message);
     }
 
-    public EnvironmentInstallationException(IOException e) {
+    public EnvironmentInstallationException(Exception e) {
         super(e);
     }
 }

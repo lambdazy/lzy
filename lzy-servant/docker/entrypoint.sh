@@ -7,8 +7,6 @@ sleep 5
 mkdir tmp/resources
 mount --make-shared /
 
-docker load -i default-env-image.tar
-
 docker ps && java \
 -Xmx4G \
 -Dsun.jnu.encoding=UTF-8 \
