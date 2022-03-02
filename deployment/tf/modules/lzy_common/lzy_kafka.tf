@@ -41,7 +41,7 @@ resource "helm_release" "lzy_kafka" {
   }
 
   set {
-    name  = "metadata.labels,app"
+    name  = "metadata.labels.app"
     value = "kafka"
   }
 
