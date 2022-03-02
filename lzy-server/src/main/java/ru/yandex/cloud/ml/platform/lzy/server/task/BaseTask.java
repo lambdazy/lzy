@@ -30,6 +30,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationE
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
+import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -181,6 +182,10 @@ public abstract class BaseTask implements Task {
                         } else {
                             LOG.warn("Unable to attach channel to " + tid + ":" + slot.name()
                                 + ". Channel not found.");
+                            Exception exception = new ChannelException("Cannot bind to channel");
+                            contextStarted.completeExceptionally(exception);
+                            stopServant();
+                            throw new RuntimeException(exception);
                         }
                         break;
                     }
@@ -194,6 +199,11 @@ public abstract class BaseTask implements Task {
                         if (channel != null) {
                             attachedSlots.remove(slot);
                             channels.unbind(channel, endpoint);
+                        } else {
+                            Exception exception = new ChannelException("Cannot unbind to channel");
+                            contextStarted.completeExceptionally(exception);
+                            stopServant();
+                            throw new RuntimeException(exception);
                         }
                         break;
                     }
