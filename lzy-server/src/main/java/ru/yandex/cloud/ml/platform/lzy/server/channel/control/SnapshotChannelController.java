@@ -1,12 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
@@ -21,9 +19,8 @@ public class SnapshotChannelController implements ChannelController {
     private final String snapshotId;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
     private final IAM.Auth auth;
-
-    private Status status = Status.UNBOUND;
     private final Lock lock = new ReentrantLock();
+    private Status status = Status.UNBOUND;
 
     public SnapshotChannelController(String entryId,
                                      String snapshotId,
@@ -70,8 +67,7 @@ public class SnapshotChannelController implements ChannelController {
                 default:
                     throw new NotImplementedException();
             }
-        }
-        finally {
+        } finally {
             lock.unlock();
         }
     }
@@ -81,7 +77,7 @@ public class SnapshotChannelController implements ChannelController {
         LOG.info("SnapshotChannelController::executeUnBind {}, entryId={}", slot.uri(), entryId);
         lock.lock();
         try {
-            switch (slot.slot().direction()){
+            switch (slot.slot().direction()) {
                 case INPUT: {
                     channelGraph.removeReceiver(slot);
                     return;
@@ -120,7 +116,7 @@ public class SnapshotChannelController implements ChannelController {
     }
 
     private boolean isCompleted() {
-        if (status == Status.COMPLETED){
+        if (status == Status.COMPLETED) {
             return true;
         }
         LzyWhiteboard.EntryStatusResponse status = snapshotApi.entryStatus(
@@ -132,5 +128,7 @@ public class SnapshotChannelController implements ChannelController {
         return status.getStatus() == LzyWhiteboard.EntryStatusResponse.Status.FINISHED;
     }
 
-    private enum Status {UNBOUND, IN_PROGRESS, COMPLETED, ERRORED}
+    private enum Status {
+        UNBOUND, IN_PROGRESS, COMPLETED, ERRORED
+    }
 }
