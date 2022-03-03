@@ -1,6 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -18,8 +21,9 @@ public class SnapshotChannelController implements ChannelController {
     private final String snapshotId;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
     private final IAM.Auth auth;
-    private final AtomicBoolean completed = new AtomicBoolean(false);
-    private final AtomicBoolean errored = new AtomicBoolean(false);
+
+    private Status status = Status.UNBOUND;
+    private final Lock lock = new ReentrantLock();
 
     public SnapshotChannelController(String entryId,
                                      String snapshotId,
@@ -36,54 +40,87 @@ public class SnapshotChannelController implements ChannelController {
     @Override
     public void executeBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException {
         LOG.info("SnapshotChannelController::executeBind {}, entryId={}", slot.uri(), entryId);
-        if (slot.slot().direction() == Slot.Direction.OUTPUT) {
-            if (isCompleted() || errored.get() || channelGraph.senders().size() > 0) {
-                LOG.info("Cannot write to already completed entry. Destroying slot {}", slot);
-                slot.destroy();
-                return;
+        lock.lock();
+        try {
+            switch (slot.slot().direction()) {
+                case OUTPUT: {
+                    if (status != Status.UNBOUND) {
+                        slot.destroy();  // TODO(artolord) Think about response to servant design
+                        LOG.error("Cannot write to already bound entry. Destroying slot " + slot);
+                        return;
+                    }
+                    status = Status.IN_PROGRESS;
+                    slot.snapshot(snapshotId, entryId);
+                    channelGraph.addSender(slot);
+                    return;
+                }
+                case INPUT: {
+                    if (status == Status.ERRORED) {
+                        LOG.info("Entry is errored. Destroying slot {}", slot);
+                        slot.destroy();
+                        return;
+                    }
+                    if (isCompleted()) {
+                        status = Status.COMPLETED;
+                        slot.snapshot(snapshotId, entryId);
+                    }
+                    channelGraph.addReceiver(slot);
+                    return;
+                }
+                default:
+                    throw new NotImplementedException();
             }
-            slot.snapshot(snapshotId, entryId);
-            channelGraph.addSender(slot);
-            return;
         }
-        if (errored.get()) {
-            LOG.info("Entry is errored. Destroying slot {}", slot);
-            slot.destroy();
-            return;
+        finally {
+            lock.unlock();
         }
-        if (isCompleted()) {
-            slot.snapshot(snapshotId, entryId);
-        }
-        channelGraph.addReceiver(slot);
     }
 
     @Override
     public void executeUnBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException {
         LOG.info("SnapshotChannelController::executeUnBind {}, entryId={}", slot.uri(), entryId);
-        if (slot.slot().direction() == Slot.Direction.OUTPUT) {
-            if (!errored.get()) {
-                if (isCompleted()) {  // Entry is finished, notifying all receivers
-                    channelGraph.receivers().forEach(s -> s.snapshot(snapshotId, entryId));
-                } else {  // Some error in sender, entry is not finished, destroying all receivers
-                    errored.set(true);
-                    channelGraph.receivers().forEach(channelGraph::removeReceiver);
+        lock.lock();
+        try {
+            switch (slot.slot().direction()){
+                case INPUT: {
+                    channelGraph.removeReceiver(slot);
+                    return;
                 }
+                case OUTPUT: {
+                    if (status == Status.IN_PROGRESS) {
+                        if (isCompleted()) {  // Entry is finished, notifying all receivers
+                            this.status = Status.COMPLETED;
+                            channelGraph.receivers().forEach(s -> s.snapshot(snapshotId, entryId));
+                        } else {  // Some error in sender, entry is not finished, destroying all receivers
+                            status = Status.ERRORED;
+                            channelGraph.receivers().forEach(channelGraph::removeReceiver);
+                        }
+                    }
+                    channelGraph.removeSender(slot);
+                    return;
+                }
+                default:
+                    throw new NotImplementedException();
             }
-            channelGraph.removeSender(slot);
-            return;
+        } finally {
+            lock.unlock();
         }
-        channelGraph.removeReceiver(slot);
     }
 
     @Override
     public void executeDestroy(ChannelGraph channelGraph) throws ChannelException {
         LOG.info("SnapshotChannelController::executeDestroy, entryId={}", entryId);
-        channelGraph.receivers().forEach(Endpoint::destroy);
-        channelGraph.senders().forEach(Endpoint::destroy);
+        lock.lock();
+        try {
+            channelGraph.receivers().forEach(Endpoint::destroy);
+            channelGraph.senders().forEach(Endpoint::destroy);
+        } finally {
+            lock.unlock();
+        }
     }
 
     private boolean isCompleted() {
-        if (completed.get()) {
+        if (status == Status.COMPLETED){
             return true;
         }
         LzyWhiteboard.EntryStatusResponse status = snapshotApi.entryStatus(
@@ -92,12 +129,8 @@ public class SnapshotChannelController implements ChannelController {
                 .setEntryId(entryId)
                 .setAuth(auth)
                 .build());
-        if (status.getStatus() == LzyWhiteboard.EntryStatusResponse.Status.FINISHED) {
-            completed.set(true);
-            return true;
-        }
-        return false;
+        return status.getStatus() == LzyWhiteboard.EntryStatusResponse.Status.FINISHED;
     }
 
-
+    private enum Status {UNBOUND, IN_PROGRESS, COMPLETED, ERRORED}
 }
