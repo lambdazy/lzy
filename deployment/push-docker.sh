@@ -34,6 +34,7 @@ CUSTOM_TAG=$1
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
     docker build -f lzy-servant/BaseDockerfile .
+    docker tag lzy-servant-base lzydock/lzy-servant-base:master
   fi
   mvn clean install -DskipTests
 #  docker build -t lzydock/lzy-backoffice-backend:"$CUSTOM_TAG" lzy-backoffice/Dockerfile
