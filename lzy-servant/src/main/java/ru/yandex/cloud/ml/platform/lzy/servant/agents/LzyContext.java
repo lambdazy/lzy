@@ -196,10 +196,7 @@ public class LzyContext {
         LzyExecution execution = new LzyExecution(contextId, zygote, arguments);
         execution.onProgress(onProgress);
         execution.start(env);
-        stdinSlot.setStream(new OutputStreamWriter(
-            execution.lzyProcess().in(),
-            StandardCharsets.UTF_8)
-        );
+        stdinSlot.setStream(new OutputStreamWriter(execution.lzyProcess().in(), StandardCharsets.UTF_8));
         stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
             execution.lzyProcess().out(),
             StandardCharsets.UTF_8

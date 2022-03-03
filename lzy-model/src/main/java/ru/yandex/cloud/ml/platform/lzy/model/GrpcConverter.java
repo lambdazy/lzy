@@ -86,7 +86,6 @@ public abstract class GrpcConverter {
         return new PythonEnvAdapter(env);
     }
 
-
     public static SnapshotEntry from(LzyWhiteboard.SnapshotEntry entry, Snapshot snapshot) {
         return new SnapshotEntry.Impl(entry.getEntryId(), snapshot);
     }

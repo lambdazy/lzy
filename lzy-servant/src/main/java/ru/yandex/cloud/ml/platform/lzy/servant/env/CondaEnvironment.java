@@ -73,11 +73,13 @@ public class CondaEnvironment implements AuxEnvironment {
             }
             final int rc = lzyProcess.waitFor();
             if (rc != 0) {
+                String errorMessage = "Failed to update conda env\n"
+                    + "  ReturnCode: " + Integer.toString(rc) + "\n"
+                    + "  Stdout: " + stdout + "\n\n"
+                    + "  Stderr: " + stderr + "\n";
+                LOG.error(errorMessage);
                 throw new EnvironmentInstallationException(
-                    String.format(
-                        "Failed to update conda env\n\nReturnCode: %s \n\nStdout: %s \n\nStderr: %s",
-                        rc, stdout, stderr
-                    )
+                    "Failed to update conda env, return code = " + rc
                 );
             }
         } catch (IOException | LzyExecutionException e) {
@@ -85,15 +87,14 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    private LzyProcess execInEnv(String command, String[] envp)
-        throws LzyExecutionException, EnvironmentInstallationException {
+    private LzyProcess execInEnv(String command, String[] envp) throws LzyExecutionException {
         LOG.info("Executing command " + command);
         String[] bashCmd = new String[]{"bash", "-c", "source /root/miniconda3/etc/profile.d/conda.sh && "
                 + "conda activate " + pythonEnv.name() + " && " + command};
         return baseEnv.runProcess(bashCmd, envp);
     }
 
-    private LzyProcess execInEnv(String command) throws LzyExecutionException, EnvironmentInstallationException {
+    private LzyProcess execInEnv(String command) throws LzyExecutionException {
         return execInEnv(command, null);
     }
 
