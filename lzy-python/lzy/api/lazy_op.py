@@ -6,12 +6,12 @@ import time
 
 from abc import abstractmethod, ABC
 from pathlib import Path
-from typing import Optional, Any, TypeVar, Generic, Type, Tuple
+from typing import Optional, Any, TypeVar, Generic, Type, Tuple, Mapping, Callable
 from lzy.api.serializer.serializer import Serializer
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 from lzy.api.whiteboard.model import EntryIdGenerator
 from lzy.api.result import Just, Nothing, Result
-from lzy.model.channel import Channel, Binding, Bindings
+from lzy.model.channel import Channel, Binding, Bindings, SnapshotChannelSpec
 from lzy.model.env import PyEnv, Env
 from lzy.model.file_slots import create_slot
 from lzy.model.return_codes import PyReturnCode, ReturnCode
@@ -25,13 +25,14 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class LzyOp(Generic[T], ABC):
-    def __init__(self, signature: CallSignature[T], return_entry_id: str):
+    def __init__(self, signature: CallSignature[T], slot_to_entry_id: Mapping[str, str], return_entry_id: str):
         super().__init__()
         self._sign: CallSignature[T] = signature
-        self._return_entry_id = return_entry_id
+        self._slot_to_entry_id = slot_to_entry_id
         self._materialized: bool = False
         self._materialization: Optional[T] = None
         self._log: logging.Logger = logging.getLogger(str(self.__class__))
+        self._return_entry_id = return_entry_id
 
     @property
     def signature(self) -> CallSignature[T]:
@@ -44,6 +45,12 @@ class LzyOp(Generic[T], ABC):
     def materialize(self) -> T:
         pass
 
+    def entry_id_by_slot(self, slot: Slot) -> str:
+        return self._slot_to_entry_id[slot.name]
+
+    def slot_to_entry_id(self) -> Mapping[str, str]:
+        return self._slot_to_entry_id
+
     def return_entry_id(self) -> str:
         return self._return_entry_id
 
@@ -55,7 +62,11 @@ class LzyOp(Generic[T], ABC):
 
 class LzyLocalOp(LzyOp, Generic[T]):
     def __init__(self, signature: CallSignature[T]):
-        super().__init__(signature, str(uuid.uuid4()))
+        mapping = {
+            slot: str(uuid.uuid4())
+            for slot in signature.func.param_names
+        }
+        super().__init__(signature, mapping, str(uuid.uuid4()))
 
     def materialize(self) -> T:
         self._log.info("Materializing function %s", self.signature.func)
@@ -81,11 +92,12 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             self,
             servant: ServantClient,
             signature: CallSignature[T],
-            provisioning: Provisioning = None,
-            env: PyEnv = None,
+            snapshot_id: str,
+            provisioning: Optional[Provisioning] = None,
+            env: Optional[PyEnv] = None,
             deployed: bool = False,
             entry_id_generator: Optional[EntryIdGenerator] = None,
-            return_entry_id: Optional[str] = None,
+            slot_to_entry_id: Optional[Mapping[str, str]] = None
     ):
         if (not provisioning or not env) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
@@ -93,6 +105,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         self._deployed = deployed
         self._servant = servant
         self._env = env
+        self._snapshot_id: str = snapshot_id
+
         input_types: Tuple[type, ...] = ()
         for input_type in signature.func.input_types:
             if issubclass(input_type, Message):
@@ -112,12 +126,23 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             provisioning,
         )
 
-        if return_entry_id is not None and entry_id_generator is not None:
-            raise ValueError("Both entry id and entry id generator are provided")
-        elif entry_id_generator is not None:
-            return_entry_id = entry_id_generator.generate(self._zygote.return_slot)
+        mapping: Mapping[str, str]
 
-        super().__init__(signature, str(return_entry_id))
+        if slot_to_entry_id is not None and entry_id_generator is not None:
+            raise ValueError("Both entry id mapping and entry id generator are provided")
+        elif entry_id_generator is not None:
+            mapping = {
+                slot.name: entry_id_generator.generate(slot)
+                for slot in self._zygote.arg_slots
+            }
+            mapping[self._zygote.return_slot.name] = entry_id_generator.generate(  # type: ignore
+                self._zygote.return_slot)
+        elif slot_to_entry_id is not None:
+            mapping = slot_to_entry_id
+        else:
+            raise ValueError("entry_id_mapping and entry_id_generator are None")
+
+        super().__init__(signature, mapping, mapping[self._zygote.return_slot.name])
 
     serializer: Serializer = Serializer()
 
@@ -174,6 +199,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             # Wait for slot to become open
             while handle.read(1) is None:
                 time.sleep(0)  # Thread.yield
+                if not slot_path.exists():
+                    raise LzyExecutionException("Cannot read from slot")
             handle.seek(0)
             value = cls.serializer.deserialize_from_file(handle, obj_type)
         return value
@@ -209,23 +236,18 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         )
 
     def execution_logic(self) -> T:
-        entry_id_mapping = (
-            {self._zygote.return_slot: self._return_entry_id}
-            if self._return_entry_id else
-            None
-        )
         execution_id = str(uuid.uuid4())
         self._log.info(f"Running zygote {self._zygote.name}, execution id {execution_id}")
         bindings = []
         try:
             bindings = [
-                self._create_binding(execution_id, slot)
+                self._create_binding(execution_id, slot, self._snapshot_id, self.entry_id_by_slot(slot))
                 for slot in self._zygote.slots
             ]
 
             execution = self._servant.run(
                 execution_id, self._zygote,
-                Bindings(bindings), entry_id_mapping
+                Bindings(bindings)
             )
 
             self.dump_arguments(execution)
@@ -275,18 +297,20 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             servant: ServantClient,
             materialized: bool,
             materialization: Any,
-            return_entry_id: Optional[str],
+            slot_to_entry_id: Mapping[str, str],
             call_s: CallSignature[T],
             provisioning: Provisioning,
             env: PyEnv,
+            snapshot_id: str
     ):
         op_ = LzyRemoteOp(
             servant,
             call_s,
+            snapshot_id,
             provisioning,
             env,
             deployed=False,
-            return_entry_id=return_entry_id,
+            slot_to_entry_id=slot_to_entry_id
         )
         op_._materialized = materialized  # pylint: disable=protected-access
         op_._materialization = materialization  # pylint: disable=protected-access
@@ -297,16 +321,17 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         return LzyRemoteOp.restore, (
             # pylint: disable=protected-access
             op_._servant, op_.is_materialized(), op_._materialization,
-            op_.return_entry_id(),
+            op_.slot_to_entry_id(),
             op_.signature,
             op_.zygote.provisioning,
             op_.zygote.env,
+            op_._snapshot_id
         )
 
-    def _create_binding(self, execution_id: str, slot: Slot) -> Binding:
+    def _create_binding(self, execution_id: str, slot: Slot, snapshot_id: str, entry_id: str) -> Binding:
         slot_full_name = "/task/" + execution_id + slot.name
         local_slot = create_slot(slot_full_name, Direction.opposite(slot.direction))
-        channel = Channel(':'.join([execution_id, slot.name]))
+        channel = Channel(':'.join([execution_id, slot.name]), SnapshotChannelSpec(snapshot_id, entry_id))
         self._servant.create_channel(channel)
         self._servant.touch(local_slot, channel)
         return Binding(local_slot, slot, channel)

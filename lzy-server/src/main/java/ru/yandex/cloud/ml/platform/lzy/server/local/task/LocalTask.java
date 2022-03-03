@@ -16,8 +16,8 @@ public abstract class LocalTask extends BaseTask {
     private static final Logger LOG = LogManager.getLogger(LocalTask.class);
 
     LocalTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
-        SnapshotMeta meta, ChannelsManager channels, URI serverURI, String bucket) {
-        super(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
+              ChannelsManager channels, URI serverURI, String bucket) {
+        super(owner, tid, workload, assignments, channels, serverURI, bucket);
     }
 
     @Override

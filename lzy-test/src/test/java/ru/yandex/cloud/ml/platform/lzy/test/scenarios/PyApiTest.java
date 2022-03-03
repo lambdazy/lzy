@@ -124,17 +124,17 @@ public class PyApiTest extends LzyBaseTest {
                 "first_id_SimpleWhiteboard;3;"));
 
         Assert.assertTrue(
-            result.stdout().contains("Iterating over whiteboards with types SimpleWhiteboard " +
+            result.stdout().contains("Iterating over whiteboards with types " +
                 "SimpleWhiteboard SimpleWhiteboard AnotherSimpleWhiteboard"));
-        Assert.assertTrue(result.stdout().contains("Number of whiteboard is 4"));
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard is 3"));
         Assert.assertTrue(result.stdout().contains("First whiteboard type is SimpleWhiteboard"));
 
         Assert.assertTrue(result.stdout().contains("Number of whiteboard when date lower and upper "
-            + "bounds are specified is 7"));
+            + "bounds are specified is 5"));
         Assert.assertTrue(result.stdout().contains("Number of whiteboard when date lower bound is "
-            + "specified is 7"));
+            + "specified is 5"));
         Assert.assertTrue(result.stdout().contains("Number of whiteboard when date upper bounds "
-            + "is specified is 7"));
+            + "is specified is 5"));
         Assert.assertTrue(result.stdout().contains("Number of whiteboard when date interval is set "
             + "for the future is 0"));
 

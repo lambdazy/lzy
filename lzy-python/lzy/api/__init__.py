@@ -77,6 +77,7 @@ def op_(provisioning: Provisioning, *, output_type=None):
                 lzy_op = LzyRemoteOp(
                     servant,
                     signature,
+                    current_workflow.snapshot_id(),
                     provisioning,
                     pyenv,
                     deployed=False,

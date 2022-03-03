@@ -55,8 +55,7 @@ class ServantClientMock(ServantClient):
     def publish(self, zygote: Zygote):
         pass
 
-    def run(self, execution_id: str, zygote: Zygote, bindings: Bindings,
-            entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
+    def run(self, execution_id: str, zygote: Zygote, bindings: Bindings) -> Execution:
         pass
 
     def get_credentials(self, typ: CredentialsTypes, bucket: str) -> StorageCredentials:

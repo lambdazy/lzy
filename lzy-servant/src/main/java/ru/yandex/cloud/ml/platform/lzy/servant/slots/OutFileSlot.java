@@ -28,7 +28,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSlot {
@@ -43,16 +43,16 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     private Future<?> snapshotWrite;
 
     protected OutFileSlot(String tid, Slot definition, Path storage,
-                          SlotSnapshotProvider snapshotProvider) {
-        super(definition, snapshotProvider);
+                          Snapshotter snapshotter) {
+        super(definition, snapshotter);
         this.tid = tid;
         this.storage = storage;
         ready = true;
     }
 
-    public OutFileSlot(String tid, Slot definition, SlotSnapshotProvider snapshotProvider)
+    public OutFileSlot(String tid, Slot definition, Snapshotter snapshotter)
         throws IOException {
-        super(definition, snapshotProvider);
+        super(definition, snapshotter);
         this.tid = tid;
         this.storage = Files.createTempFile("lzy", "file-slot");
         ready = false;
@@ -124,17 +124,21 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         opened = true;
         localFileContents.onClose(written -> {
             if (written) {
-                snapshotWrite = pool.submit(() -> {
-                    try {
-                        snapshotProvider.slotSnapshot(definition())
-                            .readAll(new FileInputStream(storage.toFile()));
-                        LOG.info(
-                            "Content to slot " + OutFileSlot.this
-                                + " was written; READY=true");
-                    } catch (FileNotFoundException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
+                if (throughSnapshot()) {
+                    snapshotWrite = pool.submit(() -> {
+                        try {
+                            snapshotter.snapshotProvider().slotSnapshot(definition())
+                                .writeFromStream(new FileInputStream(storage.toFile()));
+                            snapshotter.commit(definition(), snapshotId, entryId);
+                            suspend();
+                            LOG.info(
+                                "Content to slot " + OutFileSlot.this
+                                    + " was written; READY=true");
+                        } catch (FileNotFoundException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                }
                 synchronized (OutFileSlot.this) {
                     ready = true;
                     state(Operations.SlotStatus.State.OPEN);
@@ -152,6 +156,12 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             ready = true;
             state(Operations.SlotStatus.State.OPEN);
             OutFileSlot.this.notifyAll();
+            if (throughSnapshot()) {
+                if (snapshotWrite != null) {
+                    snapshotWrite.cancel(true);
+                }
+                suspend();
+            }
         }
     }
 
@@ -210,12 +220,11 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
 
     public void destroy() {
         LOG.info("OutFileSlot::destroy was called");
-        if (snapshotWrite != null) {
+        if (throughSnapshot() && snapshotWrite != null) {
             try {
                 snapshotWrite.get();
             } catch (InterruptedException | ExecutionException e) {
                 LOG.error(e);
-                throw new RuntimeException(e);
             }
         }
         super.destroy();

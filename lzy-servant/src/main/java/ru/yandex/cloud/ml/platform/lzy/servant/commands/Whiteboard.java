@@ -18,6 +18,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
 public class Whiteboard implements LzyCommand {
 
@@ -63,9 +64,9 @@ public class Whiteboard implements LzyCommand {
         final ManagedChannel serverCh = ChannelBuilder
             .forAddress(serverAddr.getHost(), serverAddr.getPort())
             .usePlaintext()
-            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+            .enableRetry(WbApiGrpc.SERVICE_NAME)
             .build();
-        final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
+        final WbApiGrpc.WbApiBlockingStub server = WbApiGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
             case "create": {
                 if (!localCmd.hasOption('l')) {
@@ -102,7 +103,7 @@ public class Whiteboard implements LzyCommand {
                 final String entryId = localCmd.getOptionValue('e');
                 final String wbField = localCmd.getOptionValue('f');
                 final LzyWhiteboard.OperationStatus operationStatus = server
-                    .addLink(LzyWhiteboard.LinkCommand
+                    .link(LzyWhiteboard.LinkCommand
                         .newBuilder()
                         .setWhiteboardId(command.getArgs()[2])
                         .setAuth(auth)

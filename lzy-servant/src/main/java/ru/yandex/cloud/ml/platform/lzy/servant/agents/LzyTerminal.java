@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
+import io.grpc.Channel;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -10,6 +11,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
@@ -19,14 +21,20 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.S3SlotSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 public class LzyTerminal extends LzyAgent implements Closeable {
 
@@ -35,6 +43,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private final ManagedChannel channel;
     private final LzyKharonGrpc.LzyKharonStub kharon;
     private final LzyKharonGrpc.LzyKharonBlockingStub kharonBlockingStub;
+    private final LzyServerGrpc.LzyServerBlockingStub serverBlockingStub;
+    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
+    private final String sessionId = UUID.randomUUID().toString();
+    private final String bucket;
+    private final Lzy.GetS3CredentialsResponse credentials;
+    private final SnapshotStorage storage;
     private CommandHandler commandHandler;
 
     public LzyTerminal(LzyAgentConfig config) throws URISyntaxException {
@@ -51,6 +65,21 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             .build();
         kharon = LzyKharonGrpc.newStub(channel);
         kharonBlockingStub = LzyKharonGrpc.newBlockingStub(channel);
+        serverBlockingStub = LzyServerGrpc.newBlockingStub(channel);
+        bucket = serverBlockingStub.getBucket(Lzy.GetBucketRequest.newBuilder().setAuth(this.auth).build()).getBucket();
+        credentials = serverBlockingStub.getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder()
+            .setAuth(this.auth)
+            .setBucket(bucket)
+            .build()
+        );
+
+        Channel snapshotChannel = ChannelBuilder
+            .forAddress(serverAddress.getHost(), serverAddress.getPort())
+            .usePlaintext()
+            .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
+            .build();
+        snapshotApi = SnapshotApiGrpc.newBlockingStub(snapshotChannel);
+        storage = SnapshotStorage.create(credentials);
     }
 
     @Override
@@ -62,7 +91,10 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     protected void onStartUp() {
         commandHandler = new CommandHandler();
         status.set(AgentStatus.PREPARING_EXECUTION);
-        context = new LzyContext(null, new Snapshotter.DevNullSnapshotter(), agentInternalAddress, null);
+
+        context = new LzyContext(sessionId,
+            new SnapshotterImpl(auth, bucket, snapshotApi, storage, sessionId),
+            agentInternalAddress, credentials);
         inContext.set(true);
         status.set(AgentStatus.EXECUTING);
 
@@ -100,7 +132,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
     @Override
     protected LzyServerApi lzyServerApi() {
-        return kharonBlockingStub::zygotes;
+        return serverBlockingStub::zygotes;
     }
 
     @Override

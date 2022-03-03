@@ -47,6 +47,7 @@ public class LzyDbAuthTest {
         ctx = ApplicationContext.run(Map.of(
             "authenticator", "DbAuthenticator",
             "server.server-uri", "https://lzy.server.com:8888",
+            "server.whiteboard-url", "",
             "database.enabled", true
         ));
     }

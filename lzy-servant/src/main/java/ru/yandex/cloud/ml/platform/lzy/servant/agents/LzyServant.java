@@ -154,8 +154,8 @@ public class LzyServant extends LzyAgent {
                     .asException());
                 return;
             }
-            final Snapshotter snapshotter = new SnapshotterImpl(auth.getTask(), bucket,
-                snapshot, storage, context.assignments(), context.meta());
+            final Snapshotter snapshotter = new SnapshotterImpl(auth, bucket,
+                snapshot, storage, taskId);
             LzyServant.this.context = new LzyContext(taskId, snapshotter, agentInternalAddress,
                 credentials);
             inContext.set(true);

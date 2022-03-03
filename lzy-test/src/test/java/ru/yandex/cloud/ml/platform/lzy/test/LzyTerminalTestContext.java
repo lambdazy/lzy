@@ -55,29 +55,12 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         default ExecutionResult run(String zygoteName, String arguments,
                                     Map<String, String> bindings) {
-            return run(zygoteName, arguments, bindings, Map.of());
-        }
-
-        default ExecutionResult run(String zygoteName, String arguments,
-                                    Map<String, String> bindings, Map<String, String> mappings) {
             try {
                 final ExecutionResult bash = execute(
                     Collections.emptyMap(),
                     "bash",
                     "-c",
                     "echo '" + OBJECT_MAPPER.writeValueAsString(bindings) + "' > bindings.json"
-                );
-                System.out.println(bash);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-
-            try {
-                final ExecutionResult bash = execute(
-                    Collections.emptyMap(),
-                    "bash",
-                    "-c",
-                    "echo '" + OBJECT_MAPPER.writeValueAsString(mappings) + "' > mapping.json"
                 );
                 System.out.println(bash);
             } catch (JsonProcessingException e) {
@@ -93,8 +76,6 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     mount() + "/bin/" + zygoteName,
                     "-m",
                     "bindings.json",
-                    "-s",
-                    "mapping.json",
                     arguments
                 )
             );
@@ -161,7 +142,25 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     " ",
                     mount() + "/sbin/channel",
                     "create",
-                    channelName
+                    channelName,
+                    "-t", "direct"
+                )
+            );
+            if (execute.exitCode() != 0) {
+                throw new RuntimeException(execute.stderr());
+            }
+        }
+
+        default void createChannel(String channelName, String snapshotId, String entryId) {
+            final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
+                String.join(
+                    " ",
+                    mount() + "/sbin/channel",
+                    "create",
+                    channelName,
+                    "-t", "snapshot",
+                    "-s", snapshotId,
+                    "-e", entryId
                 )
             );
             if (execute.exitCode() != 0) {

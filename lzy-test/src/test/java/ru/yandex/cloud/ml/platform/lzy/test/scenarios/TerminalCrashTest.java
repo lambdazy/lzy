@@ -60,7 +60,7 @@ public class TerminalCrashTest extends LzyBaseTest {
 
         //Act
         terminal1.createChannel(channelName);
-        terminal1.createSlot(localFileName, channelName, Utils.outFileSot());
+        terminal1.createSlot(localFileName, channelName, Utils.outFileSlot());
         terminal1.publish(cat.getName(), cat);
         ForkJoinPool.commonPool().execute(() -> {
             try {

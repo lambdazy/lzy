@@ -5,6 +5,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.net.URI;
 import java.util.Base64;
+import java.util.Objects;
 import java.util.UUID;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -16,6 +17,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 public class Channel implements LzyCommand {
 
@@ -23,6 +25,11 @@ public class Channel implements LzyCommand {
 
     static {
         options.addOption(new Option("c", "content-type", true, "Content type"));
+        options.addOption(new Option("t", "channel-type", true, "Channel type (direct or snapshot)"));
+        options.addOption(new Option("s", "snapshot-id", true,
+            "Snapshot id. Must be set if channel type is `snapshot`"));
+        options.addOption(new Option("e", "entry-id", true,
+            "Snapshot entry id. Must be set if channel type is `snapshot`"));
     }
 
     @Override
@@ -47,7 +54,7 @@ public class Channel implements LzyCommand {
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
+        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
             case "create": {
                 String channelName;
@@ -60,6 +67,16 @@ public class Channel implements LzyCommand {
                     .newBuilder();
                 if (localCmd.hasOption('c')) {
                     createCommandBuilder.setContentType(command.getOptionValue('c'));
+                }
+                if (Objects.equals(localCmd.getOptionValue('t'), "snapshot")) {
+                    createCommandBuilder.setSnapshot(
+                        Channels.SnapshotChannelSpec.newBuilder()
+                            .setSnapshotId(localCmd.getOptionValue('s'))
+                            .setEntryId(localCmd.getOptionValue('e'))
+                            .build()
+                    );
+                } else {
+                    createCommandBuilder.setDirect(Channels.DirectChannelSpec.newBuilder().build());
                 }
                 final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
                     .setAuth(auth)

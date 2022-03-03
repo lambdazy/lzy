@@ -30,6 +30,7 @@ message SlotCommand {
     DisconnectCommand disconnect = 4;
     StatusCommand status = 5;
     DestroyCommand destroy = 6;
+    SnapshotCommand snapshot = 7;
   }
 }
 
@@ -50,6 +51,11 @@ message DestroyCommand {
 }
 
 message StatusCommand {
+}
+
+message SnapshotCommand {
+  string snapshotId = 1;
+  string entryId = 2;
 }
 
 message SlotCommandStatus {

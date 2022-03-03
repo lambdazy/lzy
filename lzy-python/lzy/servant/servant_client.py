@@ -81,8 +81,7 @@ class ServantClient(ABC):
             self,
             execution_id: str,
             zygote: Zygote,
-            bindings: Bindings,
-            entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
+            bindings: Bindings) -> Execution:
         pass
 
     @abstractmethod

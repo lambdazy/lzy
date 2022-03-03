@@ -18,6 +18,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
@@ -27,8 +28,8 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private final CompletableFuture<LineNumberReader> reader = new CompletableFuture<>();
     private long offset = 0;
 
-    public LineReaderSlot(String tid, TextLinesOutSlot definition, SlotSnapshotProvider snapshotProvider) {
-        super(definition, snapshotProvider);
+    public LineReaderSlot(String tid, TextLinesOutSlot definition, Snapshotter snapshotter) {
+        super(definition, snapshotter);
         state(Operations.SlotStatus.State.OPEN);
         this.tid = tid;
     }
@@ -65,13 +66,13 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                 try {
                     line = reader.get().readLine();
                     if (line == null) {
-                        snapshotProvider.slotSnapshot(definition()).onFinish();
+                        snapshotter.snapshotProvider().slotSnapshot(definition()).onFinish();
                     }
                     return line != null;
                 } catch (IOException | InterruptedException | ExecutionException e) {
                     LOG.warn("Unable to read line from reader", e);
                     line = null;
-                    snapshotProvider.slotSnapshot(definition()).onFinish();
+                    snapshotter.snapshotProvider().slotSnapshot(definition()).onFinish();
                     return false;
                 }
             }
@@ -85,7 +86,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                 LineReaderSlot.this.offset += bytes.size();
                 LOG.info("Send from slot {} data {}", name(), line);
                 line = null;
-                snapshotProvider.slotSnapshot(definition()).onChunk(bytes);
+                snapshotter.snapshotProvider().slotSnapshot(definition()).onChunk(bytes);
                 return bytes;
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);

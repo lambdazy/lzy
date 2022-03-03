@@ -8,6 +8,7 @@ import org.apache.commons.cli.CommandLine;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 public class TasksStatus implements LzyCommand {
@@ -22,7 +23,7 @@ public class TasksStatus implements LzyCommand {
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
+        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
         final Tasks.TasksList tasksList = server.tasksStatus(auth);
         for (final Tasks.TaskStatus status : tasksList.getTasksList()) {
             System.out.println(JsonFormat.printer().print(status));

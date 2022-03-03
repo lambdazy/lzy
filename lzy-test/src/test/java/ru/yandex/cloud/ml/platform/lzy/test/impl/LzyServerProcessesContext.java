@@ -81,7 +81,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                     lzywhiteboard = "http://localhost:8999";
                 }
                 env.put("STORAGE_AMAZON_ENDPOINT", serviceEndpoint);
-                env.put("LZYWHITEBOARD", lzywhiteboard);
+                env.put("SERVER_WHITEBOARD_URL", lzywhiteboard);
                 env.put("BASE_ENV_DEFAULT_IMAGE", "some-image");
                 lzyServer = builder.inheritIO().start();
             } catch (IOException e) {

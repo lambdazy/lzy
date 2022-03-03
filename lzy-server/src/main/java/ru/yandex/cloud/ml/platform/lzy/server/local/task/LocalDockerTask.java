@@ -37,12 +37,11 @@ public class LocalDockerTask extends LocalTask {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        SnapshotMeta meta,
         ChannelsManager channels,
         URI serverURI,
         String bucket
     ) {
-        super(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
+        super(owner, tid, workload, assignments, channels, serverURI, bucket);
     }
 
     @Override
@@ -66,8 +65,8 @@ public class LocalDockerTask extends LocalTask {
         hostConfig
             .withPrivileged(true)
             .withBinds(
-                new Bind("/tmp/resources/", new Volume("/tmp/resources/")),
-                new Bind("/tmp/log/servant/", new Volume("/tmp/log/servant/"))
+                // new Bind("/var/log/servant/", new Volume("/var/log/servant/")),
+                new Bind("/tmp/resources/", new Volume("/tmp/resources/"))
             )
             .withPortBindings(
                 new PortBinding(Binding.bindPort(debugPort), ExposedPort.tcp(debugPort)),
@@ -84,10 +83,10 @@ public class LocalDockerTask extends LocalTask {
             .withEnv(
                 "LZYTASK=" + tid.toString(),
                 "LZYTOKEN=" + token,
-                "LOG_FILE=" + "/tmp/log/servant/servant_start_" + uuid,
+                "LOG_FILE=" + "/var/log/servant/servant_start_" + uuid,
                 "DEBUG_PORT=" + Integer.toString(debugPort),
                 "SUSPEND_DOCKER=" + "n",
-                "LZYWHITEBOARD=" + System.getenv("LZYWHITEBOARD"),
+                "LZYWHITEBOARD=" + System.getenv("SERVER_WHITEBOARD_URL"),
                 "BUCKET_NAME=" + bucket(),
                 "ACCESS_KEY=" + System.getenv("ACCESS_KEY"),
                 "SECRET_KEY=" + System.getenv("SECRET_KEY"),

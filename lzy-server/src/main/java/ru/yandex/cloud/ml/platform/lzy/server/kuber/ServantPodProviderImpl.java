@@ -115,7 +115,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         ).addEnvItem(
             new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
         ).addEnvItem(
-            new V1EnvVar().name("LZYWHITEBOARD").value(System.getenv("LZYWHITEBOARD"))
+            new V1EnvVar().name("LZYWHITEBOARD").value(System.getenv("SERVER_WHITEBOARD_URL"))
         ).addEnvItem(
             new V1EnvVar().name("BUCKET_NAME").value(bucketName)
         ).addEnvItem(

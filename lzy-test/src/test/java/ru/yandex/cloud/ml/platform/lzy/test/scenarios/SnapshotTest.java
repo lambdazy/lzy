@@ -77,12 +77,14 @@ public class SnapshotTest extends LzyBaseTest {
     }
 
     @Test
-    public void testTaskPersistent() throws IOException, ParseException, InterruptedException {
+    public void testTaskPersistent() throws IOException, ParseException {
         //Arrange
         final String fileContent = "fileContent";
         final String fileName = "/tmp/lzy/kek/some_file.txt";
         final String localFileName = "/tmp/lzy/lol/some_file.txt";
         final String channelName = "channel1";
+        final String channelEntryId = "firstEntryId";
+        final String channelOutEntryId = "secondEntryId";
 
         final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
         final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
@@ -97,10 +99,12 @@ public class SnapshotTest extends LzyBaseTest {
         );
 
         //Act
-        terminal.createChannel(channelName);
-        terminal.createSlot(localFileName, channelName, Utils.outFileSot());
-        terminal.createChannel(channelOutName);
-        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSot());
+        final String spId = createSnapshot();
+
+        terminal.createChannel(channelName, spId, spId + "/" + channelEntryId);
+        terminal.createSlot(localFileName, channelName, Utils.outFileSlot());
+        terminal.createChannel(channelOutName, spId, spId + "/" + channelOutEntryId);
+        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
             .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
@@ -109,7 +113,6 @@ public class SnapshotTest extends LzyBaseTest {
             new LzyTerminalTestContext.Terminal.ExecutionResult[1];
         ForkJoinPool.commonPool()
             .execute(() -> result1[0] = terminal.execute("bash", "-c", "/tmp/lzy/sbin/cat " + localFileOutName));
-        final String spId = createSnapshot();
         Assert.assertNotNull(spId);
 
         final String firstTag = "firstTag";
@@ -120,24 +123,12 @@ public class SnapshotTest extends LzyBaseTest {
             createWhiteboard(spId, List.of(localFileName, localFileOutName), List.of(firstTag, secondTag), namespace);
         Assert.assertNotNull(wbId);
 
-        final String firstEntryId = "firstEntryId";
-        final String secondEntryId = "secondEntryId";
-        final String stderrEntryId = "stderrEntryId";
-        final String stdoutEntryId = "stdoutEntryId";
-        final String stdinEntryId = "stdinEntryId";
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.run(
             cat_to_file.getName(),
             "",
             Map.of(
                 fileName.substring(LZY_MOUNT.length()), channelName,
                 fileOutName.substring(LZY_MOUNT.length()), channelOutName
-            ),
-            Map.of(
-                fileName.substring(LZY_MOUNT.length()), spId + "/" + firstEntryId,
-                fileOutName.substring(LZY_MOUNT.length()), spId + "/" + secondEntryId,
-                "/dev/stderr", spId + "/" + stderrEntryId,
-                "/dev/stdout", spId + "/" + stdoutEntryId,
-                "/dev/stdin", spId + "/" + stdinEntryId
             )
         );
 
@@ -172,8 +163,8 @@ public class SnapshotTest extends LzyBaseTest {
             Assert.assertEquals(fileContent + "\n", content);
         }
 
-        terminal.link(wbId, localFileName, spId + "/" + firstEntryId);
-        terminal.link(wbId, localFileOutName, spId + "/" + secondEntryId);
+        terminal.link(wbId, localFileName, spId + "/" + channelEntryId);
+        terminal.link(wbId, localFileOutName, spId + "/" + channelOutEntryId);
 
         terminal.finalizeSnapshot(spId);
         String whiteboard = terminal.getWhiteboard(wbId);
@@ -204,88 +195,5 @@ public class SnapshotTest extends LzyBaseTest {
             (firstTag.equals(tagsList.get(0)) && secondTag.equals(tagsList.get(1))) ||
                 (firstTag.equals(tagsList.get(1)) && secondTag.equals(tagsList.get(0)))
         );
-
-        if (localFileName.equals(fieldsList.get(0).getFieldName())) {
-            Assert.assertEquals(Collections.emptyList(), fieldsList.get(0).getDependentFieldNamesList());
-            Assert.assertEquals(List.of(localFileName), fieldsList.get(1).getDependentFieldNamesList());
-        } else {
-            Assert.assertEquals(Collections.emptyList(), fieldsList.get(1).getDependentFieldNamesList());
-            Assert.assertEquals(List.of(localFileName), fieldsList.get(0).getDependentFieldNamesList());
-        }
-    }
-
-    @Test
-    public void testWhiteboardsResolving() throws ParseException, InvalidProtocolBufferException {
-        final String spIdFirst = createSnapshot();
-        Assert.assertNotNull(spIdFirst);
-
-        final String spIdSecond = createSnapshot();
-        Assert.assertNotNull(spIdSecond);
-
-        final String firstTag = "firstTag";
-        final String secondTag = "secondTag";
-        final String thirdTag = "thirdTag";
-        final String firstNamespace = "firstNamespace";
-        final String secondNamespace = "secondNamespace";
-
-        OffsetDateTime localDateTime = OffsetDateTime.now();
-        Long timestamp = localDateTime.toInstant().getEpochSecond();
-        localDateTime = localDateTime.plusDays(1);
-        Long timestampNextDay = localDateTime.toInstant().getEpochSecond();
-
-        final String wbIdFirst = createWhiteboard(
-            spIdFirst, List.of("fileNameX", "fileNameY"), List.of(firstTag, secondTag), firstNamespace
-        );
-        Assert.assertNotNull(wbIdFirst);
-
-        final String wbIdSecond = createWhiteboard(
-            spIdFirst, List.of("fileNameZ", "fileNameW"), List.of(firstTag, secondTag, thirdTag), secondNamespace);
-        Assert.assertNotNull(wbIdSecond);
-
-        final String wbIdThird = createWhiteboard(
-            spIdSecond, List.of("fileNameA", "fileNameB"), List.of(secondTag, thirdTag), firstNamespace);
-        Assert.assertNotNull(wbIdThird);
-
-        final String wbIdFourth = createWhiteboard(
-            spIdSecond, List.of("fileNameC"), List.of(thirdTag), firstNamespace);
-        Assert.assertNotNull(wbIdFourth);
-
-        final String wbIdFifth = createWhiteboard(
-            spIdSecond, List.of("fileNameD"), List.of(firstTag, thirdTag), secondNamespace);
-        Assert.assertNotNull(wbIdFifth);
-
-        List<LzyWhiteboard.Whiteboard> list = getWhiteboardsList(
-            firstNamespace, List.of(secondTag), timestamp, timestampNextDay);
-        Assert.assertEquals(2, list.size());
-        Assert.assertTrue(
-            list.stream()
-                .map(LzyWhiteboard.Whiteboard::getId)
-                .collect(Collectors.toList())
-                .containsAll(List.of(wbIdFirst, wbIdThird))
-        );
-
-        list = getWhiteboardsList(firstNamespace, Collections.emptyList(), timestamp, timestampNextDay);
-        Assert.assertEquals(3, list.size());
-        Assert.assertTrue(
-            list.stream()
-                .map(LzyWhiteboard.Whiteboard::getId)
-                .collect(Collectors.toList())
-                .containsAll(List.of(wbIdFirst, wbIdThird, wbIdFourth))
-        );
-
-        list = getWhiteboardsList(secondNamespace, List.of(firstTag, thirdTag), timestamp, timestampNextDay);
-        Assert.assertEquals(2, list.size());
-        Assert.assertTrue(
-            list.stream()
-                .map(LzyWhiteboard.Whiteboard::getId)
-                .collect(Collectors.toList())
-                .containsAll(List.of(wbIdSecond, wbIdFifth))
-        );
-
-        // intentionally setting the interval to be in the future
-        timestamp = timestampNextDay;
-
-        list = getWhiteboardsList(secondNamespace, Collections.emptyList(), timestamp, timestampNextDay);
-        Assert.assertEquals(0, list.size());
     }
 }

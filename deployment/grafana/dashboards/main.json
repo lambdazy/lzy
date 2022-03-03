@@ -200,20 +200,13 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "green",
+            "mode": "fixed"
           },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMin": 0,
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1
+            "align": "center",
+            "displayMode": "color-background",
+            "filterable": true
           },
           "mappings": [],
           "thresholds": {
@@ -228,8 +221,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "short"
+          }
         },
         "overrides": []
       },
@@ -241,22 +233,16 @@
       },
       "id": 6,
       "options": {
-        "barWidth": 0.97,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "hidden",
-          "placement": "right"
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "orientation": "auto",
-        "showValue": "never",
-        "stacking": "none",
-        "tooltip": {
-          "mode": "single"
-        },
-        "xTickLabelRotation": 0
+        "showHeader": true
       },
-      "pluginVersion": "8.3.3",
+      "pluginVersion": "8.3.4",
       "targets": [
         {
           "datasource": {
@@ -269,15 +255,15 @@
           "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
           "interval": "",
           "intervalFactor": 1,
-          "query": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nORDER BY t\n)\nWHERE t = (intDiv(toUnixTimestamp(now()), 60 * 60 * 24) * 60 * 60 * 24) - 60 * 60 * 24",
-          "rawQuery": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nORDER BY t\n)\nWHERE t = (intDiv(toUnixTimestamp(now()), 60 * 60 * 24) * 60 * 60 * 24) - 60 * 60 * 24",
+          "query": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nORDER BY t\n)\nWHERE t = (intDiv(toUnixTimestamp(now()), 60 * 60 * 24) * 60 * 60 * 24)",
+          "rawQuery": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nORDER BY t\n)\nWHERE t = (intDiv(toUnixTimestamp(now()), 60 * 60 * 24) * 60 * 60 * 24)",
           "refId": "A",
           "round": "0s",
           "skip_comments": true
         }
       ],
       "title": "Tasks by users per last day",
-      "type": "barchart"
+      "type": "table"
     }
   ],
   "refresh": "",

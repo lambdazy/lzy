@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
@@ -26,6 +27,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
@@ -45,13 +47,6 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     private final SnapshotRepository snapshotRepository;
     private final Authenticator auth;
 
-    private String resolveNamespace(String namespace, String uid) {
-        if (!namespace.startsWith(uid + ":")) {
-            return uid + ":" + namespace;
-        }
-        return namespace;
-    }
-
     @Inject
     public WhiteboardApi(ServerConfig serverConfig, WhiteboardRepository whiteboardRepository,
         SnapshotRepository snapshotRepository) {
@@ -67,6 +62,13 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         this.snapshotRepository = snapshotRepository;
     }
 
+    private String resolveNamespace(String namespace, String uid) {
+        if (!namespace.startsWith(uid + ":")) {
+            return uid + ":" + namespace;
+        }
+        return namespace;
+    }
+
     @Override
     public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
         StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
@@ -76,8 +78,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         final SnapshotStatus snapshotStatus = snapshotRepository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
-        if (snapshotStatus == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+        if (snapshotStatus == null
+            || !Objects.equals(snapshotStatus.snapshot().uid().toString(), request.getAuth().getUser().getUserId())) {
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         URI wbId = URI.create(UUID.randomUUID().toString());
@@ -103,8 +106,10 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         final WhiteboardStatus whiteboardStatus = whiteboardRepository
             .resolveWhiteboard(URI.create(request.getWhiteboardId()));
-        if (whiteboardStatus == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT
+        if (whiteboardStatus == null
+            || !Objects.equals(whiteboardStatus.whiteboard().snapshot().uid().toString(),
+            request.getAuth().getUser().getUserId())) {
+            responseObserver.onError(Status.NOT_FOUND
                 .withDescription("Cannot find whiteboard " + request.getWhiteboardId())
                 .asException());
             return;
@@ -135,8 +140,19 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         final WhiteboardStatus whiteboardStatus = whiteboardRepository
             .resolveWhiteboard(URI.create(request.getWhiteboardId()));
-        if (whiteboardStatus == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+        if (whiteboardStatus == null
+            || !Objects.equals(whiteboardStatus.whiteboard().snapshot().uid().toString(),
+            request.getAuth().getUser().getUserId())) {
+            responseObserver.onError(Status.NOT_FOUND.asException());
+            return;
+        }
+        if (whiteboardStatus.state().equals(State.ERRORED)) {
+            responseObserver.onError(
+                Status.UNKNOWN.withDescription("Whiteboard is in errored condition").asException());
+            return;
+        }
+        if (!whiteboardStatus.state().equals(State.COMPLETED)) {
+            responseObserver.onError(Status.FAILED_PRECONDITION.asException());
             return;
         }
         final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus);

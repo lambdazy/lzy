@@ -7,6 +7,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.Objects;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,6 +16,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
@@ -76,7 +78,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         final SnapshotStatus snapshotStatus = repository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         repository.prepare(GrpcConverter.from(request.getEntry(), snapshotStatus.snapshot()),
@@ -101,13 +103,13 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         final SnapshotStatus snapshotStatus = repository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         final SnapshotEntry entry = repository
             .resolveEntry(snapshotStatus.snapshot(), request.getEntryId());
         if (entry == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         repository.commit(entry, request.getEmpty());
@@ -129,8 +131,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         }
         final SnapshotStatus snapshotStatus = repository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
-        if (snapshotStatus == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+        if (snapshotStatus == null
+            || !Objects.equals(snapshotStatus.snapshot().uid().toString(), request.getAuth().getUser().getUserId())) {
+            responseObserver.onError(Status.NOT_FOUND.asException());
             return;
         }
         repository.finalize(snapshotStatus.snapshot());
@@ -139,6 +142,41 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
             .build();
         responseObserver.onNext(status);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void entryStatus(LzyWhiteboard.EntryStatusCommand request,
+                            StreamObserver<LzyWhiteboard.EntryStatusResponse> responseObserver) {
+        LOG.info("SnapshotApi::entryStatus " + JsonUtils.printRequest(request));
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
+        SnapshotStatus snapshotStatus = repository.resolveSnapshot(URI.create(request.getSnapshotId()));
+        if (snapshotStatus == null) {
+            LOG.info("SnapshotApi::entryStatus snapshot {} not found", request.getSnapshotId());
+            responseObserver.onError(
+                Status.NOT_FOUND.withDescription("Snapshot " + request.getSnapshotId() + " not found").asException());
+            return;
+        }
+        SnapshotEntryStatus entry = repository.resolveEntryStatus(snapshotStatus.snapshot(), request.getEntryId());
+        if (entry == null) {
+            LOG.info("SnapshotApi::entryStatus entry {} not found, creating", request.getEntryId());
+            entry = repository.createEntry(snapshotStatus.snapshot(), request.getEntryId());
+        }
+        LzyWhiteboard.EntryStatusResponse.Builder builder = LzyWhiteboard.EntryStatusResponse.newBuilder()
+            .setSnapshotId(snapshotStatus.snapshot().id().toString())
+            .setEntryId(entry.entry().id())
+            .setStatus(LzyWhiteboard.EntryStatusResponse.Status.valueOf(entry.status().name()))
+            .setEmpty(entry.empty());
+        URI storage = entry.storage();
+        if (storage != null) {
+            builder.setStorageUri(storage.toString());
+        }
+        LzyWhiteboard.EntryStatusResponse resp = builder.build();
+        LOG.info("SnapshotApi::entryStatus status: " + JsonUtils.printRequest(resp));
+        responseObserver.onNext(resp);
         responseObserver.onCompleted();
     }
 }

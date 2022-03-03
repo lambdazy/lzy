@@ -120,6 +120,27 @@ public class ServantEndpoint implements Endpoint {
     }
 
     @Override
+    public void snapshot(String snapshotId, String entryId) {
+        if (isInvalid()) { // skip invalid connections
+            return;
+        }
+        try {
+            final Servant.SlotCommandStatus rc = servant
+                .configureSlot(
+                    Servant.SlotCommand.newBuilder()
+                        .setSlot(slot().name())
+                        .setSnapshot(Servant.SnapshotCommand.newBuilder()
+                            .setSnapshotId(snapshotId)
+                            .setEntryId(entryId)
+                            .build())
+                        .build()
+                );
+        } catch (StatusRuntimeException sre) {
+            LOG.warn("Unable to send snapshot command " + this + "\n Cause:\n" + sre);
+        }
+    }
+
+    @Override
     public int disconnect() {
         if (isInvalid()) { // skip invalid connections
             return 0;

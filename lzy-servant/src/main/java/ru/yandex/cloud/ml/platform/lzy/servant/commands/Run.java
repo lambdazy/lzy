@@ -16,11 +16,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.text.MessageFormat;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -44,6 +42,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
@@ -56,13 +55,12 @@ public class Run implements LzyCommand {
 
     static {
         options.addOption(new Option("m", "mapping", true, "Slot-channel mapping"));
-        options.addOption(new Option("s", "slot-mapping", true, "Slot-entryId mapping"));
         options.addOption(new Option("n", "name", true, "Task name"));
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final CountDownLatch communicationLatch = new CountDownLatch(3);
-    private LzyKharonGrpc.LzyKharonBlockingStub kharon;
+    private LzyServerGrpc.LzyServerBlockingStub server;
     private IAM.Auth auth;
     private Map<String, Map<String, String>> pipesConfig;
     private LzyServantGrpc.LzyServantBlockingStub servant;
@@ -105,7 +103,7 @@ public class Run implements LzyCommand {
                     .usePlaintext()
                     .enableRetry(LzyKharonGrpc.SERVICE_NAME)
                     .build();
-                kharon = LzyKharonGrpc.newBlockingStub(serverCh);
+                server = LzyServerGrpc.newBlockingStub(serverCh);
             }
             {
                 final ManagedChannel servant = ChannelBuilder
@@ -123,22 +121,6 @@ public class Run implements LzyCommand {
         final Tasks.TaskSpec.Builder taskSpec = Tasks.TaskSpec.newBuilder();
         taskSpec.setAuth(auth);
         taskSpec.setZygote(grpcZygote);
-        if (localCmd.hasOption('s')) {
-            final String mappingsFile = localCmd.getOptionValue('s');
-            //noinspection unchecked
-            final Map<String, String> mappings = new HashMap<String, String>(
-                objectMapper.readValue(new File(mappingsFile), Map.class));
-            final List<Tasks.SlotMapping> slotMappings = new ArrayList<>();
-            for (var entry : mappings.entrySet()) {
-                slotMappings.add(Tasks.SlotMapping
-                    .newBuilder()
-                    .setSlotName(entry.getKey())
-                    .setEntryId(entry.getValue())
-                    .build());
-            }
-            taskSpec.setSnapshotMeta(
-                Tasks.SnapshotMeta.newBuilder().addAllMappings(slotMappings).build());
-        }
         zygote.slots().forEach(slot -> {
             LOG.info("Resolving slot " + slot.name());
             final String binding;
@@ -157,7 +139,7 @@ public class Run implements LzyCommand {
         });
 
         final long startTimeMillis = System.currentTimeMillis();
-        final Iterator<Servant.ExecutionProgress> executionProgress = kharon
+        final Iterator<Servant.ExecutionProgress> executionProgress = server
             .start(taskSpec.build());
         final Servant.ExecutionConcluded[] exit = new Servant.ExecutionConcluded[1];
         exit[0] = Servant.ExecutionConcluded.newBuilder()
@@ -369,7 +351,7 @@ public class Run implements LzyCommand {
 
     private void destroyChannel(String channelName) {
         //noinspection ResultOfMethodCallIgnored
-        kharon.channel(Channels.ChannelCommand.newBuilder()
+        server.channel(Channels.ChannelCommand.newBuilder()
             .setAuth(auth)
             .setChannelName(channelName)
             .setDestroy(Channels.ChannelDestroy.newBuilder().build())
@@ -378,11 +360,12 @@ public class Run implements LzyCommand {
     }
 
     private String createChannel(Slot slot, String channelName) {
-        final Channels.ChannelStatus channel = kharon.channel(Channels.ChannelCommand.newBuilder()
+        final Channels.ChannelStatus channel = server.channel(Channels.ChannelCommand.newBuilder()
             .setAuth(auth)
             .setChannelName(channelName)
             .setCreate(Channels.ChannelCreate.newBuilder()
                 .setContentType(GrpcConverter.to(slot.contentType()))
+                .setDirect(Channels.DirectChannelSpec.newBuilder().build())
                 .build())
             .build()
         );

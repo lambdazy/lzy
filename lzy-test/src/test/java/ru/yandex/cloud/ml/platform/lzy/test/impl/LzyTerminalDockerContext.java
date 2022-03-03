@@ -47,14 +47,15 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         //noinspection deprecation
         final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
-                .withPrivilegedMode(true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
-                .withEnv("USER", user)
-                .withEnv("LOG_FILE", "/tmp/log/servant/terminal_" + uuid)
-                .withEnv("DEBUG_PORT", Integer.toString(debugPort))
-                .withEnv("SUSPEND_DOCKER", "n")
-                .withFileSystemBind("/tmp/log/servant/", "/tmp/log/servant/")
-                .withCreateContainerCmdModifier(modifier)
-                .withCommand(commandGenerator.get());
+            .withPrivilegedMode(
+                true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
+            .withEnv("USER", user)
+            .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)
+            .withEnv("DEBUG_PORT", Integer.toString(debugPort))
+            .withEnv("SUSPEND_DOCKER", "n")
+            .withFileSystemBind("/tmp/lzy-log/", "/tmp/lzy-log/")
+            .withCreateContainerCmdModifier(modifier)
+            .withCommand(commandGenerator.get());
 
         if (private_key_path != null) {
             base.withFileSystemBind(private_key_path, private_key_path);

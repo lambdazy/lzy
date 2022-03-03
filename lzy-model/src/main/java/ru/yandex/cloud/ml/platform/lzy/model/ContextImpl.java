@@ -11,15 +11,12 @@ public class ContextImpl implements Context {
 
     private final Env env;
     private final Provisioning provisioning;
-    private final SnapshotMeta meta;
     private final List<SlotAssignment> assignments;
 
     public ContextImpl(Env env, Provisioning provisioning,
-                       SnapshotMeta meta,
                        Stream<SlotAssignment> assignments) {
         this.env = env;
         this.provisioning = provisioning;
-        this.meta = meta;
         this.assignments = assignments.collect(Collectors.toList());
     }
 
@@ -31,11 +28,6 @@ public class ContextImpl implements Context {
     @Override
     public Provisioning provisioning() {
         return provisioning;
-    }
-
-    @Override
-    public SnapshotMeta meta() {
-        return meta;
     }
 
     @Override

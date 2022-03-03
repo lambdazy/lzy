@@ -1,5 +1,8 @@
 FROM lzy-servant-base
 
+RUN mkdir -p /var/log/servant \
+    && mkdir tmp/resources
+
 COPY lzy-python/ lzy-python
 COPY lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar lzy-python/lzy/lzy-servant.jar
 RUN ./conda_prepare.sh pylzy_install 'lzy-python'

@@ -1,12 +1,24 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from lzy.model.slot import Slot
 
 
 @dataclass
+class SnapshotChannelSpec:
+    snapshot_id: str
+    entry_id: str
+
+
+@dataclass
+class DirectChannelSpec:
+    pass
+
+
+@dataclass
 class Channel:
     name: str
+    spec: Union[SnapshotChannelSpec, DirectChannelSpec]
 
 
 @dataclass

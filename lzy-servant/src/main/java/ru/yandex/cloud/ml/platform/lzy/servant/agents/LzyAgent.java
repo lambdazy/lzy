@@ -20,8 +20,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -50,7 +48,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 public abstract class LzyAgent implements Closeable {
 
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);
-    private static final String LOG_DIR = "/tmp/log/";
+    private static final String LOG_DIR = "/var/log/";
     protected final URI serverAddress;
     protected final Path mount;
     protected final IAM.Auth auth;
@@ -259,6 +257,10 @@ public abstract class LzyAgent implements Closeable {
                     lzyFS.addSlot((LzyFileSlot) lzySlot);
                     LOG.info("lzyFS:: slot added " + lzySlot.name());
                 }
+                break;
+            case SNAPSHOT:
+                final Servant.SnapshotCommand snapshot = request.getSnapshot();
+                slot.snapshot(snapshot.getSnapshotId(), snapshot.getEntryId());
                 break;
             case CONNECT:
                 final Servant.ConnectSlotCommand connect = request.getConnect();
