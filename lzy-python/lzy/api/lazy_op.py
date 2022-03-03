@@ -25,10 +25,10 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class LzyOp(Generic[T], ABC):
-    def __init__(self, signature: CallSignature[T], entry_id_mapping: Mapping[str, str], return_entry_id: str):
+    def __init__(self, signature: CallSignature[T], slot_to_entry_id: Mapping[str, str], return_entry_id: str):
         super().__init__()
         self._sign: CallSignature[T] = signature
-        self._entry_id_mapping = entry_id_mapping
+        self._slot_to_entry_id = slot_to_entry_id
         self._materialized: bool = False
         self._materialization: Optional[T] = None
         self._log: logging.Logger = logging.getLogger(str(self.__class__))
@@ -46,10 +46,10 @@ class LzyOp(Generic[T], ABC):
         pass
 
     def entry_id_by_slot(self, slot: Slot) -> str:
-        return self._entry_id_mapping[slot.name]
+        return self._slot_to_entry_id[slot.name]
 
-    def entry_id_mapping(self) -> Mapping[str, str]:
-        return self._entry_id_mapping
+    def slot_to_entry_id(self) -> Mapping[str, str]:
+        return self._slot_to_entry_id
 
     def return_entry_id(self) -> str:
         return self._return_entry_id
@@ -97,7 +97,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             env: Optional[PyEnv] = None,
             deployed: bool = False,
             entry_id_generator: Optional[EntryIdGenerator] = None,
-            entry_id_mapping: Optional[Mapping[str, str]] = None
+            slot_to_entry_id: Optional[Mapping[str, str]] = None
     ):
         if (not provisioning or not env) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
@@ -128,7 +128,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
         mapping: Mapping[str, str]
 
-        if entry_id_mapping is not None and entry_id_generator is not None:
+        if slot_to_entry_id is not None and entry_id_generator is not None:
             raise ValueError("Both entry id mapping and entry id generator are provided")
         elif entry_id_generator is not None:
             mapping = {
@@ -137,8 +137,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             }
             mapping[self._zygote.return_slot.name] = entry_id_generator.generate(  # type: ignore
                 self._zygote.return_slot)
-        elif entry_id_mapping is not None:
-            mapping = entry_id_mapping
+        elif slot_to_entry_id is not None:
+            mapping = slot_to_entry_id
         else:
             raise ValueError("entry_id_mapping and entry_id_generator are None")
 
@@ -297,7 +297,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             servant: ServantClient,
             materialized: bool,
             materialization: Any,
-            entry_id_mapping: Mapping[str, str],
+            slot_to_entry_id: Mapping[str, str],
             call_s: CallSignature[T],
             provisioning: Provisioning,
             env: PyEnv,
@@ -310,7 +310,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             provisioning,
             env,
             deployed=False,
-            entry_id_mapping=entry_id_mapping
+            slot_to_entry_id=slot_to_entry_id
         )
         op_._materialized = materialized  # pylint: disable=protected-access
         op_._materialization = materialization  # pylint: disable=protected-access
@@ -321,7 +321,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         return LzyRemoteOp.restore, (
             # pylint: disable=protected-access
             op_._servant, op_.is_materialized(), op_._materialization,
-            op_.entry_id_mapping(),
+            op_.slot_to_entry_id(),
             op_.signature,
             op_.zygote.provisioning,
             op_.zygote.env,

@@ -7,8 +7,7 @@ import java.util.stream.Stream;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -28,19 +27,19 @@ public interface TasksManager {
 
     Stream<Task> ps();
 
-    Stream<Channel> cs();
+    Stream<ChannelSpec> cs();
 
-    Channel channel(String chName);
+    ChannelSpec channel(String chName);
 
-    Channel createChannel(String uid, Task parent, Channel channelSpec);
+    ChannelSpec createChannel(String uid, Task parent, ChannelSpec channelSpec);
 
-    SlotStatus[] connected(Channel channel);
+    SlotStatus[] connected(ChannelSpec channel);
 
     String owner(UUID tid);
 
-    Map<Slot, Channel> slots(String user);
+    Map<Slot, ChannelSpec> slots(String user);
 
-    void addUserSlot(String user, Slot slot, Channel channel);
+    void addUserSlot(String user, Slot slot, ChannelSpec channel);
 
     boolean removeUserSlot(String user, Slot slot);
 

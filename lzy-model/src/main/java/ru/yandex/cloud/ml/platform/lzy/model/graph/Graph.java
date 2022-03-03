@@ -2,7 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.model.graph;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 
 public interface Graph extends Zygote {
     Slot[] allSockets();
@@ -10,7 +10,7 @@ public interface Graph extends Zygote {
     interface Builder {
         Builder append(Zygote op);
 
-        Builder link(Slot from, Slot to, Channel ch);
+        Builder link(Slot from, Slot to, ChannelSpec ch);
 
         Graph build();
     }

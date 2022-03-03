@@ -113,13 +113,17 @@ public class LzyContext {
 
                 slot.onState(
                     Operations.SlotStatus.State.SUSPENDED,
-                    () -> progress(ContextProgress.newBuilder()
-                        .setDetach(Servant.SlotDetach.newBuilder()
-                            .setSlot(GrpcConverter.to(spec))
-                            .setUri(servantUri.toString() + spec.name())
-                            .build()
-                        ).build()
-                    )
+                    () -> {
+                        if (spec.direction() == Slot.Direction.INPUT || slot.throughSnapshot()) {
+                            progress(ContextProgress.newBuilder()
+                                .setDetach(Servant.SlotDetach.newBuilder()
+                                    .setSlot(GrpcConverter.to(spec))
+                                    .setUri(servantUri.toString() + spec.name())
+                                    .build()
+                                ).build()
+                            );
+                        }
+                    }
                 );
                 slot.onState(Operations.SlotStatus.State.DESTROYED, () -> {
                     synchronized (slots) {

@@ -10,6 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 public class Storage implements LzyCommand {
 
@@ -30,7 +31,7 @@ public class Storage implements LzyCommand {
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        LzyKharonGrpc.LzyKharonBlockingStub kharon = LzyKharonGrpc.newBlockingStub(serverCh);
+        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
 
         switch (command.getArgs()[1]) {
             case "s3": {
@@ -42,7 +43,7 @@ public class Storage implements LzyCommand {
                     .setAuth(auth)
                     .setBucket(command.getArgs()[2]);
 
-                Lzy.GetS3CredentialsResponse resp = kharon.getS3Credentials(builder.build());
+                Lzy.GetS3CredentialsResponse resp = server.getS3Credentials(builder.build());
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
             }
@@ -51,7 +52,7 @@ public class Storage implements LzyCommand {
                     .newBuilder()
                     .setAuth(auth);
 
-                Lzy.GetBucketResponse resp = kharon.getBucket(builder.build());
+                Lzy.GetBucketResponse resp = server.getBucket(builder.build());
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
             }

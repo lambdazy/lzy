@@ -128,7 +128,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                     snapshotWrite = pool.submit(() -> {
                         try {
                             snapshotter.snapshotProvider().slotSnapshot(definition())
-                                .readToStorage(new FileInputStream(storage.toFile()));
+                                .writeFromStream(new FileInputStream(storage.toFile()));
                             snapshotter.commit(definition(), snapshotId, entryId);
                             suspend();
                             LOG.info(

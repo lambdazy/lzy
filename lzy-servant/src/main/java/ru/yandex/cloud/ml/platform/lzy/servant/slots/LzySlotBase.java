@@ -101,7 +101,8 @@ public class LzySlotBase implements LzySlot {
         }
     }
 
-    protected boolean throughSnapshot() {
+    @Override
+    public boolean throughSnapshot() {
         return snapshotSet.get();
     }
 }

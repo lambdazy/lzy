@@ -9,6 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 public class Sessions implements LzyCommand {
 
@@ -26,13 +27,13 @@ public class Sessions implements LzyCommand {
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        LzyKharonGrpc.LzyKharonBlockingStub kharon = LzyKharonGrpc.newBlockingStub(serverCh);
+        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
 
         Lzy.GetSessionsRequest.Builder builder = Lzy.GetSessionsRequest
             .newBuilder()
             .setAuth(auth.getUser());
 
-        Lzy.GetSessionsResponse resp = kharon.getSessions(builder.build());
+        Lzy.GetSessionsResponse resp = server.getSessions(builder.build());
         System.out.println(JsonFormat.printer().print(resp));
         return 0;
     }

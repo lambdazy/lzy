@@ -100,7 +100,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
     }
 
     @Override
-    public void readToStorage(InputStream stream) {
+    public void writeFromStream(InputStream stream) {
         LOG.info("S3SlotSnapshot::readAll invoked with slot " + slot.name());
         initStream();
         slotStream.write(stream);
@@ -125,8 +125,8 @@ public class S3SlotSnapshot implements SlotSnapshot {
     }
 
     @Override
-    public void readFromStorage(String bucket, String key,
-                                ThrowingConsumer<ByteString> onChunkConsumer, Runnable onComplete) {
+    public void readByChunks(String bucket, String key,
+                             ThrowingConsumer<ByteString> onChunkConsumer, Runnable onComplete) {
         storage.transmitter().downloadC(
             new DownloadRequestBuilder()
                 .bucket(bucket)

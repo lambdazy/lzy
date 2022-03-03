@@ -32,6 +32,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
@@ -42,6 +43,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private final ManagedChannel channel;
     private final LzyKharonGrpc.LzyKharonStub kharon;
     private final LzyKharonGrpc.LzyKharonBlockingStub kharonBlockingStub;
+    private final LzyServerGrpc.LzyServerBlockingStub serverBlockingStub;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
     private final String sessionId = UUID.randomUUID().toString();
     private final String bucket;
@@ -63,8 +65,9 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             .build();
         kharon = LzyKharonGrpc.newStub(channel);
         kharonBlockingStub = LzyKharonGrpc.newBlockingStub(channel);
-        bucket = kharonBlockingStub.getBucket(Lzy.GetBucketRequest.newBuilder().setAuth(this.auth).build()).getBucket();
-        credentials = kharonBlockingStub.getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder()
+        serverBlockingStub = LzyServerGrpc.newBlockingStub(channel);
+        bucket = serverBlockingStub.getBucket(Lzy.GetBucketRequest.newBuilder().setAuth(this.auth).build()).getBucket();
+        credentials = serverBlockingStub.getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder()
             .setAuth(this.auth)
             .setBucket(bucket)
             .build()
@@ -129,7 +132,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
     @Override
     protected LzyServerApi lzyServerApi() {
-        return kharonBlockingStub::zygotes;
+        return serverBlockingStub::zygotes;
     }
 
     @Override

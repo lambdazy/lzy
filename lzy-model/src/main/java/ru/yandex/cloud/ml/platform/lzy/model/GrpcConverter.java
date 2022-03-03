@@ -10,7 +10,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
@@ -20,7 +20,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
@@ -33,7 +32,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Builder;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
 
@@ -147,7 +145,7 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static Channels.Channel to(Channel channel) {
+    public static Channels.Channel to(ChannelSpec channel) {
         final Channels.Channel.Builder builder = Channels.Channel.newBuilder();
         builder.setChannelId(channel.name());
         builder.setContentType(to(channel.contentType()));

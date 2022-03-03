@@ -15,8 +15,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.ConnectionManager;
@@ -37,10 +36,10 @@ public class InMemTasksManager implements TasksManager {
     private final Map<Task, String> owners = new ConcurrentHashMap<>();
     private final Map<Task, List<Task>> children = new ConcurrentHashMap<>();
 
-    private final Map<Task, List<Channel>> taskChannels = new ConcurrentHashMap<>();
-    private final Map<String, List<Channel>> userChannels = new ConcurrentHashMap<>();
+    private final Map<Task, List<ChannelSpec>> taskChannels = new ConcurrentHashMap<>();
+    private final Map<String, List<ChannelSpec>> userChannels = new ConcurrentHashMap<>();
 
-    private final Map<String, Map<Slot, Channel>> userSlots = new ConcurrentHashMap<>();
+    private final Map<String, Map<Slot, ChannelSpec>> userSlots = new ConcurrentHashMap<>();
 
     public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels, ConnectionManager connectionManager) {
         this.serverURI = URI.create(serverConfig.getServerUri());
@@ -49,8 +48,8 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Channel createChannel(String uid, Task parent, Channel channelSpec) {
-        final Channel channel = channels.create(channelSpec);
+    public ChannelSpec createChannel(String uid, Task parent, ChannelSpec channelSpec) {
+        final ChannelSpec channel = channels.create(channelSpec);
         if (channel == null) {
             return null;
         }
@@ -63,7 +62,7 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public SlotStatus[] connected(Channel channel) {
+    public SlotStatus[] connected(ChannelSpec channel) {
         return channels.connected(channel);
     }
 
@@ -73,12 +72,12 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Map<Slot, Channel> slots(String user) {
+    public Map<Slot, ChannelSpec> slots(String user) {
         return userSlots.getOrDefault(user, Map.of());
     }
 
     @Override
-    public void addUserSlot(String user, Slot slot, Channel channel) {
+    public void addUserSlot(String user, Slot slot, ChannelSpec channel) {
         userSlots.computeIfAbsent(user, u -> new ConcurrentHashMap<>()).put(slot, channel);
     }
 
@@ -94,7 +93,7 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Stream<Channel> cs() {
+    public Stream<ChannelSpec> cs() {
         return channels.channels();
     }
 
@@ -152,7 +151,7 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Channel channel(String chName) {
+    public ChannelSpec channel(String chName) {
         return channels.channels().filter(ch -> ch.name().equals(chName)).findFirst().orElse(null);
     }
 }

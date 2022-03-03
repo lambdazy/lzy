@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.model.channel;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
-public class SnapshotChannelSpec implements Channel {
+public class SnapshotChannelSpec implements ChannelSpec {
     private final String name;
     private final DataSchema contentType;
     private final String snapshotId;

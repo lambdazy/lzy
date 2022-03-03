@@ -99,7 +99,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             key = Arrays.stream(parts).skip(1).collect(Collectors.joining("/"));
         }
         snapshotter.snapshotProvider().slotSnapshot(definition())
-            .readFromStorage(bucket, key, data -> {
+            .readByChunks(bucket, key, data -> {
                 LOG.info("From {} chunk received {}", name(), data.toString(StandardCharsets.UTF_8));
                 onChunk(data);
             }, () -> state(Operations.SlotStatus.State.OPEN));

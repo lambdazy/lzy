@@ -19,4 +19,6 @@ public interface LzySlot {
     void onState(Operations.SlotStatus.State state, Runnable action);
 
     Operations.SlotStatus status();
+
+    boolean throughSnapshot();
 }

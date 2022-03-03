@@ -17,7 +17,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
-import javax.annotation.Nonnull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
@@ -25,9 +24,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
@@ -52,7 +50,7 @@ public abstract class BaseTask implements Task {
     private final Map<Slot, String> assignments;
     private final ChannelsManager channels;
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
-    private final Map<Slot, Channel> attachedSlots = new HashMap<>();
+    private final Map<Slot, ChannelSpec> attachedSlots = new HashMap<>();
     private final CompletableFuture<LzyServantBlockingStub> servant = new CompletableFuture<>();
     private final String bucket;
     private final AtomicBoolean alreadyStopped = new AtomicBoolean(false);
@@ -163,7 +161,7 @@ public abstract class BaseTask implements Task {
                             channelName = attach.getChannel();
                         }
 
-                        final Channel channel = channels.get(channelName);
+                        final ChannelSpec channel = channels.get(channelName);
                         if (channel != null) {
                             attachedSlots.put(slot, channel);
                             channels.bind(channel,
@@ -180,7 +178,7 @@ public abstract class BaseTask implements Task {
                         final Slot slot = GrpcConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
                         final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, servant);
-                        final Channel channel = channels.bound(endpoint);
+                        final ChannelSpec channel = channels.bound(endpoint);
                         if (channel != null) {
                             attachedSlots.remove(slot);
                             channels.unbind(channel, endpoint);

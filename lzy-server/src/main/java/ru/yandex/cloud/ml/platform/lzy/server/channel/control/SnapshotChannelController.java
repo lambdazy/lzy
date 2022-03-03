@@ -37,9 +37,9 @@ public class SnapshotChannelController implements ChannelController {
     public void executeBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException {
         LOG.info("SnapshotChannelController::executeBind {}, entryId={}", slot.uri(), entryId);
         if (slot.slot().direction() == Slot.Direction.OUTPUT) {
-            if (isCompleted() || channelGraph.senders().size() > 0) {  // Cannot write to already completed entry
-                channelGraph.addSender(slot);
-                slot.disconnect();
+            if (isCompleted() || errored.get() || channelGraph.senders().size() > 0) {
+                LOG.info("Cannot write to already completed entry. Destroying slot {}", slot);
+                slot.destroy();
                 return;
             }
             slot.snapshot(snapshotId, entryId);
@@ -47,8 +47,8 @@ public class SnapshotChannelController implements ChannelController {
             return;
         }
         if (errored.get()) {
-            channelGraph.addReceiver(slot);
-            slot.disconnect();
+            LOG.info("Entry is errored. Destroying slot {}", slot);
+            slot.destroy();
             return;
         }
         if (isCompleted()) {
@@ -62,9 +62,9 @@ public class SnapshotChannelController implements ChannelController {
         LOG.info("SnapshotChannelController::executeUnBind {}, entryId={}", slot.uri(), entryId);
         if (slot.slot().direction() == Slot.Direction.OUTPUT) {
             if (!errored.get()) {
-                if (isCompleted()) {
+                if (isCompleted()) {  // Entry is finished, notifying all receivers
                     channelGraph.receivers().forEach(s -> s.snapshot(snapshotId, entryId));
-                } else {
+                } else {  // Some error in sender, entry is not finished, destroying all receivers
                     errored.set(true);
                     channelGraph.receivers().forEach(channelGraph::removeReceiver);
                 }

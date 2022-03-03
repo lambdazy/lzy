@@ -140,13 +140,13 @@ message WhiteboardsResponse {
 }
 
 
-message EntryStatusCommand{
+message EntryStatusCommand {
   Auth auth = 1;
   string entryId = 2;
   string snapshotId = 3;
 }
 
-message EntryStatusResponse{
+message EntryStatusResponse {
   string entryId = 1;
   string snapshotId = 2;
   string storageUri = 3;

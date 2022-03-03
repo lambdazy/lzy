@@ -33,24 +33,25 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.zookeeper.KeeperException;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.DirectChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.SnapshotChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager.Signal;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
@@ -363,23 +364,30 @@ public class LzyServer {
                 return;
             }
 
-            Channel channel;
+            ChannelSpec channel;
             switch (request.getCommandCase()) {
                 case CREATE: {
                     final ChannelCreate create = request.getCreate();
-                    final Channel spec;
-                    if (create.hasSnapshot()) {
-                        spec = new SnapshotChannelSpec(
-                            request.getChannelName(),
-                            GrpcConverter.contentTypeFrom(create.getContentType()),
-                            create.getSnapshot().getSnapshotId(),
-                            create.getSnapshot().getEntryId(),
-                            request.getAuth()
-                        );
+                    final ChannelSpec spec;
+                    switch (create.getTypeCase()) {
+                        case SNAPSHOT: {
+                            spec = new SnapshotChannelSpec(
+                                request.getChannelName(),
+                                GrpcConverter.contentTypeFrom(create.getContentType()),
+                                create.getSnapshot().getSnapshotId(),
+                                create.getSnapshot().getEntryId(),
+                                request.getAuth()
+                            );
+                            break;
 
-                    } else {
-                        spec = new DirectChannelSpec(request.getChannelName(),
-                            GrpcConverter.contentTypeFrom(create.getContentType()));
+                        }
+                        case DIRECT: {
+                            spec = new DirectChannelSpec(request.getChannelName(),
+                                GrpcConverter.contentTypeFrom(create.getContentType()));
+                            break;
+                        }
+                        default:
+                            throw new NotImplementedException();
                     }
                     channel = tasks.createChannel(
                         resolveUser(auth),
@@ -565,7 +573,7 @@ public class LzyServer {
                         final URI slotUri = URI.create(detach.getUri());
                         tasks.removeUserSlot(user, slot);
                         final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharon);
-                        final Channel bound = channels.bound(endpoint);
+                        final ChannelSpec bound = channels.bound(endpoint);
                         if (bound != null) {
                             channels.unbind(bound, endpoint);
                         }
@@ -584,7 +592,7 @@ public class LzyServer {
             }
         }
 
-        private Channels.ChannelStatus channelStatus(Channel channel) {
+        private Channels.ChannelStatus channelStatus(ChannelSpec channel) {
             final Channels.ChannelStatus.Builder slotStatus = Channels.ChannelStatus.newBuilder();
             slotStatus.setChannel(to(channel));
             for (SlotStatus state : tasks.connected(channel)) {

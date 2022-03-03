@@ -17,14 +17,14 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot.Direction;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.Channel;
+import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.DirectChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.SnapshotChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.server.channel.Channel;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelController;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelEx;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
@@ -42,7 +42,7 @@ public class LocalChannelsManager implements ChannelsManager {
 
     private static final Logger LOG = LogManager.getLogger(LocalChannelsManager.class);
     private final LockManager lockManager = new LocalLockManager();
-    private final Map<String, ChannelEx> channels = new ConcurrentHashMap<>();
+    private final Map<String, Channel> channels = new ConcurrentHashMap<>();
     private SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
     private final ServerConfig config;
 
@@ -52,12 +52,12 @@ public class LocalChannelsManager implements ChannelsManager {
 
 
     @Override
-    public Channel get(String cid) {
+    public ChannelSpec get(String cid) {
         return cid == null ? null : channels.get(cid);
     }
 
     @Override
-    public Channel create(Channel spec) {
+    public Channel create(ChannelSpec spec) {
         final Lock lock = lockManager.getOrCreate(spec.name());
         lock.lock();
         try {
@@ -66,7 +66,7 @@ public class LocalChannelsManager implements ChannelsManager {
             }
             final String name = spec.name() == null ? UUID.randomUUID().toString() : spec.name();
             if (spec instanceof DirectChannelSpec) {
-                final ChannelEx channel = new ChannelImpl(
+                final Channel channel = new ChannelImpl(
                     name,
                     spec.contentType()
                 );
@@ -75,7 +75,7 @@ public class LocalChannelsManager implements ChannelsManager {
             }
             if (spec instanceof SnapshotChannelSpec) {
                 SnapshotChannelSpec snapshotSpec = (SnapshotChannelSpec) spec;
-                final ChannelEx channel = new SnapshotChannelImpl(
+                final Channel channel = new SnapshotChannelImpl(
                     name,
                     spec.contentType(),
                     snapshotSpec.snapshotId(),
@@ -91,8 +91,8 @@ public class LocalChannelsManager implements ChannelsManager {
         }
     }
 
-    private ChannelEx getBoundChannel(Endpoint endpoint) {
-        for (ChannelEx channel : channels.values()) {
+    private Channel getBoundChannel(Endpoint endpoint) {
+        for (Channel channel : channels.values()) {
             if (channel.hasBound(endpoint)) {
                 return channel;
             }
@@ -101,15 +101,15 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public void bind(Channel ch, Endpoint endpoint) throws ChannelException {
+    public void bind(ChannelSpec ch, Endpoint endpoint) throws ChannelException {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = channels.get(ch.name());
+            final Channel channel = channels.get(ch.name());
             if (channel == null) {
                 throw new ChannelException("Channel " + ch.name() + " is not registered");
             }
-            final ChannelEx boundChannel = getBoundChannel(endpoint);
+            final Channel boundChannel = getBoundChannel(endpoint);
             if (boundChannel != null && !boundChannel.equals(ch)) {
                 throw new ChannelException(
                     "Endpoint " + endpoint + " bound to another channel: " + channel.name());
@@ -140,11 +140,11 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public void unbind(Channel ch, Endpoint endpoint) throws ChannelException {
+    public void unbind(ChannelSpec ch, Endpoint endpoint) throws ChannelException {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = channels.get(ch.name());
+            final Channel channel = channels.get(ch.name());
             if (channel != null) {
                 channel.unbind(endpoint);
             } else {
@@ -157,11 +157,11 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public void destroy(Channel ch) {
+    public void destroy(ChannelSpec ch) {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = channels.remove(ch.name());
+            final Channel channel = channels.remove(ch.name());
             if (channel != null) {
                 channel.close();
             }
@@ -172,8 +172,8 @@ public class LocalChannelsManager implements ChannelsManager {
 
     @Nullable
     @Override
-    public Channel bound(Endpoint endpoint) {
-        final List<ChannelEx> boundChannels = channels.values()
+    public ChannelSpec bound(Endpoint endpoint) {
+        final List<Channel> boundChannels = channels.values()
             .stream()
             .filter(channel -> channel.hasBound(endpoint))
             .collect(Collectors.toList());
@@ -189,7 +189,7 @@ public class LocalChannelsManager implements ChannelsManager {
     @Override
     public void unbindAll(UUID sessionId) {
         LOG.info("LocalChannelsRepository::unbindAll sessionId=" + sessionId);
-        for (ChannelEx channel : channels.values()) {
+        for (Channel channel : channels.values()) {
             final Lock lock = lockManager.getOrCreate(channel.name());
             lock.lock();
             try {
@@ -224,11 +224,11 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public SlotStatus[] connected(Channel ch) {
+    public SlotStatus[] connected(ChannelSpec ch) {
         final Lock lock = lockManager.getOrCreate(ch.name());
         lock.lock();
         try {
-            final ChannelEx channel = channels.get(ch.name());
+            final Channel channel = channels.get(ch.name());
             if (channel == null) {
                 return new SlotStatus[0];
             }
@@ -240,7 +240,7 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public Stream<Channel> channels() {
+    public Stream<ChannelSpec> channels() {
         return channels.values().stream().map(s -> s);
     }
 
@@ -261,7 +261,7 @@ public class LocalChannelsManager implements ChannelsManager {
         return snapshotApi;
     }
 
-    private static class ChannelImpl implements ChannelEx {
+    private static class ChannelImpl implements Channel {
 
         private final String id;
         private final DataSchema contentType;

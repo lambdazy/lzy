@@ -20,18 +20,6 @@ service LzyKharon {
   rpc AttachTerminal (stream TerminalState) returns (stream TerminalCommand);
   rpc WriteToInputSlot(stream SendSlotDataMessage) returns (ReceivedDataStatus);
   rpc OpenOutputSlot (SlotRequest) returns (stream Message);
-
-  // Server API
-  rpc Publish (PublishRequest) returns (RegisteredZygote);
-  rpc Zygotes (Auth) returns (ZygoteList);
-  rpc Task (TaskCommand) returns (TaskStatus);
-  rpc Start (TaskSpec) returns (stream ExecutionProgress);
-  rpc Channel (ChannelCommand) returns (ChannelStatus);
-  rpc TasksStatus (Auth) returns (TasksList);
-  rpc ChannelsStatus (Auth) returns (ChannelStatusList);
-  rpc GetS3Credentials (GetS3CredentialsRequest) returns (GetS3CredentialsResponse);
-  rpc GetSessions (GetSessionsRequest) returns (GetSessionsResponse);
-  rpc GetBucket (GetBucketRequest) returns (GetBucketResponse);
 }
 
 message TerminalState {

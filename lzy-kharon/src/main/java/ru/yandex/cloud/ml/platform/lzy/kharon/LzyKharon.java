@@ -110,6 +110,7 @@ public class LzyKharon {
                 ServerInterceptors.intercept(new KharonService(), new SessionIdInterceptor()))
             .addService(ServerInterceptors.intercept(new SnapshotService(), new SessionIdInterceptor()))
             .addService(ServerInterceptors.intercept(new WhiteboardService(), new SessionIdInterceptor()))
+            .addService(ServerInterceptors.intercept(new ServerService(), new SessionIdInterceptor()))
             .build();
         kharonServantProxy = NettyServerBuilder.forPort(servantProxyPort)
             .permitKeepAliveWithoutCalls(true)
@@ -281,6 +282,9 @@ public class LzyKharon {
                 }
             }
         }
+    }
+
+    private class ServerService extends LzyServerGrpc.LzyServerImplBase {
 
         @Override
         public void publish(Lzy.PublishRequest request,
@@ -353,6 +357,7 @@ public class LzyKharon {
             ProxyCall.exec(server::getSessions, request, responseObserver);
         }
     }
+
 
     private class KharonServantProxyService extends LzyServantGrpc.LzyServantImplBase {
 

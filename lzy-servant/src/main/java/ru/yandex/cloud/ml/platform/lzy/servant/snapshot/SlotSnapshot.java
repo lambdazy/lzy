@@ -16,9 +16,9 @@ public interface SlotSnapshot {
 
     boolean isEmpty();
 
-    void readToStorage(InputStream stream);
+    void writeFromStream(InputStream stream);
 
     void onFinish();
 
-    void readFromStorage(String bucket, String key, ThrowingConsumer<ByteString> onChunk, Runnable onComplete);
+    void readByChunks(String bucket, String key, ThrowingConsumer<ByteString> onChunk, Runnable onComplete);
 }

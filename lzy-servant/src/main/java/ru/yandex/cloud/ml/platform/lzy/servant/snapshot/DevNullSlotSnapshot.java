@@ -42,7 +42,7 @@ public class DevNullSlotSnapshot implements SlotSnapshot {
     }
 
     @Override
-    public void readToStorage(InputStream stream) {
+    public void writeFromStream(InputStream stream) {
     }
 
     @Override
@@ -52,6 +52,6 @@ public class DevNullSlotSnapshot implements SlotSnapshot {
     }
 
     @Override
-    public void readFromStorage(String bucket, String key, ThrowingConsumer<ByteString> onChunk, Runnable onComplete) {
+    public void readByChunks(String bucket, String key, ThrowingConsumer<ByteString> onChunk, Runnable onComplete) {
     }
 }

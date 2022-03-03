@@ -2,7 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.model.channel;
 
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 
-public class DirectChannelSpec implements Channel {
+public class DirectChannelSpec implements ChannelSpec {
     private final String name;
     private final DataSchema contentType;
 
