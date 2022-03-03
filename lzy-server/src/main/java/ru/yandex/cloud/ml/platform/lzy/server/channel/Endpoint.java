@@ -16,6 +16,8 @@ public interface Endpoint {
 
     SlotStatus status();
 
+    void snapshot(String snapshotId, String entryId);
+
     int disconnect();
 
     int destroy();

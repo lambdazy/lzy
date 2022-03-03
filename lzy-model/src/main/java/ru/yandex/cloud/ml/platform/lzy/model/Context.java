@@ -10,8 +10,6 @@ public interface Context {
 
     Provisioning provisioning();
 
-    SnapshotMeta meta();
-
     Stream<SlotAssignment> assignments();
 
     class SlotAssignment {

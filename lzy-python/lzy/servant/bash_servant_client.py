@@ -10,7 +10,7 @@ import sys
 from time import sleep
 
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
-from lzy.model.channel import Channel, Bindings
+from lzy.model.channel import Channel, Bindings, SnapshotChannelSpec
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
 from lzy.servant.servant_client import ServantClient, Execution, ExecutionResult, CredentialsTypes
@@ -127,7 +127,12 @@ class BashServantClient(ServantClient):
 
     def create_channel(self, channel: Channel):
         self._log.info(f"Creating channel {channel.name}")
-        return exec_bash(f"{self.mount()}/sbin/channel create " + channel.name)
+        command = [f"{self.mount()}/sbin/channel", "create", channel.name]
+        if isinstance(channel.spec, SnapshotChannelSpec):
+            command.extend(["-t", "snapshot", "-s", channel.spec.snapshot_id, "-e", channel.spec.entry_id])
+        else:
+            command.extend(["-t", "direct"])
+        return exec_bash(*command)
 
     def destroy_channel(self, channel: Channel):
         self._log.info(f"Destroying channel {channel.name}")
@@ -191,29 +196,16 @@ class BashServantClient(ServantClient):
 
     # pylint: disable=duplicate-code
     def run(self, execution_id: str, zygote: Zygote,
-            bindings: Bindings,
-            entry_id_mapping: Optional[Mapping[Slot, str]]) -> Execution:
+            bindings: Bindings) -> Execution:
 
         slots_mapping_file = tempfile.mktemp(
             prefix="lzy_slot_mapping_", suffix=".json", dir="/tmp/"
-        )
-        entry_id_mapping_file = tempfile.mktemp(
-            prefix="entry_id_mapping_", suffix=".json", dir="/tmp/"
         )
         with open(slots_mapping_file, "w", encoding=encoding) as file:
             json_bindings = {
                 binding.remote_slot.name: binding.channel.name
                 for binding in bindings.bindings()
             }
-            json.dump(json_bindings, file, indent=3)
-
-        with open(entry_id_mapping_file, "w", encoding=encoding) as file:
-            if entry_id_mapping:
-                json_bindings = {
-                    slot.name: entry_id for slot, entry_id in entry_id_mapping.items()
-                }
-            else:
-                json_bindings = {}
             json.dump(json_bindings, file, indent=3)
 
         env = os.environ.copy()
@@ -225,9 +217,7 @@ class BashServantClient(ServantClient):
             env,
             f"{self.mount()}/sbin/run",
             "--mapping",
-            slots_mapping_file,
-            "-s",
-            entry_id_mapping_file,
+            slots_mapping_file
         )
         execution.start()
         return execution

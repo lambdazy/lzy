@@ -259,6 +259,10 @@ public abstract class LzyAgent implements Closeable {
                     LOG.info("lzyFS:: slot added " + lzySlot.name());
                 }
                 break;
+            case SNAPSHOT:
+                final Servant.SnapshotCommand snapshot = request.getSnapshot();
+                slot.snapshot(snapshot.getSnapshotId(), snapshot.getEntryId());
+                break;
             case CONNECT:
                 final Servant.ConnectSlotCommand connect = request.getConnect();
                 final URI slotUri = URI.create(connect.getSlotUri());

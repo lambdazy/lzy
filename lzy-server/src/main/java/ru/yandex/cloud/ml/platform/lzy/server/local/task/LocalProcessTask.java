@@ -27,12 +27,11 @@ public class LocalProcessTask extends LocalTask {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        SnapshotMeta meta,
         ChannelsManager channels,
         URI serverURI,
         String bucket
     ) {
-        super(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
+        super(owner, tid, workload, assignments, channels, serverURI, bucket);
     }
 
     @SuppressWarnings("SameParameterValue")
@@ -72,7 +71,7 @@ public class LocalProcessTask extends LocalTask {
                 "LZYTASK", tid.toString(),
                 "LZYTOKEN", token,
                 "LZY_MOUNT", taskDir.getAbsolutePath(),
-                "LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"),
+                "LZYWHITEBOARD", System.getenv("SERVER_WHITEBOARD_URL"),
                 "BUCKET_NAME", bucket()
             ));
             final Process process = runJvm(

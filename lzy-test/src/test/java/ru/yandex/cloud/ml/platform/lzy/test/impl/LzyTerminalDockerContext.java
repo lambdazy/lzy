@@ -51,7 +51,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
-            .withFileSystemBind("/var/log/servant/", "/var/log/servant/")
+            .withFileSystemBind("/tmp/lzy-log/", "/tmp/lzy-log/")
             .withCreateContainerCmdModifier(modifier)
             .withCommand(commandGenerator.get());
 

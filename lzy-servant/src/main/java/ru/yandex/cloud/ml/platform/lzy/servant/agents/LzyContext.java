@@ -76,9 +76,9 @@ public class LzyContext {
         GetS3CredentialsResponse credentials
     ) {
         this.contextId = contextId;
-        stdinSlot = new WriterSlot(contextId, new TextLinesInSlot("/dev/stdin"), snapshotter.snapshotProvider());
-        stdoutSlot = new LineReaderSlot(contextId, new TextLinesOutSlot("/dev/stdout"), snapshotter.snapshotProvider());
-        stderrSlot = new LineReaderSlot(contextId, new TextLinesOutSlot("/dev/stderr"), snapshotter.snapshotProvider());
+        stdinSlot = new WriterSlot(contextId, new TextLinesInSlot("/dev/stdin"), snapshotter);
+        stdoutSlot = new LineReaderSlot(contextId, new TextLinesOutSlot("/dev/stdout"), snapshotter);
+        stderrSlot = new LineReaderSlot(contextId, new TextLinesOutSlot("/dev/stderr"), snapshotter);
         this.snapshotter = snapshotter;
         this.servantUri = servantUri;
         this.credentials = credentials;
@@ -101,7 +101,6 @@ public class LzyContext {
                 return slots.get(spec.name());
             }
             try {
-                snapshotter.prepare(spec);
                 final LzySlot slot = createSlot(spec, binding);
                 if (slot.state() != Operations.SlotStatus.State.DESTROYED) {
                     LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
@@ -115,9 +114,8 @@ public class LzyContext {
                 slot.onState(
                     Operations.SlotStatus.State.SUSPENDED,
                     () -> {
-                        //not terminal or input slot
-                        if (spec.direction() == Slot.Direction.INPUT) {
-                            progress(Servant.ContextProgress.newBuilder()
+                        if (spec.direction() == Slot.Direction.INPUT || slot.throughSnapshot()) {
+                            progress(ContextProgress.newBuilder()
                                 .setDetach(Servant.SlotDetach.newBuilder()
                                     .setSlot(GrpcConverter.to(spec))
                                     .setUri(servantUri.toString() + spec.name())
@@ -130,7 +128,6 @@ public class LzyContext {
                 slot.onState(Operations.SlotStatus.State.DESTROYED, () -> {
                     synchronized (slots) {
                         LOG.info("LzyContext::Slots.remove(\n" + slot.name() + "\n)");
-                        snapshotter.commit(spec);
                         slots.remove(slot.name());
                         slots.notifyAll();
                     }
@@ -257,20 +254,20 @@ public class LzyContext {
                 case FILE: {
                     switch (spec.direction()) {
                         case INPUT:
-                            return new InFileSlot(contextId, spec, snapshotter.snapshotProvider());
+                            return new InFileSlot(contextId, spec, snapshotter);
                         case OUTPUT:
                             if (spec.name().startsWith("local://")) {
                                 return new LocalOutFileSlot(contextId, spec, URI.create(spec.name()),
-                                    snapshotter.snapshotProvider());
+                                    snapshotter);
                             }
-                            return new OutFileSlot(contextId, spec, snapshotter.snapshotProvider());
+                            return new OutFileSlot(contextId, spec, snapshotter);
                         default:
                             throw new UnsupportedOperationException("Not implemented yet");
                     }
                 }
                 case ARG:
                     arguments = binding;
-                    return new LzySlotBase(spec, snapshotter.snapshotProvider()) {
+                    return new LzySlotBase(spec, snapshotter) {
                     };
                 default:
                     throw new UnsupportedOperationException("Not implemented yet");
