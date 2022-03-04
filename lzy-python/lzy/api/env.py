@@ -309,8 +309,11 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             whiteboard=whiteboard,
             buses=buses
         )
-
-        self._channel_manager = ServantChannelManager(self.snapshot_id(), self._servant_client)
+        snapshot_id = self.snapshot_id()
+        if snapshot_id is None:
+            raise ValueError("Cannot get snapshot id")
+        else:
+            self._channel_manager = ServantChannelManager(snapshot_id, self._servant_client)
 
         if self._execution_context.whiteboard is not None:
             check_whiteboard(whiteboard)
