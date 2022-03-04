@@ -96,3 +96,10 @@ def fileobj_hash(fileobj: BytesIO) -> str:
             break
         md5.update(data)
     return md5.hexdigest()
+
+
+class LzyExecutionException(Exception):
+    def __init__(self, message, *args):
+        message += "If you are going to ask for help of cloud support," \
+                   " please send the following trace files: /tmp/lzy-log/"
+        super().__init__(message, *args)
