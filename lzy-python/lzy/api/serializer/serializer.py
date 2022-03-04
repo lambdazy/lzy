@@ -1,6 +1,6 @@
 from abc import ABC
 import cloudpickle
-from lzy.api.whiteboard import check_message_field
+from lzy.api.utils import check_message_field
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 from typing import Type, TypeVar
 
