@@ -11,6 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 public class Publish implements LzyCommand {
@@ -29,7 +30,7 @@ public class Publish implements LzyCommand {
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(channel);
+        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(channel);
         final Operations.Zygote.Builder zbuilder = Operations.Zygote.newBuilder();
         JsonFormat.parser()
             .merge(Files.newBufferedReader(Paths.get(command.getArgs()[2])), zbuilder);

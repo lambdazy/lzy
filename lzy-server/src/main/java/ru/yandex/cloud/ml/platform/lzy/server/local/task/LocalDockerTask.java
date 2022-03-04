@@ -24,12 +24,11 @@ public class LocalDockerTask extends LocalTask {
         UUID tid,
         Zygote workload,
         Map<Slot, String> assignments,
-        SnapshotMeta meta,
         ChannelsManager channels,
         URI serverURI,
         String bucket
     ) {
-        super(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
+        super(owner, tid, workload, assignments, channels, serverURI, bucket);
     }
 
     @Override
@@ -52,7 +51,7 @@ public class LocalDockerTask extends LocalTask {
             .withEnv("SUSPEND_DOCKER", "n")
             .withEnv("BUCKET_NAME", bucket())
             //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withEnv("LZYWHITEBOARD", System.getenv("LZYWHITEBOARD"))
+            .withEnv("LZYWHITEBOARD", System.getenv("SERVER_WHITEBOARD_URL"))
             .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "

@@ -12,9 +12,13 @@ public interface LzySlot {
 
     void destroy();
 
+    void snapshot(String snapshotId, String entryId);
+
     Operations.SlotStatus.State state();
 
     void onState(Operations.SlotStatus.State state, Runnable action);
 
     Operations.SlotStatus status();
+
+    boolean throughSnapshot();
 }

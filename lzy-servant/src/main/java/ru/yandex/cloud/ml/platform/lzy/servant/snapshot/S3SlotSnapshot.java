@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
@@ -10,14 +11,18 @@ import java.net.URI;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
+import ru.yandex.qe.s3.transfer.download.DownloadRequest;
+import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadState;
+import ru.yandex.qe.s3.util.function.ThrowingConsumer;
 
 public class S3SlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
@@ -95,7 +100,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
     }
 
     @Override
-    public void readAll(InputStream stream) {
+    public void writeFromStream(InputStream stream) {
         LOG.info("S3SlotSnapshot::readAll invoked with slot " + slot.name());
         initStream();
         slotStream.write(stream);
@@ -117,5 +122,26 @@ public class S3SlotSnapshot implements SlotSnapshot {
             lock.unlock();
         }
 
+    }
+
+    @Override
+    public void readByChunks(String bucket, String key,
+                             ThrowingConsumer<ByteString> onChunkConsumer, Runnable onComplete) {
+        storage.transmitter().downloadC(
+            new DownloadRequestBuilder()
+                .bucket(bucket)
+                .key(key)
+                .build(),
+            data -> {
+                byte[] buffer = new byte[4096];
+                InputStream stream = data.getInputStream();
+                int len = 0;
+                while (len != -1) {
+                    onChunkConsumer.accept(ByteString.copyFrom(buffer, 0, len));
+                    len = stream.read(buffer);
+                }
+                onComplete.run();
+            }
+        );
     }
 }

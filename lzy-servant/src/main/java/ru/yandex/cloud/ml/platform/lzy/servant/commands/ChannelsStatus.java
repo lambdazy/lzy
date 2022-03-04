@@ -9,6 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 public class ChannelsStatus implements LzyCommand {
 
@@ -22,7 +23,7 @@ public class ChannelsStatus implements LzyCommand {
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
+        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
         final Channels.ChannelStatusList statusList = server.channelsStatus(auth);
         for (final Channels.ChannelStatus status : statusList.getStatusesList()) {
             System.out.println(JsonFormat.printer().print(status));

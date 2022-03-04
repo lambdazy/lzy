@@ -16,6 +16,7 @@ service SnapshotApi {
   rpc Commit (CommitCommand) returns (OperationStatus);
   rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
   rpc LastSnapshot (LastSnapshotCommand) returns (Snapshot);
+  rpc EntryStatus (EntryStatusCommand) returns (EntryStatusResponse);
 }
 
 service WbApi {
@@ -145,4 +146,26 @@ message WhiteboardsResponse {
 message LastSnapshotCommand {
   Auth auth = 1;
   string workflowName = 2;
+}
+
+message EntryStatusCommand {
+  Auth auth = 1;
+  string entryId = 2;
+  string snapshotId = 3;
+}
+
+message EntryStatusResponse {
+  string entryId = 1;
+  string snapshotId = 2;
+  string storageUri = 3;
+  bool empty = 4;
+  Status status = 5;
+
+  enum Status {
+    UNKNOWN = 0;
+    CREATED = 1;
+    IN_PROGRESS = 2;
+    FINISHED = 3;
+    ERRORED = 4;
+  }
 }

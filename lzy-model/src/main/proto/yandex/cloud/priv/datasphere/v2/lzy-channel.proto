@@ -24,8 +24,19 @@ message ChannelCommand {
   }
 }
 
+message DirectChannelSpec {}
+
+message SnapshotChannelSpec {
+  string snapshotId = 1;
+  string entryId = 2;
+}
+
 message ChannelCreate {
   string contentType = 1;
+  oneof type {
+    DirectChannelSpec direct = 2;
+    SnapshotChannelSpec snapshot = 3;
+  }
 }
 
 message ChannelDestroy {

@@ -16,6 +16,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 public class Snapshot implements LzyCommand {
 
@@ -33,9 +34,9 @@ public class Snapshot implements LzyCommand {
         final ManagedChannel serverCh = ChannelBuilder
             .forAddress(serverAddr.getHost(), serverAddr.getPort())
             .usePlaintext()
-            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+            .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
             .build();
-        final LzyKharonGrpc.LzyKharonBlockingStub server = LzyKharonGrpc.newBlockingStub(serverCh);
+        final SnapshotApiGrpc.SnapshotApiBlockingStub server = SnapshotApiGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
             case "create": {
                 Instant time = Instant.now();

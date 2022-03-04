@@ -13,6 +13,7 @@ import tempfile
 from lzy.api.lazy_op import LzyRemoteOp
 from lzy.api.utils import lazy_proxy
 from lzy.api.whiteboard.credentials import AmazonCredentials, AzureCredentials, AzureSasCredentials
+from lzy.api.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
 from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
@@ -76,7 +77,8 @@ def main():
     print(f"Loaded {len(args)} lazy args")
 
     print(f"Running {func_s.name}")
-    op_ = LzyRemoteOp(servant, lazy_call, deployed=True)
+    op_ = LzyRemoteOp(servant, lazy_call, deployed=True, entry_id_generator=UUIDEntryIdGenerator(""),
+                      snapshot_id="")
     result = op_.materialize()
     print(f"Result of execution {result}")
 

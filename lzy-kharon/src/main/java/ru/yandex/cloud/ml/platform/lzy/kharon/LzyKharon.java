@@ -108,6 +108,9 @@ public class LzyKharon {
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(
                 ServerInterceptors.intercept(new KharonService(), new SessionIdInterceptor()))
+            .addService(ServerInterceptors.intercept(new SnapshotService(), new SessionIdInterceptor()))
+            .addService(ServerInterceptors.intercept(new WhiteboardService(), new SessionIdInterceptor()))
+            .addService(ServerInterceptors.intercept(new ServerService(), new SessionIdInterceptor()))
             .build();
         kharonServantProxy = NettyServerBuilder.forPort(servantProxyPort)
             .permitKeepAliveWithoutCalls(true)
@@ -173,6 +176,71 @@ public class LzyKharon {
         }
     }
 
+    private class SnapshotService extends SnapshotApiGrpc.SnapshotApiImplBase {
+        @Override
+        public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
+                                   StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+            ProxyCall.exec(snapshot::createSnapshot, request, responseObserver);
+        }
+
+        @Override
+        public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
+                                     StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            ProxyCall.exec(snapshot::finalizeSnapshot, request, responseObserver);
+        }
+
+        @Override
+        public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
+            StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+            ProxyCall.exec(snapshot::lastSnapshot, request, responseObserver);
+        }
+
+        @Override
+        public void entryStatus(LzyWhiteboard.EntryStatusCommand request,
+                                StreamObserver<LzyWhiteboard.EntryStatusResponse> responseObserver) {
+            ProxyCall.exec(snapshot::entryStatus, request, responseObserver);
+        }
+
+        @Override
+        public void commit(LzyWhiteboard.CommitCommand request,
+                           StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            ProxyCall.exec(snapshot::commit, request, responseObserver);
+        }
+
+        @Override
+        public void prepareToSave(LzyWhiteboard.PrepareCommand request,
+                                  StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            ProxyCall.exec(snapshot::prepareToSave, request, responseObserver);
+        }
+    }
+
+    private class WhiteboardService extends WbApiGrpc.WbApiImplBase {
+        @Override
+        public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
+                                     StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+            ProxyCall.exec(whiteboard::createWhiteboard, request, responseObserver);
+        }
+
+        @Override
+        public void whiteboardsList(LzyWhiteboard.WhiteboardsListCommand request,
+                                    StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
+            ProxyCall.exec(whiteboard::whiteboardsList, request, responseObserver);
+        }
+
+
+        @Override
+        public void link(LzyWhiteboard.LinkCommand request,
+                         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            ProxyCall.exec(whiteboard::link, request, responseObserver);
+        }
+
+        @Override
+        public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
+                                  StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+            ProxyCall.exec(whiteboard::getWhiteboard, request, responseObserver);
+        }
+    }
+
     private class KharonService extends LzyKharonGrpc.LzyKharonImplBase {
 
         @Override
@@ -220,6 +288,9 @@ public class LzyKharon {
                 }
             }
         }
+    }
+
+    private class ServerService extends LzyServerGrpc.LzyServerImplBase {
 
         @Override
         public void publish(Lzy.PublishRequest request,
@@ -276,42 +347,6 @@ public class LzyKharon {
         }
 
         @Override
-        public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
-                                   StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
-            ProxyCall.exec(snapshot::createSnapshot, request, responseObserver);
-        }
-
-        @Override
-        public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
-                                     StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            ProxyCall.exec(snapshot::finalizeSnapshot, request, responseObserver);
-        }
-
-        @Override
-        public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
-            StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
-            ProxyCall.exec(snapshot::lastSnapshot, request, responseObserver);
-        }
-
-        @Override
-        public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
-                                     StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-            ProxyCall.exec(whiteboard::createWhiteboard, request, responseObserver);
-        }
-
-        @Override
-        public void addLink(LzyWhiteboard.LinkCommand request,
-                            StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-            ProxyCall.exec(whiteboard::link, request, responseObserver);
-        }
-
-        @Override
-        public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
-                                  StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-            ProxyCall.exec(whiteboard::getWhiteboard, request, responseObserver);
-        }
-
-        @Override
         public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
                                      StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
             ProxyCall.exec(server::getS3Credentials, request, responseObserver);
@@ -327,13 +362,8 @@ public class LzyKharon {
                                 StreamObserver<GetSessionsResponse> responseObserver) {
             ProxyCall.exec(server::getSessions, request, responseObserver);
         }
-
-        @Override
-        public void whiteboardsList(LzyWhiteboard.WhiteboardsListCommand request,
-                                    StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
-            ProxyCall.exec(whiteboard::whiteboardsList, request, responseObserver);
-        }
     }
+
 
     private class KharonServantProxyService extends LzyServantGrpc.LzyServantImplBase {
 

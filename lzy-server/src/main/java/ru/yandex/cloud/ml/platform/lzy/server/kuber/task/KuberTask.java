@@ -29,8 +29,8 @@ public class KuberTask extends BaseTask {
     private final ServantPodProvider servantPodProvider = new ServantPodProviderImpl();
 
     public KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
-        SnapshotMeta meta, ChannelsManager channels, URI serverURI, String bucket) {
-        super(owner, tid, workload, assignments, meta, channels, serverURI, bucket);
+                     ChannelsManager channels, URI serverURI, String bucket) {
+        super(owner, tid, workload, assignments, channels, serverURI, bucket);
     }
 
     @Override
