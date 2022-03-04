@@ -260,11 +260,12 @@ class LzyWorkflowBase(ABC):
             self.run()
             context = self._execution_context
             whiteboard = context.whiteboard
-            fields = dataclasses.fields(whiteboard)
-            for field in fields:
-                if field.name not in whiteboard.__lzy_fields_assigned__:
-                    value = getattr(whiteboard, field.name)
-                    setattr(whiteboard, field.name, value)
+            if whiteboard is not None:
+                fields = dataclasses.fields(whiteboard)
+                for field in fields:
+                    if field.name not in whiteboard.__lzy_fields_assigned__:
+                        value = getattr(whiteboard, field.name)
+                        setattr(whiteboard, field.name, value)
             # pylint: disable=protected-access
             # noinspection PyProtectedMember
             if context._snapshot_id is not None:
