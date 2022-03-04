@@ -98,10 +98,12 @@ def wrap_whiteboard(
 
             whiteboard_api.link(whiteboard_id, key, return_entry_id)
         else:
-            whiteboard_id = whiteboard_id_getter()
             entry_id = str(uuid.uuid4())
+            whiteboard_id = whiteboard_id_getter()
+            if whiteboard_id is None:
+                raise RuntimeError("Cannot get whiteboard id")
             if snapshot_id is not None:
-                slot_full_name = '/'.join(['/local', whiteboard_id_getter(), entry_id, key])
+                slot_full_name = '/'.join(['/local', whiteboard_id, entry_id, key])
                 local_slot = create_slot(slot_full_name, Direction.OUTPUT)
                 channel = Channel(':'.join([snapshot_id, slot_full_name]), SnapshotChannelSpec(snapshot_id, entry_id))
                 servant_client.create_channel(channel)
