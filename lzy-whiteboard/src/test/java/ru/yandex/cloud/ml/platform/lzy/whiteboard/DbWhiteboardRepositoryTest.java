@@ -1,9 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus.State.IN_PROGRESS;
-import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State.COMPLETED;
-import static ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State.CREATED;
-
 import io.micronaut.context.ApplicationContext;
 import java.net.URI;
 import java.time.Instant;
@@ -16,27 +12,20 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbSnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbWhiteboardRepository;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.EntryDependenciesModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardModel;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardTagModel;
 
 public class DbWhiteboardRepositoryTest {
 
@@ -46,16 +35,16 @@ public class DbWhiteboardRepositoryTest {
     private final String fieldNameFourth = "fieldNameFourth";
     private final String firstTag = "firstTag";
     private final String secondTag = "secondTag";
-    private final String thirdTag = "thirdTag";
-    private final String storageUri = "storageUri";
     private final String namespaceFirst = "namespaceFirst";
     private final String namespaceSecond = "namespaceSecond";
+    private final String workflowName = "workflow";
     private final Date creationDateUTC = Date.from(Instant.now());
     private final Date creationDateUTCFrom = Date.from(LocalDateTime
         .of(1, 1, 1, 0, 0).toInstant(ZoneOffset.UTC));
     private final Date creationDateUTCTo = Date.from(LocalDateTime
         .of(9999, 1, 1, 0, 0).toInstant(ZoneOffset.UTC));
-    DbWhiteboardRepository impl;
+    DbWhiteboardRepository implWhiteboardRepository;
+    DbSnapshotRepository implSnapshotRepository;
     private ApplicationContext ctx;
     private DbStorage storage;
     private String wbIdFirst;
@@ -78,7 +67,8 @@ public class DbWhiteboardRepositoryTest {
     @Before
     public void setUp() {
         ctx = ApplicationContext.run();
-        impl = ctx.getBean(DbWhiteboardRepository.class);
+        implWhiteboardRepository = ctx.getBean(DbWhiteboardRepository.class);
+        implSnapshotRepository = ctx.getBean(DbSnapshotRepository.class);
         storage = ctx.getBean(DbStorage.class);
 
         wbIdFirst = UUID.randomUUID().toString();
@@ -101,90 +91,44 @@ public class DbWhiteboardRepositoryTest {
 
     @Test
     public void testCreate() {
-        impl.create(new Whiteboard.Impl(URI.create(wbIdFirst), Set.of(fieldNameFirst, fieldNameSecond),
-            new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst)),
-            Set.of(firstTag, secondTag), namespaceFirst, creationDateUTC));
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
+                workflowName, null);
+        implSnapshotRepository.create(snapshot);
+        implWhiteboardRepository.create(
+            new Whiteboard.Impl(URI.create(wbIdFirst), Set.of(fieldNameFirst, fieldNameSecond),
+                snapshot,
+                Set.of(firstTag, secondTag), namespaceFirst, creationDateUTC));
+        implSnapshotRepository.finalize(snapshot);
+        WhiteboardStatus whiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdFirst));
+        Assert.assertNotNull(whiteboard);
+        Assert.assertNotNull(whiteboard.whiteboard());
+        Assert.assertNotNull(whiteboard.whiteboard().snapshot());
+        Assert.assertEquals(snapshotIdFirst, whiteboard.whiteboard().snapshot().id().toString());
+        Assert.assertEquals(State.NOT_COMPLETED, whiteboard.state());
+        Assert.assertEquals(namespaceFirst, whiteboard.whiteboard().namespace());
 
-        WhiteboardModel whiteboardModel;
-        WhiteboardFieldModel firstWhiteboardField;
-        WhiteboardFieldModel secondWhiteboardField;
-        WhiteboardTagModel firstWhiteboardTag;
-        WhiteboardTagModel secondWhiteboardTag;
-        try (Session session = storage.getSessionFactory().openSession()) {
-            whiteboardModel = session.find(WhiteboardModel.class, wbIdFirst);
-            firstWhiteboardField = session.find(WhiteboardFieldModel.class,
-                new WhiteboardFieldModel.WhiteboardFieldPk(wbIdFirst, fieldNameFirst));
-            secondWhiteboardField = session.find(WhiteboardFieldModel.class,
-                new WhiteboardFieldModel.WhiteboardFieldPk(wbIdFirst, fieldNameSecond));
-            firstWhiteboardTag = session.find(WhiteboardTagModel.class,
-                new WhiteboardTagModel.WhiteboardTagPk(wbIdFirst, firstTag));
-            secondWhiteboardTag = session.find(WhiteboardTagModel.class,
-                new WhiteboardTagModel.WhiteboardTagPk(wbIdFirst, secondTag));
-        }
-        Assert.assertNotNull(whiteboardModel);
-        Assert.assertEquals(snapshotIdFirst, whiteboardModel.getSnapshotId());
-        Assert.assertEquals(WhiteboardStatus.State.CREATED, whiteboardModel.getWbState());
-        Assert.assertEquals(namespaceFirst, whiteboardModel.getNamespace());
+        Assert.assertTrue(whiteboard.whiteboard().fieldNames().contains(fieldNameFirst)
+            && whiteboard.whiteboard().fieldNames().contains(fieldNameSecond));
 
-        Assert.assertNotNull(firstWhiteboardField);
-        Assert.assertEquals(fieldNameFirst, firstWhiteboardField.getFieldName());
-        Assert.assertNull(firstWhiteboardField.getEntryId());
-        Assert.assertNotNull(secondWhiteboardField);
-        Assert.assertEquals(fieldNameSecond, secondWhiteboardField.getFieldName());
-        Assert.assertNull(secondWhiteboardField.getEntryId());
-
-        Assert.assertNotNull(firstWhiteboardTag);
-        Assert.assertEquals(firstTag, firstWhiteboardTag.getTag());
-        Assert.assertNotNull(secondWhiteboardTag);
-        Assert.assertEquals(secondTag, secondWhiteboardTag.getTag());
+        Assert.assertTrue(whiteboard.whiteboard().tags().contains(firstTag)
+            && whiteboard.whiteboard().tags().contains(secondTag));
     }
 
     @Test
     public void testResolveWhiteboardByIdNotFound() {
-        Assert.assertNull(impl.resolveWhiteboard(URI.create(UUID.randomUUID().toString())));
-    }
-
-    @Test
-    public void testResolveWhiteboardById() {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            final Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst, creationDateUTC));
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, entryIdSecond));
-            session.save(new WhiteboardTagModel(wbIdFirst, firstTag));
-            session.save(new WhiteboardTagModel(wbIdFirst, secondTag));
-            session.save(new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.CREATED, snapshotOwnerFirst));
-            tx.commit();
-        }
-        WhiteboardStatus whiteboardStatus = impl.resolveWhiteboard(URI.create(wbIdFirst));
-        Assert.assertNotNull(whiteboardStatus);
-        Assert.assertEquals(CREATED, whiteboardStatus.state());
-        Assert.assertEquals(snapshotIdFirst, whiteboardStatus.whiteboard().snapshot().id().toString());
-        Assert.assertEquals(namespaceFirst, whiteboardStatus.whiteboard().namespace());
-        Assert.assertTrue(whiteboardStatus.whiteboard().fieldNames().contains(fieldNameFirst)
-            && whiteboardStatus.whiteboard().fieldNames().contains(fieldNameSecond));
-        Assert.assertTrue(whiteboardStatus.whiteboard().tags().contains(firstTag)
-            && whiteboardStatus.whiteboard().tags().contains(secondTag));
-    }
-
-    @Test
-    public void testResolveWhiteboardsMultipleWhiteboards() {
-        init();
-        List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
-            namespaceFirst, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
-        ).collect(Collectors.toList());
-        Assert.assertEquals(1, whiteboardStatusList.size());
-        Assert.assertEquals(whiteboardStatusList.get(0).whiteboard().id().toString(), wbIdSecond);
+        Assert.assertNull(implWhiteboardRepository.resolveWhiteboard(URI.create(UUID.randomUUID().toString())));
     }
 
     @Test
     public void testResolveWhiteboardsNonMatchingTags() {
         init();
-        List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
+        String thirdTag = "thirdTag";
+        List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, List.of(firstTag, secondTag, thirdTag), creationDateUTCFrom, creationDateUTCTo
         ).collect(Collectors.toList());
         Assert.assertEquals(0, whiteboardStatusList.size());
-        whiteboardStatusList = impl.resolveWhiteboards(
+        whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, List.of(firstTag, thirdTag), creationDateUTCFrom, creationDateUTCTo
         ).collect(Collectors.toList());
         Assert.assertEquals(0, whiteboardStatusList.size());
@@ -193,21 +137,28 @@ public class DbWhiteboardRepositoryTest {
     @Test
     public void testResolveWhiteboardsMatchingTags() {
         init();
-        List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
+        finalizeSnapshots();
+        List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, List.of(firstTag), creationDateUTCFrom, creationDateUTCTo
         ).collect(Collectors.toList());
-        Assert.assertEquals(1, whiteboardStatusList.size());
+        Assert.assertEquals(2, whiteboardStatusList.size());
     }
 
     @Test
     public void testResolveWhiteboardsEmptyTags() {
         init();
-        try (Session session = storage.getSessionFactory().openSession()) {
-            Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdThird, COMPLETED, snapshotIdFirst, namespaceFirst, creationDateUTC));
-            tx.commit();
-        }
-        List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
+        implWhiteboardRepository.create(
+            new Whiteboard.Impl(
+                URI.create(wbIdThird),
+                Collections.emptySet(),
+                new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
+                    workflowName, null),
+                Collections.emptySet(),
+                namespaceSecond,
+                creationDateUTC
+            ));
+        finalizeSnapshots();
+        List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, Collections.emptyList(), creationDateUTCFrom, creationDateUTCTo
         ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardStatusList.size());
@@ -216,18 +167,22 @@ public class DbWhiteboardRepositoryTest {
     @Test
     public void testResolveWhiteboardsDifferentNamespace() {
         init();
-        try (Session session = storage.getSessionFactory().openSession()) {
-            final Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdThird, COMPLETED, snapshotIdFirst, namespaceSecond, creationDateUTC));
-            session.save(new WhiteboardTagModel(wbIdThird, firstTag));
-            session.save(new WhiteboardTagModel(wbIdThird, secondTag));
-            tx.commit();
-        }
-        List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
+        implWhiteboardRepository.create(
+            new Whiteboard.Impl(
+                URI.create(wbIdThird),
+                Collections.emptySet(),
+                new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
+                    workflowName, null),
+                Set.of(firstTag, secondTag),
+                namespaceSecond,
+                creationDateUTC
+            ));
+        finalizeSnapshots();
+        List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
         ).collect(Collectors.toList());
-        Assert.assertEquals(1, whiteboardStatusList.size());
-        whiteboardStatusList = impl.resolveWhiteboards(
+        Assert.assertEquals(2, whiteboardStatusList.size());
+        whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceSecond, List.of(firstTag, secondTag), creationDateUTCFrom, creationDateUTCTo
         ).collect(Collectors.toList());
         Assert.assertEquals(1, whiteboardStatusList.size());
@@ -235,25 +190,47 @@ public class DbWhiteboardRepositoryTest {
 
     @Test
     public void testResolveWhiteboardsFilterTime() {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            final Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, COMPLETED, snapshotIdFirst, namespaceFirst,
-                createDateUTC(1982, 11, 14, 0, 0)));
-            session.save(new WhiteboardModel(wbIdSecond, COMPLETED, snapshotIdFirst, namespaceFirst,
-                createDateUTC(2021, 10, 13, 0, 0)));
-            session.save(new WhiteboardModel(wbIdThird, COMPLETED, snapshotIdFirst, namespaceFirst,
-                createDateUTC(1950, 8, 5, 0, 0)));
-            tx.commit();
-        }
-        List<WhiteboardStatus> whiteboardStatusList = impl.resolveWhiteboards(
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
+                workflowName, null);
+        implSnapshotRepository.create(snapshot);
+        implWhiteboardRepository.create(
+            new Whiteboard.Impl(
+                URI.create(wbIdFirst),
+                Collections.emptySet(),
+                snapshot,
+                Set.of(firstTag, secondTag),
+                namespaceFirst,
+                createDateUTC(1982, 11, 14, 0, 0)
+            ));
+        implWhiteboardRepository.create(
+            new Whiteboard.Impl(
+                URI.create(wbIdSecond),
+                Collections.emptySet(),
+                snapshot,
+                Set.of(firstTag, secondTag),
+                namespaceFirst,
+                createDateUTC(2021, 10, 13, 0, 0)
+            ));
+        implWhiteboardRepository.create(
+            new Whiteboard.Impl(
+                URI.create(wbIdThird),
+                Collections.emptySet(),
+                snapshot,
+                Set.of(firstTag, secondTag),
+                namespaceFirst,
+                createDateUTC(1950, 8, 5, 0, 0)
+            ));
+        implSnapshotRepository.finalize(snapshot);
+        List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, Collections.emptyList(), createDateUTC(1950, 8, 5, 0, 0), createDateUTC(2021, 10, 13, 0, 0)
         ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardStatusList.size());
-        whiteboardStatusList = impl.resolveWhiteboards(
+        whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, Collections.emptyList(), createDateUTC(1950, 8, 5, 0, 0), createDateUTC(2021, 10, 14, 0, 0)
         ).collect(Collectors.toList());
         Assert.assertEquals(3, whiteboardStatusList.size());
-        whiteboardStatusList = impl.resolveWhiteboards(
+        whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
             namespaceFirst, Collections.emptyList(), createDateUTC(1951, 8, 5, 0, 0), createDateUTC(1963, 10, 14, 0, 0)
         ).collect(Collectors.toList());
         Assert.assertEquals(0, whiteboardStatusList.size());
@@ -262,44 +239,14 @@ public class DbWhiteboardRepositoryTest {
     @Test
     public void testAddFieldNotDeclared() {
         Assert.assertThrows(RuntimeException.class,
-            () -> impl.update(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst)));
-    }
-
-    @Test
-    public void testAddField() {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            final Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst, creationDateUTC));
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
-            tx.commit();
-        }
-        impl.update(createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst));
-        WhiteboardFieldModel whiteboardFieldModel;
-        try (Session session = storage.getSessionFactory().openSession()) {
-            whiteboardFieldModel = session.find(WhiteboardFieldModel.class,
-                new WhiteboardFieldModel.WhiteboardFieldPk(wbIdFirst, fieldNameFirst));
-        }
-        Assert.assertEquals(entryIdFirst, whiteboardFieldModel.getEntryId());
-    }
-
-    @Test
-    public void testDependentEntryIdNotBound() {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst, creationDateUTC));
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, null));
-            tx.commit();
-        }
-        Stream<WhiteboardField> whiteboardFieldStream = impl.dependent(
-            createWhiteboardField(fieldNameFirst, null, snapshotIdFirst, wbIdFirst)
-        );
-        Assert.assertEquals(0, whiteboardFieldStream.count());
+            () -> implWhiteboardRepository.update(
+                createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst)));
     }
 
     @Test
     public void testDependent() {
         init();
-        List<WhiteboardField> whiteboardFieldList = impl.dependent(
+        List<WhiteboardField> whiteboardFieldList = implWhiteboardRepository.dependent(
             createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst)
         ).collect(Collectors.toList());
         Assert.assertEquals(2, whiteboardFieldList.size());
@@ -309,32 +256,33 @@ public class DbWhiteboardRepositoryTest {
             || whiteboardFieldFirst.name().equals(fieldNameThird));
 
         if (whiteboardFieldFirst.name().equals(fieldNameSecond)) {
-            Assert.assertEquals(entryIdSecond, whiteboardFieldFirst.entry().id());
-            Assert.assertEquals(entryIdThird, whiteboardFieldSecond.entry().id());
+            Assert.assertEquals(entryIdSecond, Objects.requireNonNull(whiteboardFieldFirst.entry()).id());
+            Assert.assertEquals(entryIdThird, Objects.requireNonNull(whiteboardFieldSecond.entry()).id());
             Assert.assertEquals(fieldNameThird, whiteboardFieldSecond.name());
         } else {
-            Assert.assertEquals(entryIdThird, whiteboardFieldFirst.entry().id());
-            Assert.assertEquals(entryIdSecond, whiteboardFieldSecond.entry().id());
+            Assert.assertEquals(entryIdThird, Objects.requireNonNull(whiteboardFieldFirst.entry()).id());
+            Assert.assertEquals(entryIdSecond, Objects.requireNonNull(whiteboardFieldSecond.entry()).id());
             Assert.assertEquals(fieldNameSecond, whiteboardFieldSecond.name());
         }
 
-        whiteboardFieldList = impl.dependent(
+        whiteboardFieldList = implWhiteboardRepository.dependent(
             createWhiteboardField(fieldNameFourth, entryIdFourth, snapshotIdFirst, wbIdFirst)
         ).collect(Collectors.toList());
         Assert.assertEquals(1, whiteboardFieldList.size());
         Assert.assertTrue(whiteboardFieldList.get(0).name().equals(fieldNameFirst)
-            && whiteboardFieldList.get(0).entry().id().equals(entryIdFirst)
+            && Objects.requireNonNull(whiteboardFieldList.get(0).entry()).id().equals(entryIdFirst)
         );
     }
 
     @Test
     public void testFields() {
         init();
-        List<WhiteboardField> whiteboardFieldList = impl.fields(
+        List<WhiteboardField> whiteboardFieldList = implWhiteboardRepository.fields(
             new Whiteboard.Impl(
                 URI.create(wbIdFirst),
                 Set.of(fieldNameFirst, fieldNameSecond, fieldNameThird, fieldNameFourth),
-                new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst)),
+                new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
+                    workflowName, null),
                 Set.of(firstTag, secondTag),
                 namespaceFirst,
                 creationDateUTC
@@ -349,23 +297,22 @@ public class DbWhiteboardRepositoryTest {
             switch (wbField.name()) {
                 case (fieldNameFirst):
                     firstFieldPresent = true;
-                    Assert.assertEquals(entryIdFirst, wbField.entry().id());
+                    Assert.assertEquals(entryIdFirst, Objects.requireNonNull(wbField.entry()).id());
                     break;
                 case (fieldNameSecond):
                     secondFieldPresent = true;
-                    Assert.assertEquals(entryIdSecond, wbField.entry().id());
+                    Assert.assertEquals(entryIdSecond, Objects.requireNonNull(wbField.entry()).id());
                     break;
                 case (fieldNameThird):
                     thirdFieldPresent = true;
-                    Assert.assertEquals(entryIdThird, wbField.entry().id());
+                    Assert.assertEquals(entryIdThird, Objects.requireNonNull(wbField.entry()).id());
                     break;
                 case (fieldNameFourth):
                     fourthFieldPresent = true;
-                    Assert.assertEquals(entryIdFourth, wbField.entry().id());
+                    Assert.assertEquals(entryIdFourth, Objects.requireNonNull(wbField.entry()).id());
                     break;
                 default:
                     Assert.fail();
-                    break;
             }
         }
         Assert.assertTrue(firstFieldPresent && secondFieldPresent && thirdFieldPresent && fourthFieldPresent);
@@ -374,36 +321,84 @@ public class DbWhiteboardRepositoryTest {
     private WhiteboardField createWhiteboardField(
         String fieldName, String entryId, String snapshotId, String wbId
     ) {
-        Snapshot snapshot = new Snapshot.Impl(URI.create(snapshotId), URI.create(snapshotOwnerFirst));
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), URI.create(snapshotOwnerFirst), creationDateUTC, workflowName,
+                null);
         return new WhiteboardField.Impl(fieldName, new SnapshotEntry.Impl(entryId, snapshot),
             new Whiteboard.Impl(URI.create(wbId), Collections.emptySet(), snapshot,
                 Collections.emptySet(), namespaceFirst, creationDateUTC));
     }
 
     private void init() {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            final Transaction tx = session.beginTransaction();
-            session.save(new WhiteboardModel(wbIdFirst, CREATED, snapshotIdFirst, namespaceFirst, creationDateUTC));
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFirst, entryIdFirst));
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameSecond, entryIdSecond));
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameThird, entryIdThird));
-            session.save(new WhiteboardFieldModel(wbIdFirst, fieldNameFourth, entryIdFourth));
-            session.save(new EntryDependenciesModel(snapshotIdFirst, entryIdSecond, entryIdFirst));
-            session.save(new EntryDependenciesModel(snapshotIdFirst, entryIdThird, entryIdFirst));
-            session.save(new EntryDependenciesModel(snapshotIdFirst, entryIdFirst, entryIdFourth));
-            session.save(new SnapshotEntryModel(snapshotIdFirst, entryIdFirst, storageUri, true, IN_PROGRESS));
-            session.save(new SnapshotEntryModel(snapshotIdFirst, entryIdSecond, storageUri, true, IN_PROGRESS));
-            session.save(new SnapshotEntryModel(snapshotIdFirst, entryIdThird, storageUri, true, IN_PROGRESS));
-            session.save(new SnapshotEntryModel(snapshotIdFirst, entryIdFourth, storageUri, true, IN_PROGRESS));
-            session.save(new WhiteboardModel(wbIdSecond, COMPLETED, snapshotIdSecond, namespaceFirst, creationDateUTC));
-            session.save(new WhiteboardFieldModel(wbIdSecond, fieldNameSecond, entryIdSecond));
-            session.save(new WhiteboardTagModel(wbIdFirst, firstTag));
-            session.save(new WhiteboardTagModel(wbIdFirst, secondTag));
-            session.save(new WhiteboardTagModel(wbIdSecond, firstTag));
-            session.save(new WhiteboardTagModel(wbIdSecond, secondTag));
-            session.save(new SnapshotModel(snapshotIdFirst, SnapshotStatus.State.CREATED, snapshotOwnerFirst));
-            session.save(new SnapshotModel(snapshotIdSecond, SnapshotStatus.State.CREATED, snapshotOwnerFirst));
-            tx.commit();
-        }
+        Snapshot snapshotFirst = new Snapshot.Impl(
+            URI.create(snapshotIdFirst),
+            URI.create(snapshotOwnerFirst),
+            creationDateUTC,
+            workflowName,
+            null
+        );
+        implSnapshotRepository.create(snapshotFirst);
+        Whiteboard whiteboardFirst = new Impl(
+            URI.create(wbIdFirst),
+            Set.of(fieldNameFirst, fieldNameSecond, fieldNameThird, fieldNameFourth),
+            snapshotFirst,
+            Set.of(firstTag, secondTag),
+            namespaceFirst,
+            creationDateUTC
+        );
+        implWhiteboardRepository.create(whiteboardFirst);
+        SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshotFirst);
+        SnapshotEntry fourthEntry = new SnapshotEntry.Impl(entryIdFourth, snapshotFirst);
+        SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshotFirst);
+        SnapshotEntry thirdEntry = new SnapshotEntry.Impl(entryIdThird, snapshotFirst);
+        String storageUri = "storageUri";
+        implSnapshotRepository.prepare(firstEntry, storageUri, List.of(entryIdSecond, entryIdThird));
+        implSnapshotRepository.commit(firstEntry, false);
+        implSnapshotRepository.prepare(fourthEntry, storageUri, List.of(entryIdFirst));
+        implSnapshotRepository.commit(fourthEntry, false);
+        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
+        implSnapshotRepository.commit(secondEntry, false);
+        implSnapshotRepository.prepare(thirdEntry, storageUri, Collections.emptyList());
+        implSnapshotRepository.commit(thirdEntry, false);
+        implWhiteboardRepository.update(new WhiteboardField.Impl(fieldNameFirst, firstEntry, whiteboardFirst));
+        implWhiteboardRepository.update(new WhiteboardField.Impl(fieldNameSecond, secondEntry, whiteboardFirst));
+        implWhiteboardRepository.update(new WhiteboardField.Impl(fieldNameThird, thirdEntry, whiteboardFirst));
+        implWhiteboardRepository.update(new WhiteboardField.Impl(fieldNameFourth, fourthEntry, whiteboardFirst));
+
+        Snapshot snapshotSecond = new Snapshot.Impl(
+            URI.create(snapshotIdSecond),
+            URI.create(snapshotOwnerFirst),
+            creationDateUTC,
+            workflowName,
+            null
+        );
+        implSnapshotRepository.create(snapshotSecond);
+        Whiteboard whiteboardSecond = new Impl(
+            URI.create(wbIdSecond),
+            Set.of(fieldNameSecond),
+            snapshotSecond,
+            Set.of(firstTag, secondTag),
+            namespaceFirst,
+            creationDateUTC
+        );
+        implWhiteboardRepository.create(whiteboardSecond);
+        implWhiteboardRepository.update(new WhiteboardField.Impl(fieldNameSecond, secondEntry, whiteboardSecond));
+    }
+
+    private void finalizeSnapshots() {
+        implSnapshotRepository.finalize(new Snapshot.Impl(
+            URI.create(snapshotIdFirst),
+            URI.create(snapshotOwnerFirst),
+            creationDateUTC,
+            workflowName,
+            null
+        ));
+        implSnapshotRepository.finalize(new Snapshot.Impl(
+            URI.create(snapshotIdSecond),
+            URI.create(snapshotOwnerFirst),
+            creationDateUTC,
+            workflowName,
+            null
+        ));
     }
 }

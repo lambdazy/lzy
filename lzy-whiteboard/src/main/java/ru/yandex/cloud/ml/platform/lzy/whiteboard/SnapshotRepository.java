@@ -13,6 +13,8 @@ public interface SnapshotRepository {
 
     SnapshotStatus create(Snapshot snapshot);
 
+    SnapshotStatus createFromSnapshot(String fromSnapshotId, Snapshot snapshot);
+
     @Nullable
     SnapshotStatus resolveSnapshot(URI id);
 
@@ -31,4 +33,7 @@ public interface SnapshotRepository {
 
     @Nullable
     SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id);
+
+    @Nullable
+    SnapshotStatus lastSnapshot(String workflowName, String uid);
 }
