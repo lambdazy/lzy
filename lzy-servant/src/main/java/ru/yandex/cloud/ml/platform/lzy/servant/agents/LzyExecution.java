@@ -26,7 +26,7 @@ public class LzyExecution {
     private final AtomicZygote zygote;
     private final String arguments;
     private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
-    private Environment.LzyProcess lzyProcess;
+    private Environment.LzyProcess process;
 
     public LzyExecution(String taskId, AtomicZygote zygote, String arguments) {
         this.taskId = taskId;
@@ -38,7 +38,7 @@ public class LzyExecution {
         final long startMillis = System.currentTimeMillis();
         if (zygote == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
-        } else if (lzyProcess != null) {
+        } else if (process != null) {
             throw new IllegalStateException("LzyExecution has been already started");
         }
         final long envExecFinishMillis;
@@ -60,7 +60,7 @@ public class LzyExecution {
                     envExecStartMillis - startMillis
                 )
             );
-            this.lzyProcess = environment.runProcess(command);
+            this.process = environment.runProcess(command);
             UserEventLogger.log(new UserEvent(
                 "Servant execution start",
                 Map.of(
@@ -105,7 +105,7 @@ public class LzyExecution {
 
     public int waitFor() {
         try {
-            int rc = lzyProcess.waitFor();
+            int rc = process.waitFor();
             String resultDescription = (rc == 0) ? "Success" : "Failure";
             LOG.info("Result description: " + resultDescription);
             progress(Servant.ExecutionProgress.newBuilder()
@@ -131,11 +131,11 @@ public class LzyExecution {
     }
 
     public void signal(int sigValue) {
-        if (lzyProcess == null) {
+        if (process == null) {
             LOG.warn("Attempt to kill not started process");
         }
         try {
-            lzyProcess.signal(sigValue);
+            process.signal(sigValue);
         } catch (Exception e) {
             LOG.warn("Unable to send signal to process", e);
         }
@@ -146,7 +146,7 @@ public class LzyExecution {
         return zygote;
     }
 
-    public Environment.LzyProcess lzyProcess() {
-        return lzyProcess;
+    public Environment.LzyProcess process() {
+        return process;
     }
 }

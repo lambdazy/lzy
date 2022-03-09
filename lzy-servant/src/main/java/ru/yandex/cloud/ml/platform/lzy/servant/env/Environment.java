@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
 public interface Environment extends AutoCloseable {

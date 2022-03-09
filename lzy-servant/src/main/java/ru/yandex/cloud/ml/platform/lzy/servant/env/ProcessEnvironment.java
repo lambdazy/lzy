@@ -3,7 +3,6 @@ package ru.yandex.cloud.ml.platform.lzy.servant.env;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
 public class ProcessEnvironment implements BaseEnvironment {

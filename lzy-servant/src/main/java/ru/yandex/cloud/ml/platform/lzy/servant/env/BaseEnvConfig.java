@@ -32,11 +32,6 @@ public class BaseEnvConfig {
         return System.getenv(BaseEnvConfig.DEFAULT_IMAGE_PROP);
     }
 
-    public BaseEnvConfig addMount(String source, String target) {
-        this.mounts.add(new MountDescription(source, target));
-        return this;
-    }
-
     public List<MountDescription> mounts() {
         return this.mounts;
     }

@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,18 +27,30 @@ public class CondaEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
-    private final AtomicBoolean envInstalled = new AtomicBoolean(false);
     private final Lzy.GetS3CredentialsResponse credentials;
+    private final String resourcesPath;
 
     public CondaEnvironment(
         PythonEnv pythonEnv,
         BaseEnvironment baseEnv,
-        Lzy.GetS3CredentialsResponse credentials
+        Lzy.GetS3CredentialsResponse credentials,
+        String resourcesPath
     ) throws EnvironmentInstallationException {
         this.pythonEnv = pythonEnv;
         this.baseEnv = baseEnv;
         this.credentials = credentials;
-        prepare();
+        this.resourcesPath = resourcesPath;
+
+        final long pyEnvInstallStart = System.currentTimeMillis();
+        installPyenv();
+        final long pyEnvInstallFinish = System.currentTimeMillis();
+        MetricEventLogger.log(
+            new MetricEvent(
+                "time for installing py env millis",
+                Map.of("metric_type", "task_metric"),
+                pyEnvInstallFinish - pyEnvInstallStart
+            )
+        );
     }
 
     @Override
@@ -49,8 +60,8 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private void installPyenv() throws EnvironmentInstallationException {
         try {
-            final String yamlPath = "/tmp/resources/conda.yaml";
-            final String yamlBindPath = "/tmp/resources/conda.yaml";
+            final String yamlPath = resourcesPath + "conda.yaml";
+            final String yamlBindPath = resourcesPath + "conda.yaml";
 
             try (FileWriter file = new FileWriter(yamlPath)) {
                 file.write(pythonEnv.yaml());
@@ -78,9 +89,7 @@ public class CondaEnvironment implements AuxEnvironment {
                     + "  Stdout: " + stdout + "\n\n"
                     + "  Stderr: " + stderr + "\n";
                 LOG.error(errorMessage);
-                throw new EnvironmentInstallationException(
-                    "Failed to update conda env, return code = " + rc
-                );
+                throw new EnvironmentInstallationException(errorMessage);
             }
         } catch (IOException | LzyExecutionException e) {
             throw new EnvironmentInstallationException(e.getMessage());
@@ -96,22 +105,6 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command) throws LzyExecutionException {
         return execInEnv(command, null);
-    }
-
-    private synchronized void prepare() throws EnvironmentInstallationException {
-        if (!envInstalled.get()) {
-            final long pyEnvInstallStart = System.currentTimeMillis();
-            installPyenv();
-            envInstalled.set(true);
-            final long pyEnvInstallFinish = System.currentTimeMillis();
-            MetricEventLogger.log(
-                new MetricEvent(
-                    "time for installing py env millis",
-                    Map.of("metric_type", "task_metric"),
-                    pyEnvInstallFinish - pyEnvInstallStart
-                )
-            );
-        }
     }
 
     private List<String> getEnvironmentVariables() {
@@ -147,9 +140,6 @@ public class CondaEnvironment implements AuxEnvironment {
 
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
-        if (!envInstalled.get()) {
-            throw new RuntimeException("Conda environment not installed");
-        }
         try {
             List<String> envList = getEnvironmentVariables();
             envList.addAll(getLocalModules());

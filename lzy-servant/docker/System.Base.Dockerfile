@@ -12,11 +12,11 @@ ENV DOCKER_CHANNEL=stable \
 	DOCKER_COMPOSE_VERSION=1.29.2 \
 	DEBUG=false
 
-COPY lzy-servant/docker/docker_installer.sh /
+COPY lzy-servant/docker/dind/docker_installer.sh /
 RUN chmod a+rx /docker_installer.sh
 RUN ./docker_installer.sh
 
-COPY lzy-servant/docker/modprobe /usr/local/bin/modprobe
+COPY lzy-servant/docker/dind/modprobe /usr/local/bin/modprobe
 RUN chmod +x /usr/local/bin/modprobe
 
 VOLUME /var/lib/docker

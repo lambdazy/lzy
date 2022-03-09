@@ -1,4 +1,4 @@
-FROM lzy-servant-base
+FROM lzydock/lzy-servant-base:master
 
 RUN mkdir -p /var/log/servant \
     && mkdir tmp/resources

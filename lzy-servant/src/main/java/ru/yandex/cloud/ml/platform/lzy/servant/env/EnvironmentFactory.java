@@ -6,7 +6,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationE
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 public class EnvironmentFactory {
 
@@ -31,7 +30,7 @@ public class EnvironmentFactory {
 
         if (env.auxEnv() instanceof PythonEnv) {
             LOG.info("Conda auxEnv provided, using CondaEnvironment");
-            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, credentials);
+            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, credentials, resourcesPathStr);
         } else {
             LOG.info("No auxEnv provided, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);

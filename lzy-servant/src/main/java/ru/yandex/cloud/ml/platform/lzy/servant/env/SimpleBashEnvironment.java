@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
 public class SimpleBashEnvironment implements AuxEnvironment {

@@ -7,8 +7,7 @@ metadata:
 spec:
   containers:
     - name: lzy-servant
-      # TODO (lindvv): fix image
-      image: celdwind/lzy:lzy-servant
+      image: lzydock/lzy-servant:master
       imagePullPolicy: Always
       env:
         - name: LOGS_SERVER
@@ -41,7 +40,7 @@ spec:
       securityContext:
         privileged: true
         runAsUser: 0
-  restartPolicy: OnFailure
+  restartPolicy: Never
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:

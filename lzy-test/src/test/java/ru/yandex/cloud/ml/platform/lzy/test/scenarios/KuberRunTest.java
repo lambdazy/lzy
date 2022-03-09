@@ -21,7 +21,7 @@ public class KuberRunTest {
     private static final String TEST_USER = "phil";
     private static final String TEST_USER_KEY_PATH = "/tmp/test-private.pem";
     private static final String LZY_KHARON_DOMAIN_PROPERTY = "lzy.kharon.domain";
-    private static final String DEFAULT_LZY_KHARON_DOMAIN = "kharon-lzy-exp.northeurope.cloudapp.azure.com";
+    private static final String DEFAULT_LZY_KHARON_DOMAIN = "kharon-lzy-prod.northeurope.cloudapp.azure.com";
     private final String LZY_KHARON_DOMAIN = System.getProperty(LZY_KHARON_DOMAIN_PROPERTY,
         DEFAULT_LZY_KHARON_DOMAIN);
     private final String SERVER_URL = String.format("http://%s:8899", LZY_KHARON_DOMAIN);

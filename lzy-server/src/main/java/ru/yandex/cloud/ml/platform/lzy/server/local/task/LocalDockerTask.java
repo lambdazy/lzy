@@ -65,7 +65,7 @@ public class LocalDockerTask extends LocalTask {
         hostConfig
             .withPrivileged(true)
             .withBinds(
-                // new Bind("/var/log/servant/", new Volume("/var/log/servant/")),
+                new Bind("/var/log/servant/", new Volume("/var/log/servant/")),
                 new Bind("/tmp/resources/", new Volume("/tmp/resources/"))
             )
             .withPortBindings(

@@ -3,6 +3,7 @@
 export LOGS_APPENDER="${LOGS_APPENDER:-LogFile}"
 
 dockerd &> var/log/dockerd.log &
+# Wait for starting dockerd
 sleep 5
 mount --make-shared /
 
