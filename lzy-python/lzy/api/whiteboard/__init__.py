@@ -98,7 +98,7 @@ def wrap_whiteboard(
 
             whiteboard_api.link(whiteboard_id, key, return_entry_id)
         else:
-            entry_id = str(uuid.uuid4())
+            entry_id = key + '_' + str(uuid.uuid4())
             whiteboard_id = whiteboard_id_getter()
             if whiteboard_id is None:
                 raise RuntimeError("Cannot get whiteboard id")
