@@ -51,14 +51,42 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
-                               StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+        StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
         LOG.info("SnapshotApi::createSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
             return;
         }
+        if (!request.hasCreationDateUTC()) {
+            responseObserver.onError(
+                Status.INVALID_ARGUMENT.withDescription("Snapshot creation date must be provided").asException());
+            return;
+        }
         URI snapshotId = URI.create(UUID.randomUUID().toString());
-        repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId())));
+        String fromSnapshotId = request.getFromSnapshot();
+        if (!Objects.equals(fromSnapshotId, "")) {
+            final SnapshotStatus snapshotStatus = repository
+                .resolveSnapshot(URI.create(fromSnapshotId));
+            if (snapshotStatus == null
+                || !Objects.equals(snapshotStatus.snapshot().uid().toString(),
+                request.getAuth().getUser().getUserId())) {
+                responseObserver.onError(Status.NOT_FOUND.asException());
+                return;
+            }
+            if (!Objects.equals(snapshotStatus.snapshot().workflowName(), request.getWorkflowName())) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(
+                        "Parent snapshot workflow name " + snapshotStatus.snapshot().workflowName()
+                            + " is different from child snapshot workflow name " + request.getWorkflowName())
+                    .asException());
+                return;
+            }
+            repository.createFromSnapshot(fromSnapshotId,
+                new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
+                    GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName(), fromSnapshotId));
+        } else {
+            repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
+                GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName(), null));
+        }
         final LzyWhiteboard.Snapshot result = LzyWhiteboard.Snapshot
             .newBuilder()
             .setSnapshotId(snapshotId.toString())
@@ -69,7 +97,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void prepareToSave(LzyWhiteboard.PrepareCommand request,
-                              StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::prepareToSave " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -94,7 +122,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void commit(LzyWhiteboard.CommitCommand request,
-                       StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::commit " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -123,7 +151,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
-                                 StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::finalizeSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -142,6 +170,24 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
             .build();
         responseObserver.onNext(status);
+        responseObserver.onCompleted();
+    }
+  
+    @Override
+    public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
+        StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+        LOG.info("SnapshotApi::lastSnapshot " + JsonUtils.printRequest(request));
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
+        final SnapshotStatus snapshotStatus = repository.lastSnapshot(request.getWorkflowName(),
+            request.getAuth().getUser().getUserId());
+        final LzyWhiteboard.Snapshot.Builder result = LzyWhiteboard.Snapshot.newBuilder();
+        if (snapshotStatus != null) {
+            result.setSnapshotId(snapshotStatus.snapshot().id().toString());
+        }
+        responseObserver.onNext(result.build());
         responseObserver.onCompleted();
     }
 

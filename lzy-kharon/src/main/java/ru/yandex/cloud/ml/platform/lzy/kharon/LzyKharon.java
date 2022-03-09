@@ -189,6 +189,12 @@ public class LzyKharon {
         }
 
         @Override
+        public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
+            StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+            ProxyCall.exec(snapshot::lastSnapshot, request, responseObserver);
+        }
+
+        @Override
         public void entryStatus(LzyWhiteboard.EntryStatusCommand request,
                                 StreamObserver<LzyWhiteboard.EntryStatusResponse> responseObserver) {
             ProxyCall.exec(snapshot::entryStatus, request, responseObserver);

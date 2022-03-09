@@ -8,6 +8,8 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,11 +48,53 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
             Transaction tx = session.beginTransaction();
             snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED,
-                snapshot.uid().toString());
+                snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName(),
+                snapshot.parentSnapshotId());
             try {
                 session.save(snapshotStatus);
                 tx.commit();
                 return new SnapshotStatus.Impl(snapshot, snapshotStatus.getSnapshotState());
+            } catch (Exception e) {
+                tx.rollback();
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Override
+    public SnapshotStatus createFromSnapshot(String fromSnapshotId, Snapshot snapshot) throws RuntimeException {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            SnapshotModel fromSnapshotModel = session.find(SnapshotModel.class, fromSnapshotId);
+            if (fromSnapshotModel == null) {
+                throw new RuntimeException("Snapshot with id "
+                    + fromSnapshotId + " does not exists; snapshot with id "
+                    + snapshot.id().toString() + " could not be created"
+                );
+            }
+
+            String snapshotId = snapshot.id().toString();
+            SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
+            if (snapshotModel != null) {
+                throw new RuntimeException("Snapshot with id " + snapshotId + " already exists");
+            }
+
+            Transaction tx = session.beginTransaction();
+            snapshotModel = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED,
+                snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName(), fromSnapshotId);
+            List<SnapshotEntryModel> fromSnapshotEntries = SessionHelper.getSnapshotEntries(fromSnapshotId, session);
+            List<SnapshotEntryModel> snapshotEntries = fromSnapshotEntries.stream()
+                .filter(fromSnapshotEntry -> Objects.equals(fromSnapshotEntry.getEntryState(), State.FINISHED))
+                .map(fromSnapshotEntry -> new SnapshotEntryModel(snapshotId, fromSnapshotEntry.getEntryId(),
+                    fromSnapshotEntry.getStorageUri(), fromSnapshotEntry.isEmpty(), fromSnapshotEntry.getEntryState()))
+                .collect(Collectors.toList());
+            // TODO: manage entry dependencies
+            try {
+                session.save(snapshotModel);
+                for (var entryModel : snapshotEntries) {
+                    session.save(entryModel);
+                }
+                tx.commit();
+                return new SnapshotStatus.Impl(snapshot, snapshotModel.getSnapshotState());
             } catch (Exception e) {
                 tx.rollback();
                 throw new RuntimeException(e);
@@ -67,7 +111,13 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 return null;
             }
             return new SnapshotStatus.Impl(
-                new Snapshot.Impl(id, URI.create(snapshotModel.getUid())),
+                new Snapshot.Impl(
+                    id,
+                    URI.create(snapshotModel.getUid()),
+                    snapshotModel.creationDateUTC(),
+                    snapshotModel.workflowName(),
+                    snapshotModel.parentSnapshotId()
+                ),
                 snapshotModel.getSnapshotState());
         }
     }
@@ -213,6 +263,14 @@ public class DbSnapshotRepository implements SnapshotRepository {
     public SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id) {
         try (Session session = storage.getSessionFactory().openSession()) {
             return SessionHelper.resolveEntryStatus(snapshot, id, session);
+        }
+    }
+
+    @Nullable
+    @Override
+    public SnapshotStatus lastSnapshot(String workflowName, String uid) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            return SessionHelper.lastSnapshot(workflowName, uid, session);
         }
     }
 

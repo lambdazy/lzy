@@ -62,9 +62,7 @@ public class AzureDownloadProcessingLoop<T> extends DownloadProcessingLoop<T> {
             if (exception != null) {
                 Uninterruptibles.sleepUninterruptibly(delayBeforeNextRetry(exception, attempt), TimeUnit.MILLISECONDS);
             }
-            try (PipedInputStream in = new PipedInputStream()) {
-                final PipedOutputStream out = new PipedOutputStream(in);
-                blob.downloadStreamWithResponse(out, range, retryOptions, null, false, null, null);
+            try (InputStream in = blob.openInputStream(range, null)) {
                 consumer.acceptThrows(in);
                 break;
             } catch (Exception ex) {

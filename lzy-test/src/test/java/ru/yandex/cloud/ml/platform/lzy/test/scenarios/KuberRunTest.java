@@ -107,9 +107,35 @@ public class KuberRunTest {
                 "first_id_SimpleWhiteboard;3;"));
 
         Assert.assertTrue(
-            result.stdout().contains("Iterating over whiteboards with types SimpleWhiteboard " +
+            result.stdout().contains("Iterating over whiteboards with types " +
                 "SimpleWhiteboard SimpleWhiteboard AnotherSimpleWhiteboard"));
-        Assert.assertTrue(result.stdout().contains("Number of whiteboard is 4"));
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard is 3"));
         Assert.assertTrue(result.stdout().contains("First whiteboard type is SimpleWhiteboard"));
+
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date lower and upper "
+            + "bounds are specified is 5"));
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date lower bound is "
+            + "specified is 5"));
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date upper bounds "
+            + "is specified is 5"));
+        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date interval is set "
+            + "for the future is 0"));
+
+        Assert.assertTrue(result.stdout().contains("string_field value in WhiteboardWithLzyMessageFields is fun6:fun7"));
+        Assert.assertTrue(result.stdout().contains("int_field value in WhiteboardWithLzyMessageFields is 3"));
+        Assert.assertTrue(result.stdout().contains("list_field length in WhiteboardWithLzyMessageFields is 3"));
+        Assert.assertTrue(result.stdout().contains("optional_field value in WhiteboardWithLzyMessageFields is 1"));
+        Assert.assertTrue(result.stdout().contains("inner_field value in WhiteboardWithLzyMessageFields is 6"));
+        Assert.assertTrue(result.stdout().contains("enum_field value in WhiteboardWithLzyMessageFields is TestEnum.BAZ"));
+        Assert.assertTrue(result.stdout().contains("non lzy message int field in WhiteboardWithLzyMessageFields is 3"));
+
+        Assert.assertTrue(result.stdout().contains("string_field value in WhiteboardWithOneLzyMessageField is fun6:fun7"));
+        Assert.assertTrue(result.stdout().contains("int_field value in WhiteboardWithOneLzyMessageField is 3"));
+
+        Assert.assertFalse(result.stdout().contains("Could not create WhiteboardWithTwoLzyMessageFields because of a missing field"));
+        Assert.assertTrue(result.stdout().contains("Could create WhiteboardWithTwoLzyMessageFields"));
+
+        Assert.assertTrue(result.stdout().contains("Could not create WhiteboardWithLzyMessageFields because of a missing field"));
+        Assert.assertFalse(result.stdout().contains("Could create WhiteboardWithLzyMessageFields"));
     }
 }

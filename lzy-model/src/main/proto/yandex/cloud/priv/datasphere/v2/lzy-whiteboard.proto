@@ -15,6 +15,7 @@ service SnapshotApi {
   rpc PrepareToSave (PrepareCommand) returns (OperationStatus);
   rpc Commit (CommitCommand) returns (OperationStatus);
   rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
+  rpc LastSnapshot (LastSnapshotCommand) returns (Snapshot);
   rpc EntryStatus (EntryStatusCommand) returns (EntryStatusResponse);
 }
 
@@ -27,6 +28,9 @@ service WbApi {
 
 message CreateSnapshotCommand {
   Auth auth = 1;
+  google.protobuf.Timestamp creationDateUTC = 2;
+  string workflowName = 3;
+  string fromSnapshot = 4;
 }
 
 message FinalizeSnapshotCommand {
@@ -139,6 +143,10 @@ message WhiteboardsResponse {
   repeated Whiteboard whiteboards = 1;
 }
 
+message LastSnapshotCommand {
+  Auth auth = 1;
+  string workflowName = 2;
+}
 
 message EntryStatusCommand {
   Auth auth = 1;
