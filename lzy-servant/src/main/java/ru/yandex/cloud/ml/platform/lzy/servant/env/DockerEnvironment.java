@@ -199,7 +199,7 @@ public class DockerEnvironment implements BaseEnvironment {
         if (config.image().equals(config.defaultImage())) {
             LOG.info("Default image {} requested", config.image());
 
-            String cachedImageName = "default-env:from-tar";
+            String cachedImageName = "lzydock/default-env:from-tar";
             String loadImageCmd = "docker load -i default-env-image.tar";
             try {
                 Runtime.getRuntime().exec(new String[] {"bash", "-c", loadImageCmd}).waitFor();

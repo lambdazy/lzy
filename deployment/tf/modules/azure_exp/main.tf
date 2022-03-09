@@ -18,8 +18,8 @@ module "azure_common" {
   oauth-github-client-secret = "276612ba3cad5b137ac274ccc86740f6cd9a0e76"
   s3-postfics                = "exp"
   gpu_count                  = 1
-  servant-image              = "celdwind/lzy:lzy-servant"
-  server-image              = "celdwind/lzy:lzy-server"
-  kharon-image              = "celdwind/lzy:lzy-kharon"
+  servant-image              = "lzydock/lzy-servant:exp"
+  server-image               = "lzydock/lzy-server:exp"
+  kharon-image               = "lzydock/lzy-kharon:exp"
 }
 

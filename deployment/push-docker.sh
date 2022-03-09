@@ -39,7 +39,7 @@ if [[ $REBUILD = true ]]; then
     docker build -t lzydock/default-env -f lzy-servant/docker/DefaultEnv.Dockerfile .
     docker tag lzydock/default-env lzydock/default-env:from-tar
 
-    docker save -o lzy-servant/docker/default-env-image.tar default-env:from-tar
+    docker save -o lzy-servant/docker/default-env-image.tar lzydock/default-env:from-tar
 
     docker build -t lzydock/lzy-servant-base -f lzy-servant/docker/System.Base.Dockerfile .
     docker tag lzydock/lzy-servant-base lzydock/lzy-servant-base:master
