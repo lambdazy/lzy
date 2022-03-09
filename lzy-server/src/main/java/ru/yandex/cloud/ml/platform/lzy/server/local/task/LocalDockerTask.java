@@ -1,10 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local.task;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.command.InspectContainerResponse;
-import com.github.dockerjava.api.command.InspectContainerResponse.ContainerState;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.Frame;
@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 
@@ -65,7 +64,7 @@ public class LocalDockerTask extends LocalTask {
         hostConfig
             .withPrivileged(true)
             .withBinds(
-                new Bind("/var/log/servant/", new Volume("/var/log/servant/")),
+                new Bind(LOGS_DIR + "servant/", new Volume(LOGS_DIR + "servant/")),
                 new Bind("/tmp/resources/", new Volume("/tmp/resources/"))
             )
             .withPortBindings(
@@ -83,7 +82,7 @@ public class LocalDockerTask extends LocalTask {
             .withEnv(
                 "LZYTASK=" + tid.toString(),
                 "LZYTOKEN=" + token,
-                "LOG_FILE=" + "/var/log/servant/servant_start_" + uuid,
+                "LOG_FILE=" + LOGS_DIR + "servant/servant_start_" + uuid,
                 "DEBUG_PORT=" + Integer.toString(debugPort),
                 "SUSPEND_DOCKER=" + "n",
                 "LZYWHITEBOARD=" + System.getenv("SERVER_WHITEBOARD_URL"),

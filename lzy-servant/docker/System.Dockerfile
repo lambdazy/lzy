@@ -1,6 +1,6 @@
 FROM lzydock/lzy-servant-base:master
 
-RUN mkdir -p /var/log/servant \
+RUN mkdir -p /tmp/lzy-log/servant \
     && mkdir tmp/resources
 
 COPY lzy-python/ lzy-python

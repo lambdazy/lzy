@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.Server;
@@ -48,7 +50,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 public abstract class LzyAgent implements Closeable {
 
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);
-    private static final String LOG_DIR = "/var/log/";
     protected final URI serverAddress;
     protected final Path mount;
     protected final IAM.Auth auth;
@@ -164,7 +165,7 @@ public abstract class LzyAgent implements Closeable {
             final List<String> commandParts = new ArrayList<>();
             commandParts.add(System.getProperty("java.home") + "/bin/java");
             commandParts.add("-Xmx1g");
-            commandParts.add("-Dcustom.log.file=" + LOG_DIR + to.getFileName() + "_$(($RANDOM % 10000))");
+            commandParts.add("-Dcustom.log.file=" + LOGS_DIR + to.getFileName() + "_$(($RANDOM % 10000))");
             if (logConfFile != null) {
                 commandParts.add("-Dlog4j.configurationFile=" + logConfFile);
             }

@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.ExecCreateCmd;
@@ -50,7 +52,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             .withPrivilegedMode(
                 true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
             .withEnv("USER", user)
-            .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)
+            .withEnv("LOG_FILE", LOGS_DIR + "servant/terminal_" + uuid)
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
             .withFileSystemBind("/tmp/lzy-log/", "/tmp/lzy-log/")
