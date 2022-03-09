@@ -61,6 +61,7 @@ class AnotherSimpleView:
 simple_whiteboard_tag = "simple_whiteboard_" + str(uuid.uuid4())
 another_simple_whiteboard_tag = "another_simple_whiteboard_" + str(uuid.uuid4())
 lzy_message_fields_tag = "lzy_message_fields_" + str(uuid.uuid4())
+default_whiteboard_tag = "default_whiteboard_" + str(uuid.uuid4())
 
 
 @dataclass
@@ -105,6 +106,14 @@ class OneMoreSimpleWhiteboard:
     @view
     def to_simple_view_with_plus_two_rule(self) -> SimpleView:
         return SimpleView('third_id_OneMoreSimpleWhiteboard', [Rule(self.a + 2, 'plus_two_rule')])
+
+
+@dataclass
+@whiteboard(tags=[default_whiteboard_tag])
+class DefaultWhiteboard:
+    a: int = 0
+    b: List[str] = None
+    c: str = "Hello"
 
 
 @op
@@ -309,3 +318,13 @@ try:
     print("Could create WhiteboardWithLzyMessageFields")
 except TypeError:
     print("Could not create WhiteboardWithLzyMessageFields because of a missing field")
+
+wb = DefaultWhiteboard()
+with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb, local_module_paths=local_modules):
+    wb.a = 7
+    wb.b = fun2(fun1())
+    wb_id = wb.__id__
+
+env = LzyRemoteEnv()
+wb = env.whiteboard(wb_id, DefaultWhiteboard)
+print(f"Value a in DefaultWhiteboard is {wb.a}, b length is {len(wb.b)}, c is {wb.c}")

@@ -60,14 +60,21 @@ class WhiteboardTests(TestCase):
         self.assertEqual(5, wb2.b)
 
     def test_non_op_assign(self):
+        wb = WB(1, 1)
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
+            wb.a = self.num()
+            wb.b = 5
+        self.assertEqual(5, wb.b)
+
+    def test_multiple_assigns(self):
         with self.assertRaises(ValueError) as context:
             wb = WB(1, 1)
             with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
+                wb.a = 3
                 wb.a = self.num()
-                wb.b = 5
-        self.assertTrue('Only @op return values can be assigned to whiteboard' in str(context.exception))
+            self.assertTrue('Whiteboard field can be assigned only once' in str(context.exception))
 
-    def test_multiple_assigns(self):
+    def test_default_assigns(self):
         with self.assertRaises(ValueError) as context:
             wb = WB(1, 1)
             with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):

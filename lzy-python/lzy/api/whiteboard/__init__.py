@@ -1,14 +1,22 @@
 import dataclasses
-from typing import List, Any, Callable, Optional, Dict
+import uuid
+import os
+from typing import List, Any, Callable, Optional, Dict, Set
 
 from lzy.api.utils import is_lazy_proxy
 from lzy.api.whiteboard.model import WhiteboardApi, WhiteboardDescription
+from lzy.servant.servant_client import ServantClient
+from lzy.model.slot import Direction
+from lzy.model.channel import Channel, SnapshotChannelSpec
+from lzy.model.file_slots import create_slot
+from lzy.api.serializer.serializer import Serializer
 from pure_protobuf.dataclasses_ import message  # type: ignore
 
 ALREADY_WRAPPED = '_already_wrapped_whiteboard'
 ALREADY_WRAPPED_READY = '_already_wrapped_ready_whiteboard'
 
 WB_ID_GETTER_NAME = '__id_getter__'
+LZY_FIELDS_ASSIGNED = '__lzy_fields_assigned__'
 
 
 def whiteboard(tags: List[str], namespace='default'):
@@ -49,16 +57,12 @@ def view(func):
     return func
 
 
-def check_message_field(obj: Any) -> bool:
-    if obj is None:
-        return False
-    return hasattr(obj, 'LZY_MESSAGE')
-
-
 def wrap_whiteboard(
         instance: Any,
         whiteboard_api: WhiteboardApi,
+        servant_client: ServantClient,
         whiteboard_id_getter: Callable[[], Optional[str]],
+        snapshot_id: str
 ):
     check_whiteboard(instance)
     if hasattr(instance, ALREADY_WRAPPED):
@@ -70,6 +74,10 @@ def wrap_whiteboard(
         for field in fields
     }
 
+    fields_assigned: Set[str] = set()
+
+    serializer: Serializer = Serializer()
+
     def __setattr__(self: Any, key: str, value: Any):
         if not hasattr(self, ALREADY_WRAPPED):
             super(type(self), self).__setattr__(key, value)
@@ -78,26 +86,45 @@ def wrap_whiteboard(
         if key not in fields_dict:
             raise AttributeError(f"No such attribute: {key}")
 
-        if not is_lazy_proxy(value):
-            raise ValueError('Only @op return values can be assigned to whiteboard')
-
-        prev_value = super(type(instance), self).__getattribute__(key)
-        if is_lazy_proxy(prev_value):
+        if key in fields_assigned:
             raise ValueError('Whiteboard field can be assigned only once')
 
-        # noinspection PyProtectedMember
-        return_entry_id = value._op.return_entry_id()  # pylint: disable=protected-access
-        whiteboard_id = whiteboard_id_getter()
-        if return_entry_id is None or whiteboard_id is None:
-            raise RuntimeError("Cannot get entry_id from op")
+        if is_lazy_proxy(value):
+            # noinspection PyProtectedMember
+            return_entry_id = value._op.return_entry_id()  # pylint: disable=protected-access
+            whiteboard_id = whiteboard_id_getter()
+            if return_entry_id is None or whiteboard_id is None:
+                raise RuntimeError("Cannot get entry_id from op")
 
-        whiteboard_api.link(whiteboard_id, key, return_entry_id)
+            whiteboard_api.link(whiteboard_id, key, return_entry_id)
+        else:
+            entry_id = key + '_' + str(uuid.uuid4())
+            whiteboard_id = whiteboard_id_getter()
+            if whiteboard_id is None:
+                raise RuntimeError("Cannot get whiteboard id")
+
+            slot_full_name = '/'.join(['/local', whiteboard_id, entry_id, key])
+            local_slot = create_slot(slot_full_name, Direction.OUTPUT)
+            channel = Channel(':'.join([snapshot_id, slot_full_name]), SnapshotChannelSpec(snapshot_id, entry_id))
+            servant_client.create_channel(channel)
+            servant_client.touch(local_slot, channel)
+            local_slot_path = servant_client.get_slot_path(local_slot)
+            if local_slot_path is not None:
+                with local_slot_path.open("wb") as handle:
+                    serializer.serialize_to_file(value, handle)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            servant_client.destroy_channel(channel)
+            whiteboard_api.link(whiteboard_id, key, entry_id)
+
+        fields_assigned.add(key)
         # interesting fact: super() doesn't work in outside-defined functions
         # as it works in methods of classes
         # and we actually need to pass class and instance here
         super(type(instance), self).__setattr__(key, value)
 
     setattr(instance, WB_ID_GETTER_NAME, whiteboard_id_getter)
+    setattr(instance, LZY_FIELDS_ASSIGNED, fields_assigned)
     setattr(instance, ALREADY_WRAPPED, True)
     type(instance).__setattr__ = __setattr__  # type: ignore
 

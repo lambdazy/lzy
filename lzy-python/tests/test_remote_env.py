@@ -3,20 +3,15 @@ import pathlib
 import sys
 import unittest
 import uuid
-from pathlib import Path
-from typing import Any, Optional, Mapping, BinaryIO
+from typing import Any, BinaryIO
 from unittest import TestCase
 
 import cloudpickle
 
 from lzy.api import LzyRemoteEnv
 from lzy.api.storage.storage_client import StorageClient
-from lzy.api.whiteboard.credentials import StorageCredentials, AmazonCredentials
-from lzy.model.channel import Bindings, Channel
-from lzy.model.slot import Slot
-from lzy.model.zygote import Zygote
 from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.servant_client import ServantClient, Execution, CredentialsTypes
+from lzy.servant.servant_client import ServantClientMock
 
 
 class MockStorageClient(StorageClient):
@@ -34,35 +29,6 @@ class MockStorageClient(StorageClient):
         uri = container + "/" + blob
         self._storage[uri] = data
         return uri
-
-
-class ServantClientMock(ServantClient):
-    def mount(self) -> Path:
-        pass
-
-    def get_slot_path(self, slot: Slot) -> Path:
-        pass
-
-    def create_channel(self, channel: Channel):
-        pass
-
-    def destroy_channel(self, channel: Channel):
-        pass
-
-    def touch(self, slot: Slot, channel: Channel):
-        pass
-
-    def publish(self, zygote: Zygote):
-        pass
-
-    def run(self, execution_id: str, zygote: Zygote, bindings: Bindings) -> Execution:
-        pass
-
-    def get_credentials(self, typ: CredentialsTypes, bucket: str) -> StorageCredentials:
-        return AmazonCredentials("", "", "")
-
-    def get_bucket(self) -> str:
-        return "bucket"
 
 
 def worker(shared):
