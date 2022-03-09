@@ -100,7 +100,7 @@ class WhiteboardExecutionContext:
         self.whiteboard = whiteboard
 
     @property
-    def snapshot_id(self) -> Optional[str]:
+    def snapshot_id(self) -> str:
         if self._snapshot_id is not None:
             return self._snapshot_id
         self._snapshot_id = self.snapshot_api.create().snapshot_id
@@ -115,8 +115,6 @@ class WhiteboardExecutionContext:
             return None
 
         snapshot_id = self.snapshot_id
-        if snapshot_id is None:
-            raise RuntimeError("Cannot create snapshot")
 
         fields = dataclasses.fields(self.whiteboard)
         self._whiteboard_id = self.whiteboard_api.create(
@@ -224,7 +222,7 @@ class LzyWorkflowBase(ABC):
     def whiteboard_id(self) -> Optional[str]:
         return self._execution_context.whiteboard_id
 
-    def snapshot_id(self) -> Optional[str]:
+    def snapshot_id(self) -> str:
         return self._execution_context.snapshot_id
 
     def registered_ops(self) -> Iterable[LzyOp]:

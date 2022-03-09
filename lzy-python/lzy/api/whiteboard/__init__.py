@@ -62,7 +62,7 @@ def wrap_whiteboard(
         whiteboard_api: WhiteboardApi,
         servant_client: ServantClient,
         whiteboard_id_getter: Callable[[], Optional[str]],
-        snapshot_id: Optional[str]
+        snapshot_id: str
 ):
     check_whiteboard(instance)
     if hasattr(instance, ALREADY_WRAPPED):
@@ -102,19 +102,19 @@ def wrap_whiteboard(
             whiteboard_id = whiteboard_id_getter()
             if whiteboard_id is None:
                 raise RuntimeError("Cannot get whiteboard id")
-            if snapshot_id is not None:
-                slot_full_name = '/'.join(['/local', whiteboard_id, entry_id, key])
-                local_slot = create_slot(slot_full_name, Direction.OUTPUT)
-                channel = Channel(':'.join([snapshot_id, slot_full_name]), SnapshotChannelSpec(snapshot_id, entry_id))
-                servant_client.create_channel(channel)
-                servant_client.touch(local_slot, channel)
-                local_slot_path = servant_client.get_slot_path(local_slot)
-                if local_slot_path is not None:
-                    with local_slot_path.open("wb") as handle:
-                        serializer.serialize_to_file(value, handle)
-                        handle.flush()
-                        os.fsync(handle.fileno())
-                servant_client.destroy_channel(channel)
+
+            slot_full_name = '/'.join(['/local', whiteboard_id, entry_id, key])
+            local_slot = create_slot(slot_full_name, Direction.OUTPUT)
+            channel = Channel(':'.join([snapshot_id, slot_full_name]), SnapshotChannelSpec(snapshot_id, entry_id))
+            servant_client.create_channel(channel)
+            servant_client.touch(local_slot, channel)
+            local_slot_path = servant_client.get_slot_path(local_slot)
+            if local_slot_path is not None:
+                with local_slot_path.open("wb") as handle:
+                    serializer.serialize_to_file(value, handle)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            servant_client.destroy_channel(channel)
             whiteboard_api.link(whiteboard_id, key, entry_id)
 
         fields_assigned.add(key)
