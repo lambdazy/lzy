@@ -62,6 +62,19 @@ def lazy_proxy(
         obj_attrs=obj_attrs,
     )
 
+def is_wrapped_local_value(obj: Any) -> bool:
+    return hasattr(obj, "__lzy_local_value__") and obj.__lzy_local_value__
+
+
+def wrap_local_value(obj: Any):
+    obj.__lzy_local_value__ = True
+
+
+def check_message_field(obj: Any) -> bool:
+    if obj is None:
+        return False
+    return hasattr(obj, 'LZY_MESSAGE')
+
 
 def zipdir(path: str, zipfile: ZipFile):
     for root, dirs, files in os.walk(path):
