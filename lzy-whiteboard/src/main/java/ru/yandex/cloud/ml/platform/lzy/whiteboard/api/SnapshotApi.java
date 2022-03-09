@@ -23,7 +23,6 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.SimpleAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
@@ -44,8 +43,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             .usePlaintext()
             .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
-        auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel),
-            LzyBackofficeGrpc.newBlockingStub(serverChannel));
+        auth = new SimpleAuthenticator(LzyServerGrpc.newBlockingStub(serverChannel));
         this.repository = repository;
     }
 
@@ -54,7 +52,10 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
         LOG.info("SnapshotApi::createSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            LOG.info("SnapshotApi::createSnapshot permission denied for credentials "
+                + JsonUtils.printRequest(request));
+            responseObserver.onError(
+                Status.PERMISSION_DENIED.withDescription("Permission denied to create snapshot").asException());
             return;
         }
         if (!request.hasCreationDateUTC()) {
@@ -100,18 +101,30 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::prepareToSave " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            LOG.info("SnapshotApi::prepareToSave permission denied for credentials "
+                + JsonUtils.printRequest(request));
+            responseObserver.onError(
+                Status.PERMISSION_DENIED.withDescription("Permission denied for prepareToSave command").asException());
             return;
         }
         final SnapshotStatus snapshotStatus = repository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
-            responseObserver.onError(Status.NOT_FOUND.asException());
+            LOG.info("SnapshotApi::prepareToSave could not find snapshot with id " + request.getSnapshotId());
+            responseObserver.onError(
+                Status.NOT_FOUND.withDescription("Could not find snapshot with id " + request.getSnapshotId())
+                    .asException());
             return;
         }
-        repository.prepare(GrpcConverter.from(request.getEntry(), snapshotStatus.snapshot()),
-            request.getEntry().getStorageUri(),
-            request.getEntry().getDependentEntryIdsList());
+        try {
+            repository.prepare(GrpcConverter.from(request.getEntry(), snapshotStatus.snapshot()),
+                request.getEntry().getStorageUri(),
+                request.getEntry().getDependentEntryIdsList());
+        } catch (IllegalArgumentException e) {
+            LOG.info("SnapshotApi::prepareToSave: " + e.getMessage());
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            return;
+        }
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
             .newBuilder()
             .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
@@ -125,22 +138,40 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::commit " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            LOG.info("SnapshotApi::commit permission denied for credentials "
+                + JsonUtils.printRequest(request));
+            responseObserver.onError(
+                Status.PERMISSION_DENIED.withDescription("Permission denied for commit command").asException());
             return;
         }
         final SnapshotStatus snapshotStatus = repository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null) {
-            responseObserver.onError(Status.NOT_FOUND.asException());
+            LOG.info("SnapshotApi::commit could not find snapshot with id " + request.getSnapshotId());
+            responseObserver.onError(
+                Status.NOT_FOUND.withDescription("Could not find snapshot with id " + request.getSnapshotId())
+                    .asException());
             return;
         }
         final SnapshotEntry entry = repository
             .resolveEntry(snapshotStatus.snapshot(), request.getEntryId());
         if (entry == null) {
-            responseObserver.onError(Status.NOT_FOUND.asException());
+            LOG.info("SnapshotApi::commit could not find snapshot entry with id " + request.getEntryId()
+                + " and snapshot id " + request.getSnapshotId());
+            responseObserver.onError(
+                Status.NOT_FOUND.withDescription(
+                        "SnapshotApi::commit could not find snapshot entry with id " + request.getEntryId()
+                            + " and snapshot id " + request.getSnapshotId())
+                    .asException());
             return;
         }
-        repository.commit(entry, request.getEmpty());
+        try {
+            repository.commit(entry, request.getEmpty());
+        } catch (IllegalArgumentException e) {
+            LOG.info("SnapshotApi::commit " + e.getMessage());
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            return;
+        }
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
             .newBuilder()
             .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
@@ -154,17 +185,29 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::finalizeSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            LOG.info("SnapshotApi::finalizeSnapshot permission denied for credentials "
+                + JsonUtils.printRequest(request));
+            responseObserver.onError(
+                Status.PERMISSION_DENIED.withDescription("Permission denied for finalizeSnapshot command")
+                    .asException());
             return;
         }
         final SnapshotStatus snapshotStatus = repository
             .resolveSnapshot(URI.create(request.getSnapshotId()));
         if (snapshotStatus == null
             || !Objects.equals(snapshotStatus.snapshot().uid().toString(), request.getAuth().getUser().getUserId())) {
-            responseObserver.onError(Status.NOT_FOUND.asException());
+            responseObserver.onError(
+                Status.NOT_FOUND.withDescription("Could not find snapshot with id " + request.getSnapshotId())
+                    .asException());
             return;
         }
-        repository.finalize(snapshotStatus.snapshot());
+        try {
+            repository.finalize(snapshotStatus.snapshot());
+        } catch (IllegalArgumentException e) {
+            LOG.info("SnapshotApi::finalizeSnapshot " + e.getMessage());
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            return;
+        }
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
             .newBuilder()
             .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
@@ -172,7 +215,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         responseObserver.onNext(status);
         responseObserver.onCompleted();
     }
-  
+
     @Override
     public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
         StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
@@ -193,10 +236,14 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void entryStatus(LzyWhiteboard.EntryStatusCommand request,
-                            StreamObserver<LzyWhiteboard.EntryStatusResponse> responseObserver) {
+        StreamObserver<LzyWhiteboard.EntryStatusResponse> responseObserver) {
         LOG.info("SnapshotApi::entryStatus " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            LOG.info("SnapshotApi::entryStatus permission denied for credentials "
+                + JsonUtils.printRequest(request));
+            responseObserver.onError(
+                Status.PERMISSION_DENIED.withDescription("Permission denied for entryStatus command")
+                    .asException());
             return;
         }
         SnapshotStatus snapshotStatus = repository.resolveSnapshot(URI.create(request.getSnapshotId()));
@@ -208,8 +255,10 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         }
         SnapshotEntryStatus entry = repository.resolveEntryStatus(snapshotStatus.snapshot(), request.getEntryId());
         if (entry == null) {
-            LOG.info("SnapshotApi::entryStatus entry {} not found, creating", request.getEntryId());
-            entry = repository.createEntry(snapshotStatus.snapshot(), request.getEntryId());
+            LOG.info("SnapshotApi::entryStatus entry {} not found", request.getEntryId());
+            responseObserver.onError(
+                Status.NOT_FOUND.withDescription("Entry " + request.getEntryId() + " not found").asException());
+            return;
         }
         LzyWhiteboard.EntryStatusResponse.Builder builder = LzyWhiteboard.EntryStatusResponse.newBuilder()
             .setSnapshotId(snapshotStatus.snapshot().id().toString())
@@ -223,6 +272,41 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         LzyWhiteboard.EntryStatusResponse resp = builder.build();
         LOG.info("SnapshotApi::entryStatus status: " + JsonUtils.printRequest(resp));
         responseObserver.onNext(resp);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void createEntry(LzyWhiteboard.CreateEntryCommand request,
+        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        LOG.info("SnapshotApi::createEntry " + JsonUtils.printRequest(request));
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            LOG.info("SnapshotApi::createEntry permission denied for credentials "
+                + JsonUtils.printRequest(request));
+            responseObserver.onError(
+                Status.PERMISSION_DENIED.withDescription("Permission denied for createEntry command")
+                    .asException());
+            return;
+        }
+        SnapshotStatus snapshotStatus = repository.resolveSnapshot(URI.create(request.getSnapshotId()));
+        if (snapshotStatus == null) {
+            LOG.info("SnapshotApi::createEntry snapshot {} not found", request.getSnapshotId());
+            responseObserver.onError(
+                Status.NOT_FOUND.withDescription("Snapshot " + request.getSnapshotId() + " not found").asException());
+            return;
+        }
+        SnapshotEntry entry = null;
+        try {
+            entry = repository.createEntry(snapshotStatus.snapshot(), request.getEntryId());
+        } catch (IllegalArgumentException e) {
+            LOG.info("SnapshotApi::createEntry " + e.getMessage());
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+        }
+        LOG.info("SnapshotApi::createEntry created entry " + entry);
+        final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
+            .newBuilder()
+            .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
+            .build();
+        responseObserver.onNext(status);
         responseObserver.onCompleted();
     }
 }

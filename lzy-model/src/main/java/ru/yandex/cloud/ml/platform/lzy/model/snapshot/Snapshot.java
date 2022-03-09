@@ -56,5 +56,9 @@ public interface Snapshot {
         public String parentSnapshotId() {
             return parentSnapshotId;
         }
+
+        public String toString() {
+            return "id: " + id + ", user id: " + uid;
+        }
     }
 }

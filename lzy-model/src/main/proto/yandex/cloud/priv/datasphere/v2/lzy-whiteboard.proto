@@ -17,6 +17,7 @@ service SnapshotApi {
   rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
   rpc LastSnapshot (LastSnapshotCommand) returns (Snapshot);
   rpc EntryStatus (EntryStatusCommand) returns (EntryStatusResponse);
+  rpc CreateEntry (CreateEntryCommand) returns (OperationStatus);
 }
 
 service WbApi {
@@ -168,4 +169,10 @@ message EntryStatusResponse {
     FINISHED = 3;
     ERRORED = 4;
   }
+}
+
+message CreateEntryCommand {
+  Auth auth = 1;
+  string entryId = 2;
+  string snapshotId = 3;
 }

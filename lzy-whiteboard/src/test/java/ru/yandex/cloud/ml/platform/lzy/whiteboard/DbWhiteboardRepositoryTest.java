@@ -105,7 +105,6 @@ public class DbWhiteboardRepositoryTest {
         Assert.assertNotNull(whiteboard.whiteboard());
         Assert.assertNotNull(whiteboard.whiteboard().snapshot());
         Assert.assertEquals(snapshotIdFirst, whiteboard.whiteboard().snapshot().id().toString());
-        Assert.assertEquals(State.NOT_COMPLETED, whiteboard.state());
         Assert.assertEquals(namespaceFirst, whiteboard.whiteboard().namespace());
 
         Assert.assertTrue(whiteboard.whiteboard().fieldNames().contains(fieldNameFirst)
@@ -348,9 +347,13 @@ public class DbWhiteboardRepositoryTest {
         );
         implWhiteboardRepository.create(whiteboardFirst);
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshotFirst);
+        implSnapshotRepository.createEntry(snapshotFirst, entryIdFirst);
         SnapshotEntry fourthEntry = new SnapshotEntry.Impl(entryIdFourth, snapshotFirst);
+        implSnapshotRepository.createEntry(snapshotFirst, entryIdFourth);
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshotFirst);
+        implSnapshotRepository.createEntry(snapshotFirst, entryIdSecond);
         SnapshotEntry thirdEntry = new SnapshotEntry.Impl(entryIdThird, snapshotFirst);
+        implSnapshotRepository.createEntry(snapshotFirst, entryIdThird);
         String storageUri = "storageUri";
         implSnapshotRepository.prepare(firstEntry, storageUri, List.of(entryIdSecond, entryIdThird));
         implSnapshotRepository.commit(firstEntry, false);

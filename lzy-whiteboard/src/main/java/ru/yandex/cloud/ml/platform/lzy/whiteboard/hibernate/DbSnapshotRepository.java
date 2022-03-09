@@ -38,12 +38,13 @@ public class DbSnapshotRepository implements SnapshotRepository {
     DbStorage storage;
 
     @Override
-    public SnapshotStatus create(Snapshot snapshot) throws RuntimeException {
+    public SnapshotStatus create(Snapshot snapshot) throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotStatus = session.find(SnapshotModel.class, snapshotId);
             if (snapshotStatus != null) {
-                throw new RuntimeException("Snapshot with id " + snapshot.id() + " already exists");
+                LOG.error("DbSnapshotRepository::create snapshot with id " + snapshotId + " already exists");
+                throw new IllegalArgumentException("Snapshot with id " + snapshot.id() + " already exists");
             }
 
             Transaction tx = session.beginTransaction();
@@ -108,8 +109,10 @@ public class DbSnapshotRepository implements SnapshotRepository {
         try (Session session = storage.getSessionFactory().openSession()) {
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, id.toString());
             if (snapshotModel == null) {
+                LOG.info("DbSnapshotRepository::resolveSnapshot snapshot with id " + id + " not found");
                 return null;
             }
+            LOG.info("DbSnapshotRepository::resolveSnapshot found snapshot with id " + id + ": " + snapshotModel);
             return new SnapshotStatus.Impl(
                 new Snapshot.Impl(
                     id,
@@ -123,27 +126,38 @@ public class DbSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public void finalize(Snapshot snapshot) {
+    public void finalize(Snapshot snapshot) throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
             if (snapshotModel == null) {
-                throw new RuntimeException(Status.NOT_FOUND.asException());
+                throw new IllegalArgumentException(Status.NOT_FOUND.withDescription(
+                    "DbSnapshotRepository::finalize could not find snapshot " + snapshot).asException());
             }
-            if (snapshotModel.getSnapshotState() == SnapshotStatus.State.ERRORED
-                || snapshotModel.getSnapshotState() == SnapshotStatus.State.FINALIZED) {
+            if (snapshotModel.getSnapshotState() == SnapshotStatus.State.ERRORED) {
+                LOG.info(
+                    "DbSnapshotRepository::finalize could not finalize snapshot " + snapshot + " because its status is "
+                        + SnapshotStatus.State.ERRORED);
+                return;
+            }
+            if (snapshotModel.getSnapshotState() == SnapshotStatus.State.FINALIZED) {
+                LOG.info(
+                    "DbSnapshotRepository::finalize could not finalize snapshot " + snapshot + " because its status is "
+                        + SnapshotStatus.State.FINALIZED);
                 return;
             }
             List<SnapshotEntryModel> snapshotEntries = SessionHelper.getSnapshotEntries(snapshotId, session);
             for (SnapshotEntryModel spEntry : snapshotEntries) {
                 if (spEntry.getEntryState() != State.FINISHED || spEntry.getStorageUri() == null) {
-                    LOG.info("Error in entry {}: status {}", spEntry.getEntryId(), spEntry.getEntryState());
+                    LOG.info("DbSnapshotRepository::finalize error in entry {}: status {}", spEntry.getEntryId(),
+                        spEntry.getEntryState());
                     spEntry.setEntryState(State.ERRORED);
                     snapshotModel.setSnapshotState(SnapshotStatus.State.ERRORED);
                 }
             }
             if (snapshotModel.getSnapshotState() != SnapshotStatus.State.ERRORED) {
+                LOG.info("DbSnapshotRepository::finalize finalized snapshot with id " + snapshot.id());
                 snapshotModel.setSnapshotState(SnapshotStatus.State.FINALIZED);
             }
 
@@ -151,6 +165,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 session);
             for (WhiteboardModel wbModel : whiteboards) {
                 if (snapshotModel.getSnapshotState() == SnapshotStatus.State.ERRORED) {
+                    LOG.info("DbSnapshotRepository::finalize setting state for whiteboard " + wbModel + " to "
+                        + WhiteboardStatus.State.ERRORED);
                     wbModel.setWbState(WhiteboardStatus.State.ERRORED);
                     continue;
                 }
@@ -158,10 +174,16 @@ public class DbSnapshotRepository implements SnapshotRepository {
                     session);
                 final long completeFieldsNum = SessionHelper.getNumEntriesWithStateForWhiteboard(
                     wbModel.getWbId(), State.FINISHED, session);
+                LOG.info("DbSnapshotRepository::finalize whiteboard " + wbModel + " has " + fieldsNum + " in total and "
+                    + completeFieldsNum + " with state " + State.FINISHED);
                 if (fieldsNum == completeFieldsNum) {
+                    LOG.info("DbSnapshotRepository::finalize setting state for whiteboard " + wbModel + " to "
+                        + WhiteboardStatus.State.COMPLETED);
                     wbModel.setWbState(WhiteboardStatus.State.COMPLETED);
                 } else {
-                    wbModel.setWbState(WhiteboardStatus.State.NOT_COMPLETED);
+                    LOG.info("DbSnapshotRepository::finalize setting state for whiteboard " + wbModel + " to "
+                        + WhiteboardStatus.State.ERRORED);
+                    wbModel.setWbState(WhiteboardStatus.State.ERRORED);
                 }
             }
 
@@ -206,7 +228,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public void prepare(SnapshotEntry entry, String storageUri, List<String> dependentEntryIds) {
+    public void prepare(SnapshotEntry entry, String storageUri, List<String> dependentEntryIds)
+        throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = entry.snapshot().id().toString();
@@ -214,16 +237,16 @@ public class DbSnapshotRepository implements SnapshotRepository {
             SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
                 new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
             if (snapshotEntryModel == null) {
-                snapshotEntryModel = new SnapshotEntryModel(snapshotId, entryId,
-                    storageUri, true, SnapshotEntryStatus.State.IN_PROGRESS);
+                throw new IllegalArgumentException(
+                    "Could not execute command prepare in DbSnapshotRepository because snapshot entry with id "
+                        + entryId + " and snapshot id " + snapshotId + " was not found");
             } else {
-                if (!snapshotEntryModel.isEmpty()) {
-                    throw Status.INVALID_ARGUMENT.withDescription("Preparing non-empty entry")
-                        .asRuntimeException();
-                }
                 if (!snapshotEntryModel.getEntryState().equals(SnapshotEntryStatus.State.CREATED)) {
-                    throw Status.INVALID_ARGUMENT.withDescription(
-                        "Preparing already prepared entry").asRuntimeException();
+                    throw new IllegalArgumentException(
+                        "Could not execute command prepare in DbSnapshotRepository because snapshot entry with id "
+                            + entryId + " and snapshot id " + snapshotId + " has status "
+                            + snapshotEntryModel.getEntryState() + "; but status " + SnapshotEntryStatus.State.CREATED
+                            + " was expected");
                 }
                 snapshotEntryModel.setStorageUri(storageUri);
                 snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.IN_PROGRESS);
@@ -252,6 +275,9 @@ public class DbSnapshotRepository implements SnapshotRepository {
             SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
                 new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
             if (snapshotEntryModel == null) {
+                LOG.info(
+                    "DbSnapshotRepository::resolveEntry snapshot entry with id " + id + " and snapshot id " + snapshotId
+                        + " not found");
                 return null;
             }
             return new SnapshotEntry.Impl(id, snapshot);
@@ -275,7 +301,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public void commit(SnapshotEntry entry, boolean empty) {
+    public void commit(SnapshotEntry entry, boolean empty) throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = entry.snapshot().id().toString();
@@ -283,7 +309,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
             SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
                 new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
             if (snapshotEntryModel == null) {
-                throw new RuntimeException(Status.NOT_FOUND.asException());
+                throw new IllegalArgumentException(Status.NOT_FOUND.withDescription(
+                    "DbSnapshotRepository::commit snapshot entry " + entry + " not found").asException());
             }
             snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.FINISHED);
             snapshotEntryModel.setEmpty(empty);
@@ -298,23 +325,22 @@ public class DbSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public SnapshotEntryStatus createEntry(Snapshot snapshot, String id) {
+    public SnapshotEntry createEntry(Snapshot snapshot, String id) throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {
                 SnapshotEntryModel model = session.find(SnapshotEntryModel.class,
                     new SnapshotEntryModel.SnapshotEntryPk(snapshot.id().toString(), id));
                 if (model != null) {
-                    throw Status.ALREADY_EXISTS.withDescription("Creating existing entry")
-                        .asRuntimeException();
+                    throw new IllegalArgumentException(
+                        "DbSnapshotRepository::createEntry entry with id " + id + " and snapshot id " + snapshot.id()
+                            + " already exists");
                 }
                 model = new SnapshotEntryModel(snapshot.id().toString(), id, null, true,
                     SnapshotEntryStatus.State.CREATED);
                 session.save(model);
                 tx.commit();
-                final Impl entry = new Impl(id, snapshot);
-                return new SnapshotEntryStatus.Impl(model.isEmpty(), model.getEntryState(), entry,
-                    Collections.emptySet(), null);
+                return new Impl(id, snapshot);
             } catch (Exception e) {
                 tx.rollback();
                 throw e;

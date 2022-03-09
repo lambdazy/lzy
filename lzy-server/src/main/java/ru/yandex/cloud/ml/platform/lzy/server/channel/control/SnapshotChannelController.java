@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang.NotImplementedException;
@@ -119,13 +121,27 @@ public class SnapshotChannelController implements ChannelController {
         if (status == Status.COMPLETED) {
             return true;
         }
-        LzyWhiteboard.EntryStatusResponse status = snapshotApi.entryStatus(
-            LzyWhiteboard.EntryStatusCommand.newBuilder()
-                .setSnapshotId(snapshotId)
-                .setEntryId(entryId)
-                .setAuth(auth)
-                .build());
-        return status.getStatus() == LzyWhiteboard.EntryStatusResponse.Status.FINISHED;
+        try {
+            LzyWhiteboard.EntryStatusResponse status = snapshotApi.entryStatus(
+                LzyWhiteboard.EntryStatusCommand.newBuilder()
+                    .setSnapshotId(snapshotId)
+                    .setEntryId(entryId)
+                    .setAuth(auth)
+                    .build());
+            return status.getStatus() == LzyWhiteboard.EntryStatusResponse.Status.FINISHED;
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus().equals(io.grpc.Status.NOT_FOUND)) {
+                snapshotApi.createEntry(
+                    LzyWhiteboard.CreateEntryCommand.newBuilder()
+                        .setSnapshotId(snapshotId)
+                        .setEntryId(entryId)
+                        .setAuth(auth)
+                        .build()
+                );
+                return false;
+            }
+            throw e;
+        }
     }
 
     private enum Status {

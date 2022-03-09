@@ -29,5 +29,9 @@ public interface SnapshotStatus {
         public State state() {
             return state;
         }
+
+        public String toString() {
+            return "snapshot: " + snapshot + ", state: " + state;
+        }
     }
 }

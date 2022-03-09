@@ -22,7 +22,7 @@ public interface SnapshotRepository {
 
     void error(Snapshot snapshot);
 
-    SnapshotEntryStatus createEntry(Snapshot snapshot, String id);
+    SnapshotEntry createEntry(Snapshot snapshot, String id);
 
     void prepare(SnapshotEntry entry, String storage, List<String> dependentEntryIds);
 

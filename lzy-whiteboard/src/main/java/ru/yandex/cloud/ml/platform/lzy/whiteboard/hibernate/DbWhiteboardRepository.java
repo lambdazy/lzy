@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
@@ -27,15 +29,22 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardTag
 @Requires(beans = DbStorage.class)
 public class DbWhiteboardRepository implements WhiteboardRepository {
 
+    private static final Logger LOG = LogManager.getLogger(DbWhiteboardRepository.class);
+
     @Inject
     DbStorage storage;
 
     @Override
-    public WhiteboardStatus create(Whiteboard whiteboard) {
+    public WhiteboardStatus create(Whiteboard whiteboard) throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String wbId = whiteboard.id().toString();
-            WhiteboardModel wbModel = new WhiteboardModel(
+            WhiteboardModel wbModel = session.find(WhiteboardModel.class, wbId);
+            if (wbModel != null) {
+                LOG.error("DbWhiteboardRepository::create whiteboard with id " + wbId + " already exists");
+                throw new IllegalArgumentException("Whiteboard with id " + wbId + " already exists");
+            }
+            wbModel = new WhiteboardModel(
                 wbId, WhiteboardStatus.State.CREATED, whiteboard.snapshot().id().toString(),
                 whiteboard.namespace(), whiteboard.creationDateUTC()
             );
@@ -81,13 +90,14 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     }
 
     @Override
-    public void update(WhiteboardField field) {
+    public void update(WhiteboardField field) throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
+            String wbFieldId = field.whiteboard().id().toString();
             WhiteboardFieldModel wbModel = session.find(WhiteboardFieldModel.class,
-                new WhiteboardFieldModel.WhiteboardFieldPk(field.whiteboard().id().toString(), field.name()));
+                new WhiteboardFieldModel.WhiteboardFieldPk(wbFieldId, field.name()));
             if (wbModel == null) {
-                throw new RuntimeException(Status.NOT_FOUND.asException());
+                throw new IllegalArgumentException("Could not find whiteboard field with id " + wbFieldId);
             }
             final SnapshotEntry entry = field.entry();
             if (entry != null) {
@@ -104,10 +114,20 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     }
 
     @Override
-    public Stream<WhiteboardField> dependent(WhiteboardField field) {
+    public Stream<WhiteboardField> dependent(WhiteboardField field) throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
-            Snapshot snapshot = SessionHelper.getSnapshot(field.whiteboard().snapshot().id().toString(), session);
-            Whiteboard whiteboard = SessionHelper.getWhiteboard(field.whiteboard().id().toString(), snapshot, session);
+            String snapshotId = field.whiteboard().snapshot().id().toString();
+            Snapshot snapshot = SessionHelper.getSnapshot(snapshotId, session);
+            if (snapshot == null) {
+                throw new IllegalArgumentException(
+                    "Could not resolve snapshot with id " + snapshotId + " for whiteboard field " + field);
+            }
+            String whiteboardId = field.whiteboard().id().toString();
+            Whiteboard whiteboard = SessionHelper.getWhiteboard(whiteboardId, snapshot, session);
+            if (whiteboard == null) {
+                throw new IllegalArgumentException(
+                    "Could not resolve whiteboard with id " + whiteboardId + " for whiteboard field " + field);
+            }
             List<WhiteboardFieldModel> wbFieldModelList =
                 SessionHelper.getFieldDependencies(field.whiteboard().id().toString(), field.name(), session);
             List<WhiteboardField> result = wbFieldModelList.stream()
@@ -118,9 +138,14 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     }
 
     @Override
-    public Stream<WhiteboardField> fields(Whiteboard whiteboard) {
+    public Stream<WhiteboardField> fields(Whiteboard whiteboard) throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
-            Snapshot snapshot = SessionHelper.getSnapshot(whiteboard.snapshot().id().toString(), session);
+            String snapshotId = whiteboard.snapshot().id().toString();
+            Snapshot snapshot = SessionHelper.getSnapshot(snapshotId, session);
+            if (snapshot == null) {
+                throw new IllegalArgumentException(
+                    "Could not resolve snapshot with id " + snapshotId + " for whiteboard with id " + whiteboard.id());
+            }
             List<WhiteboardFieldModel> wbFieldModelList =
                 SessionHelper.getWhiteboardFields(whiteboard.id().toString(), session);
             List<WhiteboardField> result = wbFieldModelList.stream()

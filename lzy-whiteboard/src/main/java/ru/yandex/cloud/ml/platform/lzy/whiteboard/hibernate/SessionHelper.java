@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -163,6 +164,7 @@ public class SessionHelper {
         return new SnapshotEntry.Impl(snapshotEntryModel.getEntryId(), snapshot);
     }
 
+    @Nullable
     public static Whiteboard getWhiteboard(String wbId, Snapshot snapshot, Session session) {
         WhiteboardModel wbModel = session.find(WhiteboardModel.class, wbId);
         if (wbModel == null) {
@@ -182,12 +184,12 @@ public class SessionHelper {
         cr.select(root).where(cb.equal(root.get("snapshotId"), spId));
 
         Query<SnapshotModel> query = session.createQuery(cr);
-        SnapshotModel result = query.getSingleResult();
-        if (result == null) {
+        Optional<SnapshotModel> result = query.uniqueResultOptional();
+        if (result.isEmpty()) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId), URI.create(result.getUid()), result.creationDateUTC(),
-            result.workflowName(), result.parentSnapshotId());
+        return new Snapshot.Impl(URI.create(spId), URI.create(result.get().getUid()), result.get().creationDateUTC(),
+            result.get().workflowName(), result.get().parentSnapshotId());
     }
 
     public static WhiteboardField getWhiteboardField(WhiteboardFieldModel wbFieldModel,
