@@ -3,7 +3,7 @@
 MAJOR=1
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <installation-tag> [--rebuild [--base [--update [--major]]]]"
+  echo "Usage: $0 <git-branch-name> <installation-tag> [--rebuild [--base [--update [--major]]]]"
   exit
 fi
 
@@ -33,8 +33,7 @@ CUSTOM_TAG=$1
 
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
-    docker build -t lzydock/lzy-servant-base -f lzy-servant/BaseDockerfile .
-    docker tag lzydock/lzy-servant-base lzydock/lzy-servant-base:master
+    docker build -t lzy-servant-base -t lzydock/lzy-servant-base:master -f lzy-servant/BaseDockerfile .
   fi
   mvn clean install -DskipTests
 #  docker build -t lzydock/lzy-backoffice-backend:"$CUSTOM_TAG" lzy-backoffice/Dockerfile
