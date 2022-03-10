@@ -121,10 +121,10 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 Status.PERMISSION_DENIED.withDescription("Permission denied for link command").asException());
             return;
         }
-        final WhiteboardStatus whiteboardStatus = whiteboardRepository
+        final Optional<WhiteboardStatus> whiteboardStatus = whiteboardRepository
             .resolveWhiteboard(URI.create(request.getWhiteboardId()));
-        if (whiteboardStatus == null
-            || !Objects.equals(whiteboardStatus.whiteboard().snapshot().uid().toString(),
+        if (whiteboardStatus.isEmpty()
+            || !Objects.equals(whiteboardStatus.get().whiteboard().snapshot().uid().toString(),
             request.getAuth().getUser().getUserId())) {
             responseObserver.onError(
                 Status.NOT_FOUND.withDescription("Could not find whiteboard with id " + request.getWhiteboardId())
@@ -132,17 +132,15 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             return;
         }
         Optional<SnapshotEntry> snapshotEntry = snapshotRepository
-            .resolveEntry(whiteboardStatus.whiteboard().snapshot(), request.getEntryId());
+            .resolveEntry(whiteboardStatus.get().whiteboard().snapshot(), request.getEntryId());
         if (snapshotEntry.isEmpty()) {
-            LOG.error("Could not resolve snapshot entry with id {} ", request.getEntryId());
-            responseObserver.onError(
-                Status.NOT_FOUND.withDescription("Could not resolve snapshot entry with id " + request.getEntryId())
-                    .asException());
-            return;
+            LOG.info("Could not resolve snapshot entry with id {} ", request.getEntryId());
+            snapshotEntry = Optional.of(
+                new SnapshotEntry.Impl(request.getEntryId(), whiteboardStatus.get().whiteboard().snapshot()));
         }
         try {
             whiteboardRepository.update(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry.get(),
-                whiteboardStatus.whiteboard()));
+                whiteboardStatus.get().whiteboard()));
         } catch (IllegalArgumentException e) {
             LOG.error(e.getMessage());
             responseObserver.onError(
@@ -169,10 +167,10 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 Status.PERMISSION_DENIED.withDescription("Permission denied for getWhiteboard command").asException());
             return;
         }
-        final WhiteboardStatus whiteboardStatus = whiteboardRepository
+        final Optional<WhiteboardStatus> whiteboardStatus = whiteboardRepository
             .resolveWhiteboard(URI.create(request.getWhiteboardId()));
-        if (whiteboardStatus == null
-            || !Objects.equals(whiteboardStatus.whiteboard().snapshot().uid().toString(),
+        if (whiteboardStatus.isEmpty()
+            || !Objects.equals(whiteboardStatus.get().whiteboard().snapshot().uid().toString(),
             request.getAuth().getUser().getUserId())) {
             LOG.error("Could not resolve whiteboard with id {} ", request.getWhiteboardId());
             responseObserver.onError(
@@ -180,20 +178,20 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                     .asException());
             return;
         }
-        if (whiteboardStatus.state().equals(State.ERRORED)) {
+        if (whiteboardStatus.get().state().equals(State.ERRORED)) {
             LOG.error("Whiteboard {} is in errored condition", request.getWhiteboardId());
             responseObserver.onError(
                 Status.UNKNOWN.withDescription("Whiteboard is in errored condition").asException());
             return;
         }
-        if (!whiteboardStatus.state().equals(State.COMPLETED)) {
+        if (!whiteboardStatus.get().state().equals(State.COMPLETED)) {
             LOG.error("Whiteboard {} is not completed", request.getWhiteboardId());
             responseObserver.onError(
                 Status.FAILED_PRECONDITION.withDescription("Whiteboard is not completed").asException());
             return;
         }
         try {
-            final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus);
+            final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus.get());
             LOG.info("Successfully executed get whiteboard command for whiteboard {}", request.getWhiteboardId());
             responseObserver.onNext(result);
             responseObserver.onCompleted();

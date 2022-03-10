@@ -220,8 +220,8 @@ public class DbSnapshotRepositoryTest {
                 creationDateUTC)
         );
         implSnapshotRepository.error(snapshot);
-        WhiteboardStatus firstWhiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdFirst));
-        WhiteboardStatus secondWhiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdSecond));
+        WhiteboardStatus firstWhiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdFirst)).get();
+        WhiteboardStatus secondWhiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdSecond)).get();
         Optional<SnapshotStatus> snapshotStatusOptional =
             implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
         Assert.assertTrue(snapshotStatusOptional.isPresent());

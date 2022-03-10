@@ -100,7 +100,7 @@ public class DbWhiteboardRepositoryTest {
                 snapshot,
                 Set.of(firstTag, secondTag), namespaceFirst, creationDateUTC));
         implSnapshotRepository.finalize(snapshot);
-        WhiteboardStatus whiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdFirst));
+        WhiteboardStatus whiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdFirst)).get();
         Assert.assertNotNull(whiteboard);
         Assert.assertNotNull(whiteboard.whiteboard());
         Assert.assertNotNull(whiteboard.whiteboard().snapshot());

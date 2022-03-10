@@ -1,15 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate;
 
-import io.grpc.Status;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
@@ -35,7 +35,7 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     DbStorage storage;
 
     @Override
-    public WhiteboardStatus create(Whiteboard whiteboard) throws IllegalArgumentException {
+    public @NotNull WhiteboardStatus create(@NotNull Whiteboard whiteboard) throws IllegalArgumentException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String wbId = whiteboard.id().toString();
@@ -67,15 +67,15 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
         }
     }
 
-    @Nullable
     @Override
-    public WhiteboardStatus resolveWhiteboard(URI id) {
+    public Optional<WhiteboardStatus> resolveWhiteboard(@NotNull URI id) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Whiteboard whiteboard = SessionHelper.resolveWhiteboard(id.toString(), session);
             if (whiteboard == null) {
-                return null;
+                return Optional.empty();
             }
-            return new WhiteboardStatus.Impl(whiteboard, SessionHelper.resolveWhiteboardState(id.toString(), session));
+            return Optional.of(
+                new WhiteboardStatus.Impl(whiteboard, SessionHelper.resolveWhiteboardState(id.toString(), session)));
         }
     }
 
@@ -86,7 +86,13 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
         try (Session session = storage.getSessionFactory().openSession()) {
             ids = SessionHelper.resolveWhiteboardIds(namespace, tags, fromDateUTCIncluded, toDateUTCExcluded, session);
         }
-        return ids.stream().map(id -> resolveWhiteboard(URI.create(id)));
+        return ids.stream().map(id -> {
+            Optional<WhiteboardStatus> whiteboardStatusOptional = resolveWhiteboard(URI.create(id));
+            if (whiteboardStatusOptional.isEmpty()) {
+                throw new IllegalArgumentException("Could not resolve whiteboard with id " + id);
+            }
+            return whiteboardStatusOptional.get();
+        });
     }
 
     @Override

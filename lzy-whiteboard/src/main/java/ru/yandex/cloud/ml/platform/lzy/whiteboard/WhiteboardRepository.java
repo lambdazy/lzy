@@ -3,18 +3,20 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 import java.net.URI;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 
 public interface WhiteboardRepository {
 
-    WhiteboardStatus create(Whiteboard whiteboard);
+    @NotNull
+    WhiteboardStatus create(@NotNull Whiteboard whiteboard);
 
-    @Nullable
-    WhiteboardStatus resolveWhiteboard(URI id);
+    Optional<WhiteboardStatus> resolveWhiteboard(@NotNull URI id);
 
     Stream<WhiteboardStatus> resolveWhiteboards(String namespace, List<String> tags,
         Date fromDateUTCIncluded, Date toDateUTCExcluded);

@@ -1,7 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang.NotImplementedException;
@@ -16,6 +14,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 public class SnapshotChannelController implements ChannelController {
+
     private static final Logger LOG = LogManager.getLogger(SnapshotChannelController.class);
     private final String entryId;
     private final String snapshotId;
@@ -25,15 +24,22 @@ public class SnapshotChannelController implements ChannelController {
     private Status status = Status.UNBOUND;
 
     public SnapshotChannelController(String entryId,
-                                     String snapshotId,
-                                     SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
-                                     IAM.Auth auth
+        String snapshotId,
+        SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
+        IAM.Auth auth
     ) {
         LOG.info("Creating SnapshotChannelController: entryId={}, snapshotId={}", entryId, snapshotId);
         this.entryId = entryId;
         this.snapshotId = snapshotId;
         this.snapshotApi = snapshotApi;
         this.auth = auth;
+        snapshotApi.createEntry(
+            LzyWhiteboard.CreateEntryCommand.newBuilder()
+                .setSnapshotId(snapshotId)
+                .setEntryId(entryId)
+                .setAuth(auth)
+                .build()
+        );
     }
 
     @Override
@@ -121,27 +127,13 @@ public class SnapshotChannelController implements ChannelController {
         if (status == Status.COMPLETED) {
             return true;
         }
-        try {
-            LzyWhiteboard.EntryStatusResponse status = snapshotApi.entryStatus(
-                LzyWhiteboard.EntryStatusCommand.newBuilder()
-                    .setSnapshotId(snapshotId)
-                    .setEntryId(entryId)
-                    .setAuth(auth)
-                    .build());
-            return status.getStatus() == LzyWhiteboard.EntryStatusResponse.Status.FINISHED;
-        } catch (StatusRuntimeException e) {
-            if (e.getStatus().equals(io.grpc.Status.NOT_FOUND)) {
-                snapshotApi.createEntry(
-                    LzyWhiteboard.CreateEntryCommand.newBuilder()
-                        .setSnapshotId(snapshotId)
-                        .setEntryId(entryId)
-                        .setAuth(auth)
-                        .build()
-                );
-                return false;
-            }
-            throw e;
-        }
+        LzyWhiteboard.EntryStatusResponse status = snapshotApi.entryStatus(
+            LzyWhiteboard.EntryStatusCommand.newBuilder()
+                .setSnapshotId(snapshotId)
+                .setEntryId(entryId)
+                .setAuth(auth)
+                .build());
+        return status.getStatus() == LzyWhiteboard.EntryStatusResponse.Status.FINISHED;
     }
 
     private enum Status {
