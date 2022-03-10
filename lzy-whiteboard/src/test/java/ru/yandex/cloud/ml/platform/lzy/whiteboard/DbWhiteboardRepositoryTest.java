@@ -22,7 +22,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbSnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbWhiteboardRepository;
@@ -116,7 +115,8 @@ public class DbWhiteboardRepositoryTest {
 
     @Test
     public void testResolveWhiteboardByIdNotFound() {
-        Assert.assertNull(implWhiteboardRepository.resolveWhiteboard(URI.create(UUID.randomUUID().toString())));
+        Assert.assertTrue(
+            implWhiteboardRepository.resolveWhiteboard(URI.create(UUID.randomUUID().toString())).isEmpty());
     }
 
     @Test
