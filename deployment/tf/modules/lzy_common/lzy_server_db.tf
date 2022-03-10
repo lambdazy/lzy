@@ -12,6 +12,7 @@ resource "kubernetes_secret" "lzy_server_db" {
   data = {
     postgresql-postgres-password = random_password.lzy_server_db_password[0].result
     postgresql-password          = random_password.lzy_server_db_password[0].result
+    postgres-password            = random_password.lzy_server_db_password[0].result
     password                     = random_password.lzy_server_db_password[0].result
   }
 
