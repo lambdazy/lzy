@@ -12,6 +12,7 @@ resource "kubernetes_secret" "whiteboard_db" {
   data = {
     postgresql-postgres-password = random_password.whiteboard_db_password[0].result
     postgresql-password          = random_password.whiteboard_db_password[0].result
+    postgres-password            = random_password.whiteboard_db_password[0].result
     password                     = random_password.whiteboard_db_password[0].result
     database-name                = "whiteboards"
     username                     = "whiteboard"
