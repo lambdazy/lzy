@@ -45,8 +45,8 @@ for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
   if [[ $UPDATE = true ]]; then
     MINOR=-1
-    for TAG in $(wget -q "https://registry.hub.docker.com/v1/repositories/lzydock/$BRANCH/$SERVICE/tags" -O - | jq -r '.[].name'); do
-      if [[ "$TAG" =~ [0-9]+\.[0-9]+ ]]; then
+    for TAG in $(wget -q "https://registry.hub.docker.com/v1/repositories/lzydock/$SERVICE/tags" -O - | jq -r '.[].name'); do
+      if [[ "$TAG" =~ $BRANCH-[0-9]+\.[0-9]+ ]]; then
         CUR_MAJOR=$(echo "$TAG" | awk -F. '{print $1}')
         CUR_MINOR=$(echo "$TAG" | awk -F. '{print $2}')
         if [[ "$MAJOR" = "$CUR_MAJOR" && "$MINOR" -lt "$CUR_MINOR" ]]; then
@@ -59,9 +59,10 @@ for SERVICE in $SERVICES; do
   else
     TAG="$CUSTOM_TAG"
   fi
-  echo "pushing lzydock/$BRANCH/$SERVICE:$TAG"
-  docker tag "$SERVICE" "lzydock/$BRANCH/$SERVICE:$TAG"
-  docker push "lzydock/$BRANCH/$SERVICE:$TAG"
+  NEW_TAG="lzydock/$SERVICE:$BRANCH-$TAG"
+  echo "pushing $NEW_TAG"
+  docker tag "$SERVICE" "$NEW_TAG"
+  docker push "$NEW_TAG"
   echo ""
 done
 
