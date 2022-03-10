@@ -50,8 +50,6 @@ for SERVICE in $SERVICES; do
         VERSION=$(echo "$TAG" | sed "s/$BRANCH-//")
         CUR_MAJOR=$(echo "$VERSION" | awk -F. '{print $1}')
         CUR_MINOR=$(echo "$VERSION" | awk -F. '{print $2}')
-        echo "$CUR_MINOR"
-        echo "$CUR_MAJOR"
         if [[ "$MAJOR" = "$CUR_MAJOR" && "$MINOR" -lt "$CUR_MINOR" ]]; then
           MINOR="$CUR_MINOR"
         fi
