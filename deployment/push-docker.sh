@@ -29,7 +29,7 @@ SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
 if [[ $BASE = true ]]; then
   SERVICES="lzy-servant-base $SERVICES"
 fi
-BRANCH=$1
+BRANCH=$(echo "$1" | awk '{print tolower($0)}')
 CUSTOM_TAG=$2
 
 if [[ $REBUILD = true ]]; then
