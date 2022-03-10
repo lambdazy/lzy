@@ -46,9 +46,12 @@ for SERVICE in $SERVICES; do
   if [[ $UPDATE = true ]]; then
     MINOR=-1
     for TAG in $(wget -q "https://registry.hub.docker.com/v1/repositories/lzydock/$SERVICE/tags" -O - | jq -r '.[].name'); do
-      if [[ "$TAG" =~ $BRANCH-[0-9]+\.[0-9]+ ]]; then
-        CUR_MAJOR=$(echo "$TAG" | awk -F. '{print $1}')
-        CUR_MINOR=$(echo "$TAG" | awk -F. '{print $2}')
+      if [[ -n $(echo "$TAG" | grep -E "$BRANCH-[0-9]+\.[0-9]+") ]]; then
+        VERSION=$(echo "$TAG" | sed "s/$BRANCH-//")
+        CUR_MAJOR=$(echo "$VERSION" | awk -F. '{print $1}')
+        CUR_MINOR=$(echo "$VERSION" | awk -F. '{print $2}')
+        echo "$CUR_MINOR"
+        echo "$CUR_MAJOR"
         if [[ "$MAJOR" = "$CUR_MAJOR" && "$MINOR" -lt "$CUR_MINOR" ]]; then
           MINOR="$CUR_MINOR"
         fi
