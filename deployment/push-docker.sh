@@ -29,22 +29,23 @@ SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
 if [[ $BASE = true ]]; then
   SERVICES="lzy-servant-base $SERVICES"
 fi
-CUSTOM_TAG=$1
+BRANCH=$1
+CUSTOM_TAG=$2
 
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
-    docker build -t lzy-servant-base -t lzydock/lzy-servant-base:master -f lzy-servant/BaseDockerfile .
+    docker build -t lzy-servant-base -t "lzydock/lzy-servant-base:master" -f lzy-servant/BaseDockerfile .
   fi
   mvn clean install -DskipTests
-#  docker build -t lzydock/lzy-backoffice-backend:"$CUSTOM_TAG" lzy-backoffice/Dockerfile
-#  docker build -t lzydock/lzy-backoffice-frontend:"$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
+#  docker build -t "lzydock/$BRANCH/lzy-backoffice-backend:$CUSTOM_TAG" lzy-backoffice/Dockerfile
+#  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
 fi
 
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
   if [[ $UPDATE = true ]]; then
     MINOR=-1
-    for TAG in $(wget -q "https://registry.hub.docker.com/v1/repositories/lzydock/$SERVICE/tags" -O - | jq -r '.[].name'); do
+    for TAG in $(wget -q "https://registry.hub.docker.com/v1/repositories/lzydock/$BRANCH/$SERVICE/tags" -O - | jq -r '.[].name'); do
       if [[ "$TAG" =~ [0-9]+\.[0-9]+ ]]; then
         CUR_MAJOR=$(echo "$TAG" | awk -F. '{print $1}')
         CUR_MINOR=$(echo "$TAG" | awk -F. '{print $2}')
@@ -58,9 +59,9 @@ for SERVICE in $SERVICES; do
   else
     TAG="$CUSTOM_TAG"
   fi
-  echo "pushing lzydock/$SERVICE:$TAG"
-  docker tag "$SERVICE" "lzydock/$SERVICE:$TAG"
-  docker push "lzydock/$SERVICE:$TAG"
+  echo "pushing lzydock/$BRANCH/$SERVICE:$TAG"
+  docker tag "$SERVICE" "lzydock/$BRANCH/$SERVICE:$TAG"
+  docker push "lzydock/$BRANCH/$SERVICE:$TAG"
   echo ""
 done
 
