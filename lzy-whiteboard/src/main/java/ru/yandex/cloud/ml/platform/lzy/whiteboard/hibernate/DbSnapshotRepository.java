@@ -10,7 +10,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
@@ -20,10 +24,14 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus.State;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotExecution;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.EntryDependenciesModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.ExecutionModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.InputArgModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.OutputArgModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardModel;
@@ -318,6 +326,68 @@ public class DbSnapshotRepository implements SnapshotRepository {
             } catch (Exception e) {
                 tx.rollback();
                 throw e;
+            }
+        }
+    }
+
+    @Override
+    public List<SnapshotExecution> findExecutions(String name, String snapshotId) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            CriteriaBuilder cb = session.getCriteriaBuilder();
+
+            CriteriaQuery<ExecutionModel> query = cb.createQuery(ExecutionModel.class);
+            Root<ExecutionModel> root = query.from(ExecutionModel.class);
+            query.select(root)
+                .where(cb.and(
+                    cb.equal(root.get("name"), name),
+                    cb.equal(root.get("snapshotId"), snapshotId)
+                ));
+            return session.createQuery(query).getResultList().stream().map(t ->
+                    new SnapshotExecution.SnapshotExecutionImpl(
+                        t.name(),
+                        t.snapshotId(),
+                        t.outputArgs().map(
+                            arg -> new SnapshotExecution.ExecutionArgImpl(
+                                arg.name(), t.snapshotId(), arg.entryId()
+                            )
+                        ).collect(Collectors.toList()),
+                        t.inputArgs().map(
+                            arg -> new SnapshotExecution.InputExecutionArgImpl(
+                                arg.name(), t.snapshotId(), arg.entryId(), arg.hash()
+                            )
+                        ).collect(Collectors.toList())
+                    )
+                ).collect(Collectors.toList());
+        }
+    }
+
+    @Override
+    public void saveExecution(SnapshotExecution execution) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                ExecutionModel executionModel = new ExecutionModel(
+                    execution.snapshotId(), execution.name());
+                Integer executionId = (Integer) session.save(executionModel);
+                execution.inputArgs()
+                    .map(arg -> new InputArgModel(
+                        execution.snapshotId(),
+                        arg.entryId(),
+                        executionId,
+                        arg.name(),
+                        arg.hash()
+                    )).forEach(session::save);
+                execution.outputArgs()
+                    .map(arg -> new OutputArgModel(
+                        execution.snapshotId(),
+                        arg.entryId(),
+                        executionId,
+                        arg.name()
+                    )).forEach(session::save);
+                tx.commit();
+            } catch (Exception e) {
+                tx.rollback();
+                throw new RuntimeException(e);
             }
         }
     }

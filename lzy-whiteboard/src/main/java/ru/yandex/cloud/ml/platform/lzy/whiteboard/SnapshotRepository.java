@@ -2,10 +2,12 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 
 import java.net.URI;
 import java.util.List;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotExecution;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 
 
@@ -36,4 +38,8 @@ public interface SnapshotRepository {
 
     @Nullable
     SnapshotStatus lastSnapshot(String workflowName, String uid);
+
+    List<SnapshotExecution> findExecutions(String name, String snapshot);
+
+    void saveExecution(SnapshotExecution execution);
 }

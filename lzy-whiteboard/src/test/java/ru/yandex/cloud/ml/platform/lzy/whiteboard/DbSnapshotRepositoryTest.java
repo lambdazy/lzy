@@ -10,23 +10,32 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionArg;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionArg;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotExecution;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbSnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbWhiteboardRepository;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
 public class DbSnapshotRepositoryTest {
 
@@ -309,5 +318,92 @@ public class DbSnapshotRepositoryTest {
             implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString());
         Assert.assertNotNull(snapshot);
         Assert.assertEquals(snapshot.snapshot().id().toString(), snapshotIdCreated);
+    }
+
+    @Test
+    public void testSnapshotExecution() {
+        Snapshot snapshot =
+            new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
+        implSnapshotRepository.create(snapshot);
+
+        SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
+        implSnapshotRepository.prepare(firstEntry, storageUri, List.of(entryIdSecond, entryIdThird));
+        implSnapshotRepository.commit(firstEntry, false);
+
+        SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
+        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
+        implSnapshotRepository.commit(secondEntry, false);
+
+        SnapshotEntry thirdEntry = new SnapshotEntry.Impl(entryIdThird, snapshot);
+        implSnapshotRepository.prepare(thirdEntry, storageUri, Collections.emptyList());
+        implSnapshotRepository.commit(thirdEntry, false);
+
+        List<InputExecutionArg> inputs1 = new ArrayList<>();
+        List<ExecutionArg> outputs1 = new ArrayList<>();
+        SnapshotExecution exec1 = new SnapshotExecution.SnapshotExecutionImpl(
+            "exec",
+            snapshotId,
+            outputs1,
+            inputs1
+        );
+        inputs1.addAll(List.of(
+            new SnapshotExecution.InputExecutionArgImpl("arg1", snapshotId, firstEntry.id(), "arg1"),
+            new SnapshotExecution.InputExecutionArgImpl("arg2", snapshotId, secondEntry.id(), "arg2")
+        ));
+        outputs1.add(new SnapshotExecution.ExecutionArgImpl("return", snapshotId,
+            thirdEntry.id()));
+        implSnapshotRepository.saveExecution(exec1);
+
+        List<InputExecutionArg> inputs2 = new ArrayList<>();
+        List<ExecutionArg> outputs2 = new ArrayList<>();
+        SnapshotExecution exec2 = new SnapshotExecution.SnapshotExecutionImpl(
+            "exec",
+            snapshotId,
+            outputs2,
+            inputs2
+        );
+        inputs2.addAll(List.of(
+            new SnapshotExecution.InputExecutionArgImpl("arg1", snapshotId, firstEntry.id(), "arg1")
+        ));
+        outputs2.add(new SnapshotExecution.ExecutionArgImpl("return", snapshotId,
+            secondEntry.id()));
+        implSnapshotRepository.saveExecution(exec2);
+
+        List<SnapshotExecution> execs = implSnapshotRepository.findExecutions("exec", snapshotId);
+
+        Assert.assertEquals(execs.size(), 2);
+        Assert.assertTrue(
+            execs.stream().allMatch(
+                exec -> exec.name().equals("exec") && exec.snapshotId().equals(snapshotId)
+            )
+        );
+
+
+        SnapshotExecution outExec1 = execs.get(0);
+        SnapshotExecution outExec2 = execs.get(1);
+
+        List<LzyWhiteboard.ResolveExecutionCommand.ArgDescription> secondInputs1 = List.of(
+            LzyWhiteboard.ResolveExecutionCommand.ArgDescription.newBuilder()
+                .setName("arg1")
+                .setEntryId(firstEntry.id())
+                .build(),
+            LzyWhiteboard.ResolveExecutionCommand.ArgDescription.newBuilder()
+                .setName("arg2")
+                .setHash("arg2")
+                .build()
+        );
+
+        List<LzyWhiteboard.ResolveExecutionCommand.ArgDescription> secondInputs2 = List.of(
+            LzyWhiteboard.ResolveExecutionCommand.ArgDescription.newBuilder()
+                .setName("arg1")
+                .setEntryId(firstEntry.id())
+                .build()
+        );
+
+        Assert.assertTrue(SnapshotApi.mathInputArgs(outExec1, secondInputs1));
+        Assert.assertTrue(SnapshotApi.mathInputArgs(outExec2, secondInputs2));
+
+        Assert.assertFalse(SnapshotApi.mathInputArgs(outExec1, secondInputs2));
+        Assert.assertFalse(SnapshotApi.mathInputArgs(outExec2, secondInputs1));
     }
 }

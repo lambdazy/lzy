@@ -19,9 +19,12 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.LocalModule;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionArg;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionArg;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotExecution;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
@@ -105,6 +108,25 @@ public abstract class GrpcConverter {
 
     public static Date from(Timestamp date) {
         return Date.from(Instant.ofEpochSecond(date.getSeconds(), date.getNanos()));
+    }
+
+    public static SnapshotExecution from(LzyWhiteboard.ExecutionDescription description) {
+        ArrayList<ExecutionArg> outputs = new ArrayList<>();
+        ArrayList<InputExecutionArg> inputs = new ArrayList<>();
+        SnapshotExecution execution = new SnapshotExecution.SnapshotExecutionImpl(
+            description.getName(),
+            description.getSnapshotId(),
+            outputs,
+            inputs
+        );
+        description.getOutputList().stream().map(arg ->
+            new SnapshotExecution.ExecutionArgImpl(arg.getName(), execution.snapshotId(), arg.getEntryId())
+        ).forEach(outputs::add);
+        description.getInputList().stream().map(arg ->
+            new SnapshotExecution.InputExecutionArgImpl(arg.getName(), execution.snapshotId(),
+                arg.getEntryId(), arg.getHash())
+        ).forEach(inputs::add);
+        return execution;
     }
 
     public static DataSchema contentTypeFrom(String contentTypeJson) {
@@ -297,6 +319,26 @@ public abstract class GrpcConverter {
             default:
                 throw new IllegalArgumentException("Unknown state: " + state);
         }
+    }
+
+    public static LzyWhiteboard.ExecutionDescription to(SnapshotExecution execution) {
+        return LzyWhiteboard.ExecutionDescription.newBuilder()
+            .setName(execution.name())
+            .setSnapshotId(execution.snapshotId())
+            .addAllInput(execution.inputArgs().map(
+                arg -> LzyWhiteboard.InputArgDescription.newBuilder()
+                    .setEntryId(arg.entryId())
+                    .setName(arg.name())
+                    .setHash(arg.hash())
+                    .build()
+            ).collect(Collectors.toList()))
+            .addAllOutput(execution.outputArgs().map(
+                arg -> LzyWhiteboard.OutputArgDescription.newBuilder()
+                    .setEntryId(arg.entryId())
+                    .setName(arg.name())
+                    .build()
+            ).collect(Collectors.toList()))
+            .build();
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {

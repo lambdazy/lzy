@@ -2,21 +2,31 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard.api;
 
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionArg;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotExecution;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
@@ -224,5 +234,46 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         LOG.info("SnapshotApi::entryStatus status: " + JsonUtils.printRequest(resp));
         responseObserver.onNext(resp);
         responseObserver.onCompleted();
+    }
+
+    @Override
+    public void saveOperation(LzyWhiteboard.SaveExecutionCommand request,
+                              StreamObserver<LzyWhiteboard.SaveExecutionResponse> responseObserver) {
+        SnapshotExecution execution = GrpcConverter.from(request.getDescription());
+        repository.saveExecution(execution);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void resolveOperation(LzyWhiteboard.ResolveExecutionCommand request,
+                                 StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver) {
+        List<SnapshotExecution> executions = repository.findExecutions(request.getName(), request.getSnapshotId());
+        List<LzyWhiteboard.ExecutionDescription> exec = executions.stream().filter(
+            execution -> mathInputArgs(execution, request.getArgsList())
+        ).map(GrpcConverter::to)
+            .collect(Collectors.toList());
+        responseObserver
+            .onNext(LzyWhiteboard.ResolveExecutionResponse.newBuilder().addAllExecution(exec).build());
+        responseObserver.onCompleted();
+    }
+
+    public static boolean mathInputArgs(
+        SnapshotExecution execution,
+        List<LzyWhiteboard.ResolveExecutionCommand.ArgDescription> inputs
+    ) {
+        HashMap<String, InputExecutionArg> argsMap = new HashMap<>();
+        execution.inputArgs().forEach(arg -> argsMap.put(arg.name(), arg));
+        final boolean allMath = inputs.stream()
+            .allMatch(arg -> {
+                if (!argsMap.containsKey(arg.getName())) {
+                    return false;
+                }
+                InputExecutionArg executionArg = argsMap.get(arg.getName());
+                if (arg.hasEntryId()) {
+                    return executionArg.entryId().equals(arg.getEntryId());
+                }
+                return executionArg.hash().equals(arg.getHash());
+            });
+        return allMath && inputs.size() == argsMap.size();
     }
 }
