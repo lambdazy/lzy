@@ -2,7 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard;
 
 import java.net.URI;
 import java.util.List;
-import javax.annotation.Nullable;
+import java.util.Optional;
+import javax.validation.constraints.NotNull;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
@@ -11,29 +12,30 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 
 public interface SnapshotRepository {
 
-    SnapshotStatus create(Snapshot snapshot);
+    @NotNull
+    SnapshotStatus create(@NotNull Snapshot snapshot) throws IllegalArgumentException;
 
-    SnapshotStatus createFromSnapshot(String fromSnapshotId, Snapshot snapshot);
+    @NotNull
+    SnapshotStatus createFromSnapshot(@NotNull String fromSnapshotId, @NotNull Snapshot snapshot)
+        throws IllegalArgumentException;
 
-    @Nullable
-    SnapshotStatus resolveSnapshot(URI id);
+    Optional<SnapshotStatus> resolveSnapshot(@NotNull URI id);
 
-    void finalize(Snapshot snapshot);
+    void finalize(@NotNull Snapshot snapshot) throws IllegalArgumentException;
 
-    void error(Snapshot snapshot);
+    void error(@NotNull Snapshot snapshot) throws IllegalArgumentException;
 
-    SnapshotEntry createEntry(Snapshot snapshot, String id);
+    @NotNull
+    SnapshotEntry createEntry(@NotNull Snapshot snapshot, @NotNull String id);
 
-    void prepare(SnapshotEntry entry, String storage, List<String> dependentEntryIds);
+    void prepare(@NotNull SnapshotEntry entry, @NotNull String storage, @NotNull List<String> dependentEntryIds)
+        throws IllegalArgumentException;
 
-    void commit(SnapshotEntry entry, boolean empty);
+    void commit(@NotNull SnapshotEntry entry, boolean empty) throws IllegalArgumentException;
 
-    @Nullable
-    SnapshotEntry resolveEntry(Snapshot snapshot, String id);
+    Optional<SnapshotEntry> resolveEntry(@NotNull Snapshot snapshot, @NotNull String id);
 
-    @Nullable
-    SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id);
+    Optional<SnapshotEntryStatus> resolveEntryStatus(@NotNull Snapshot snapshot, @NotNull String id);
 
-    @Nullable
-    SnapshotStatus lastSnapshot(String workflowName, String uid);
+    Optional<SnapshotStatus> lastSnapshot(@NotNull String workflowName, @NotNull String uid);
 }

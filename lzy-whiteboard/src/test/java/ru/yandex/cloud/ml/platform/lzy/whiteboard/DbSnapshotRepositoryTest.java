@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.After;
 import org.junit.Assert;
@@ -72,8 +73,10 @@ public class DbSnapshotRepositoryTest {
         Snapshot snapshot =
             new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(snapshot);
-        SnapshotStatus snapshotResolved = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
-        Assert.assertNotNull(snapshotResolved);
+        Optional<SnapshotStatus> snapshotResolvedOptional =
+            implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
+        Assert.assertTrue(snapshotResolvedOptional.isPresent());
+        SnapshotStatus snapshotResolved = snapshotResolvedOptional.get();
         Assert.assertEquals(State.CREATED, snapshotResolved.state());
         Assert.assertEquals(snapshotOwner, snapshotResolved.snapshot().uid());
         Assert.assertEquals(creationDateUTC, snapshotResolved.snapshot().creationDateUTC());
@@ -100,28 +103,33 @@ public class DbSnapshotRepositoryTest {
             new Snapshot.Impl(URI.create(childSnapshotId), snapshotOwner, childCreationDateUTC, workflowName, null);
         implSnapshotRepository.createFromSnapshot(snapshotId, childSnapshot);
 
-        SnapshotStatus snapshotResolved = implSnapshotRepository.resolveSnapshot(URI.create(childSnapshotId));
-        Assert.assertNotNull(snapshotResolved);
+        Optional<SnapshotStatus> snapshotResolvedOptional =
+            implSnapshotRepository.resolveSnapshot(URI.create(childSnapshotId));
+        Assert.assertTrue(snapshotResolvedOptional.isPresent());
+        SnapshotStatus snapshotResolved = snapshotResolvedOptional.get();
         Assert.assertEquals(State.CREATED, snapshotResolved.state());
         Assert.assertEquals(snapshotOwner, snapshotResolved.snapshot().uid());
         Assert.assertEquals(childCreationDateUTC, snapshotResolved.snapshot().creationDateUTC());
         Assert.assertEquals(workflowName, snapshotResolved.snapshot().workflowName());
 
-        SnapshotEntryStatus firstEntryStatus = implSnapshotRepository.resolveEntryStatus(childSnapshot, entryIdFirst);
-        Assert.assertNotNull(firstEntryStatus);
+        Optional<SnapshotEntryStatus> firstEntryStatusOptional =
+            implSnapshotRepository.resolveEntryStatus(childSnapshot, entryIdFirst);
+        Assert.assertTrue(firstEntryStatusOptional.isPresent());
+        SnapshotEntryStatus firstEntryStatus = firstEntryStatusOptional.get();
         Assert.assertEquals(FINISHED, firstEntryStatus.status());
         Assert.assertEquals(storageUri, Objects.requireNonNull(firstEntryStatus.storage()).toString());
         Assert.assertFalse(firstEntryStatus.empty());
 
-        SnapshotEntryStatus secondEntryStatus = implSnapshotRepository.resolveEntryStatus(childSnapshot, entryIdSecond);
-        Assert.assertNull(secondEntryStatus);
+        Optional<SnapshotEntryStatus> secondEntryStatusOptional =
+            implSnapshotRepository.resolveEntryStatus(childSnapshot, entryIdSecond);
+        Assert.assertTrue(secondEntryStatusOptional.isEmpty());
     }
 
     @Test
     public void testResolveSnapshotNull() {
-        SnapshotStatus snapshotStatus =
+        Optional<SnapshotStatus> snapshotStatus =
             implSnapshotRepository.resolveSnapshot(URI.create(UUID.randomUUID().toString()));
-        Assert.assertNull(snapshotStatus);
+        Assert.assertFalse(snapshotStatus.isPresent());
     }
 
     @Test
@@ -144,8 +152,9 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
         implSnapshotRepository.commit(secondEntry, false);
         implSnapshotRepository.finalize(snapshot);
-        SnapshotStatus status = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
-        Assert.assertNotNull(status);
+        Optional<SnapshotStatus> statusOptional = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
+        Assert.assertTrue(statusOptional.isPresent());
+        SnapshotStatus status = statusOptional.get();
         Assert.assertEquals(SnapshotStatus.State.ERRORED, status.state());
     }
 
@@ -163,8 +172,9 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
         implSnapshotRepository.commit(secondEntry, false);
         implSnapshotRepository.finalize(snapshot);
-        SnapshotStatus status = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
-        Assert.assertNotNull(status);
+        Optional<SnapshotStatus> statusOptional = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
+        Assert.assertTrue(statusOptional.isPresent());
+        SnapshotStatus status = statusOptional.get();
         Assert.assertEquals(FINALIZED, status.state());
     }
 
@@ -182,8 +192,9 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
         implSnapshotRepository.commit(secondEntry, false);
         implSnapshotRepository.finalize(snapshot);
-        SnapshotStatus status = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
-        Assert.assertNotNull(status);
+        Optional<SnapshotStatus> statusOptional = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
+        Assert.assertTrue(statusOptional.isPresent());
+        SnapshotStatus status = statusOptional.get();
         Assert.assertEquals(SnapshotStatus.State.ERRORED, status.state());
     }
 
@@ -211,7 +222,10 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.error(snapshot);
         WhiteboardStatus firstWhiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdFirst));
         WhiteboardStatus secondWhiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdSecond));
-        SnapshotStatus snapshotStatus = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
+        Optional<SnapshotStatus> snapshotStatusOptional =
+            implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
+        Assert.assertTrue(snapshotStatusOptional.isPresent());
+        SnapshotStatus snapshotStatus = snapshotStatusOptional.get();
         Assert.assertNotNull(snapshotStatus);
         Assert.assertEquals(State.ERRORED, snapshotStatus.state());
         Assert.assertNotNull(firstWhiteboard);
@@ -235,10 +249,10 @@ public class DbSnapshotRepositoryTest {
 
     @Test
     public void testResolveEntryNotFound() {
-        Assert.assertNull(
+        Assert.assertTrue(
             implSnapshotRepository.resolveEntry(
                 new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null),
-                entryIdFirst));
+                entryIdFirst).isEmpty());
     }
 
     @Test
@@ -261,10 +275,11 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.prepare(thirdEntry, storageUri, Collections.emptyList());
         implSnapshotRepository.commit(thirdEntry, false);
 
-        SnapshotEntryStatus snapshotEntryStatus = implSnapshotRepository.resolveEntryStatus(
+        Optional<SnapshotEntryStatus> snapshotEntryStatusOptional = implSnapshotRepository.resolveEntryStatus(
             new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null), entryIdFirst
         );
-        Assert.assertNotNull(snapshotEntryStatus);
+        Assert.assertTrue(snapshotEntryStatusOptional.isPresent());
+        SnapshotEntryStatus snapshotEntryStatus = snapshotEntryStatusOptional.get();
         Assert.assertEquals(snapshotId, snapshotEntryStatus.entry().snapshot().id().toString());
         Assert.assertEquals(entryIdFirst, snapshotEntryStatus.entry().id());
         Assert.assertNotNull(snapshotEntryStatus.storage());
@@ -297,9 +312,9 @@ public class DbSnapshotRepositoryTest {
                 workflowName, null);
         implSnapshotRepository.create(snapshotCreated);
 
-        SnapshotStatus snapshot = implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString());
-        Assert.assertNotNull(snapshot);
-        Assert.assertEquals(snapshot.snapshot().id().toString(), snapshotIdCreated);
+        Optional<SnapshotStatus> snapshot = implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString());
+        Assert.assertTrue(snapshot.isPresent());
+        Assert.assertEquals(snapshot.get().snapshot().id().toString(), snapshotIdCreated);
     }
 
     @Test
@@ -317,9 +332,9 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.create(snapshotFinalizedDifferentOwner);
         implSnapshotRepository.finalize(snapshotFinalizedDifferentOwner);
 
-        SnapshotStatus snapshot =
+        Optional<SnapshotStatus> snapshot =
             implSnapshotRepository.lastSnapshot(workflowName, snapshotOwner.toString());
-        Assert.assertNotNull(snapshot);
-        Assert.assertEquals(snapshot.snapshot().id().toString(), snapshotIdCreated);
+        Assert.assertTrue(snapshot.isPresent());
+        Assert.assertEquals(snapshot.get().snapshot().id().toString(), snapshotIdCreated);
     }
 }
