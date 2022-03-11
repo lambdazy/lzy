@@ -154,5 +154,7 @@ public class PyApiTest extends LzyBaseTest {
 
         Assert.assertTrue(result.stdout().contains("Could not create WhiteboardWithLzyMessageFields because of a missing field"));
         Assert.assertFalse(result.stdout().contains("Could create WhiteboardWithLzyMessageFields"));
+
+        Assert.assertTrue(result.stdout().contains("Value a in DefaultWhiteboard is 7, b length is 3, c is Hello"));
     }
 }

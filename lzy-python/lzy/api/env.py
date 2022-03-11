@@ -14,7 +14,7 @@ from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 from lzy.api.utils import zipdir, fileobj_hash
 from lzy.api.storage.storage_client import StorageClient, from_credentials
-from lzy.api.whiteboard import check_whiteboard, wrap_whiteboard, wrap_whiteboard_for_read
+from lzy.api.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
 from lzy.api.whiteboard.model import (
     InMemSnapshotApi,
     InMemWhiteboardApi,
@@ -27,7 +27,7 @@ from lzy.api.whiteboard.model import (
 from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.servant_client import ServantClient, CredentialsTypes
+from lzy.servant.servant_client import ServantClient, CredentialsTypes, ServantClientMock
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -100,7 +100,7 @@ class WhiteboardExecutionContext:
         self.whiteboard = whiteboard
 
     @property
-    def snapshot_id(self) -> Optional[str]:
+    def snapshot_id(self) -> str:
         if self._snapshot_id is not None:
             return self._snapshot_id
         self._snapshot_id = self.snapshot_api.create().snapshot_id
@@ -115,8 +115,6 @@ class WhiteboardExecutionContext:
             return None
 
         snapshot_id = self.snapshot_id
-        if snapshot_id is None:
-            raise RuntimeError("Cannot create snapshot")
 
         fields = dataclasses.fields(self.whiteboard)
         self._whiteboard_id = self.whiteboard_api.create(
@@ -190,6 +188,7 @@ class LzyWorkflowBase(ABC):
             self,
             whiteboard_api: WhiteboardApi,
             snapshot_api: SnapshotApi,
+            servant_client: ServantClient,
             name: str,
             eager: bool = False,
             whiteboard: Any = None,
@@ -198,20 +197,22 @@ class LzyWorkflowBase(ABC):
         self._execution_context = WhiteboardExecutionContext(
             whiteboard_api, snapshot_api, whiteboard
         )
+        self._ops: List[LzyOp] = []
+        self._buses = list(buses or [])
+        self._eager = eager
+        self._name = name
+        self._log = logging.getLogger(str(self.__class__))
+        self._servant_client = servant_client
 
         if self._execution_context.whiteboard is not None:
             check_whiteboard(whiteboard)
             wrap_whiteboard(
                 self._execution_context.whiteboard,
                 self._execution_context.whiteboard_api,
+                self._servant_client,
                 self.whiteboard_id,
+                self.snapshot_id()
             )
-
-        self._ops: List[LzyOp] = []
-        self._buses = list(buses or [])
-        self._eager = eager
-        self._name = name
-        self._log = logging.getLogger(str(self.__class__))
 
     def register_op(self, lzy_op: LzyOp) -> None:
         self._ops.append(lzy_op)
@@ -221,7 +222,7 @@ class LzyWorkflowBase(ABC):
     def whiteboard_id(self) -> Optional[str]:
         return self._execution_context.whiteboard_id
 
-    def snapshot_id(self) -> Optional[str]:
+    def snapshot_id(self) -> str:
         return self._execution_context.snapshot_id
 
     def registered_ops(self) -> Iterable[LzyOp]:
@@ -256,6 +257,13 @@ class LzyWorkflowBase(ABC):
         try:
             self.run()
             context = self._execution_context
+            whiteboard = context.whiteboard
+            if whiteboard is not None:
+                fields = dataclasses.fields(whiteboard)
+                for field in fields:
+                    if field.name not in whiteboard.__lzy_fields_assigned__:
+                        value = getattr(whiteboard, field.name)
+                        setattr(whiteboard, field.name, value)
             # pylint: disable=protected-access
             # noinspection PyProtectedMember
             if context._snapshot_id is not None:
@@ -304,6 +312,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             name=name,
             whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
             snapshot_api=SnapshotBashApi(lzy_mount),
+            servant_client=self._servant_client,
             eager=eager,
             whiteboard=whiteboard,
             buses=buses
@@ -368,6 +377,7 @@ class LzyLocalWorkflow(LzyWorkflowBase):
             name=name,
             whiteboard_api=InMemWhiteboardApi(),
             snapshot_api=InMemSnapshotApi(),
+            servant_client=ServantClientMock(),
             eager=eager,
             whiteboard=whiteboard,
             buses=buses

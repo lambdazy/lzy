@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Mapping, Optional
+from lzy.api.whiteboard.credentials import AmazonCredentials
 
 from lzy.api.whiteboard.credentials import (
     # AzureCredentials,
@@ -94,3 +94,32 @@ class ServantClient(ABC):
 
     def _zygote_path(self, zygote: Zygote) -> str:
         return f"{self.mount()}/bin/{zygote.name}"
+
+
+class ServantClientMock(ServantClient):
+    def mount(self) -> Path:
+        pass
+
+    def get_slot_path(self, slot: Slot) -> Path:
+        pass
+
+    def create_channel(self, channel: Channel):
+        pass
+
+    def destroy_channel(self, channel: Channel):
+        pass
+
+    def touch(self, slot: Slot, channel: Channel):
+        pass
+
+    def publish(self, zygote: Zygote):
+        pass
+
+    def run(self, execution_id: str, zygote: Zygote, bindings: Bindings) -> Execution:
+        pass
+
+    def get_credentials(self, typ: CredentialsTypes, bucket: str) -> StorageCredentials:
+        return AmazonCredentials("", "", "")
+
+    def get_bucket(self) -> str:
+        return "bucket"
