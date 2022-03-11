@@ -11,7 +11,7 @@ on:
 jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
   acceptance-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
