@@ -156,4 +156,5 @@ module "lzy_common" {
   ssl-keystore-password             = var.ssl-keystore-password
   servant-image                     = var.servant-image
   s3-separated-per-bucket           = var.s3-separated-per-bucket
+  base-env-default-image            = var.base-env-default-image
 }

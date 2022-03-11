@@ -8,7 +8,7 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConstant;
+import ru.yandex.cloud.ml.platform.lzy.model.Constants;
 
 public class SessionIdInterceptor implements ServerInterceptor {
 
@@ -22,7 +22,7 @@ public class SessionIdInterceptor implements ServerInterceptor {
     ) {
         LOG.debug("headers received from client:" + requestHeaders);
         final Context ctx = Context.current().withValue(
-            GrpcConstant.SESSION_ID_CTX_KEY, requestHeaders.get(GrpcConstant.SESSION_ID_METADATA_KEY)
+            Constants.SESSION_ID_CTX_KEY, requestHeaders.get(Constants.SESSION_ID_METADATA_KEY)
         );
         return Contexts.interceptCall(ctx, call, requestHeaders, next);
     }

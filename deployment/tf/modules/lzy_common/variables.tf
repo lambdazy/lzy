@@ -84,6 +84,11 @@ variable "whiteboard-image" {
   default = "lzydock/lzy-whiteboard:master"
 }
 
+variable "base-env-default-image" {
+  type    = string
+  default = "lzydock/default-env:master"
+}
+
 variable "s3-bucket-name" {
   type    = string
   default = "lzy-bucket"

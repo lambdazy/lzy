@@ -25,7 +25,7 @@
         <commons.version>1.4.9</commons.version>
         <junit.version>4.13.1</junit.version>
         <testng.version>7.3.0</testng.version>
-        <testcontainers.version>1.16.3</testcontainers.version>
+        <testcontainers.version>1.16.2</testcontainers.version>
         <com.amazonaws.awsjavasdk.version>1.11.638</com.amazonaws.awsjavasdk.version>
         <s3mock_2.12.version>0.2.4</s3mock_2.12.version>
         <cloud-java.version>20794-7b8a0e7689</cloud-java.version>
@@ -113,6 +113,7 @@
         <checkstyle-maven-plugin.version>3.1.2</checkstyle-maven-plugin.version>
         <checkstyle.version>9.3</checkstyle.version>
 
+        <docker.java.version>3.2.12</docker.java.version>
         <!-- maven docker plugin -->
         <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
     </properties>
@@ -749,6 +750,11 @@
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-core</artifactId>
                 <version>${aws-java-sdk-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java</artifactId>
+                <version>${docker.java.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.kafka</groupId>

@@ -3,7 +3,6 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
