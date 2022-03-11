@@ -122,6 +122,10 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <resources>
@@ -253,7 +257,7 @@
                             <alias>dockerfile</alias>
                             <build>
                                 <contextDir>${project.basedir}/../</contextDir>
-                                <dockerFile>${project.basedir}/Dockerfile</dockerFile>
+                                <dockerFile>${project.basedir}/docker/System.Dockerfile</dockerFile>
                                 <noCache>true</noCache>
                                 <imagePullPolicy>IfNotPresent</imagePullPolicy>
                             </build>

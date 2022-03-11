@@ -1,23 +1,35 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local.task;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallbackTemplate;
+import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.model.Bind;
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.PortBinding;
+import com.github.dockerjava.api.model.Ports.Binding;
+import com.github.dockerjava.api.model.Volume;
+import com.github.dockerjava.core.DockerClientBuilder;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.FixedHostPortGenericContainer;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.containers.output.WaitingConsumer;
-import org.testcontainers.shaded.org.apache.commons.lang.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 
 public class LocalDockerTask extends LocalTask {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LocalDockerTask.class);
+
+    private static final Logger LOG = LoggerFactory.getLogger(LocalDockerTask.class);
+    private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
 
     public LocalDockerTask(
         String owner,
@@ -32,46 +44,103 @@ public class LocalDockerTask extends LocalTask {
     }
 
     @Override
-    protected void runServantAndWaitFor(String serverHost, int serverPort, String servantHost, int servantPort,
-        UUID tid, String token) {
-        final String updatedServerHost =
-            SystemUtils.IS_OS_LINUX ? serverHost : serverHost.replace("localhost", "host.docker.internal");
+    protected void runServantAndWaitFor(
+        String serverHost,
+        int serverPort,
+        String servantHost,
+        int servantPort,
+        UUID tid,
+        String token
+    ) {
+        final String updatedServerHost = SystemUtils.IS_OS_LINUX ? serverHost
+            : serverHost.replace("localhost", "host.docker.internal");
         final String internalHost = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
-        LOGGER.info("Servant s3 service endpoint id " + System.getenv("SERVICE_ENDPOINT"));
+        LOG.info("Servant s3 service endpoint id {}", System.getenv("SERVICE_ENDPOINT"));
         final String uuid = UUID.randomUUID().toString().substring(0, 5);
         final int debugPort = FreePortFinder.find(5000, 6000);
-        //noinspection deprecation
-        final FixedHostPortGenericContainer<?> base = new FixedHostPortGenericContainer<>("lzy-servant")
-            .withPrivilegedMode(
-                true) //it is not necessary to use privileged mode for FUSE, but is is easier for testing
-            .withEnv("LZYTASK", tid.toString())
-            .withEnv("LZYTOKEN", token)
-            .withEnv("LOG_FILE", "/var/log/servant/servant_start_" + uuid)
-            .withEnv("DEBUG_PORT", Integer.toString(debugPort))
-            .withEnv("SUSPEND_DOCKER", "n")
-            .withEnv("BUCKET_NAME", bucket())
-            //.withFileSystemBind("/var/log/servant/", "/var/log/servant/")
-            .withEnv("LZYWHITEBOARD", System.getenv("SERVER_WHITEBOARD_URL"))
-            .withCommand("--lzy-address " + updatedServerHost + ":" + serverPort + " "
+        LOG.info("Found port for servant {}", debugPort);
+
+        final HostConfig hostConfig = new HostConfig();
+        hostConfig
+            .withPrivileged(true)
+            .withBinds(
+                new Bind(LOGS_DIR + "servant/", new Volume(LOGS_DIR + "servant/")),
+                new Bind("/tmp/resources/", new Volume("/tmp/resources/"))
+            )
+            .withPortBindings(
+                new PortBinding(Binding.bindPort(debugPort), ExposedPort.tcp(debugPort)),
+                new PortBinding(Binding.bindPort(servantPort), ExposedPort.tcp(servantPort)))
+            .withPublishAllPorts(true);
+
+        if (SystemUtils.IS_OS_LINUX) {
+            hostConfig.withNetworkMode("host");
+        }
+
+        final CreateContainerResponse container = DOCKER.createContainerCmd("lzy-servant")
+            .withAttachStdout(true)
+            .withAttachStderr(true)
+            .withEnv(
+                "LZYTASK=" + tid.toString(),
+                "LZYTOKEN=" + token,
+                "LOG_FILE=" + LOGS_DIR + "servant/servant_start_" + uuid,
+                "DEBUG_PORT=" + Integer.toString(debugPort),
+                "SUSPEND_DOCKER=" + "n",
+                "LZYWHITEBOARD=" + System.getenv("SERVER_WHITEBOARD_URL"),
+                "BUCKET_NAME=" + bucket(),
+                "ACCESS_KEY=" + System.getenv("ACCESS_KEY"),
+                "SECRET_KEY=" + System.getenv("SECRET_KEY"),
+                "REGION=" + System.getenv("REGION"),
+                "SERVICE_ENDPOINT=" + System.getenv("SERVICE_ENDPOINT"),
+                "PATH_STYLE_ACCESS_ENABLED=" + System.getenv("PATH_STYLE_ACCESS_ENABLED"),
+                "USE_S3_PROXY=" + String.valueOf(Objects.equals(System.getenv("USE_S3_PROXY"), "true")),
+                "S3_PROXY_PROVIDER=" + System.getenv("S3_PROXY_PROVIDER"),
+                "S3_PROXY_IDENTITY=" + System.getenv("S3_PROXY_IDENTITY"),
+                "S3_PROXY_CREDENTIALS=" + System.getenv("S3_PROXY_CREDENTIALS"),
+                "BASE_ENV_DEFAULT_IMAGE=" + System.getenv("BASE_ENV_DEFAULT_IMAGE")
+            )
+            .withExposedPorts(ExposedPort.tcp(debugPort), ExposedPort.tcp(servantPort))
+            .withHostConfig(hostConfig)
+            .withCmd(("--lzy-address " + updatedServerHost + ":" + serverPort + " "
                 + "--host localhost "
                 + "--internal-host " + internalHost + " "
                 + "--port " + servantPort + " "
-                + "--lzy-mount /tmp/lzy");
+                + "--lzy-mount /tmp/lzy").split(" "))
+            .exec();
+        LOG.info("Created servant container id = {}", container.getId());
 
-        final GenericContainer<?> servantContainer;
-        if (SystemUtils.IS_OS_LINUX) {
-            servantContainer = base.withNetworkMode("host");
-        } else {
-            servantContainer = base
-                .withFixedExposedPort(servantPort, servantPort)
-                .withFixedExposedPort(debugPort, debugPort) //to attach debugger
-                .withExposedPorts(servantPort, debugPort);
+        final var attach = DOCKER.attachContainerCmd(container.getId())
+            .withFollowStream(true).withStdErr(true).withStdOut(true)
+            .exec(new ResultCallbackTemplate<>() {
+                @Override
+                public void onNext(Frame item) {
+                    switch (item.getStreamType()) {
+                        case STDOUT:
+                            LOG.info(new String(item.getPayload(), StandardCharsets.UTF_8));
+                            break;
+                        case STDERR:
+                            LOG.error(new String(item.getPayload(), StandardCharsets.UTF_8));
+                            break;
+                        default:
+                            LOG.info("Got frame "
+                                + new String(item.getPayload(), StandardCharsets.UTF_8)
+                                + " from unknown stream type "
+                                + item.getStreamType());
+                    }
+                }
+            });
+
+        LOG.info("Starting servant container with id={}", container.getId());
+        DOCKER.startContainerCmd(container.getId()).exec();
+        LOG.info("Started servant container with id={}", container.getId());
+
+        try {
+            attach.awaitCompletion();
+        } catch (InterruptedException e) {
+            LOG.error("Servant container with id=" + container.getId() + " was interrupted");
+        } finally {
+            LOG.info("Removing servant container with id={} ...", container.getId());
+            DOCKER.removeContainerCmd(container.getId()).withForce(true).exec();
+            LOG.info("Removing servant container with id={} done", container.getId());
         }
-        servantContainer.start();
-
-        final WaitingConsumer waitingConsumer = new WaitingConsumer();
-        servantContainer.followOutput(waitingConsumer);
-        servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
-        waitingConsumer.waitUntilEnd();
     }
 }

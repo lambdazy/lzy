@@ -48,6 +48,7 @@ public class KuberTask extends BaseTask {
             Objects.requireNonNull(pod.getMetadata());
 
             boolean metricLogged = false;
+            String prevPhase = null;
             while (true) {
                 //noinspection BusyWait
                 Thread.sleep(2000); // sleep for 2 second
@@ -60,7 +61,7 @@ public class KuberTask extends BaseTask {
                     "app=lzy-servant",
                     Integer.MAX_VALUE,
                     null,
-                    null,
+                     null,
                     Boolean.FALSE
                 );
                 String podName = pod.getMetadata().getName();
@@ -74,9 +75,13 @@ public class KuberTask extends BaseTask {
                     continue;
                 }
                 final String phase = Objects.requireNonNull(queriedPod.get().getStatus()).getPhase();
-                LOG.info("KuberTask:: {} pod current phase: {}", pod.getMetadata().getName(), phase);
+                if (prevPhase == null || !prevPhase.equals(phase)) {
+                    LOG.info("KuberTask:: {} pod current phase: {}", pod.getMetadata().getName(), phase);
+                    prevPhase = phase;
+                }
                 // TODO: handle "Failed" phase
                 if ("Succeeded".equals(phase) || "Failed".equals(phase)) {
+                    LOG.info("KuberTask:: Servant exited with phase {}", phase);
                     api.deleteNamespacedPod(podName, namespace, null, null, null, null, null, null);
                     break;
                 } else if ("Running".equals(phase)) {

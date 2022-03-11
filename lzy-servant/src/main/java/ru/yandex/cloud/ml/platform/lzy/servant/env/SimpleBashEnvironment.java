@@ -1,16 +1,39 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
-import java.io.IOException;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
-public class SimpleBashEnvironment implements Environment {
+public class SimpleBashEnvironment implements AuxEnvironment {
+    private static final Logger LOG = LogManager.getLogger(SimpleBashEnvironment.class);
+    private final BaseEnvironment baseEnv;
+
+    public SimpleBashEnvironment(BaseEnvironment baseEnv) {
+        this.baseEnv = baseEnv;
+    }
 
     @Override
-    public Process exec(String command) throws LzyExecutionException {
+    public BaseEnvironment base() {
+        return baseEnv;
+    }
+
+    private LzyProcess execInEnv(String command, String[] envp) throws LzyExecutionException {
+        LOG.info("Executing command " + command);
+        String[] bashCmd = new String[]{"bash", "-c", command};
+        return baseEnv.runProcess(bashCmd, envp);
+    }
+
+
+    @Override
+    public LzyProcess runProcess(String... command) throws LzyExecutionException {
+        return runProcess(command, null);
+    }
+
+    @Override
+    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
         try {
-            return Runtime.getRuntime().exec(new String[] {"bash", "-c", command});
-        } catch (IOException e) {
+            return execInEnv(String.join(" ", command), envp);
+        } catch (Exception e) {
             throw new LzyExecutionException(e);
         }
     }

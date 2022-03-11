@@ -13,6 +13,8 @@ import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.AuxEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.BaseEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.LocalModule;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
@@ -53,7 +55,27 @@ public abstract class GrpcConverter {
         return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
     }
 
-    private static Env from(Operations.Env env) {
+    public static Env from(Operations.Env env) {
+        final BaseEnv baseEnv;
+        if (env.hasBaseEnv()) {
+            baseEnv = from(env.getBaseEnv());
+        } else {
+            baseEnv = null;
+        }
+        final AuxEnv auxEnv;
+        if (env.hasAuxEnv()) {
+            auxEnv = from(env.getAuxEnv());
+        } else {
+            auxEnv = null;
+        }
+        return new EnvImpl(baseEnv, auxEnv);
+    }
+
+    public static BaseEnv from(Operations.BaseEnv env) {
+        return new BaseEnvAdapter(env);
+    }
+
+    public static AuxEnv from(Operations.AuxEnv env) {
         if (env.hasPyenv()) {
             return from(env.getPyenv());
         }
@@ -104,9 +126,30 @@ public abstract class GrpcConverter {
 
     public static Operations.Env to(Env env) {
         Operations.Env.Builder builder = Operations.Env.newBuilder();
+        if (env != null) {
+            if (env.baseEnv() != null) {
+                builder.setBaseEnv(to(env.baseEnv()));
+            }
+            if (env.auxEnv() != null) {
+                builder.setAuxEnv(to(env.auxEnv()));
+            }
+        }
+        return builder.build();
+    }
+
+    public static Operations.BaseEnv to(BaseEnv env) {
+        Operations.BaseEnv.Builder builder = Operations.BaseEnv.newBuilder();
+        if (env.name() != null) {
+            builder.setName(env.name());
+        }
+        return builder.build();
+    }
+
+    public static Operations.AuxEnv to(AuxEnv env) {
+        Operations.AuxEnv.Builder builder = Operations.AuxEnv.newBuilder();
         if (env instanceof PythonEnv) {
             builder.setPyenv(to((PythonEnv) env));
-        } // else if (env instanceof DockerEnv) {...}
+        }
         return builder.build();
     }
 
@@ -286,6 +329,12 @@ public abstract class GrpcConverter {
 
         @Override
         public Env env() {
+            /* TODO (lindvv):
+                    Why do we interact with ZygoteAdapter
+                    and construct Env (and other stuff) inside getter
+                    instead of creating new class ZygoteImpl
+                    and constructing Env inside ZygoteImpl constructor?
+             */
             return from(operation.getEnv());
         }
 
@@ -418,6 +467,26 @@ public abstract class GrpcConverter {
         }
     }
 
+    private static class EnvImpl implements Env {
+        private final BaseEnv baseEnv;
+        private final AuxEnv auxEnv;
+
+        public EnvImpl(BaseEnv baseEnv, AuxEnv auxEnv) {
+            this.baseEnv = baseEnv;
+            this.auxEnv = auxEnv;
+        }
+
+        @Override
+        public BaseEnv baseEnv() {
+            return baseEnv;
+        }
+
+        @Override
+        public AuxEnv auxEnv() {
+            return auxEnv;
+        }
+    }
+
     private static class PythonEnvAdapter implements PythonEnv {
 
         private final Operations.PythonEnv env;
@@ -448,6 +517,22 @@ public abstract class GrpcConverter {
         @Override
         public URI uri() {
             return URI.create("conda/" + name());
+        }
+    }
+
+    private static class BaseEnvAdapter implements BaseEnv {
+        private final Operations.BaseEnv env;
+
+        public BaseEnvAdapter(Operations.BaseEnv env) {
+            this.env = env;
+        }
+
+        @Override
+        public String name() {
+            if (env.getName().equals("")) {
+                return null;
+            }
+            return env.getName();
         }
     }
 }

@@ -7,7 +7,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConstant;
+import ru.yandex.cloud.ml.platform.lzy.model.Constants;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc.LzyServerBlockingStub;
@@ -33,7 +33,7 @@ public class TerminalSessionManager {
     }
 
     public TerminalSession getTerminalSessionFromGrpcContext() throws InvalidSessionRequestException {
-        final UUID sessionId = UUID.fromString(GrpcConstant.SESSION_ID_CTX_KEY.get());
+        final UUID sessionId = UUID.fromString(Constants.SESSION_ID_CTX_KEY.get());
         return safeGetSession(sessionId);
     }
 
