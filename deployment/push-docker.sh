@@ -34,14 +34,14 @@ CUSTOM_TAG=$2
 
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
-    docker build -t lzydock/default-env-base:master -f lzy-servant/docker/DefaultEnv.Base.Dockerfile .
-    docker build -t lzydock/default-env:from-tar -f lzy-servant/docker/DefaultEnv.Dockerfile .
-    docker save -o lzy-servant/docker/default-env-image.tar lzydock/default-env:from-tar
-    docker build -t lzy-servant-base -t lzydock/lzy-servant-base:master -f lzy-servant/docker/System.Base.Dockerfile .
+    docker build -t lzydock/default-env-base:master -f lzy-servant/docker/DefaultEnv.Base.Dockerfile . || exit 1
+    docker build -t lzydock/default-env:from-tar -f lzy-servant/docker/DefaultEnv.Dockerfile . || exit 1
+    docker save -o lzy-servant/docker/default-env-image.tar lzydock/default-env:from-tar || exit 1
+    docker build -t lzy-servant-base -t lzydock/lzy-servant-base:master -f lzy-servant/docker/System.Base.Dockerfile . || exit 1
   fi
-  mvn clean install -DskipTests
-#  docker build -t "lzydock/$BRANCH/lzy-backoffice-backend:$CUSTOM_TAG" lzy-backoffice/Dockerfile
-#  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
+  mvn clean install -DskipTests || exit 1
+#  docker build -t "lzydock/$BRANCH/lzy-backoffice-backend:$CUSTOM_TAG" lzy-backoffice/Dockerfile || exit 1
+#  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile || exit 1
 fi
 
 for SERVICE in $SERVICES; do
@@ -57,7 +57,7 @@ for SERVICE in $SERVICES; do
           MINOR="$CUR_MINOR"
         fi
       fi
-    done
+    done || exit 1
     MINOR=$((MINOR + 1))
     TAG="$MAJOR.$MINOR"
   else
@@ -65,10 +65,10 @@ for SERVICE in $SERVICES; do
   fi
   NEW_TAG="lzydock/$SERVICE:$BRANCH-$TAG"
   echo "pushing $NEW_TAG"
-  docker tag "$SERVICE" "$NEW_TAG"
-  docker push "$NEW_TAG"
+  docker tag "$SERVICE" "$NEW_TAG" || exit 1
+  docker push "$NEW_TAG" || exit 1
   echo ""
 done
 
-#docker push lzydock/lzy-backoffice-backend:"$CUSTOM_TAG"
-#docker push lzydock/lzy-backoffice-frontend:"$CUSTOM_TAG"
+#docker push lzydock/lzy-backoffice-backend:"$CUSTOM_TAG" || exit 1
+#docker push lzydock/lzy-backoffice-frontend:"$CUSTOM_TAG" || exit 1
