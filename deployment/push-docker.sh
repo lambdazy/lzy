@@ -27,15 +27,15 @@ done
 
 SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
 if [[ $BASE = true ]]; then
-  SERVICES="lzy-servant-base $SERVICES"
+  SERVICES="default-env-base default-env lzy-servant-base $SERVICES"
 fi
 BRANCH=$(echo "$1" | awk '{print tolower($0)}')
 CUSTOM_TAG=$2
 
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
-    docker build -t lzydock/default-env-base:master -f lzy-servant/docker/DefaultEnv.Base.Dockerfile . || exit 1
-    docker build -t lzydock/default-env:from-tar -f lzy-servant/docker/DefaultEnv.Dockerfile . || exit 1
+    docker build -t default-env-base -t lzydock/default-env-base:master -f lzy-servant/docker/DefaultEnv.Base.Dockerfile . || exit 1
+    docker build -t default-env -t lzydock/default-env:from-tar -f lzy-servant/docker/DefaultEnv.Dockerfile . || exit 1
     docker save -o lzy-servant/docker/default-env-image.tar lzydock/default-env:from-tar || exit 1
     docker build -t lzy-servant-base -t lzydock/lzy-servant-base:master -f lzy-servant/docker/System.Base.Dockerfile . || exit 1
   fi
