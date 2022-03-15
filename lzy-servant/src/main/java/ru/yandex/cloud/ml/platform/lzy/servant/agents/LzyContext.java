@@ -43,10 +43,9 @@ import ru.yandex.cloud.ml.platform.lzy.servant.slots.LzySlotBase;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.OutFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.WriterSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextConcluded;
@@ -64,14 +63,14 @@ public class LzyContext {
     private final LockManager lockManager = new LocalLockManager();
     private final Snapshotter snapshotter;
     private final String contextId;
-    private final SnapshotStorage storage;
+    private final StorageClient storage;
     private final URI servantUri;
     private final List<Consumer<Servant.ContextProgress>> listeners = new ArrayList<>();
     private String arguments = "";
     private Environment env;
 
     public LzyContext(
-        String contextId, Snapshotter snapshotter, URI servantUri, SnapshotStorage storage
+        String contextId, Snapshotter snapshotter, URI servantUri, StorageClient storage
     ) {
         this.contextId = contextId;
         stdinSlot = new WriterSlot(contextId, new TextLinesInSlot("/dev/stdin"), snapshotter);

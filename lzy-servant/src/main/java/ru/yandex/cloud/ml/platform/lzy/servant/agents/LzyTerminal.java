@@ -22,7 +22,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
@@ -46,7 +46,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private final String sessionId = UUID.randomUUID().toString();
     private final String bucket;
     private final Lzy.GetS3CredentialsResponse credentials;
-    private final SnapshotStorage storage;
+    private final StorageClient storage;
     private CommandHandler commandHandler;
 
     public LzyTerminal(LzyAgentConfig config) throws URISyntaxException {
@@ -77,7 +77,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
             .build();
         snapshotApi = SnapshotApiGrpc.newBlockingStub(snapshotChannel);
-        storage = SnapshotStorage.create(credentials);
+        storage = StorageClient.create(credentials);
     }
 
     @Override

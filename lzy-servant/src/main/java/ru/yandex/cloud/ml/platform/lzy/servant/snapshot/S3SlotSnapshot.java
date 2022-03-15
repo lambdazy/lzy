@@ -2,24 +2,19 @@ package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
-import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
-import ru.yandex.qe.s3.transfer.download.DownloadRequest;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
@@ -28,7 +23,7 @@ import ru.yandex.qe.s3.util.function.ThrowingConsumer;
 
 public class S3SlotSnapshot implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
-    private final SnapshotStorage storage;
+    private final StorageClient storage;
 
     private final String taskId;
     private final String bucket;
@@ -37,7 +32,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
     private final AtomicBoolean nonEmpty = new AtomicBoolean(false);
     private StreamsWrapper slotStream = null;
 
-    public S3SlotSnapshot(String taskId, String bucket, Slot slot, SnapshotStorage storage) {
+    public S3SlotSnapshot(String taskId, String bucket, Slot slot, StorageClient storage) {
         this.bucket = bucket;
         this.taskId = taskId;
         this.slot = slot;

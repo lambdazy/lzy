@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage;
+package ru.yandex.cloud.ml.platform.lzy.servant.storage;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -14,13 +14,13 @@ import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
-public class AmazonSnapshotStorage implements SnapshotStorage {
+public class AmazonStorageClient implements StorageClient {
 
-    private static final Logger LOG = LogManager.getLogger(AzureSnapshotStorage.class);
+    private static final Logger LOG = LogManager.getLogger(AzureStorageClient.class);
     private final AmazonS3 client;
     private final Transmitter transmitter;
 
-    public AmazonSnapshotStorage(String accessToken, String secretToken, URI endpoint, String transmitterName,
+    public AmazonStorageClient(String accessToken, String secretToken, URI endpoint, String transmitterName,
                                  int downloadsPoolSize, int chunksPoolSize) {
         BasicAWSCredentials credentials = new BasicAWSCredentials(accessToken, secretToken);
         client = AmazonS3ClientBuilder.standard()
@@ -36,7 +36,7 @@ public class AmazonSnapshotStorage implements SnapshotStorage {
             chunksPoolSize);
     }
 
-    public AmazonSnapshotStorage(Lzy.AmazonCredentials credentials, String transmitterName, int downloadsPoolSize,
+    public AmazonStorageClient(Lzy.AmazonCredentials credentials, String transmitterName, int downloadsPoolSize,
                                  int chunksPoolSize) {
         this(credentials.getAccessToken(), credentials.getSecretToken(), URI.create(credentials.getEndpoint()),
             transmitterName, downloadsPoolSize, chunksPoolSize);

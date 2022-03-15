@@ -5,14 +5,13 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 
 public class EnvironmentFactory {
 
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
 
-    public static Environment create(Env env, SnapshotStorage storage)
+    public static Environment create(Env env, StorageClient storage)
         throws EnvironmentInstallationException {
         final String resourcesPathStr = "/tmp/resources/";
 

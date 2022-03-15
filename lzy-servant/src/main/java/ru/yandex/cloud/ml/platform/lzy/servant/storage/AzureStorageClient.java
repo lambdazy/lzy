@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage;
+package ru.yandex.cloud.ml.platform.lzy.servant.storage;
 
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
@@ -12,25 +12,25 @@ import ru.yandex.cloud.ml.platform.lzy.azure.blobstorage.AzureTransmitterFactory
 import ru.yandex.qe.s3.transfer.Transmitter;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
-public class AzureSnapshotStorage implements SnapshotStorage {
+public class AzureStorageClient implements StorageClient {
 
-    private static final Logger LOG = LogManager.getLogger(AzureSnapshotStorage.class);
+    private static final Logger LOG = LogManager.getLogger(AzureStorageClient.class);
     private final BlobServiceClient client;
     private final Transmitter transmitter;
 
-    public AzureSnapshotStorage(String connectionString, String transmitterName, int downloadsPoolSize,
+    public AzureStorageClient(String connectionString, String transmitterName, int downloadsPoolSize,
                                 int chunksPoolSize) {
         client = new BlobServiceClientBuilder().connectionString(connectionString).buildClient();
         transmitter = new AzureTransmitterFactory(client).fixedPoolsTransmitter(transmitterName, downloadsPoolSize,
             chunksPoolSize);
     }
 
-    public AzureSnapshotStorage(Lzy.AzureCredentials credentials, String transmitterName, int downloadsPoolSize,
+    public AzureStorageClient(Lzy.AzureCredentials credentials, String transmitterName, int downloadsPoolSize,
                                 int chunksPoolSize) {
         this(credentials.getConnectionString(), transmitterName, downloadsPoolSize, chunksPoolSize);
     }
 
-    public AzureSnapshotStorage(Lzy.AzureSASCredentials credentials, String transmitterName, int downloadsPoolSize,
+    public AzureStorageClient(Lzy.AzureSASCredentials credentials, String transmitterName, int downloadsPoolSize,
                                 int chunksPoolSize) {
         client = new BlobServiceClientBuilder()
             .endpoint(credentials.getEndpoint())

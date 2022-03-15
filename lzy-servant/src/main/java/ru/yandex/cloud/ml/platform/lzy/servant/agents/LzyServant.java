@@ -27,7 +27,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
@@ -48,7 +48,7 @@ public class LzyServant extends LzyAgent {
     private final Server agentServer;
     private final String taskId;
     private final String bucket;
-    private final SnapshotStorage storage;
+    private final StorageClient storage;
     private final GetS3CredentialsResponse credentials;
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
@@ -84,7 +84,7 @@ public class LzyServant extends LzyAgent {
 
         credentials = resp;
 
-        storage = SnapshotStorage.create(resp);
+        storage = StorageClient.create(resp);
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(

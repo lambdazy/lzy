@@ -31,7 +31,8 @@ def load_arg(path: Path, inp_type: Type[T]) -> Any:
 def main():
     argv = sys.argv[1:]
     servant: ServantClient = BashServantClient.instance()
-    sys.path.append("/local_modules")
+    if 'LOCAL_MODULES' in os.environ:
+        sys.path.append(os.environ['LOCAL_MODULES'])
 
     serializer = Serializer()
     print("Loading function")
