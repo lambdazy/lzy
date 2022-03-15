@@ -143,6 +143,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
                     len = stream.read(buffer);
                 }
                 onComplete.run();
+                stream.close();
             }
         );
     }

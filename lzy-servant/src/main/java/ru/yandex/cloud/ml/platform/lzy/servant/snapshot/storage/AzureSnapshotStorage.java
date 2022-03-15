@@ -53,4 +53,16 @@ public class AzureSnapshotStorage implements SnapshotStorage {
             return null;
         }
     }
+
+    @Override
+    public String bucket(URI uri) {
+        Path path = Path.of(uri.getPath());
+        return path.getParent().toString().substring(1);
+    }
+
+    @Override
+    public String key(URI uri) {
+        Path path = Path.of(uri.getPath());
+        return path.getFileName().toString();
+    }
 }

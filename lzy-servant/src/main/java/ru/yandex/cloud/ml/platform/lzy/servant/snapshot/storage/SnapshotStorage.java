@@ -29,4 +29,8 @@ public interface SnapshotStorage {
     Transmitter transmitter();
 
     URI getURI(String bucketName, String key);
+
+    String bucket(URI uri);
+
+    String key(URI uri);
 }

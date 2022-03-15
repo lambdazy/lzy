@@ -1,19 +1,22 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
+import com.google.common.util.concurrent.ListenableFuture;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
-import java.util.ArrayList;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import net.lingala.zip4j.core.ZipFile;
+import net.lingala.zip4j.exception.ZipException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
@@ -21,9 +24,15 @@ import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
+import ru.yandex.qe.s3.transfer.TransferStatus;
+import ru.yandex.qe.s3.transfer.Transmitter;
+import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
+import ru.yandex.qe.s3.transfer.download.DownloadResult;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 public class CondaEnvironment implements AuxEnvironment {
+
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
@@ -60,6 +69,8 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private void installPyenv() throws EnvironmentInstallationException {
         try {
+
+            LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
             final String yamlPath = resourcesPath + "conda.yaml";
             final String yamlBindPath = resourcesPath + "conda.yaml";
 
@@ -85,20 +96,83 @@ public class CondaEnvironment implements AuxEnvironment {
             final int rc = lzyProcess.waitFor();
             if (rc != 0) {
                 String errorMessage = "Failed to update conda env\n"
-                    + "  ReturnCode: " + Integer.toString(rc) + "\n"
+                    + "  ReturnCode: " + rc + "\n"
                     + "  Stdout: " + stdout + "\n\n"
                     + "  Stderr: " + stderr + "\n";
                 LOG.error(errorMessage);
                 throw new EnvironmentInstallationException(errorMessage);
             }
-        } catch (IOException | LzyExecutionException e) {
+            LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
+
+            LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
+            pythonEnv.localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
+            String directoryName = "/local_modules";
+            File directory = new File(directoryName);
+            boolean created = directory.mkdirs();
+            if (!created) {
+                String errorMessage = "Failed to create directory to download local modules into;\n"
+                    + "  Directory name: " + directoryName + "\n";
+                LOG.error(errorMessage);
+                throw new EnvironmentInstallationException(errorMessage);
+            }
+            LOG.info("CondaEnvironment::installPyenv created directory to download local modules into");
+            SnapshotStorage storage = SnapshotStorage.create(credentials);
+            Transmitter transmitter = storage.transmitter();
+            for (var entry : localModules.entrySet()) {
+                String name = entry.getKey();
+                String url = entry.getValue();
+                LOG.info(
+                    "CondaEnvironment::installPyenv installing local module with name " + name + " and url " + url);
+
+                String bucket = storage.bucket(URI.create(url));
+                String key = storage.key(URI.create(url));
+
+                File tempFile = File.createTempFile("tmp-file", ".zip");
+                LOG.info("CondaEnvironment::installPyenv trying to download module from storage");
+                ListenableFuture<DownloadResult<Void>> resultFuture = transmitter.downloadC(
+                    new DownloadRequestBuilder()
+                        .bucket(bucket)
+                        .key(key)
+                        .build(),
+                    data -> {
+                        try (FileOutputStream output = new FileOutputStream(tempFile.getAbsolutePath(), true)) {
+                            byte[] buffer = new byte[4096];
+                            InputStream stream = data.getInputStream();
+                            int len = 0;
+                            while (len != -1) {
+                                output.write(buffer, 0, len);
+                                len = stream.read(buffer);
+                            }
+                            stream.close();
+                        }
+                        try {
+                            LOG.info("CondaEnvironment::installPyenv trying to unzip module archive "
+                                + tempFile.getAbsolutePath());
+                            ZipFile zipFile = new ZipFile(tempFile.getAbsolutePath());
+                            zipFile.extractAll(directoryName);
+                        } catch (ZipException e) {
+                            String errorMessage = "Failed to unzip local module " + name + ": " + e.getMessage();
+                            LOG.error(errorMessage);
+                            throw new EnvironmentInstallationException(errorMessage);
+                        }
+                        tempFile.deleteOnExit();
+                    }
+                );
+                DownloadResult<Void> result = resultFuture.get();
+                if (result.getDownloadState().getTransferStatus() != TransferStatus.DONE) {
+                    String errorMessage = "Failed to unzip local module " + name;
+                    LOG.error(errorMessage);
+                    throw new EnvironmentInstallationException(errorMessage);
+                }
+            }
+        } catch (IOException | LzyExecutionException | ExecutionException | InterruptedException e) {
             throw new EnvironmentInstallationException(e.getMessage());
         }
     }
 
     private LzyProcess execInEnv(String command, String[] envp) throws LzyExecutionException {
         LOG.info("Executing command " + command);
-        String[] bashCmd = new String[]{"bash", "-c", "source /root/miniconda3/etc/profile.d/conda.sh && "
+        String[] bashCmd = new String[] {"bash", "-c", "source /root/miniconda3/etc/profile.d/conda.sh && "
                 + "conda activate " + pythonEnv.name() + " && " + command};
         return baseEnv.runProcess(bashCmd, envp);
     }
@@ -114,25 +188,6 @@ public class CondaEnvironment implements AuxEnvironment {
             .collect(Collectors.toList());
     }
 
-    private List<String> getLocalModules() throws LzyExecutionException {
-        List<String> envList = new ArrayList<>();
-        try {
-            LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
-            pythonEnv.localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
-            envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(localModules));
-            if (credentials.hasAmazon()) {
-                envList.add("AMAZON=" + JsonFormat.printer().print(credentials.getAmazon()));
-            } else if (credentials.hasAzure()) {
-                envList.add("AZURE=" + JsonFormat.printer().print(credentials.getAzure()));
-            } else {
-                envList.add("AZURE_SAS=" + JsonFormat.printer().print(credentials.getAzureSas()));
-            }
-        } catch (JsonProcessingException | InvalidProtocolBufferException e) {
-            throw new LzyExecutionException(e);
-        }
-        return envList;
-    }
-
     @Override
     public LzyProcess runProcess(String... command) throws LzyExecutionException {
         return runProcess(command, null);
@@ -142,7 +197,6 @@ public class CondaEnvironment implements AuxEnvironment {
     public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
         try {
             List<String> envList = getEnvironmentVariables();
-            envList.addAll(getLocalModules());
             if (envp != null) {
                 envList.addAll(Arrays.asList(envp));
             }
