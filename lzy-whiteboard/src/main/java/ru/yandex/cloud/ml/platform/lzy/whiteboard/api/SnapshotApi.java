@@ -24,6 +24,7 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.SimpleAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
@@ -94,11 +95,11 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
                 repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
                     GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName(), null));
             }
-        } catch (IllegalArgumentException e) {
+        } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::createSnapshot: Got exception while creating snapshot {}", e.getMessage());
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
         }
-        LOG.info("SnapshotApi::createSnapshot: Successfully created snapshot");
+        LOG.info("SnapshotApi::createSnapshot: Successfully created snapshot with id {}", snapshotId);
         final LzyWhiteboard.Snapshot result = LzyWhiteboard.Snapshot
             .newBuilder()
             .setSnapshotId(snapshotId.toString())
@@ -131,7 +132,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             repository.prepare(GrpcConverter.from(request.getEntry(), snapshotStatus.get().snapshot()),
                 request.getEntry().getStorageUri(),
                 request.getEntry().getDependentEntryIdsList());
-        } catch (IllegalArgumentException e) {
+        } catch (SnapshotRepositoryException e) {
             LOG.error(
                 "SnapshotApi::prepareToSave: Got exception while preparing to save entry {} to snapshot with id {}: {}",
                 request.getEntry().getEntryId(), request.getSnapshotId(), e.getMessage());
@@ -180,7 +181,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         }
         try {
             repository.commit(entry.get(), request.getEmpty());
-        } catch (IllegalArgumentException e) {
+        } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::commit: Got exception while commiting entry {} to snapshot with id {}: {}",
                 request.getEntryId(), request.getSnapshotId(), e.getMessage());
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
@@ -220,7 +221,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         }
         try {
             repository.finalize(snapshotStatus.get().snapshot());
-        } catch (IllegalArgumentException e) {
+        } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::finalizeSnapshot: Got exception while finalizing snapshot with id {}: {}",
                 request.getSnapshotId(), e.getMessage());
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
@@ -278,20 +279,21 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
                 Status.NOT_FOUND.withDescription("Snapshot " + request.getSnapshotId() + " not found").asException());
             return;
         }
-        Optional<SnapshotEntryStatus> entry =
+        Optional<SnapshotEntryStatus> entryOptional =
             repository.resolveEntryStatus(snapshotStatus.get().snapshot(), request.getEntryId());
-        if (entry.isEmpty()) {
+        if (entryOptional.isEmpty()) {
             LOG.error("SnapshotApi::entryStatus: Entry {} not found", request.getEntryId());
             responseObserver.onError(
                 Status.NOT_FOUND.withDescription("Entry " + request.getEntryId() + " not found").asException());
             return;
         }
+        SnapshotEntryStatus entry = entryOptional.get();
         LzyWhiteboard.EntryStatusResponse.Builder builder = LzyWhiteboard.EntryStatusResponse.newBuilder()
             .setSnapshotId(snapshotStatus.get().snapshot().id().toString())
-            .setEntryId(entry.get().entry().id())
-            .setStatus(LzyWhiteboard.EntryStatusResponse.Status.valueOf(entry.get().status().name()))
-            .setEmpty(entry.get().empty());
-        URI storage = entry.get().storage();
+            .setEntryId(entry.entry().id())
+            .setStatus(LzyWhiteboard.EntryStatusResponse.Status.valueOf(entry.status().name()))
+            .setEmpty(entry.empty());
+        URI storage = entry.storage();
         if (storage != null) {
             builder.setStorageUri(storage.toString());
         }
@@ -323,7 +325,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         SnapshotEntry entry = null;
         try {
             entry = repository.createEntry(snapshotStatus.get().snapshot(), request.getEntryId());
-        } catch (IllegalArgumentException e) {
+        } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::createEntry: Got exception while creating entry {}: {}", request.getEntryId(),
                 e.getMessage());
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());

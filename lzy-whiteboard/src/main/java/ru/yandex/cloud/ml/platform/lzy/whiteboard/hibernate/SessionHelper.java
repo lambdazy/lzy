@@ -184,12 +184,13 @@ public class SessionHelper {
         cr.select(root).where(cb.equal(root.get("snapshotId"), spId));
 
         Query<SnapshotModel> query = session.createQuery(cr);
-        Optional<SnapshotModel> result = query.uniqueResultOptional();
-        if (result.isEmpty()) {
+        Optional<SnapshotModel> resultOptional = query.uniqueResultOptional();
+        if (resultOptional.isEmpty()) {
             return null;
         }
-        return new Snapshot.Impl(URI.create(spId), URI.create(result.get().getUid()), result.get().creationDateUTC(),
-            result.get().workflowName(), result.get().parentSnapshotId());
+        SnapshotModel result = resultOptional.get();
+        return new Snapshot.Impl(URI.create(spId), URI.create(result.getUid()), result.creationDateUTC(),
+            result.workflowName(), result.parentSnapshotId());
     }
 
     public static WhiteboardField getWhiteboardField(WhiteboardFieldModel wbFieldModel,

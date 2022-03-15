@@ -8,30 +8,31 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 
 
 public interface SnapshotRepository {
 
     @NotNull
-    SnapshotStatus create(@NotNull Snapshot snapshot) throws IllegalArgumentException;
+    SnapshotStatus create(@NotNull Snapshot snapshot) throws SnapshotRepositoryException;
 
     @NotNull
     SnapshotStatus createFromSnapshot(@NotNull String fromSnapshotId, @NotNull Snapshot snapshot)
-        throws IllegalArgumentException;
+        throws SnapshotRepositoryException;
 
     Optional<SnapshotStatus> resolveSnapshot(@NotNull URI id);
 
-    void finalize(@NotNull Snapshot snapshot) throws IllegalArgumentException;
+    void finalize(@NotNull Snapshot snapshot) throws SnapshotRepositoryException;
 
-    void error(@NotNull Snapshot snapshot) throws IllegalArgumentException;
+    void error(@NotNull Snapshot snapshot) throws SnapshotRepositoryException;
 
     @NotNull
-    SnapshotEntry createEntry(@NotNull Snapshot snapshot, @NotNull String id);
+    SnapshotEntry createEntry(@NotNull Snapshot snapshot, @NotNull String id) throws SnapshotRepositoryException;
 
     void prepare(@NotNull SnapshotEntry entry, @NotNull String storage, @NotNull List<String> dependentEntryIds)
-        throws IllegalArgumentException;
+        throws SnapshotRepositoryException;
 
-    void commit(@NotNull SnapshotEntry entry, boolean empty) throws IllegalArgumentException;
+    void commit(@NotNull SnapshotEntry entry, boolean empty) throws SnapshotRepositoryException;
 
     Optional<SnapshotEntry> resolveEntry(@NotNull Snapshot snapshot, @NotNull String id);
 

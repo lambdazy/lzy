@@ -23,6 +23,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus.State;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.EntryDependenciesModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotModel;
@@ -38,13 +39,13 @@ public class DbSnapshotRepository implements SnapshotRepository {
     DbStorage storage;
 
     @Override
-    public @NotNull SnapshotStatus create(@NotNull Snapshot snapshot) throws IllegalArgumentException {
+    public @NotNull SnapshotStatus create(@NotNull Snapshot snapshot) throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotStatus = session.find(SnapshotModel.class, snapshotId);
             if (snapshotStatus != null) {
                 LOG.error("Snapshot with id {} already exists", snapshotId);
-                throw new IllegalArgumentException("Snapshot with id " + snapshot.id() + " already exists");
+                throw new SnapshotRepositoryException("Snapshot with id " + snapshot.id() + " already exists");
             }
 
             Transaction tx = session.beginTransaction();
@@ -64,11 +65,11 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
     @Override
     public @NotNull SnapshotStatus createFromSnapshot(@NotNull String fromSnapshotId, @NotNull Snapshot snapshot)
-        throws IllegalArgumentException {
+        throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             SnapshotModel fromSnapshotModel = session.find(SnapshotModel.class, fromSnapshotId);
             if (fromSnapshotModel == null) {
-                throw new IllegalArgumentException("Snapshot with id "
+                throw new SnapshotRepositoryException("Snapshot with id "
                     + fromSnapshotId + " does not exists; snapshot with id "
                     + snapshot.id().toString() + " could not be created"
                 );
@@ -77,7 +78,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
             if (snapshotModel != null) {
-                throw new IllegalArgumentException("Snapshot with id " + snapshotId + " already exists");
+                throw new SnapshotRepositoryException("Snapshot with id " + snapshotId + " already exists");
             }
 
             Transaction tx = session.beginTransaction();
@@ -126,13 +127,13 @@ public class DbSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public void finalize(@NotNull Snapshot snapshot) throws IllegalArgumentException {
+    public void finalize(@NotNull Snapshot snapshot) throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
             if (snapshotModel == null) {
-                throw new IllegalArgumentException(Status.NOT_FOUND.withDescription(
+                throw new SnapshotRepositoryException(Status.NOT_FOUND.withDescription(
                     "Could not find snapshot " + snapshot).asException());
             }
             if (snapshotModel.getSnapshotState() == SnapshotStatus.State.ERRORED) {
@@ -195,13 +196,13 @@ public class DbSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public void error(@NotNull Snapshot snapshot) throws IllegalArgumentException {
+    public void error(@NotNull Snapshot snapshot) throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
             if (snapshotModel == null) {
-                throw new IllegalArgumentException(
+                throw new SnapshotRepositoryException(
                     Status.NOT_FOUND.withDescription("Snapshot with id " + snapshotId + " not found").asException());
             }
             snapshotModel.setSnapshotState(SnapshotStatus.State.ERRORED);
@@ -228,7 +229,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
     @Override
     public void prepare(@NotNull SnapshotEntry entry, @NotNull String storageUri,
         @NotNull List<String> dependentEntryIds)
-        throws IllegalArgumentException {
+        throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = entry.snapshot().id().toString();
@@ -236,7 +237,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
             SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
                 new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
             if (snapshotEntryModel == null) {
-                throw new IllegalArgumentException(
+                throw new SnapshotRepositoryException(
                     "Could not execute command prepare in DbSnapshotRepository because snapshot entry with id "
                         + entryId + " and snapshot id " + snapshotId + " was not found");
             } else {
@@ -297,7 +298,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public void commit(@NotNull SnapshotEntry entry, boolean empty) throws IllegalArgumentException {
+    public void commit(@NotNull SnapshotEntry entry, boolean empty) throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = entry.snapshot().id().toString();
@@ -305,7 +306,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
             SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
                 new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
             if (snapshotEntryModel == null) {
-                throw new IllegalArgumentException(Status.NOT_FOUND.withDescription(
+                throw new SnapshotRepositoryException(Status.NOT_FOUND.withDescription(
                     "DbSnapshotRepository::commit snapshot entry " + entry + " not found").asException());
             }
             snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.FINISHED);
@@ -322,14 +323,14 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
     @Override
     public @NotNull SnapshotEntry createEntry(@NotNull Snapshot snapshot, @NotNull String id)
-        throws IllegalArgumentException {
+        throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {
                 SnapshotEntryModel model = session.find(SnapshotEntryModel.class,
                     new SnapshotEntryModel.SnapshotEntryPk(snapshot.id().toString(), id));
                 if (model != null) {
-                    throw new IllegalArgumentException(
+                    throw new SnapshotRepositoryException(
                         "DbSnapshotRepository::createEntry entry with id " + id + " and snapshot id " + snapshot.id()
                             + " already exists");
                 }

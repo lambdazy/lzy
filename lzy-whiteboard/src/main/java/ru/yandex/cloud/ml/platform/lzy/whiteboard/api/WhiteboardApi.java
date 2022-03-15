@@ -39,6 +39,7 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.auth.SimpleAuthenticator;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.ServerConfig;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
@@ -105,7 +106,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                     GrpcConverter.from(request.getCreationDateUTC())));
             responseObserver.onNext(buildWhiteboard(status));
             responseObserver.onCompleted();
-        } catch (IllegalArgumentException e) {
+        } catch (WhiteboardRepositoryException e) {
             LOG.error("WhiteboardApi::createWhiteboard: Got exception while creating whiteboard {}", e.getMessage());
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
         }
@@ -141,7 +142,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         try {
             whiteboardRepository.update(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry.get(),
                 whiteboardStatus.get().whiteboard()));
-        } catch (IllegalArgumentException e) {
+        } catch (WhiteboardRepositoryException e) {
             LOG.error("WhiteboardApi::link: Got exception while linking {}", e.getMessage());
             responseObserver.onError(
                 Status.NOT_FOUND.withDescription(e.getMessage()).asException());
@@ -197,7 +198,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 request.getWhiteboardId());
             responseObserver.onNext(result);
             responseObserver.onCompleted();
-        } catch (IllegalArgumentException e) {
+        } catch (WhiteboardRepositoryException e) {
             LOG.error("WhiteboardApi::getWhiteboard: Got exception while getting whiteboard with id {}: {}",
                 request.getWhiteboardId(), e.getMessage());
             responseObserver.onError(
@@ -206,12 +207,12 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
     }
 
-    private LzyWhiteboard.Whiteboard buildWhiteboard(WhiteboardStatus wb) throws IllegalArgumentException {
+    private LzyWhiteboard.Whiteboard buildWhiteboard(WhiteboardStatus wb) throws WhiteboardRepositoryException {
         List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(wb.whiteboard())
             .map(field -> {
-                    final List<WhiteboardField> dependent = whiteboardRepository.dependent(field)
+                final List<WhiteboardField> dependent = whiteboardRepository.dependent(field)
                         .collect(Collectors.toList());
-                    final SnapshotEntry entry = field.entry();
+                final SnapshotEntry entry = field.entry();
                     if (entry == null) {
                         return GrpcConverter.to(field, dependent, null);
                     }
@@ -284,7 +285,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 .build();
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-        } catch (IllegalArgumentException e) {
+        } catch (WhiteboardRepositoryException e) {
             LOG.error("WhiteboardApi::whiteboardsList: Got exception while getting list of whiteboards {}",
                 e.getMessage());
             responseObserver.onError(

@@ -21,6 +21,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.Impl;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.WhiteboardRepository;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardTagModel;
@@ -35,14 +36,14 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     DbStorage storage;
 
     @Override
-    public @NotNull WhiteboardStatus create(@NotNull Whiteboard whiteboard) throws IllegalArgumentException {
+    public @NotNull WhiteboardStatus create(@NotNull Whiteboard whiteboard) throws WhiteboardRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String wbId = whiteboard.id().toString();
             WhiteboardModel wbModel = session.find(WhiteboardModel.class, wbId);
             if (wbModel != null) {
                 LOG.error("DbWhiteboardRepository::create whiteboard with id " + wbId + " already exists");
-                throw new IllegalArgumentException("Whiteboard with id " + wbId + " already exists");
+                throw new WhiteboardRepositoryException("Whiteboard with id " + wbId + " already exists");
             }
             wbModel = new WhiteboardModel(
                 wbId, WhiteboardStatus.State.CREATED, whiteboard.snapshot().id().toString(),
@@ -96,14 +97,14 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     }
 
     @Override
-    public void update(WhiteboardField field) throws IllegalArgumentException {
+    public void update(WhiteboardField field) throws WhiteboardRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String wbFieldId = field.whiteboard().id().toString();
             WhiteboardFieldModel wbModel = session.find(WhiteboardFieldModel.class,
                 new WhiteboardFieldModel.WhiteboardFieldPk(wbFieldId, field.name()));
             if (wbModel == null) {
-                throw new IllegalArgumentException("Could not find whiteboard field with id " + wbFieldId);
+                throw new WhiteboardRepositoryException("Could not find whiteboard field with id " + wbFieldId);
             }
             final SnapshotEntry entry = field.entry();
             if (entry != null) {
@@ -120,7 +121,7 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     }
 
     @Override
-    public Stream<WhiteboardField> dependent(WhiteboardField field) throws IllegalArgumentException {
+    public Stream<WhiteboardField> dependent(WhiteboardField field) {
         try (Session session = storage.getSessionFactory().openSession()) {
             String snapshotId = field.whiteboard().snapshot().id().toString();
             Snapshot snapshot = SessionHelper.getSnapshot(snapshotId, session);
@@ -144,12 +145,12 @@ public class DbWhiteboardRepository implements WhiteboardRepository {
     }
 
     @Override
-    public Stream<WhiteboardField> fields(Whiteboard whiteboard) throws IllegalArgumentException {
+    public Stream<WhiteboardField> fields(Whiteboard whiteboard) throws WhiteboardRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             String snapshotId = whiteboard.snapshot().id().toString();
             Snapshot snapshot = SessionHelper.getSnapshot(snapshotId, session);
             if (snapshot == null) {
-                throw new IllegalArgumentException(
+                throw new WhiteboardRepositoryException(
                     "Could not resolve snapshot with id " + snapshotId + " for whiteboard with id " + whiteboard.id());
             }
             List<WhiteboardFieldModel> wbFieldModelList =
