@@ -1,8 +1,8 @@
-package ru.yandex.cloud.ml.platform.lzy.iam.storage;
+package ru.yandex.cloud.ml.platform.lzy.iam.authorization;
 
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthPermission;
 
-public interface PermissionStorage {
+public interface AccessClient {
 
     boolean hasResourcePermission(String userId, String resourceId, AuthPermission permission);
 

@@ -9,6 +9,7 @@ import org.flywaydb.core.Flyway;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import ru.yandex.cloud.ml.platform.lzy.iam.configs.DbConfig;
+import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.models.ResourceBindingModel;
 
 @Singleton
 @Requires(property = "database.url")
@@ -33,7 +34,7 @@ public class DbStorage {
         cfg.setProperty("hibernate.connection.driver_class", "org.postgresql.Driver");
         cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         cfg.setProperty("hibernate.connection.provider_class", "org.hibernate.connection.C3P0ConnectionProvider");
-//        cfg.addAnnotatedClass(UserModel.class);
+        cfg.addAnnotatedClass(ResourceBindingModel.class);
 
         this.sessionFactory = cfg.buildSessionFactory();
     }

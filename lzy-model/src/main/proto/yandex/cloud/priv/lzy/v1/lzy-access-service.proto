@@ -13,7 +13,7 @@ service LzyAS {
 }
 
 message AuthorizeRequest {
-  string id = 1;
+  string subject_id = 1;
   string permission = 2;
   Resource resource = 3;
 }

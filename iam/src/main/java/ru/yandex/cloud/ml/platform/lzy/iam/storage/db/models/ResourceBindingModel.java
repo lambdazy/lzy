@@ -1,13 +1,28 @@
 package ru.yandex.cloud.ml.platform.lzy.iam.storage.db.models;
 
+import java.io.Serializable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.IdClass;
 import javax.persistence.Table;
 
 @Entity
 @Table(name = "user_resource_roles")
+@IdClass(ResourceBindingModel.ModelPK.class)
 public class ResourceBindingModel {
 
+    @Column(name = "user_id")
+    @Id
+    private String userId;
+    @Column(name = "resource_id")
+    @Id
+    private String resourceId;
+    @Column(name = "resource_type")
+    private String resourceType;
+    @Column(name = "role")
+    @Id
+    private String role;
 
     public ResourceBindingModel() {
     }
@@ -18,18 +33,6 @@ public class ResourceBindingModel {
         this.resourceType = resourceType;
         this.role = role;
     }
-
-    @Column(name = "user_id")
-    private String userId;
-
-    @Column(name = "resource_id")
-    private String resourceId;
-
-    @Column(name = "resource_type")
-    private String resourceType;
-
-    @Column(name = "role")
-    private String role;
 
     public String userId() {
         return userId;
@@ -61,5 +64,21 @@ public class ResourceBindingModel {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public static class ModelPK implements Serializable {
+
+        String userId;
+        String resourceId;
+        String role;
+
+        public ModelPK() {
+        }
+
+        public ModelPK(String userId, String resourceId, String role) {
+            this.userId = userId;
+            this.resourceId = resourceId;
+            this.role = role;
+        }
     }
 }

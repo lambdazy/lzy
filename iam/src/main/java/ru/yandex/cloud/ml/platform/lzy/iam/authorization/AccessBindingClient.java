@@ -34,6 +34,7 @@ public interface AccessBindingClient {
 
         private final AccessBindingAction action;
         private final AccessBinding binding;
+
         public AccessBindingDelta(AccessBindingAction action, AccessBinding binding) {
             this.action = action;
             this.binding = binding;
