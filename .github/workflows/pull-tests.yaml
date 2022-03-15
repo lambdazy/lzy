@@ -22,6 +22,9 @@ jobs:
         with:
           python-version: '3.8'
 
+      - name: 'clean'
+        run: sudo systemctl restart docker && sudo iptables -t filter -F && sudo iptables -t filter -X
+
       - name: 'java-test'
         timeout-minutes: 45
         run: mvn clean install
