@@ -125,8 +125,6 @@ public class CondaEnvironment implements AuxEnvironment {
             }
             LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
 
-            LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
-            pythonEnv.localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
             File directory = new File(localModulesDirectoryAbsolutePath());
             boolean created = directory.mkdirs();
             if (!created) {
@@ -137,9 +135,9 @@ public class CondaEnvironment implements AuxEnvironment {
             }
             LOG.info("CondaEnvironment::installPyenv created directory to download local modules into");
             Transmitter transmitter = storage.transmitter();
-            for (var entry : localModules.entrySet()) {
-                String name = entry.getKey();
-                String url = entry.getValue();
+            for (var entry : pythonEnv.localModules()) {
+                String name = entry.name();
+                String url = entry.uri();
                 LOG.info(
                     "CondaEnvironment::installPyenv installing local module with name " + name + " and url " + url);
 
