@@ -25,6 +25,9 @@ jobs:
           PRIVATE_KEY: ${{ secrets.TESTS_PRIVATE_SSH_KEY }}
         run: touch /tmp/test-private.pem && echo "$PRIVATE_KEY" > /tmp/test-private.pem
 
+      - name: 'Clean'
+        run: sudo systemctl restart docker && sudo iptables -t filter -F && sudo iptables -t filter -X
+
       - name: 'AC test'
         timeout-minutes: 45
         run: mvn install -Dlzy.kharon.domain=api.lzy.ai -Dtest=KuberRunTest -DfailIfNoTests=false
