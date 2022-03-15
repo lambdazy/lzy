@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -202,7 +203,16 @@ public class DockerEnvironment implements BaseEnvironment {
             String cachedImageName = "lzydock/default-env:from-tar";
             String loadImageCmd = "docker load -i default-env-image.tar";
             try {
-                Runtime.getRuntime().exec(new String[] {"bash", "-c", loadImageCmd}).waitFor();
+                Process loadImageProcess = Runtime.getRuntime().exec(new String[] {"bash", "-c", loadImageCmd});
+                loadImageProcess.waitFor();
+                int exitCode = loadImageProcess.exitValue();
+                if (exitCode != 0) {
+                    String errorMessage = "Failed to load image " + cachedImageName + " from tar, "
+                        + "exit code: " + exitCode + ", "
+                        + "stderr:\n" + IOUtils.toString(loadImageProcess.getErrorStream()) + "\n";
+                    LOG.error(errorMessage);
+                    throw new EnvironmentInstallationException(errorMessage);
+                }
             } catch (InterruptedException | IOException e) {
                 LOG.error("Failed to load image {} from tar", cachedImageName);
                 throw new EnvironmentInstallationException(e);
