@@ -76,9 +76,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     @Override
     public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
         StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        LOG.info("Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("WhiteboardApi::createWhiteboard: Received request {} ", JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("Permission denied for credentials {} ",
+            LOG.error("WhiteboardApi::createWhiteboard: Permission denied for credentials {} ",
                 JsonUtils.printRequest(request));
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied to create whiteboard").asException());
@@ -89,13 +89,13 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         if (snapshotStatus.isEmpty()
             || !Objects.equals(snapshotStatus.get().snapshot().uid().toString(),
             request.getAuth().getUser().getUserId())) {
-            LOG.error("Could not find snapshot with id {} ", request.getSnapshotId());
+            LOG.error("WhiteboardApi::createWhiteboard: Could not find snapshot with id {} ", request.getSnapshotId());
             responseObserver.onError(
                 Status.NOT_FOUND.withDescription("Could not find snapshot with id " + request.getSnapshotId())
                     .asException());
             return;
         }
-        LOG.info("Resolved snapshot: {} ", snapshotStatus);
+        LOG.info("WhiteboardApi::createWhiteboard: Resolved snapshot: {} ", snapshotStatus);
         URI wbId = URI.create(UUID.randomUUID().toString());
         try {
             final WhiteboardStatus status = whiteboardRepository.create(
@@ -106,7 +106,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             responseObserver.onNext(buildWhiteboard(status));
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
-            LOG.error("{} ", e.getMessage());
+            LOG.error("WhiteboardApi::createWhiteboard: Got exception while creating whiteboard {}", e.getMessage());
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
         }
     }
@@ -114,9 +114,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     @Override
     public void link(LzyWhiteboard.LinkCommand request,
         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-        LOG.info("Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("WhiteboardApi::link: Received request {} ", JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("Permission denied for credentials {} ", JsonUtils.printRequest(request));
+            LOG.error("WhiteboardApi::link: Permission denied for credentials {} ", JsonUtils.printRequest(request));
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for link command").asException());
             return;
@@ -134,7 +134,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         Optional<SnapshotEntry> snapshotEntry = snapshotRepository
             .resolveEntry(whiteboardStatus.get().whiteboard().snapshot(), request.getEntryId());
         if (snapshotEntry.isEmpty()) {
-            LOG.info("Could not resolve snapshot entry with id {} ", request.getEntryId());
+            LOG.info("WhiteboardApi::link: Could not resolve snapshot entry with id {} ", request.getEntryId());
             snapshotEntry = Optional.of(
                 new SnapshotEntry.Impl(request.getEntryId(), whiteboardStatus.get().whiteboard().snapshot()));
         }
@@ -142,12 +142,12 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             whiteboardRepository.update(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry.get(),
                 whiteboardStatus.get().whiteboard()));
         } catch (IllegalArgumentException e) {
-            LOG.error(e.getMessage());
+            LOG.error("WhiteboardApi::link: Got exception while linking {}", e.getMessage());
             responseObserver.onError(
                 Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             return;
         }
-        LOG.info("Successfully linked whiteboard field");
+        LOG.info("WhiteboardApi::link: Successfully linked whiteboard field");
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
             .newBuilder()
             .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
@@ -159,9 +159,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     @Override
     public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
         StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        LOG.info("Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("WhiteboardApi::getWhiteboard: Received request {} ", JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("Permission denied for credentials {} ",
+            LOG.error("WhiteboardApi::getWhiteboard: Permission denied for credentials {} ",
                 JsonUtils.printRequest(request));
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for getWhiteboard command").asException());
@@ -172,31 +172,34 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         if (whiteboardStatus.isEmpty()
             || !Objects.equals(whiteboardStatus.get().whiteboard().snapshot().uid().toString(),
             request.getAuth().getUser().getUserId())) {
-            LOG.error("Could not resolve whiteboard with id {} ", request.getWhiteboardId());
+            LOG.error("WhiteboardApi::getWhiteboard: Could not resolve whiteboard with id {} ",
+                request.getWhiteboardId());
             responseObserver.onError(
                 Status.NOT_FOUND.withDescription("Could not resolve whiteboard with id " + request.getWhiteboardId())
                     .asException());
             return;
         }
         if (whiteboardStatus.get().state().equals(State.ERRORED)) {
-            LOG.error("Whiteboard {} is in errored condition", request.getWhiteboardId());
+            LOG.error("WhiteboardApi::getWhiteboard: Whiteboard {} is in errored condition", request.getWhiteboardId());
             responseObserver.onError(
                 Status.UNKNOWN.withDescription("Whiteboard is in errored condition").asException());
             return;
         }
         if (!whiteboardStatus.get().state().equals(State.COMPLETED)) {
-            LOG.error("Whiteboard {} is not completed", request.getWhiteboardId());
+            LOG.error("WhiteboardApi::getWhiteboard: Whiteboard {} is not completed", request.getWhiteboardId());
             responseObserver.onError(
                 Status.FAILED_PRECONDITION.withDescription("Whiteboard is not completed").asException());
             return;
         }
         try {
             final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus.get());
-            LOG.info("Successfully executed get whiteboard command for whiteboard {}", request.getWhiteboardId());
+            LOG.info("WhiteboardApi::getWhiteboard: Successfully executed get whiteboard command for whiteboard {}",
+                request.getWhiteboardId());
             responseObserver.onNext(result);
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
-            LOG.error(e.getMessage());
+            LOG.error("WhiteboardApi::getWhiteboard: Got exception while getting whiteboard with id {}: {}",
+                request.getWhiteboardId(), e.getMessage());
             responseObserver.onError(
                 Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException()
             );
@@ -243,9 +246,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     public void whiteboardsList(
         LzyWhiteboard.WhiteboardsListCommand request,
         StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
-        LOG.info("Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("WhiteboardApi::whiteboardsList: Received request {} ", JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("Permission denied for credentials {} ",
+            LOG.error("WhiteboardApi::whiteboardsList: Permission denied for credentials {} ",
                 JsonUtils.printRequest(request));
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for whiteboardsList command")
@@ -258,11 +261,13 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             .toEpochSecond(ZoneOffset.UTC)));
         if (request.hasFromDateUTC()) {
             fromDate = GrpcConverter.from(request.getFromDateUTC());
-            LOG.info("Parsed date lower bound to {}", new SimpleDateFormat("dd MMMM yyyy zzzz").format(fromDate));
+            LOG.info("WhiteboardApi::whiteboardsList: Parsed date lower bound to {}",
+                new SimpleDateFormat("dd MMMM yyyy zzzz").format(fromDate));
         }
         if (request.hasToDateUTC()) {
             toDate = GrpcConverter.from(request.getToDateUTC());
-            LOG.info("Parsed date upper bound to {}", new SimpleDateFormat("dd MMMM yyyy zzzz").format(toDate));
+            LOG.info("WhiteboardApi::whiteboardsList: Parsed date upper bound to {}",
+                new SimpleDateFormat("dd MMMM yyyy zzzz").format(toDate));
         }
         final List<WhiteboardStatus> whiteboardStatus = whiteboardRepository.resolveWhiteboards(
             resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()),
@@ -273,14 +278,15 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             for (var entry : whiteboardStatus) {
                 result.add(buildWhiteboard(entry));
             }
-            LOG.info("Successfully resolved whiteboard list");
+            LOG.info("WhiteboardApi::whiteboardsList: Successfully resolved whiteboard list");
             final LzyWhiteboard.WhiteboardsResponse response = LzyWhiteboard.WhiteboardsResponse.newBuilder()
                 .addAllWhiteboards(result)
                 .build();
             responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
-            LOG.error(e.getMessage());
+            LOG.error("WhiteboardApi::whiteboardsList: Got exception while getting list of whiteboards {}",
+                e.getMessage());
             responseObserver.onError(
                 Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException()
             );
