@@ -156,8 +156,7 @@ public class LzyServant extends LzyAgent {
             }
             final Snapshotter snapshotter = new SnapshotterImpl(auth, bucket,
                 snapshot, storage, taskId);
-            LzyServant.this.context = new LzyContext(taskId, snapshotter, agentInternalAddress,
-                credentials);
+            LzyServant.this.context = new LzyContext(taskId, snapshotter, agentInternalAddress, storage);
             inContext.set(true);
             LzyServant.this.context.onProgress(progress -> {
                 responseObserver.onNext(progress);

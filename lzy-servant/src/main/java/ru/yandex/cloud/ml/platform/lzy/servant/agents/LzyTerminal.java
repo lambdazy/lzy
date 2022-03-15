@@ -92,7 +92,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
         context = new LzyContext(sessionId,
             new SnapshotterImpl(auth, bucket, snapshotApi, storage, sessionId),
-            agentInternalAddress, credentials);
+            agentInternalAddress, storage);
         inContext.set(true);
         status.set(AgentStatus.EXECUTING);
 

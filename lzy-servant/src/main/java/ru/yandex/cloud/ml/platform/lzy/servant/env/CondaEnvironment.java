@@ -36,18 +36,18 @@ public class CondaEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
-    private final Lzy.GetS3CredentialsResponse credentials;
+    private final SnapshotStorage storage;
     private final String resourcesPath;
 
     public CondaEnvironment(
         PythonEnv pythonEnv,
         BaseEnvironment baseEnv,
-        Lzy.GetS3CredentialsResponse credentials,
+        SnapshotStorage storage,
         String resourcesPath
     ) throws EnvironmentInstallationException {
         this.pythonEnv = pythonEnv;
         this.baseEnv = baseEnv;
-        this.credentials = credentials;
+        this.storage = storage;
         this.resourcesPath = resourcesPath;
 
         final long pyEnvInstallStart = System.currentTimeMillis();
@@ -65,6 +65,24 @@ public class CondaEnvironment implements AuxEnvironment {
     @Override
     public BaseEnvironment base() {
         return baseEnv;
+    }
+
+    private void readToFile(File file, InputStream stream) throws IOException {
+        try (FileOutputStream output = new FileOutputStream(file.getAbsolutePath(), true)) {
+            byte[] buffer = new byte[4096];
+            int len = 0;
+            while (len != -1) {
+                output.write(buffer, 0, len);
+                len = stream.read(buffer);
+            }
+        }
+    }
+
+    private void extractFiles(File file, String destinationDirectory) throws ZipException {
+        LOG.info("CondaEnvironment::extractFiles trying to unzip module archive "
+            + file.getAbsolutePath());
+        ZipFile zipFile = new ZipFile(file.getAbsolutePath());
+        zipFile.extractAll(destinationDirectory);
     }
 
     private void installPyenv() throws EnvironmentInstallationException {
@@ -116,7 +134,6 @@ public class CondaEnvironment implements AuxEnvironment {
                 throw new EnvironmentInstallationException(errorMessage);
             }
             LOG.info("CondaEnvironment::installPyenv created directory to download local modules into");
-            SnapshotStorage storage = SnapshotStorage.create(credentials);
             Transmitter transmitter = storage.transmitter();
             for (var entry : localModules.entrySet()) {
                 String name = entry.getKey();
@@ -135,27 +152,10 @@ public class CondaEnvironment implements AuxEnvironment {
                         .key(key)
                         .build(),
                     data -> {
-                        try (FileOutputStream output = new FileOutputStream(tempFile.getAbsolutePath(), true)) {
-                            byte[] buffer = new byte[4096];
-                            InputStream stream = data.getInputStream();
-                            int len = 0;
-                            while (len != -1) {
-                                output.write(buffer, 0, len);
-                                len = stream.read(buffer);
-                            }
-                            stream.close();
-                        }
-                        try {
-                            LOG.info("CondaEnvironment::installPyenv trying to unzip module archive "
-                                + tempFile.getAbsolutePath());
-                            ZipFile zipFile = new ZipFile(tempFile.getAbsolutePath());
-                            zipFile.extractAll(directoryName);
-                        } catch (ZipException e) {
-                            String errorMessage = "Failed to unzip local module " + name + ": " + e.getMessage();
-                            LOG.error(errorMessage);
-                            throw new EnvironmentInstallationException(errorMessage);
-                        }
-                        tempFile.deleteOnExit();
+                        InputStream stream = data.getInputStream();
+                        readToFile(tempFile, stream);
+                        stream.close();
+                        extractFiles(tempFile, directoryName);
                     }
                 );
                 DownloadResult<Void> result = resultFuture.get();
@@ -164,6 +164,7 @@ public class CondaEnvironment implements AuxEnvironment {
                     LOG.error(errorMessage);
                     throw new EnvironmentInstallationException(errorMessage);
                 }
+                tempFile.deleteOnExit();
             }
         } catch (IOException | LzyExecutionException | ExecutionException | InterruptedException e) {
             throw new EnvironmentInstallationException(e.getMessage());
