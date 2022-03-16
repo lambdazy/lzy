@@ -57,7 +57,7 @@ class CallSignature(Generic[T]):
 
     @property
     def description(self) -> str:
-        return f"{self.func.description}"
+        return self.func.description  # TODO(artolord) Add arguments description here
 
 
 def param_files(func_s: FuncSignature, prefix: Optional[Path] = None) -> Iterator[Path]:

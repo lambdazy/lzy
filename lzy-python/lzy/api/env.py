@@ -254,10 +254,9 @@ class LzyWorkflowBase(ABC):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        if exc_val:
-            return
         try:
-            self.run()
+            if not exc_val:
+                self.run()
             context = self._execution_context
             whiteboard = context.whiteboard
             if whiteboard is not None:
