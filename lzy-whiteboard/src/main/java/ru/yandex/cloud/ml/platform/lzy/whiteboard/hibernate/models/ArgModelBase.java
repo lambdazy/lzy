@@ -7,7 +7,6 @@ import javax.persistence.JoinColumn;
 import javax.persistence.JoinColumns;
 import javax.persistence.ManyToOne;
 import javax.persistence.MappedSuperclass;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionArg;
 
 @MappedSuperclass
 @IdClass(ArgPk.class)

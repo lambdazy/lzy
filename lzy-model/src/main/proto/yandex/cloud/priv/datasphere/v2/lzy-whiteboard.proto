@@ -17,8 +17,8 @@ service SnapshotApi {
   rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
   rpc LastSnapshot (LastSnapshotCommand) returns (Snapshot);
   rpc EntryStatus (EntryStatusCommand) returns (EntryStatusResponse);
-  rpc SaveOperation (SaveExecutionCommand) returns (SaveExecutionResponse);
-  rpc ResolveOperation (ResolveExecutionCommand) returns (ResolveExecutionResponse);
+  rpc SaveExecution (SaveExecutionCommand) returns (SaveExecutionResponse);
+  rpc ResolveExecution (ResolveExecutionCommand) returns (ResolveExecutionResponse);
 }
 
 service WbApi {
@@ -199,7 +199,7 @@ message SaveExecutionResponse {
 
 message ResolveExecutionCommand {
   string snapshotId = 1;
-  string name = 2;
+  string operationName = 2;
   repeated ArgDescription args = 3;
 
   message ArgDescription {

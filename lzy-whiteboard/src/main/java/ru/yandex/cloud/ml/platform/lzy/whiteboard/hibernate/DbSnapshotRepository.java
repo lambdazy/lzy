@@ -19,12 +19,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus.State;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotExecution;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.SnapshotRepository;
@@ -331,7 +331,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public List<SnapshotExecution> findExecutions(String name, String snapshotId) {
+    public Stream<ExecutionSnapshot> executionSnapshots(String name, String snapshotId) {
         try (Session session = storage.getSessionFactory().openSession()) {
             CriteriaBuilder cb = session.getCriteriaBuilder();
 
@@ -343,33 +343,34 @@ public class DbSnapshotRepository implements SnapshotRepository {
                     cb.equal(root.get("snapshotId"), snapshotId)
                 ));
             return session.createQuery(query).getResultList().stream().map(t ->
-                    new SnapshotExecution.SnapshotExecutionImpl(
-                        t.name(),
-                        t.snapshotId(),
-                        t.outputArgs().map(
-                            arg -> new SnapshotExecution.ExecutionArgImpl(
-                                arg.name(), t.snapshotId(), arg.entryId()
-                            )
-                        ).collect(Collectors.toList()),
-                        t.inputArgs().map(
-                            arg -> new SnapshotExecution.InputExecutionArgImpl(
-                                arg.name(), t.snapshotId(), arg.entryId(), arg.hash()
-                            )
-                        ).collect(Collectors.toList())
-                    )
-                ).collect(Collectors.toList());
+                new ExecutionSnapshot.ExecutionSnapshotImpl(
+                    t.name(),
+                    t.snapshotId(),
+                    t.outputs().map(
+                        arg -> new ExecutionSnapshot.ExecutionValueImpl(
+                            arg.name(), t.snapshotId(), arg.entryId()
+                        )
+                    ).collect(Collectors.toList()),
+                    t.inputs().map(
+                        arg -> new ExecutionSnapshot.InputExecutionValueImpl(
+                            arg.name(), t.snapshotId(), arg.entryId(), arg.hash()
+                        )
+                    ).collect(Collectors.toList())
+                )
+            ).collect(Collectors.toList())
+                .stream().map(t -> (ExecutionSnapshot) t);  // We need to copy all values here
         }
     }
 
     @Override
-    public void saveExecution(SnapshotExecution execution) {
+    public void saveExecution(ExecutionSnapshot execution) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {
                 ExecutionModel executionModel = new ExecutionModel(
                     execution.snapshotId(), execution.name());
                 Integer executionId = (Integer) session.save(executionModel);
-                execution.inputArgs()
+                execution.inputs()
                     .map(arg -> new InputArgModel(
                         execution.snapshotId(),
                         arg.entryId(),
@@ -377,7 +378,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
                         arg.name(),
                         arg.hash()
                     )).forEach(session::save);
-                execution.outputArgs()
+                execution.outputs()
                     .map(arg -> new OutputArgModel(
                         execution.snapshotId(),
                         arg.entryId(),

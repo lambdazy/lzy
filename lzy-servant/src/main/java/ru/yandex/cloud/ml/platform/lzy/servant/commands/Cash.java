@@ -48,7 +48,7 @@ public class Cash implements LzyCommand {
                 JsonFormat.parser()
                     .merge(Files.newBufferedReader(Paths.get(command.getArgs()[2])), builder);
 
-                LzyWhiteboard.SaveExecutionResponse resp = snapshot.saveOperation(builder.build());
+                LzyWhiteboard.SaveExecutionResponse resp = snapshot.saveExecution(builder.build());
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
             }
@@ -62,12 +62,12 @@ public class Cash implements LzyCommand {
                 JsonFormat.parser()
                     .merge(Files.newBufferedReader(Paths.get(command.getArgs()[2])), builder);
 
-                LzyWhiteboard.ResolveExecutionResponse resp = snapshot.resolveOperation(builder.build());
+                LzyWhiteboard.ResolveExecutionResponse resp = snapshot.resolveExecution(builder.build());
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
             }
             default: {
-                System.out.println("Wrong credentials type");
+                System.out.println("Wrong command");
                 return -1;
             }
         }

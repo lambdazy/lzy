@@ -213,15 +213,15 @@ public class LzyKharon {
         }
 
         @Override
-        public void saveOperation(LzyWhiteboard.SaveExecutionCommand request,
+        public void saveExecution(LzyWhiteboard.SaveExecutionCommand request,
                                   StreamObserver<LzyWhiteboard.SaveExecutionResponse> responseObserver) {
-            ProxyCall.exec(snapshot::saveOperation, request, responseObserver);
+            ProxyCall.exec(snapshot::saveExecution, request, responseObserver);
         }
 
         @Override
-        public void resolveOperation(LzyWhiteboard.ResolveExecutionCommand request,
+        public void resolveExecution(LzyWhiteboard.ResolveExecutionCommand request,
                                      StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver) {
-            ProxyCall.exec(snapshot::resolveOperation, request, responseObserver);
+            ProxyCall.exec(snapshot::resolveExecution, request, responseObserver);
         }
     }
 

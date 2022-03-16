@@ -12,10 +12,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionArg;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionArg;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotExecution;
 
 @Entity
 @Table(name = "execution")
@@ -38,10 +35,10 @@ public class ExecutionModel {
     private String name;
 
     @OneToMany(mappedBy = "execution")
-    private Set<InputArgModel> inputArgs;
+    private Set<InputArgModel> inputs;
 
     @OneToMany(mappedBy = "execution")
-    private Set<OutputArgModel> outputArgs;
+    private Set<OutputArgModel> outputs;
 
     public ExecutionModel(String snapshotId, String name) {
         this.snapshotId = snapshotId;
@@ -50,7 +47,7 @@ public class ExecutionModel {
 
     public ExecutionModel() {}
 
-    public int getExecutionId() {
+    public int executionId() {
         return executionId;
     }
 
@@ -74,12 +71,12 @@ public class ExecutionModel {
         return name;
     }
 
-    public Stream<OutputArgModel> outputArgs() {
-        return outputArgs.stream();
+    public Stream<OutputArgModel> outputs() {
+        return outputs.stream();
     }
 
-    public Stream<InputArgModel> inputArgs() {
-        return inputArgs.stream();
+    public Stream<InputArgModel> inputs() {
+        return inputs.stream();
     }
 
     public Snapshot snapshot() {
