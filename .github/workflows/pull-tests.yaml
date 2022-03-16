@@ -8,7 +8,8 @@ jobs:
 
   #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
   all-tests:
-    runs-on: self-hosted
+    # runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
