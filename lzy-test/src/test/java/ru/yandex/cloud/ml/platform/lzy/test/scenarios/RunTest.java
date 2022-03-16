@@ -52,6 +52,7 @@ public class RunTest extends LzyBaseTest {
     }
 
     @Test
+    @Ignore
     public void testDockerEcho42() {
         //Arrange
         final FileIOOperation echo42 = new FileIOOperation(
