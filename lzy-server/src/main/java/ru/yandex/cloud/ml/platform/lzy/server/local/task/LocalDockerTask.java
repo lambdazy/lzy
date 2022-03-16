@@ -138,9 +138,11 @@ public class LocalDockerTask extends LocalTask {
         } catch (InterruptedException e) {
             LOG.error("Servant container with id=" + container.getId() + " was interrupted");
         } finally {
-            LOG.info("Removing servant container with id={} ...", container.getId());
+            var containerInfo = DOCKER.inspectContainerCmd(container.getId()).exec();
+            String containerStatus = containerInfo.getState().getStatus();
+            LOG.info("Removing servant container with status={}, id={}", containerStatus, container.getId());
             DOCKER.removeContainerCmd(container.getId()).withForce(true).exec();
-            LOG.info("Removing servant container with id={} done", container.getId());
+            LOG.info("Removed servant container with id={}", container.getId());
         }
     }
 }
