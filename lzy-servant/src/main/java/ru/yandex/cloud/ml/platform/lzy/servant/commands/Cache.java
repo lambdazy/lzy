@@ -16,7 +16,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
-public class Cash implements LzyCommand {
+public class Cache implements LzyCommand {
 
     private static final Options options = new Options();
 
