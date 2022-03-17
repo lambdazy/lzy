@@ -15,11 +15,6 @@ from lzy.api import op, LzyRemoteEnv
 from lzy.api.whiteboard import whiteboard, view
 from some_imported_file import foo
 
-local_modules = [
-    os.path.abspath("lzy-python/tests/scenarios/base_module"),
-    os.path.abspath("lzy-python/tests/scenarios/some_imported_file.py")
-]
-
 '''
 This scenario contains:
     1. Importing local modules
@@ -209,7 +204,7 @@ def fun8(a: MessageClass) -> int:
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
 wb = SimpleWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb, local_module_paths=local_modules):
+with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
     just_print()
     wb.a = fun1()
     wb.b = fun2(wb.a)
@@ -221,19 +216,19 @@ print(wb.a, wb.a)
 print("Len: " + str(len(wb.b)))
 
 wb = AnotherSimpleWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb, local_module_paths=local_modules):
+with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
     wb.a = fun3(3)
     wb.b = fun4(3)
     wb.c = fun5(4)
 
 wb = OneMoreSimpleWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb, local_module_paths=local_modules):
+with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
     wb.a = fun1()
     wb.b = fun2(wb.a)
 
 # Simulate crash before whiteboard is finished
 wb = OneMoreSimpleWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb, local_module_paths=local_modules) as env:
+with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb) as env:
     wb.a = fun1()
     wb.b = fun2(wb.a)
     # noinspection PyProtectedMember
@@ -320,7 +315,7 @@ except TypeError:
     print("Could not create WhiteboardWithLzyMessageFields because of a missing field")
 
 wb = DefaultWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb, local_module_paths=local_modules):
+with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
     wb.a = 7
     wb.b = fun2(fun1())
     wb_id = wb.__id__

@@ -1,9 +1,11 @@
+import os
 from unittest import TestCase
 
 from lzy.api.pkg_info import select_modules
 
 from tests.test_modules.level1.level1 import Level1
 from tests.test_modules.level1.level2_nb import level_foo
+
 
 class ModulesSearchTests(TestCase):
     def test_modules_search(self):
@@ -17,36 +19,28 @@ class ModulesSearchTests(TestCase):
 
         # Assert
         self.assertEqual("echo", level1.echo())
-        module_names = []
-        for module in local:
-            module_names.append(module.__name__)
+        cwd = os.getcwd()
 
-        self.assertEqual(['tests',
-                          'tests.test_modules',
-                          'tests.test_modules.level1',
-                          'tests.test_modules.level1.level2',
-                          'tests.test_modules.level1.level2.level3',
-                          'tests.test_modules.level1.level2.level3.level3',
-                          'tests.test_modules.level1.level2.level2',
-                          'tests.test_modules.level1.level1'
-                         ],
-                         module_names)
+        self.assertTrue(cwd in local)
+        self.assertTrue(cwd + "/test_modules" in local)
+        self.assertTrue(cwd + "/test_modules/level1" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level2" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level2/level3" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level2/level3/level3.py" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level2/level2.py" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level1.py" in local)
         self.assertEqual({"PyYAML", "boto3"}, set(remote.keys()))
 
     def test_modules_search_2(self):
         _, local = select_modules({
             'level_foo': level_foo
         })
-        module_names = []
-        for module in local:
-            module_names.append(module.__name__)
-        self.assertEqual(['tests', 
-                         'tests.test_modules', 
-                         'tests.test_modules.level1', 
-                         'tests.test_modules.level1.level2', 
-                         'tests.test_modules.level1.level2.level3', 
-                         'tests.test_modules.level1.level2.level3.level3', 
-                         'tests.test_modules.level1.level2.level2', 
-                         'tests.test_modules.level1.level2_nb'
-                         ],
-                         module_names)
+        cwd = os.getcwd()
+        self.assertTrue(cwd in local)
+        self.assertTrue(cwd + "/test_modules" in local)
+        self.assertTrue(cwd + "/test_modules/level1" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level2" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level2/level3" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level2/level3/level3.py" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level2/level2.py" in local)
+        self.assertTrue(cwd + "/test_modules/level1/level2_nb" in local)

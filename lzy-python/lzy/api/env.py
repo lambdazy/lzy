@@ -169,13 +169,11 @@ class LzyRemoteEnv(LzyEnvBase):
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
             conda_yaml_path: Optional[Path] = None,
-            local_module_paths: Optional[List[str]] = None,
     ):
         return LzyRemoteWorkflow(
             name=name,
             lzy_mount=self._lzy_mount,
             conda_yaml_path=conda_yaml_path,
-            local_module_paths=local_module_paths,
             restart_policy=restart_policy,
             eager=eager,
             whiteboard=whiteboard,
@@ -278,7 +276,6 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             name: str,
             lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
             conda_yaml_path: Optional[Path] = None,
-            local_module_paths: Optional[List[str]] = None,
             restart_policy: RestartPolicy = RestartPolicy.IGNORE_SNAPSHOTS,
             eager: bool = False,
             whiteboard: Any = None,
@@ -295,10 +292,6 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
 
         credentials = self._servant_client.get_credentials(CredentialsTypes.S3, bucket)
         self._storage_client: StorageClient = from_credentials(credentials)
-        if local_module_paths is None:
-            self._local_module_paths: List[str] = []
-        else:
-            self._local_module_paths = local_module_paths
 
         super().__init__(
             name=name,
@@ -333,16 +326,18 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
     def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._py_env is not None:
             return self._py_env
+
+        local_module_paths = []
         if self._yaml is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
             else:
-                installed, _ = select_modules(namespace)
+                installed, local_module_paths = select_modules(namespace)
                 name, yaml = create_yaml(installed_packages=installed)
 
             local_modules_uploaded = []
 
-            for local_module in self._local_module_paths:
+            for local_module in local_module_paths:
                 with tempfile.NamedTemporaryFile("rb") as archive:
                     if not os.path.isdir(local_module):
                         with zipfile.ZipFile(archive.name, "w") as z:
