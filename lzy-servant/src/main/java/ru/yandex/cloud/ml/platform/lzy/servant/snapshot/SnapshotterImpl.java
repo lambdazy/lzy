@@ -1,15 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
 import java.net.URI;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Context.SlotAssignment;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
@@ -22,7 +17,7 @@ public class SnapshotterImpl implements Snapshotter {
 
     public SnapshotterImpl(IAM.Auth auth, String bucket,
                            SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
-                           SnapshotStorage storage, String sessionId) {
+                           StorageClient storage, String sessionId) {
         this.snapshotApi = snapshotApi;
         this.auth = auth;
         snapshotProvider = new SlotSnapshotProvider.Cached(slot ->
