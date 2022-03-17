@@ -5,13 +5,13 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 
 public class EnvironmentFactory {
 
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
 
-    public static Environment create(Env env, Lzy.GetS3CredentialsResponse credentials)
+    public static Environment create(Env env, StorageClient storage)
         throws EnvironmentInstallationException {
         final String resourcesPathStr = "/tmp/resources/";
 
@@ -30,7 +30,7 @@ public class EnvironmentFactory {
 
         if (env.auxEnv() instanceof PythonEnv) {
             LOG.info("Conda auxEnv provided, using CondaEnvironment");
-            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, credentials, resourcesPathStr);
+            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, storage, resourcesPathStr);
         } else {
             LOG.info("No auxEnv provided, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);

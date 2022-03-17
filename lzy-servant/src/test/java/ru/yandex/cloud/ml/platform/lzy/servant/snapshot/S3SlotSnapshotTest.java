@@ -18,16 +18,16 @@ import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.AmazonSnapshotStorage;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.storage.SnapshotStorage;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.AmazonStorageClient;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 
 public class S3SlotSnapshotTest {
     private static final String SERVICE_ENDPOINT = "http://localhost:8001";
     private static final String BUCKET = "lzy-bucket";
 
     private final S3Mock api = new S3Mock.Builder().withPort(8001).withInMemoryBackend().build();
-    private final SnapshotStorage storage =
-        new AmazonSnapshotStorage("", "", URI.create(SERVICE_ENDPOINT), "transmitter", 10, 10);
+    private final StorageClient storage =
+        new AmazonStorageClient("", "", URI.create(SERVICE_ENDPOINT), "transmitter", 10, 10);
     private final AmazonS3 client = AmazonS3ClientBuilder
         .standard()
         .withPathStyleAccessEnabled(true)
