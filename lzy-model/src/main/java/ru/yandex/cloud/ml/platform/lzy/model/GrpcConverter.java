@@ -19,6 +19,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.LocalModule;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionValue;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionValue;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
@@ -105,6 +108,25 @@ public abstract class GrpcConverter {
 
     public static Date from(Timestamp date) {
         return Date.from(Instant.ofEpochSecond(date.getSeconds(), date.getNanos()));
+    }
+
+    public static ExecutionSnapshot from(LzyWhiteboard.ExecutionDescription description) {
+        ArrayList<ExecutionValue> outputs = new ArrayList<>();
+        ArrayList<InputExecutionValue> inputs = new ArrayList<>();
+        ExecutionSnapshot execution = new ExecutionSnapshot.ExecutionSnapshotImpl(
+            description.getName(),
+            description.getSnapshotId(),
+            outputs,
+            inputs
+        );
+        description.getOutputList().stream().map(arg ->
+            new ExecutionSnapshot.ExecutionValueImpl(arg.getName(), execution.snapshotId(), arg.getEntryId())
+        ).forEach(outputs::add);
+        description.getInputList().stream().map(arg ->
+            new ExecutionSnapshot.InputExecutionValueImpl(arg.getName(), execution.snapshotId(),
+                arg.getEntryId(), arg.getHash())
+        ).forEach(inputs::add);
+        return execution;
     }
 
     public static DataSchema contentTypeFrom(String contentTypeJson) {
@@ -297,6 +319,26 @@ public abstract class GrpcConverter {
             default:
                 throw new IllegalArgumentException("Unknown state: " + state);
         }
+    }
+
+    public static LzyWhiteboard.ExecutionDescription to(ExecutionSnapshot execution) {
+        return LzyWhiteboard.ExecutionDescription.newBuilder()
+            .setName(execution.name())
+            .setSnapshotId(execution.snapshotId())
+            .addAllInput(execution.inputs().map(
+                arg -> LzyWhiteboard.InputArgDescription.newBuilder()
+                    .setEntryId(arg.entryId())
+                    .setName(arg.name())
+                    .setHash(arg.hash())
+                    .build()
+            ).collect(Collectors.toList()))
+            .addAllOutput(execution.outputs().map(
+                arg -> LzyWhiteboard.OutputArgDescription.newBuilder()
+                    .setEntryId(arg.entryId())
+                    .setName(arg.name())
+                    .build()
+            ).collect(Collectors.toList()))
+            .build();
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {
