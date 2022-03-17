@@ -7,13 +7,19 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionValue;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
@@ -49,9 +55,29 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         this.repository = repository;
     }
 
+    public static boolean matchInputArgs(
+        ExecutionSnapshot execution,
+        List<LzyWhiteboard.ResolveExecutionCommand.ArgDescription> inputs
+    ) {
+        HashMap<String, InputExecutionValue> argsMap = new HashMap<>();
+        execution.inputs().forEach(arg -> argsMap.put(arg.name(), arg));
+        final boolean allMatch = inputs.stream()
+            .allMatch(arg -> {
+                if (!argsMap.containsKey(arg.getName())) {
+                    return false;
+                }
+                InputExecutionValue executionArg = argsMap.get(arg.getName());
+                if (arg.hasEntryId()) {
+                    return executionArg.entryId().equals(arg.getEntryId());
+                }
+                return executionArg.hash().equals(arg.getHash());
+            });
+        return allMatch && inputs.size() == argsMap.size();
+    }
+
     @Override
     public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
-        StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+                               StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
         LOG.info("SnapshotApi::createSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -97,7 +123,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void prepareToSave(LzyWhiteboard.PrepareCommand request,
-        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                              StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::prepareToSave " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -122,7 +148,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void commit(LzyWhiteboard.CommitCommand request,
-        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                       StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::commit " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -151,7 +177,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Override
     public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
-        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                                 StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
         LOG.info("SnapshotApi::finalizeSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -172,10 +198,10 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         responseObserver.onNext(status);
         responseObserver.onCompleted();
     }
-  
+
     @Override
     public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
-        StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+                             StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
         LOG.info("SnapshotApi::lastSnapshot " + JsonUtils.printRequest(request));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -223,6 +249,28 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         LzyWhiteboard.EntryStatusResponse resp = builder.build();
         LOG.info("SnapshotApi::entryStatus status: " + JsonUtils.printRequest(resp));
         responseObserver.onNext(resp);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void saveExecution(LzyWhiteboard.SaveExecutionCommand request,
+                              StreamObserver<LzyWhiteboard.SaveExecutionResponse> responseObserver) {
+        ExecutionSnapshot execution = GrpcConverter.from(request.getDescription());
+        repository.saveExecution(execution);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void resolveExecution(LzyWhiteboard.ResolveExecutionCommand request,
+                                 StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver) {
+        Stream<ExecutionSnapshot> executions =
+            repository.executionSnapshots(request.getOperationName(), request.getSnapshotId());
+        List<LzyWhiteboard.ExecutionDescription> exec = executions.filter(
+                execution -> matchInputArgs(execution, request.getArgsList())
+            ).map(GrpcConverter::to)
+            .collect(Collectors.toList());
+        responseObserver
+            .onNext(LzyWhiteboard.ResolveExecutionResponse.newBuilder().addAllExecution(exec).build());
         responseObserver.onCompleted();
     }
 }
