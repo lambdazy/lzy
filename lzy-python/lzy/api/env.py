@@ -24,9 +24,11 @@ from lzy.api.whiteboard.model import (
     WhiteboardDescription,
     WhiteboardFieldStatus
 )
+from lzy.model.channel import ChannelManager
 from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
+from lzy.servant.channel_manager import ServantChannelManager, LocalChannelManager
 from lzy.servant.servant_client import ServantClient, CredentialsTypes, ServantClientMock
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 
@@ -204,16 +206,6 @@ class LzyWorkflowBase(ABC):
         self._log = logging.getLogger(str(self.__class__))
         self._servant_client = servant_client
 
-        if self._execution_context.whiteboard is not None:
-            check_whiteboard(whiteboard)
-            wrap_whiteboard(
-                self._execution_context.whiteboard,
-                self._execution_context.whiteboard_api,
-                self._servant_client,
-                self.whiteboard_id,
-                self.snapshot_id()
-            )
-
     def register_op(self, lzy_op: LzyOp) -> None:
         self._ops.append(lzy_op)
         if self._eager:
@@ -233,7 +225,7 @@ class LzyWorkflowBase(ABC):
     def run(self) -> None:
         assert self.get_active() is not None
         for wrapper in self._ops:
-            wrapper.materialize()
+            wrapper.execute()
 
     @abstractmethod
     def activate(self):
@@ -279,7 +271,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         pass
 
     def deactivate(self):
-        pass
+        self.channel_manager().destroy_all()
 
     def __init__(
             self,
@@ -317,9 +309,26 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             whiteboard=whiteboard,
             buses=buses
         )
+        snapshot_id = self.snapshot_id()
+        if snapshot_id is None:
+            raise ValueError("Cannot get snapshot id")
+        else:
+            self._channel_manager = ServantChannelManager(snapshot_id, self._servant_client)
+
+        if self._execution_context.whiteboard is not None:
+            check_whiteboard(whiteboard)
+            wrap_whiteboard(
+                self._execution_context.whiteboard,
+                self._execution_context.whiteboard_api,
+                self.whiteboard_id,
+                self._channel_manager
+            )
 
     def servant(self) -> Optional[ServantClient]:
         return self._servant_client
+
+    def channel_manager(self) -> ChannelManager:
+        return self._channel_manager
 
     def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._py_env is not None:
@@ -382,3 +391,11 @@ class LzyLocalWorkflow(LzyWorkflowBase):
             whiteboard=whiteboard,
             buses=buses
         )
+        if self._execution_context.whiteboard is not None:
+            check_whiteboard(whiteboard)
+            wrap_whiteboard(
+                self._execution_context.whiteboard,
+                self._execution_context.whiteboard_api,
+                self.whiteboard_id,
+                LocalChannelManager("")
+            )
