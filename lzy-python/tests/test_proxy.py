@@ -109,14 +109,17 @@ class ProxyTests(TestCase):
 
         class LazyOpMock(LzyOp, ABC):
             def __init__(self):
-                super().__init__(CallSignature(FuncSignature(lambda: None, (), None), ()), {}, "return_entry_id")
+                super().__init__(CallSignature(FuncSignature(lambda: None, (), None), ()), "return_entry_id")
 
             def materialize(self) -> Any:
-                a.append("Materialized without any fcking reason")
+                self.execute()
                 return "AAA"
 
             def is_materialized(self) -> bool:
                 return False
+
+            def execute(self):
+                a.append("Materialized without any fcking reason")
 
         mock = LazyOpMock()
         prxy = lazy_proxy(lambda: mock.materialize(), str, {'_op': mock})

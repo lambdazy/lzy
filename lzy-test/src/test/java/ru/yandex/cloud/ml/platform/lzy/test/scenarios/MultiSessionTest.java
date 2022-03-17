@@ -54,10 +54,8 @@ public class MultiSessionTest extends LzyBaseTest {
             terminal2.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
 
         //Assert
-        Assert.assertEquals("Prediction: 1",
-            Utils.lastLine(result1.get().stdout()));
-        Assert.assertEquals("Prediction: 1",
-            Utils.lastLine(result2.get().stdout()));
+        Assert.assertTrue(result1.get().stdout().contains("Prediction: 1"));
+        Assert.assertTrue(result2.get().stdout().contains("Prediction: 1"));
     }
 
     @Test
@@ -76,9 +74,7 @@ public class MultiSessionTest extends LzyBaseTest {
             terminal.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
 
         //Assert
-        Assert.assertEquals("Prediction: 1",
-            Utils.lastLine(result1.get().stdout()));
-        Assert.assertEquals("Prediction: 1",
-            Utils.lastLine(result2.get().stdout()));
+        Assert.assertTrue(result1.get().stdout().contains("Prediction: 1"));
+        Assert.assertTrue(result2.get().stdout().contains("Prediction: 1"));
     }
 }

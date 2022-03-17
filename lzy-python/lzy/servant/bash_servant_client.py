@@ -203,8 +203,8 @@ class BashServantClient(ServantClient):
         )
         with open(slots_mapping_file, "w", encoding=encoding) as file:
             json_bindings = {
-                binding.remote_slot.name: binding.channel.name
-                for binding in bindings.bindings()
+                binding.slot.name: binding.channel.name
+                for binding in bindings
             }
             json.dump(json_bindings, file, indent=3)
 

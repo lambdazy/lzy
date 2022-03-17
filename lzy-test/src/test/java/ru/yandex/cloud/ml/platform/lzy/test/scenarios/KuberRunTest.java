@@ -67,7 +67,7 @@ public class KuberRunTest {
             condaPrefix + pyCommand);
 
         //Assert
-        Assert.assertEquals("Prediction: 1", Utils.lastLine(result.stdout()));
+        Assert.assertTrue(result.stdout().contains("Prediction: 1"));
     }
 
     @Test
