@@ -112,9 +112,15 @@ class TrickDescriptor:
 
 
 def create_and_cache(proxy_cls, callback):
-    if not hasattr(proxy_cls, "_origin"):
-        proxy_cls._origin = callback()  # pylint: disable=protected-access
+    if not hasattr(proxy_cls, "_origin") and not hasattr(proxy_cls, "_exception"):
+        try:
+            proxy_cls._origin = callback()  # pylint: disable=protected-access
+        except Exception as e:
+            proxy_cls._exception = e
+            raise e
     # noinspection PyProtectedMember
+    if hasattr(proxy_cls, "_exception"):
+        raise proxy_cls._exception  # pylint: disable=protected-access
     return proxy_cls._origin  # pylint: disable=protected-access
 
 
