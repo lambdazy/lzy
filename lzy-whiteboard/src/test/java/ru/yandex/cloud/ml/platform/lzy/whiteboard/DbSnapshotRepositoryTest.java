@@ -31,9 +31,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbSnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbWhiteboardRepository;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
@@ -348,7 +348,7 @@ public class DbSnapshotRepositoryTest {
     }
 
     @Test
-    public void testSnapshotExecution() {
+    public void testSnapshotExecution() throws SnapshotRepositoryException {
         Snapshot snapshot =
             new Snapshot.Impl(URI.create(snapshotId), snapshotOwner, creationDateUTC, workflowName, null);
         implSnapshotRepository.create(snapshot);
@@ -405,7 +405,6 @@ public class DbSnapshotRepositoryTest {
                 exec -> exec.name().equals("exec") && exec.snapshotId().equals(snapshotId)
             )
         );
-
 
         ExecutionSnapshot outExec1 = execs.get(0);
         ExecutionSnapshot outExec2 = execs.get(1);

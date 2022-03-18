@@ -1,9 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
 public interface ExecutionSnapshot {
+
     String name();
 
     Stream<ExecutionValue> outputs();
@@ -20,8 +22,8 @@ public interface ExecutionSnapshot {
         private final List<InputExecutionValue> inputs;
 
         public ExecutionSnapshotImpl(String name, String snapshotId,
-                                     List<ExecutionValue> outputs,
-                                     List<InputExecutionValue> inputs) {
+            List<ExecutionValue> outputs,
+            List<InputExecutionValue> inputs) {
             this.name = name;
             this.snapshotId = snapshotId;
             this.outputs = outputs;
@@ -47,9 +49,15 @@ public interface ExecutionSnapshot {
         public String snapshotId() {
             return snapshotId;
         }
+
+        public String toString() {
+            return "name: " + name + ", snapshot id: " + snapshotId + ", outputs: {" + Arrays.toString(
+                outputs.toArray()) + "}" + ", inputs: {" + Arrays.toString(inputs.toArray()) + "}";
+        }
     }
 
     class ExecutionValueImpl implements ExecutionValue {
+
         private final String name;
         private final String snapshotId;
         private final String entryId;
@@ -77,6 +85,7 @@ public interface ExecutionSnapshot {
     }
 
     class InputExecutionValueImpl extends ExecutionValueImpl implements InputExecutionValue {
+
         private final String hash;
 
         public InputExecutionValueImpl(String name, String snapshotId, String entryId, String hash) {

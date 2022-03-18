@@ -7,6 +7,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -368,20 +369,40 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void saveExecution(LzyWhiteboard.SaveExecutionCommand request,
                               StreamObserver<LzyWhiteboard.SaveExecutionResponse> responseObserver) {
+        LOG.info("SnapshotApi::saveExecution: Received request {} ", JsonUtils.printRequest(request));
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            LOG.error("SnapshotApi::saveExecution: Permission denied for credentials {} ",
+                JsonUtils.printRequest(request));
+            responseObserver.onError(
+                Status.PERMISSION_DENIED.withDescription("Permission denied for saveExecution command")
+                    .asException());
+            return;
+        }
         ExecutionSnapshot execution = GrpcConverter.from(request.getDescription());
         repository.saveExecution(execution);
+        LOG.info("SnapshotApi::saveExecution: Saved execution {} ", execution);
         responseObserver.onCompleted();
     }
 
     @Override
     public void resolveExecution(LzyWhiteboard.ResolveExecutionCommand request,
                                  StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver) {
+        LOG.info("SnapshotApi::resolveExecution: Received request {} ", JsonUtils.printRequest(request));
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            LOG.error("SnapshotApi::resolveExecution: Permission denied for credentials {} ",
+                JsonUtils.printRequest(request));
+            responseObserver.onError(
+                Status.PERMISSION_DENIED.withDescription("Permission denied for resolveExecution command")
+                    .asException());
+            return;
+        }
         Stream<ExecutionSnapshot> executions =
             repository.executionSnapshots(request.getOperationName(), request.getSnapshotId());
         List<LzyWhiteboard.ExecutionDescription> exec = executions.filter(
                 execution -> matchInputArgs(execution, request.getArgsList())
             ).map(GrpcConverter::to)
             .collect(Collectors.toList());
+        LOG.info("SnapshotApi::resolveExecution: successfully resolved list of execution descriptions");
         responseObserver
             .onNext(LzyWhiteboard.ResolveExecutionResponse.newBuilder().addAllExecution(exec).build());
         responseObserver.onCompleted();

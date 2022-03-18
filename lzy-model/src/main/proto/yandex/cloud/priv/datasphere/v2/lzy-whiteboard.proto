@@ -198,6 +198,7 @@ message ExecutionDescription {
 }
 
 message SaveExecutionCommand {
+  Auth auth = 1;
   ExecutionDescription description = 2;
 }
 
@@ -205,9 +206,10 @@ message SaveExecutionResponse {
 }
 
 message ResolveExecutionCommand {
-  string snapshotId = 1;
-  string operationName = 2;
-  repeated ArgDescription args = 3;
+  Auth auth = 1;
+  string snapshotId = 2;
+  string operationName = 3;
+  repeated ArgDescription args = 4;
 
   message ArgDescription {
     string name = 1;
