@@ -143,13 +143,21 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
             # case for namespace package
             return [p for p in module.__path__]
 
+    def append_to_module_paths(p, module_paths):
+        for module_path in module_paths:
+            if module_path.startswith(p):
+                module_paths.remove(module_path)
+            elif p.startswith(module_path):
+                continue
+        module_paths.append(p)
+
     # reverse to ensure the right order: from leaves to the root
     module_paths = []
     for local_module in all_local_modules:
         path = get_path(local_module)
         if type(path) == list:
-            module_paths.extend([p for p in path if p not in module_paths])
+            for p in path:
+                append_to_module_paths(p, module_paths)
         else:
-            if not path in module_paths:
-                module_paths.append(path)
+            append_to_module_paths(path, module_paths)
     return remote_packages, module_paths
