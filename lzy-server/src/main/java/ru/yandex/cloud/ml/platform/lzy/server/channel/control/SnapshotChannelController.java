@@ -14,6 +14,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 public class SnapshotChannelController implements ChannelController {
+
     private static final Logger LOG = LogManager.getLogger(SnapshotChannelController.class);
     private final String entryId;
     private final String snapshotId;
@@ -23,15 +24,22 @@ public class SnapshotChannelController implements ChannelController {
     private Status status = Status.UNBOUND;
 
     public SnapshotChannelController(String entryId,
-                                     String snapshotId,
-                                     SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
-                                     IAM.Auth auth
+        String snapshotId,
+        SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
+        IAM.Auth auth
     ) {
         LOG.info("Creating SnapshotChannelController: entryId={}, snapshotId={}", entryId, snapshotId);
         this.entryId = entryId;
         this.snapshotId = snapshotId;
         this.snapshotApi = snapshotApi;
         this.auth = auth;
+        snapshotApi.createEntry(
+            LzyWhiteboard.CreateEntryCommand.newBuilder()
+                .setSnapshotId(snapshotId)
+                .setEntryId(entryId)
+                .setAuth(auth)
+                .build()
+        );
     }
 
     @Override

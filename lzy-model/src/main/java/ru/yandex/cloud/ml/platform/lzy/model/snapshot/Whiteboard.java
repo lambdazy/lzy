@@ -1,11 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
 public interface Whiteboard {
+
     URI id();
 
     Set<String> fieldNames();
@@ -19,6 +21,7 @@ public interface Whiteboard {
     Date creationDateUTC();
 
     class Impl implements Whiteboard {
+
         private final URI id;
         private final Set<String> fieldNames;
         private final Set<String> tags;
@@ -64,6 +67,12 @@ public interface Whiteboard {
         @Override
         public Date creationDateUTC() {
             return creationDateUTC;
+        }
+
+        public String toString() {
+            return "id: " + id + ", snapshot: {" + snapshot + "}, namespace: " + namespace + ", creationDateUTC: "
+                + creationDateUTC + ", field names: {" + Arrays.toString(fieldNames.toArray()) + "}, tags: {"
+                + Arrays.toString(fieldNames.toArray()) + "}";
         }
     }
 }

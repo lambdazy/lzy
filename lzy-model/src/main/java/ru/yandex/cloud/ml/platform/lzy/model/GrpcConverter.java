@@ -312,8 +312,6 @@ public abstract class GrpcConverter {
                 return LzyWhiteboard.WhiteboardStatus.CREATED;
             case COMPLETED:
                 return LzyWhiteboard.WhiteboardStatus.COMPLETED;
-            case NOT_COMPLETED:
-                return LzyWhiteboard.WhiteboardStatus.NOT_COMPLETED;
             case ERRORED:
                 return LzyWhiteboard.WhiteboardStatus.ERRORED;
             default:

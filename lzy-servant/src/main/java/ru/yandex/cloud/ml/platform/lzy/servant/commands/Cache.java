@@ -48,6 +48,8 @@ public class Cache implements LzyCommand {
                 JsonFormat.parser()
                     .merge(Files.newBufferedReader(Paths.get(command.getArgs()[2])), builder);
 
+                builder.setAuth(auth);
+
                 LzyWhiteboard.SaveExecutionResponse resp = snapshot.saveExecution(builder.build());
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
@@ -61,6 +63,8 @@ public class Cache implements LzyCommand {
 
                 JsonFormat.parser()
                     .merge(Files.newBufferedReader(Paths.get(command.getArgs()[2])), builder);
+
+                builder.setAuth(auth);
 
                 LzyWhiteboard.ResolveExecutionResponse resp = snapshot.resolveExecution(builder.build());
                 System.out.println(JsonFormat.printer().print(resp));

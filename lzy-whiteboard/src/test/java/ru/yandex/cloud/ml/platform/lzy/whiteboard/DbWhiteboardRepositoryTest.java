@@ -22,7 +22,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions.SnapshotRepositoryException;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbSnapshotRepository;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.DbWhiteboardRepository;
@@ -90,7 +91,7 @@ public class DbWhiteboardRepositoryTest {
     }
 
     @Test
-    public void testCreate() {
+    public void testCreate() throws SnapshotRepositoryException, WhiteboardRepositoryException {
         Snapshot snapshot =
             new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
                 workflowName, null);
@@ -100,12 +101,11 @@ public class DbWhiteboardRepositoryTest {
                 snapshot,
                 Set.of(firstTag, secondTag), namespaceFirst, creationDateUTC));
         implSnapshotRepository.finalize(snapshot);
-        WhiteboardStatus whiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdFirst));
+        WhiteboardStatus whiteboard = implWhiteboardRepository.resolveWhiteboard(URI.create(wbIdFirst)).get();
         Assert.assertNotNull(whiteboard);
         Assert.assertNotNull(whiteboard.whiteboard());
         Assert.assertNotNull(whiteboard.whiteboard().snapshot());
         Assert.assertEquals(snapshotIdFirst, whiteboard.whiteboard().snapshot().id().toString());
-        Assert.assertEquals(State.NOT_COMPLETED, whiteboard.state());
         Assert.assertEquals(namespaceFirst, whiteboard.whiteboard().namespace());
 
         Assert.assertTrue(whiteboard.whiteboard().fieldNames().contains(fieldNameFirst)
@@ -117,11 +117,13 @@ public class DbWhiteboardRepositoryTest {
 
     @Test
     public void testResolveWhiteboardByIdNotFound() {
-        Assert.assertNull(implWhiteboardRepository.resolveWhiteboard(URI.create(UUID.randomUUID().toString())));
+        Assert.assertTrue(
+            implWhiteboardRepository.resolveWhiteboard(URI.create(UUID.randomUUID().toString())).isEmpty());
     }
 
     @Test
-    public void testResolveWhiteboardsNonMatchingTags() {
+    public void testResolveWhiteboardsNonMatchingTags()
+        throws SnapshotRepositoryException, WhiteboardRepositoryException {
         init();
         String thirdTag = "thirdTag";
         List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
@@ -135,7 +137,7 @@ public class DbWhiteboardRepositoryTest {
     }
 
     @Test
-    public void testResolveWhiteboardsMatchingTags() {
+    public void testResolveWhiteboardsMatchingTags() throws SnapshotRepositoryException, WhiteboardRepositoryException {
         init();
         finalizeSnapshots();
         List<WhiteboardStatus> whiteboardStatusList = implWhiteboardRepository.resolveWhiteboards(
@@ -145,7 +147,7 @@ public class DbWhiteboardRepositoryTest {
     }
 
     @Test
-    public void testResolveWhiteboardsEmptyTags() {
+    public void testResolveWhiteboardsEmptyTags() throws SnapshotRepositoryException, WhiteboardRepositoryException {
         init();
         implWhiteboardRepository.create(
             new Whiteboard.Impl(
@@ -165,7 +167,8 @@ public class DbWhiteboardRepositoryTest {
     }
 
     @Test
-    public void testResolveWhiteboardsDifferentNamespace() {
+    public void testResolveWhiteboardsDifferentNamespace()
+        throws SnapshotRepositoryException, WhiteboardRepositoryException {
         init();
         implWhiteboardRepository.create(
             new Whiteboard.Impl(
@@ -189,7 +192,7 @@ public class DbWhiteboardRepositoryTest {
     }
 
     @Test
-    public void testResolveWhiteboardsFilterTime() {
+    public void testResolveWhiteboardsFilterTime() throws SnapshotRepositoryException, WhiteboardRepositoryException {
         Snapshot snapshot =
             new Snapshot.Impl(URI.create(snapshotIdFirst), URI.create(snapshotOwnerFirst), creationDateUTC,
                 workflowName, null);
@@ -238,13 +241,13 @@ public class DbWhiteboardRepositoryTest {
 
     @Test
     public void testAddFieldNotDeclared() {
-        Assert.assertThrows(RuntimeException.class,
+        Assert.assertThrows(WhiteboardRepositoryException.class,
             () -> implWhiteboardRepository.update(
                 createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst)));
     }
 
     @Test
-    public void testDependent() {
+    public void testDependent() throws SnapshotRepositoryException, WhiteboardRepositoryException {
         init();
         List<WhiteboardField> whiteboardFieldList = implWhiteboardRepository.dependent(
             createWhiteboardField(fieldNameFirst, entryIdFirst, snapshotIdFirst, wbIdFirst)
@@ -275,7 +278,7 @@ public class DbWhiteboardRepositoryTest {
     }
 
     @Test
-    public void testFields() {
+    public void testFields() throws SnapshotRepositoryException, WhiteboardRepositoryException {
         init();
         List<WhiteboardField> whiteboardFieldList = implWhiteboardRepository.fields(
             new Whiteboard.Impl(
@@ -329,7 +332,7 @@ public class DbWhiteboardRepositoryTest {
                 Collections.emptySet(), namespaceFirst, creationDateUTC));
     }
 
-    private void init() {
+    private void init() throws SnapshotRepositoryException, WhiteboardRepositoryException {
         Snapshot snapshotFirst = new Snapshot.Impl(
             URI.create(snapshotIdFirst),
             URI.create(snapshotOwnerFirst),
@@ -348,9 +351,13 @@ public class DbWhiteboardRepositoryTest {
         );
         implWhiteboardRepository.create(whiteboardFirst);
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshotFirst);
+        implSnapshotRepository.createEntry(snapshotFirst, entryIdFirst);
         SnapshotEntry fourthEntry = new SnapshotEntry.Impl(entryIdFourth, snapshotFirst);
+        implSnapshotRepository.createEntry(snapshotFirst, entryIdFourth);
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshotFirst);
+        implSnapshotRepository.createEntry(snapshotFirst, entryIdSecond);
         SnapshotEntry thirdEntry = new SnapshotEntry.Impl(entryIdThird, snapshotFirst);
+        implSnapshotRepository.createEntry(snapshotFirst, entryIdThird);
         String storageUri = "storageUri";
         implSnapshotRepository.prepare(firstEntry, storageUri, List.of(entryIdSecond, entryIdThird));
         implSnapshotRepository.commit(firstEntry, false);
@@ -385,7 +392,7 @@ public class DbWhiteboardRepositoryTest {
         implWhiteboardRepository.update(new WhiteboardField.Impl(fieldNameSecond, secondEntry, whiteboardSecond));
     }
 
-    private void finalizeSnapshots() {
+    private void finalizeSnapshots() throws SnapshotRepositoryException {
         implSnapshotRepository.finalize(new Snapshot.Impl(
             URI.create(snapshotIdFirst),
             URI.create(snapshotOwnerFirst),

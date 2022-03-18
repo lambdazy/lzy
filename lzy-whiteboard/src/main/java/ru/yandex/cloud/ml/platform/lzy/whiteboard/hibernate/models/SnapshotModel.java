@@ -81,4 +81,8 @@ public class SnapshotModel {
     public String parentSnapshotId() {
         return parentSnapshotId;
     }
+
+    public String toString() {
+        return "Snapshot id: " + snapshotId + ", state: " + snapshotState.toString() + ", uid: " + uid;
+    }
 }

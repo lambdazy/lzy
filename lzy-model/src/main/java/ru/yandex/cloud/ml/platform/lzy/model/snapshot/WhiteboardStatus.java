@@ -8,7 +8,6 @@ public interface WhiteboardStatus {
     enum State {
         CREATED,
         COMPLETED,
-        NOT_COMPLETED,
         ERRORED
     }
 
@@ -29,6 +28,10 @@ public interface WhiteboardStatus {
         @Override
         public State state() {
             return state;
+        }
+
+        public String toString() {
+            return "whiteboard: {" + whiteboard + "}, state: " + state + "}";
         }
     }
 }

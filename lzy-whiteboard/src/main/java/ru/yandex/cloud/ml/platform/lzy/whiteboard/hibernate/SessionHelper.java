@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -163,6 +164,7 @@ public class SessionHelper {
         return new SnapshotEntry.Impl(snapshotEntryModel.getEntryId(), snapshot);
     }
 
+    @Nullable
     public static Whiteboard getWhiteboard(String wbId, Snapshot snapshot, Session session) {
         WhiteboardModel wbModel = session.find(WhiteboardModel.class, wbId);
         if (wbModel == null) {
@@ -182,10 +184,11 @@ public class SessionHelper {
         cr.select(root).where(cb.equal(root.get("snapshotId"), spId));
 
         Query<SnapshotModel> query = session.createQuery(cr);
-        SnapshotModel result = query.getSingleResult();
-        if (result == null) {
+        Optional<SnapshotModel> resultOptional = query.uniqueResultOptional();
+        if (resultOptional.isEmpty()) {
             return null;
         }
+        SnapshotModel result = resultOptional.get();
         return new Snapshot.Impl(URI.create(spId), URI.create(result.getUid()), result.creationDateUTC(),
             result.workflowName(), result.parentSnapshotId());
     }
@@ -233,20 +236,20 @@ public class SessionHelper {
         return wbModel.getWbState();
     }
 
-    @Nullable
-    public static SnapshotEntryStatus resolveEntryStatus(Snapshot snapshot, String id, Session session) {
+    public static Optional<SnapshotEntryStatus> resolveEntryStatus(Snapshot snapshot, String id, Session session) {
         String snapshotId = snapshot.id().toString();
         SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
             new SnapshotEntryModel.SnapshotEntryPk(snapshotId, id));
         if (snapshotEntryModel == null) {
-            return null;
+            return Optional.empty();
         }
 
         List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
         SnapshotEntry entry = new SnapshotEntry.Impl(id, snapshot);
-        return new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(), snapshotEntryModel.getEntryState(), entry,
-            Set.copyOf(dependentEntryIds),
-            snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri()));
+        return Optional.of(
+            new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(), snapshotEntryModel.getEntryState(), entry,
+                Set.copyOf(dependentEntryIds),
+                snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri())));
     }
 
     public static List<String> resolveWhiteboardIds(String namespace, List<String> tags,
@@ -278,8 +281,7 @@ public class SessionHelper {
         return query.list();
     }
 
-    @Nullable
-    public static SnapshotStatus lastSnapshot(String workflowName, String uid, Session session) {
+    public static Optional<SnapshotStatus> lastSnapshot(String workflowName, String uid, Session session) {
         String queryLastSnapshot = "SELECT s FROM SnapshotModel s "
             + "WHERE s.uid = :uid AND s.workflowName = :workflowName AND s.creationDateUTC = "
             + "(SELECT MAX(s1.creationDateUTC) FROM SnapshotModel s1 "
@@ -290,10 +292,10 @@ public class SessionHelper {
         query.setParameter("uid", uid);
         SnapshotModel spModel = query.getSingleResult();
         if (spModel == null) {
-            return null;
+            return Optional.empty();
         }
-        return new SnapshotStatus.Impl(new Snapshot.Impl(
+        return Optional.of(new SnapshotStatus.Impl(new Snapshot.Impl(
             URI.create(spModel.getSnapshotId()), URI.create(spModel.getUid()), spModel.creationDateUTC(),
-            spModel.workflowName(), spModel.parentSnapshotId()), spModel.getSnapshotState());
+            spModel.workflowName(), spModel.parentSnapshotId()), spModel.getSnapshotState()));
     }
 }
