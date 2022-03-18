@@ -354,14 +354,17 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.create(snapshot);
 
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
+        implSnapshotRepository.createEntry(snapshot, entryIdFirst);
         implSnapshotRepository.prepare(firstEntry, storageUri, List.of(entryIdSecond, entryIdThird));
         implSnapshotRepository.commit(firstEntry, false);
 
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
+        implSnapshotRepository.createEntry(snapshot, entryIdSecond);
         implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
         implSnapshotRepository.commit(secondEntry, false);
 
         SnapshotEntry thirdEntry = new SnapshotEntry.Impl(entryIdThird, snapshot);
+        implSnapshotRepository.createEntry(snapshot, entryIdThird);
         implSnapshotRepository.prepare(thirdEntry, storageUri, Collections.emptyList());
         implSnapshotRepository.commit(thirdEntry, false);
 
