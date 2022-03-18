@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.ExecCreateCmd;
@@ -9,6 +11,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,7 @@ import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.output.ToStringConsumer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
@@ -48,7 +52,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             .withPrivilegedMode(
                 true) //it is not necessary to use privileged mode for FUSE, but it is easier for testing
             .withEnv("USER", user)
-            .withEnv("LOG_FILE", "/var/log/servant/terminal_" + uuid)
+            .withEnv("LOG_FILE", LOGS_DIR + "servant/terminal_" + uuid)
             .withEnv("DEBUG_PORT", Integer.toString(debugPort))
             .withEnv("SUSPEND_DOCKER", "n")
             .withFileSystemBind("/tmp/lzy-log/", "/tmp/lzy-log/")
@@ -59,20 +63,21 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             base.withFileSystemBind(private_key_path, private_key_path);
         }
 
-        final GenericContainer<?> servantContainer;
+        final GenericContainer<?> terminalContainer;
         if (SystemUtils.IS_OS_LINUX) {
-            servantContainer = base.withNetworkMode("host");
+            terminalContainer = base.withNetworkMode("host");
         } else {
-            servantContainer = base
-                .withFixedExposedPort(exposedPort, exposedPort)
-                .withFixedExposedPort(debugPort, debugPort) //to attach debugger
-                .withExposedPorts(exposedPort, debugPort);
+            terminalContainer = base
+                    .withFixedExposedPort(exposedPort, exposedPort)
+                    .withFixedExposedPort(debugPort, debugPort) //to attach debugger
+                    .withExposedPorts(exposedPort, debugPort)
+                    .withStartupTimeout(Duration.ofSeconds(150));
         }
 
-        servantContainer.start();
-        servantContainer.followOutput(new Slf4jLogConsumer(LOGGER));
-        startedContainers.add(servantContainer);
-        return servantContainer;
+        terminalContainer.start();
+        terminalContainer.followOutput(new Slf4jLogConsumer(LOGGER));
+        startedContainers.add(terminalContainer);
+        return terminalContainer;
     }
 
     public Terminal createTerminal(

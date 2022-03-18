@@ -78,10 +78,11 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     servant,
                     signature,
                     current_workflow.snapshot_id(),
+                    id_generator,
                     provisioning,
                     pyenv,
                     deployed=False,
-                    entry_id_generator=id_generator,
+                    channel_manager=current_workflow.channel_manager(),
                 )
             else:
                 raise TypeError(f"Unsupported env type: {type(current_workflow)}")

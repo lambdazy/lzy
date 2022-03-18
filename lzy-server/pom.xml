@@ -176,10 +176,15 @@
       <artifactId>protobuf-java-util</artifactId>
       <groupId>com.google.protobuf</groupId>
     </dependency>
-    <dependency>
-      <artifactId>testcontainers</artifactId>
-      <groupId>org.testcontainers</groupId>
-    </dependency>
+      <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <scope>test</scope>
+      </dependency>
+      <dependency>
+          <groupId>com.github.docker-java</groupId>
+          <artifactId>docker-java</artifactId>
+      </dependency>
     <dependency>
       <artifactId>log4j-slf4j-impl</artifactId>
       <groupId>org.apache.logging.log4j</groupId>

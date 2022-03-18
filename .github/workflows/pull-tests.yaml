@@ -3,12 +3,13 @@ on:
   push:
     branches: [ master, dev ]
   pull_request:
-
+  workflow_dispatch:
 jobs:
 
   #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
   all-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    # runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
@@ -21,6 +22,9 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
+
+      - name: 'clean'
+        run: sudo iptables -t filter -F && sudo iptables -t filter -X && sudo systemctl restart docker
 
       - name: 'java-test'
         timeout-minutes: 45

@@ -18,6 +18,8 @@ service SnapshotApi {
   rpc LastSnapshot (LastSnapshotCommand) returns (Snapshot);
   rpc EntryStatus (EntryStatusCommand) returns (EntryStatusResponse);
   rpc CreateEntry (CreateEntryCommand) returns (OperationStatus);
+  rpc SaveExecution (SaveExecutionCommand) returns (SaveExecutionResponse);
+  rpc ResolveExecution (ResolveExecutionCommand) returns (ResolveExecutionResponse);
 }
 
 service WbApi {
@@ -175,4 +177,47 @@ message CreateEntryCommand {
   Auth auth = 1;
   string entryId = 2;
   string snapshotId = 3;
+}
+
+message InputArgDescription {
+  string name = 1;
+  string hash = 2;
+  string entryId = 3;
+}
+
+message OutputArgDescription {
+  string name = 1;
+  string entryId = 2;
+}
+
+message ExecutionDescription {
+  string name = 1;
+  string snapshotId = 2;
+  repeated InputArgDescription input = 3;
+  repeated OutputArgDescription output = 4;
+}
+
+message SaveExecutionCommand {
+  ExecutionDescription description = 2;
+}
+
+message SaveExecutionResponse {
+}
+
+message ResolveExecutionCommand {
+  string snapshotId = 1;
+  string operationName = 2;
+  repeated ArgDescription args = 3;
+
+  message ArgDescription {
+    string name = 1;
+    oneof info {
+      string hash = 2;
+      string entryId = 3;
+    }
+  }
+}
+
+message ResolveExecutionResponse {
+  repeated ExecutionDescription execution = 1;
 }

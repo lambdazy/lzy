@@ -1,19 +1,22 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
+import java.net.URI;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import org.apache.commons.io.IOUtils;
+import net.lingala.zip4j.core.ZipFile;
+import net.lingala.zip4j.exception.ZipException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
@@ -21,75 +24,162 @@ import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
+import ru.yandex.qe.s3.transfer.TransferStatus;
+import ru.yandex.qe.s3.transfer.Transmitter;
+import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
+import ru.yandex.qe.s3.transfer.download.DownloadResult;
 
-public class CondaEnvironment implements Environment {
+public class CondaEnvironment implements AuxEnvironment {
+
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
-    private final PythonEnv env;
-    private final AtomicBoolean envInstalled = new AtomicBoolean(false);
-    private final Lzy.GetS3CredentialsResponse credentials;
+    private final PythonEnv pythonEnv;
+    private final BaseEnvironment baseEnv;
+    private final StorageClient storage;
+    private final String resourcesPath;
 
-    public CondaEnvironment(PythonEnv env, Lzy.GetS3CredentialsResponse credentials)
-        throws EnvironmentInstallationException {
-        this.env = env;
-        this.credentials = credentials;
-        prepare();
+    public CondaEnvironment(
+        PythonEnv pythonEnv,
+        BaseEnvironment baseEnv,
+        StorageClient storage,
+        String resourcesPath
+    ) throws EnvironmentInstallationException {
+        this.pythonEnv = pythonEnv;
+        this.baseEnv = baseEnv;
+        this.storage = storage;
+        this.resourcesPath = resourcesPath;
+
+        final long pyEnvInstallStart = System.currentTimeMillis();
+        installPyenv();
+        final long pyEnvInstallFinish = System.currentTimeMillis();
+        MetricEventLogger.log(
+            new MetricEvent(
+                "time for installing py env millis",
+                Map.of("metric_type", "task_metric"),
+                pyEnvInstallFinish - pyEnvInstallStart
+            )
+        );
+    }
+
+    @Override
+    public BaseEnvironment base() {
+        return baseEnv;
+    }
+
+    private void readToFile(File file, InputStream stream) throws IOException {
+        try (FileOutputStream output = new FileOutputStream(file.getAbsolutePath(), true)) {
+            byte[] buffer = new byte[4096];
+            int len = 0;
+            while (len != -1) {
+                output.write(buffer, 0, len);
+                len = stream.read(buffer);
+            }
+        }
+    }
+
+    private void extractFiles(File file, String destinationDirectory) throws ZipException {
+        LOG.info("CondaEnvironment::extractFiles trying to unzip module archive "
+            + file.getAbsolutePath());
+        ZipFile zipFile = new ZipFile(file.getAbsolutePath());
+        zipFile.extractAll(destinationDirectory);
+    }
+
+    private String localModulesDirectoryAbsolutePath() {
+        return "/local_modules";
     }
 
     private void installPyenv() throws EnvironmentInstallationException {
         try {
-            final File yaml = File.createTempFile("conda", "req.yaml");
-            try (FileWriter file = new FileWriter(yaml.getAbsolutePath())) {
-                file.write(env.yaml());
+
+            LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
+            final String yamlPath = resourcesPath + "conda.yaml";
+            final String yamlBindPath = resourcesPath + "conda.yaml";
+
+            try (FileWriter file = new FileWriter(yamlPath)) {
+                file.write(pythonEnv.yaml());
             }
             // --prune removes packages not specified in yaml, so probably it has not to be there
-            final Process run = execInEnv("conda env update --file " + yaml.getAbsolutePath()); // + " --prune");
-            final int rc = run.waitFor();
-            final String stdout = IOUtils.toString(run.getInputStream());
-            final String stderr = IOUtils.toString(run.getErrorStream());
-            LOG.info(stdout);
-            LOG.error(stderr);
-            if (run.exitValue() != 0) {
-                throw new EnvironmentInstallationException(
-                    String.format(
-                        "Failed to update conda env\n\nSTDOUT: %s \n\nSTDERR: %s",
-                        stdout, stderr
-                    )
-                );
+            final LzyProcess lzyProcess = execInEnv("conda env update --file " + yamlBindPath); // + " --prune");
+            final StringBuilder stdout = new StringBuilder();
+            final StringBuilder stderr = new StringBuilder();
+            try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.out()))) {
+                reader.lines().forEach(s -> {
+                    LOG.info(s);
+                    stdout.append(s);
+                });
             }
-        } catch (IOException | InterruptedException e) {
+            try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.err()))) {
+                reader.lines().forEach(s -> {
+                    LOG.error(s);
+                    stderr.append(s);
+                });
+            }
+            final int rc = lzyProcess.waitFor();
+            if (rc != 0) {
+                String errorMessage = "Failed to update conda env\n"
+                    + "  ReturnCode: " + rc + "\n"
+                    + "  Stdout: " + stdout + "\n\n"
+                    + "  Stderr: " + stderr + "\n";
+                LOG.error(errorMessage);
+                throw new EnvironmentInstallationException(errorMessage);
+            }
+            LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
+
+            File directory = new File(localModulesDirectoryAbsolutePath());
+            boolean created = directory.mkdirs();
+            if (!created) {
+                String errorMessage = "Failed to create directory to download local modules into;\n"
+                    + "  Directory name: " + localModulesDirectoryAbsolutePath() + "\n";
+                LOG.error(errorMessage);
+                throw new EnvironmentInstallationException(errorMessage);
+            }
+            LOG.info("CondaEnvironment::installPyenv created directory to download local modules into");
+            Transmitter transmitter = storage.transmitter();
+            for (var entry : pythonEnv.localModules()) {
+                String name = entry.name();
+                String url = entry.uri();
+                LOG.info(
+                    "CondaEnvironment::installPyenv installing local module with name " + name + " and url " + url);
+
+                String bucket = storage.bucket(URI.create(url));
+                String key = storage.key(URI.create(url));
+
+                File tempFile = File.createTempFile("tmp-file", ".zip");
+                LOG.info("CondaEnvironment::installPyenv trying to download module from storage");
+                ListenableFuture<DownloadResult<Void>> resultFuture = transmitter.downloadC(
+                    new DownloadRequestBuilder()
+                        .bucket(bucket)
+                        .key(key)
+                        .build(),
+                    data -> {
+                        InputStream stream = data.getInputStream();
+                        readToFile(tempFile, stream);
+                        stream.close();
+                        extractFiles(tempFile, localModulesDirectoryAbsolutePath());
+                    }
+                );
+                DownloadResult<Void> result = resultFuture.get();
+                if (result.getDownloadState().getTransferStatus() != TransferStatus.DONE) {
+                    String errorMessage = "Failed to unzip local module " + name;
+                    LOG.error(errorMessage);
+                    throw new EnvironmentInstallationException(errorMessage);
+                }
+                tempFile.deleteOnExit();
+            }
+        } catch (IOException | LzyExecutionException | ExecutionException | InterruptedException e) {
             throw new EnvironmentInstallationException(e.getMessage());
         }
     }
 
-    private Process execInEnv(String command, String[] envp) throws IOException {
+    private LzyProcess execInEnv(String command, String[] envp) throws LzyExecutionException {
         LOG.info("Executing command " + command);
-        return Runtime.getRuntime().exec(new String[] {
-            "bash", "-c",
-            "eval \"$(conda shell.bash hook)\" && "
-                + "conda activate " + env.name() + " && "
-                + command
-        }, envp);
+        String[] bashCmd = new String[] {"bash", "-c", "source /root/miniconda3/etc/profile.d/conda.sh && "
+                + "conda activate " + pythonEnv.name() + " && " + command};
+        return baseEnv.runProcess(bashCmd, envp);
     }
 
-    private Process execInEnv(String command) throws IOException {
+    private LzyProcess execInEnv(String command) throws LzyExecutionException {
         return execInEnv(command, null);
-    }
-
-    private synchronized void prepare() throws EnvironmentInstallationException {
-        if (!envInstalled.get()) {
-            final long pyEnvInstallStart = System.currentTimeMillis();
-            installPyenv();
-            envInstalled.set(true);
-            final long pyEnvInstallFinish = System.currentTimeMillis();
-            MetricEventLogger.log(
-                new MetricEvent(
-                    "time for installing py env millis",
-                    Map.of("metric_type", "task_metric"),
-                    pyEnvInstallFinish - pyEnvInstallStart
-                )
-            );
-        }
     }
 
     private List<String> getEnvironmentVariables() {
@@ -99,36 +189,23 @@ public class CondaEnvironment implements Environment {
             .collect(Collectors.toList());
     }
 
-    private List<String> getLocalModules() throws LzyExecutionException {
-        List<String> envList = new ArrayList<>();
-        try {
-            LinkedHashMap<String, String> localModules = new LinkedHashMap<>();
-            env.localModules().forEach(localModule -> localModules.put(localModule.name(), localModule.uri()));
-            envList.add("LOCAL_MODULES=" + new ObjectMapper().writeValueAsString(localModules));
-            if (credentials.hasAmazon()) {
-                envList.add("AMAZON=" + JsonFormat.printer().print(credentials.getAmazon()));
-            } else if (credentials.hasAzure()) {
-                envList.add("AZURE=" + JsonFormat.printer().print(credentials.getAzure()));
-            } else {
-                envList.add("AZURE_SAS=" + JsonFormat.printer().print(credentials.getAzureSas()));
-            }
-        } catch (JsonProcessingException | InvalidProtocolBufferException e) {
-            throw new LzyExecutionException(e);
-        }
-        return envList;
+    @Override
+    public LzyProcess runProcess(String... command) throws LzyExecutionException {
+        return runProcess(command, null);
     }
 
     @Override
-    public Process exec(String command) throws LzyExecutionException {
-        if (!envInstalled.get()) {
-            throw new RuntimeException("Environment not installed");
-        }
+    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
         try {
             List<String> envList = getEnvironmentVariables();
-            envList.addAll(getLocalModules());
-            return execInEnv(command, envList.toArray(String[]::new));
-        } catch (IOException e) {
+            envList.add("LOCAL_MODULES=" + localModulesDirectoryAbsolutePath());
+            if (envp != null) {
+                envList.addAll(Arrays.asList(envp));
+            }
+            return execInEnv(String.join(" ", command), envList.toArray(String[]::new));
+        } catch (Exception e) {
             throw new LzyExecutionException(e);
         }
     }
+
 }

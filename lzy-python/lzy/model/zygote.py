@@ -54,7 +54,7 @@ class ZygoteDataclassMixin(Generic[T]):
     signature: FuncSignature[T]
     arg_slots: List[Slot]
     return_slot: Slot
-    env: Optional[Env]
+    env: Env
     provisioning: Optional[Provisioning]
 
 
@@ -83,7 +83,7 @@ class Zygote(ZygoteDataclassMixin[T], ABC):
             {
                 # tried to serialize env as json and it didn't work,
                 # so build dict here instead for env
-                "env": {env.type_id(): env.as_dct()} if env else {},
+                "env": env.as_dct(),
                 "fuze": self.command,
                 "provisioning": {"tags": [{"tag": tag} for tag in provisioning.tags()]}
                 if provisioning

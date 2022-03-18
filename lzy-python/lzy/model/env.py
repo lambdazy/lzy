@@ -1,10 +1,25 @@
 from abc import ABC, abstractmethod
 import logging
+from dataclasses import dataclass
 from types import ModuleType
-from typing import Dict, Tuple, Iterable, List
+from typing import Dict, Optional, Tuple, Iterable, List
 
 
-class Env(ABC):
+class BaseEnv(ABC):
+
+    def __init__(self, name: str = ""):
+        super().__init__()
+        self._name = name
+
+    def name(self) -> str:
+        return self._name
+
+    def as_dct(self) -> Dict[str, str]:
+        return {"name": self._name}
+
+
+class AuxEnv(ABC):
+
     # @abstractmethod
     # def name(self) -> str:
     #     pass
@@ -21,7 +36,7 @@ class Env(ABC):
         pass
 
 
-class PyEnv(Env):
+class PyEnv(AuxEnv):
     def __init__(self, env_name: str, yaml: str, local_modules_uploaded: List[Tuple[str, str]]):
         super().__init__()
         self._name = env_name
@@ -48,6 +63,23 @@ class PyEnv(Env):
                                      in enumerate(self._local_modules_uploaded)]}
         else:
             return {"name": self._name, "yaml": self._yaml}
+
+
+@dataclass
+class EnvDataclass():
+    base_env: Optional[BaseEnv] = None
+    aux_env: Optional[AuxEnv] = None
+
+
+class Env(EnvDataclass, ABC):
+
+    def as_dct(self):
+        dct = {}
+        if self.base_env:
+            dct["baseEnv"] = self.base_env.as_dct()
+        if self.aux_env:
+            dct["auxEnv"] = {self.aux_env.type_id() : self.aux_env.as_dct()}
+        return dct
 
 
 PACKAGES_DELIM = ";"

@@ -5,7 +5,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 
 public class ContextImpl implements Context {
 

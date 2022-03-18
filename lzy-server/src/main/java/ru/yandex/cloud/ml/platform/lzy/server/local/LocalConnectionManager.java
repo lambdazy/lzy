@@ -8,7 +8,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConstant;
+import ru.yandex.cloud.ml.platform.lzy.model.Constants;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.server.ConnectionManager;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
@@ -52,7 +52,7 @@ public class LocalConnectionManager implements ConnectionManager {
                 .build();
 
             final Metadata metadata = new Metadata();
-            metadata.put(GrpcConstant.SESSION_ID_METADATA_KEY, sessionId.toString());
+            metadata.put(Constants.SESSION_ID_METADATA_KEY, sessionId.toString());
             stub = MetadataUtils.attachHeaders(LzyServantGrpc.newBlockingStub(channel), metadata);
         }
     }

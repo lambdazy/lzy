@@ -12,6 +12,7 @@ resource "kubernetes_secret" "whiteboard_db" {
   data = {
     postgresql-postgres-password = random_password.whiteboard_db_password[0].result
     postgresql-password          = random_password.whiteboard_db_password[0].result
+    postgres-password            = random_password.whiteboard_db_password[0].result
     password                     = random_password.whiteboard_db_password[0].result
     database-name                = "whiteboards"
     username                     = "whiteboard"
@@ -26,27 +27,27 @@ resource "helm_release" "whiteboard_db" {
   repository = "https://charts.bitnami.com/bitnami"
 
   set {
-    name  = "global.postgresql.postgresqlDatabase"
+    name  = "global.postgresql.auth.database"
     value = kubernetes_secret.whiteboard_db.data.database-name
   }
 
   set {
-    name  = "global.postgresql.postgresqlUsername"
+    name  = "global.postgresql.auth.username"
     value = kubernetes_secret.whiteboard_db.data.username
   }
 
   set {
-    name  = "global.postgresql.existingSecret"
+    name  = "global.postgresql.auth.existingSecret"
     value = kubernetes_secret.whiteboard_db.metadata[0].name
   }
 
   set_sensitive {
-    name  = "global.postgresql.postgresqlPassword"
+    name  = "global.postgresql.auth.password"
     value = random_password.whiteboard_db_password[0].result
   }
 
   set {
-    name  = "global.postgresql.servicePort"
+    name  = "global.postgresql.service.ports.postgresql"
     value = "5432"
   }
 }

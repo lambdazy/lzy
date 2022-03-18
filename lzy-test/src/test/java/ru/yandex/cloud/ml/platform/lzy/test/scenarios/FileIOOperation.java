@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.AuxEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.BaseEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
@@ -15,8 +17,9 @@ class FileIOOperation implements AtomicZygote {
     private final List<TextLinesInSlot> inputs;
     private final List<TextLinesOutSlot> outputs;
     private final String command;
+    private final Env env;
 
-    FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command) {
+    FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command, boolean dockerEnv) {
         this.operationName = operationName;
         inputs = new ArrayList<>();
         outputs = new ArrayList<>();
@@ -26,6 +29,26 @@ class FileIOOperation implements AtomicZygote {
         }
         for (String path : outputFiles) {
             outputs.add(new TextLinesOutSlot(path));
+        }
+        if (dockerEnv) {
+            env = new Env() {
+                @Override
+                public BaseEnv baseEnv() {
+                    return new BaseEnv() {
+                        @Override
+                        public String name() {
+                            return null;
+                        }
+                    };
+                }
+
+                @Override
+                public AuxEnv auxEnv() {
+                    return null;
+                }
+            };
+        } else {
+            env = null;
         }
     }
 
@@ -53,7 +76,7 @@ class FileIOOperation implements AtomicZygote {
 
     @Override
     public Env env() {
-        return null;
+        return env;
     }
 
     @Override

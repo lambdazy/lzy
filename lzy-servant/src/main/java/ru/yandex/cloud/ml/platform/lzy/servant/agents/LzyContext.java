@@ -25,14 +25,12 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.CondaEnvironment;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.SimpleBashEnvironment;
+import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvironmentFactory;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
@@ -45,9 +43,9 @@ import ru.yandex.cloud.ml.platform.lzy.servant.slots.LzySlotBase;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.OutFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.WriterSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
+import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextConcluded;
@@ -65,15 +63,14 @@ public class LzyContext {
     private final LockManager lockManager = new LocalLockManager();
     private final Snapshotter snapshotter;
     private final String contextId;
+    private final StorageClient storage;
     private final URI servantUri;
     private final List<Consumer<Servant.ContextProgress>> listeners = new ArrayList<>();
-    private final GetS3CredentialsResponse credentials;
     private String arguments = "";
     private Environment env;
 
     public LzyContext(
-        String contextId, Snapshotter snapshotter, URI servantUri,
-        GetS3CredentialsResponse credentials
+        String contextId, Snapshotter snapshotter, URI servantUri, StorageClient storage
     ) {
         this.contextId = contextId;
         stdinSlot = new WriterSlot(contextId, new TextLinesInSlot("/dev/stdin"), snapshotter);
@@ -81,7 +78,7 @@ public class LzyContext {
         stderrSlot = new LineReaderSlot(contextId, new TextLinesOutSlot("/dev/stderr"), snapshotter);
         this.snapshotter = snapshotter;
         this.servantUri = servantUri;
-        this.credentials = credentials;
+        this.storage = storage;
     }
 
     public Stream<LzySlot> slots() {
@@ -168,13 +165,7 @@ public class LzyContext {
         });
 
         try {
-            if (context.env() instanceof PythonEnv) {
-                env = new CondaEnvironment((PythonEnv) context.env(), credentials);
-                LOG.info("Conda environment is provided, using CondaEnvironment");
-            } else {
-                env = new SimpleBashEnvironment();
-                LOG.info("No environment provided, using SimpleBashEnvironment");
-            }
+            env = EnvironmentFactory.create(context.env(), storage);
         } catch (EnvironmentInstallationException e) {
             Set.copyOf(slots.values()).stream().filter(s -> s instanceof LzyInputSlot).forEach(LzySlot::suspend);
             Set.copyOf(slots.values()).stream()
@@ -204,13 +195,13 @@ public class LzyContext {
         LzyExecution execution = new LzyExecution(contextId, zygote, arguments);
         execution.onProgress(onProgress);
         execution.start(env);
-        stdinSlot.setStream(new OutputStreamWriter(execution.exec().getOutputStream(), StandardCharsets.UTF_8));
+        stdinSlot.setStream(new OutputStreamWriter(execution.process().in(), StandardCharsets.UTF_8));
         stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
-            execution.exec().getInputStream(),
+            execution.process().out(),
             StandardCharsets.UTF_8
         )));
         stderrSlot.setStream(new LineNumberReader(new InputStreamReader(
-            execution.exec().getErrorStream(),
+            execution.process().err(),
             StandardCharsets.UTF_8
         )));
         int rc = execution.waitFor();

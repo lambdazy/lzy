@@ -94,7 +94,8 @@ public class SnapshotTest extends LzyBaseTest {
             "cat_to_file_lzy",
             List.of(fileName.substring(LZY_MOUNT.length())),
             List.of(fileOutName.substring(LZY_MOUNT.length())),
-            "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName
+            "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName,
+            false
         );
 
         //Act

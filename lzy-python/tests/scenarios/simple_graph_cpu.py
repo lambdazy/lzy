@@ -34,4 +34,4 @@ if __name__ == '__main__':
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
         model = learn()
         result = predict(model, np.array([9, 1]))
-    print("Prediction: " + str(result))
+        print("Prediction: " + str(result))

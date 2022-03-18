@@ -112,6 +112,9 @@ public class InMemTasksManager implements TasksManager {
         owners.put(task, uid);
         task.onProgress(state -> {
             consumer.accept(state);
+            if (state.hasChanged()) {
+                LOG.info("InMemTaskManager::state changed, new state = {}", state.getChanged().getNewState().name());
+            }
             if (!state.hasChanged()
                 || (state.getChanged().getNewState() != Servant.StateChanged.State.DESTROYED)) {
                 return;

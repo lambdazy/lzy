@@ -8,7 +8,8 @@ jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
 
   acceptance-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    # runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
@@ -24,6 +25,9 @@ jobs:
         env:
           PRIVATE_KEY: ${{ secrets.TESTS_PRIVATE_SSH_KEY }}
         run: touch /tmp/test-private.pem && echo "$PRIVATE_KEY" > /tmp/test-private.pem
+
+      - name: 'Clean'
+        run: sudo iptables -t filter -F && sudo iptables -t filter -X && sudo systemctl restart docker
 
       - name: 'AC test'
         timeout-minutes: 45

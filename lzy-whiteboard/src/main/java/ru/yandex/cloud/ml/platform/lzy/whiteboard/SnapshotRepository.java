@@ -4,6 +4,9 @@ import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import javax.validation.constraints.NotNull;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
@@ -39,4 +42,8 @@ public interface SnapshotRepository {
     Optional<SnapshotEntryStatus> resolveEntryStatus(@NotNull Snapshot snapshot, @NotNull String id);
 
     Optional<SnapshotStatus> lastSnapshot(@NotNull String workflowName, @NotNull String uid);
+
+    Stream<ExecutionSnapshot> executionSnapshots(String name, String snapshot);
+
+    void saveExecution(ExecutionSnapshot execution);
 }

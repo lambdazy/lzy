@@ -3,7 +3,6 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
@@ -217,6 +216,18 @@ public class LzyKharon {
         public void createEntry(LzyWhiteboard.CreateEntryCommand request,
             StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
             ProxyCall.exec(snapshot::createEntry, request, responseObserver);
+        }
+
+        @Override
+        public void saveExecution(LzyWhiteboard.SaveExecutionCommand request,
+                                  StreamObserver<LzyWhiteboard.SaveExecutionResponse> responseObserver) {
+            ProxyCall.exec(snapshot::saveExecution, request, responseObserver);
+        }
+
+        @Override
+        public void resolveExecution(LzyWhiteboard.ResolveExecutionCommand request,
+                                     StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver) {
+            ProxyCall.exec(snapshot::resolveExecution, request, responseObserver);
         }
     }
 
