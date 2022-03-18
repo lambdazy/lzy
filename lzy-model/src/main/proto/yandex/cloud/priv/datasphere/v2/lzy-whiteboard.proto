@@ -17,6 +17,7 @@ service SnapshotApi {
   rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
   rpc LastSnapshot (LastSnapshotCommand) returns (Snapshot);
   rpc EntryStatus (EntryStatusCommand) returns (EntryStatusResponse);
+  rpc CreateEntry (CreateEntryCommand) returns (OperationStatus);
   rpc SaveExecution (SaveExecutionCommand) returns (SaveExecutionResponse);
   rpc ResolveExecution (ResolveExecutionCommand) returns (ResolveExecutionResponse);
 }
@@ -172,6 +173,12 @@ message EntryStatusResponse {
   }
 }
 
+message CreateEntryCommand {
+  Auth auth = 1;
+  string entryId = 2;
+  string snapshotId = 3;
+}
+
 message InputArgDescription {
   string name = 1;
   string hash = 2;
@@ -191,6 +198,7 @@ message ExecutionDescription {
 }
 
 message SaveExecutionCommand {
+  Auth auth = 1;
   ExecutionDescription description = 2;
 }
 
@@ -198,9 +206,10 @@ message SaveExecutionResponse {
 }
 
 message ResolveExecutionCommand {
-  string snapshotId = 1;
-  string operationName = 2;
-  repeated ArgDescription args = 3;
+  Auth auth = 1;
+  string snapshotId = 2;
+  string operationName = 3;
+  repeated ArgDescription args = 4;
 
   message ArgDescription {
     string name = 1;

@@ -41,7 +41,6 @@ class WhiteboardStatus(Enum):
     UNKNOWN = "UNKNOWN"
     CREATED = "CREATED"
     COMPLETED = "COMPLETED"
-    NOT_COMPLETED = "NOT_COMPLETED"
     ERRORED = "ERRORED"
 
 

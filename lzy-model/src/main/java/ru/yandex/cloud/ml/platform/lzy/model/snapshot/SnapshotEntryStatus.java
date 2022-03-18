@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.model.snapshot;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -62,6 +63,11 @@ public interface SnapshotEntryStatus {
 
         public Set<String> dependentEntryIds() {
             return deps;
+        }
+
+        public String toString() {
+            return "snapshot entry: {" + entry + "}, state: " + status + ", storage uri: " + storage + ", empty: "
+                + empty + ", dependent entry ids: {" + Arrays.toString(deps.toArray()) + "}";
         }
     }
 }
