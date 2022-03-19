@@ -7,9 +7,8 @@ from typing import Callable
 from lzy.api.env import LzyWorkflowBase, LzyRemoteWorkflow, LzyLocalWorkflow, LzyRemoteEnv, LzyLocalEnv
 from lzy.api.lazy_op import LzyLocalOp, LzyRemoteOp
 from lzy.api.result import Nothing
-from lzy.api.utils import infer_return_type, is_lazy_proxy, lazy_proxy
+from lzy.api.utils import infer_return_type, is_lazy_proxy, lazy_proxy, infer_call_signature
 from lzy.api.whiteboard.model import UUIDEntryIdGenerator
-from lzy.model.signatures import FuncSignature, CallSignature
 from lzy.model.zygote import Provisioning, Gpu
 
 logging.root.setLevel(logging.INFO)
@@ -44,23 +43,14 @@ def op_(provisioning: Provisioning, *, output_type=None):
                 output_type = infer_result.value
 
         @functools.wraps(f)
-        def lazy(*args):
-            # TODO: all possible arguments, including **kwargs and defaults
-            nonlocal output_type
-
-            # noinspection PyProtectedMember
-            # pylint: disable=protected-access
-            input_types = tuple(
-                arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
-                for arg in args
-            )
-
+        def lazy(*args, **kwargs):
+            # TODO: defaults?
             current_workflow = LzyWorkflowBase.get_active()
             if current_workflow is None:
-                return f(*args)
+                return f(*args, **kwargs)
 
-            signature = CallSignature(FuncSignature(f, input_types, output_type), args)
-
+            nonlocal output_type
+            signature = infer_call_signature(f, output_type, *args, **kwargs)
             if isinstance(current_workflow, LzyLocalWorkflow):
                 lzy_op = LzyLocalOp(signature)
             elif isinstance(current_workflow, LzyRemoteWorkflow):

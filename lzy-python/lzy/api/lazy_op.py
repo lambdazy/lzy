@@ -102,17 +102,13 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
         self._channel_manager: ChannelManager = channel_manager  # type: ignore
 
-        input_types: Tuple[type, ...] = ()
-        for input_type in signature.func.input_types:
+        for input_type in signature.func.input_types.values():
             if issubclass(input_type, Message):
                 setattr(input_type, 'LZY_MESSAGE', 'LZY_WB_MESSAGE')
-            input_types = input_types + (input_type,)
-        signature.func.input_types = input_types
 
         output_type = signature.func.output_type
         if issubclass(output_type, Message):
             setattr(output_type, 'LZY_MESSAGE', 'LZY_WB_MESSAGE')
-        signature.func.output_type = output_type
 
         self._zygote = ZygotePythonFunc(
             signature.func,
@@ -168,8 +164,9 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         entry_id: str
 
     def resolve_args(self) -> Iterable[Tuple[str, Union[Any, __EntryId]]]:
-        for name, arg in zip(self.signature.func.param_names, self.signature.args):
+        for name, arg in self.signature.kwargs.items():
             if is_lazy_proxy(arg):
+                # noinspection PyProtectedMember
                 op: LzyOp = arg._op
                 op.execute()
                 yield name, self.__EntryId(op.return_entry_id())

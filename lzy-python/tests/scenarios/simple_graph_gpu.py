@@ -9,6 +9,7 @@ This scenario contains:
     1. Importing external modules (catboost)
     2. Functions which accept and return complex objects
     3. Task that requires GPU
+    4. Keyed arguments
 '''
 
 
@@ -34,5 +35,5 @@ WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 if __name__ == '__main__':
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
         model = learn()
-        result = predict(model, np.array([9, 1]))
+        result = predict(model, point=np.array([9, 1]))
         print("Prediction: " + str(result))

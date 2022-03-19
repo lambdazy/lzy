@@ -1,16 +1,11 @@
-import inspect
 from dataclasses import dataclass
-from pathlib import Path
 from typing import (
     Any,
     Generic,
     Iterable,
-    Iterator,
-    Optional,
-    Tuple,
     Type,
     Callable,
-    TypeVar,
+    TypeVar, Dict,
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -20,15 +15,12 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 @dataclass
 class FuncSignature(Generic[T]):
     callable: Callable[..., T]
-    input_types: Tuple[type, ...]
+    input_types: Dict[str, type]
     output_type: Type[T]
-
-    def __post_init__(self):
-        self.argspec = inspect.getfullargspec(self.callable)
 
     @property
     def param_names(self) -> Iterable[str]:
-        return list(self.argspec.args)
+        return list(self.input_types.keys())
 
     @property
     def name(self) -> str:
@@ -42,29 +34,19 @@ class FuncSignature(Generic[T]):
         return self.callable.__name__
 
     def __repr__(self) -> str:
-        input_types = ", ".join(str(t) for t in self.input_types)
+        input_types = ", ".join(n + "=" + str(t) for n, t in self.input_types.items())
         return f"{self.callable} {self.name}({input_types}) -> {self.output_type}"
 
 
 @dataclass
 class CallSignature(Generic[T]):
     func: FuncSignature[T]
-    args: Tuple[Any, ...]
+    kwargs: Dict[str, Any]
 
     def exec(self) -> T:
         print("Calling: ", self.description)
-        return self.func.callable(*self.args)
+        return self.func.callable(**self.kwargs)
 
     @property
     def description(self) -> str:
         return self.func.description  # TODO(artolord) Add arguments description here
-
-
-def param_files(func_s: FuncSignature, prefix: Optional[Path] = None) -> Iterator[Path]:
-    prefix = prefix or Path("/")
-    return (prefix / func_s.name / name for name in func_s.param_names)
-
-
-def return_file(func_s: FuncSignature, prefix: Optional[Path] = None) -> Path:
-    prefix = prefix or Path("/")
-    return prefix / func_s.name / "return"

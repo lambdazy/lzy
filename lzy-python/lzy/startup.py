@@ -38,17 +38,15 @@ def main():
     print("Loading function")
     func_s: FuncSignature = serializer.deserialize_from_byte_string(base64.b64decode(argv[0].encode("ascii")))
     print("Function loaded: " + func_s.name)
-    # noinspection PyShadowingNames
-    args = tuple(
-        lazy_proxy(
-            lambda name=name: load_arg(servant.mount() / func_s.name / name, inp_type),
-            inp_type,
-            {},
-        )
-        for name, inp_type in zip(func_s.param_names, func_s.input_types)
-    )
-    lazy_call = CallSignature(func_s, args)
-    print(f"Loaded {len(args)} lazy args")
+
+    kwargs = {}
+    for k, v in func_s.input_types.items():
+        kwargs[k] = lazy_proxy(lambda name=k: load_arg(servant.mount() / func_s.name / name, v),
+                               v,
+                               {}, )
+
+    lazy_call = CallSignature(func_s, kwargs)
+    print(f"Loaded {len(kwargs)} lazy args")
 
     print(f"Running {func_s.name}")
     op_ = LzyRemoteOp(servant, lazy_call, deployed=True, entry_id_generator=UUIDEntryIdGenerator(""),
