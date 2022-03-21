@@ -1,24 +1,24 @@
 import base64
 import os
 import sys
-from typing import Any
 import time
 from pathlib import Path
+from pure_protobuf.dataclasses_ import load  # type: ignore
+from typing import Any
 from typing import TypeVar, Type
 
 from lzy.api.lazy_op import LzyRemoteOp
+from lzy.api.serializer.serializer import Serializer
 from lzy.api.utils import lazy_proxy
 from lzy.api.whiteboard.model import UUIDEntryIdGenerator
 from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
-from pure_protobuf.dataclasses_ import load  # type: ignore
-from lzy.api.serializer.serializer import Serializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-def load_arg(path: Path, inp_type: Type[T]) -> Any:
+def load_arg(path: Path, inp_type: Type[T]) -> T:
     with open(path, "rb") as file:
         # Wait for slot become open
         while file.read(1) is None:
@@ -39,9 +39,9 @@ def main():
     func_s: FuncSignature = serializer.deserialize_from_byte_string(base64.b64decode(argv[0].encode("ascii")))
     print("Function loaded: " + func_s.name)
 
-    def build_proxy(arg_name: str):
+    def build_proxy(arg_name: str) -> Any:
         return lazy_proxy(
-            lambda name=arg_name: load_arg(servant.mount() / func_s.name / name, func_s.input_types[name]),
+            lambda n=arg_name: load_arg(servant.mount() / func_s.name / n, func_s.input_types[n]),  # type: ignore
             func_s.input_types[arg_name],
             {},
         )
