@@ -355,7 +355,9 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                     key = "local_modules/" + os.path.basename(local_module) + "/" \
                           + fileobj_hash(archive.file)  # type: ignore
                     archive.seek(0)
-                    uri = self._storage_client.write(self._bucket, key, archive)  # type: ignore
+                    if not self._storage_client.blob_exists(self._bucket, key):
+                        self._storage_client.write(self._bucket, key, archive)  # type: ignore
+                    uri = self._storage_client.generate_uri(self._bucket, key)
                 local_modules_uploaded.append((os.path.basename(local_module), uri))
             self._py_env = PyEnv(name, yaml, local_modules_uploaded)
             return self._py_env
