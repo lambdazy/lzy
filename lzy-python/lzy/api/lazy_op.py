@@ -6,6 +6,7 @@ import uuid
 from abc import abstractmethod, ABC
 from typing import Optional, Any, TypeVar, Generic, Tuple, Iterable, Union, List
 
+from lzy.api.cache_policy import CachePolicy
 from lzy.api.utils import is_lazy_proxy, LzyExecutionException
 from lzy.api.serializer.serializer import Serializer
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
@@ -17,7 +18,8 @@ from lzy.model.return_codes import ReturnCode
 from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.model.zygote import Zygote, Provisioning
 from lzy.model.zygote_python_func import ZygotePythonFunc
-from lzy.servant.servant_client import ServantClient, Execution
+from lzy.servant.servant_client import ServantClient, Execution, ExecutionDescription, InputExecutionValue, \
+    ExecutionValue
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -87,7 +89,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             provisioning: Optional[Provisioning] = None,
             env: Optional[PyEnv] = None,
             deployed: bool = False,
-            channel_manager: Optional[ChannelManager] = None
+            channel_manager: Optional[ChannelManager] = None,
+            cache_policy: CachePolicy = CachePolicy.IGNORE
     ):
         if (not provisioning or not env) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
@@ -96,6 +99,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         self._servant = servant
         self._env = env
         self._snapshot_id: str = snapshot_id
+        self._cache_policy = cache_policy
 
         if not deployed and not channel_manager:
             raise ValueError("ChannelManager not provided")
@@ -113,7 +117,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         self._zygote = ZygotePythonFunc(
             signature.func,
             Env(aux_env=env),
-            provisioning,
+            provisioning
         )
 
         self._entry_id_generator = entry_id_generator
@@ -170,6 +174,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 op: LzyOp = arg._op
                 op.execute()
                 yield name, self.__EntryId(op.return_entry_id())
+                continue
             yield name, arg
 
     def execution_logic(self):
@@ -179,19 +184,33 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         args = self.resolve_args()
         bindings: Bindings = []
         write_later: List[Tuple[str, Any]] = []
+        inputs: List[InputExecutionValue] = []
 
         for name, data in args:
             slot = self._zygote.slot(name)
             if isinstance(data, self.__EntryId):
                 channel = self._channel_manager.channel(entry_id=data.entry_id)
+                inputs.append(InputExecutionValue(name, data.entry_id, None))
                 bindings.append(Binding(slot, channel))
             else:
                 entry_id = self._entry_id_generator.generate(slot)
                 channel = self._channel_manager.channel(entry_id)
                 bindings.append(Binding(slot, channel))
                 write_later.append((entry_id, data))
+                inputs.append(InputExecutionValue(name, entry_id, str(hash(data))))
 
         bindings.append(Binding(self.zygote.return_slot, self._channel_manager.channel(self.return_entry_id())))
+
+        if self._cache_policy.restore():
+            executions = self._servant.resolve_executions(self.signature.func.name, self._snapshot_id, inputs)
+            if len(executions) >= 1:
+                return_value = filter(lambda x: x.name == "return", executions[0].outputs).__next__()
+                self._return_entry_id = return_value.entry_id
+                return
+
+        description = self._build_description(inputs) if self._cache_policy.save() else None
+
+        self._zygote.execution_description = description
 
         execution = self._servant.run(
             execution_id, self._zygote,
@@ -212,6 +231,14 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         message = self._execution_exception_message(execution, func, rc_)
         self._log.error(f"Execution exception with message: {message}")
         raise LzyExecutionException(message)
+
+    def _build_description(self, inputs: Iterable[InputExecutionValue]) -> ExecutionDescription:
+        return ExecutionDescription(
+            self.signature.func.name,
+            self._snapshot_id,
+            inputs,
+            (ExecutionValue("return", self.return_entry_id()),)
+        )
 
     def materialize(self) -> Any:
         name = self.signature.func.name

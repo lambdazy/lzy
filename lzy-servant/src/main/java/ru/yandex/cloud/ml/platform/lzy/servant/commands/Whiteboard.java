@@ -60,7 +60,7 @@ public class Whiteboard implements LzyCommand {
         if (!auth.hasUser()) {
             throw new IllegalArgumentException("Please provide user credentials");
         }
-        final URI serverAddr = URI.create(command.getOptionValue('z'));
+        final URI serverAddr = URI.create(command.getOptionValue('w'));
         final ManagedChannel serverCh = ChannelBuilder
             .forAddress(serverAddr.getHost(), serverAddr.getPort())
             .usePlaintext()

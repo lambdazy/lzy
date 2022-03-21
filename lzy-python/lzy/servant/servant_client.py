@@ -3,6 +3,8 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Optional, Iterable, List
+
 from lzy.api.whiteboard.credentials import AmazonCredentials
 
 from lzy.api.whiteboard.credentials import (
@@ -20,6 +22,25 @@ class ExecutionResult:
     stdout: str
     stderr: str
     returncode: int
+
+
+@dataclass
+class ExecutionValue:
+    name: str
+    entry_id: Optional[str]
+
+
+@dataclass
+class InputExecutionValue(ExecutionValue):
+    hash: Optional[str]
+
+
+@dataclass
+class ExecutionDescription:
+    name: str
+    snapshot_id: str
+    inputs: Iterable[InputExecutionValue]
+    outputs: Iterable[ExecutionValue]
 
 
 class Execution(ABC):
@@ -92,11 +113,30 @@ class ServantClient(ABC):
     def get_bucket(self) -> str:
         pass
 
+    @abstractmethod
+    def save_execution(self, execution: ExecutionDescription):
+        pass
+
+    @abstractmethod
+    def resolve_executions(
+            self,
+            name: str,
+            snapshot_id: str,
+            inputs: Iterable[InputExecutionValue]) -> List[ExecutionDescription]:
+        pass
+
     def _zygote_path(self, zygote: Zygote) -> str:
         return f"{self.mount()}/bin/{zygote.name}"
 
 
 class ServantClientMock(ServantClient):
+    def save_execution(self, execution: ExecutionDescription):
+        pass
+
+    def resolve_executions(self, name: str, snapshot_id: str, inputs: Iterable[InputExecutionValue]) -> List[
+        ExecutionDescription]:
+        return []
+
     def mount(self) -> Path:
         pass
 

@@ -73,6 +73,7 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     pyenv,
                     deployed=False,
                     channel_manager=current_workflow.channel_manager(),
+                    cache_policy=current_workflow.cache_policy
                 )
             else:
                 raise TypeError(f"Unsupported env type: {type(current_workflow)}")

@@ -1,6 +1,0 @@
-from enum import Enum
-
-
-class RestartPolicy(Enum):
-    FROM_LAST_UNCOMPLETED_SNAPSHOT = "FROM_LAST_UNCOMPLETED_SNAPSHOT"
-    IGNORE_SNAPSHOTS = "IGNORE_SNAPSHOTS"

@@ -374,6 +374,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         ExecutionSnapshot execution = GrpcConverter.from(request.getDescription());
         repository.saveExecution(execution);
         LOG.info("SnapshotApi::saveExecution: Saved execution {} ", execution);
+        responseObserver.onNext(LzyWhiteboard.SaveExecutionResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
 
@@ -402,8 +403,15 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             ).map(GrpcConverter::to)
             .collect(Collectors.toList());
         LOG.info("SnapshotApi::resolveExecution: successfully resolved list of execution descriptions");
+
+        LzyWhiteboard.ResolveExecutionResponse resp = LzyWhiteboard.ResolveExecutionResponse.newBuilder()
+            .addAllExecution(exec).build();
+
+        LOG.info("Resolved executions " + JsonUtils.printRequest(resp));
+
         responseObserver
-            .onNext(LzyWhiteboard.ResolveExecutionResponse.newBuilder().addAllExecution(exec).build());
+            .onNext(resp);
+
         responseObserver.onCompleted();
     }
 
