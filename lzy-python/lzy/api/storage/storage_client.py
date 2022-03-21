@@ -79,10 +79,10 @@ class AzureClient(StorageClient):
         data = downloader.readall()
         return data
 
-    def write(self, container: str, blob: str, data: BinaryIO, overwrite=False):
+    def write(self, container: str, blob: str, data: BinaryIO):
         container_client: ContainerClient = self.client.get_container_client(container)
         blob_client = container_client.get_blob_client(blob)
-        blob_client.upload_blob(data, overwrite=overwrite)
+        blob_client.upload_blob(data)
         return self.generate_uri(container, blob)
 
     def blob_exists(self, container: str, blob: str) -> bool:
