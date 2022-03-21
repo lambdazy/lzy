@@ -9,6 +9,9 @@ from urllib import parse
 
 from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
 import logging
+
+from botocore.exceptions import ClientError
+
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials, StorageCredentials
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
@@ -17,6 +20,7 @@ logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name
+
 
 class StorageClient(ABC):
     def __init__(self):
@@ -33,6 +37,14 @@ class StorageClient(ABC):
 
     @abstractmethod
     def write(self, container: str, blob: str, data: BinaryIO) -> str:
+        pass
+
+    @abstractmethod
+    def blob_exists(self, container: str, blob: str) -> bool:
+        pass
+
+    @abstractmethod
+    def generate_uri(self, container: str, blob: str) -> str:
         pass
 
 
@@ -67,11 +79,18 @@ class AzureClient(StorageClient):
         data = downloader.readall()
         return data
 
-    def write(self, container: str, blob: str, data: BinaryIO):
+    def write(self, container: str, blob: str, data: BinaryIO, overwrite=False):
         container_client: ContainerClient = self.client.get_container_client(container)
         blob_client = container_client.get_blob_client(blob)
-        if not blob_client.exists():
-            blob_client.upload_blob(data)
+        blob_client.upload_blob(data, overwrite=overwrite)
+        return self.generate_uri(container, blob)
+
+    def blob_exists(self, container: str, blob: str) -> bool:
+        container_client: ContainerClient = self.client.get_container_client(container)
+        blob_client = container_client.get_blob_client(blob)
+        return blob_client.exists()
+
+    def generate_uri(self, container: str, blob: str) -> str:
         return f"azure:/{container}/{blob}"
 
     @staticmethod
@@ -112,6 +131,18 @@ class AmazonClient(StorageClient):
 
     def write(self, bucket: str, key: str, data: BinaryIO) -> str:
         self._client.upload_fileobj(data, bucket, key)
+        return self.generate_uri(bucket, key)
+
+    def blob_exists(self, container: str, blob: str) -> bool:
+        # ridiculous, but botocore does not have a way to check for resource existence.
+        # Try-except seems to be the best solution for now.
+        try:
+            self._client.head_object(Bucket=container, Key=blob)
+            return True
+        except ClientError:
+            return False
+
+    def generate_uri(self, bucket: str, key: str) -> str:
         path = os.path.join(bucket, key)
         return f"s3:/{path}"
 
