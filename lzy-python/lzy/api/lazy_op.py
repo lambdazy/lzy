@@ -164,7 +164,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         entry_id: str
 
     def resolve_args(self) -> Iterable[Tuple[str, Union[Any, __EntryId]]]:
-        for name, arg in self.signature.kwargs.items():
+        for name, arg in self.signature.named_arguments():
             if is_lazy_proxy(arg):
                 # noinspection PyProtectedMember
                 op: LzyOp = arg._op

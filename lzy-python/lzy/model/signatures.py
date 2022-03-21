@@ -5,7 +5,7 @@ from typing import (
     Iterable,
     Type,
     Callable,
-    TypeVar, Dict,
+    TypeVar, Dict, Tuple, Iterator,
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -17,6 +17,8 @@ class FuncSignature(Generic[T]):
     callable: Callable[..., T]
     input_types: Dict[str, type]
     output_type: Type[T]
+    arg_names: Tuple[str, ...]
+    kwarg_names: Tuple[str, ...]
 
     @property
     def param_names(self) -> Iterable[str]:
@@ -41,11 +43,18 @@ class FuncSignature(Generic[T]):
 @dataclass
 class CallSignature(Generic[T]):
     func: FuncSignature[T]
+    args: Tuple[Any, ...]
     kwargs: Dict[str, Any]
 
     def exec(self) -> T:
         print("Calling: ", self.description)
-        return self.func.callable(**self.kwargs)
+        return self.func.callable(*self.args, **self.kwargs)
+
+    def named_arguments(self) -> Iterator[Tuple[str, Any]]:
+        for name, arg in zip(self.func.arg_names, self.args):
+            yield name, arg
+        for name, arg in self.kwargs.items():
+            yield name, arg
 
     @property
     def description(self) -> str:

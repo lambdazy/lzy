@@ -104,21 +104,19 @@ def fileobj_hash(fileobj: BytesIO) -> str:
 
 def infer_call_signature(f: Callable, output_type: type, *args, **kwargs) -> CallSignature:
     types_mapping = {}
-    args_mapping = {}
     argspec = inspect.getfullargspec(f)
 
     # pylint: disable=protected-access
     for name, arg in zip(argspec.args, args):
         # noinspection PyProtectedMember
         types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
-        args_mapping[name] = arg
-
     for k, v in kwargs.items():
         # noinspection PyProtectedMember
         types_mapping[k] = v._op.signature.func.output_type if is_lazy_proxy(v) else type(v)
-        args_mapping[k] = v
 
-    return CallSignature(FuncSignature(f, types_mapping, output_type), args_mapping)
+    arg_names = tuple(name for name, arg in zip(argspec.args, args))
+    kwarg_names = tuple(k for k in kwargs.keys())
+    return CallSignature(FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names), args, kwargs)
 
 
 class LzyExecutionException(Exception):

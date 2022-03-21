@@ -109,7 +109,8 @@ class ProxyTests(TestCase):
 
         class LazyOpMock(LzyOp, ABC):
             def __init__(self):
-                super().__init__(CallSignature(FuncSignature(lambda: None, (), None), ()), "return_entry_id")
+                super().__init__(CallSignature(FuncSignature(lambda: None, (), None, (), ()), (), {}),
+                                 "return_entry_id")
 
             def materialize(self) -> Any:
                 self.execute()
@@ -220,5 +221,6 @@ class ProxyTests(TestCase):
 
             def __init__(self):
                 self.test_attr = 42
+
         prxy = proxy(ClassWithCustomNew, ClassWithCustomNew)
         self.assertEqual(prxy.test_attr, 42)

@@ -39,13 +39,19 @@ def main():
     func_s: FuncSignature = serializer.deserialize_from_byte_string(base64.b64decode(argv[0].encode("ascii")))
     print("Function loaded: " + func_s.name)
 
-    kwargs = {}
-    for k, v in func_s.input_types.items():
-        kwargs[k] = lazy_proxy(lambda name=k: load_arg(servant.mount() / func_s.name / name, v),
-                               v,
-                               {}, )
+    def build_proxy(arg_name: str):
+        return lazy_proxy(
+            lambda name=arg_name: load_arg(servant.mount() / func_s.name / name, func_s.input_types[name]),
+            func_s.input_types[arg_name],
+            {},
+        )
 
-    lazy_call = CallSignature(func_s, kwargs)
+    args = tuple(build_proxy(name) for name in func_s.arg_names)
+    kwargs = {}
+    for name in func_s.kwarg_names:
+        kwargs[name] = build_proxy(name)
+
+    lazy_call = CallSignature(func_s, args, kwargs)
     print(f"Loaded {len(kwargs)} lazy args")
 
     print(f"Running {func_s.name}")
