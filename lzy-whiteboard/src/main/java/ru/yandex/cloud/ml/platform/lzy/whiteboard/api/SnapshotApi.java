@@ -82,10 +82,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
         StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
-        LOG.info("SnapshotApi::createSnapshot: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("SnapshotApi::createSnapshot: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("SnapshotApi::createSnapshot: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("SnapshotApi::createSnapshot: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied to create snapshot").asException());
             return;
@@ -137,10 +136,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void prepareToSave(LzyWhiteboard.PrepareCommand request,
         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-        LOG.info("SnapshotApi::prepareToSave: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("SnapshotApi::prepareToSave: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("SnapshotApi::prepareToSave: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("SnapshotApi::prepareToSave: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for prepareToSave command").asException());
             return;
@@ -175,9 +173,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void commit(LzyWhiteboard.CommitCommand request,
         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-        LOG.info("SnapshotApi::commit: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("SnapshotApi::commit: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("SnapshotApi::commit: Permission denied for credentials {} ", JsonUtils.printRequest(request));
+            LOG.error("SnapshotApi::commit: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for commit command").asException());
             return;
@@ -221,10 +219,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-        LOG.info("SnapshotApi::finalizeSnapshot: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("SnapshotApi::finalizeSnapshot: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("SnapshotApi::finalizeSnapshot: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("SnapshotApi::finalizeSnapshot: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for finalizeSnapshot command")
                     .asException());
@@ -257,10 +254,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
         StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
-        LOG.info("SnapshotApi::lastSnapshot: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("SnapshotApi::lastSnapshot: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("SnapshotApi::lastSnapshot: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("SnapshotApi::lastSnapshot: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for lastSnapshot command")
                     .asException());
@@ -281,10 +277,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void entryStatus(LzyWhiteboard.EntryStatusCommand request,
         StreamObserver<LzyWhiteboard.EntryStatusResponse> responseObserver) {
-        LOG.info("SnapshotApi::entryStatus: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("SnapshotApi::entryStatus: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("SnapshotApi::entryStatus: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("SnapshotApi::entryStatus: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for entryStatus command")
                     .asException());
@@ -324,10 +319,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void createEntry(LzyWhiteboard.CreateEntryCommand request,
         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-        LOG.info("SnapshotApi::createEntry: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("SnapshotApi::createEntry: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("SnapshotApi::createEntry: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("SnapshotApi::createEntry: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for createEntry command")
                     .asException());
@@ -360,10 +354,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void saveExecution(LzyWhiteboard.SaveExecutionCommand request,
         StreamObserver<LzyWhiteboard.SaveExecutionResponse> responseObserver) {
-        LOG.info("SnapshotApi::saveExecution: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("SnapshotApi::saveExecution: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("SnapshotApi::saveExecution: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("SnapshotApi::saveExecution: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for saveExecution command")
                     .asException());
@@ -387,10 +380,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void resolveExecution(LzyWhiteboard.ResolveExecutionCommand request,
         StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver) {
-        LOG.info("SnapshotApi::resolveExecution: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("SnapshotApi::resolveExecution: Received request"));
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("SnapshotApi::resolveExecution: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("SnapshotApi::resolveExecution: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for resolveExecution command")
                     .asException());

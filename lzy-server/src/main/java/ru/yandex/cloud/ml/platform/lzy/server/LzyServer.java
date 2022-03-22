@@ -548,7 +548,6 @@ public class LzyServer {
         @Override
         public void getUser(Lzy.GetUserRequest request,
             StreamObserver<Lzy.GetUserResponse> responseObserver) {
-            LOG.info("Server::resolveUser " + JsonUtils.printRequest(request));
             final Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -648,8 +647,7 @@ public class LzyServer {
         }
 
         private String resolveUser(IAM.Auth auth) {
-            LOG.info("Resolving user for auth " + JsonUtils.printRequest(auth));
-            return auth.hasUser() ? auth.getUser().getUserId() : this.auth.userForTask(resolveTask(auth));
+           return auth.hasUser() ? auth.getUser().getUserId() : this.auth.userForTask(resolveTask(auth));
         }
 
         private Task resolveTask(IAM.Auth auth) {
