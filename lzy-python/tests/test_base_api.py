@@ -6,6 +6,7 @@ from lzy.api import op, LzyLocalEnv
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
+
 class BaseApiTests(TestCase):
     def test_lazy_and_eager_ops(self):
         # Arrange
@@ -143,6 +144,7 @@ class BaseApiTests(TestCase):
 
     def test_function_with_none(self):
         variable: int = 0
+
         @op
         def none_func() -> None:
             nonlocal variable
@@ -171,3 +173,16 @@ class BaseApiTests(TestCase):
             @op
             def not_annotated():
                 pass
+
+    def test_kwargs(self):
+        @op
+        def summing(a: int, b: int) -> int:
+            return a + b
+
+        # Act
+        # noinspection PyUnusedLocal
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME) as env:
+            s = summing(a=1, b=2)
+
+        # the result depends on the order of execution here
+        self.assertEqual(s, 3)
