@@ -7,6 +7,7 @@ from abc import abstractmethod, ABC
 from typing import Optional, Any, TypeVar, Generic, Tuple, Iterable, Union, List
 
 from lzy.api.cache_policy import CachePolicy
+from lzy.api.hasher import hash_data
 from lzy.api.utils import is_lazy_proxy, LzyExecutionException
 from lzy.api.serializer.serializer import Serializer
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
@@ -197,7 +198,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 channel = self._channel_manager.channel(entry_id)
                 bindings.append(Binding(slot, channel))
                 write_later.append((entry_id, data))
-                inputs.append(InputExecutionValue(name, entry_id, str(hash(data))))
+                inputs.append(InputExecutionValue(name, entry_id, None))
 
         bindings.append(Binding(self.zygote.return_slot, self._channel_manager.channel(self.return_entry_id())))
 

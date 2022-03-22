@@ -96,6 +96,7 @@ public class PyApiTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
             "bash", "-c",
             condaPrefix + pyCommand);
+        System.out.println(result.stdout());
         Assert.assertTrue(result.stdout().contains("Is fun2 cached? True"));
     }
 

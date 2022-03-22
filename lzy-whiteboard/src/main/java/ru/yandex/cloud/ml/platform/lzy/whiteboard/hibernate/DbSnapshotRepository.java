@@ -53,7 +53,10 @@ public class DbSnapshotRepository implements SnapshotRepository {
             SnapshotModel snapshotStatus = session.find(SnapshotModel.class, snapshotId);
             if (snapshotStatus != null) {
                 LOG.error("Snapshot with id {} already exists", snapshotId);
-                throw new SnapshotRepositoryException("Snapshot with id " + snapshot.id() + " already exists");
+                throw new SnapshotRepositoryException(
+                    Status.ALREADY_EXISTS.withDescription("Snapshot with id " + snapshot.id() + " already exists")
+                        .asException()
+                );
             }
 
             Transaction tx = session.beginTransaction();
@@ -77,16 +80,24 @@ public class DbSnapshotRepository implements SnapshotRepository {
         try (Session session = storage.getSessionFactory().openSession()) {
             SnapshotModel fromSnapshotModel = session.find(SnapshotModel.class, fromSnapshotId);
             if (fromSnapshotModel == null) {
-                throw new SnapshotRepositoryException("Snapshot with id "
-                    + fromSnapshotId + " does not exists; snapshot with id "
-                    + snapshot.id().toString() + " could not be created"
+                throw new SnapshotRepositoryException(
+                    Status.NOT_FOUND.withDescription("Snapshot with id "
+                            + fromSnapshotId + " does not exists; snapshot with id "
+                            + snapshot.id().toString() + " could not be created"
+                        )
+                        .asException()
                 );
             }
 
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
             if (snapshotModel != null) {
-                throw new SnapshotRepositoryException("Snapshot with id " + snapshotId + " already exists");
+                throw new SnapshotRepositoryException(Status.ALREADY_EXISTS
+                    .withDescription(
+                        "Snapshot with id " + snapshotId + " already exists"
+                    )
+                    .asException()
+                );
             }
 
             Transaction tx = session.beginTransaction();
@@ -246,8 +257,13 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
             if (snapshotEntryModel == null) {
                 throw new SnapshotRepositoryException(
-                    "Could not execute command prepare in DbSnapshotRepository because snapshot entry with id "
-                        + entryId + " and snapshot id " + snapshotId + " was not found");
+                    Status.NOT_FOUND
+                        .withDescription(
+                            "Could not execute command prepare in DbSnapshotRepository because snapshot entry with id "
+                                + entryId + " and snapshot id " + snapshotId + " was not found"
+                        )
+                        .asException()
+                );
             } else {
                 if (!snapshotEntryModel.getEntryState().equals(SnapshotEntryStatus.State.CREATED)) {
                     throw new IllegalArgumentException(
@@ -339,8 +355,12 @@ public class DbSnapshotRepository implements SnapshotRepository {
                     new SnapshotEntryModel.SnapshotEntryPk(snapshot.id().toString(), id));
                 if (model != null) {
                     throw new SnapshotRepositoryException(
-                        "DbSnapshotRepository::createEntry entry with id " + id + " and snapshot id " + snapshot.id()
-                            + " already exists");
+                        Status.ALREADY_EXISTS.withDescription(
+                            "DbSnapshotRepository::createEntry entry with id " + id + " and snapshot id "
+                                + snapshot.id()
+                                + " already exists")
+                            .asException()
+                    );
                 }
                 model = new SnapshotEntryModel(snapshot.id().toString(), id, null, true,
                     SnapshotEntryStatus.State.CREATED);

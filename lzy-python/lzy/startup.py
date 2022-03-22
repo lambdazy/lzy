@@ -9,6 +9,7 @@ from pure_protobuf.dataclasses_ import load  # type: ignore
 from typing import Any
 from typing import TypeVar, Type
 
+from lzy.api.hasher import hash_data
 from lzy.api.lazy_op import LzyRemoteOp
 from lzy.api.serializer.serializer import Serializer
 from lzy.api.utils import lazy_proxy
@@ -30,7 +31,7 @@ def load_arg(path: Path, inp_type: Type[T], input_value: Optional[InputExecution
         file.seek(0)
         data: T = Serializer.deserialize_from_file(file, inp_type)
         if input_value:
-            input_value.hash = str(hash(data))
+            input_value.hash = hash_data(data)
         return data
 
 
