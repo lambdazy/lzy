@@ -1,24 +1,24 @@
 import base64
 import os
 import sys
-from typing import Any
 import time
 from pathlib import Path
+from pure_protobuf.dataclasses_ import load  # type: ignore
+from typing import Any
 from typing import TypeVar, Type
 
 from lzy.api.lazy_op import LzyRemoteOp
+from lzy.api.serializer.serializer import Serializer
 from lzy.api.utils import lazy_proxy
 from lzy.api.whiteboard.model import UUIDEntryIdGenerator
 from lzy.model.signatures import CallSignature, FuncSignature
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClient
-from pure_protobuf.dataclasses_ import load  # type: ignore
-from lzy.api.serializer.serializer import Serializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-def load_arg(path: Path, inp_type: Type[T]) -> Any:
+def load_arg(path: Path, inp_type: Type[T]) -> T:
     with open(path, "rb") as file:
         # Wait for slot become open
         while file.read(1) is None:
@@ -38,17 +38,21 @@ def main():
     print("Loading function")
     func_s: FuncSignature = serializer.deserialize_from_byte_string(base64.b64decode(argv[0].encode("ascii")))
     print("Function loaded: " + func_s.name)
-    # noinspection PyShadowingNames
-    args = tuple(
-        lazy_proxy(
-            lambda name=name: load_arg(servant.mount() / func_s.name / name, inp_type),
-            inp_type,
+
+    def build_proxy(arg_name: str) -> Any:
+        return lazy_proxy(
+            lambda n=arg_name: load_arg(servant.mount() / func_s.name / n, func_s.input_types[n]),  # type: ignore
+            func_s.input_types[arg_name],
             {},
         )
-        for name, inp_type in zip(func_s.param_names, func_s.input_types)
-    )
-    lazy_call = CallSignature(func_s, args)
-    print(f"Loaded {len(args)} lazy args")
+
+    args = tuple(build_proxy(name) for name in func_s.arg_names)
+    kwargs = {}
+    for name in func_s.kwarg_names:
+        kwargs[name] = build_proxy(name)
+
+    lazy_call = CallSignature(func_s, args, kwargs)
+    print(f"Loaded {len(args) + len(kwargs)} lazy args")
 
     print(f"Running {func_s.name}")
     op_ = LzyRemoteOp(servant, lazy_call, deployed=True, entry_id_generator=UUIDEntryIdGenerator(""),
