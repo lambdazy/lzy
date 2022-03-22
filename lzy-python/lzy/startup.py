@@ -52,7 +52,7 @@ def main():
         kwargs[name] = build_proxy(name)
 
     lazy_call = CallSignature(func_s, args, kwargs)
-    print(f"Loaded {len(kwargs)} lazy args")
+    print(f"Loaded {len(args) + len(kwargs)} lazy args")
 
     print(f"Running {func_s.name}")
     op_ = LzyRemoteOp(servant, lazy_call, deployed=True, entry_id_generator=UUIDEntryIdGenerator(""),
