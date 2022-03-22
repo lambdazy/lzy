@@ -1,6 +1,7 @@
 FROM lzydock/lzy-servant-base:old-scheme
 
-RUN mkdir -p /tmp/lzy-log/servant
+RUN mkdir -p /tmp/lzy-log/servant \
+    && mkdir tmp/resources
 
 ### copy jar & resources
 COPY lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar app/app.jar
