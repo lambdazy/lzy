@@ -77,10 +77,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     @Override
     public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
         StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        LOG.info("WhiteboardApi::createWhiteboard: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("WhiteboardApi::createWhiteboard: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("WhiteboardApi::createWhiteboard: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("WhiteboardApi::createWhiteboard: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied to create whiteboard").asException());
             return;
@@ -115,9 +114,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     @Override
     public void link(LzyWhiteboard.LinkCommand request,
         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
-        LOG.info("WhiteboardApi::link: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("WhiteboardApi::link: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("WhiteboardApi::link: Permission denied for credentials {} ", JsonUtils.printRequest(request));
+            LOG.error("WhiteboardApi::link: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for link command").asException());
             return;
@@ -160,10 +159,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     @Override
     public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
         StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
-        LOG.info("WhiteboardApi::getWhiteboard: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("WhiteboardApi::getWhiteboard: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("WhiteboardApi::getWhiteboard: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("WhiteboardApi::getWhiteboard: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for getWhiteboard command").asException());
             return;
@@ -247,10 +245,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     public void whiteboardsList(
         LzyWhiteboard.WhiteboardsListCommand request,
         StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
-        LOG.info("WhiteboardApi::whiteboardsList: Received request {} ", JsonUtils.printRequest(request));
+        LOG.info("WhiteboardApi::whiteboardsList: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
-            LOG.error("WhiteboardApi::whiteboardsList: Permission denied for credentials {} ",
-                JsonUtils.printRequest(request));
+            LOG.error("WhiteboardApi::whiteboardsList: Permission denied");
             responseObserver.onError(
                 Status.PERMISSION_DENIED.withDescription("Permission denied for whiteboardsList command")
                     .asException());

@@ -33,6 +33,8 @@ service LzyServer {
   rpc GetBucket (GetBucketRequest) returns (GetBucketResponse);
 
   rpc GetSessions (GetSessionsRequest) returns (GetSessionsResponse);
+
+  rpc GetUser (GetUserRequest) returns (GetUserResponse);
 }
 
 message PublishRequest {
@@ -112,4 +114,12 @@ message GetBucketRequest {
 
 message GetBucketResponse {
   string bucket = 1;
+}
+
+message GetUserRequest {
+  Auth auth = 1;
+}
+
+message GetUserResponse {
+  string userId = 1;
 }

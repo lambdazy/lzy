@@ -38,7 +38,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.zookeeper.KeeperException;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -63,6 +62,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelCreate;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM.Auth;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
@@ -545,6 +545,24 @@ public class LzyServer {
             responseObserver.onCompleted();
         }
 
+        @Override
+        public void getUser(Lzy.GetUserRequest request,
+            StreamObserver<Lzy.GetUserResponse> responseObserver) {
+            final Auth auth = request.getAuth();
+            if (!checkAuth(auth, responseObserver)) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                return;
+            }
+            String uid = resolveUser(auth);
+            if (uid == null) {
+                responseObserver.onError(Status.NOT_FOUND.asException());
+                return;
+            }
+            Lzy.GetUserResponse response = Lzy.GetUserResponse.newBuilder().setUserId(uid).build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
             final String user = auth.getUser().getUserId();
             sessionManager.registerSession(user, sessionId);
@@ -629,7 +647,6 @@ public class LzyServer {
         }
 
         private String resolveUser(IAM.Auth auth) {
-            LOG.info("Resolving user for auth " + JsonUtils.printRequest(auth));
             return auth.hasUser() ? auth.getUser().getUserId() : this.auth.userForTask(resolveTask(auth));
         }
 
