@@ -54,7 +54,7 @@ class ModulesSearchTests(TestCase):
     def test_py_env(self):
         multiprocessing.set_start_method('spawn')
         # Arrange
-        from tests.test_modules.level1.level1 import Level1  # type: ignore
+        from test_modules.level1.level1 import Level1  # type: ignore
         level1 = Level1()
         py_env = self._workflow.py_env({
             'level1': level1

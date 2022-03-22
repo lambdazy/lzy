@@ -1,7 +1,7 @@
 import inspect
 import sys
 from types import ModuleType
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import pkg_resources
 import requests
@@ -136,19 +136,19 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
     all_local_modules = dict.fromkeys(parents)
     all_local_modules.update(dict.fromkeys(reversed(local_modules)))
 
-    def get_path(module):
+    def get_path(module: ModuleType) -> Union[List[str], str]:
         if not hasattr(module, '__path__'):
             return str(module.__file__)
         else:
             # case for namespace package
             return [p for p in module.__path__]
 
-    def append_to_module_paths(p, module_paths):
+    def append_to_module_paths(p: str, module_paths: List[str]):
         for module_path in module_paths:
             if module_path.startswith(p):
                 module_paths.remove(module_path)
             elif p.startswith(module_path):
-                continue
+                return
         module_paths.append(p)
 
     # reverse to ensure the right order: from leaves to the root
