@@ -380,7 +380,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     @Override
     public void resolveExecution(LzyWhiteboard.ResolveExecutionCommand request,
         StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver) {
-        LOG.info("SnapshotApi::resolveExecution: Received request"));
+        LOG.info("SnapshotApi::resolveExecution: Received request");
         if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
             LOG.error("SnapshotApi::resolveExecution: Permission denied");
             responseObserver.onError(
