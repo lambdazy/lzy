@@ -1,3 +1,5 @@
+from itertools import chain
+
 import inspect
 
 import os
@@ -107,15 +109,12 @@ def infer_call_signature(f: Callable, output_type: type, *args, **kwargs) -> Cal
     argspec = inspect.getfullargspec(f)
 
     # pylint: disable=protected-access
-    for name, arg in zip(argspec.args, args):
+    for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
         types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
-    for k, v in kwargs.items():
-        # noinspection PyProtectedMember
-        types_mapping[k] = v._op.signature.func.output_type if is_lazy_proxy(v) else type(v)
 
-    arg_names = tuple(name for name, arg in zip(argspec.args, args))
-    kwarg_names = tuple(k for k in kwargs.keys())
+    arg_names = tuple(argspec.args[:len(args)])
+    kwarg_names = tuple(kwargs.keys())
     return CallSignature(FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names), args, kwargs)
 
 

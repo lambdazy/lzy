@@ -1,3 +1,5 @@
+from itertools import chain
+
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -36,7 +38,7 @@ class FuncSignature(Generic[T]):
         return self.callable.__name__
 
     def __repr__(self) -> str:
-        input_types = ", ".join(n + "=" + str(t) for n, t in self.input_types.items())
+        input_types = ", ".join(f"{n}={t}" for n, t in self.input_types.items())
         return f"{self.callable} {self.name}({input_types}) -> {self.output_type}"
 
 
@@ -51,9 +53,7 @@ class CallSignature(Generic[T]):
         return self.func.callable(*self.args, **self.kwargs)
 
     def named_arguments(self) -> Iterator[Tuple[str, Any]]:
-        for name, arg in zip(self.func.arg_names, self.args):
-            yield name, arg
-        for name, arg in self.kwargs.items():
+        for name, arg in chain(zip(self.func.arg_names, self.args), self.kwargs.items()):
             yield name, arg
 
     @property
