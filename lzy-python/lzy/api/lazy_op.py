@@ -198,7 +198,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 channel = self._channel_manager.channel(entry_id)
                 bindings.append(Binding(slot, channel))
                 write_later.append((entry_id, data))
-                inputs.append(InputExecutionValue(name, entry_id, None))
+                inputs.append(InputExecutionValue(name, entry_id, hash_data(data)))
 
         bindings.append(Binding(self.zygote.return_slot, self._channel_manager.channel(self.return_entry_id())))
 
