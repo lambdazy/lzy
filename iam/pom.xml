@@ -246,5 +246,10 @@
         <version>${maven-surefire-plugin.version}</version>
       </plugin>
     </plugins>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+    </resources>
   </build>
 </project>

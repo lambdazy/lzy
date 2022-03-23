@@ -22,4 +22,13 @@ public enum AuthPermission {
     public String permission() {
         return permission;
     }
+
+    public static AuthPermission fromString(String permission) {
+        for (AuthPermission p : AuthPermission.values()) {
+            if (p.permission.equalsIgnoreCase(permission)) {
+                return p;
+            }
+        }
+        return null;
+    }
 }

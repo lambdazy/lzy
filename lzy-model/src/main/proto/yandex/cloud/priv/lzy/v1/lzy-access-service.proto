@@ -3,6 +3,7 @@ syntax = "proto3";
 package yandex.cloud.priv.lzy.v1;
 
 import "yandex/cloud/priv/lzy/v1/lzy-iam.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
 
 option go_package = "lzy";
 option java_outer_classname = "LAS";
@@ -16,4 +17,5 @@ message AuthorizeRequest {
   string subject_id = 1;
   string permission = 2;
   Resource resource = 3;
+  Auth auth = 4;
 }

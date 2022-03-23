@@ -25,9 +25,9 @@ public class DbAccessClient implements AccessClient {
             Transaction tx = session.beginTransaction();
             try {
                 List<ResourceBindingModel> bindings = session.createQuery(
-                        "SELECT * FROM user_resource_roles "
-                            + "WHERE user_id = :userId "
-                            + "AND resource_id = :resourceId "
+                        "SELECT r FROM ResourceBindingModel r "
+                            + "WHERE r.userId = :userId "
+                            + "AND r.resourceId = :resourceId "
                             + "AND " + queryByPermission(permission),
                         ResourceBindingModel.class
                     ).setParameter("userId", userId)
@@ -48,10 +48,10 @@ public class DbAccessClient implements AccessClient {
         final boolean[] first = {true};
         Role.rolesByPermission(permission).forEach(r -> {
             if (first[0]) {
-                query.append("role = '").append(r.role()).append("' ");
+                query.append("r.role = '").append(r.role()).append("' ");
                 first[0] = false;
             } else {
-                query.append("OR role = '").append(r.role()).append("' ");
+                query.append("OR r.role = '").append(r.role()).append("' ");
             }
         });
         query.append(")");

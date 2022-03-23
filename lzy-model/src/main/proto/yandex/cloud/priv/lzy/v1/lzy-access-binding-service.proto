@@ -3,6 +3,7 @@ syntax = "proto3";
 package yandex.cloud.priv.lzy.v1;
 
 import "yandex/cloud/priv/lzy/v1/lzy-iam.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
 import "google/protobuf/empty.proto";
 
 option go_package = "lzy";
@@ -19,6 +20,7 @@ service LzyABS {
 
 message ListAccessBindingsRequest {
   Resource resource = 1;
+  Auth auth = 2;
 }
 
 message ListAccessBindingsResponse {
@@ -28,10 +30,12 @@ message ListAccessBindingsResponse {
 message SetAccessBindingsRequest {
   Resource resource = 1;
   repeated AccessBinding bindings = 2;
+  Auth auth = 3;
 }
 
 
 message UpdateAccessBindingsRequest {
   Resource resource = 1;
   repeated AccessBindingDelta deltas = 2;
+  Auth auth = 3;
 }
