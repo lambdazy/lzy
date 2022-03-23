@@ -11,6 +11,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
+import ru.yandex.cloud.ml.platform.lzy.iam.grpc.LzyABSService;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.LzyASService;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.lzy.v1.IAM.Resource;
@@ -36,9 +37,9 @@ public class LzyIAM {
                     .permitKeepAliveWithoutCalls(true)
                     .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
                 LzyASService accessService = context.getBean(LzyASService.class);
-//                LzyABSService accessBindingService = context.getBean(LzyABSService.class);
+                LzyABSService accessBindingService = context.getBean(LzyABSService.class);
                 builder.addService(accessService);
-//                builder.addService(accessBindingService);
+                builder.addService(accessBindingService);
 
                 final Server server = builder.build();
                 server.start();
