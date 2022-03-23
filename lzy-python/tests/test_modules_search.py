@@ -5,6 +5,7 @@ from lzy.api.pkg_info import select_modules
 
 from test_modules.level1.level1 import Level1
 from test_modules.level1.level2_nb import level_foo
+from some_imported_file import bar
 
 
 class ModulesSearchTests(TestCase):
@@ -42,3 +43,10 @@ class ModulesSearchTests(TestCase):
         self.assertFalse(directory + "/test_modules/level1/level2/level3/level3.py" in local)
         self.assertFalse(directory + "/test_modules/level1/level2/level2.py" in local)
         self.assertFalse(directory + "/test_modules/level1/level2_nb" in local)
+
+    def test_modules_search_3(self):
+        _, local = select_modules({
+            'bar': bar
+        })
+        cwd = os.getcwd()
+        self.assertTrue(cwd + '/some_imported_file.py')
