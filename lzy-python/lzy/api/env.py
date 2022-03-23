@@ -338,7 +338,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         if self._py_env is not None:
             return self._py_env
 
-        local_module_paths = []
+        local_module_paths: List[str] = []
         if self._yaml is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
