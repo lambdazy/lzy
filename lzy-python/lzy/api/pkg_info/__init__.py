@@ -157,7 +157,7 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
         path = get_path(local_module)
         if type(path) == list:
             for p in path:
-                append_to_module_paths(p, module_paths)
+                append_to_module_paths(p, module_paths)  # type: ignore
         else:
-            append_to_module_paths(path, module_paths)
+            append_to_module_paths(path, module_paths)  # type: ignore
     return remote_packages, module_paths
