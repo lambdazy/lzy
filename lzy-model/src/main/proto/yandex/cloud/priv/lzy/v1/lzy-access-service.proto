@@ -17,5 +17,5 @@ message AuthorizeRequest {
   string subject_id = 1;
   string permission = 2;
   Resource resource = 3;
-  Auth auth = 4;
+  yandex.cloud.priv.datasphere.v2.Auth auth = 4;
 }
