@@ -82,7 +82,7 @@ version = "3.9" if sys.version_info > (3, 9) else None
 STDLIB_LIST = stdlib_list(version)
 
 
-def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], List[ModuleType]]:
+def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], List[str]]:
     dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
 
     distributions = packages_distributions()

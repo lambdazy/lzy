@@ -173,6 +173,8 @@ class LzyRemoteEnv(LzyEnvBase):
     ):
         return LzyRemoteWorkflow(
             name=name,
+            whiteboard_api=self._whiteboard_api,
+            snapshot_api=self._snapshot_api,
             lzy_mount=self._lzy_mount,
             conda_yaml_path=conda_yaml_path,
             local_module_paths=local_module_paths,
@@ -276,13 +278,16 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
     def __init__(
             self,
             name: str,
+            whiteboard_api: WhiteboardApi,
+            snapshot_api: SnapshotApi,
             lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
             conda_yaml_path: Optional[Path] = None,
             local_module_paths: Optional[List[str]] = None,
             restart_policy: RestartPolicy = RestartPolicy.IGNORE_SNAPSHOTS,
             eager: bool = False,
             whiteboard: Any = None,
-            buses: Optional[BusList] = None
+            buses: Optional[BusList] = None,
+
     ):
         self._yaml = conda_yaml_path
         self._restart_policy = restart_policy
@@ -300,8 +305,8 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
 
         super().__init__(
             name=name,
-            whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
-            snapshot_api=SnapshotBashApi(lzy_mount),
+            whiteboard_api=whiteboard_api,
+            snapshot_api=snapshot_api,
             servant_client=self._servant_client,
             eager=eager,
             whiteboard=whiteboard,
