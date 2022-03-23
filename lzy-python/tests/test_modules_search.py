@@ -1,3 +1,5 @@
+__package__ = None
+
 import os
 from unittest import TestCase
 
@@ -35,6 +37,7 @@ class ModulesSearchTests(TestCase):
         _, local = select_modules({
             'level_foo': level_foo
         })
+        os.chdir(os.path.dirname(__file__))
         directory = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
         self.assertTrue(directory + "/test_modules" in local)
         self.assertFalse(directory + "/test_modules/level1" in local)
@@ -48,5 +51,6 @@ class ModulesSearchTests(TestCase):
         _, local = select_modules({
             'bar': bar
         })
+        os.chdir(os.path.dirname(__file__))
         cwd = os.getcwd()
         self.assertTrue(cwd + '/some_imported_file.py')

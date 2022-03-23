@@ -21,6 +21,9 @@ class MockStorageClient(StorageClient):
     def read_to_file(self, url: str, path: str):
         pass
 
+    def blob_exists(self, container: str, blob: str) -> bool:
+        pass
+
     def __init__(self):
         super().__init__()
         self._storage = {}
