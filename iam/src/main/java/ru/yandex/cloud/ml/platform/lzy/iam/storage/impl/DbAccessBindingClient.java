@@ -9,8 +9,10 @@ import java.util.stream.Collectors;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient.AccessBindingDelta.AccessBindingAction;
-import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthResources;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta.AccessBindingAction;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBinding;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AuthResource;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.models.ResourceBindingModel;
 
@@ -22,7 +24,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
     DbStorage storage;
 
     @Override
-    public List<AccessBinding> listAccessBindings(AuthResources resource) {
+    public List<AccessBinding> listAccessBindings(AuthResource resource) {
         List<AccessBinding> bindings = new ArrayList<>();
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
@@ -34,6 +36,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
                     ).setParameter("resourceId", resource.resourceId())
                     .getResultList();
                 bindings.addAll(rs.stream().map(this::toAccessBinding).collect(Collectors.toList()));
+                tx.commit();
             } catch (Exception e) {
                 tx.rollback();
             }
@@ -42,7 +45,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
     }
 
     @Override
-    public void setAccessBindings(AuthResources resource, List<AccessBinding> accessBinding) {
+    public void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {
@@ -51,6 +54,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
                     query.append(insertQuery(resource, binding.role(), binding.subject()));
                 }
                 session.createSQLQuery(query.toString()).executeUpdate();
+                tx.commit();
             } catch (Exception e) {
                 tx.rollback();
                 throw e;
@@ -59,7 +63,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
     }
 
     @Override
-    public void updateAccessBindings(AuthResources resource, List<AccessBindingDelta> accessBindingDeltas) {
+    public void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBindingDeltas) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {
@@ -74,6 +78,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
                     }
                 }
                 session.createSQLQuery(query.toString()).executeUpdate();
+                tx.commit();
             } catch (Exception e) {
                 tx.rollback();
                 throw e;
@@ -85,14 +90,14 @@ public class DbAccessBindingClient implements AccessBindingClient {
         return new AccessBinding(model.role(), model.userId());
     }
 
-    private String deleteQuery(AuthResources resource, String role, String subjectId) {
+    private String deleteQuery(AuthResource resource, String role, String subjectId) {
         return "DELETE from user_resource_roles"
             + " WHERE user_id = " + subjectId
             + " AND role = " + role
             + " AND resource_id  = " + resource.resourceId() + "; ";
     }
 
-    private String insertQuery(AuthResources resource, String role, String subjectId) {
+    private String insertQuery(AuthResource resource, String role, String subjectId) {
         return "INSERT INTO user_resource_roles "
             + " (user_id, resource_id, resource_type, role) values ("
             + subjectId + ", "

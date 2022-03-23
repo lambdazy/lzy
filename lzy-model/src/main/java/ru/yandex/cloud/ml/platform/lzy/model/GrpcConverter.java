@@ -19,6 +19,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.LocalModule;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBinding;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AuthResource;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionValue;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionValue;
@@ -39,6 +42,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
+import yandex.cloud.priv.lzy.v1.IAM;
 
 public abstract class GrpcConverter {
 
@@ -337,6 +341,40 @@ public abstract class GrpcConverter {
                     .build()
             ).collect(Collectors.toList()))
             .build();
+    }
+
+    public static AuthResource to(IAM.Resource resource) {
+        return new AuthResource() {
+            @Override
+            public String resourceId() {
+                return resource.getId();
+            }
+
+            @Override
+            public String type() {
+                return resource.getType();
+            }
+        };
+    }
+
+    public static AccessBinding to(IAM.AccessBinding accessBinding) {
+        return new AccessBinding(accessBinding.getRole(), accessBinding.getSubject().getId());
+    }
+
+    public static IAM.AccessBinding from(AccessBinding accessBinding) {
+        return IAM.AccessBinding.newBuilder()
+            .setRole(accessBinding.role())
+            .setSubject(
+                IAM.Subject.newBuilder().setId(accessBinding.subject()).build()
+            )
+            .build();
+    }
+
+    public static AccessBindingDelta to(IAM.AccessBindingDelta accessBindingDelta) {
+        return new AccessBindingDelta(
+            AccessBindingDelta.AccessBindingAction.valueOf(accessBindingDelta.getAction().name()),
+            to(accessBindingDelta.getBinding())
+        );
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {
