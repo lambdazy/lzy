@@ -141,18 +141,18 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
             return str(module.__file__)
         else:
             # case for namespace package
-            return [p for p in module.__path__]
+            return [module_path for module_path in module.__path__]
 
-    def append_to_module_paths(p: str, module_paths: List[str]):
+    def append_to_module_paths(module_path: str, module_paths: List[str]):  # type: ignore
         for module_path in module_paths:
-            if module_path.startswith(p):
+            if module_path.startswith(module_path):
                 module_paths.remove(module_path)
-            elif p.startswith(module_path):
+            elif module_path.startswith(module_path):
                 return
-        module_paths.append(p)
+        module_paths.append(module_path)
 
     # reverse to ensure the right order: from leaves to the root
-    module_paths = []
+    module_paths: List[str] = []
     for local_module in all_local_modules:
         path = get_path(local_module)
         if type(path) == list:
