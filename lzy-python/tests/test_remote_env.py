@@ -1,5 +1,6 @@
 import pathlib
 import sys
+import os
 import uuid
 from typing import Any, BinaryIO
 from unittest import TestCase
@@ -61,6 +62,7 @@ class ModulesSearchTests(TestCase):
         self._storage_client = MockStorageClient()
 
     def test_py_env_modules_selected(self):
+        os.chdir(os.path.dirname(__file__))
         self._workflow = self._env.workflow(name=self._WORKFLOW_NAME)
         self._workflow._storage_client = self._storage_client
         from test_modules.level1.level1 import Level1  # type: ignore
@@ -75,6 +77,7 @@ class ModulesSearchTests(TestCase):
         self.assertTrue('test_modules' in result)
 
     def test_py_env_modules_user_provided(self):
+        os.chdir(os.path.dirname(__file__))
         self._workflow = self._env.workflow(name=self._WORKFLOW_NAME, local_module_paths=['test_modules_2'])
         self._workflow._storage_client = self._storage_client
         from test_modules.level1.level1 import Level1  # type: ignore

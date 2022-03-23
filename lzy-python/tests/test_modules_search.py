@@ -22,6 +22,7 @@ class ModulesSearchTests(TestCase):
 
         # Assert
         self.assertEqual("echo", level1.echo())
+        os.chdir(os.path.dirname(__file__))
         directory = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
 
         self.assertTrue(directory + "/test_modules" in local)
