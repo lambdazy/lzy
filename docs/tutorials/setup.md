@@ -24,7 +24,7 @@ $ openssl rsa -in ~/.ssh/private.pem -outform PEM -pubout -out ~/.ssh/public.pem
 
 ### Running terminal
 
-`lzy-terminal start -u <github username> -k ~/.ssh/private.pem`
+`lzy-terminal -u <github username> -k ~/.ssh/private.pem`
 
 If you see `Terminal started` message in stdout - lzy is ready for work. Now you can run a python code on the already deployed cluster.
 
