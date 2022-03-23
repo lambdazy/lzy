@@ -1,3 +1,7 @@
+from itertools import chain
+
+import inspect
+
 import os
 from io import BytesIO
 from typing import (
@@ -11,11 +15,12 @@ from typing import (
 )
 import hashlib
 
-# noinspection PyProtectedMember
 from zipfile import ZipFile
 
+# noinspection PyProtectedMember
 from lzy.api._proxy import proxy
 from lzy.api.result import Result, Just, Nothing
+from lzy.model.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -62,6 +67,7 @@ def lazy_proxy(
         obj_attrs=obj_attrs,
     )
 
+
 def is_wrapped_local_value(obj: Any) -> bool:
     return hasattr(obj, "__lzy_local_value__") and obj.__lzy_local_value__
 
@@ -96,6 +102,20 @@ def fileobj_hash(fileobj: BytesIO) -> str:
             break
         md5.update(data)
     return md5.hexdigest()
+
+
+def infer_call_signature(f: Callable, output_type: type, *args, **kwargs) -> CallSignature:
+    types_mapping = {}
+    argspec = inspect.getfullargspec(f)
+
+    # pylint: disable=protected-access
+    for name, arg in chain(zip(argspec.args, args), kwargs.items()):
+        # noinspection PyProtectedMember
+        types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+
+    arg_names = tuple(argspec.args[:len(args)])
+    kwarg_names = tuple(kwargs.keys())
+    return CallSignature(FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names), args, kwargs)
 
 
 class LzyExecutionException(Exception):

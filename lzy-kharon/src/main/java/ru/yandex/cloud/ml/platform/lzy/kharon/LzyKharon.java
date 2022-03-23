@@ -211,6 +211,24 @@ public class LzyKharon {
                                   StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
             ProxyCall.exec(snapshot::prepareToSave, request, responseObserver);
         }
+
+        @Override
+        public void createEntry(LzyWhiteboard.CreateEntryCommand request,
+            StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            ProxyCall.exec(snapshot::createEntry, request, responseObserver);
+        }
+
+        @Override
+        public void saveExecution(LzyWhiteboard.SaveExecutionCommand request,
+                                  StreamObserver<LzyWhiteboard.SaveExecutionResponse> responseObserver) {
+            ProxyCall.exec(snapshot::saveExecution, request, responseObserver);
+        }
+
+        @Override
+        public void resolveExecution(LzyWhiteboard.ResolveExecutionCommand request,
+                                     StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver) {
+            ProxyCall.exec(snapshot::resolveExecution, request, responseObserver);
+        }
     }
 
     private class WhiteboardService extends WbApiGrpc.WbApiImplBase {

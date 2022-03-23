@@ -20,7 +20,8 @@ public interface LzyCommand {
         storage(new Storage()),
         snapshot(new Snapshot()),
         cat(new Cat()),
-        sessions(new Sessions());
+        sessions(new Sessions()),
+        cache(new Cache());
 
         private final LzyCommand command;
 

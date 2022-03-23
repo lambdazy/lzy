@@ -11,12 +11,9 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 public class SimpleAuthenticator implements Authenticator {
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
-    private final LzyBackofficeGrpc.LzyBackofficeBlockingStub backoffice;
 
-    public SimpleAuthenticator(LzyServerGrpc.LzyServerBlockingStub server,
-        LzyBackofficeGrpc.LzyBackofficeBlockingStub backoffice) {
+    public SimpleAuthenticator(LzyServerGrpc.LzyServerBlockingStub server) {
         this.server = server;
-        this.backoffice = backoffice;
     }
 
     @Override
@@ -29,18 +26,5 @@ public class SimpleAuthenticator implements Authenticator {
                 .build()
         );
         return response.getIsOk();
-    }
-
-    @Override
-    public boolean checkPermissions(LzyWhiteboard.BackofficeCredentials backofficeCreds, Permissions permissions) {
-        BackOffice.CheckPermissionResponse response = backoffice.checkPermission(
-            BackOffice.CheckPermissionRequest
-                .newBuilder()
-                .setBackofficeCredentials(backofficeCreds.getBackofficeCredentials())
-                .setCredentials(backofficeCreds.getCredentials())
-                .setPermissionName(permissions.name)
-                .build()
-        );
-        return response.getGranted();
     }
 }

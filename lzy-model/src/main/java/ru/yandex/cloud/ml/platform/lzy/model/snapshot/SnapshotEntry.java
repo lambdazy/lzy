@@ -23,5 +23,9 @@ public interface SnapshotEntry {
         public Snapshot snapshot() {
             return snapshot;
         }
+
+        public String toString() {
+            return "entry id: " + id + ", snapshot: " + snapshot.toString();
+        }
     }
 }

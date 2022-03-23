@@ -249,6 +249,7 @@ public abstract class BaseTask implements Task {
                     }
                 }
             });
+            LOG.debug("BaseTask::going to join task");
             task.join();
         } catch (Exception e) {
             LOG.error(e);
@@ -264,10 +265,10 @@ public abstract class BaseTask implements Task {
         try {
             //noinspection ResultOfMethodCallIgnored
             servant().stop(IAM.Empty.newBuilder().build());
+            LOG.info("Stopped servant {}", servantUri);
         } catch (Exception e) {
-            LOG.warn("Channel for servant uri={} was shutdown; exception={}", servantUri, e);
+            LOG.warn("Failed to stop servant: channel for servant uri={} was shutdown; exception={}", servantUri, e);
         }
-        LOG.info("Stopped servant {}", servantUri);
         alreadyStopped.set(true);
     }
 

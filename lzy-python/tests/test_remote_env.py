@@ -29,9 +29,12 @@ class MockStorageClient(StorageClient):
         return self._storage[url]
 
     def write(self, container: str, blob: str, data: BinaryIO):
-        uri = container + "/" + blob
+        uri = self.generate_uri(container, blob)
         self._storage[uri] = data
         return uri
+
+    def generate_uri(self, container: str, blob: str) -> str:
+        return container + "/" + blob
 
 
 def worker(shared):
