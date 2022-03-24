@@ -53,8 +53,4 @@ resource "helm_release" "lzy_server_db" {
     name  = "metadata.labels.app"
     value = "lzy-server-db"
   }
-
-  values = [
-    file("lzy_node_selector_and_pod_anti_affinity.yaml")
-  ]
 }
