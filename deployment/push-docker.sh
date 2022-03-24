@@ -46,6 +46,7 @@ if [[ $REBUILD = true ]]; then
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
 fi
 
+apt-get install -y jq || exit 1
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
   if [[ $UPDATE = true ]]; then
