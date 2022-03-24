@@ -55,8 +55,4 @@ resource "helm_release" "whiteboard_db" {
     name  = "metadata.labels.app"
     value = "whiteboard-db"
   }
-
-  values = [
-    file("lzy_node_selector_and_pod_anti_affinity.yaml"),
-  ]
 }
