@@ -71,7 +71,8 @@ for SERVICE in $SERVICES; do
   docker tag "$SERVICE" "$NEW_TAG"
   docker push "$NEW_TAG"
   echo ""
-  PUSHED_IMAGES="$PUSHED_IMAGES\n$SERVICE-image = \"lzydock/$SERVICE:$BRANCH-$TAG\""
+  NL=$'\n'
+  PUSHED_IMAGES="$PUSHED_IMAGES${NL}$SERVICE-image = \"lzydock/$SERVICE:$BRANCH-$TAG\""
 done
 echo "$PUSHED_IMAGES"
 
