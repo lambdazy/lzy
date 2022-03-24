@@ -56,6 +56,7 @@ public abstract class LzyAgent implements Closeable {
     protected final LzyFSManager lzyFS;
     protected final URI agentAddress;
     protected final URI agentInternalAddress;
+    protected final URI whiteboardAddress;
     protected final AtomicReference<AgentStatus> status = new AtomicReference<>(
         AgentStatus.STARTED);
     protected final SlotConnectionManager slotConnectionManager = new SlotConnectionManager();
@@ -66,6 +67,7 @@ public abstract class LzyAgent implements Closeable {
         final long start = System.currentTimeMillis();
         this.mount = config.getRoot();
         this.serverAddress = config.getServerAddress();
+        this.whiteboardAddress = config.getWhiteboardAddress();
         if (SystemUtils.IS_OS_MAC) {
             this.lzyFS = new LzyMacosFsManagerImpl();
         } else {
@@ -174,6 +176,7 @@ public abstract class LzyAgent implements Closeable {
             commandParts.add(BashApi.class.getCanonicalName());
             commandParts.addAll(List.of("--port", Integer.toString(agentAddress.getPort())));
             commandParts.addAll(List.of("--lzy-address", serverAddress.toString()));
+            commandParts.addAll(List.of("--lzy-whiteboard", whiteboardAddress.toString()));
             commandParts.addAll(List.of("--lzy-mount", mount.toAbsolutePath().toString()));
             commandParts.addAll(List.of(
                 "--auth",

@@ -20,6 +20,7 @@ public class BashApi {
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
         options.addOption(new Option("a", "auth", true, "Enforce auth"));
         options.addOption(new Option("z", "lzy-address", true, "Lzy server address [host:port]"));
+        options.addOption(new Option("w", "lzy-whiteboard", true, "Lzy whiteboard address [host:port]"));
         options.addOption(new Option("m", "lzy-mount", true, "Lzy FS mount point"));
         options.addOption(new Option("h", "host", true, "Servant host name"));
         options.addOption(

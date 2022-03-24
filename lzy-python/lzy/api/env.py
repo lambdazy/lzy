@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Op
 
 from lzy.api.buses import Bus
 from lzy.api.lazy_op import LzyOp
-from lzy.api.restart_policy import RestartPolicy
+from lzy.api.cache_policy import CachePolicy
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 from lzy.api.utils import zipdir, fileobj_hash
@@ -93,19 +93,29 @@ class LzyEnvBase(ABC):
 
 class WhiteboardExecutionContext:
     def __init__(
-            self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi, whiteboard: Any
+            self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi,
+            whiteboard: Any, workflow_name: str, from_last_snapshot: bool = False
     ):
         self._snapshot_id: Optional[str] = None
         self._whiteboard_id: Optional[str] = None
         self.whiteboard_api = whiteboard_api
         self.snapshot_api = snapshot_api
         self.whiteboard = whiteboard
+        self.workflow_name = workflow_name
+        self.from_last_snapshot = from_last_snapshot
 
     @property
     def snapshot_id(self) -> str:
         if self._snapshot_id is not None:
             return self._snapshot_id
-        self._snapshot_id = self.snapshot_api.create().snapshot_id
+        if not self.from_last_snapshot:
+            self._snapshot_id = self.snapshot_api.create(self.workflow_name).snapshot_id
+        else:
+            snapshot = self.snapshot_api.last(self.workflow_name)
+            if not snapshot:
+                self._snapshot_id = self.snapshot_api.create(self.workflow_name).snapshot_id
+            else:
+                self._snapshot_id = snapshot.snapshot_id
         return self._snapshot_id
 
     @property
@@ -164,7 +174,7 @@ class LzyRemoteEnv(LzyEnvBase):
     def workflow(
             self,
             name: str,
-            restart_policy: RestartPolicy = RestartPolicy.IGNORE_SNAPSHOTS,
+            cache_policy: CachePolicy = CachePolicy.IGNORE,
             eager: bool = False,
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
@@ -178,7 +188,7 @@ class LzyRemoteEnv(LzyEnvBase):
             lzy_mount=self._lzy_mount,
             conda_yaml_path=conda_yaml_path,
             local_module_paths=local_module_paths,
-            restart_policy=restart_policy,
+            cache_policy=cache_policy,
             eager=eager,
             whiteboard=whiteboard,
             buses=buses
@@ -196,10 +206,11 @@ class LzyWorkflowBase(ABC):
             name: str,
             eager: bool = False,
             whiteboard: Any = None,
-            buses: Optional[BusList] = None
+            buses: Optional[BusList] = None,
+            cache_policy: CachePolicy = CachePolicy.IGNORE
     ):
         self._execution_context = WhiteboardExecutionContext(
-            whiteboard_api, snapshot_api, whiteboard
+            whiteboard_api, snapshot_api, whiteboard, name, cache_policy.from_last_snapshot()
         )
         self._ops: List[LzyOp] = []
         self._buses = list(buses or [])
@@ -207,6 +218,7 @@ class LzyWorkflowBase(ABC):
         self._name = name
         self._log = logging.getLogger(str(self.__class__))
         self._servant_client = servant_client
+        self._cache_policy = cache_policy
 
     def register_op(self, lzy_op: LzyOp) -> None:
         self._ops.append(lzy_op)
@@ -228,6 +240,10 @@ class LzyWorkflowBase(ABC):
         assert self.get_active() is not None
         for wrapper in self._ops:
             wrapper.execute()
+
+    @property
+    def cache_policy(self) -> CachePolicy:
+        return self._cache_policy
 
     @abstractmethod
     def activate(self):
@@ -284,14 +300,14 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
             conda_yaml_path: Optional[Path] = None,
             local_module_paths: Optional[List[str]] = None,
-            restart_policy: RestartPolicy = RestartPolicy.IGNORE_SNAPSHOTS,
+            cache_policy: CachePolicy = CachePolicy.IGNORE,
             eager: bool = False,
             whiteboard: Any = None,
             buses: Optional[BusList] = None,
 
     ):
         self._yaml = conda_yaml_path
-        self._restart_policy = restart_policy
+        self._restart_policy = cache_policy
         self._servant_client: BashServantClient = BashServantClient() \
             .instance(lzy_mount)
         self._py_env: Optional[PyEnv] = None
@@ -311,7 +327,8 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             servant_client=self._servant_client,
             eager=eager,
             whiteboard=whiteboard,
-            buses=buses
+            buses=buses,
+            cache_policy=cache_policy
         )
         snapshot_id = self.snapshot_id()
         if snapshot_id is None:

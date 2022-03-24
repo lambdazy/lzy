@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang.NotImplementedException;
@@ -33,13 +35,24 @@ public class SnapshotChannelController implements ChannelController {
         this.snapshotId = snapshotId;
         this.snapshotApi = snapshotApi;
         this.auth = auth;
-        snapshotApi.createEntry(
-            LzyWhiteboard.CreateEntryCommand.newBuilder()
-                .setSnapshotId(snapshotId)
-                .setEntryId(entryId)
-                .setAuth(auth)
-                .build()
-        );
+        try {
+            snapshotApi.createEntry(
+                LzyWhiteboard.CreateEntryCommand.newBuilder()
+                    .setSnapshotId(snapshotId)
+                    .setEntryId(entryId)
+                    .setAuth(auth)
+                    .build()
+            );
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus().getCode() == io.grpc.Status.ALREADY_EXISTS.getCode()) {
+                LOG.info("Entry already exists, using it");
+                if (isCompleted()) {
+                    status = Status.COMPLETED;
+                }
+            } else {
+                throw e;
+            }
+        }
     }
 
     @Override

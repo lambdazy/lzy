@@ -122,7 +122,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             }
         } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::createSnapshot: Got exception while creating snapshot {}", e.getMessage());
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            responseObserver.onError(e.statusException());
         }
         LOG.info("SnapshotApi::createSnapshot: Successfully created snapshot with id {}", snapshotId);
         final LzyWhiteboard.Snapshot result = LzyWhiteboard.Snapshot
@@ -158,7 +158,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             LOG.error(
                 "SnapshotApi::prepareToSave: Got exception while preparing to save entry {} to snapshot with id {}: {}",
                 request.getEntry().getEntryId(), request.getSnapshotId(), e.getMessage());
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            responseObserver.onError(e.statusException());
             return;
         }
         LOG.info("SnapshotApi::prepareToSave: Successfully executed prepareToSave command");
@@ -204,7 +204,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::commit: Got exception while commiting entry {} to snapshot with id {}: {}",
                 request.getEntryId(), request.getSnapshotId(), e.getMessage());
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            responseObserver.onError(e.statusException());
             return;
         }
         LOG.info("SnapshotApi::commit: Successfully executed commit command");
@@ -239,7 +239,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::finalizeSnapshot: Got exception while finalizing snapshot with id {}: {}",
                 request.getSnapshotId(), e.getMessage());
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            responseObserver.onError(e.statusException());
             return;
         }
         LOG.info("SnapshotApi::finalizeSnapshot: Successfully executed finalizeSnapshot command");
@@ -334,13 +334,14 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
                     .asException());
             return;
         }
-        SnapshotEntry entry = null;
+        SnapshotEntry entry;
         try {
             entry = repository.createEntry(snapshotStatus.get().snapshot(), request.getEntryId());
         } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::createEntry: Got exception while creating entry {}: {}", request.getEntryId(),
                 e.getMessage());
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            responseObserver.onError(e.statusException());
+            return;
         }
         LOG.info("SnapshotApi::createEntry: Created entry " + entry);
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
@@ -374,6 +375,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
         ExecutionSnapshot execution = GrpcConverter.from(request.getDescription());
         repository.saveExecution(execution);
         LOG.info("SnapshotApi::saveExecution: Saved execution {} ", execution);
+        responseObserver.onNext(LzyWhiteboard.SaveExecutionResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
 
@@ -402,8 +404,15 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             ).map(GrpcConverter::to)
             .collect(Collectors.toList());
         LOG.info("SnapshotApi::resolveExecution: successfully resolved list of execution descriptions");
+
+        LzyWhiteboard.ResolveExecutionResponse resp = LzyWhiteboard.ResolveExecutionResponse.newBuilder()
+            .addAllExecution(exec).build();
+
+        LOG.info("Resolved executions " + JsonUtils.printRequest(resp));
+
         responseObserver
-            .onNext(LzyWhiteboard.ResolveExecutionResponse.newBuilder().addAllExecution(exec).build());
+            .onNext(resp);
+
         responseObserver.onCompleted();
     }
 

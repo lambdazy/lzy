@@ -220,12 +220,13 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String createSnapshot() {
+        default String createSnapshot(String workflowName) {
             final ExecutionResult execute = execute(Collections.emptyMap(), "bash", "-c",
                 String.join(
                     " ",
                     mount() + "/sbin/snapshot",
-                    "create"
+                    "create",
+                    workflowName
                 )
             );
             if (execute.exitCode() != 0) {

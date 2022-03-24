@@ -56,7 +56,7 @@ public class SnapshotTest extends LzyBaseTest {
     }
 
     private String createSnapshot() throws ParseException {
-        final String spIdJson = terminal.createSnapshot();
+        final String spIdJson = terminal.createSnapshot("some-workflow");
         JSONObject spIdObject = (JSONObject) (new JSONParser()).parse(spIdJson);
         return (String) spIdObject.get("snapshotId");
     }

@@ -36,6 +36,7 @@ public class Terminal implements LzyCommand {
         final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
         final LzyAgentConfig.LzyAgentConfigBuilder builder = LzyAgentConfig.builder()
             .serverAddress(URI.create(serverAddress))
+            .whiteboardAddress(URI.create(serverAddress))
             .user(System.getenv("USER"))
             .agentName(host)
             .agentInternalName(parse.getOptionValue('i', host))
