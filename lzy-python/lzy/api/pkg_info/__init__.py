@@ -1,7 +1,7 @@
 import inspect
 import sys
 from types import ModuleType
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import pkg_resources
 import requests
@@ -82,7 +82,7 @@ version = "3.9" if sys.version_info > (3, 9) else None
 STDLIB_LIST = stdlib_list(version)
 
 
-def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], List[ModuleType]]:
+def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], List[str]]:
     dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
 
     distributions = packages_distributions()
@@ -136,5 +136,28 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
     all_local_modules = dict.fromkeys(parents)
     all_local_modules.update(dict.fromkeys(reversed(local_modules)))
 
+    def get_path(module: ModuleType) -> Union[List[str], str]:
+        if not hasattr(module, '__path__'):
+            return str(module.__file__)
+        else:
+            # case for namespace package
+            return [module_path for module_path in module.__path__]
+
+    def append_to_module_paths(p: str, module_paths: List[str]):  # type: ignore
+        for module_path in module_paths:
+            if module_path.startswith(p):
+                module_paths.remove(module_path)
+            elif p.startswith(module_path):
+                return
+        module_paths.append(p)
+
     # reverse to ensure the right order: from leaves to the root
-    return remote_packages, list(all_local_modules)
+    module_paths: List[str] = []
+    for local_module in all_local_modules:
+        path = get_path(local_module)
+        if type(path) == list:
+            for p in path:
+                append_to_module_paths(p, module_paths)  # type: ignore
+        else:
+            append_to_module_paths(path, module_paths)  # type: ignore
+    return remote_packages, module_paths

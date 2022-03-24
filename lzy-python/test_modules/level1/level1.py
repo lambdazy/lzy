@@ -1,4 +1,4 @@
-from tests.test_modules.level1.level2.level2 import Level2
+from test_modules.level1.level2.level2 import Level2  # type: ignore
 
 
 class Level1:
