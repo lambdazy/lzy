@@ -119,7 +119,7 @@ class ServantClientMock(ServantClient):
         pass
 
     def get_credentials(self, typ: CredentialsTypes, bucket: str) -> StorageCredentials:
-        return AmazonCredentials("", "", "")
+        return AmazonCredentials("https://service.us-west-2.amazonaws.com", "access_token", "secret_token")
 
     def get_bucket(self) -> str:
         return "bucket"

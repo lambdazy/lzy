@@ -1,4 +1,4 @@
-from tests.test_modules.level1.level2.level3.level3 import Level3
+from test_modules.level1.level2.level3.level3 import Level3  # type: ignore
 # noinspection PyUnresolvedReferences
 import boto3
 

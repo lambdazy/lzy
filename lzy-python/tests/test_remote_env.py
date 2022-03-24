@@ -1,7 +1,6 @@
-import multiprocessing
 import pathlib
 import sys
-import unittest
+import os
 import uuid
 from typing import Any, BinaryIO
 from unittest import TestCase
@@ -13,9 +12,17 @@ from lzy.api.storage.storage_client import StorageClient
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.servant_client import ServantClientMock
 
+from lzy.api.whiteboard.model import (
+    InMemWhiteboardApi,
+    InMemSnapshotApi
+)
+
 
 class MockStorageClient(StorageClient):
     def read_to_file(self, url: str, path: str):
+        pass
+
+    def blob_exists(self, container: str, blob: str) -> bool:
         pass
 
     def __init__(self):
@@ -47,31 +54,40 @@ def worker(shared):
 
 class ModulesSearchTests(TestCase):
     def setUp(self):
-        WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
+        self._WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
         BashServantClient.instance = lambda s, x: ServantClientMock()
-        self._workflow = LzyRemoteEnv().workflow(name=WORKFLOW_NAME)
+        self._env = LzyRemoteEnv()
+        self._env._whiteboard_api = InMemWhiteboardApi()
+        self._env._snapshot_api = InMemSnapshotApi()
         self._storage_client = MockStorageClient()
-        self._workflow._storage_client = self._storage_client
 
-    @unittest.skip("Not used now")
-    def test_py_env(self):
-        multiprocessing.set_start_method('spawn')
-        # Arrange
-        from tests.test_modules.level1.level1 import Level1  # type: ignore
+    def test_py_env_modules_selected(self):
+        os.chdir(os.path.dirname(__file__))
+        self._workflow = self._env.workflow(name=self._WORKFLOW_NAME)
+        self._workflow._storage_client = self._storage_client
+        from test_modules.level1.level1 import Level1  # type: ignore
         level1 = Level1()
         py_env = self._workflow.py_env({
             'level1': level1
         })
-        manager = multiprocessing.Manager()
-        result = manager.dict()
+        result = dict()
         for k, v in py_env.local_modules_uploaded():
             result[k] = self._storage_client.read(v)
-        result['object'] = cloudpickle.dumps(level1)
+        self.assertEqual(len(result), 1)
+        self.assertTrue('test_modules' in result)
 
-        # Act
-        process = multiprocessing.Process(target=worker, args=(result,))
-        process.start()
-        process.join()
-
-        # Assert
-        self.assertEqual(level1.echo(), result['result'])
+    def test_py_env_modules_user_provided(self):
+        os.chdir(os.path.dirname(__file__))
+        self._workflow = self._env.workflow(name=self._WORKFLOW_NAME, local_module_paths=['test_modules_2'])
+        self._workflow._storage_client = self._storage_client
+        from test_modules.level1.level1 import Level1  # type: ignore
+        level1 = Level1()
+        py_env = self._workflow.py_env({
+            'level1': level1
+        })
+        result = dict()
+        for k, v in py_env.local_modules_uploaded():
+            result[k] = self._storage_client.read(v)
+        self.assertEqual(len(result), 1)
+        self.assertTrue('test_modules_2' in result)
+        self.assertFalse('test_modules' in result)

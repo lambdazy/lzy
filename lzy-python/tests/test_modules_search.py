@@ -1,9 +1,14 @@
+__package__ = None
+
+import os
 from unittest import TestCase
 
 from lzy.api.pkg_info import select_modules
 
-from tests.test_modules.level1.level1 import Level1
-from tests.test_modules.level1.level2_nb import level_foo
+from test_modules.level1.level1 import Level1
+from test_modules.level1.level2_nb import level_foo
+from some_imported_file import bar
+
 
 class ModulesSearchTests(TestCase):
     def test_modules_search(self):
@@ -17,36 +22,36 @@ class ModulesSearchTests(TestCase):
 
         # Assert
         self.assertEqual("echo", level1.echo())
-        module_names = []
-        for module in local:
-            module_names.append(module.__name__)
+        os.chdir(os.path.dirname(__file__))
+        directory = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
 
-        self.assertEqual(['tests',
-                          'tests.test_modules',
-                          'tests.test_modules.level1',
-                          'tests.test_modules.level1.level2',
-                          'tests.test_modules.level1.level2.level3',
-                          'tests.test_modules.level1.level2.level3.level3',
-                          'tests.test_modules.level1.level2.level2',
-                          'tests.test_modules.level1.level1'
-                         ],
-                         module_names)
+        self.assertTrue(directory + "/test_modules" in local)
+        self.assertFalse(directory + "/test_modules/level1" in local)
+        self.assertFalse(directory + "/test_modules/level1/level2" in local)
+        self.assertFalse(directory + "/test_modules/level1/level2/level3" in local)
+        self.assertFalse(directory + "/test_modules/level1/level2/level3/level3.py" in local)
+        self.assertFalse(directory + "/test_modules/level1/level2/level2.py" in local)
+        self.assertFalse(directory + "/test_modules/level1/level1.py" in local)
         self.assertEqual({"PyYAML", "boto3"}, set(remote.keys()))
 
     def test_modules_search_2(self):
         _, local = select_modules({
             'level_foo': level_foo
         })
-        module_names = []
-        for module in local:
-            module_names.append(module.__name__)
-        self.assertEqual(['tests', 
-                         'tests.test_modules', 
-                         'tests.test_modules.level1', 
-                         'tests.test_modules.level1.level2', 
-                         'tests.test_modules.level1.level2.level3', 
-                         'tests.test_modules.level1.level2.level3.level3', 
-                         'tests.test_modules.level1.level2.level2', 
-                         'tests.test_modules.level1.level2_nb'
-                         ],
-                         module_names)
+        os.chdir(os.path.dirname(__file__))
+        directory = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
+        self.assertTrue(directory + "/test_modules" in local)
+        self.assertFalse(directory + "/test_modules/level1" in local)
+        self.assertFalse(directory + "/test_modules/level1/level2" in local)
+        self.assertFalse(directory + "/test_modules/level1/level2/level3" in local)
+        self.assertFalse(directory + "/test_modules/level1/level2/level3/level3.py" in local)
+        self.assertFalse(directory + "/test_modules/level1/level2/level2.py" in local)
+        self.assertFalse(directory + "/test_modules/level1/level2_nb" in local)
+
+    def test_modules_search_3(self):
+        _, local = select_modules({
+            'bar': bar
+        })
+        os.chdir(os.path.dirname(__file__))
+        cwd = os.getcwd()
+        self.assertTrue(cwd + '/some_imported_file.py')
