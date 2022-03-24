@@ -101,11 +101,15 @@ class WhiteboardList:
 
 class SnapshotApi(ABC):
     @abstractmethod
-    def create(self) -> SnapshotDescription:
+    def create(self, workflow_name: str) -> SnapshotDescription:
         pass
 
     @abstractmethod
     def finalize(self, snapshot_id: str):
+        pass
+
+    @abstractmethod
+    def last(self, workflow_name: str) -> Optional[SnapshotDescription]:
         pass
 
 
@@ -190,11 +194,14 @@ class InMemWhiteboardApi(WhiteboardApi):
 
 
 class InMemSnapshotApi(SnapshotApi):
-    def create(self) -> SnapshotDescription:
+    def create(self, workflow_name: str) -> SnapshotDescription:
         return SnapshotDescription(str(uuid.uuid1()))
 
     def finalize(self, snapshot_id: str):
         pass
+
+    def last(self, workflow_name: str) -> SnapshotDescription:
+        return SnapshotDescription("")
 
 
 def get_bucket_from_url(url: str) -> str:

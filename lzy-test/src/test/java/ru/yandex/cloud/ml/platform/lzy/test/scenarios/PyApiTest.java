@@ -87,6 +87,20 @@ public class PyApiTest extends LzyBaseTest {
     }
 
     @Test
+    public void testCache() {
+        //Arrange
+        arrangeTerminal("testUser");
+        final String pyCommand = "python /lzy-python/tests/scenarios/test_cache.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
+            "bash", "-c",
+            condaPrefix + pyCommand);
+        System.out.println(result.stdout());
+        Assert.assertTrue(result.stdout().contains("Is fun2 cached? True"));
+    }
+
+    @Test
     public void testUberGraph() {
         /* This scenario checks for:
                 1. Importing local modules

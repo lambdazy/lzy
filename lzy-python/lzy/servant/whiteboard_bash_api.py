@@ -27,9 +27,9 @@ class SnapshotBashApi(SnapshotApi):
         self.__mount = mount_point
         self._log = logging.getLogger(str(self.__class__))
 
-    def create(self) -> SnapshotDescription:
+    def create(self, workflow_name: str) -> SnapshotDescription:
         self._log.info("Creating snapshot")
-        out = exec_bash(f"{self.__mount}/sbin/snapshot", "create")
+        out = exec_bash(f"{self.__mount}/sbin/snapshot", "create", workflow_name)
         try:
             res = json.loads(out)
             return SnapshotDescription(res["snapshotId"])
@@ -41,6 +41,11 @@ class SnapshotBashApi(SnapshotApi):
         exec_bash(
             f"{self.__mount}/sbin/snapshot", "finalize", snapshot_id
         )
+
+    def last(self, workflow_name: str) -> Optional[SnapshotDescription]:
+        ret = exec_bash(f"{self.__mount}/sbin/snapshot", "last", workflow_name)
+        data: Optional[str] = json.loads(ret).get('snapshotId')
+        return SnapshotDescription(data) if data else None
 
 
 T = TypeVar("T")  # pylint: disable=invalid-name

@@ -30,7 +30,7 @@ public class Snapshot implements LzyCommand {
         if (!auth.hasUser()) {
             throw new IllegalArgumentException("Please provide user credentials");
         }
-        final URI serverAddr = URI.create(command.getOptionValue('z'));
+        final URI serverAddr = URI.create(command.getOptionValue('w'));
         final ManagedChannel serverCh = ChannelBuilder
             .forAddress(serverAddr.getHost(), serverAddr.getPort())
             .usePlaintext()
@@ -46,6 +46,7 @@ public class Snapshot implements LzyCommand {
                         .newBuilder()
                         .setAuth(auth)
                         .setCreationDateUTC(timestamp)
+                        .setWorkflowName(command.getArgs()[2])
                         .build()
                     );
                 System.out.println(JsonFormat.printer().print(snapshotId));
@@ -60,6 +61,16 @@ public class Snapshot implements LzyCommand {
                         .build()
                     );
                 System.out.println(JsonFormat.printer().print(operationStatus));
+                break;
+            }
+            case "last": {
+                LzyWhiteboard.Snapshot snapshot = server.lastSnapshot(
+                    LzyWhiteboard.LastSnapshotCommand.newBuilder()
+                        .setAuth(auth)
+                        .setWorkflowName(command.getArgs()[2])
+                        .build()
+                );
+                System.out.println(JsonFormat.printer().print(snapshot));
                 break;
             }
             default:

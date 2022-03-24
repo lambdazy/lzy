@@ -29,7 +29,7 @@ public class Cache implements LzyCommand {
             throw new IllegalArgumentException("Please specify operation type");
         }
 
-        final URI serverAddr = URI.create(command.getOptionValue('z'));
+        final URI serverAddr = URI.create(command.getOptionValue('w'));
         final ManagedChannel serverCh = ChannelBuilder
             .forAddress(serverAddr.getHost(), serverAddr.getPort())
             .usePlaintext()

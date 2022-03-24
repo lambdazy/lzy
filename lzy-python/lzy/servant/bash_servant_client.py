@@ -4,7 +4,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional, Mapping
+from typing import Any, Dict, Optional, Mapping, Iterable, List
 
 import sys
 from time import sleep
@@ -13,7 +13,8 @@ from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, 
 from lzy.model.channel import Channel, Bindings, SnapshotChannelSpec
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
-from lzy.servant.servant_client import ServantClient, Execution, ExecutionResult, CredentialsTypes
+from lzy.servant.servant_client import ServantClient, Execution, ExecutionResult, CredentialsTypes, InputExecutionValue, \
+    ExecutionDescription, ExecutionValue
 
 from lzy.model.encoding import ENCODING as encoding
 
@@ -221,6 +222,77 @@ class BashServantClient(ServantClient):
         )
         execution.start()
         return execution
+
+    def save_execution(self, execution: ExecutionDescription):
+        execution_description_file = tempfile.mktemp(
+            prefix="lzy_execution_description_", suffix=".json", dir="/tmp/"
+        )
+        with open(execution_description_file, "w", encoding=encoding) as file:
+            json.dump({
+                "description": {
+                    "name": execution.name,
+                    "snapshotId": execution.snapshot_id,
+                    "input": [
+                        {
+                            "name": val.name,
+                            "hash": val.hash,
+                            "entryId": val.entry_id
+                        }
+                        for val in execution.inputs
+                    ],
+                    "output": [
+                        {
+                            "name": val.name,
+                            "entryId": val.entry_id
+                        }
+                        for val in execution.outputs
+                    ]
+                }
+            }, file)
+        exec_bash(f"{self._mount}/sbin/cache", "save", execution_description_file)
+
+    def resolve_executions(self, name: str,
+                           snapshot_id: str, inputs: Iterable[InputExecutionValue]) -> List[ExecutionDescription]:
+        execution_description_file = tempfile.mktemp(
+            prefix="lzy_execution_description_", suffix=".json", dir="/tmp/"
+        )
+        with open(execution_description_file, "w", encoding=encoding) as file:
+            args = []
+            for val in inputs:
+                if val.hash:
+                    args.append({
+                        "name": val.name,
+                        "hash": val.hash
+                    })
+                else:
+                    args.append({
+                        "name": val.name,
+                        "entryId": str(val.entry_id)
+                    })
+
+            description = {
+                "operationName": name,
+                "snapshotId": snapshot_id,
+                "args": args
+            }
+            json.dump(description, file)
+
+        ret = exec_bash(f"{self._mount}/sbin/cache", "find", execution_description_file)
+        return [
+            ExecutionDescription(exec_description['name'], exec_description['snapshotId'], [
+                InputExecutionValue(
+                    val['name'],
+                    val['entryId'],
+                    val['hash']
+                ) for val in exec_description.get('input', [])
+            ], [
+                ExecutionValue(
+                    val['name'],
+                    val['entryId']
+                ) for val in exec_description.get('output', [])
+            ])
+            for exec_description in json.loads(ret).get("execution", [])
+        ]
 
     @classmethod
     def instance(cls, lzy_mount: Optional[str] = None) -> "BashServantClient":

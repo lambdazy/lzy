@@ -60,10 +60,13 @@ class ChannelManager(abc.ABC):
         if entry_id not in self._entry_id_to_channel:
             return
         self._destroy_channel(self._entry_id_to_channel[entry_id])
+        self._entry_id_to_channel.pop(entry_id)
+        if entry_id in self._entry_id_written:
+            self._entry_id_written.pop(entry_id)
 
     def destroy_all(self):
-        for channel in self._entry_id_to_channel.values():
-            self._destroy_channel(channel)
+        for entry in list(self._entry_id_to_channel):
+            self.destroy(entry)
 
     def __slot(self, entry_id: str, direction: Direction) -> Slot:
         slot = create_slot(os.path.sep.join(("tasks", "snapshot", self._snapshot_id, entry_id)), direction)

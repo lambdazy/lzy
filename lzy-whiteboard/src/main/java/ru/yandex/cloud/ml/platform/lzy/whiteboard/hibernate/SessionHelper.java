@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import javax.persistence.NoResultException;
 import javax.persistence.TemporalType;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -290,12 +291,13 @@ public class SessionHelper {
         Query<SnapshotModel> query = session.createQuery(queryLastSnapshot);
         query.setParameter("workflowName", workflowName);
         query.setParameter("uid", uid);
-        SnapshotModel spModel = query.getSingleResult();
-        if (spModel == null) {
+        try {
+            SnapshotModel spModel = query.getSingleResult();
+            return Optional.of(new SnapshotStatus.Impl(new Snapshot.Impl(
+                URI.create(spModel.getSnapshotId()), URI.create(spModel.getUid()), spModel.creationDateUTC(),
+                spModel.workflowName(), spModel.parentSnapshotId()), spModel.getSnapshotState()));
+        } catch (NoResultException e) {
             return Optional.empty();
         }
-        return Optional.of(new SnapshotStatus.Impl(new Snapshot.Impl(
-            URI.create(spModel.getSnapshotId()), URI.create(spModel.getUid()), spModel.creationDateUTC(),
-            spModel.workflowName(), spModel.parentSnapshotId()), spModel.getSnapshotState()));
     }
 }
