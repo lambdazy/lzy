@@ -46,6 +46,7 @@ if [[ $REBUILD = true ]]; then
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
 fi
 
+PUSHED_IMAGES=""
 apt-get install -y jq || exit 1
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
@@ -71,7 +72,9 @@ for SERVICE in $SERVICES; do
   docker tag "$SERVICE" "$NEW_TAG"
   docker push "$NEW_TAG"
   echo ""
+  PUSHED_IMAGES="$PUSHED_IMAGES\n$SERVICE-image = \"lzydock/$SERVICE:$BRANCH-$TAG\""
 done
+echo "$PUSHED_IMAGES"
 
 #docker push lzydock/lzy-backoffice-backend:"$CUSTOM_TAG"
 #docker push lzydock/lzy-backoffice-frontend:"$CUSTOM_TAG"
