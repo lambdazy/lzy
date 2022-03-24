@@ -11,7 +11,7 @@ on:
         type: boolean
         description: 'Tag with new minor version instead of custom tag for images'
         required: false
-        default: false
+        default: true
       servant-base:
         type: boolean
         description: 'Update base servant docker image'
