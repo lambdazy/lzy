@@ -47,7 +47,6 @@ if [[ $REBUILD = true ]]; then
 fi
 
 PUSHED_IMAGES=""
-apt-get install -y jq || exit 1
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
   if [[ $UPDATE = true ]]; then
