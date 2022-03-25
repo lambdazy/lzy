@@ -40,10 +40,5 @@ resource "helm_release" "lzy_kafka" {
     value = "true"
   }
 
-  set {
-    name  = "metadata.labels.app"
-    value = "kafka"
-  }
-
   depends_on = [kubernetes_secret.lzy_kafka_clickhouse]
 }
