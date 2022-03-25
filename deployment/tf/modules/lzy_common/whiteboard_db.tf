@@ -50,9 +50,4 @@ resource "helm_release" "whiteboard_db" {
     name  = "global.postgresql.service.ports.postgresql"
     value = "5432"
   }
-
-  set {
-    name  = "metadata.labels.app"
-    value = "whiteboard-db"
-  }
 }
