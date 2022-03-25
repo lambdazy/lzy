@@ -28,7 +28,8 @@ resource "azurerm_kubernetes_cluster" "main" {
   default_node_pool {
     name        = "lzypool"
     vm_size     = "Standard_D2_v2"
-    node_count  = 10
+#   server + db -> 2, kharon -> 1, whiteboard + db -> 2, clickhouse -> 1, grafana -> 2, kafka + zookeeper -> 2, backoffice -> 1, <reserve node> -> 1 = 12
+    node_count  = 12
     node_labels = {
       type = "lzy"
     }
@@ -88,7 +89,6 @@ resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
     "sku=gpu:NoSchedule"
   ]
 }
-
 
 resource "azurerm_public_ip" "lzy_kharon" {
   count               = var.create_public_kharon_service ? 1 : 0
