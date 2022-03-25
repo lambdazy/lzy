@@ -48,9 +48,4 @@ resource "helm_release" "lzy_server_db" {
     name  = "global.postgresql.service.ports.postgresql"
     value = "5432"
   }
-
-  set {
-    name  = "metadata.labels.app"
-    value = "lzy-server-db"
-  }
 }
