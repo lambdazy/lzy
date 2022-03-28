@@ -26,13 +26,9 @@ resource "azurerm_kubernetes_cluster" "main" {
   dns_prefix          = var.installation_name
 
   default_node_pool {
-    name        = "lzypool"
-    vm_size     = "Standard_D2_v2"
-#   server + db -> 2, kharon -> 1, whiteboard + db -> 2, clickhouse -> 1, grafana -> 2, kafka + zookeeper -> 2, backoffice -> 1, <reserve node> -> 1 = 12
-    node_count  = 12
-    node_labels = {
-      type = "lzy"
-    }
+    name       = "agentpool"
+    node_count = 1
+    vm_size    = "Standard_D2_v2"
   }
 
   identity {
@@ -46,6 +42,18 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   tags = {
     Environment = "Development"
+  }
+}
+
+resource "azurerm_kubernetes_cluster_node_pool" "lzy" {
+  count = 1
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  name                  = "lzypool"
+  vm_size               = "Standard_D2_v2"
+  #   server + db -> 2, kharon -> 1, whiteboard + db -> 2, clickhouse -> 1, grafana -> 2, kafka + zookeeper -> 2, backoffice -> 1, <reserve node> -> 1 = 12
+  node_count            = 12
+  node_labels = {
+    type = "lzy"
   }
 }
 
