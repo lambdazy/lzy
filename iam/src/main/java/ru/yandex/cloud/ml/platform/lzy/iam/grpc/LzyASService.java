@@ -24,7 +24,6 @@ public class LzyASService extends LzyASGrpc.LzyASImplBase {
     @Override
     public void authorize(AuthorizeRequest request, StreamObserver<Subject> responseObserver) {
         LOG.info("Authorize user:: " + request.getSubjectId() + " to resource:: " + request.getResource().getId());
-        //Authorize from header
         try {
             if (accessClient.hasResourcePermission(
                 request.getSubjectId(), request.getResource().getId(),

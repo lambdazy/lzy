@@ -9,12 +9,12 @@ import java.util.stream.Collectors;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta.AccessBindingAction;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBinding;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AuthResource;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.models.ResourceBindingModel;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBinding;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta.AccessBindingAction;
+import ru.yandex.cloud.ml.platform.lzy.model.iam.AuthResource;
 
 @Singleton
 @Requires(beans = DbStorage.class)
@@ -30,8 +30,8 @@ public class DbAccessBindingClient implements AccessBindingClient {
             Transaction tx = session.beginTransaction();
             try {
                 List<ResourceBindingModel> rs = session.createQuery(
-                        "SELECT * FROM user_resource_roles "
-                            + "WHERE resource_id = :resourceId ",
+                        "SELECT r FROM ResourceBindingModel r "
+                            + "WHERE r.resourceId = :resourceId ",
                         ResourceBindingModel.class
                     ).setParameter("resourceId", resource.resourceId())
                     .getResultList();
@@ -91,15 +91,15 @@ public class DbAccessBindingClient implements AccessBindingClient {
     }
 
     private String deleteQuery(AuthResource resource, String role, String subjectId) {
-        return "DELETE from user_resource_roles"
-            + " WHERE user_id = " + subjectId
-            + " AND role = " + role
-            + " AND resource_id  = " + resource.resourceId() + "; ";
+        return "DELETE from ResourceBindingModel r"
+            + " WHERE r.userId = " + subjectId
+            + " AND r.role = " + role
+            + " AND r.resourceId  = " + resource.resourceId() + "; ";
     }
 
     private String insertQuery(AuthResource resource, String role, String subjectId) {
-        return "INSERT INTO user_resource_roles "
-            + " (user_id, resource_id, resource_type, role) values ("
+        return "INSERT INTO ResourceBindingModel r "
+            + " (r.userId, r.resourceId, r.resourceType, r.role) values ("
             + subjectId + ", "
             + resource.resourceId() + ", "
             + resource.type() + ", "
