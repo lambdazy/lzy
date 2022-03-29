@@ -13,18 +13,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import jnr.ffi.Pointer;
 import ru.serce.jnrfuse.ErrorCodes;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContentsBase;
 
-public class LocalFileContents implements FileContents {
-
+public class LocalFileContents extends FileContentsBase {
     private final byte[] buffer = new byte[4096];
     private final FileChannel channel;
-    private final AtomicBoolean written = new AtomicBoolean(false);
     private final boolean writable;
-    private final List<Consumer<Boolean>> triggers = new ArrayList<>();
 
     public LocalFileContents(Path file, OpenOption... oo) throws IOException {
         channel = FileChannel.open(file, oo);
@@ -34,9 +33,9 @@ public class LocalFileContents implements FileContents {
     @Override
     public int read(Pointer buf, long offset, long size) throws IOException {
         final long bytesToRead = Math.min(channel.size() - offset, size);
-        final MappedByteBuffer map = channel.map(FileChannel.MapMode.READ_ONLY, offset,
-            bytesToRead);
+        final MappedByteBuffer map = channel.map(FileChannel.MapMode.READ_ONLY, offset, bytesToRead);
         buf.transferFrom(0, Pointer.wrap(buf.getRuntime(), map), 0, bytesToRead);
+        trackers().forEach(tracker -> tracker.onRead(offset, map));
         return (int) bytesToRead;
     }
 
@@ -58,20 +57,17 @@ public class LocalFileContents implements FileContents {
                 if (ww < 0) {
                     throw new EOFException();
                 }
+                final long effectiveOffset = off + offset;
+                trackers().forEach(t -> t.onWrite(effectiveOffset, ByteBuffer.wrap(this.buffer, 0, ww)));
             }
             off += chunkSize;
         }
-        written.set(true);
         return off;
     }
 
     @Override
     public void close() throws IOException {
         channel.close();
-        triggers.forEach(booleanConsumer -> booleanConsumer.accept(written.get()));
-    }
-
-    public void onClose(Consumer<Boolean> trigger) {
-        triggers.add(trigger);
+        trackers().forEach(ContentsTracker::onClose);
     }
 }

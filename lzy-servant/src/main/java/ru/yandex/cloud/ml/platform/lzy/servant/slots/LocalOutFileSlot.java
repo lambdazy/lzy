@@ -3,14 +3,13 @@ package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 import java.net.URI;
 import java.nio.file.Path;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshooter;
 
 public class LocalOutFileSlot extends OutFileSlot {
     private final Path location;
 
-    public LocalOutFileSlot(String tid, Slot definition, URI uri, Snapshotter snapshotter) {
-        super(tid, definition, Path.of(uri.getPath()), snapshotter);
+    public LocalOutFileSlot(String tid, Slot definition, URI uri) {
+        super(tid, definition, Path.of(uri.getPath()));
         location = Path.of(uri.getPath());
     }
 

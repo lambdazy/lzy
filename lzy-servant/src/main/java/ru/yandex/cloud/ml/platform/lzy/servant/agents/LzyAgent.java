@@ -40,16 +40,13 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyLinuxFsManagerImpl;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyMacosFsManagerImpl;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyScript;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 public abstract class LzyAgent implements Closeable {
-
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);
+
     protected final URI serverAddress;
     protected final Path mount;
     protected final IAM.Auth auth;
@@ -57,9 +54,7 @@ public abstract class LzyAgent implements Closeable {
     protected final URI agentAddress;
     protected final URI agentInternalAddress;
     protected final URI whiteboardAddress;
-    protected final AtomicReference<AgentStatus> status = new AtomicReference<>(
-        AgentStatus.STARTED);
-    protected final SlotConnectionManager slotConnectionManager = new SlotConnectionManager();
+    protected final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
     protected final AtomicBoolean inContext = new AtomicBoolean(false);
     protected LzyContext context;
 
@@ -108,7 +103,7 @@ public abstract class LzyAgent implements Closeable {
             authBuilder.setUser(credBuilder.build());
         } else {
             authBuilder.setTask(IAM.TaskCredentials.newBuilder()
-                .setTaskId(config.getTask())
+                .setTaskId(config.getContext())
                 .setToken(config.getToken())
                 .build()
             );
@@ -220,10 +215,7 @@ public abstract class LzyAgent implements Closeable {
         }
     }
 
-    public void configureSlot(
-        Servant.SlotCommand request,
-        StreamObserver<Servant.SlotCommandStatus> responseObserver
-    ) {
+    public void configureSlot(Servant.SlotCommand request, StreamObserver<Servant.SlotCommandStatus> responseObserver) {
         try {
             final Servant.SlotCommandStatus slotCommandStatus = configureSlot(request);
             responseObserver.onNext(slotCommandStatus);
@@ -233,18 +225,15 @@ public abstract class LzyAgent implements Closeable {
         }
     }
 
-    public Servant.SlotCommandStatus configureSlot(
-        Servant.SlotCommand request
-    ) throws StatusException {
+    public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) throws StatusException {
         LOG.info("Agent::configureSlot " + JsonUtils.printRequest(request));
-        final LzySlot slot = context.slot(request.getSlot()); // null for create
+        final LzySlot slot = context.slot(request.getTid(), request.getSlot()); // null for create
         if (slot == null && request.getCommandCase() != Servant.SlotCommand.CommandCase.CREATE) {
             return Servant.SlotCommandStatus.newBuilder()
                 .setRc(
                     Servant.SlotCommandStatus.RC.newBuilder()
                         .setCodeValue(1)
-                        .setDescription(
-                            "Slot " + request.getSlot() + " is not found in LzyContext")
+                        .setDescription("Slot " + request.getSlot() + " is not found in LzyContext")
                         .build()
                 ).build();
         }
@@ -253,6 +242,7 @@ public abstract class LzyAgent implements Closeable {
                 final Servant.CreateSlotCommand create = request.getCreate();
                 final Slot slotSpec = GrpcConverter.from(create.getSlot());
                 final LzySlot lzySlot = context.configureSlot(
+                    request.getTid(),
                     slotSpec,
                     create.getChannelId()
                 );
@@ -263,24 +253,24 @@ public abstract class LzyAgent implements Closeable {
                 }
                 break;
             case SNAPSHOT:
+                if (context.slotManager().snapshooter() == null) {
+                    return Servant.SlotCommandStatus.newBuilder()
+                        .setRc(
+                            Servant.SlotCommandStatus.RC.newBuilder()
+                                .setCodeValue(1)
+                                .setDescription("Snapshot service was not initialized. Operation is not available.")
+                                .build()
+                        ).build();
+                }
                 final Servant.SnapshotCommand snapshot = request.getSnapshot();
-                slot.snapshot(snapshot.getSnapshotId(), snapshot.getEntryId());
+                context.slotManager().snapshooter().registerSlot(slot, snapshot.getSnapshotId(), snapshot.getEntryId());
                 break;
             case CONNECT:
                 final Servant.ConnectSlotCommand connect = request.getConnect();
                 final URI slotUri = URI.create(connect.getSlotUri());
-                final SlotController slotController = slotConnectionManager
-                    .getOrCreate(slot.name(), slotUri, LzyServantGrpc.SERVICE_NAME, channel -> {
-                        final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc
-                            .newBlockingStub(channel);
-                        return stub::openOutputSlot;
-                    });
-                ((LzyInputSlot) slot).connect(slotUri, slotController);
+                ((LzyInputSlot) slot).connect(slotUri, context.slotManager().connectToSlot(slotUri, 0));
                 break;
             case DISCONNECT:
-                if (slot instanceof LzyInputSlot) {
-                    slotConnectionManager.shutdownConnections(slot.name());
-                }
                 slot.suspend();
                 break;
             case STATUS:
@@ -330,7 +320,6 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public interface LzyServerApi {
-
         Operations.ZygoteList zygotes(IAM.Auth auth);
     }
 }

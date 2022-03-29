@@ -1,38 +1,33 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicBoolean;
+import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+
+import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.*;
 
 public class LzySlotBase implements LzySlot {
     private static final Logger LOG = LogManager.getLogger(LzySlotBase.class);
-    protected final Snapshotter snapshotter;
     private final Slot definition;
     private final Map<Operations.SlotStatus.State, List<Runnable>> actions =
         Collections.synchronizedMap(new HashMap<>());
+    private final AtomicReference<List<Consumer<ByteString>>> trafficTrackers = new AtomicReference<>(List.of());
     private Operations.SlotStatus.State state = Operations.SlotStatus.State.UNBOUND;
 
-    protected String entryId;
-    protected String snapshotId;
-    private final AtomicBoolean snapshotSet = new AtomicBoolean(false);
-
-    protected LzySlotBase(Slot definition, Snapshotter snapshotter) {
-        this.snapshotter = snapshotter;
+    protected LzySlotBase(Slot definition) {
         this.definition = definition;
         onState(Operations.SlotStatus.State.OPEN, () -> LOG.info("LzySlot::OPEN " + this.definition.name()));
-        onState(Operations.SlotStatus.State.DESTROYED, () -> LOG.info("LzySlot::DESTROYED " + this.definition.name()));
-        onState(Operations.SlotStatus.State.SUSPENDED, () -> LOG.info("LzySlot::SUSPENDED " + this.definition.name()));
+        onState(DESTROYED, () -> LOG.info("LzySlot::DESTROYED " + this.definition.name()));
+        onState(SUSPENDED, () -> LOG.info("LzySlot::SUSPENDED " + this.definition.name()));
     }
 
     @Override
@@ -64,13 +59,45 @@ public class LzySlotBase implements LzySlot {
     }
 
     @Override
-    public void destroy() {
-        state(Operations.SlotStatus.State.DESTROYED);
+    public void onState(Set<Operations.SlotStatus.State> state, Runnable action) {
+        state.forEach(s -> onState(s, action));
+    }
+
+    @Override
+    public void onChunk(Consumer<ByteString> trafficTracker) {
+        List<Consumer<ByteString>> list;
+        List<Consumer<ByteString>> oldTrackers;
+        do {
+            oldTrackers = trafficTrackers.get();
+            list = new ArrayList<>(oldTrackers);
+            list.add(trafficTracker);
+        } while (!trafficTrackers.compareAndSet(oldTrackers, list));
+    }
+
+    protected void onChunk(ByteString chunk) throws IOException {
+        trafficTrackers.get().forEach(c -> c.accept(chunk));
     }
 
     @Override
     public void suspend() {
-        state(Operations.SlotStatus.State.SUSPENDED);
+        if (!Set.of(CLOSED, DESTROYED, SUSPENDED).contains(state))
+            state(SUSPENDED);
+    }
+
+    @Override
+    public void close() {
+        if (!Set.of(CLOSED, DESTROYED, SUSPENDED).contains(state))
+            suspend();
+        if (!Set.of(CLOSED, DESTROYED).contains(state))
+            state(CLOSED);
+    }
+
+    @Override
+    public void destroy() {
+        if (Set.of(CLOSED, DESTROYED).contains(state))
+            close();
+        if (DESTROYED != state)
+            state(DESTROYED);
     }
 
     @Override
@@ -78,31 +105,15 @@ public class LzySlotBase implements LzySlot {
         return Operations.SlotStatus.newBuilder().build();
     }
 
-
     /* Waits for specific state or slot close **/
     @SuppressWarnings({"WeakerAccess", "SameParameterValue"})
     protected synchronized void waitForState(Operations.SlotStatus.State state) {
-        while (state != this.state && this.state != Operations.SlotStatus.State.DESTROYED) {
+        while (state != this.state && this.state != DESTROYED) {
             try {
                 wait();
             } catch (InterruptedException ignore) {
                 // Ignored exception
             }
         }
-    }
-
-    @Override
-    public void snapshot(String snapshotId, String entryId) {
-        this.snapshotId = snapshotId;
-        this.entryId = entryId;
-        snapshotSet.set(true);
-        if (this.definition().direction() == Slot.Direction.OUTPUT) {
-            snapshotter.prepare(definition, snapshotId, entryId);
-        }
-    }
-
-    @Override
-    public boolean throughSnapshot() {
-        return snapshotSet.get();
     }
 }

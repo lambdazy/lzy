@@ -302,6 +302,7 @@ public abstract class BaseTask implements Task {
         }
         final Servant.SlotCommandStatus slotStatus = servant().configureSlot(
             Servant.SlotCommand.newBuilder()
+                .setTid(tid.toString())
                 .setSlot(slot.name())
                 .setStatus(Servant.StatusCommand.newBuilder().build())
                 .build()

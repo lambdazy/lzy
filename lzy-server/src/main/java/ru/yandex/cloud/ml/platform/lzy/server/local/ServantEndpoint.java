@@ -85,6 +85,7 @@ public class ServantEndpoint implements Endpoint {
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
                         .setSlot(slot().name())
+                        .setTid(sessionId.toString())
                         .setConnect(Servant.ConnectSlotCommand.newBuilder()
                             .setSlotUri(endpoint.uri().toString())
                             .build()
@@ -108,6 +109,7 @@ public class ServantEndpoint implements Endpoint {
             final Servant.SlotCommandStatus slotCommandStatus = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
+                        .setTid(sessionId.toString())
                         .setSlot(slot().name())
                         .setStatus(Servant.StatusCommand.newBuilder().build())
                         .build()
@@ -128,6 +130,7 @@ public class ServantEndpoint implements Endpoint {
             final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
+                        .setTid(sessionId.toString())
                         .setSlot(slot().name())
                         .setSnapshot(Servant.SnapshotCommand.newBuilder()
                             .setSnapshotId(snapshotId)
@@ -149,6 +152,7 @@ public class ServantEndpoint implements Endpoint {
             final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
+                        .setTid(sessionId.toString())
                         .setSlot(slot().name())
                         .setDisconnect(Servant.DisconnectCommand.newBuilder().build())
                         .build()
@@ -170,6 +174,7 @@ public class ServantEndpoint implements Endpoint {
             final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
+                        .setTid(sessionId.toString())
                         .setSlot(slot().name())
                         .setDestroy(Servant.DestroyCommand.newBuilder().build())
                         .build()

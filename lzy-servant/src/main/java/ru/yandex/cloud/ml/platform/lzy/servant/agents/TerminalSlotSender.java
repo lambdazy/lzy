@@ -76,9 +76,8 @@ public class TerminalSlotSender {
                 LOG.info("Starting sending bytes slot:: " + lzySlot);
                 responseObserver.onNext(SendSlotDataMessage.newBuilder()
                     .setRequest(Servant.SlotRequest.newBuilder()
-                        .setSlot(slotUri.getPath())
-                        .setOffset(offset)
                         .setSlotUri(slotUri.toString())
+                        .setOffset(offset)
                         .build())
                     .build());
                 lzySlot.readFromPosition(offset)

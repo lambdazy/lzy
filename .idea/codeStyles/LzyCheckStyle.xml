@@ -57,7 +57,7 @@
       <property name="allowByTailComment" value="true"/>
       <property name="allowNonPrintableEscapes" value="true"/>
     </module>
-    <module name="AvoidStarImport"/>
+<!--    <module name="AvoidStarImport"/>-->
     <module name="OneTopLevelClass"/>
     <module name="NoLineWrap">
       <property name="tokens" value="PACKAGE_DEF, IMPORT, STATIC_IMPORT"/>
@@ -69,7 +69,7 @@
     </module>
     <module name="NeedBraces">
       <property name="tokens"
-        value="LITERAL_DO, LITERAL_ELSE, LITERAL_FOR, LITERAL_IF, LITERAL_WHILE"/>
+        value="LITERAL_DO, LITERAL_FOR"/>
     </module>
     <module name="LeftCurly">
       <property name="tokens"
@@ -134,7 +134,7 @@
     <module name="EmptyLineSeparator">
       <property name="tokens"
         value="PACKAGE_DEF, IMPORT, STATIC_IMPORT, CLASS_DEF, INTERFACE_DEF, ENUM_DEF,
-                    STATIC_INIT, INSTANCE_INIT, METHOD_DEF, CTOR_DEF, VARIABLE_DEF, RECORD_DEF,
+                    STATIC_INIT, INSTANCE_INIT, CTOR_DEF, VARIABLE_DEF, RECORD_DEF,
                     COMPACT_CTOR_DEF"/>
       <property name="allowNoEmptyLineBetweenFields" value="true"/>
     </module>
@@ -261,12 +261,12 @@
     <module name="NoWhitespaceBeforeCaseDefaultColon"/>
     <module name="OverloadMethodsDeclarationOrder"/>
     <module name="VariableDeclarationUsageDistance"/>
-    <module name="CustomImportOrder">
-      <property name="sortImportsInGroupAlphabetically" value="true"/>
-      <property name="separateLineBetweenGroups" value="true"/>
-      <property name="customImportOrderRules" value="STATIC###THIRD_PARTY_PACKAGE"/>
-      <property name="tokens" value="IMPORT, STATIC_IMPORT, PACKAGE_DEF"/>
-    </module>
+<!--    <module name="CustomImportOrder">-->
+<!--      <property name="sortImportsInGroupAlphabetically" value="true"/>-->
+<!--      <property name="separateLineBetweenGroups" value="true"/>-->
+<!--      <property name="customImportOrderRules" value="STATIC###THIRD_PARTY_PACKAGE"/>-->
+<!--      <property name="tokens" value="IMPORT, STATIC_IMPORT, PACKAGE_DEF"/>-->
+<!--    </module>-->
     <module name="MethodParamPad">
       <property name="tokens"
         value="CTOR_DEF, LITERAL_NEW, METHOD_CALL, METHOD_DEF,
