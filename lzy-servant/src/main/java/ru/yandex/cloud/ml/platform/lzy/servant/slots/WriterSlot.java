@@ -4,14 +4,13 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Writer;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
+import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshooter;
 
 public class WriterSlot extends LzyInputSlotBase {
     private Writer writer;
 
-    public WriterSlot(String tid, TextLinesInSlot definition, Snapshotter snapshotter) {
-        super(tid, definition, snapshotter);
+    public WriterSlot(String tid, TextLinesInSlot definition) {
+        super(tid, definition);
     }
 
     public void setStream(Writer wri) {

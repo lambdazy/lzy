@@ -23,14 +23,15 @@ service LzyServant {
 }
 
 message SlotCommand {
-  string slot = 1;
+  string tid = 1;
+  string slot = 2;
   oneof command {
-    CreateSlotCommand create = 2;
-    ConnectSlotCommand connect = 3;
-    DisconnectCommand disconnect = 4;
-    StatusCommand status = 5;
-    DestroyCommand destroy = 6;
-    SnapshotCommand snapshot = 7;
+    CreateSlotCommand create = 3;
+    ConnectSlotCommand connect = 4;
+    DisconnectCommand disconnect = 5;
+    StatusCommand status = 6;
+    DestroyCommand destroy = 7;
+    SnapshotCommand snapshot = 8;
   }
 }
 
@@ -76,9 +77,8 @@ message SlotCommandStatus {
 }
 
 message SlotRequest {
-  string slot = 1;
+  string slotUri = 1;
   int64 offset = 2;
-  string slotUri = 3;
 }
 
 message Message {

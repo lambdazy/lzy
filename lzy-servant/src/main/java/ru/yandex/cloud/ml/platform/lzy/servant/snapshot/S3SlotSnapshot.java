@@ -7,13 +7,18 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
@@ -119,27 +124,5 @@ public class S3SlotSnapshot implements SlotSnapshot {
             lock.unlock();
         }
 
-    }
-
-    @Override
-    public void readByChunks(String bucket, String key,
-                             ThrowingConsumer<ByteString> onChunkConsumer, Runnable onComplete) {
-        storage.transmitter().downloadC(
-            new DownloadRequestBuilder()
-                .bucket(bucket)
-                .key(key)
-                .build(),
-            data -> {
-                byte[] buffer = new byte[4096];
-                InputStream stream = data.getInputStream();
-                int len = 0;
-                while (len != -1) {
-                    onChunkConsumer.accept(ByteString.copyFrom(buffer, 0, len));
-                    len = stream.read(buffer);
-                }
-                onComplete.run();
-                stream.close();
-            }
-        );
     }
 }

@@ -107,7 +107,7 @@ public abstract class GrpcConverter {
 
     private static Stream<Context.SlotAssignment> from(Stream<SlotAssignment> assignmentsList) {
         return assignmentsList
-            .map(ass -> new Context.SlotAssignment(from(ass.getSlot()), ass.getBinding()));
+            .map(ass -> new Context.SlotAssignment(ass.getTaskId(), from(ass.getSlot()), ass.getBinding()));
     }
 
     public static Date from(Timestamp date) {

@@ -50,8 +50,4 @@ public class DevNullSlotSnapshot implements SlotSnapshot {
         // do nothing
         LOG.info("EmptyExecutionSnapshot::onFinish invoked with slot " + slot.name());
     }
-
-    @Override
-    public void readByChunks(String bucket, String key, ThrowingConsumer<ByteString> onChunk, Runnable onComplete) {
-    }
 }

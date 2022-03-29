@@ -11,7 +11,7 @@ public class LzyAgentConfig {
     private final String token;
     private final Path root;
     private final String user;
-    private final String task;
+    private final String context;
     private final String bucket;
     private final int agentPort;
 
@@ -24,7 +24,7 @@ public class LzyAgentConfig {
         this.token = token;
         this.root = root;
         this.user = user;
-        this.task = task;
+        this.context = task;
         this.agentPort = agentPort;
         this.bucket = bucket;
     }
@@ -65,8 +65,8 @@ public class LzyAgentConfig {
         return user;
     }
 
-    public String getTask() {
-        return task;
+    public String getContext() {
+        return context;
     }
 
     public int getAgentPort() {

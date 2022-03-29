@@ -136,6 +136,9 @@ buildNumber.properties
 # do not ignore codestyle
 !.idea/codeStyles
 
+# share run configurations
+!.idea/runConfigurations
+
 *.tmp.csv
 
 #Exceptions

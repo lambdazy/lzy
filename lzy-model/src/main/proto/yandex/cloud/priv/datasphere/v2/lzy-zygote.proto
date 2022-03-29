@@ -55,13 +55,18 @@ message SlotStatus {
 
   State state = 6;
 
+  /* For input slot SUSPENDED command could happen while reading to change a source of data
+  * For output slot CLOSED means that process has finished generating data.
+  * CLOSED and SUSPENDED are independent events: one could happen before or after the other. If CLOSED come while
+  * slot is in SUSPENDED state, slot must remember this event and after reconnection feed CLOSED back to the server
+  */
   enum State {
     UNBOUND = 0;
-    OPEN = 1;
-    DESTROYED = 2;
+    PREPARING = 1;
+    OPEN = 2;
     SUSPENDED = 3;
-    PREPARING = 4;
-    CLOSED = 5;
+    CLOSED = 4;
+    DESTROYED = 5;
   }
 }
 

@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Stream;
 import jnr.ffi.Pointer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,10 +19,8 @@ import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContentsBase;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
 
@@ -31,28 +30,28 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private final Path storage;
     private final OutputStream outputStream;
 
-    public InFileSlot(String tid, Slot definition, Snapshotter snapshotter) throws IOException {
-        this(tid, definition, Files.createTempFile("lzy", "file-slot"), snapshotter);
+    public InFileSlot(String tid, Slot definition) throws IOException {
+        this(tid, definition, Files.createTempFile("lzy", "file-slot"));
     }
 
-    public InFileSlot(String tid, Slot definition, Path storage, Snapshotter snapshotter)
-        throws IOException {
-        super(tid, definition, snapshotter);
+    public InFileSlot(String tid, Slot definition, Path storage) throws IOException {
+        super(tid, definition);
         this.storage = storage;
         outputStream = Files.newOutputStream(storage);
     }
 
     @Override
-    public void connect(URI slotUri, SlotController slotController) {
+    public void connect(URI slotUri, Stream<ByteString> dataProvider) {
         ForkJoinPool.commonPool().execute(() -> {
             LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri + " slot " + this);
-            super.connect(slotUri, slotController);
+            super.connect(slotUri, dataProvider);
             readAll();
         });
     }
 
     @Override
     protected void onChunk(ByteString bytes) throws IOException {
+        super.onChunk(bytes);
         outputStream.write(bytes.toByteArray());
     }
 
@@ -115,7 +114,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     @Override
     public FileContents open(FuseFileInfo fi) throws IOException {
         final SeekableByteChannel channel = Files.newByteChannel(storage);
-        return new FileContents() {
+        return new FileContentsBase() {
             @Override
             public int read(Pointer buf, long offset, long size) throws IOException {
                 if (state() != State.OPEN) {
@@ -130,6 +129,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
                 final byte[] bytes = new byte[(int) size];
                 channel.position(offset);
                 final ByteBuffer bb = ByteBuffer.wrap(bytes);
+                trackers().forEach(tracker -> tracker.onRead(offset, ByteBuffer.wrap(bytes)));
                 int read = channel.read(bb);
                 LOG.info("Read slot {} from file {}: {}", name(), storage.toString(), read);
                 if (read < 0) {
@@ -147,8 +147,9 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
             @Override
             public void close() throws IOException {
                 LOG.info("Closing file {} for slot {}", storage.toString(), name());
-                InFileSlot.this.suspend();
                 channel.close();
+                trackers().forEach(ContentsTracker::onClose);
+                state(State.DESTROYED);
             }
         };
     }
