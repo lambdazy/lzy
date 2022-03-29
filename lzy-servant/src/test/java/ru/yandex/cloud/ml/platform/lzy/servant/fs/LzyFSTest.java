@@ -70,7 +70,7 @@ public class LzyFSTest {
             public DataSchema contentType() {
                 return null;
             }
-        }, tempFile, null);
+        }, tempFile);
         lzyFS.addSlot(slot);
         stream.write(ByteString.copyFromUtf8("kek\n").toByteArray());
 

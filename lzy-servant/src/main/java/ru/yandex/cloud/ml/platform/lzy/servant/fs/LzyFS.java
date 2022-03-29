@@ -200,7 +200,7 @@ public class LzyFS extends FuseStubFS {
         final Path path = Path.of(pathStr);
         final long fh = lastFh.addAndGet(1);
         if (executables.containsKey(path)) {
-            final FileContents open = new FileContents.Text(path, executables.get(path).scriptText());
+            final FileContents open = new TextContents(path, executables.get(path).scriptText());
             openFiles.put(fh, open);
             filesOpen.computeIfAbsent(path, p -> new HashSet<>()).add(fh);
             fi.fh.set(fh);

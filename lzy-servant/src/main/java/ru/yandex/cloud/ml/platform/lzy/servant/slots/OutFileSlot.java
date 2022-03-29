@@ -1,9 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.slots;
 
+import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.OPEN;
+import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.PREPARING;
+import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.UNBOUND;
+
 import com.google.protobuf.ByteString;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -13,12 +17,15 @@ import java.nio.file.attribute.FileTime;
 import java.util.Iterator;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import jnr.constants.platform.OpenFlags;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
@@ -28,34 +35,26 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSlot {
-
     private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);
+    public static final int PAGE_SIZE = 4096;
     private final Path storage;
     private final String tid;
-    private final ExecutorService pool = Executors.newSingleThreadExecutor();
+    private final CompletableFuture<Supplier<FileChannel>> channelSupplier = new CompletableFuture<>();
 
-    private boolean ready;
-    private boolean opened;
-    private Future<?> snapshotWrite;
-
-    protected OutFileSlot(String tid, Slot definition, Path storage,
-                          Snapshotter snapshotter) {
-        super(definition, snapshotter);
+    protected OutFileSlot(String tid, Slot definition, Path storage) {
+        super(definition);
         this.tid = tid;
         this.storage = storage;
-        ready = true;
     }
 
-    public OutFileSlot(String tid, Slot definition, Snapshotter snapshotter)
+    public OutFileSlot(String tid, Slot definition)
         throws IOException {
-        super(definition, snapshotter);
+        super(definition);
         this.tid = tid;
         this.storage = Files.createTempFile("lzy", "file-slot");
-        ready = false;
     }
 
     @Override
@@ -113,56 +112,52 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     @Override
-    public synchronized FileContents open(FuseFileInfo fi) throws IOException {
-        final LocalFileContents localFileContents = opened ? new LocalFileContents(storage,
-            StandardOpenOption.READ
-        ) : new LocalFileContents(storage,
-            StandardOpenOption.CREATE,
-            StandardOpenOption.WRITE,
-            StandardOpenOption.READ
-        );
-        opened = true;
-        localFileContents.onClose(written -> {
-            if (written) {
-                if (throughSnapshot()) {
-                    snapshotWrite = pool.submit(() -> {
+    public FileContents open(FuseFileInfo fi) throws IOException {
+        final int flags = fi.flags.intValue();
+        final boolean hasWrite = (flags & (OpenFlags.O_WRONLY.intValue() | OpenFlags.O_RDWR.intValue())) != 0;
+        final LocalFileContents localFileContents;
+        if (hasWrite) {
+            if (state() != UNBOUND) {
+                throw new RuntimeException("The storage file must we written once");
+            }
+            localFileContents = new LocalFileContents(storage,
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.READ
+            );
+            state(PREPARING);
+        } else {
+            localFileContents = new LocalFileContents(storage, StandardOpenOption.READ);
+        }
+        localFileContents.track(new FileContents.ContentsTracker() {
+            final AtomicBoolean hasWrite = new AtomicBoolean(false);
+            @Override
+            public void onWrite(long offset, ByteBuffer chunk) {
+                hasWrite.set(true);
+            }
+
+            @Override
+            public void onClose() {
+                if (hasWrite.get()) {
+                    final byte[] page = new byte[PAGE_SIZE];
+                    try (final InputStream is = new FileInputStream(storage.toFile())) {
+                        int read;
+                        while ((read = is.read(page)) >= 0) {
+                            onChunk(ByteString.copyFrom(page, 0, read));
+                        }
+                    } catch (IOException e) {
+                        LOG.warn("Unable to read contents of the slot: " + definition(), e);
+                    }
+                    channelSupplier.complete(() -> { // channels are now ready to read
                         try {
-                            snapshotter.snapshotProvider().slotSnapshot(definition())
-                                .writeFromStream(new FileInputStream(storage.toFile()));
-                            snapshotter.commit(definition(), snapshotId, entryId);
-                            suspend();
-                            LOG.info(
-                                "Content to slot " + OutFileSlot.this
-                                    + " was written; READY=true");
-                        } catch (FileNotFoundException e) {
+                            return FileChannel.open(storage);
+                        } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
                     });
-                }
-                synchronized (OutFileSlot.this) {
-                    ready = true;
-                    state(Operations.SlotStatus.State.OPEN);
-                    OutFileSlot.this.notifyAll();
+                    state(OPEN);
                 }
             }
         });
         return localFileContents;
-    }
-
-    @Override
-    public void forceClose() {
-        LOG.info("Force close for slot " + this);
-        synchronized (OutFileSlot.this) {
-            ready = true;
-            state(Operations.SlotStatus.State.OPEN);
-            OutFileSlot.this.notifyAll();
-            if (throughSnapshot()) {
-                if (snapshotWrite != null) {
-                    snapshotWrite.cancel(true);
-                }
-                suspend();
-            }
-        }
     }
 
     @Override
@@ -177,24 +172,22 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     @Override
-    public synchronized Stream<ByteString> readFromPosition(long offset) throws IOException {
+    public Stream<ByteString> readFromPosition(long offset) throws IOException {
         LOG.info("OutFileSlot.readFromPosition for slot " + this.definition().name());
-        while (!ready) {
-            try {
-                this.wait();
-            } catch (InterruptedException ignore) {
-                // Ignored exception
-            }
+        final FileChannel channel;
+        try {
+            channel = channelSupplier.get().get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
         }
         LOG.info("Slot {} is ready", name());
-        final FileChannel channel = FileChannel.open(storage);
         channel.position(offset);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<>() {
-            private final ByteBuffer bb = ByteBuffer.allocate(4096);
+            private final ByteBuffer bb = ByteBuffer.allocate(PAGE_SIZE);
 
             @Override
             public boolean hasNext() {
-                if (state() != Operations.SlotStatus.State.OPEN) {
+                if (state() != OPEN) {
                     LOG.info("Slot {} hasNext is not open", name());
                     return false;
                 }
@@ -216,18 +209,6 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                 return ByteString.copyFrom(bb);
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);
-    }
-
-    public void destroy() {
-        LOG.info("OutFileSlot::destroy was called");
-        if (throughSnapshot() && snapshotWrite != null) {
-            try {
-                snapshotWrite.get();
-            } catch (InterruptedException | ExecutionException e) {
-                LOG.error(e);
-            }
-        }
-        super.destroy();
     }
 
     @Override

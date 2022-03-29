@@ -6,19 +6,39 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
 
 public class Terminal implements LzyCommand {
+    private static final Options options = new Options();
+
+    static {
+        options.addOption(new Option("d", "direct", false, "Use direct server connection instead of Kharon"));
+    }
 
     @Override
     public int execute(CommandLine parse) throws Exception {
         if (!parse.hasOption('z')) {
             throw new IllegalArgumentException(
                 "Provide lzy server address with -z option to start a task.");
+        }
+
+        final CommandLine localCmd;
+        final HelpFormatter cliHelp = new HelpFormatter();
+        try {
+            localCmd = new DefaultParser().parse(options, parse.getArgs(), false);
+        } catch (ParseException e) {
+            cliHelp.printHelp("channel", options);
+            return -1;
         }
 
         String serverAddress = parse.getOptionValue('z');
@@ -51,7 +71,8 @@ public class Terminal implements LzyCommand {
         } else {
             builder.token("");
         }
-        final LzyAgent terminal = new LzyTerminal(builder.build());
+        final LzyAgentConfig agentConfig = builder.build();
+        final LzyAgent terminal = localCmd.hasOption('d') ? new LzyServant(agentConfig) : new LzyTerminal(agentConfig);
 
         terminal.start();
         terminal.awaitTermination();

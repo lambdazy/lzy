@@ -1,12 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.fs;
 
+import com.google.protobuf.ByteString;
 import java.net.URI;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager.SlotController;
+import java.util.stream.Stream;
 
 public interface LzyInputSlot extends LzySlot {
-    void connect(URI slotUri, SlotController slotController);
-
+    void connect(URI slotUri, Stream<ByteString> dataProvider);
     void disconnect();
-
     void destroy();
 }

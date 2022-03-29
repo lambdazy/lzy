@@ -1,50 +1,30 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
-import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
-import io.grpc.Status;
+import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
+import org.apache.commons.cli.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
-import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
 public class LzyKharon {
 
@@ -287,8 +267,7 @@ public class LzyKharon {
             URI servantUri = null;
             try {
                 servantUri = new URI(null, null, slotHost, slotUri.getPort(), null, null, null);
-                final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager
-                    .getOrCreate(servantUri);
+                final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager.getOrCreate(servantUri);
                 LOG.info("Created connection to servant " + servantUri);
                 final Iterator<Servant.Message> messageIterator = servant.openOutputSlot(request);
                 while (messageIterator.hasNext()) {
@@ -408,11 +387,10 @@ public class LzyKharon {
                     .getTerminalSessionFromSlotUri(request.getSlotUri());
                 LOG.info("KharonServantProxyService sessionId = " + session.sessionId()
                     + "::openOutputSlot " + JsonUtils.printRequest(request));
-                LOG.info("carryTerminalSlotContent: slot " + request.getSlot());
+                LOG.info("carryTerminalSlotContent: slot " + request.getSlotUri());
                 dataCarrier.openServantConnection(URI.create(request.getSlotUri()),
                     responseObserver);
                 session.configureSlot(Servant.SlotCommand.newBuilder()
-                    .setSlot(request.getSlot())
                     .setConnect(Servant.ConnectSlotCommand.newBuilder()
                         .setSlotUri(request.getSlotUri())
                         .build())

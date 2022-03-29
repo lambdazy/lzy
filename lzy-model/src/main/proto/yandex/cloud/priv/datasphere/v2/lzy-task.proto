@@ -28,9 +28,10 @@ message SnapshotMeta {
 }
 
 message TaskSpec {
-  Auth auth = 1;
-  Zygote zygote = 2;
-  repeated SlotAssignment assignments = 3;
+  string tid = 1;
+  Auth auth = 2;
+  Zygote zygote = 3;
+  repeated SlotAssignment assignments = 4;
 }
 
 message TaskSignal {
@@ -47,8 +48,9 @@ message TaskState {
 }
 
 message SlotAssignment {
-  Slot slot = 1;
-  string binding = 2;
+  string taskId = 1;
+  Slot slot = 2;
+  string binding = 3;
 }
 
 message TaskStatus {

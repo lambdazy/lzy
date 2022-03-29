@@ -9,6 +9,8 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -25,9 +27,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.Snapshotter;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SnapshotterImpl;
-import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
@@ -36,61 +37,50 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress.StatusCase;
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 
 public class LzyServant extends LzyAgent {
-
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
+
     private final LzyServerGrpc.LzyServerBlockingStub server;
-    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
     private final Server agentServer;
-    private final String taskId;
-    private final String bucket;
-    private final StorageClient storage;
+    private final String contextId;
+    private final SlotConnectionManager slotsManager;
     private final GetS3CredentialsResponse credentials;
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
         final long start = System.currentTimeMillis();
-        taskId = config.getTask();
-        URI whiteboardAddress = config.getWhiteboardAddress();
+        contextId = config.getContext();
         final Impl impl = new Impl();
-        final ManagedChannel channel = ChannelBuilder
-            .forAddress(serverAddress.getHost(), serverAddress.getPort())
+        final ManagedChannel channel = ChannelBuilder.forAddress(serverAddress.getHost(), serverAddress.getPort())
             .usePlaintext()
             .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
         server = LzyServerGrpc.newBlockingStub(channel);
-        final ManagedChannel channelWb = ChannelBuilder
-            .forAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort())
-            .usePlaintext()
-            .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
-            .build();
-        snapshot = SnapshotApiGrpc.newBlockingStub(channelWb);
         agentServer = NettyServerBuilder.forPort(config.getAgentPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(impl).build();
-        bucket = config.getBucket();
-        Lzy.GetS3CredentialsResponse resp = server
-            .getS3Credentials(
-                Lzy.GetS3CredentialsRequest.newBuilder()
-                    .setAuth(auth)
-                    .setBucket(bucket)
-                    .build()
-            );
-
-        credentials = resp;
-
-        storage = StorageClient.create(resp);
+        String bucket = config.getBucket();
+        // [TODO] this trash must be removed somehow, the only usage of this field is to determine cloud
+        // environment type, which is completely incorrect, since storage location could differ from the compute
+        credentials = server.getS3Credentials(
+            Lzy.GetS3CredentialsRequest.newBuilder()
+                .setAuth(auth)
+                .setBucket(bucket)
+                .build()
+        );
+        slotsManager = new SlotConnectionManager(server, auth, config.getWhiteboardAddress(), bucket, contextId);
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(
                 "time from agent construct finish to LzyServant construct finish",
                 Map.of(
-                    "task_id", taskId,
+                    "context_id", contextId,
                     "metric_type", "system_metric"
                 ),
                 finish - start
@@ -109,7 +99,7 @@ public class LzyServant extends LzyAgent {
         UserEventLogger.log(new UserEvent(
             "Servant startup",
             Map.of(
-                "task_id", taskId,
+                "context_id", contextId,
                 "address", agentAddress.toString()
             ),
             UserEvent.UserEventType.TaskStartUp
@@ -118,7 +108,7 @@ public class LzyServant extends LzyAgent {
         final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
         commandBuilder.setAuth(auth);
         commandBuilder.setServantURI(agentAddress.toString());
-        commandBuilder.setSessionId(taskId);
+        commandBuilder.setSessionId(contextId);
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
@@ -127,7 +117,7 @@ public class LzyServant extends LzyAgent {
             new MetricEvent(
                 "LzyServant startUp time",
                 Map.of(
-                    "task_id", taskId,
+                    "context_id", contextId,
                     "metric_type", "system_metric"
                 ),
                 finish - start
@@ -141,7 +131,6 @@ public class LzyServant extends LzyAgent {
     }
 
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
-
         private LzyExecution currentExecution;
         private final AtomicBoolean executing = new AtomicBoolean(false);
 
@@ -154,9 +143,7 @@ public class LzyServant extends LzyAgent {
                     .asException());
                 return;
             }
-            final Snapshotter snapshotter = new SnapshotterImpl(auth, bucket,
-                snapshot, storage, taskId);
-            LzyServant.this.context = new LzyContext(taskId, snapshotter, agentInternalAddress, storage);
+            LzyServant.this.context = new LzyContext(contextId, slotsManager, agentInternalAddress, credentials);
             inContext.set(true);
             LzyServant.this.context.onProgress(progress -> {
                 responseObserver.onNext(progress);
@@ -207,7 +194,7 @@ public class LzyServant extends LzyAgent {
 
             try {
                 executing.set(true);
-                currentExecution = context.execute(zygote, progress -> {
+                currentExecution = context.execute(request.getTid(), zygote, progress -> {
                     LOG.info("LzyServant::progress {} {}", agentAddress,
                         JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
@@ -249,7 +236,7 @@ public class LzyServant extends LzyAgent {
                     UserEventLogger.log(new UserEvent(
                         "Servant task exit",
                         Map.of(
-                            "task_id", taskId,
+                            "task_id", contextId,
                             "address", agentAddress.toString(),
                             "exit_code", String.valueOf(1)
                         ),
@@ -267,20 +254,36 @@ public class LzyServant extends LzyAgent {
                                    StreamObserver<Servant.Message> responseObserver) {
             final long start = System.currentTimeMillis();
             LOG.info("LzyServant::openOutputSlot " + JsonUtils.printRequest(request));
-            if (!inContext.get() || context.slot(request.getSlot()) == null) {
-                LOG.info("Not found slot: " + request.getSlot());
+            final Path path = Paths.get(URI.create(request.getSlotUri()).getPath());
+            final String tid;
+            final String slotName;
+            if (path.getNameCount() < 2) {
+                responseObserver.onError(Status.INVALID_ARGUMENT
+                    .withDescription("Wrong slot format, must be [task]/[slot]").asException());
+                return;
+            } else {
+                tid = path.getName(0).toString();
+                slotName = path.getName(0).relativize(path).toString();
+                System.out.println("tid: " + tid + " slot: " + slotName);
+            }
+
+            final LzySlot slot = context.slot(tid, slotName);
+            if (!inContext.get() || slot == null) {
+                LOG.info("Not found slot: " + path);
                 responseObserver
-                    .onError(Status.NOT_FOUND
-                        .withDescription("Not found slot: " + request.getSlot()).asException());
+                    .onError(Status.NOT_FOUND.withDescription("Not found slot: " + path).asException());
+                return;
+            } else if (!(slot instanceof LzyOutputSlot)) {
+                LOG.info("Trying to read from input slot " + path);
+                responseObserver
+                    .onError(Status.NOT_FOUND.withDescription("Reading from input slot: " + path).asException());
                 return;
             }
-            final LzyOutputSlot slot = (LzyOutputSlot) context.slot(request.getSlot());
+            final LzyOutputSlot outputSlot = (LzyOutputSlot) slot;
             try {
-                slot.readFromPosition(request.getOffset())
-                    .forEach(chunk -> responseObserver
-                        .onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
-                responseObserver.onNext(
-                    Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
+                outputSlot.readFromPosition(request.getOffset())
+                    .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
+                responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
                 responseObserver.onCompleted();
             } catch (IOException iae) {
                 responseObserver.onError(iae);
@@ -290,7 +293,7 @@ public class LzyServant extends LzyAgent {
                 new MetricEvent(
                     "LzyServant openOutputSlot time",
                     Map.of(
-                        "task_id", taskId,
+                        "task_id", contextId,
                         "metric_type", "system_metric"
                     ),
                     finish - start
@@ -299,16 +302,12 @@ public class LzyServant extends LzyAgent {
         }
 
         @Override
-        public void configureSlot(
-            Servant.SlotCommand request,
-            StreamObserver<Servant.SlotCommandStatus> responseObserver
-        ) {
+        public void configureSlot(SlotCommand request, StreamObserver<SlotCommandStatus> responseObserver) {
             LzyServant.this.configureSlot(request, responseObserver);
         }
 
         @Override
-        public void signal(Tasks.TaskSignal request,
-                           StreamObserver<Servant.ExecutionStarted> responseObserver) {
+        public void signal(Tasks.TaskSignal request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             if (status.get().getValue() < AgentStatus.EXECUTING.getValue()) {
                 responseObserver.onError(Status.ABORTED.asException());
                 return;
@@ -343,7 +342,7 @@ public class LzyServant extends LzyAgent {
             UserEventLogger.log(new UserEvent(
                 "Servant task exit",
                 Map.of(
-                    "task_id", taskId,
+                    "task_id", contextId,
                     "address", agentAddress.toString(),
                     "exit_code", String.valueOf(0)
                 ),
