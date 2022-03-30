@@ -32,7 +32,7 @@ class ModulesSearchTests(TestCase):
         self.assertFalse(directory + "/test_modules/level1/level2/level3/level3.py" in local)
         self.assertFalse(directory + "/test_modules/level1/level2/level2.py" in local)
         self.assertFalse(directory + "/test_modules/level1/level1.py" in local)
-        self.assertEqual({"PyYAML", "boto3"}, set(remote.keys()))
+        self.assertEqual({"PyYAML", "boto3", "cloudpickle"}, set(remote.keys()))
 
     def test_modules_search_2(self):
         _, local = select_modules({

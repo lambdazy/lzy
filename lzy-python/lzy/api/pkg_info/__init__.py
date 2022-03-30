@@ -126,7 +126,9 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
             full_module_name = full_module_name[:last_dot_idx]
             # if parent module_name in local_modules already then all parent
             # modules there too already
-            current_parents.append(sys.modules[full_module_name])
+            parent = sys.modules[full_module_name]
+            current_parents.append(parent)
+            search(parent)
         parents.extend(reversed(current_parents))
 
     for _, entry in namespace.items():
