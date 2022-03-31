@@ -30,4 +30,4 @@ If you see `Started terminal` message in stdout - lzy is ready for work. Now you
 
 ---
 
-In the [**next**](basics.md) part we will run our first lzy op.
+In the [**next**](2-basics.md) part we will run our first lzy op.
