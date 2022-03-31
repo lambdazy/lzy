@@ -1,14 +1,13 @@
 terraform {
   required_providers {
     kubernetes = {
-      source = "hashicorp/kubernetes"
+      source = "terraform-registry.storage.yandexcloud.net/hashicorp/kubernetes"
     }
     helm = {
-      source = "hashicorp/helm"
+      source = "terraform-registry.storage.yandexcloud.net/hashicorp/helm"
     }
     random = {
-      source  = "hashicorp/random"
-      version = "3.0.1"
+      source  = "terraform-registry.storage.yandexcloud.net/hashicorp/random"
     }
   }
 }
