@@ -8,6 +8,9 @@ import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.config.DbConfig;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.EntryDependenciesModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.ExecutionModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.InputArgModel;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.OutputArgModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.SnapshotModel;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
@@ -42,6 +45,9 @@ public class Storage implements DbStorage {
         cfg.addAnnotatedClass(WhiteboardModel.class);
         cfg.addAnnotatedClass(SnapshotModel.class);
         cfg.addAnnotatedClass(WhiteboardTagModel.class);
+        cfg.addAnnotatedClass(ExecutionModel.class);
+        cfg.addAnnotatedClass(InputArgModel.class);
+        cfg.addAnnotatedClass(OutputArgModel.class);
         this.sessionFactory = cfg.buildSessionFactory();
     }
 
