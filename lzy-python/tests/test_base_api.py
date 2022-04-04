@@ -189,8 +189,8 @@ class BaseApiTests(TestCase):
 
     def test_optional(self):
         @op
-        def opt() -> Optional[str]:
-            return "str"
+        def opt() -> Optional[List[str]]:
+            return ["str", "str"]
 
         # Act
         # noinspection PyUnusedLocal
@@ -198,4 +198,4 @@ class BaseApiTests(TestCase):
             s = opt()
 
         # the result depends on the order of execution here
-        self.assertEqual(s, "str")
+        self.assertEqual(s, ["str", "str"])

@@ -26,12 +26,12 @@ TypeInferResult = Result[type]
 
 def infer_real_type(typ: Type) -> Type:
     if hasattr(typ, "__origin__"):
-        origin = typ.__origin__
-        if origin == Union:
+        origin: Type = typ.__origin__
+        if origin == Union:  # type: ignore
             # noinspection PyUnresolvedReferences
             args = typ.__args__  # TODO: what should we do with real Union?
             if len(args) == 2 and args[1] == type(None):  # check typ is Optional
-                return args[0]
+                return infer_real_type(args[0])
         return origin
     return typ
 
