@@ -37,11 +37,11 @@
     "web-vitals": "^1.1.2"
   },
   "scripts": {
-    "build-markdown": "cp ../../readme.md src/readme.md",
-    "start": "cp ../../readme.md src/readme.md && react-scripts start",
-    "build": "cp ../../readme.md src/readme.md && react-scripts build",
-    "test": "cp ../../readme.md src/readme.md && react-scripts test",
-    "eject": "cp ../../readme.md src/readme.md && react-scripts eject"
+    "build-markdown": "cp ../../docs/tutorials/* src/docs",
+    "start": "cp ../../docs/tutorials/* src/docs && react-scripts start",
+    "build": "cp ../../docs/tutorials/* src/docs && react-scripts build",
+    "test": "cp ../../docs/tutorials/* src/docs && react-scripts test",
+    "eject": "cp ../../docs/tutorials/* src/docs && react-scripts eject"
   },
   "eslintConfig": {
     "extends": [

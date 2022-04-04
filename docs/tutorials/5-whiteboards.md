@@ -59,7 +59,5 @@ wbs = env.whiteboards([BestModel], from_date=..., to_date=...)
 
 ---
 
-You can find the complete code of this step [here](../../lzy-python/examples/catboost_whiteboards.py).
-
 In the [**next**](6-views.md) part, we will show how to load only data that is really needed for the business task.
 
