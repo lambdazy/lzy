@@ -85,6 +85,4 @@ with env.workflow("training", eager=True):
 
 ---
 
-You can find the complete code of this step [here](../../lzy-python/examples/catboost_basics.py).
-
 In the [**next**](3-environment.md) part, we will dive into the environment setup.
