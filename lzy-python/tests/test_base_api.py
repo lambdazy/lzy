@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from unittest import TestCase
 import uuid
 
@@ -186,3 +186,16 @@ class BaseApiTests(TestCase):
 
         # the result depends on the order of execution here
         self.assertEqual(s, 3)
+
+    def test_optional(self):
+        @op
+        def opt() -> Optional[str]:
+            return "str"
+
+        # Act
+        # noinspection PyUnusedLocal
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME) as env:
+            s = opt()
+
+        # the result depends on the order of execution here
+        self.assertEqual(s, "str")
