@@ -1,94 +1,65 @@
-## Data storage with whiteboards
+## Managing graph results
 
-### Store operation results
+### Whiteboards
 
-You can also save execution results using whiteboards. 
-Just declare a dataclass with `@whiteboard` decorator and pass it as a whiteboard argument to the LzyEnv.
-For example:
+Whiteboard is a way how graph execution results can be stored and versioned in ʎzy.
+Whiteboard can be declared in a form of a `dataclass`: 
 
-```python
-from dataclasses import dataclass
-from catboost import CatBoostClassifier
-
-from lzy.api import op, LzyRemoteEnv, Gpu
-from lzy.api.whiteboard import whiteboard
-import numpy as np
-
-@dataclass
-class DataSet:
-    data: np.array
-    labels: np.array
-    
-@dataclass
-@whiteboard
-class GraphResult:
-    dataset: DataSet = None
-    model: CatBoostClassifier = None
-
-
-if __name__ == '__main__':
-    wb = GraphResult()
-    with LzyRemoteEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem", whiteboard=wb):
-        wb.dataset = dataset()
-        wb.model = learn(wb.dataset)
-        result = predict(wb.model, np.array([9, 1]))
-        wb_id = wb.id()
-    print(wb_id)
-```
-
-Pass whiteboard id and its type to load your results back:
-```python
-with LzyRemoteEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem") as env:
-    wb = env.get_whiteboard(wb_id, GraphResult)
-    print(wb.model)
-```
-
-### Namespaces
-Each whiteboard lies within a namespace which is used for security and access control. 
-Users can share data with each other by providing credentials to namespaces. 
-Namespace should be specified in LzyRemoteEnv:
-```python
-with LzyRemoteEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem", 
-                  namespace='data_workflow_whiteboards') as env:
-    wb.model = learn(wb.dataset)
-```
-### Tags
-Each whiteboard is associated with a set of tags which are only used for data organization and are 
-not responsible for security or access control. Tags can be specified as an argument in 
-`@whiteboard` decorator. For example:
 ```python
 @dataclass
-@whiteboard(tags=['tag_1', 'tag_2'])
-class GraphResult:
-    dataset: DataSet = None
-    model: CatBoostClassifier = None
-```
-Or they can be applied later:
-```python
-with LzyRemoteEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem", namespace='data_workflow_whiteboards') as env:
-    env.set_whiteboard_tag(wb_id, 'tag')
+@whiteboard(tags=['best_model'])
+class BestModel:
+    model: Optional[CatBoostClassifier] = None
+    params: Optional[Dict[str, int]] = None
+    score: float = 0.0
 ```
 
-Whiteboards can later be queried by tags. All you have to do is:
-1) Provide types which your whiteboards should be built upon. 
-2) For each type specify tags: only whiteboards that were created with the given tags will queried.
-3) Optionally you can specify filtering criteria (e.g. creation date range)
-```python
-@dataclass
-@whiteboard(tags=['simple_whiteboard_tag'])
-class SimpleWhiteboard:
-    model: CatBoostClassifier = None
-    result: List[int] = None
+Note that it is necessary to specify tags for a Whiteboard. Tags are used for querying.
 
-@dataclass
-@whiteboard(tags=['another_simple_whiteboard_tag'])
-class AnotherSimpleWhiteboard:
-    train_dataset: List[str] = None
-    
-with LzyRemoteEnv(user="<Your github username>", private_key_path="~/.ssh/private.pem", namespace='data_workflow_whiteboards') as env:
-    # SimpleWhiteboard will be built from all whiteboards 
-    # with 'simple_whiteboard_tag' in 'data_workflow_whiteboards' namespace
-    # AnotherSimpleWhiteboard will be built from all whiteboards 
-    # with 'another_simple_whiteboard_tag' in 'data_workflow_whiteboards' namespace
-    whiteboards = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard])
+Whiteboard can be filled in during the graph execution:
+
+```python
+@op
+def dataset() -> Bunch:
+    data_set = datasets.load_breast_cancer()
+    return data_set
+
+
+@op(gpu=Gpu.any())
+def search_best_model(data_set: Bunch) -> GridSearchCV:
+    grid = {'max_depth': [3, 4, 5], 'n_estimators': [100, 200, 300]}
+    cb_model = CatBoostClassifier()
+    search = GridSearchCV(estimator=cb_model, param_grid=grid, scoring='accuracy', cv=5)
+    search.fit(data_set.data, data_set.target)
+    return search
+
+
+env = LzyRemoteEnv()
+wb = BestModel()
+with env.workflow("training", whiteboard=wb):
+    data_set = dataset()
+    search = search_best_model(data_set)
+    wb.model = search.best_estimator_
+    wb.params = search.best_params_
+    wb.score = search.best_score_
+    print(wb.__id__)
 ```
+
+Whiteboard can be loaded by `id`:
+
+```python
+wb = env.whiteboard('<id>', BestModel)
+print(wb.params['max_depth'])
+```
+
+Another way is to load all whiteboards for the given type and creation datetime:
+```python
+wbs = env.whiteboards([BestModel], from_date=..., to_date=...)
+```
+
+---
+
+You can find the complete code of this step [here](../../lzy-python/examples/catboost_whiteboards.py).
+
+In the [**next**](6-views.md) part, we will show how to load only data that is really needed for the business task.
+

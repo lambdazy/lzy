@@ -19,7 +19,7 @@ def train(data_set: Bunch) -> CatBoostClassifier:
 
 
 env = LzyRemoteEnv()
-with env.workflow("training", local_module_paths=['/path/to/local/module']):
+with env.workflow("training"):
     data_set = dataset()
     model = train(data_set)
     result = model.predict(data_set.data[0])
