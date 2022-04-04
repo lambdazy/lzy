@@ -1,20 +1,29 @@
-## Restarting after failures
+## Data caching
 
-### Restart policy
-
-For each workflow execution name is specified.
-In case there is a failure during execution workflow can be restarted with the following restart policies:
-1. `FROM_LAST_UNCOMPLETED_SNAPSHOT`:
-   Execution results for last uncompleted snapshot with the same workflow name will be used to resume 
-calculations from the breakpoint.
-2. `FROM_LAST_SNAPSHOT`:
-   Execution results for last snapshot (completed or uncompleted) with the same workflow name will be used to resume
-   calculations from the breakpoint.
+An unexpected exception can be raised during graph execution, e.g.:
 
 ```python
 env = LzyRemoteEnv(namespace='prod')
-with env.workflow(name='MyExperiment', restart_policy=FROM_LAST_SNAPSHOT):
-    data = dataset()
-    model = learn(data)
-    result = model.predict(np.array([9, 1]))
+with env.workflow(name='MyExperiment'):
+    data_set = dataset()
+    model = train(data_set)                                     # exception is raised here
+    result = model.predict(data_set.data[0])
+    print(result)
 ```
+
+ʎzy allows re-running graph without re-running all the operations.
+In this case, the results of all completed operations will be loaded from the cache.
+To enforce such behavior set `cache_policy` to `SAVE_AND_RESTORE`:
+
+```python
+env = LzyRemoteEnv()
+with env.workflow("training", cache_policy=CachePolicy.SAVE_AND_RESTORE):
+    data_set = dataset()                                        # data_set is loaded from cache
+    model = train(data_set)
+    result = model.predict(data_set.data[0])
+    print(result)
+```
+
+---
+
+In the [**next**](5-whiteboards.md) part, we will detail how graph results can be stored in ʎzy.

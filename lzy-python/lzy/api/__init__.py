@@ -7,6 +7,7 @@ from typing import Callable
 from lzy.api.env import LzyWorkflowBase, LzyRemoteWorkflow, LzyLocalWorkflow, LzyRemoteEnv, LzyLocalEnv
 from lzy.api.lazy_op import LzyLocalOp, LzyRemoteOp
 from lzy.api.result import Nothing
+from lzy.api.cache_policy import CachePolicy
 from lzy.api.utils import infer_return_type, is_lazy_proxy, lazy_proxy, infer_call_signature
 from lzy.api.whiteboard.model import UUIDEntryIdGenerator
 from lzy.model.zygote import Provisioning, Gpu
