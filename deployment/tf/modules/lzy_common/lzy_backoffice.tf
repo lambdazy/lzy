@@ -179,14 +179,54 @@ resource "kubernetes_deployment" "lzy_backoffice" {
   }
 }
 
-resource "kubernetes_service" "lzy_backoffice" {
-  count = var.create_public_backoffice_service ? 1 : 0
+resource "kubernetes_service" "lzy_backoffice_with_ip" {
+  count = var.create_public_backoffice_service && var.backoffice_public_ip != "" ? 1 : 0
   metadata {
     name        = "lzy-backoffice-service"
     annotations = var.backoffice_load_balancer_necessary_annotations
   }
   spec {
     load_balancer_ip = var.backoffice_public_ip
+    type             = "LoadBalancer"
+    selector = {
+      app : "lzy-backoffice"
+    }
+    port {
+      name        = "backend"
+      port        = 8080
+      target_port = 8080
+    }
+    dynamic "port" {
+      for_each = var.ssl-enabled ? [1] : []
+      content {
+        name        = "backendtls"
+        port        = 8443
+        target_port = 8443
+      }
+    }
+    dynamic "port" {
+      for_each = var.ssl-enabled ? [1] : []
+      content {
+        name        = "frontendtls"
+        port        = 443
+        target_port = 443
+      }
+    }
+    port {
+      name        = "frontend"
+      port        = 80
+      target_port = 80
+    }
+  }
+}
+
+resource "kubernetes_service" "lzy_backoffice_without_ip" {
+  count = var.create_public_backoffice_service && var.backoffice_public_ip == ""  ? 1 : 0
+  metadata {
+    name        = "lzy-backoffice-service"
+    annotations = var.backoffice_load_balancer_necessary_annotations
+  }
+  spec {
     type             = "LoadBalancer"
     selector = {
       app : "lzy-backoffice"

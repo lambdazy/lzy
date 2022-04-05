@@ -100,14 +100,31 @@ resource "kubernetes_deployment" "grafana" {
   }
 }
 
-resource "kubernetes_service" "grafana_service" {
-  count = var.create_public_grafana_service ? 1 : 0
+resource "kubernetes_service" "grafana_service_with_ip" {
+  count = var.create_public_grafana_service && var.grafana_public_ip != "" ? 1 : 0
   metadata {
     name = "grafana-service"
     annotations = var.grafana_load_balancer_necessary_annotations
   }
   spec {
     load_balancer_ip = var.grafana_public_ip
+    type             = "LoadBalancer"
+    port {
+      port = 3000
+    }
+    selector = {
+      app = "grafana"
+    }
+  }
+}
+
+resource "kubernetes_service" "grafana_service_without_ip" {
+  count = var.create_public_grafana_service && var.grafana_public_ip == ""  ? 1 : 0
+  metadata {
+    name = "grafana-service"
+    annotations = var.grafana_load_balancer_necessary_annotations
+  }
+  spec {
     type             = "LoadBalancer"
     port {
       port = 3000
