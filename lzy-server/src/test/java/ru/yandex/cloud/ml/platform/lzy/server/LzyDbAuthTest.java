@@ -19,6 +19,7 @@ import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.UserVerificationType;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
@@ -162,7 +163,7 @@ public class LzyDbAuthTest {
         }
 
         public UserModel getUserModel() {
-            return new UserModel(userId, userId.toLowerCase(Locale.ROOT));
+            return new UserModel(userId, userId.toLowerCase(Locale.ROOT), UserVerificationType.ACCESS_ALLOWED);
         }
     }
 }

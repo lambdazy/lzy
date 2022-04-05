@@ -171,6 +171,10 @@ public class DbAuthenticator implements Authenticator {
                 LOG.error("User " + userId + " not found in database");
                 return false;
             }
+            if (user.getAccessType() != UserVerificationType.ACCESS_ALLOWED) {
+                LOG.error("User " + userId + " has no access to Lzy::" + user.getAccessType());
+                return false;
+            }
 
             Security.addProvider(new BouncyCastleProvider());
             for (PublicKeyModel userToken : user.getPublicKeys()) {
