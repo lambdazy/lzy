@@ -82,7 +82,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                     throw new NoSuchElementException();
                 }
                 try {
-                    LOG.info("Send from slot {} data {}", name(), line);
+                    LOG.debug("Send from slot {} some data", name());
                     LineReaderSlot.this.offset += line.size();
                     return line;
                 } finally {
