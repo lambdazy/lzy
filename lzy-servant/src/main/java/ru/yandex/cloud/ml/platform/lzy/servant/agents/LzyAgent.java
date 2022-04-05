@@ -1,27 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
-
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
-import java.io.Closeable;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,16 +17,22 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyLinuxFsManagerImpl;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyMacosFsManagerImpl;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyScript;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.*;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
 
 public abstract class LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);
@@ -55,8 +45,6 @@ public abstract class LzyAgent implements Closeable {
     protected final URI agentInternalAddress;
     protected final URI whiteboardAddress;
     protected final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
-    protected final AtomicBoolean inContext = new AtomicBoolean(false);
-    protected LzyContext context;
 
     protected LzyAgent(LzyAgentConfig config) throws URISyntaxException {
         final long start = System.currentTimeMillis();
@@ -81,6 +69,7 @@ public abstract class LzyAgent implements Closeable {
                 config.getAgentPort(), null, null, null
             );
         final long finish = System.currentTimeMillis();
+
         MetricEventLogger.log(
             new MetricEvent(
                 "LzyAgent construct time",
@@ -110,6 +99,8 @@ public abstract class LzyAgent implements Closeable {
         }
         return authBuilder.build();
     }
+
+    protected abstract LzyContext context();
 
     protected abstract void onStartUp();
 
@@ -226,14 +217,16 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) throws StatusException {
-        LOG.info("Agent::configureSlot " + JsonUtils.printRequest(request));
-        final LzySlot slot = context.slot(request.getTid(), request.getSlot()); // null for create
+        LOG.info("Agent::configureSlot " + request.getTid() + request.getSlot()
+            + JsonUtils.printRequest(request)
+        );
+        final LzySlot slot = context().slot(request.getTid(), request.getSlot()); // null for create
         if (slot == null && request.getCommandCase() != Servant.SlotCommand.CommandCase.CREATE) {
             return Servant.SlotCommandStatus.newBuilder()
                 .setRc(
                     Servant.SlotCommandStatus.RC.newBuilder()
                         .setCodeValue(1)
-                        .setDescription("Slot " + request.getSlot() + " is not found in LzyContext")
+                        .setDescription("Slot " + request.getSlot() + " not found at LzyContext")
                         .build()
                 ).build();
         }
@@ -241,7 +234,7 @@ public abstract class LzyAgent implements Closeable {
             case CREATE:
                 final Servant.CreateSlotCommand create = request.getCreate();
                 final Slot slotSpec = GrpcConverter.from(create.getSlot());
-                final LzySlot lzySlot = context.configureSlot(
+                final LzySlot lzySlot = context().configureSlot(
                     request.getTid(),
                     slotSpec,
                     create.getChannelId()
@@ -253,7 +246,7 @@ public abstract class LzyAgent implements Closeable {
                 }
                 break;
             case SNAPSHOT:
-                if (context.slotManager().snapshooter() == null) {
+                if (context().slotManager().snapshooter() == null) {
                     return Servant.SlotCommandStatus.newBuilder()
                         .setRc(
                             Servant.SlotCommandStatus.RC.newBuilder()
@@ -263,12 +256,23 @@ public abstract class LzyAgent implements Closeable {
                         ).build();
                 }
                 final Servant.SnapshotCommand snapshot = request.getSnapshot();
-                context.slotManager().snapshooter().registerSlot(slot, snapshot.getSnapshotId(), snapshot.getEntryId());
+                context().slotManager().snapshooter()
+                    .registerSlot(slot, snapshot.getSnapshotId(), snapshot.getEntryId());
                 break;
             case CONNECT:
                 final Servant.ConnectSlotCommand connect = request.getConnect();
                 final URI slotUri = URI.create(connect.getSlotUri());
-                ((LzyInputSlot) slot).connect(slotUri, context.slotManager().connectToSlot(slotUri, 0));
+                if (slot instanceof LzyInputSlot) {
+                    ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToSlot(slotUri, 0));
+                } else {
+                    return Servant.SlotCommandStatus.newBuilder()
+                        .setRc(
+                            Servant.SlotCommandStatus.RC.newBuilder()
+                                .setCodeValue(1)
+                                .setDescription("Slot " + request.getSlot() + " is not found in LzyContext")
+                                .build()
+                        ).build();
+                }
                 break;
             case DISCONNECT:
                 slot.suspend();
@@ -288,10 +292,11 @@ public abstract class LzyAgent implements Closeable {
             default:
                 throw Status.INVALID_ARGUMENT.asException();
         }
+        LOG.info("Agent::configureSlot " + request.getTid() + "/" + request.getSlot() + " SUCCESS");
         return Servant.SlotCommandStatus.newBuilder().build();
     }
 
-    public void update(IAM.Auth request,
+    public void update(@SuppressWarnings("unused") IAM.Auth request,
                        StreamObserver<Servant.ExecutionStarted> responseObserver) {
         final Operations.ZygoteList zygotes = lzyServerApi().zygotes(auth);
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
@@ -301,20 +306,18 @@ public abstract class LzyAgent implements Closeable {
         responseObserver.onCompleted();
     }
 
-    public void status(IAM.Empty request,
+    public void status(@SuppressWarnings("unused") IAM.Empty request,
                        StreamObserver<Servant.ServantStatus> responseObserver) {
         final Servant.ServantStatus.Builder builder = Servant.ServantStatus.newBuilder();
         builder.setStatus(status.get().toGrpcServantStatus());
-        if (inContext.get()) {
-            builder.addAllConnections(context.slots().map(slot -> {
-                final Operations.SlotStatus.Builder status = Operations.SlotStatus
-                    .newBuilder(slot.status());
-                if (auth.hasUser()) {
-                    status.setUser(auth.getUser().getUserId());
-                }
-                return status.build();
-            }).collect(Collectors.toList()));
-        }
+        builder.addAllConnections(context().slots().map(slot -> {
+            final Operations.SlotStatus.Builder status = Operations.SlotStatus
+                .newBuilder(slot.status());
+            if (auth.hasUser()) {
+                status.setUser(auth.getUser().getUserId());
+            }
+            return status.build();
+        }).collect(Collectors.toList()));
         responseObserver.onNext(builder.build());
         responseObserver.onCompleted();
     }

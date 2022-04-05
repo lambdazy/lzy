@@ -15,15 +15,14 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.KuberUtils;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.PodProviderException;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProviderImpl;
-import ru.yandex.cloud.ml.platform.lzy.server.task.BaseTask;
+import ru.yandex.cloud.ml.platform.lzy.server.task.TaskImpl;
 
-public class KuberTask extends BaseTask {
+public class KuberTask extends TaskImpl {
     private static final Logger LOG = LoggerFactory.getLogger(KuberTask.class);
 
     private final ServantPodProvider servantPodProvider = new ServantPodProviderImpl();

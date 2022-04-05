@@ -17,7 +17,7 @@ public abstract class FileContentsBase implements FileContents {
             trackers = this.trackers.get();
             newValue = new ArrayList<>(trackers);
             newValue.add(tracker);
-        } while (this.trackers.compareAndSet(trackers, newValue));
+        } while (!this.trackers.compareAndSet(trackers, newValue));
     }
 
     protected Stream<ContentsTracker> trackers() {

@@ -25,7 +25,7 @@ public class LzyExecution {
     private final String taskId;
     private final AtomicZygote zygote;
     private final String arguments;
-    private final List<Consumer<Servant.ExecutionProgress>> listeners = new ArrayList<>();
+    private final List<Consumer<Servant.ServantProgress>> listeners = new ArrayList<>();
     private Environment.LzyProcess process;
 
     public LzyExecution(String taskId, AtomicZygote zygote, String arguments) {
@@ -42,8 +42,8 @@ public class LzyExecution {
             throw new IllegalStateException("LzyExecution has been already started");
         }
         final long envExecFinishMillis;
-        progress(Servant.ExecutionProgress.newBuilder()
-            .setStarted(Servant.ExecutionStarted.newBuilder().build())
+        progress(Servant.ServantProgress.newBuilder()
+            .setExecuteStart(Servant.ExecutionStarted.newBuilder().build())
             .build()
         );
 
@@ -75,8 +75,8 @@ public class LzyExecution {
             resultDescription = "Error during task execution:\n" + e;
             rc = ReturnCodes.EXECUTION_ERROR.getRc();
             LOG.info("Result description: " + resultDescription);
-            progress(Servant.ExecutionProgress.newBuilder()
-                .setExit(Servant.ExecutionConcluded.newBuilder()
+            progress(Servant.ServantProgress.newBuilder()
+                .setExecuteStop(Servant.ExecutionConcluded.newBuilder()
                     .setRc(rc)
                     .setDescription(resultDescription)
                     .build())
@@ -95,11 +95,11 @@ public class LzyExecution {
         }
     }
 
-    public synchronized void progress(Servant.ExecutionProgress progress) {
+    public synchronized void progress(Servant.ServantProgress progress) {
         listeners.forEach(l -> l.accept(progress));
     }
 
-    public synchronized void onProgress(Consumer<Servant.ExecutionProgress> listener) {
+    public synchronized void onProgress(Consumer<Servant.ServantProgress> listener) {
         listeners.add(listener);
     }
 
@@ -108,8 +108,8 @@ public class LzyExecution {
             int rc = process.waitFor();
             String resultDescription = (rc == 0) ? "Success" : "Failure";
             LOG.info("Result description: " + resultDescription);
-            progress(Servant.ExecutionProgress.newBuilder()
-                .setExit(Servant.ExecutionConcluded.newBuilder()
+            progress(Servant.ServantProgress.newBuilder()
+                .setExecuteStop(Servant.ExecutionConcluded.newBuilder()
                     .setRc(rc)
                     .setDescription(resultDescription)
                     .build())
@@ -119,8 +119,8 @@ public class LzyExecution {
         } catch (Exception e) {
             final String exceptionDescription = "Exception during task execution" + e;
             LOG.warn(exceptionDescription);
-            progress(Servant.ExecutionProgress.newBuilder()
-                .setExit(Servant.ExecutionConcluded.newBuilder()
+            progress(Servant.ServantProgress.newBuilder()
+                .setExecuteStop(Servant.ExecutionConcluded.newBuilder()
                     .setRc(-1)
                     .setDescription(exceptionDescription)
                     .build())

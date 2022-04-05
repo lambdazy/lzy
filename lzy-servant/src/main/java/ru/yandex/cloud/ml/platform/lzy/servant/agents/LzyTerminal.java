@@ -25,7 +25,6 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 public class LzyTerminal extends LzyAgent implements Closeable {
-
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
     private final Server agentServer;
     private final ManagedChannel channel;
@@ -35,6 +34,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private final Lzy.GetS3CredentialsResponse credentials;
     private final SlotConnectionManager slotManager;
     private CommandHandler commandHandler;
+    private LzyContext context;
 
     public LzyTerminal(LzyAgentConfig config) throws URISyntaxException {
         super(config);
@@ -67,6 +67,14 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     @Override
+    protected LzyContext context() {
+        if (context == null) {
+            throw new RuntimeException("Context is not yet defined (who knows what that mean!)");
+        }
+        return context;
+    }
+
+    @Override
     protected Server server() {
         return agentServer;
     }
@@ -77,14 +85,11 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         status.set(AgentStatus.PREPARING_EXECUTION);
 
         context = new LzyContext(sessionId, slotManager, agentInternalAddress, credentials);
-        inContext.set(true);
         status.set(AgentStatus.EXECUTING);
 
         Context.current().addListener(context -> {
-            if (inContext.get()) {
-                LOG.info("Execution terminated from server ");
-                System.exit(1);
-            }
+            LOG.info("Execution terminated from server ");
+            System.exit(1);
         }, Runnable::run);
 
         this.context.onProgress(progress -> {
@@ -106,7 +111,6 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
             if (progress.hasExit()) {
                 LOG.info("LzyTerminal::exit {}", agentAddress);
-                inContext.set(false);
                 commandHandler.onCompleted();
             }
         });

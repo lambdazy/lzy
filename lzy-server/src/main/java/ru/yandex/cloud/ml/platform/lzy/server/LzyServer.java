@@ -1,49 +1,21 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
-import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.DESTROYED;
-import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.FINISHED;
-
 import io.grpc.Context;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
+import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.exceptions.NoSuchBeanException;
 import jakarta.inject.Inject;
-import java.io.IOException;
-import java.net.URI;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.DirectChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.SnapshotChannelSpec;
@@ -58,30 +30,32 @@ import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
 import ru.yandex.cloud.ml.platform.lzy.server.storage.StorageCredentialsProvider;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelCreate;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM.Auth;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse.Builder;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.SessionDescription;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.StateChanged.State;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskSignal;
 
-public class LzyServer {
+import java.io.IOException;
+import java.net.URI;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
+import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.*;
+
+public class LzyServer {
     private static final Logger LOG;
     private static final Options options = new Options();
     private static final String LZY_SERVER_HOST_ENV = "LZY_SERVER_HOST";
     private static final String DEFAULT_LZY_SERVER_LOCALHOST = "http://localhost";
+    public static final int MAX_TASK_RETRIES = 5;
 
     static {
         // This is to avoid this bug: https://issues.apache.org/jira/browse/LOG4J2-2375
@@ -145,6 +119,7 @@ public class LzyServer {
     }
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
+        public static final ThreadGroup TERMINAL_THREADS = new ThreadGroup("Terminal threads");
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
 
         @Inject
@@ -154,7 +129,7 @@ public class LzyServer {
         private TasksManager tasks;
 
         @Inject
-        private ConnectionManager connectionManager;
+        private ServantsAllocator.Ex servantsManager;
 
         @Inject
         private SessionManager sessionManager;
@@ -178,8 +153,9 @@ public class LzyServer {
                 );
 
                 builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
-                if (task.servantUri() != null) {
-                    builder.setServant(task.servantUri().toString());
+                final URI uri = task.servantUri();
+                if (uri != null) {
+                    builder.setServant(uri.toString());
                 }
                 builder.setOwner(tasks.owner(task.tid()));
                 Stream.concat(Stream.of(task.workload().input()), Stream.of(task.workload().output()))
@@ -290,13 +266,14 @@ public class LzyServer {
         }
 
         @Override
-        public void start(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionProgress> responseObserver) {
+        public void start(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> responseObserver) {
             if (!checkAuth(request.getAuth(), responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
             LOG.info("Server::start " + JsonUtils.printRequest(request));
-            final Zygote workload = GrpcConverter.from(request.getZygote());
+            final Operations.Zygote zygote = request.getZygote();
+            final Zygote workload = GrpcConverter.from(zygote);
             final Map<Slot, String> assignments = new HashMap<>();
             request.getAssignmentsList()
                 .forEach(ass -> assignments.put(GrpcConverter.from(ass.getSlot()), ass.getBinding()));
@@ -304,20 +281,34 @@ public class LzyServer {
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
             final AtomicBoolean concluded = new AtomicBoolean(false);
-            Task task = tasks.start(uid, parent, workload, assignments, auth, progress -> {
-                if (concluded.get()) {
+            // [TODO] session per user is too simple
+            final Task task = tasks.start(uid, parent, workload, assignments, auth);
+            final int[] retries = new int[]{0};
+            task.onProgress(progress -> {
+                if (concluded.get())
                     return;
-                }
                 responseObserver.onNext(progress);
-                if (progress.hasChanged()
-                    && progress.getChanged().getNewState() == State.FINISHED) {
+                if (progress.getStatus() == QUEUE) {
+                    servantsManager.allocate(uid, zygote.getProvisioning(), zygote.getEnv())
+                        .whenComplete((connection, th) -> {
+                            if (th != null)
+                                task.state(Task.State.ERROR, th.getMessage(), Arrays.toString(th.getStackTrace()));
+                            else
+                                task.attachServant(connection);
+                        });
+                } else if (progress.getStatus() == DISCONNECTED) {
+                    if (retries[0]++ < MAX_TASK_RETRIES)
+                        task.state(Task.State.QUEUE, "Disconnected from servant. Retry: " + retries[0]);
+                    else
+                        task.state(Task.State.ERROR, "Disconnected from servant. Maximum retries reached.");
+                } else if (EnumSet.of(ERROR, SUCCESS).contains(progress.getStatus())) {
                     concluded.set(true);
-                    responseObserver.onCompleted();
                     if (parent != null) {
                         parent.signal(TasksManager.Signal.CHLD);
                     }
+                    responseObserver.onCompleted();
                 }
-            }, auth.bucketForUser(uid));
+            });
             UserEventLogger.log(
                 new UserEvent(
                     "Task created",
@@ -330,13 +321,9 @@ public class LzyServer {
             );
             Context.current().addListener(ctxt -> {
                 concluded.set(true);
-                if (!EnumSet.of(FINISHED, DESTROYED).contains(task.state())) {
-                    // TODO(d-kruchinin): Now we use raw stop of servant when connection to terminal was lost
-                    // To make stopping process simple and understandable
-                    LOG.info("Stopping servant {}", task.servantUri());
-                    task.stopServant();
-                }
+                task.signal(TasksManager.Signal.HUB);
             }, Runnable::run);
+            task.state(Task.State.QUEUE);
         }
 
         @Override
@@ -470,20 +457,39 @@ public class LzyServer {
             }
 
             final URI servantUri = URI.create(request.getServantURI());
-            final UUID sessionId = UUID.fromString(request.getSessionId());
-            final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager.getOrCreate(servantUri, sessionId);
-            responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
-            responseObserver.onCompleted();
+            if (auth.hasTask()) {
+                final String servantId = auth.getTask().getTaskId();
+                servantsManager.register(servantId, servantUri);
+                responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
+                responseObserver.onCompleted();
+            } else {
+                final Thread terminalThread = new Thread(
+                    TERMINAL_THREADS,
+                    () -> {
+                        final UUID sessionId = UUID.fromString(request.getServantId());
+                        final ManagedChannel channel = ChannelBuilder
+                            .forAddress(servantUri.getHost(), servantUri.getPort())
+                            .usePlaintext()
+                            .enableRetry(LzyServantGrpc.SERVICE_NAME)
+                            .build();
 
-            ForkJoinPool.commonPool().execute(() -> {
-                if (auth.hasTask()) {
-                    final Task task = tasks.task(UUID.fromString(auth.getTask().getTaskId()));
-                    task.attachServant(servantUri, servant);
-                } else {
-                    runTerminal(auth, servant, sessionId);
-                }
-                connectionManager.shutdownConnection(sessionId);
-            });
+                        final Metadata metadata = new Metadata();
+                        metadata.put(Constants.SESSION_ID_METADATA_KEY, sessionId.toString());
+                        final LzyServantGrpc.LzyServantBlockingStub servant = MetadataUtils
+                            .attachHeaders(LzyServantGrpc.newBlockingStub(channel), metadata);
+                        try {
+                            runTerminal(auth, servant, sessionId);
+                        } finally {
+                            channel.shutdownNow();
+                        }
+                    },
+                    "Terminal " + request.getServantId() + " for user " + auth.getUser()
+                );
+                terminalThread.setDaemon(true);
+                terminalThread.start();
+                Context.current().addListener(ctxt -> terminalThread.interrupt(), Runnable::run);
+            }
+
         }
 
         @Override
@@ -563,20 +569,27 @@ public class LzyServer {
             responseObserver.onCompleted();
         }
 
+        /** [TODO] support interruption */
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
             final String user = auth.getUser().getUserId();
             sessionManager.registerSession(user, sessionId);
 
-            final Tasks.ContextSpec.Builder contextSpec = Tasks.ContextSpec.newBuilder();
-            tasks.slots(user).forEach((slot, channel) -> contextSpec.addAssignmentsBuilder()
-                .setSlot(to(slot))
-                .setBinding("channel:" + channel.name())
-                .build()
-            );
-            final Iterator<Servant.ContextProgress> contextProgress = kharon.prepare(contextSpec.build());
+            final Iterator<Servant.ServantProgress> start = kharon.start(auth);
+
+            tasks.slots(user).forEach((slot, channel) -> {
+                final Servant.SlotCommand slotCommand = Servant.SlotCommand.newBuilder()
+                    .setCreate(Servant.CreateSlotCommand.newBuilder()
+                        .setSlot(GrpcConverter.to(slot))
+                        .setChannelId(channel.name())
+                        .build())
+                    .build();
+                final Servant.SlotCommandStatus status = kharon.configureSlot(slotCommand);
+                if (status.hasRc() && status.getRc().getCode() != Servant.SlotCommandStatus.RC.Code.SUCCESS)
+                    LOG.warn("Unable to configure kharon slot. session: " + sessionId + " slot: " + slot);
+            });
             try {
-                contextProgress.forEachRemaining(progress -> {
-                    LOG.info("LzyServer::terminalProgress " + JsonUtils.printRequest(progress));
+                start.forEachRemaining(progress -> {
+                    LOG.info("LzyServer::kharonTerminalProgress " + JsonUtils.printRequest(progress));
                     if (progress.hasAttach()) {
                         final Servant.SlotAttach attach = progress.getAttach();
                         final Slot slot = GrpcConverter.from(attach.getSlot());
