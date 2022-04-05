@@ -86,7 +86,7 @@ public class Storage implements DbStorage {
                 try {
                     UserModel user = session.find(UserModel.class, name);
                     if (user == null) {
-                        user = new UserModel(name, name.toLowerCase(Locale.ROOT));
+                        user = new UserModel(name, name.toLowerCase(Locale.ROOT), UserVerificationType.ACCESS_ALLOWED);
                         session.save(user);
                     }
                     UserRoleModel roleModel = session.find(UserRoleModel.class, role);

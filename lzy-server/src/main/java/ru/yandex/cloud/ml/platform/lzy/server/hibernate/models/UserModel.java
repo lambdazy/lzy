@@ -4,11 +4,14 @@ import java.util.HashSet;
 import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.ManyToMany;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.UserVerificationType;
 
 @Entity
 @Table(name = "users")
@@ -37,10 +40,14 @@ public class UserModel {
     private String serviceAccountId;
     @Column(name = "bucket")
     private String bucket;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "access_type")
+    private UserVerificationType accessType;
 
-    public UserModel(String userId, String bucket) {
+    public UserModel(String userId, String bucket, UserVerificationType accessType) {
         this.userId = userId;
         this.bucket = bucket;
+        this.accessType = accessType;
     }
 
     public UserModel() {
@@ -128,5 +135,13 @@ public class UserModel {
 
     public void setRoles(Set<UserRoleModel> roles) {
         this.roles = roles;
+    }
+
+    public UserVerificationType getAccessType() {
+        return accessType;
+    }
+
+    public void setAccessType(UserVerificationType accessType) {
+        this.accessType = accessType;
     }
 }
