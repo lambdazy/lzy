@@ -63,7 +63,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                 if (next.hasChunk()) {
                     final ByteString chunk = next.getChunk();
                     try {
-                        LOG.info("From {} chunk received {}", name(), chunk.toString(StandardCharsets.UTF_8));
                         onChunk(chunk);
                     } catch (IOException ioe) {
                         LOG.warn(
@@ -99,10 +98,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             key = Arrays.stream(parts).skip(1).collect(Collectors.joining("/"));
         }
         snapshotter.snapshotProvider().slotSnapshot(definition())
-            .readByChunks(bucket, key, data -> {
-                LOG.info("From {} chunk received {}", name(), data.toString(StandardCharsets.UTF_8));
-                onChunk(data);
-            }, () -> state(Operations.SlotStatus.State.OPEN));
+            .readByChunks(bucket, key, this::onChunk, () -> state(Operations.SlotStatus.State.OPEN));
     }
 
     @Override

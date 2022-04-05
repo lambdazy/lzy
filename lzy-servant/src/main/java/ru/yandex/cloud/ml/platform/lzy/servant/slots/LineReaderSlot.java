@@ -84,7 +84,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                 }
                 final ByteString bytes = ByteString.copyFromUtf8(line + "\n");
                 LineReaderSlot.this.offset += bytes.size();
-                LOG.info("Send from slot {} data {}", name(), line);
+                LOG.debug("Send from slot {} some data", name());
                 line = null;
                 snapshotter.snapshotProvider().slotSnapshot(definition()).onChunk(bytes);
                 return bytes;
