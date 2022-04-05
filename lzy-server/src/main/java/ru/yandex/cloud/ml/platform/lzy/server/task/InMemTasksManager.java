@@ -2,26 +2,27 @@ package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 import jakarta.inject.Singleton;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.server.ConnectionManager;
+import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocator;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+
+import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.ERROR;
+import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.SUCCESS;
 
 @Singleton
 public class InMemTasksManager implements TasksManager {
@@ -29,7 +30,7 @@ public class InMemTasksManager implements TasksManager {
     protected final URI serverURI;
     private final ChannelsManager channels;
     private final Map<UUID, Task> tasks = new ConcurrentHashMap<>();
-    private final ConnectionManager connectionManager;
+    private final ServantsAllocator servantsAllocator;
 
     private final Map<String, List<Task>> userTasks = new ConcurrentHashMap<>();
     private final Map<Task, Task> parents = new ConcurrentHashMap<>();
@@ -41,10 +42,10 @@ public class InMemTasksManager implements TasksManager {
 
     private final Map<String, Map<Slot, ChannelSpec>> userSlots = new ConcurrentHashMap<>();
 
-    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels, ConnectionManager connectionManager) {
+    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels, ServantsAllocator servantsAllocator) {
         this.serverURI = URI.create(serverConfig.getServerUri());
         this.channels = channels;
-        this.connectionManager = connectionManager;
+        this.servantsAllocator = servantsAllocator;
     }
 
     @Override
@@ -98,11 +99,11 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments,
-                      Authenticator auth, Consumer<Servant.ExecutionProgress> consumer,
-                      String bucket) {
-        final Task task =
-            TaskFactory.createTask(uid, UUID.randomUUID(), workload, assignments, channels, serverURI, bucket);
+    public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth) {
+        final Task task = TaskFactory.createTask(
+            uid, UUID.randomUUID(), workload, assignments,
+            channels, serverURI, auth.bucketForUser(uid)
+        );
         tasks.put(task.tid(), task);
         if (parent != null) {
             children.computeIfAbsent(parent, t -> new ArrayList<>()).add(task);
@@ -110,18 +111,13 @@ public class InMemTasksManager implements TasksManager {
         }
         userTasks.computeIfAbsent(uid, user -> new ArrayList<>()).add(task);
         owners.put(task, uid);
-        task.onProgress(state -> {
-            consumer.accept(state);
-            if (state.hasChanged()) {
-                LOG.info("InMemTaskManager::state changed, new state = {}", state.getChanged().getNewState().name());
-            }
-            if (!state.hasChanged()
-                || (state.getChanged().getNewState() != Servant.StateChanged.State.DESTROYED)) {
+        task.onProgress(progress -> {
+            LOG.info("InMemTaskManager::progress " + JsonUtils.printRequest(progress));
+            if (!EnumSet.of(ERROR, SUCCESS).contains(progress.getStatus())) // task is not concluded
                 return;
-            }
-            if (tasks.remove(task.tid()) == null) { // idempotence support
+            if (tasks.remove(task.tid()) == null) // idempotence support
                 return;
-            }
+
             children.getOrDefault(task, List.of()).forEach(child -> child.signal(Signal.TERM));
             children.remove(task);
             final Task removedTask = parents.remove(task);
@@ -129,16 +125,11 @@ public class InMemTasksManager implements TasksManager {
                 children.getOrDefault(removedTask, new ArrayList<>()).remove(task);
             }
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
-            if (!task.servantIsAlive()) {
-                LOG.info("InMemTaskManager::invalidate connection with servant tid={}", task.tid());
-                connectionManager.shutdownConnection(task.tid());
-            }
             LOG.info("InMemTaskManager::unbindAll tid={}", task.tid());
             channels.unbindAll(task.tid());
             taskChannels.remove(task);
             userTasks.getOrDefault(owners.remove(task), List.of()).remove(task);
         });
-        ForkJoinPool.commonPool().execute(() -> task.start(auth.registerTask(uid, task)));
         return task;
     }
 

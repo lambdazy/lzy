@@ -11,19 +11,12 @@ import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 public interface TasksManager {
     Task task(UUID tid);
 
-    Task start(
-        String uid,
-        Task parent,
-        Zygote workload,
-        Map<Slot, String> assignments,
-        Authenticator token,
-        Consumer<Servant.ExecutionProgress> progressTracker,
-        String bucket
-    ) throws TaskException;
+    Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator token);
 
     Stream<Task> ps();
 
@@ -47,6 +40,7 @@ public interface TasksManager {
 
     enum Signal {
         TOUCH(0),
+        HUB(1),
         KILL(9),
         TERM(10),
         CHLD(20);

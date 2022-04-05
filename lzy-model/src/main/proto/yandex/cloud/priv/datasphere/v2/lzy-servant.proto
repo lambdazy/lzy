@@ -12,8 +12,9 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service LzyServant {
   /** Only one execution at a time */
-  rpc Prepare (ContextSpec) returns (stream ContextProgress);
-  rpc Execute (TaskSpec) returns (stream ExecutionProgress);
+  rpc Start (Auth) returns (stream ServantProgress);
+  rpc Env (EnvSpec) returns (EnvResult);
+  rpc Execute (TaskSpec) returns (ExecutionStarted);
   rpc OpenOutputSlot (SlotRequest) returns (stream Message);
   rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
   rpc Signal (TaskSignal) returns (ExecutionStarted);
@@ -97,40 +98,35 @@ message SlotSpec {
   string channelId = 2;
 }
 
-message ExecutionProgress {
+message ServantProgress {
   oneof status {
-    ExecutionStarted started = 1;
-    ExecutionConcluded exit = 2;
-    StateChanged changed = 3;
-  }
-}
-
-message ContextProgress {
-  oneof status {
-    ContextStarted start = 1;
-    SlotAttach attach = 2;
-    SlotDetach detach = 3;
-    ContextConcluded exit = 4;
-    PreparationError error = 5;
+    Started start = 1;
+    StateChanged changed = 2;
+    SlotAttach attach = 3;
+    SlotDetach detach = 4;
+    ExecutionStarted executeStart = 5;
+    ExecutionConcluded executeStop = 6;
+    Concluded exit = 7;
   }
 }
 
 message ExecutionStarted {
 }
 
-message ContextStarted {
+message Started {
 }
 
-message ContextConcluded {
+message Concluded {
 }
 
-message PreparationError {
+message EnvResult {
   string description = 1;
   int32  rc = 2;
 }
 
 message StateChanged {
   State newState = 1;
+  string tid = 2;
   enum State {
     PREPARING = 0;
     CONNECTED = 1;

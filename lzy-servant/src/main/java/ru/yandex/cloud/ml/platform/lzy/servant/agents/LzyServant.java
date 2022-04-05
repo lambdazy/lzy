@@ -29,18 +29,10 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress.StatusCase;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
@@ -50,6 +42,7 @@ public class LzyServant extends LzyAgent {
     private final String contextId;
     private final SlotConnectionManager slotsManager;
     private final GetS3CredentialsResponse credentials;
+    private final LzyContext context;
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
@@ -75,6 +68,8 @@ public class LzyServant extends LzyAgent {
                 .build()
         );
         slotsManager = new SlotConnectionManager(server, auth, config.getWhiteboardAddress(), bucket, contextId);
+        context = new LzyContext(contextId, slotsManager, agentInternalAddress, credentials);
+
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(
@@ -86,6 +81,11 @@ public class LzyServant extends LzyAgent {
                 finish - start
             )
         );
+    }
+
+    @Override
+    protected LzyContext context() {
+        return context;
     }
 
     @Override
@@ -108,7 +108,7 @@ public class LzyServant extends LzyAgent {
         final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
         commandBuilder.setAuth(auth);
         commandBuilder.setServantURI(agentAddress.toString());
-        commandBuilder.setSessionId(contextId);
+        commandBuilder.setServantId(contextId);
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
@@ -135,49 +135,41 @@ public class LzyServant extends LzyAgent {
         private final AtomicBoolean executing = new AtomicBoolean(false);
 
         @Override
-        public void prepare(ContextSpec request, StreamObserver<ContextProgress> responseObserver) {
+        public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
             LOG.info("LzyServant::prepare " + JsonUtils.printRequest(request));
-            ru.yandex.cloud.ml.platform.lzy.model.Context context = GrpcConverter.from(request);
-            if (inContext.get()) {
-                responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Context already prepared")
-                    .asException());
-                return;
-            }
-            LzyServant.this.context = new LzyContext(contextId, slotsManager, agentInternalAddress, credentials);
-            inContext.set(true);
-            LzyServant.this.context.onProgress(progress -> {
-                responseObserver.onNext(progress);
-                if (progress.getStatusCase() == StatusCase.EXIT) {
-                    responseObserver.onCompleted();
-                    inContext.set(false);
-                }
-            });
             MetricEventLogger.timeIt(
                 "time of context preparing",
                 Map.of("metric_type", "system_metric"),
                 () -> {
+                    final Servant.EnvResult.Builder result = Servant.EnvResult.newBuilder();
                     try {
-                        LzyServant.this.context.prepare(lzyFS, context);
+                        context().prepare(GrpcConverter.from(request));
                     } catch (EnvironmentInstallationException e) {
-                        LOG.info(e);
-                        responseObserver.onCompleted();
+                        LOG.error("Unable to install environment", e);
+                        result.setRc(-1);
+                        result.setDescription(e.getMessage());
                     }
+                    responseObserver.onNext(result.build());
+                    responseObserver.onCompleted();
                 });
         }
 
         @Override
-        public void execute(Tasks.TaskSpec request,
-                            StreamObserver<Servant.ExecutionProgress> responseObserver) {
+        public void start(IAM.Auth request, StreamObserver<Servant.ServantProgress> responseObserver) {
+            LzyServant.this.context.onProgress(progress -> {
+                responseObserver.onNext(progress);
+                if (progress.getStatusCase() == Servant.ServantProgress.StatusCase.EXIT) {
+                    responseObserver.onCompleted();
+                }
+            });
+        }
+
+        @Override
+        public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             status.set(AgentStatus.PREPARING_EXECUTION);
             LOG.info("LzyServant::execute " + JsonUtils.printRequest(request));
             if (executing.get()) {
                 responseObserver.onError(Status.RESOURCE_EXHAUSTED.withDescription("Already executing").asException());
-                return;
-            }
-
-            if (!inContext.get()) {
-                responseObserver.onError(
-                    Status.NOT_FOUND.withDescription("Running execute without context").asException());
                 return;
             }
 
@@ -194,9 +186,8 @@ public class LzyServant extends LzyAgent {
 
             try {
                 executing.set(true);
-                currentExecution = context.execute(request.getTid(), zygote, progress -> {
-                    LOG.info("LzyServant::progress {} {}", agentAddress,
-                        JsonUtils.printRequest(progress));
+                currentExecution = context.execute(request.getAuth().getTask().getTaskId(), zygote, progress -> {
+                    LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
                         "Servant execution progress",
                         Map.of(
@@ -206,14 +197,13 @@ public class LzyServant extends LzyAgent {
                         ),
                         UserEvent.UserEventType.ExecutionProgress
                     ));
-                    responseObserver.onNext(progress);
                     if (progress.hasExit()) {
                         UserEventLogger.log(new UserEvent(
                             "Servant execution exit",
                             Map.of(
                                 "task_id", request.getAuth().getTask().getTaskId(),
                                 "zygote_description", zygote.description(),
-                                "exit_code", String.valueOf(progress.getExit().getRc())
+                                "exit_code", String.valueOf(progress.getExecuteStop().getRc())
                             ),
                             UserEvent.UserEventType.ExecutionComplete
                         ));
@@ -247,6 +237,10 @@ public class LzyServant extends LzyAgent {
             }, Runnable::run);
 
             status.set(AgentStatus.EXECUTING);
+            responseObserver.onNext(Servant.ExecutionStarted.newBuilder()
+                .build()
+            );
+            responseObserver.onCompleted();
         }
 
         @Override
@@ -268,12 +262,7 @@ public class LzyServant extends LzyAgent {
             }
 
             final LzySlot slot = context.slot(tid, slotName);
-            if (!inContext.get() || slot == null) {
-                LOG.info("Not found slot: " + path);
-                responseObserver
-                    .onError(Status.NOT_FOUND.withDescription("Not found slot: " + path).asException());
-                return;
-            } else if (!(slot instanceof LzyOutputSlot)) {
+            if (!(slot instanceof LzyOutputSlot)) {
                 LOG.info("Trying to read from input slot " + path);
                 responseObserver
                     .onError(Status.NOT_FOUND.withDescription("Reading from input slot: " + path).asException());

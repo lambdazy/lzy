@@ -10,11 +10,11 @@ import java.util.Map;
 import java.util.UUID;
 import ru.yandex.cloud.ml.platform.lzy.model.Constants;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.server.ConnectionManager;
+import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocator;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 
 @Singleton
-public class LocalConnectionManager implements ConnectionManager {
+public class LocalConnectionManager implements ServantsAllocator {
 
     private final Map<UUID, Connection> connections = new HashMap<>();
 
@@ -30,7 +30,7 @@ public class LocalConnectionManager implements ConnectionManager {
     }
 
     @Override
-    public synchronized void shutdownConnection(UUID sessionId) {
+    public synchronized void shutdownSession(UUID sessionId) {
         if (!connections.containsKey(sessionId)) {
             return;
         }
