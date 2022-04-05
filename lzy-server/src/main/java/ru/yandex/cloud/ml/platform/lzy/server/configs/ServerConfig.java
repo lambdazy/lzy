@@ -10,6 +10,8 @@ public class ServerConfig {
 
     private YcCredentials yc;
 
+    private int userLimit;
+
     public String getServerUri() {
         return serverUri;
     }
@@ -32,6 +34,14 @@ public class ServerConfig {
 
     public void setWhiteboardUrl(String whiteboardUrl) {
         this.whiteboardUrl = whiteboardUrl;
+    }
+
+    public int getUserLimit() {
+        return userLimit;
+    }
+
+    public void setUserLimit(int userLimit) {
+        this.userLimit = userLimit;
     }
 
     @ConfigurationProperties("yc")

@@ -6,5 +6,6 @@ storage:
     enabled: false
 server:
   enabled: false
+  userLimit: 30 # 0 - is infinite limit
 database:
   enabled: false

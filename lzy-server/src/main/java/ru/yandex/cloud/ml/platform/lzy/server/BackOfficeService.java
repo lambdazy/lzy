@@ -10,12 +10,15 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.persistence.Query;
 import javax.persistence.criteria.CriteriaQuery;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.UserVerificationType;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
@@ -27,8 +30,12 @@ import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 @Requires(beans = DbStorage.class)
 public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
+
     @Inject
     DbStorage storage;
+
+    @Inject
+    ServerConfig serverConfig;
 
     @Inject
     Authenticator auth;
@@ -390,7 +397,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
     @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
     private UserModel createUser(Session session, String userId) {
-        UserModel user = new UserModel(userId, userId.toLowerCase(Locale.ROOT));
+        UserModel user = new UserModel(userId, userId.toLowerCase(Locale.ROOT), typeForNewUser(session));
         session.save(user);
         UserRoleModel role = session.find(UserRoleModel.class, "user");
         Set<UserModel> users = role.getUsers();
@@ -398,6 +405,19 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         role.setUsers(users);
         session.save(role);
         return user;
+    }
+
+    private UserVerificationType typeForNewUser(Session session) {
+        if (serverConfig.getUserLimit() == 0) {
+            return UserVerificationType.ACCESS_ALLOWED;
+        }
+        Query query = session.createQuery("select count(*) from UserModel where accessType = :accessType");
+        query.setParameter("accessType", UserVerificationType.ACCESS_ALLOWED);
+        int count = (int) query.getSingleResult();
+        if (count < serverConfig.getUserLimit()) {
+            return UserVerificationType.ACCESS_ALLOWED;
+        }
+        return UserVerificationType.ACCESS_PENDING;
     }
 
 }
