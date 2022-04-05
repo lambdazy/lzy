@@ -6,14 +6,13 @@ import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvironmentFactory;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFSManager;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
@@ -49,8 +48,8 @@ public class LzyContext implements AutoCloseable {
     private final String contextId;
     private final StorageClient storage;
     private final URI servantUri;
-    private final List<Consumer<Servant.ContextProgress>> listeners = new ArrayList<>();
-    private final Map<String, Map<String, LzySlot>> namespaces = new HashMap<>();
+    private final List<Consumer<ServantProgress>> listeners = new ArrayList<>();
+    private final Map<String, Map<String, LzySlot>> namespaces = Collections.synchronizedMap(new HashMap<>());
     private String arguments = "";
     private Environment env;
 
@@ -62,17 +61,23 @@ public class LzyContext implements AutoCloseable {
         this.storage = StorageClient.create(credentials);
     }
 
-    public synchronized Stream<LzySlot> slots() {
+    public Stream<LzySlot> slots() {
         return Set.copyOf(namespaces.values()).stream()
             .flatMap(stringLzySlotMap -> Set.copyOf(stringLzySlotMap.values()).stream());
     }
 
-    public synchronized LzySlot slot(String task, String name) {
+    public LzySlot slot(String task, String name) {
         return namespaces.getOrDefault(task, Map.of()).get(name);
     }
 
     public synchronized LzySlot configureSlot(String task, Slot spec, String binding) {
-        LOG.info("LzyExecution::configureSlot " + spec.name() + " binding: " + binding);
+        final URI slotUri = servantUri.resolve("/" + task
+            + (spec.name().startsWith("/") ? spec.name() : "/" + spec.name())
+        );
+
+        LOG.info("LzyExecution::configureSlot servant: " + servantUri + " task: " + task + "" + spec.name()
+            + " binding: " + binding + " uri: " + slotUri);
+
         final Map<String, LzySlot> slots = namespaces.computeIfAbsent(task, t -> new HashMap<>());
         if (slots.containsKey(spec.name())) {
             return slots.get(spec.name());
@@ -89,10 +94,10 @@ public class LzyContext implements AutoCloseable {
             }
 
             slot.onState(SUSPENDED,
-                () -> progress(ContextProgress.newBuilder()
+                () -> progress(ServantProgress.newBuilder()
                     .setDetach(Servant.SlotDetach.newBuilder()
                         .setSlot(GrpcConverter.to(spec))
-                        .setUri(servantUri.toString() + task + "/" + spec.name())
+                        .setUri(slotUri.toString())
                         .build()
                     ).build()
                 )
@@ -106,58 +111,28 @@ public class LzyContext implements AutoCloseable {
                     LzyContext.this.notifyAll();
                 }
             });
-            if (binding == null) {
-                binding = "";
-            } else if (binding.startsWith("channel:")) {
+            if (binding != null && binding.startsWith("channel:")) {
                 binding = binding.substring("channel:".length());
             }
 
-            final URI slotUri = servantUri.resolve("/" + task
-                + (spec.name().startsWith("/") ? spec.name() : "/" + spec.name())
-            );
-            progress(Servant.ContextProgress.newBuilder().setAttach(
-                Servant.SlotAttach.newBuilder()
-                    .setChannel(binding)
-                    .setSlot(GrpcConverter.to(spec))
-                    .setUri(slotUri.toString())
-                    .build()
-            ).build());
-            LOG.info("Configured slot " + slotUri + " " + slot);
+            final SlotAttach.Builder attachBuilder = SlotAttach.newBuilder()
+                .setSlot(GrpcConverter.to(spec))
+                .setUri(slotUri.toString());
+            if (binding != null)
+                attachBuilder.setChannel(binding);
+            progress(ServantProgress.newBuilder().setAttach(attachBuilder.build()).build());
+            LOG.info("Configured slot " + slotUri);
             return slot;
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
     }
 
-    public synchronized void prepare(LzyFSManager fs, Context context) throws EnvironmentInstallationException {
-        context.assignments().map(
-            entry -> configureSlot(entry.task(), entry.slot(), entry.binding())
-        ).forEach(slot -> {
-            if (slot instanceof LzyFileSlot) {
-                LOG.info("lzyFS::addSlot " + slot.name());
-                fs.addSlot((LzyFileSlot) slot);
-                LOG.info("lzyFS::slot added " + slot.name());
-            }
-        });
-
-        try {
-            env = EnvironmentFactory.create(context.env(), storage);
-        } catch (EnvironmentInstallationException e) {
-            slots().forEach(LzySlot::close);
-            progress(ContextProgress.newBuilder()
-                .setError(PreparationError.newBuilder()
-                    .setDescription("Error during environment installation:\n" + e)
-                    .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
-                    .build())
-                .build());
-            throw e;
-        }
-        progress(ContextProgress.newBuilder()
-            .setStart(ContextStarted.newBuilder().build())
-            .build());
+    public synchronized void prepare(Env from) throws EnvironmentInstallationException {
+        env = EnvironmentFactory.create(from, storage);
     }
 
-    public synchronized LzyExecution execute(String taskId, AtomicZygote zygote, Consumer<ExecutionProgress> onProgress)
+    public LzyExecution execute(String taskId, AtomicZygote zygote, Consumer<ServantProgress> onProgress)
         throws LzyExecutionException, InterruptedException {
         final long start = System.currentTimeMillis();
         if (env == null) {
@@ -165,13 +140,11 @@ public class LzyContext implements AutoCloseable {
         }
 
         LzyExecution execution = new LzyExecution(contextId, zygote, arguments);
+        final WriterSlot stdinSlot = (WriterSlot) configureSlot(taskId, Slot.STDIN, null);
+        final LineReaderSlot stdoutSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, null);
+        final LineReaderSlot stderrSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, null);
         execution.onProgress(onProgress);
         execution.start(env);
-
-        final WriterSlot stdinSlot = (WriterSlot) configureSlot(taskId, Slot.STDIN, "/dev/stdin");
-        final LineReaderSlot stdoutSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, "/dev/stdout");
-        final LineReaderSlot stderrSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, "/dev/stderr");
-
         stdinSlot.setStream(new OutputStreamWriter(execution.process().in(), StandardCharsets.UTF_8));
         stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
             execution.process().out(),
@@ -182,7 +155,6 @@ public class LzyContext implements AutoCloseable {
             StandardCharsets.UTF_8
         )));
         execution.waitFor();
-
         stdinSlot.destroy();
 
         final long executed = System.currentTimeMillis();
@@ -233,12 +205,12 @@ public class LzyContext implements AutoCloseable {
         }
     }
 
-    private void progress(Servant.ContextProgress progress) {
+    private void progress(ServantProgress progress) {
         LOG.info("LzyContext::progress " + JsonUtils.printRequest(progress));
         listeners.forEach(l -> l.accept(progress));
     }
 
-    public synchronized void onProgress(Consumer<Servant.ContextProgress> listener) {
+    public synchronized void onProgress(Consumer<ServantProgress> listener) {
         listeners.add(listener);
     }
 
@@ -251,8 +223,8 @@ public class LzyContext implements AutoCloseable {
         if (slotsManager.snapshooter() != null) {
             slotsManager.snapshooter().close();
         }
-        progress(ContextProgress.newBuilder()
-            .setExit(ContextConcluded.newBuilder().build())
+        progress(ServantProgress.newBuilder()
+            .setExit(Concluded.newBuilder().build())
             .build());
     }
 

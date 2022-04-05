@@ -7,12 +7,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotMeta;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.server.task.BaseTask;
+import ru.yandex.cloud.ml.platform.lzy.server.task.TaskImpl;
 
-public abstract class LocalTask extends BaseTask {
+public abstract class LocalTask extends TaskImpl {
     private static final Logger LOG = LogManager.getLogger(LocalTask.class);
 
     LocalTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,

@@ -58,7 +58,7 @@ public abstract class GrpcConverter {
         return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
     }
 
-    public static Env from(Operations.Env env) {
+    public static Env from(Operations.EnvSpec env) {
         final BaseEnv baseEnv;
         if (env.hasBaseEnv()) {
             baseEnv = from(env.getBaseEnv());
@@ -146,8 +146,8 @@ public abstract class GrpcConverter {
         return builder.build();
     }
 
-    public static Operations.Env to(Env env) {
-        Operations.Env.Builder builder = Operations.Env.newBuilder();
+    public static Operations.EnvSpec to(Env env) {
+        Operations.EnvSpec.Builder builder = Operations.EnvSpec.newBuilder();
         if (env != null) {
             if (env.baseEnv() != null) {
                 builder.setBaseEnv(to(env.baseEnv()));

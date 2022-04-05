@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
-import "yandex/cloud/priv/datasphere/v2/lzy-servant.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-task.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-channel.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
@@ -17,7 +16,7 @@ service LzyServer {
   rpc Zygotes (Auth) returns (ZygoteList);
 
   rpc Task (TaskCommand) returns (TaskStatus);
-  rpc Start (TaskSpec) returns (stream ExecutionProgress);
+  rpc Start (TaskSpec) returns (stream TaskProgress);
 
   rpc Channel (ChannelCommand) returns (ChannelStatus);
 
@@ -54,7 +53,7 @@ message PublishRequest {
 message AttachServant {
   Auth auth = 1;
   string servantURI = 2;
-  string sessionId = 3;
+  string servantId = 3;
 }
 
 message AttachStatus {

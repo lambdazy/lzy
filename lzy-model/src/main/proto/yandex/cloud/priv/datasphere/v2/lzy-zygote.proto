@@ -8,7 +8,7 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 message Zygote {
   // TODO: return uri back
-  Env env = 1;
+  EnvSpec env = 1;
   Provisioning provisioning = 2;
   string fuze = 3;
   repeated Slot slots = 4;
@@ -70,7 +70,7 @@ message SlotStatus {
   }
 }
 
-message Env {
+message EnvSpec {
   BaseEnv baseEnv = 1;
   AuxEnv auxEnv = 2;
 }
