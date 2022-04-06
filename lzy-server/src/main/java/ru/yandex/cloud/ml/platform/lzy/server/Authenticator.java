@@ -8,7 +8,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 public interface Authenticator {
     boolean checkUser(String userId, String token);
 
-    boolean checkTask(String tid, String token);
+    boolean checkTask(String tid, String servantId, String servantToken);
 
     boolean canPublish(String userId);
 
@@ -21,6 +21,8 @@ public interface Authenticator {
     void registerOperation(String zygoteName, String userId, Lzy.PublishRequest.VisibilityScope scope);
 
     String registerTask(String uid, Task task);
+
+    String registerServant(String servantId, String servantToken);
 
     boolean hasPermission(String uid, Permissions permission);
 

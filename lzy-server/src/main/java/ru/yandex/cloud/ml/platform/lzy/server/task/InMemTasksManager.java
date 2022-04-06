@@ -100,9 +100,9 @@ public class InMemTasksManager implements TasksManager {
 
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth) {
-        final Task task = TaskFactory.createTask(
+        final Task task = new TaskImpl(
             uid, UUID.randomUUID(), workload, assignments,
-            channels, serverURI, auth.bucketForUser(uid)
+            channels, serverURI
         );
         tasks.put(task.tid(), task);
         if (parent != null) {
