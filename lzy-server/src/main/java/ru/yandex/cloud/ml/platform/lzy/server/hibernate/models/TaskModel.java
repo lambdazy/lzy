@@ -16,17 +16,18 @@ public class TaskModel {
     @Column(name = "tid", columnDefinition = "UUID")
     private UUID tid;
 
-    @Column(name = "token", nullable = false)
-    private String token;
-
     @ManyToOne()
     @JoinColumn(name = "owner_id", nullable = false)
     private UserModel owner;
 
-    public TaskModel(UUID tid, String token, UserModel owner) {
+    @ManyToOne()
+    @JoinColumn(name = "servant_id", nullable = false)
+    private ServantModel servant;
+
+    public TaskModel(UUID tid, UserModel owner, ServantModel servant) {
         this.tid = tid;
-        this.token = token;
         this.owner = owner;
+        this.servant = servant;
     }
 
     public TaskModel() {
@@ -36,11 +37,11 @@ public class TaskModel {
         return tid;
     }
 
-    public String getToken() {
-        return token;
-    }
-
     public UserModel getOwner() {
         return owner;
+    }
+
+    public ServantModel servant() {
+        return servant;
     }
 }

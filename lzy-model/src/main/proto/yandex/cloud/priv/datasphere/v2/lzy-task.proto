@@ -82,6 +82,7 @@ message TaskProgress {
   string tid = 1;
   Status status = 2;
   string description = 3;
+  int32 rc = 4;
   enum Status {
     QUEUE = 0;
     PREPARING = 1;

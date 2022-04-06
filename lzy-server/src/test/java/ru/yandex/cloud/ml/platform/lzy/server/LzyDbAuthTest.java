@@ -11,7 +11,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
+
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.junit.After;
@@ -21,7 +21,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.UserVerificationType;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;

@@ -23,12 +23,7 @@ import ru.yandex.clickhouse.ClickHouseDataSource;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.AgentsConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ClickhouseConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.DbConfig;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PermissionModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserRoleModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 
 @Singleton
 @Requires(property = "database.url")
@@ -64,6 +59,7 @@ public class Storage implements DbStorage {
         cfg.setProperty("hibernate.connection.provider_class", "org.hibernate.connection.C3P0ConnectionProvider");
         cfg.addAnnotatedClass(UserModel.class);
         cfg.addAnnotatedClass(TaskModel.class);
+        cfg.addAnnotatedClass(ServantModel.class);
         cfg.addAnnotatedClass(PublicKeyModel.class);
         cfg.addAnnotatedClass(UserRoleModel.class);
         cfg.addAnnotatedClass(PermissionModel.class);

@@ -155,7 +155,7 @@ public class LzyServant extends LzyAgent {
         }
 
         @Override
-        public void start(IAM.Auth request, StreamObserver<Servant.ServantProgress> responseObserver) {
+        public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
             LzyServant.this.context.onProgress(progress -> {
                 responseObserver.onNext(progress);
                 if (progress.getStatusCase() == Servant.ServantProgress.StatusCase.EXIT) {

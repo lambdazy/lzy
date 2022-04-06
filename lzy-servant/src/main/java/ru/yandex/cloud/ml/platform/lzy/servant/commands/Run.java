@@ -138,17 +138,16 @@ public class Run implements LzyCommand {
         });
 
         final long startTimeMillis = System.currentTimeMillis();
-        final Iterator<Servant.ExecutionProgress> executionProgress = server.start(taskSpec.build());
-        final Servant.ExecutionConcluded[] exit = new Servant.ExecutionConcluded[1];
-        exit[0] = Servant.ExecutionConcluded.newBuilder()
-            .setRc(-1)
-            .setDescription("Got no exit code from servant")
-            .build();
+        final Iterator<Tasks.TaskProgress> executionProgress = server.start(taskSpec.build());
+        final int[] exit = new int[]{-1};
+        final String[] descriptionArr = new String[]{"Got no exit code"};
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
-                if (progress.hasExit()) {
-                    exit[0] = progress.getExit();
+                if (progress.getStatus() == Tasks.TaskProgress.Status.ERROR ||
+                        progress.getStatus() == Tasks.TaskProgress.Status.SUCCESS) {
+                    exit[0] = progress.getRc();
+                    descriptionArr[0] = progress.getDescription();
                     System.in.close();
                 }
             } catch (InvalidProtocolBufferException e) {
@@ -157,8 +156,8 @@ public class Run implements LzyCommand {
                 LOG.error("Unable to close stdin", e);
             }
         });
-        final int rc = exit[0].getRc();
-        final String description = exit[0].getDescription();
+        final int rc = exit[0];
+        final String description = descriptionArr[0];
         final long finishTimeMillis = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(

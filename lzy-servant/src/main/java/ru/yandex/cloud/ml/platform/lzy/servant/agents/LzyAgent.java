@@ -92,8 +92,8 @@ public abstract class LzyAgent implements Closeable {
             authBuilder.setUser(credBuilder.build());
         } else {
             authBuilder.setTask(IAM.TaskCredentials.newBuilder()
-                .setTaskId(config.getContext())
-                .setToken(config.getToken())
+                .setServantId(config.getContext())
+                .setServantToken(config.getToken())
                 .build()
             );
         }

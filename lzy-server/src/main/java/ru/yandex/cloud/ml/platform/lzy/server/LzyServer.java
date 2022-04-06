@@ -575,7 +575,7 @@ public class LzyServer {
             final String user = auth.getUser().getUserId();
             sessionManager.registerSession(user, sessionId);
 
-            final Iterator<Servant.ServantProgress> start = kharon.start(auth);
+            final Iterator<Servant.ServantProgress> start = kharon.start(IAM.Empty.newBuilder().build());
 
             tasks.slots(user).forEach((slot, channel) -> {
                 final Servant.SlotCommand slotCommand = Servant.SlotCommand.newBuilder()

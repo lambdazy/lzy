@@ -17,11 +17,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.BackofficeSessionModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PermissionModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.PublicKeyModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.TaskModel;
-import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.UserModel;
+import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
@@ -51,7 +47,7 @@ public class DbAuthenticator implements Authenticator {
             if (taskModel == null) {
                 return false;
             }
-            return taskModel.getToken().equals(servantToken);
+            return taskModel.servant().servantId().equals(servantId) && taskModel.servant().token().equals(servantToken);
         }
     }
 
@@ -90,25 +86,36 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public String registerTask(String uid, Task task) {
+    public void registerTask(String uid, Task task, String servantId) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
-            final String token = UUID.randomUUID().toString();
             UserModel user = session.find(UserModel.class, uid);
+            ServantModel servant = session.find(ServantModel.class, servantId);
             try {
-                TaskModel taskModel = new TaskModel(task.tid(), token, user);
+                TaskModel taskModel = new TaskModel(task.tid(), user, servant);
                 session.save(taskModel);
                 tx.commit();
             } catch (Exception e) {
                 tx.rollback();
                 throw e;
             }
-            return token;
         }
     }
 
     @Override
-    public String registerServant(String servantId, String servantToken) {
+    public String registerServant(String servantId) {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                ServantModel servant = new ServantModel(servantId, UUID.randomUUID().toString());
+                session.save(servant);
+                tx.commit();
+                return servant.token();
+            } catch (Exception e) {
+                tx.rollback();
+                throw e;
+            }
+        }
     }
 
     @Override
