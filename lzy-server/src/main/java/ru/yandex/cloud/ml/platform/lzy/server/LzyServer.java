@@ -289,7 +289,7 @@ public class LzyServer {
                     return;
                 responseObserver.onNext(progress);
                 if (progress.getStatus() == QUEUE) {
-                    servantsAllocator.allocate(uid, zygote.getProvisioning(), zygote.getEnv())
+                    servantsAllocator.allocate(uid, zygote.getProvisioning(), zygote.getEnv(), auth.bucketForUser(uid))
                         .whenComplete((connection, th) -> {
                             auth.registerTask(uid, task, connection.id());
                             if (th != null)
