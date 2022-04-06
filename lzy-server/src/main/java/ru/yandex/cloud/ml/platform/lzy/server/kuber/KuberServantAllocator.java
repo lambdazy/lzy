@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server.kuber.task;
+package ru.yandex.cloud.ml.platform.lzy.server.kuber;
 
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -16,19 +16,15 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.server.kuber.KuberUtils;
-import ru.yandex.cloud.ml.platform.lzy.server.kuber.PodProviderException;
-import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProvider;
-import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProviderImpl;
-import ru.yandex.cloud.ml.platform.lzy.server.task.TaskImpl;
+import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocator;
 
-public class KuberTask extends TaskImpl {
-    private static final Logger LOG = LoggerFactory.getLogger(KuberTask.class);
+public class KuberServantAllocator implements ServantsAllocator {
+    private static final Logger LOG = LoggerFactory.getLogger(KuberServantAllocator.class);
 
     private final ServantPodProvider servantPodProvider = new ServantPodProviderImpl();
 
-    public KuberTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
-                     ChannelsManager channels, URI serverURI, String bucket) {
+    public KuberServantAllocator(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
+                                 ChannelsManager channels, URI serverURI, String bucket) {
         super(owner, tid, workload, assignments, channels, serverURI, bucket);
     }
 

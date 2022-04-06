@@ -35,9 +35,6 @@ public interface Task {
     @Nullable
     URI servantUri();
 
-    /** [TODO] WTF? */
-    String bucket();
-
     enum State {
         QUEUE, PREPARING, CONNECTED, EXECUTING, SUSPENDED, DISCONNECTED, SUCCESS, ERROR
     }
