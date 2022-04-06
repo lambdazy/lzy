@@ -16,7 +16,8 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 @Singleton
 @Requires(property = "database.enabled", value = "false", defaultValue = "false")
 public class SimpleInMemAuthenticator implements Authenticator {
-    private final Map<String, String> taskTokens = new HashMap<>();
+    private final Map<String, String> servantTokens = new HashMap<>();
+    private final Map<String, String> task2servants = new HashMap<>();
     private final Map<String, String> owners = new HashMap<>();
 
     @Inject
@@ -28,8 +29,9 @@ public class SimpleInMemAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean checkTask(String tid, String token) {
-        return token.equals(taskTokens.get(tid));
+    public boolean checkTask(String tid, String servantId, String servantToken) {
+        return servantToken.equals(servantTokens.get(servantId))
+            && (tid == null || servantId.equals(task2servants.get(tid)));
     }
 
     @Override
@@ -57,10 +59,15 @@ public class SimpleInMemAuthenticator implements Authenticator {
     }
 
     @Override
-    public String registerTask(String uid, Task task) {
+    public void registerTask(String uid, Task task, String servantId) {
         owners.put(task.tid().toString(), uid);
+        task2servants.put(task.tid().toString(), servantId);
+    }
+
+    @Override
+    public String registerServant(String servantId, String servantToken) {
         final String token = UUID.randomUUID().toString();
-        taskTokens.put(task.tid().toString(), token);
+        servantTokens.put(servantId, token);
         return token;
     }
 

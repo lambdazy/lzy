@@ -291,6 +291,7 @@ public class LzyServer {
                 if (progress.getStatus() == QUEUE) {
                     servantsAllocator.allocate(uid, zygote.getProvisioning(), zygote.getEnv())
                         .whenComplete((connection, th) -> {
+                            auth.registerTask(uid, task, connection.id());
                             if (th != null)
                                 task.state(Task.State.ERROR, th.getMessage(), Arrays.toString(th.getStackTrace()));
                             else
@@ -458,7 +459,7 @@ public class LzyServer {
 
             final URI servantUri = URI.create(request.getServantURI());
             if (auth.hasTask()) {
-                final String servantId = auth.getTask().getTaskId();
+                final String servantId = auth.getTask().getServantId();
                 servantsAllocator.register(servantId, servantUri);
                 responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
                 responseObserver.onCompleted();

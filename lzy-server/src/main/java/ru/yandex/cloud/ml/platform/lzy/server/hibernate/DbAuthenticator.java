@@ -44,14 +44,14 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean checkTask(String tid, String token) {
+    public boolean checkTask(String tid, String servantId, String servantToken) {
         LOG.info("checkTask tid=" + tid);
         try (Session session = storage.getSessionFactory().openSession()) {
             TaskModel taskModel = session.find(TaskModel.class, UUID.fromString(tid));
             if (taskModel == null) {
                 return false;
             }
-            return taskModel.getToken().equals(token);
+            return taskModel.getToken().equals(servantToken);
         }
     }
 
@@ -105,6 +105,10 @@ public class DbAuthenticator implements Authenticator {
             }
             return token;
         }
+    }
+
+    @Override
+    public String registerServant(String servantId, String servantToken) {
     }
 
     @Override
