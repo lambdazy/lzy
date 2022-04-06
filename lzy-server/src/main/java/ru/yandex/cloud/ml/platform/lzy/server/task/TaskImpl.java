@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 
+import io.grpc.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
@@ -11,15 +12,18 @@ import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.ERROR;
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.SUCCESS;
 
 public class TaskImpl implements Task {
     private static final Logger LOG = LogManager.getLogger(TaskImpl.class);
@@ -30,12 +34,12 @@ public class TaskImpl implements Task {
     private final Zygote workload;
     private final Map<Slot, String> assignments;
     private final ChannelsManager channels;
-    private final List<Consumer<Tasks.TaskProgress>> listeners = new ArrayList<>();
+    private final List<Consumer<Tasks.TaskProgress>> listeners = Collections.synchronizedList(new ArrayList<>());
     private final Map<Slot, ChannelSpec> attachedSlots = new HashMap<>();
-    // [TODO] in case of disconnected/retry cycle it seems, that this pattern is completely incorrect
-    private CompletableFuture<ServantsAllocator.ServantConnection> servant = new CompletableFuture<>();
+    private ServantsAllocator.ServantConnection servant;
     private final String bucket;
     private State state = State.PREPARING;
+    private final List<TasksManager.Signal> signalsQueue = new ArrayList<>();
 
     public TaskImpl(String owner, UUID tid,
         Zygote workload,
@@ -74,7 +78,7 @@ public class TaskImpl implements Task {
     }
 
     @SuppressWarnings("WeakerAccess")
-    public void state(State newState, String... description) {
+    public synchronized void state(State newState, String... description) {
         if (newState != state) {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
@@ -90,7 +94,7 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public Slot slot(String slotName) {
+    public synchronized Slot slot(String slotName) {
         return attachedSlots.keySet().stream()
             .filter(s -> s.name().equals(slotName))
             .findFirst()
@@ -98,8 +102,7 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public void attachServant(ServantsAllocator.ServantConnection connection) {
-        this.servant.complete(connection);
+    public synchronized void attachServant(ServantsAllocator.ServantConnection connection) {
         LOG.info("Server is attached to servant {}", connection.uri());
         final Tasks.TaskSpec.Builder taskSpecBuilder = Tasks.TaskSpec.newBuilder();
         taskSpecBuilder.setTid(tid.toString());
@@ -115,74 +118,91 @@ public class TaskImpl implements Task {
         });
 
         connection.onProgress(progress -> {
-            switch (progress.getStatusCase()) {
-                case ATTACH: {
-                    LOG.info("BaseTask::attach " + JsonUtils.printRequest(progress));
-                    final Servant.SlotAttach attach = progress.getAttach();
-                    final Slot slot = GrpcConverter.from(attach.getSlot());
-                    final URI slotUri = URI.create(attach.getUri());
-                    final String channelName;
-                    if (attach.getChannel().isEmpty()) {
-                        final String binding = assignments.getOrDefault(slot, "");
-                        channelName = binding.startsWith("channel:") ? binding.substring("channel:".length()) : null;
-                    } else {
-                        channelName = attach.getChannel();
-                    }
+            synchronized (TaskImpl.this) {
+                switch (progress.getStatusCase()) {
+                    case ATTACH: {
+                        LOG.info("BaseTask::attach " + JsonUtils.printRequest(progress));
+                        final Servant.SlotAttach attach = progress.getAttach();
+                        final Slot slot = GrpcConverter.from(attach.getSlot());
+                        final URI slotUri = URI.create(attach.getUri());
+                        final String channelName;
+                        if (attach.getChannel().isEmpty()) {
+                            final String binding = assignments.getOrDefault(slot, "");
+                            channelName = binding.startsWith("channel:")
+                                ? binding.substring("channel:".length())
+                                : null;
+                        } else {
+                            channelName = attach.getChannel();
+                        }
 
-                    final ChannelSpec channel = channels.get(channelName);
-                    if (channel != null) {
-                        attachedSlots.put(slot, channel);
-                        try {
-                            channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, connection.control()));
-                        } catch (ChannelException ce) {
-                            LOG.warn("Unable to connect channel " + channelName + " to the slot " + slotUri);
+                        final ChannelSpec channel = channels.get(channelName);
+                        if (channel != null) {
+                            attachedSlots.put(slot, channel);
+                            try {
+                                channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, connection.control()));
+                            } catch (ChannelException ce) {
+                                LOG.warn("Unable to connect channel " + channelName + " to the slot " + slotUri);
+                            }
+                        } else {
+                            LOG.warn("Unable to attach channel to " + tid + ":" + slot.name()
+                                + ". Channel not found.");
                         }
-                    } else {
-                        LOG.warn("Unable to attach channel to " + tid + ":" + slot.name()
-                            + ". Channel not found.");
+                        return true;
                     }
-                    return true;
-                }
-                case DETACH: {
-                    LOG.info("BaseTask::detach " + JsonUtils.printRequest(progress));
-                    final Servant.SlotDetach detach = progress.getDetach();
-                    final Slot slot = GrpcConverter.from(detach.getSlot());
-                    final URI slotUri = URI.create(detach.getUri());
-                    final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, connection.control());
-                    final ChannelSpec channel = channels.bound(endpoint);
-                    if (channel != null) {
-                        attachedSlots.remove(slot);
-                        try {
-                            channels.unbind(channel, endpoint);
-                        } catch (ChannelException ce) {
-                            LOG.warn("Unable to unbind slot " + slotUri + " from the channel " + channel.name());
+                    case DETACH: {
+                        LOG.info("BaseTask::detach " + JsonUtils.printRequest(progress));
+                        final Servant.SlotDetach detach = progress.getDetach();
+                        final Slot slot = GrpcConverter.from(detach.getSlot());
+                        final URI slotUri = URI.create(detach.getUri());
+                        final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, connection.control());
+                        final ChannelSpec channel = channels.bound(endpoint);
+                        if (channel != null) {
+                            attachedSlots.remove(slot);
+                            try {
+                                channels.unbind(channel, endpoint);
+                            } catch (ChannelException ce) {
+                                LOG.warn("Unable to unbind slot " + slotUri + " from the channel " + channel.name());
+                            }
                         }
+                        return true;
                     }
-                    return true;
-                }
-                case EXECUTESTART: {
-                    LOG.info("Task " + tid + " started");
-                    state(State.EXECUTING);
-                    return true;
-                }
-                case EXECUTESTOP: {
-                    final ExecutionConcluded executeStop = progress.getExecuteStop();
-                    LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
-                    if (executeStop.getRc() != 0) {
-                        state(State.ERROR, "Exit code: " + executeStop.getRc(), executeStop.getDescription());
-                    } else {
-                        state(State.SUCCESS);
+                    case EXECUTESTART: {
+                        LOG.info("Task " + tid + " started");
+                        state(State.EXECUTING);
+                        signalsQueue.forEach(s -> {
+                            //noinspection ResultOfMethodCallIgnored
+                            servant.control().signal(Tasks.TaskSignal.newBuilder().setSigValue(s.sig()).build());
+                        });
+                        return true;
                     }
-                    break;
+                    case EXECUTESTOP: {
+                        final ExecutionConcluded executeStop = progress.getExecuteStop();
+                        LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
+                        if (executeStop.getRc() != 0) {
+                            state(ERROR, "Exit code: " + executeStop.getRc(), executeStop.getDescription());
+                        } else {
+                            state(State.SUCCESS);
+                        }
+                        servant = null;
+                        TaskImpl.this.notifyAll();
+                        break;
+                    }
+                    default:
                 }
-                default:
+                return false;
             }
-            return false;
         });
-        if (!EnumSet.of(State.ERROR, State.SUCCESS).contains(state)) {
-            state(State.DISCONNECTED);
-        }
-        servant = null;
+        Context.current().addListener((ctx) -> {
+            synchronized (TaskImpl.this) {
+                if (!EnumSet.of(ERROR, State.SUCCESS).contains(state)) {
+                    state(State.DISCONNECTED);
+                }
+                servant = null;
+                TaskImpl.this.notifyAll();
+            }
+        }, Runnable::run);
+        this.servant = connection;
+        TaskImpl.this.notifyAll();
     }
 
 
@@ -191,8 +211,8 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public URI servantUri() {
-        return this.servant.isDone() ? this.servant().uri() : null;
+    public synchronized URI servantUri() {
+        return servant != null ? servant.uri() : null;
     }
 
     @Override
@@ -202,15 +222,18 @@ public class TaskImpl implements Task {
 
     @Override
     public SlotStatus slotStatus(Slot slot) throws TaskException {
-        final Slot definedSlot = workload.slot(slot.name());
-        final ServantsAllocator.ServantConnection servant = servant();
-        if (servant == null) {
-            if (definedSlot != null) {
-                return new PreparingSlotStatus(owner, this, definedSlot, assignments.get(slot));
+        final LzyServantGrpc.LzyServantBlockingStub control;
+        synchronized (this) {
+            final Slot definedSlot = workload.slot(slot.name());
+            if (servant == null) {
+                if (definedSlot != null) {
+                    return new PreparingSlotStatus(owner, this, definedSlot, assignments.get(slot));
+                }
+                throw new TaskException("No such slot: " + tid + ":" + slot);
             }
-            throw new TaskException("No such slot: " + tid + ":" + slot);
+            control = servant.control();
         }
-        final Servant.SlotCommandStatus slotStatus = servant.control().configureSlot(
+        final Servant.SlotCommandStatus slotStatus = control.configureSlot(
             Servant.SlotCommand.newBuilder()
                 .setTid(tid.toString())
                 .setSlot(slot.name())
@@ -221,20 +244,16 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public void signal(TasksManager.Signal signal) throws TaskException {
-        final ServantsAllocator.ServantConnection ser = servant();
-        LOG.info("Sending signal {} to servant {} for task {}", signal.name(), servant, tid);
-        //noinspection ResultOfMethodCallIgnored
-        ser.control().signal(Tasks.TaskSignal.newBuilder().setSigValue(signal.sig()).build());
-    }
-
-    private ServantsAllocator.ServantConnection servant() {
-        try {
-            // TODO(d-kruchinin): what if servant won't come with attachServant?
-            return servant.get(600, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            LOG.error("Failed to get connection to servant for task {}\nCause: {}", tid, e);
-            throw new RuntimeException(e);
+    public synchronized void signal(TasksManager.Signal signal) throws TaskException {
+        if (EnumSet.of(ERROR, SUCCESS).contains(state()))
+            throw new TaskException("Task is already concluded");
+        signalsQueue.add(signal);
+        if (servant != null) {
+            LOG.info("Sending signal {} to servant {} for task {}", signal.name(), servant.uri(), tid);
+            //noinspection ResultOfMethodCallIgnored
+            servant.control().signal(Tasks.TaskSignal.newBuilder().setSigValue(signal.sig()).build());
+        } else {
+            LOG.info("Postponing signal {} for task {}", signal.name(), tid);
         }
     }
 }
