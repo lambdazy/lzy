@@ -20,7 +20,7 @@ public interface Authenticator {
 
     void registerOperation(String zygoteName, String userId, Lzy.PublishRequest.VisibilityScope scope);
 
-    String registerTask(String uid, Task task);
+    void registerTask(String uid, Task task, String servantId);
 
     String registerServant(String servantId, String servantToken);
 
