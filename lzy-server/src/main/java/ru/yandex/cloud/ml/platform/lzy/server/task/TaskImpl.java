@@ -37,16 +37,11 @@ public class TaskImpl implements Task {
     private final List<Consumer<Tasks.TaskProgress>> listeners = Collections.synchronizedList(new ArrayList<>());
     private final Map<Slot, ChannelSpec> attachedSlots = new HashMap<>();
     private ServantsAllocator.ServantConnection servant;
-    private final String bucket;
     private State state = State.PREPARING;
     private final List<TasksManager.Signal> signalsQueue = new ArrayList<>();
 
-    public TaskImpl(String owner, UUID tid,
-        Zygote workload,
-        Map<Slot, String> assignments,
-        ChannelsManager channels,
-        URI serverURI,
-        String bucket
+    public TaskImpl(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
+                    ChannelsManager channels, URI serverURI
     ) {
         this.owner = owner;
         this.tid = tid;
@@ -54,12 +49,6 @@ public class TaskImpl implements Task {
         this.assignments = assignments;
         this.channels = channels;
         this.serverURI = serverURI;
-        this.bucket = bucket;
-    }
-
-    @Override
-    public String bucket() {
-        return bucket;
     }
 
     @Override

@@ -13,7 +13,8 @@ message UserCredentials {
 
 message TaskCredentials {
   string taskId = 1;
-  string token = 2;
+  string servantId = 2;
+  string servantToken = 3;
 }
 
 message Auth {

@@ -129,7 +129,7 @@ public class LzyServer {
         private TasksManager tasks;
 
         @Inject
-        private ServantsAllocator.Ex servantsManager;
+        private ServantsAllocator.Ex servantsAllocator;
 
         @Inject
         private SessionManager sessionManager;
@@ -289,7 +289,7 @@ public class LzyServer {
                     return;
                 responseObserver.onNext(progress);
                 if (progress.getStatus() == QUEUE) {
-                    servantsManager.allocate(uid, zygote.getProvisioning(), zygote.getEnv())
+                    servantsAllocator.allocate(uid, zygote.getProvisioning(), zygote.getEnv())
                         .whenComplete((connection, th) -> {
                             if (th != null)
                                 task.state(Task.State.ERROR, th.getMessage(), Arrays.toString(th.getStackTrace()));
@@ -303,10 +303,10 @@ public class LzyServer {
                         task.state(Task.State.ERROR, "Disconnected from servant. Maximum retries reached.");
                 } else if (EnumSet.of(ERROR, SUCCESS).contains(progress.getStatus())) {
                     concluded.set(true);
+                    responseObserver.onCompleted();
                     if (parent != null) {
                         parent.signal(TasksManager.Signal.CHLD);
                     }
-                    responseObserver.onCompleted();
                 }
             });
             UserEventLogger.log(
@@ -459,7 +459,7 @@ public class LzyServer {
             final URI servantUri = URI.create(request.getServantURI());
             if (auth.hasTask()) {
                 final String servantId = auth.getTask().getTaskId();
-                servantsManager.register(servantId, servantUri);
+                servantsAllocator.register(servantId, servantUri);
                 responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
                 responseObserver.onCompleted();
             } else {
@@ -652,7 +652,8 @@ public class LzyServer {
             } else if (auth.hasUser()) {
                 return this.auth.checkUser(auth.getUser().getUserId(), auth.getUser().getToken());
             } else if (auth.hasTask()) {
-                return this.auth.checkTask(auth.getTask().getTaskId(), auth.getTask().getToken());
+                final IAM.TaskCredentials task = auth.getTask();
+                return this.auth.checkTask(task.getTaskId(), task.getServantId(), task.getServantToken());
             }
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
 
