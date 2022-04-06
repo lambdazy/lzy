@@ -14,6 +14,7 @@ public interface ServantsAllocator {
 
     /** [TODO] notify task on disconnected state */
     interface ServantConnection {
+        String id();
         URI uri();
         LzyServantGrpc.LzyServantBlockingStub control();
         void onProgress(Predicate<Servant.ServantProgress> tracker);
