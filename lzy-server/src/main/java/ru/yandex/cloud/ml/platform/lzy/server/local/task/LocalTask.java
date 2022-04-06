@@ -9,9 +9,10 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocator;
 import ru.yandex.cloud.ml.platform.lzy.server.task.TaskImpl;
 
-public abstract class LocalTask extends TaskImpl {
+public abstract class LocalTask implements ServantsAllocator {
     private static final Logger LOG = LogManager.getLogger(LocalTask.class);
 
     LocalTask(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,

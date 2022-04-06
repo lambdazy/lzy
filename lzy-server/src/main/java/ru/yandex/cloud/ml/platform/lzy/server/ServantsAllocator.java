@@ -9,7 +9,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
 public interface ServantsAllocator {
-    CompletableFuture<ServantConnection> allocate(String sessionId, Operations.Provisioning provisioning, Operations.EnvSpec env);
+    CompletableFuture<ServantConnection> allocate(
+        String sessionId,
+        Operations.Provisioning provisioning,
+        Operations.EnvSpec env,
+        String bucket
+    );
     void shutdownSession(String sessionId);
 
     /** [TODO] notify task on disconnected state */
