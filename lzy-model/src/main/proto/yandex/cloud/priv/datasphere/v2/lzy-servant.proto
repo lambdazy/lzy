@@ -12,7 +12,7 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service LzyServant {
   /** Only one execution at a time */
-  rpc Start (Auth) returns (stream ServantProgress);
+  rpc Start (Empty) returns (stream ServantProgress);
   rpc Env (EnvSpec) returns (EnvResult);
   rpc Execute (TaskSpec) returns (ExecutionStarted);
   rpc OpenOutputSlot (SlotRequest) returns (stream Message);
