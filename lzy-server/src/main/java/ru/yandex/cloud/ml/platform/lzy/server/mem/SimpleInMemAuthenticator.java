@@ -65,7 +65,7 @@ public class SimpleInMemAuthenticator implements Authenticator {
     }
 
     @Override
-    public String registerServant(String servantId, String servantToken) {
+    public String registerServant(String servantId) {
         final String token = UUID.randomUUID().toString();
         servantTokens.put(servantId, token);
         return token;

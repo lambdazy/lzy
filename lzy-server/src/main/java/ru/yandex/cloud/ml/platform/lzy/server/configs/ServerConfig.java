@@ -10,6 +10,16 @@ public class ServerConfig {
 
     private YcCredentials yc;
 
+    private ThreadAllocator threadAllocator;
+
+    public ThreadAllocator getThreadAllocator() {
+        return threadAllocator;
+    }
+
+    public void setThreadAllocator(ThreadAllocator threadAllocator) {
+        this.threadAllocator = threadAllocator;
+    }
+
     public String getServerUri() {
         return serverUri;
     }
@@ -85,6 +95,37 @@ public class ServerConfig {
 
         public void setKeyId(String keyId) {
             this.keyId = keyId;
+        }
+    }
+
+    @ConfigurationProperties("allocator.thread")
+    public static class ThreadAllocator {
+        private boolean enabled = false;
+        private String jarPath;
+        private String servantClassName = "ru.yandex.cloud.ml.platform.lzy.servant.BashApi";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getJarPath() {
+            return jarPath;
+        }
+
+        public void setJarPath(String jarPath) {
+            this.jarPath = jarPath;
+        }
+
+        public String getServantClassName() {
+            return servantClassName;
+        }
+
+        public void setServantClassName(String servantClassName) {
+            this.servantClassName = servantClassName;
         }
     }
 }

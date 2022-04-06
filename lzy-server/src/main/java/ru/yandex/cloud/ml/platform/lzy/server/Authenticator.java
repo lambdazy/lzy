@@ -22,7 +22,7 @@ public interface Authenticator {
 
     void registerTask(String uid, Task task, String servantId);
 
-    String registerServant(String servantId, String servantToken);
+    String registerServant(String servantId);
 
     boolean hasPermission(String uid, Permissions permission);
 
