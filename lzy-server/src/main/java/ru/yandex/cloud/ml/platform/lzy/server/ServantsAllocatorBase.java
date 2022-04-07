@@ -4,9 +4,9 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.*;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
@@ -42,6 +42,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     protected abstract void requestAllocation(String servantId, String servantToken,
                                               Provisioning provisioning, EnvSpec env,
                                               String bucket);
+    @SuppressWarnings("unused")
     protected boolean mutate(ServantConnection connection, Provisioning provisioning, EnvSpec env) {
         return false;
     }
@@ -112,10 +113,19 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         sessionServants.getOrDefault(sessionId, List.of()).forEach(c -> spareServants.put(c, Instant.now()));
     }
 
+    private final Executor executor = new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+
     public synchronized void run() {
         final Instant now = Instant.now();
-        Set.copyOf(spareServants.keySet()).stream().filter(s -> spareServants.get(s).isBefore(now))
-            .peek(spareServants::remove).forEach(s -> {
+        final List<ServantConnection> tasksToShutdown = Set.copyOf(spareServants.keySet()).stream()
+            .filter(s -> spareServants.get(s).isBefore(now))
+            .peek(spareServants::remove).collect(Collectors.toList());
+        final List<ServantConnection> tasksToForceStop = Set.copyOf(shuttingDown.keySet()).stream()
+            .filter(s -> spareServants.get(s).isBefore(now))
+            .peek(shuttingDown::remove)
+            .collect(Collectors.toList());
+        executor.execute(() -> {
+            tasksToShutdown.forEach(s -> {
                 shuttingDown.put(s, Instant.now().plus(GRACEFUL_SHUTDOWN_PERIOD_SEC, ChronoUnit.SECONDS));
                 try {
                     //noinspection ResultOfMethodCallIgnored
@@ -125,9 +135,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                     shuttingDown.remove(s);
                 }
             });
-        Set.copyOf(shuttingDown.keySet()).stream().filter(s -> spareServants.get(s).isBefore(now))
-            .peek(shuttingDown::remove)
-            .forEach(this::terminate);
+            tasksToForceStop.forEach(this::terminate);
+        });
     }
 
     private static class ServantConnectionImpl implements ServantConnection {
