@@ -23,15 +23,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Singleton
 @Requires(property = "server.kuberAllocator.enabled", value = "true")
-public class KuberServantAllocator extends ServantsAllocatorBase {
+public class KuberServantsAllocator extends ServantsAllocatorBase {
     private final ServantPodProvider provider;
-    private final static Logger LOG = LogManager.getLogger(KuberServantAllocator.class);
+    private final static Logger LOG = LogManager.getLogger(KuberServantsAllocator.class);
     private final ConcurrentHashMap<UUID, V1Pod> servantPods = new ConcurrentHashMap<>();
     private final static String NAMESPACE = "default";
     private final CoreV1Api api = new CoreV1Api();
 
-    public KuberServantAllocator(Authenticator auth, ServantPodProvider provider) {
-        super(auth, 10);
+    public KuberServantsAllocator(Authenticator auth, ServantPodProvider provider) {
+        super(auth, 10 * 60);
         this.provider = provider;
     }
 
