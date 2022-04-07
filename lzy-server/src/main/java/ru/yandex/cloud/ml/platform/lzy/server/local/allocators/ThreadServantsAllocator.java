@@ -9,6 +9,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -25,7 +26,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     private final Method servantMain;
     private final AtomicInteger servantCounter = new AtomicInteger(0);
     private final ServerConfig serverConfig;
-    private final ConcurrentHashMap<UUID, ForkJoinTask<?>> servantThreads = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Thread> servantThreads = new ConcurrentHashMap<>();
 
     public ThreadServantsAllocator(ServerConfig serverConfig, Authenticator authenticator) {
         super(authenticator, 10);
@@ -47,30 +48,39 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     protected void requestAllocation(UUID servantId, String servantToken,
                                      Provisioning provisioning, Env env, String bucket) {
         @SuppressWarnings("CheckStyle")
-        ForkJoinTask<?> task = ForkJoinPool.commonPool().submit(() -> servantMain.invoke(null, (Object) new String[]{
-                "--lzy-address", serverConfig.getServerUri(),
-                "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
-                "--lzy-mount", "/tmp/lzy" + servantCounter.incrementAndGet(),
-                "--host", URI.create(serverConfig.getServerUri()).getHost(),
-                "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
-                "--port", String.valueOf(10000 + servantCounter.get()),
-                "start",
-                "--bucket", bucket,
-                "--sid", servantId.toString(),
-                "--token", servantToken,
-        }));
+        Thread task = new Thread("servant-" + servantId.toString()){
+            @Override
+            public void run() {
+                try {
+                    servantMain.invoke(null, (Object) new String[]{
+                            "--lzy-address", serverConfig.getServerUri(),
+                            "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
+                            "--lzy-mount", "/tmp/lzy" + servantCounter.incrementAndGet(),
+                            "--host", URI.create(serverConfig.getServerUri()).getHost(),
+                            "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
+                            "--port", String.valueOf(10000 + servantCounter.get()),
+                            "start",
+                            "--bucket", bucket,
+                            "--sid", servantId.toString(),
+                            "--token", servantToken,
+                    });
+                } catch (IllegalAccessException | InvocationTargetException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
         servantThreads.put(servantId, task);
     }
 
     @Override
     protected void cleanup(ServantConnection s) {
-        servantThreads.get(s.id()).cancel(true);
+        servantThreads.get(s.id()).stop();
         servantThreads.remove(s.id());
     }
 
     @Override
     protected void terminate(ServantConnection connection) {
-        servantThreads.get(connection.id()).cancel(true);
+        servantThreads.get(connection.id()).stop();
         servantThreads.remove(connection.id());
     }
 }
