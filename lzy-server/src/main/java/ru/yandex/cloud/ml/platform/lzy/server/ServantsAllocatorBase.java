@@ -122,9 +122,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         connection.connectionThread = connectionThread;
         servant2sessions.get(servantId).servants.add(connection);
         request.complete(connection);
-        connectionThread.start();
         connectionThread.setDaemon(true);
-
+        connectionThread.start();
     }
 
     @Override
