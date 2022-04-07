@@ -11,12 +11,12 @@ public class LzyAgentConfig {
     private final String token;
     private final Path root;
     private final String user;
-    private final String context;
+    private final String servantId;
     private final String bucket;
     private final int agentPort;
 
     private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentName, String agentInternalName,
-                           String token, Path root, String user, String task, int agentPort, String bucket) {
+                           String token, Path root, String user, String servantId, int agentPort, String bucket) {
         this.serverAddress = serverAddress;
         this.whiteboardAddress = whiteboardAddress;
         this.agentName = agentName;
@@ -24,7 +24,7 @@ public class LzyAgentConfig {
         this.token = token;
         this.root = root;
         this.user = user;
-        this.context = task;
+        this.servantId = servantId;
         this.agentPort = agentPort;
         this.bucket = bucket;
     }
@@ -65,8 +65,8 @@ public class LzyAgentConfig {
         return user;
     }
 
-    public String getContext() {
-        return context;
+    public String getServantId() {
+        return servantId;
     }
 
     public int getAgentPort() {
@@ -81,7 +81,7 @@ public class LzyAgentConfig {
         private String token;
         private Path root;
         private String user;
-        private String task;
+        private String servantId;
         private String bucket;
         private int agentPort;
 
@@ -115,8 +115,8 @@ public class LzyAgentConfig {
             return this;
         }
 
-        public LzyAgentConfigBuilder task(String task) {
-            this.task = task;
+        public LzyAgentConfigBuilder servantId(String task) {
+            this.servantId = task;
             return this;
         }
 
@@ -137,7 +137,7 @@ public class LzyAgentConfig {
 
         public LzyAgentConfig build() {
             return new LzyAgentConfig(serverAddress, whiteboardAddress, agentName, agentInternalName, token, root, user,
-                task, agentPort, bucket);
+                servantId, agentPort, bucket);
         }
     }
 }

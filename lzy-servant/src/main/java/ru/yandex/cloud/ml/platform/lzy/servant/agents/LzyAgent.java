@@ -19,6 +19,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.*;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -92,7 +93,7 @@ public abstract class LzyAgent implements Closeable {
             authBuilder.setUser(credBuilder.build());
         } else {
             authBuilder.setTask(IAM.TaskCredentials.newBuilder()
-                .setServantId(config.getContext())
+                .setServantId(config.getServantId())
                 .setServantToken(config.getToken())
                 .build()
             );
@@ -103,19 +104,20 @@ public abstract class LzyAgent implements Closeable {
     protected abstract LzyContext context();
 
     protected abstract void onStartUp();
-
+    protected void started() {};
     protected abstract Server server();
-
-    protected abstract LzyServerApi lzyServerApi();
+    protected abstract LzyServerGrpc.LzyServerBlockingStub serverApi();
 
     public void start() throws IOException {
         final Server agentServer = server();
         agentServer.start();
 
+        onStartUp();
+
         for (LzyCommand.Commands command : LzyCommand.Commands.values()) {
             publishTool(null, Paths.get(command.name()), command.name());
         }
-        final Operations.ZygoteList zygotes = lzyServerApi().zygotes(auth);
+        final Operations.ZygoteList zygotes = serverApi().zygotes(auth);
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
             publishTool(
                 zygote.getWorkload(),
@@ -123,7 +125,6 @@ public abstract class LzyAgent implements Closeable {
                 "run"
             );
         }
-        onStartUp();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Shutdown hook in lzy-agent {}", agentAddress);
@@ -134,6 +135,7 @@ public abstract class LzyAgent implements Closeable {
                 throw new RuntimeException(e);
             }
         }));
+        started();
     }
 
     public void awaitTermination() throws InterruptedException {
@@ -298,7 +300,7 @@ public abstract class LzyAgent implements Closeable {
 
     public void update(@SuppressWarnings("unused") IAM.Auth request,
                        StreamObserver<Servant.ExecutionStarted> responseObserver) {
-        final Operations.ZygoteList zygotes = lzyServerApi().zygotes(auth);
+        final Operations.ZygoteList zygotes = serverApi().zygotes(auth);
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
             publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());
         }
@@ -320,9 +322,5 @@ public abstract class LzyAgent implements Closeable {
         }).collect(Collectors.toList()));
         responseObserver.onNext(builder.build());
         responseObserver.onCompleted();
-    }
-
-    public interface LzyServerApi {
-        Operations.ZygoteList zygotes(IAM.Auth auth);
     }
 }

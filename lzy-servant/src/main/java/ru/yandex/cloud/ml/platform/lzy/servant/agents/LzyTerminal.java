@@ -84,7 +84,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         commandHandler = new CommandHandler();
         status.set(AgentStatus.PREPARING_EXECUTION);
 
-        context = new LzyContext(sessionId, slotManager, agentInternalAddress, credentials);
+        context = new LzyContext(sessionId, slotManager, agentInternalAddress);
         status.set(AgentStatus.EXECUTING);
 
         Context.current().addListener(context -> {
@@ -117,8 +117,8 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     @Override
-    protected LzyServerApi lzyServerApi() {
-        return server::zygotes;
+    protected LzyServerGrpc.LzyServerBlockingStub serverApi() {
+        return server;
     }
 
     @Override

@@ -48,7 +48,7 @@ public class Start implements LzyCommand {
             LzyAgentConfig.builder()
                 .serverAddress(URI.create(serverAddress))
                 .whiteboardAddress(URI.create(parse.getOptionValue('w')))
-                .task(localCmd.getOptionValue('s'))
+                .servantId(localCmd.getOptionValue('s'))
                 .token(localCmd.getOptionValue('o'))
                 .bucket(localCmd.getOptionValue('b'))
                 .agentName(host)
