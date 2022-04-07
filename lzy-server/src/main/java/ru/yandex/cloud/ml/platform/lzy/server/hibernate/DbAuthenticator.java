@@ -40,11 +40,11 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean checkTask(String tid, String servantId, String servantToken) {
+    public boolean checkTask(UUID tid, UUID servantId, String servantToken) {
         LOG.info("checkTask tid=" + tid);
         try (Session session = storage.getSessionFactory().openSession()) {
 
-            if (tid == null || tid.isEmpty()) {
+            if (tid == null) {
                 ServantModel servant = session.find(ServantModel.class, servantId);
                 if (servant == null) {
                     return false;
@@ -52,7 +52,7 @@ public class DbAuthenticator implements Authenticator {
                 return servant.token().equals(servantToken);
             }
 
-            TaskModel taskModel = session.find(TaskModel.class, UUID.fromString(tid));
+            TaskModel taskModel = session.find(TaskModel.class, tid);
             if (taskModel == null) {
                 return false;
             }
@@ -95,7 +95,7 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public void registerTask(String uid, Task task, String servantId) {
+    public void registerTask(String uid, Task task, UUID servantId) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             UserModel user = session.find(UserModel.class, uid);
@@ -112,7 +112,7 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public String registerServant(String servantId) {
+    public String registerServant(UUID servantId) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {

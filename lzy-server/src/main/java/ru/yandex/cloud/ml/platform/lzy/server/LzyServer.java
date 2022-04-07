@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.from;
 import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
 import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.*;
 
@@ -132,9 +133,6 @@ public class LzyServer {
         private ServantsAllocator.Ex servantsAllocator;
 
         @Inject
-        private SessionManager sessionManager;
-
-        @Inject
         private Authenticator auth;
 
         @Inject
@@ -193,7 +191,7 @@ public class LzyServer {
                 return;
             }
             final Operations.Zygote operation = request.getOperation();
-            if (!operations.publish(request.getName(), GrpcConverter.from(operation))) {
+            if (!operations.publish(request.getName(), from(operation))) {
                 responseObserver.onError(Status.ALREADY_EXISTS.asException());
                 return;
             }
@@ -273,13 +271,14 @@ public class LzyServer {
             }
             LOG.info("Server::start " + JsonUtils.printRequest(request));
             final Operations.Zygote zygote = request.getZygote();
-            final Zygote workload = GrpcConverter.from(zygote);
+            final Zygote workload = from(zygote);
             final Map<Slot, String> assignments = new HashMap<>();
             request.getAssignmentsList()
-                .forEach(ass -> assignments.put(GrpcConverter.from(ass.getSlot()), ass.getBinding()));
+                .forEach(ass -> assignments.put(from(ass.getSlot()), ass.getBinding()));
 
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
+            final SessionManager.Session session = resolveSession(request.getAuth());
             final AtomicBoolean concluded = new AtomicBoolean(false);
             // [TODO] session per user is too simple
             final Task task = tasks.start(uid, parent, workload, assignments, auth);
@@ -289,9 +288,8 @@ public class LzyServer {
                     return;
                 responseObserver.onNext(progress);
                 if (progress.getStatus() == QUEUE) {
-                    servantsAllocator.allocate(uid, GrpcConverter.from(zygote.getProvisioning()),
-                                GrpcConverter.from(zygote.getEnv()), auth.bucketForUser(uid)
-                            )
+                    final UUID sessionId = session.id();
+                    servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
                         .whenComplete((connection, th) -> {
                             auth.registerTask(uid, task, connection.id());
                             if (th != null)
@@ -461,7 +459,7 @@ public class LzyServer {
 
             final URI servantUri = URI.create(request.getServantURI());
             if (auth.hasTask()) {
-                final String servantId = auth.getTask().getServantId();
+                final UUID servantId = UUID.fromString(auth.getTask().getServantId());
                 servantsAllocator.register(servantId, servantUri);
                 responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
                 responseObserver.onCompleted();
@@ -469,7 +467,7 @@ public class LzyServer {
                 final Thread terminalThread = new Thread(
                     TERMINAL_THREADS,
                     () -> {
-                        final UUID sessionId = UUID.fromString(request.getServantId());
+                        final String sessionId = request.getServantId();
                         final ManagedChannel channel = ChannelBuilder
                             .forAddress(servantUri.getHost(), servantUri.getPort())
                             .usePlaintext()
@@ -477,11 +475,11 @@ public class LzyServer {
                             .build();
 
                         final Metadata metadata = new Metadata();
-                        metadata.put(Constants.SESSION_ID_METADATA_KEY, sessionId.toString());
+                        metadata.put(Constants.SESSION_ID_METADATA_KEY, sessionId);
                         final LzyServantGrpc.LzyServantBlockingStub servant = MetadataUtils
                             .attachHeaders(LzyServantGrpc.newBlockingStub(channel), metadata);
                         try {
-                            runTerminal(auth, servant, sessionId);
+                            runTerminal(auth, servant, UUID.fromString(sessionId));
                         } finally {
                             channel.shutdownNow();
                         }
@@ -504,19 +502,17 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-            if (!this.auth.canAccessBucket(resolveUser(auth), request.getBucket())) {
+            final String owner = servantsAllocator.byServant(auth.getTask().getServantId()).owner();
+            if (!this.auth.canAccessBucket(owner, request.getBucket())) {
                 responseObserver.onError(
                     Status.PERMISSION_DENIED.withDescription("Cannot access bucket " + request.getBucket())
                         .asException());
             }
+            final String bucket = request.getBucket();
 
-            String uid = resolveUser(auth);
-
-            String bucket = request.getBucket();
-
-            StorageCredentials credentials =
+            final StorageCredentials credentials =
                 storageConfigs.isSeparated()
-                    ? credentialsProvider.credentialsForBucket(uid, bucket) :
+                    ? credentialsProvider.credentialsForBucket(owner, bucket) :
                     credentialsProvider.storageCredentials();
             responseObserver.onNext(to(credentials));
             responseObserver.onCompleted();
@@ -531,8 +527,8 @@ public class LzyServer {
             }
 
             final Builder builder = GetSessionsResponse.newBuilder();
-            sessionManager.sessionIds(userId).forEach(
-                sessionId -> builder.addSessions(SessionDescription.newBuilder().setSessionId(sessionId.toString()))
+            servantsAllocator.sessions(userId).forEach(
+                s -> builder.addSessions(SessionDescription.newBuilder().setSessionId(s.id().toString()))
             );
             responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
@@ -575,7 +571,7 @@ public class LzyServer {
         /** [TODO] support interruption */
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
             final String user = auth.getUser().getUserId();
-            sessionManager.registerSession(user, sessionId);
+            servantsAllocator.registerSession(user, sessionId, this.auth.bucketForUser(user));
 
             final Iterator<Servant.ServantProgress> start = kharon.start(IAM.Empty.newBuilder().build());
 
@@ -595,7 +591,7 @@ public class LzyServer {
                     LOG.info("LzyServer::kharonTerminalProgress " + JsonUtils.printRequest(progress));
                     if (progress.hasAttach()) {
                         final Servant.SlotAttach attach = progress.getAttach();
-                        final Slot slot = GrpcConverter.from(attach.getSlot());
+                        final Slot slot = from(attach.getSlot());
                         final URI slotUri = URI.create(attach.getUri());
                         final String channelName = attach.getChannel();
                         tasks.addUserSlot(user, slot, channels.get(channelName));
@@ -603,7 +599,7 @@ public class LzyServer {
                             new ServantEndpoint(slot, slotUri, sessionId, kharon));
                     } else if (progress.hasDetach()) {
                         final Servant.SlotDetach detach = progress.getDetach();
-                        final Slot slot = GrpcConverter.from(detach.getSlot());
+                        final Slot slot = from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
                         tasks.removeUserSlot(user, slot);
                         final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharon);
@@ -622,7 +618,7 @@ public class LzyServer {
                 tasks.slots(user).keySet().forEach(slot -> tasks.removeUserSlot(user, slot));
                 channels.unbindAll(sessionId);
                 tasks.destroyUserChannels(user);
-                sessionManager.deleteSession(user, sessionId);
+                servantsAllocator.deleteSession(sessionId);
             }
         }
 
@@ -656,7 +652,11 @@ public class LzyServer {
                 return this.auth.checkUser(auth.getUser().getUserId(), auth.getUser().getToken());
             } else if (auth.hasTask()) {
                 final IAM.TaskCredentials task = auth.getTask();
-                return this.auth.checkTask(task.getTaskId(), task.getServantId(), task.getServantToken());
+                return this.auth.checkTask(
+                    task.getTaskId().isEmpty() ? null : UUID.fromString(task.getTaskId()),
+                    UUID.fromString(task.getServantId()),
+                    task.getServantToken()
+                );
             }
             responseObserver.onError(Status.INVALID_ARGUMENT.asException());
 
@@ -669,6 +669,14 @@ public class LzyServer {
 
         private Task resolveTask(IAM.Auth auth) {
             return auth.hasTask() ? tasks.task(UUID.fromString(auth.getTask().getTaskId())) : null;
+        }
+
+        private SessionManager.Session resolveSession(IAM.Auth auth) {
+            if (auth.hasTask()) {
+                return servantsAllocator.byServant(auth.getTask().getServantId());
+            } else {
+                return servantsAllocator.get(UUID.fromString(Constants.SESSION_ID_CTX_KEY.get()));
+            }
         }
     }
 }

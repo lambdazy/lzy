@@ -118,6 +118,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 
 import java.util.Objects;
+import java.util.UUID;
 
 public class KuberServantAllocator extends ServantsAllocatorBase {
     private final ServantPodProvider provider;
@@ -129,12 +130,12 @@ public class KuberServantAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(String servantId, String servantToken, Provisioning provisioning,
+    protected void requestAllocation(UUID servantId, String servantToken, Provisioning provisioning,
                                      Env env, String bucket) {
         final V1Pod servantPodSpec;
         try {
             servantPodSpec = provider.createServantPod(
-                provisioning, servantToken, servantId, bucket
+                provisioning, servantToken, servantId.toString(), bucket
             );
         } catch (PodProviderException e) {
             throw new RuntimeException("Exception while creating servant pod spec", e);
