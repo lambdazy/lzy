@@ -5,14 +5,13 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 @ConfigurationProperties("server")
 public class ServerConfig {
     private String serverUri;
-
     private String whiteboardUrl;
+    private String baseEnvDefaultImage;
 
     private YcCredentials yc;
 
     private ThreadAllocator threadAllocator;
-
-    private String baseEnvDefaultImage;
+    private KuberAllocator kuberAllocator;
 
     public String getBaseEnvDefaultImage() {
         return baseEnvDefaultImage;
@@ -52,6 +51,14 @@ public class ServerConfig {
 
     public void setWhiteboardUrl(String whiteboardUrl) {
         this.whiteboardUrl = whiteboardUrl;
+    }
+
+    public KuberAllocator getKuberAllocator() {
+        return kuberAllocator;
+    }
+
+    public void setKuberAllocator(KuberAllocator kuberAllocator) {
+        this.kuberAllocator = kuberAllocator;
     }
 
     @ConfigurationProperties("yc")
@@ -136,6 +143,19 @@ public class ServerConfig {
 
         public void setServantClassName(String servantClassName) {
             this.servantClassName = servantClassName;
+        }
+    }
+
+    @ConfigurationProperties("kuberAllocator")
+    public static class KuberAllocator {
+        private boolean enabled = false;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
         }
     }
 }

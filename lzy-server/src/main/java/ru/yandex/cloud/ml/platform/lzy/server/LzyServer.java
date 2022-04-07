@@ -23,6 +23,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager.Signal;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
@@ -102,7 +103,7 @@ public class LzyServer {
             ServerBuilder<?> builder = NettyServerBuilder.forPort(port)
                 .permitKeepAliveWithoutCalls(true)
                 .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-                .addService(impl);
+                .addService(ServerInterceptors.intercept(impl, new SessionIdInterceptor()));
             try {
                 BackOfficeService backoffice = context.getBean(BackOfficeService.class);
                 builder.addService(backoffice);
@@ -502,7 +503,12 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-            final String owner = servantsAllocator.byServant(auth.getTask().getServantId()).owner();
+            final String owner;
+            if (!auth.hasUser()) {
+                owner = servantsAllocator.byServant(auth.getTask().getServantId()).owner();
+            } else {
+                owner = auth.getUser().getUserId();
+            }
             if (!this.auth.canAccessBucket(owner, request.getBucket())) {
                 responseObserver.onError(
                     Status.PERMISSION_DENIED.withDescription("Cannot access bucket " + request.getBucket())
