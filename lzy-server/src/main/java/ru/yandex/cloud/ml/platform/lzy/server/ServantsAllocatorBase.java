@@ -98,17 +98,18 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             .build();
         final LzyServantGrpc.LzyServantBlockingStub blockingStub = LzyServantGrpc.newBlockingStub(channel);
 
+        final IAM.Empty emptyRequest = IAM.Empty.newBuilder().build();
         if (!requests.containsKey(servantId)) {
             LOG.error("Astray servant found: " + servantId);
             //noinspection ResultOfMethodCallIgnored
-            blockingStub.stop(IAM.Empty.newBuilder().build());
+            blockingStub.stop(emptyRequest);
             channel.shutdownNow();
             return;
         }
         final CompletableFuture<ServantConnection> request = requests.remove(servantId);
         final ServantConnectionImpl connection = new ServantConnectionImpl(servantId, servantUri, blockingStub);
         final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
-            final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(IAM.Empty.newBuilder().build());
+            final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(emptyRequest);
             progressIterator.forEachRemaining(progress -> {
                 if (progress.hasExit()) { // graceful shutdown
                     shuttingDown.remove(connection);
