@@ -98,10 +98,10 @@ public class ServerConfig {
         }
     }
 
-    @ConfigurationProperties("allocator.thread")
+    @ConfigurationProperties("threadAllocator")
     public static class ThreadAllocator {
         private boolean enabled = false;
-        private String jarPath;
+        private String filePath;
         private String servantClassName = "ru.yandex.cloud.ml.platform.lzy.servant.BashApi";
 
         public boolean isEnabled() {
@@ -112,12 +112,12 @@ public class ServerConfig {
             this.enabled = enabled;
         }
 
-        public String getJarPath() {
-            return jarPath;
+        public String getFilePath() {
+            return filePath;
         }
 
-        public void setJarPath(String jarPath) {
-            this.jarPath = jarPath;
+        public void setFilePath(String filePath) {
+            this.filePath = filePath;
         }
 
         public String getServantClassName() {
