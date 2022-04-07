@@ -33,6 +33,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     private final Map<UUID, SessionImpl> servant2sessions = new ConcurrentHashMap<>();
     private final Map<UUID, SessionImpl> sessionsById = new ConcurrentHashMap<>();
 
+    private final Map<String, Session> userSessions = new ConcurrentHashMap<>();
+
 
     private final Authenticator auth;
     private final int waitBeforeShutdown;
@@ -130,10 +132,11 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
 
     @Override
-    public void registerSession(String userId, UUID sessionId, String bucket) {
+    public Session registerSession(String userId, UUID sessionId, String bucket) {
         final SessionImpl session = new SessionImpl(sessionId, userId, bucket);
         userToSessions.computeIfAbsent(userId, u -> new HashSet<>()).add(session);
         sessionsById.put(sessionId, session);
+        return session;
     }
 
     @Override
@@ -149,6 +152,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     @Override
     public Session byServant(String servantId) {
         return servant2sessions.get(servantId);
+    }
+
+
+    @Override
+    public Session userSession(String user) {
+        return userSessions.computeIfAbsent(user, u -> registerSession(u, UUID.randomUUID(), auth.bucketForUser(u)));
     }
 
     private final Executor executor = new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
