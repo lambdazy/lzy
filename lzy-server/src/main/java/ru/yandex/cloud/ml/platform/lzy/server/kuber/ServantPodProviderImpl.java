@@ -59,7 +59,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     }
 
     @Override
-    public V1Pod createServantPod(Provisioning provisioning, String token, String servantId, String bucket)
+    public V1Pod createServantPod(Provisioning provisioning, String token, UUID servantId, String bucket)
         throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
@@ -96,7 +96,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         final V1Container container = containerOptional.get();
         addEnvVars(container, token, servantId, bucket);
 
-        final String podName = "lzy-servant-" + servantId.toLowerCase(Locale.ROOT);
+        final String podName = "lzy-servant-" + servantId.toString().toLowerCase(Locale.ROOT);
         pod.getMetadata().setName(podName);
 
         final V1PodSpec podSpec = pod.getSpec();
@@ -117,9 +117,9 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     }
 
     private void addEnvVars(V1Container container, String token,
-                            String servantId, String bucketName) {
+                            UUID servantId, String bucketName) {
         container.addEnvItem(
-            new V1EnvVar().name("SERVANT_ID").value(servantId)
+            new V1EnvVar().name("SERVANT_ID").value(servantId.toString())
         ).addEnvItem(
             new V1EnvVar().name("SERVANT_TOKEN").value(token)
         ).addEnvItem(
