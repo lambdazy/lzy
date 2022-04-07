@@ -69,6 +69,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                 }
             }
         };
+        task.start();
         servantThreads.put(servantId, task);
     }
 
