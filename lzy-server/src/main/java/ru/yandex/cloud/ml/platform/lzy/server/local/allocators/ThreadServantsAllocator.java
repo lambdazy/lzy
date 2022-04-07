@@ -14,6 +14,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -24,7 +25,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     private final Method servantMain;
     private final AtomicInteger servantCounter = new AtomicInteger(0);
     private final ServerConfig serverConfig;
-    private final ConcurrentHashMap<String, ForkJoinTask<?>> servantThreads = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, ForkJoinTask<?>> servantThreads = new ConcurrentHashMap<>();
 
     public ThreadServantsAllocator(ServerConfig serverConfig, Authenticator authenticator) {
         super(authenticator, 10);
@@ -43,8 +44,9 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(String servantId, String servantToken,
+    protected void requestAllocation(UUID servantId, String servantToken,
                                      Provisioning provisioning, Env env, String bucket) {
+        @SuppressWarnings("CheckStyle")
         ForkJoinTask<?> task = ForkJoinPool.commonPool().submit(() -> servantMain.invoke(null, (Object) new String[]{
                 "--lzy-address", serverConfig.getServerUri(),
                 "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
@@ -54,7 +56,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                 "--port", String.valueOf(10000 + servantCounter.get()),
                 "start",
                 "--bucket", bucket,
-                "--sid", servantId,
+                "--sid", servantId.toString(),
                 "--token", servantToken,
         }));
         servantThreads.put(servantId, task);

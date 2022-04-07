@@ -4,9 +4,17 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 public interface SessionManager {
-    void registerSession(String userId, UUID sessionId);
+    void registerSession(String userId, UUID sessionId, String bucket);
+    void deleteSession(UUID sessionId);
 
-    void deleteSession(String userId, UUID sessionId);
+    Session get(UUID sessionId);
+    Stream<Session> sessions(String userId);
+    Session byServant(String servantId);
 
-    Stream<UUID> sessionIds(String userId);
+    interface Session {
+        UUID id();
+        String owner();
+        UUID[] servants();
+        String bucket();
+    }
 }

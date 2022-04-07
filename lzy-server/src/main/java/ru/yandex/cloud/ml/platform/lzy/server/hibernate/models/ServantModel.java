@@ -10,7 +10,7 @@ public class ServantModel {
 
     @Id
     @Column(name = "servant_id")
-    private String servantId;
+    private UUID servantId;
 
     @Column(name = "token")
     private String token;
@@ -18,18 +18,18 @@ public class ServantModel {
     @OneToMany(mappedBy = "servant")
     private Set<ServantModel> servants;
 
-    public ServantModel(String servantId, String token) {
+    public ServantModel(UUID servantId, String token) {
         this.servantId = servantId;
         this.token = token;
     }
 
     public ServantModel() {}
 
-    public String servantId() {
+    public UUID servantId() {
         return servantId;
     }
 
-    public void setServantId(String servantId) {
+    public void setServantId(UUID servantId) {
         this.servantId = servantId;
     }
 
