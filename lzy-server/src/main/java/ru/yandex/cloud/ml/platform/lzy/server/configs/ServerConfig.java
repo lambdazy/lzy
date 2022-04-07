@@ -12,6 +12,16 @@ public class ServerConfig {
 
     private ThreadAllocator threadAllocator;
 
+    private String baseEnvDefaultImage;
+
+    public String getBaseEnvDefaultImage() {
+        return baseEnvDefaultImage;
+    }
+
+    public void setBaseEnvDefaultImage(String baseEnvDefaultImage) {
+        this.baseEnvDefaultImage = baseEnvDefaultImage;
+    }
+
     public ThreadAllocator getThreadAllocator() {
         return threadAllocator;
     }

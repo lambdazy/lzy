@@ -58,7 +58,7 @@ public abstract class GrpcConverter {
         return new SlotStatusAdapter(slotStatus);
     }
 
-    private static Provisioning from(Operations.Provisioning provisioning) {
+    public static Provisioning from(Operations.Provisioning provisioning) {
         return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
     }
 
