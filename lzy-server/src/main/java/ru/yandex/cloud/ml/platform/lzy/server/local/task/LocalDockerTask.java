@@ -25,8 +25,9 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
+import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 
-public class LocalDockerTask extends LocalTask {
+public class LocalDockerTask extends ServantsAllocatorBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalDockerTask.class);
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
