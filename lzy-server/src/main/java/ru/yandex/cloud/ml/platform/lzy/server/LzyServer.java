@@ -681,7 +681,7 @@ public class LzyServer {
             if (auth.hasTask()) {
                 return servantsAllocator.byServant(auth.getTask().getServantId());
             } else {
-                return servantsAllocator.get(UUID.fromString(Constants.SESSION_ID_CTX_KEY.get()));
+                return servantsAllocator.userSession(auth.getUser().getUserId());
             }
         }
     }
