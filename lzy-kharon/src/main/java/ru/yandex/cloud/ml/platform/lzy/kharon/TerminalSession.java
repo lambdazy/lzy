@@ -31,15 +31,15 @@ public class TerminalSession {
 
     public static final String SESSION_ID_KEY = "kharon_session_id";
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
-    private final CompletableFuture<StreamObserver<Servant.ContextProgress>> executeFromServerFuture =
+    private final CompletableFuture<StreamObserver<Servant.ServantProgress>> executeFromServerFuture =
         new CompletableFuture<>();
     private final StreamObserver<Kharon.TerminalState> terminalStateObserver;
     private final StreamObserver<Kharon.TerminalCommand> terminalController;
     private final AtomicBoolean invalid = new AtomicBoolean(false);
-    private final UUID sessionId = UUID.randomUUID();
+    private final UUID servantId = UUID.randomUUID();
     private final URI kharonServantProxyAddress;
     private final Map<UUID, CompletableFuture<Kharon.TerminalState>> tasks = new ConcurrentHashMap<>();
-    private StreamObserver<Servant.ContextProgress> executionProgress;
+    private StreamObserver<Servant.ServantProgress> executionProgress;
     private String user;
 
     public TerminalSession(
@@ -53,7 +53,7 @@ public class TerminalSession {
             @Override
             public void onNext(Kharon.TerminalState terminalState) {
                 if (!terminalState.hasSlotStatus()) {
-                    LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:"
+                    LOG.info("Kharon::TerminalSession session_id:" + servantId + " request:"
                         + JsonUtils.printRequest(terminalState));
                 }
                 if (terminalState.getProgressCase()
@@ -86,7 +86,7 @@ public class TerminalSession {
                                     .setUser(userCredentials)
                                     .build())
                                 .setServantURI(servantAddr)
-                                .setSessionId(sessionId.toString())
+                                .setServantId(servantId.toString())
                                 .build());
                         } catch (StatusRuntimeException e) {
                             LOG.error("registerServant failed. " + e);
@@ -96,7 +96,7 @@ public class TerminalSession {
                     }
                     case ATTACH: {
                         final Servant.SlotAttach attach = terminalState.getAttach();
-                        executionProgress.onNext(Servant.ContextProgress.newBuilder()
+                        executionProgress.onNext(Servant.ServantProgress.newBuilder()
                             .setAttach(Servant.SlotAttach.newBuilder()
                                 .setSlot(attach.getSlot())
                                 .setUri(convertToKharonServantUri(attach.getUri()))
@@ -107,7 +107,7 @@ public class TerminalSession {
                     }
                     case DETACH: {
                         final Servant.SlotDetach detach = terminalState.getDetach();
-                        executionProgress.onNext(Servant.ContextProgress.newBuilder()
+                        executionProgress.onNext(Servant.ServantProgress.newBuilder()
                             .setDetach(Servant.SlotDetach.newBuilder()
                                 .setSlot(detach.getSlot())
                                 .setUri(convertToKharonServantUri(detach.getUri()))
@@ -141,7 +141,7 @@ public class TerminalSession {
 
             @Override
             public void onCompleted() {
-                LOG.info("Terminal for " + user + " disconnected; sessionId = " + sessionId);
+                LOG.info("Terminal for " + user + " disconnected; sessionId = " + servantId);
                 invalidate();
             }
         };
@@ -152,10 +152,10 @@ public class TerminalSession {
     }
 
     public UUID sessionId() {
-        return sessionId;
+        return servantId;
     }
 
-    public void setExecutionProgress(StreamObserver<Servant.ContextProgress> executionProgress) {
+    public void setServantProgress(StreamObserver<Servant.ServantProgress> executionProgress) {
         executeFromServerFuture.complete(executionProgress);
     }
 
@@ -165,7 +165,7 @@ public class TerminalSession {
 
     @Nullable
     public Servant.SlotCommandStatus configureSlot(SlotCommand request) {
-        LOG.info("Kharon sessionId " + sessionId + " ::configureSlot " + JsonUtils.printRequest(
+        LOG.info("Kharon sessionId " + servantId + " ::configureSlot " + JsonUtils.printRequest(
             request));
         final CompletableFuture<Kharon.TerminalState> future = new CompletableFuture<>();
         final String commandId = generateCommandId(future);
@@ -180,7 +180,7 @@ public class TerminalSession {
             } catch (RuntimeException e) { // FIXME(d-kruchinin): why cannot catch StatusRuntimeException?
                 LOG.warn(
                     "Kharon session={} was cancelled, but got configureSlot return -1;\n Cause: {}",
-                    sessionId, e);
+                    servantId, e);
                 return Servant.SlotCommandStatus.newBuilder()
                     .setRc(RC.newBuilder().setCodeValue(-1)).build();
             }
@@ -222,7 +222,7 @@ public class TerminalSession {
                 kharonServantProxyAddress.getHost(),
                 kharonServantProxyAddress.getPort(),
                 slotUri.getPath(),
-                SESSION_ID_KEY + "=" + sessionId,
+                SESSION_ID_KEY + "=" + servantId,
                 null
             ).toString();
         } catch (URISyntaxException e) {
@@ -235,7 +235,7 @@ public class TerminalSession {
             invalidate();
             terminalController.onCompleted();
         } catch (Exception e) {
-            LOG.error("Failed to close stream with Terminal session_id {}. Already closed.", sessionId);
+            LOG.error("Failed to close stream with Terminal session_id {}. Already closed.", servantId);
         }
     }
 

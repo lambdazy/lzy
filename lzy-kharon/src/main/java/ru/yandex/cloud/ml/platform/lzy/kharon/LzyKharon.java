@@ -15,9 +15,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.ContextProgress;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 
 import java.io.IOException;
 import java.net.URI;
@@ -307,11 +305,10 @@ public class LzyKharon {
         }
 
         @Override
-        public void start(Tasks.TaskSpec request,
-                          StreamObserver<Servant.ExecutionProgress> responseObserver) {
+        public void start(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> responseObserver) {
             LOG.info("Kharon::start " + JsonUtils.printRequest(request));
             try {
-                final Iterator<Servant.ExecutionProgress> start = server.start(request);
+                final Iterator<Tasks.TaskProgress> start = server.start(request);
                 while (start.hasNext()) {
                     responseObserver.onNext(start.next());
                 }
@@ -364,12 +361,12 @@ public class LzyKharon {
     private class KharonServantProxyService extends LzyServantGrpc.LzyServantImplBase {
 
         @Override
-        public void prepare(ContextSpec request, StreamObserver<ContextProgress> responseObserver) {
+        public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
             try {
                 final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
                 LOG.info("KharonServantProxyService sessionId = " + session.sessionId()
                     + "::prepare " + JsonUtils.printRequest(request));
-                session.setExecutionProgress(responseObserver);
+                session.setServantProgress(responseObserver);
                 Context.current().addListener(context -> {
                     LOG.info("Execution terminated from server");
                     session.close();
