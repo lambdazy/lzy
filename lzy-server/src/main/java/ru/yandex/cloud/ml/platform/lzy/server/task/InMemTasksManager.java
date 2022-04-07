@@ -19,7 +19,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocator;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.ERROR;
 import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.SUCCESS;
@@ -30,7 +29,6 @@ public class InMemTasksManager implements TasksManager {
     protected final URI serverURI;
     private final ChannelsManager channels;
     private final Map<UUID, Task> tasks = new ConcurrentHashMap<>();
-    private final ServantsAllocator servantsAllocator;
 
     private final Map<String, List<Task>> userTasks = new ConcurrentHashMap<>();
     private final Map<Task, Task> parents = new ConcurrentHashMap<>();
@@ -42,10 +40,9 @@ public class InMemTasksManager implements TasksManager {
 
     private final Map<String, Map<Slot, ChannelSpec>> userSlots = new ConcurrentHashMap<>();
 
-    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels, ServantsAllocator servantsAllocator) {
+    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels) {
         this.serverURI = URI.create(serverConfig.getServerUri());
         this.channels = channels;
-        this.servantsAllocator = servantsAllocator;
     }
 
     @Override
