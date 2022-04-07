@@ -337,7 +337,8 @@ public class LzyServant extends LzyAgent {
                 ),
                 UserEvent.UserEventType.TaskStop
             ));
-            System.exit(0);
+            lzyFS.umount();
+            agentServer.shutdown();
         }
     }
 }
