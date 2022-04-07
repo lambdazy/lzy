@@ -31,7 +31,7 @@ public class SimpleInMemAuthenticator implements Authenticator {
     @Override
     public boolean checkTask(String tid, String servantId, String servantToken) {
         return servantToken.equals(servantTokens.get(servantId))
-            && (tid == null || servantId.equals(task2servants.get(tid)));
+            && (tid == null || tid.isEmpty() || servantId.equals(task2servants.get(tid)));
     }
 
     @Override
