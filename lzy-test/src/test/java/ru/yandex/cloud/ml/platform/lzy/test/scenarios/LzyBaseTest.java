@@ -10,11 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyKharonProcessesContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerProcessesContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotProcessesContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalDockerContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.*;
 
 public class LzyBaseTest {
     protected static final int DEFAULT_TIMEOUT_SEC = 30;
@@ -33,13 +29,13 @@ public class LzyBaseTest {
     public void setUp() {
         createResourcesFolder();
         createServantLzyFolder();
-        serverContext = new LzyServerProcessesContext();
+        serverContext = new LzyServerThreadContext();
         serverContext.init();
         whiteboardContext = new LzySnapshotProcessesContext(serverContext.address(false));
         whiteboardContext.init();
         kharonContext = new LzyKharonProcessesContext(serverContext.address(false), whiteboardContext.address(false));
         kharonContext.init();
-        terminalContext = new LzyTerminalDockerContext();
+        terminalContext = new TerminalThreadContext();
         pyTerminalContext = new LzyPythonTerminalDockerContext();
         api = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
         api.start();
