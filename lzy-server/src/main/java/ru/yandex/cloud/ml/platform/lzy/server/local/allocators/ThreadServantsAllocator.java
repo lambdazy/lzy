@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 
 @Singleton
-@Requires(property = "server.allocator.thread.enabled", value = "true")
+@Requires(property = "server.threadAllocator.enabled", value = "true")
 public class ThreadServantsAllocator extends ServantsAllocatorBase {
     private final Method servantMain;
     private final AtomicInteger servantCounter = new AtomicInteger(0);
@@ -29,7 +29,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
         super(authenticator, 10);
         this.serverConfig = serverConfig;
         try {
-            final File servantJar = new File(serverConfig.getThreadAllocator().getJarPath());
+            final File servantJar = new File(serverConfig.getThreadAllocator().getFilePath());
             final URLClassLoader classLoader = new URLClassLoader(new URL[]{servantJar.toURI().toURL()},
                     ClassLoader.getSystemClassLoader());
             final Class<?> servantClass = Class.forName(serverConfig.getThreadAllocator().getServantClassName(),
@@ -45,13 +45,13 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     protected void requestAllocation(String servantId, String servantToken,
                                      Operations.Provisioning provisioning, Operations.EnvSpec env, String bucket) {
         ForkJoinTask<?> task = ForkJoinPool.commonPool().submit(() -> servantMain.invoke(null, (Object) new String[]{
-                "start",
                 "--lzy-address", serverConfig.getServerUri(),
                 "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
                 "--lzy-mount", "/tmp/lzy" + servantCounter.incrementAndGet(),
                 "--host", URI.create(serverConfig.getServerUri()).getHost(),
                 "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
                 "--port", String.valueOf(10000 + servantCounter.get()),
+                "start",
                 "--bucket", bucket,
                 "--sid", servantId,
                 "--token", servantToken,

@@ -21,6 +21,7 @@ public interface LzyCommand {
         snapshot(new Snapshot()),
         cat(new Cat()),
         sessions(new Sessions()),
+        start(new Start()),
         cache(new Cache());
 
         private final LzyCommand command;
