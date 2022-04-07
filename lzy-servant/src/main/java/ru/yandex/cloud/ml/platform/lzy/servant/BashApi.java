@@ -1,12 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.servant;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
@@ -34,7 +28,7 @@ public class BashApi {
             "Path to private key for user auth"));
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         final CommandLineParser cliParser = new DefaultParser();
         final HelpFormatter cliHelp = new HelpFormatter();
         String commandStr = "lzy";
@@ -52,8 +46,7 @@ public class BashApi {
             cliHelp.printHelp(commandStr, options);
             System.exit(-1);
         } catch (Exception e) {
-            LOG.error(e);
-            throw e;
+            LOG.error("Error while executing: " + String.join(" ", args), e);
         }
     }
 }
