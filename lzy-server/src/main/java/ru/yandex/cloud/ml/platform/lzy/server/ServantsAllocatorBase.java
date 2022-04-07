@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
@@ -24,10 +25,14 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     public static final int GRACEFUL_SHUTDOWN_PERIOD_SEC = 10;
     @SuppressWarnings("FieldCanBeLocal")
     private final Timer ttl;
-    private final Map<String, List<ServantConnection>> sessionServants = Collections.synchronizedMap(new HashMap<>());
-    private final Map<String, CompletableFuture<ServantConnection>> requests = new HashMap<>();
+    private final Map<UUID, CompletableFuture<ServantConnection>> requests = new HashMap<>();
     private final Map<ServantConnection, Instant> spareServants = new HashMap<>();
     private final Map<ServantConnection, Instant> shuttingDown = new HashMap<>();
+
+    private final Map<String, Set<SessionImpl>> userToSessions = new ConcurrentHashMap<>();
+    private final Map<UUID, SessionImpl> servant2sessions = new ConcurrentHashMap<>();
+    private final Map<UUID, SessionImpl> sessionsById = new ConcurrentHashMap<>();
+
 
     private final Authenticator auth;
     private final int waitBeforeShutdown;
@@ -39,7 +44,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         ttl.scheduleAtFixedRate(this, PERIOD, PERIOD);
     }
 
-    protected abstract void requestAllocation(String servantId, String servantToken,
+    protected abstract void requestAllocation(UUID servantId, String servantToken,
                                               Provisioning provisioning, Env env,
                                               String bucket);
     @SuppressWarnings("unused")
@@ -50,17 +55,16 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     protected abstract void cleanup(ServantConnection s);
     protected abstract void terminate(ServantConnection connection);
 
+
     @Override
     public synchronized CompletableFuture<ServantConnection> allocate(
-        String sessionId,
-        Provisioning provisioning,
-        Env env,
-        String bucket
+        UUID sessionId, Provisioning provisioning, Env env
     ) {
+        final SessionImpl session = sessionsById.get(sessionId);
+        if (session == null)
+            throw new IllegalArgumentException("Session " + sessionId + " not found");
         final CompletableFuture<ServantConnection> requestResult = new CompletableFuture<>();
-        final List<ServantConnection> servants = sessionServants
-            .computeIfAbsent(sessionId, s -> new ArrayList<>());
-        final ServantConnection spareConnection = servants.stream()
+        final ServantConnection spareConnection = session.servants.stream()
             .filter(spareServants::containsKey)
             .filter(connection -> mutate(connection, provisioning, env))
             .findFirst().orElse(null);
@@ -68,12 +72,13 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             spareServants.remove(spareConnection);
             requestResult.complete(spareConnection);
         } else {
-            final String servantId = UUID.randomUUID().toString();
+            final UUID servantId = UUID.randomUUID();
+            servant2sessions.put(servantId, session);
             requests.put(servantId, requestResult);
             ForkJoinPool.commonPool().execute(() -> {
                 final String servantToken = auth.registerServant(servantId);
                 try {
-                    requestAllocation(servantId, servantToken, provisioning, env, bucket);
+                    requestAllocation(servantId, servantToken, provisioning, env, session.bucket());
                 } catch (Exception e) {
                     requestResult.completeExceptionally(e);
                 }
@@ -83,7 +88,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public synchronized void register(String servantId, URI servantUri) {
+    public synchronized void register(UUID servantId, URI servantUri) {
         final ManagedChannel channel = ChannelBuilder.forAddress(servantUri.getHost(), servantUri.getPort())
             .usePlaintext()
             .enableRetry(LzyServantGrpc.SERVICE_NAME)
@@ -100,6 +105,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
         final CompletableFuture<ServantConnection> request = requests.remove(servantId);
         final ServantConnectionImpl connection = new ServantConnectionImpl(servantId, servantUri, blockingStub);
+        servant2sessions.get(servantId).servants.add(connection);
+
         request.complete(connection);
         progressIterator.forEachRemaining(progress -> {
             if (progress.hasExit()) { // graceful shutdown
@@ -113,8 +120,35 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public synchronized void shutdownSession(String sessionId) {
-        sessionServants.getOrDefault(sessionId, List.of()).forEach(c -> spareServants.put(c, Instant.now()));
+    public synchronized void deleteSession(UUID sessionId) {
+        final SessionImpl session = sessionsById.remove(sessionId);
+        if (session != null) {
+            userToSessions.getOrDefault(session.owner(), Set.of()).remove(session);
+            session.servants.forEach(c -> spareServants.put(c, Instant.now()));
+        }
+    }
+
+
+    @Override
+    public void registerSession(String userId, UUID sessionId, String bucket) {
+        final SessionImpl session = new SessionImpl(sessionId, userId, bucket);
+        userToSessions.computeIfAbsent(userId, u -> new HashSet<>()).add(session);
+        sessionsById.put(sessionId, session);
+    }
+
+    @Override
+    public Session get(UUID sessionId) {
+        return sessionsById.get(sessionId);
+    }
+
+    @Override
+    public Stream<Session> sessions(String userId) {
+        return userToSessions.get(userId).stream().map(s -> s);
+    }
+
+    @Override
+    public Session byServant(String servantId) {
+        return servant2sessions.get(servantId);
     }
 
     private final Executor executor = new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
@@ -130,6 +164,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             .collect(Collectors.toList());
         executor.execute(() -> {
             tasksToShutdown.forEach(s -> {
+                final SessionImpl session = servant2sessions.remove(s.id());
+                session.servants.remove(s);
                 shuttingDown.put(s, Instant.now().plus(GRACEFUL_SHUTDOWN_PERIOD_SEC, ChronoUnit.SECONDS));
                 try {
                     //noinspection ResultOfMethodCallIgnored
@@ -144,12 +180,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     private static class ServantConnectionImpl implements ServantConnection {
-        private final String servantId;
+        private final UUID servantId;
         private final URI servantUri;
         private final LzyServantGrpc.LzyServantBlockingStub control;
         private final List<Predicate<Servant.ServantProgress>> trackers;
 
-        protected ServantConnectionImpl(String servantId, URI servantUri, LzyServantGrpc.LzyServantBlockingStub c) {
+        protected ServantConnectionImpl(UUID servantId, URI servantUri, LzyServantGrpc.LzyServantBlockingStub c) {
             this.servantId = servantId;
             this.servantUri = servantUri;
             this.control = c;
@@ -166,7 +202,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
 
         @Override
-        public String id() {
+        public UUID id() {
             return servantId;
         }
 
@@ -191,6 +227,52 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         @Override
         public final int hashCode() {
             return Objects.hash(servantUri);
+        }
+    }
+
+    private static class SessionImpl implements SessionManager.Session {
+        private final UUID id;
+        private final String user;
+        private final List<ServantConnection> servants = new ArrayList<>();
+        private final String bucket;
+
+        private SessionImpl(UUID id, String user, String bucket) {
+            this.id = id;
+            this.user = user;
+            this.bucket = bucket;
+        }
+
+        @Override
+        public UUID id() {
+            return id;
+        }
+
+        @Override
+        public String owner() {
+            return user;
+        }
+
+        @Override
+        public UUID[] servants() {
+            return servants.stream().map(ServantConnection::id).toArray(UUID[]::new);
+        }
+
+        @Override
+        public String bucket() {
+            return bucket;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            SessionImpl session = (SessionImpl) o;
+            return id.equals(session.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id);
         }
     }
 }
