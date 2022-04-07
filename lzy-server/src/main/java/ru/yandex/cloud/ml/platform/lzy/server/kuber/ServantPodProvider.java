@@ -7,6 +7,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 
 public interface ServantPodProvider {
-    V1Pod createServantPod(Provisioning provisioning, String token, String servantId, String bucket)
+    V1Pod createServantPod(Provisioning provisioning, String token, UUID servantId, String bucket)
         throws PodProviderException;
 }
