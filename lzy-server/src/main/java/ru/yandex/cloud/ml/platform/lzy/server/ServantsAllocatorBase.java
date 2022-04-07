@@ -23,6 +23,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     private static final Logger LOG = LogManager.getLogger(ServantsAllocatorBase.class);
     public static final int PERIOD = 1000;
     public static final int GRACEFUL_SHUTDOWN_PERIOD_SEC = 10;
+    public static final ThreadGroup SERVANT_CONNECTIONS_TG = new ThreadGroup("Servant connections");
     @SuppressWarnings("FieldCanBeLocal")
     private final Timer ttl;
     private final Map<UUID, CompletableFuture<ServantConnection>> requests = new HashMap<>();
@@ -96,7 +97,6 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             .enableRetry(LzyServantGrpc.SERVICE_NAME)
             .build();
         final LzyServantGrpc.LzyServantBlockingStub blockingStub = LzyServantGrpc.newBlockingStub(channel);
-        final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(IAM.Empty.newBuilder().build());
 
         if (!requests.containsKey(servantId)) {
             LOG.error("Astray servant found: " + servantId);
@@ -107,18 +107,24 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
         final CompletableFuture<ServantConnection> request = requests.remove(servantId);
         final ServantConnectionImpl connection = new ServantConnectionImpl(servantId, servantUri, blockingStub);
+        final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
+            final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(IAM.Empty.newBuilder().build());
+            progressIterator.forEachRemaining(progress -> {
+                if (progress.hasExit()) { // graceful shutdown
+                    shuttingDown.remove(connection);
+                    cleanup(connection);
+                } else if (progress.hasExecuteStop()) {
+                    spareServants.put(connection, Instant.now().plus(waitBeforeShutdown, ChronoUnit.SECONDS));
+                }
+                connection.progress(progress);
+            });
+        }, "connection-to-" + servantId);
+        connection.connectionThread = connectionThread;
         servant2sessions.get(servantId).servants.add(connection);
-
         request.complete(connection);
-        progressIterator.forEachRemaining(progress -> {
-            if (progress.hasExit()) { // graceful shutdown
-                shuttingDown.remove(connection);
-                cleanup(connection);
-            } else if (progress.hasExecuteStop()) {
-                spareServants.put(connection, Instant.now().plus(waitBeforeShutdown, ChronoUnit.SECONDS));
-            }
-            connection.progress(progress);
-        });
+        connectionThread.start();
+        connectionThread.setDaemon(true);
+
     }
 
     @Override
@@ -191,6 +197,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     private static class ServantConnectionImpl implements ServantConnection {
         private final UUID servantId;
         private final URI servantUri;
+        private Thread connectionThread;
         private final LzyServantGrpc.LzyServantBlockingStub control;
         private final List<Predicate<Servant.ServantProgress>> trackers;
 

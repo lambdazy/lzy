@@ -47,8 +47,7 @@ public class SlotConnectionManager {
     private final Map<String, Transmitter> transmitters = new HashMap<>();
     private final Snapshooter snapshooter;
 
-    public SlotConnectionManager(LzyServerBlockingStub server, IAM.Auth auth, URI wb, String bucket, String sessionId)
-        throws URISyntaxException {
+    public SlotConnectionManager(LzyServerBlockingStub server, IAM.Auth auth, URI wb, String bucket, String sessionId) {
         final Lzy.GetS3CredentialsResponse credentials = server
             .getS3Credentials(
                 Lzy.GetS3CredentialsRequest.newBuilder()
@@ -74,7 +73,7 @@ public class SlotConnectionManager {
                 .withPathStyleAccessEnabled(true)
                 .build();
             transmitters.put(
-                new URI(endpoint).getHost(),
+                URI.create(endpoint).getHost(),
                 new AmazonTransmitterFactory(client)
                     .fixedPoolsTransmitter(
                         StorageClient.DEFAULT_TRANSMITTER_NAME,
@@ -90,7 +89,7 @@ public class SlotConnectionManager {
                 .connectionString(connectionString)
                 .buildClient();
             transmitters.put(
-                new URI(connectionString).getHost(),
+                URI.create(connectionString).getHost(),
                 new AzureTransmitterFactory(client)
                     .fixedPoolsTransmitter(
                         StorageClient.DEFAULT_TRANSMITTER_NAME,
@@ -107,7 +106,7 @@ public class SlotConnectionManager {
                 .sasToken(credentials.getAzureSas().getSignature())
                 .buildClient();
             transmitters.put(
-                new URI(endpoint).getHost(),
+                URI.create(endpoint).getHost(),
                 new AzureTransmitterFactory(client)
                     .fixedPoolsTransmitter(
                         StorageClient.DEFAULT_TRANSMITTER_NAME,

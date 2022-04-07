@@ -4,6 +4,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
@@ -53,16 +54,16 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
             public void run() {
                 try {
                     servantMain.invoke(null, (Object) new String[]{
-                            "--lzy-address", serverConfig.getServerUri(),
-                            "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
-                            "--lzy-mount", "/tmp/lzy" + servantCounter.incrementAndGet(),
-                            "--host", URI.create(serverConfig.getServerUri()).getHost(),
-                            "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
-                            "--port", String.valueOf(10000 + servantCounter.get()),
-                            "start",
-                            "--bucket", bucket,
-                            "--sid", servantId.toString(),
-                            "--token", servantToken,
+                        "--lzy-address", serverConfig.getServerUri(),
+                        "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
+                        "--lzy-mount", "/tmp/lzy" + servantCounter.incrementAndGet(),
+                        "--host", URI.create(serverConfig.getServerUri()).getHost(),
+                        "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
+                        "--port", Integer.toString(FreePortFinder.find(10000, 20000)),
+                        "start",
+                        "--bucket", bucket,
+                        "--sid", servantId.toString(),
+                        "--token", servantToken,
                     });
                 } catch (IllegalAccessException | InvocationTargetException e) {
                     throw new RuntimeException(e);

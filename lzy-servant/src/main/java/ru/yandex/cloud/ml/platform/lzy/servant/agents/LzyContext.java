@@ -2,7 +2,9 @@ package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.*;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
@@ -15,16 +17,11 @@ import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvironmentFactory;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.InFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.LineReaderSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.LocalOutFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.LzySlotBase;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.OutFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.WriterSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.*;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.Concluded;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.ServantProgress;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotAttach;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -33,6 +30,8 @@ import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -50,15 +49,15 @@ public class LzyContext implements AutoCloseable {
     private final URI servantUri;
     private final List<Consumer<ServantProgress>> listeners = new ArrayList<>();
     private final Map<String, Map<String, LzySlot>> namespaces = Collections.synchronizedMap(new HashMap<>());
+    private final CompletableFuture<Boolean> started = new CompletableFuture<>();
     private String arguments = "";
     private Environment env;
 
-    public LzyContext(String contextId, SlotConnectionManager snapshooter,
-                      URI servantUri, GetS3CredentialsResponse credentials) {
+    public LzyContext(String contextId, SlotConnectionManager snapshooter, URI servantUri) {
         this.contextId = contextId;
         this.slotsManager = snapshooter;
         this.servantUri = servantUri;
-        this.storage = StorageClient.create(credentials);
+        this.storage = snapshooter.snapshooter().storage();
     }
 
     public Stream<LzySlot> slots() {

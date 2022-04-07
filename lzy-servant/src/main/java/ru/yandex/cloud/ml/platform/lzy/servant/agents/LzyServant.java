@@ -6,14 +6,6 @@ import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
@@ -30,9 +22,19 @@ import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
@@ -40,14 +42,14 @@ public class LzyServant extends LzyAgent {
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final Server agentServer;
     private final String contextId;
-    private final SlotConnectionManager slotsManager;
-    private String bucket;
+    private final LzyAgentConfig config;
     private LzyContext context;
+    private CompletableFuture<Boolean> started = new CompletableFuture<>();
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
         final long start = System.currentTimeMillis();
-        contextId = config.getContext();
+        contextId = config.getServantId();
         final Impl impl = new Impl();
         final ManagedChannel channel = ChannelBuilder.forAddress(serverAddress.getHost(), serverAddress.getPort())
             .usePlaintext()
@@ -58,8 +60,7 @@ public class LzyServant extends LzyAgent {
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(impl).build();
-        bucket = config.getBucket();
-        slotsManager = new SlotConnectionManager(server, auth, config.getWhiteboardAddress(), bucket, contextId);
+        this.config = config;
 
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
@@ -84,6 +85,18 @@ public class LzyServant extends LzyAgent {
         return agentServer;
     }
 
+    protected void started() {
+        started.complete(true);
+    }
+
+    private void waitForStart() {
+        try {
+            started.get();
+        } catch (InterruptedException | ExecutionException e) {
+            LOG.error(e);
+        }
+    }
+
     @Override
     protected void onStartUp() {
         final long start = System.currentTimeMillis();
@@ -106,13 +119,9 @@ public class LzyServant extends LzyAgent {
 
         // [TODO] this trash must be removed somehow, the only usage of this field is to determine cloud
         // environment type, which is completely incorrect, since storage location could differ from the compute
-        GetS3CredentialsResponse credentials = server.getS3Credentials(
-                Lzy.GetS3CredentialsRequest.newBuilder()
-                        .setAuth(auth)
-                        .setBucket(bucket)
-                        .build()
-        );
-        context = new LzyContext(contextId, slotsManager, agentInternalAddress, credentials);
+        final SlotConnectionManager slotsManager = new SlotConnectionManager(server, auth, config.getWhiteboardAddress(), config.getBucket(), contextId);
+
+        context = new LzyContext(contextId, slotsManager, agentInternalAddress);
 
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
@@ -128,8 +137,8 @@ public class LzyServant extends LzyAgent {
     }
 
     @Override
-    protected LzyServerApi lzyServerApi() {
-        return server::zygotes;
+    protected LzyServerGrpc.LzyServerBlockingStub serverApi() {
+        return server;
     }
 
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
@@ -158,6 +167,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
+            waitForStart();
             LzyServant.this.context.onProgress(progress -> {
                 responseObserver.onNext(progress);
                 if (progress.getStatusCase() == Servant.ServantProgress.StatusCase.EXIT) {

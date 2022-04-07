@@ -491,7 +491,6 @@ public class LzyServer {
                 terminalThread.start();
                 Context.current().addListener(ctxt -> terminalThread.interrupt(), Runnable::run);
             }
-
         }
 
         @Override
@@ -670,7 +669,9 @@ public class LzyServer {
         }
 
         private String resolveUser(IAM.Auth auth) {
-            return auth.hasUser() ? auth.getUser().getUserId() : this.auth.userForTask(resolveTask(auth));
+            return auth.hasUser()
+                ? auth.getUser().getUserId()
+                : servantsAllocator.byServant(auth.getTask().getServantId()).owner();
         }
 
         private Task resolveTask(IAM.Auth auth) {
