@@ -1,4 +1,4 @@
-//package ru.yandex.cloud.ml.platform.lzy.server.kuber;
+package ru.yandex.cloud.ml.platform.lzy.server.kuber;
 //
 //import io.kubernetes.client.openapi.ApiException;
 //import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -106,3 +106,62 @@
 //        }
 //    }
 //}
+
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1Pod;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
+import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
+
+import java.util.Objects;
+
+public class KuberServantAllocator extends ServantsAllocatorBase {
+    private final ServantPodProvider provider;
+    private final static Logger LOG = LogManager.getLogger(KuberServantAllocator.class);
+
+    public KuberServantAllocator(Authenticator auth, ServantPodProvider provider) {
+        super(auth, 10);
+        this.provider = provider;
+    }
+
+    @Override
+    protected void requestAllocation(String servantId, String servantToken, Provisioning provisioning,
+                                     Env env, String bucket) {
+        final V1Pod servantPodSpec;
+        try {
+            servantPodSpec = provider.createServantPod(
+                provisioning, servantToken, servantId, bucket
+            );
+        } catch (PodProviderException e) {
+            throw new RuntimeException("Exception while creating servant pod spec", e);
+        }
+
+        final CoreV1Api api = new CoreV1Api();
+        final String namespace = "default";
+        final long sendTaskMillis = System.currentTimeMillis();
+        final V1Pod pod;
+        try {
+            pod = api.createNamespacedPod(namespace, servantPodSpec, null, null, null);
+        } catch (ApiException e) {
+            throw new RuntimeException("Exception while creating pod in kuber", e);
+        }
+        LOG.info("Created servant pod in Kuber: {}", pod);
+        Objects.requireNonNull(pod.getMetadata());
+
+
+    }
+
+    @Override
+    protected void cleanup(ServantConnection s) {
+
+    }
+
+    @Override
+    protected void terminate(ServantConnection connection) {
+
+    }
+}

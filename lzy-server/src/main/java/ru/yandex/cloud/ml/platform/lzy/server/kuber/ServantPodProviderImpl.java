@@ -22,11 +22,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 
+@Singleton
 public class ServantPodProviderImpl implements ServantPodProvider {
     private static final Logger LOG = LoggerFactory.getLogger(ServantPodProviderImpl.class);
     private static final String LZY_SERVANT_POD_TEMPLATE_FILE_PROPERTY = "lzy.servant.pod.template.file";
@@ -45,12 +51,15 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     private static final V1ResourceRequirements GPU_SERVANT_POD_RESOURCE =
         new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1")).build();
 
-    private static boolean isNeedGpu(Zygote workload) {
-        return ((AtomicZygote) workload).provisioning().tags().anyMatch(tag -> tag.tag().contains("GPU"));
+    @Inject
+    private ServerConfig serverConfig;
+
+    private static boolean isNeedGpu(Provisioning provisioning) {
+        return provisioning.tags().anyMatch(tag -> tag.tag().contains("GPU"));
     }
 
     @Override
-    public V1Pod createServantPod(Zygote workload, String token, UUID tid, URI serverURI, String uid, String bucket)
+    public V1Pod createServantPod(Provisioning provisioning, String token, String servantId, String bucket)
         throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
@@ -85,16 +94,16 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             throw new PodProviderException("cannot find " + LZY_SERVANT_CONTAINER_NAME + " container in pod spec");
         }
         final V1Container container = containerOptional.get();
-        addEnvVars(container, token, tid, serverURI, bucket);
+        addEnvVars(container, token, servantId, bucket);
 
-        final String podName = "lzy-servant-" + tid.toString().toLowerCase(Locale.ROOT);
+        final String podName = "lzy-servant-" + servantId.toLowerCase(Locale.ROOT);
         pod.getMetadata().setName(podName);
 
         final V1PodSpec podSpec = pod.getSpec();
         Objects.requireNonNull(podSpec);
         Objects.requireNonNull(pod.getMetadata());
         final String typeLabelValue;
-        if (isNeedGpu(workload)) {
+        if (isNeedGpu(provisioning)) {
             typeLabelValue = "gpu";
             podSpec.setTolerations(GPU_SERVANT_POD_TOLERATIONS);
             podSpec.getContainers().get(0).setResources(GPU_SERVANT_POD_RESOURCE);
@@ -107,19 +116,20 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         return pod;
     }
 
-    private void addEnvVars(V1Container container, String token, UUID tid, URI serverURI, String bucketName) {
+    private void addEnvVars(V1Container container, String token,
+                            String servantId, String bucketName) {
         container.addEnvItem(
-            new V1EnvVar().name("LZYTASK").value(tid.toString())
+            new V1EnvVar().name("SERVANT_ID").value(servantId)
         ).addEnvItem(
-            new V1EnvVar().name("LZYTOKEN").value(token)
+            new V1EnvVar().name("SERVANT_TOKEN").value(token)
         ).addEnvItem(
-            new V1EnvVar().name("LZY_SERVER_URI").value(serverURI.toString())
+            new V1EnvVar().name("LZY_SERVER_URI").value(serverConfig.getServerUri())
         ).addEnvItem(
-            new V1EnvVar().name("LZYWHITEBOARD").value(System.getenv("SERVER_WHITEBOARD_URL"))
+            new V1EnvVar().name("LZYWHITEBOARD").value(serverConfig.getWhiteboardUrl())
         ).addEnvItem(
             new V1EnvVar().name("BUCKET_NAME").value(bucketName)
         ).addEnvItem(
-            new V1EnvVar().name("BASE_ENV_DEFAULT_IMAGE").value(System.getenv("BASE_ENV_DEFAULT_IMAGE"))
+            new V1EnvVar().name("BASE_ENV_DEFAULT_IMAGE").value(serverConfig.getBaseEnvDefaultImage())
         );
     }
 }
