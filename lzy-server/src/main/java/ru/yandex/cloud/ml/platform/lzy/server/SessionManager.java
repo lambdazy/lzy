@@ -4,12 +4,15 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 public interface SessionManager {
-    void registerSession(String userId, UUID sessionId, String bucket);
+    Session registerSession(String userId, UUID sessionId, String bucket);
     void deleteSession(UUID sessionId);
 
     Session get(UUID sessionId);
     Stream<Session> sessions(String userId);
     Session byServant(String servantId);
+
+    /** [TODO] move this logic to kharon or even terminal */
+    Session userSession(String user);
 
     interface Session {
         UUID id();
