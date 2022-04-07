@@ -1,11 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
-import static yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.OperationStatus.Status.FAILED;
-import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.DESTROYED;
-
-import java.net.URI;
-import java.util.HashSet;
-import java.util.Set;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
@@ -13,11 +7,19 @@ import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
+import java.net.URI;
+import java.util.HashSet;
+import java.util.Set;
+
+import static yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.OperationStatus.Status.FAILED;
+import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.DESTROYED;
+
 public class SnapshooterImpl implements Snapshooter {
     private final SlotSnapshotProvider snapshotProvider;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
     private final IAM.Auth auth;
     private final Set<String> trackedSlots = new HashSet<>();
+    private final StorageClient storage;
     private boolean closed = false;
 
     public SnapshooterImpl(IAM.Auth auth, String bucket,
@@ -25,6 +27,7 @@ public class SnapshooterImpl implements Snapshooter {
                            StorageClient storage, String sessionId) {
         this.snapshotApi = snapshotApi;
         this.auth = auth;
+        this.storage = storage;
         snapshotProvider = new SlotSnapshotProvider.Cached(slot ->
             new S3SlotSnapshot(sessionId, bucket, slot, storage)
         );
@@ -85,5 +88,10 @@ public class SnapshooterImpl implements Snapshooter {
         while (!trackedSlots.isEmpty()) {
             this.wait();
         }
+    }
+
+    @Override
+    public StorageClient storage() {
+        return storage;
     }
 }
