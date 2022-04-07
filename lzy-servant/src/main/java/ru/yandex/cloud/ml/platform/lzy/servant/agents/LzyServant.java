@@ -41,8 +41,8 @@ public class LzyServant extends LzyAgent {
     private final Server agentServer;
     private final String contextId;
     private final SlotConnectionManager slotsManager;
-    private final GetS3CredentialsResponse credentials;
-    private final LzyContext context;
+    private String bucket;
+    private LzyContext context;
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
@@ -58,17 +58,8 @@ public class LzyServant extends LzyAgent {
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(impl).build();
-        String bucket = config.getBucket();
-        // [TODO] this trash must be removed somehow, the only usage of this field is to determine cloud
-        // environment type, which is completely incorrect, since storage location could differ from the compute
-        credentials = server.getS3Credentials(
-            Lzy.GetS3CredentialsRequest.newBuilder()
-                .setAuth(auth)
-                .setBucket(bucket)
-                .build()
-        );
+        bucket = config.getBucket();
         slotsManager = new SlotConnectionManager(server, auth, config.getWhiteboardAddress(), bucket, contextId);
-        context = new LzyContext(contextId, slotsManager, agentInternalAddress, credentials);
 
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
@@ -112,6 +103,17 @@ public class LzyServant extends LzyAgent {
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
+
+        // [TODO] this trash must be removed somehow, the only usage of this field is to determine cloud
+        // environment type, which is completely incorrect, since storage location could differ from the compute
+        GetS3CredentialsResponse credentials = server.getS3Credentials(
+                Lzy.GetS3CredentialsRequest.newBuilder()
+                        .setAuth(auth)
+                        .setBucket(bucket)
+                        .build()
+        );
+        context = new LzyContext(contextId, slotsManager, agentInternalAddress, credentials);
+
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(
