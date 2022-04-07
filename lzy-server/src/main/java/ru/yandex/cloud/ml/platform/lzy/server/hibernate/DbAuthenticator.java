@@ -43,6 +43,15 @@ public class DbAuthenticator implements Authenticator {
     public boolean checkTask(String tid, String servantId, String servantToken) {
         LOG.info("checkTask tid=" + tid);
         try (Session session = storage.getSessionFactory().openSession()) {
+
+            if (tid == null || tid.isEmpty()) {
+                ServantModel servant = session.find(ServantModel.class, servantId);
+                if (servant == null) {
+                    return false;
+                }
+                return servant.token().equals(servantToken);
+            }
+
             TaskModel taskModel = session.find(TaskModel.class, UUID.fromString(tid));
             if (taskModel == null) {
                 return false;

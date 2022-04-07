@@ -34,7 +34,17 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-      args: [ "--lzy-address", "$(LZY_SERVER_URI)", "--lzy-mount", "/tmp/lzy", "--host", "$(LZYHOST)", "--port", "9999" ]
+      args: [
+          "--lzy-address", "$(LZY_SERVER_URI)",
+          "--lzy-whiteboard", "$(LZYWHITEBOARD)",
+          "--lzy-mount", "/tmp/lzy",
+          "--host", "$(LZYHOST)",
+          "--port", "9999",
+          "start",
+          "--sid", "$(SERVANT_ID)",
+          "--token", "$(SERVANT_TOKEN)",
+          "--bucket", "$(BUCKET_NAME)"
+      ]
       ports:
         - containerPort: 9999
       securityContext:

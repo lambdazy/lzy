@@ -11,11 +11,11 @@ import java.util.stream.Collectors;
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations.EnvSpec;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations.Provisioning;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 public abstract class ServantsAllocatorBase extends TimerTask implements ServantsAllocator.Ex {
@@ -40,10 +40,10 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     protected abstract void requestAllocation(String servantId, String servantToken,
-                                              Provisioning provisioning, EnvSpec env,
+                                              Provisioning provisioning, Env env,
                                               String bucket);
     @SuppressWarnings("unused")
-    protected boolean mutate(ServantConnection connection, Provisioning provisioning, EnvSpec env) {
+    protected boolean mutate(ServantConnection connection, Provisioning provisioning, Env env) {
         return false;
     }
 
@@ -54,7 +54,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     public synchronized CompletableFuture<ServantConnection> allocate(
         String sessionId,
         Provisioning provisioning,
-        EnvSpec env,
+        Env env,
         String bucket
     ) {
         final CompletableFuture<ServantConnection> requestResult = new CompletableFuture<>();
@@ -72,7 +72,11 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             requests.put(servantId, requestResult);
             ForkJoinPool.commonPool().execute(() -> {
                 final String servantToken = auth.registerServant(servantId);
-                requestAllocation(servantId, servantToken, provisioning, env, bucket);
+                try {
+                    requestAllocation(servantId, servantToken, provisioning, env, bucket);
+                } catch (Exception e) {
+                    requestResult.completeExceptionally(e);
+                }
             });
         }
         return requestResult;

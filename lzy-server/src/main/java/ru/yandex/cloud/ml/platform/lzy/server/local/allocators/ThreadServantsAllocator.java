@@ -2,10 +2,11 @@ package ru.yandex.cloud.ml.platform.lzy.server.local.allocators;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.File;
 import java.lang.reflect.Method;
@@ -43,7 +44,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     protected void requestAllocation(String servantId, String servantToken,
-                                     Operations.Provisioning provisioning, Operations.EnvSpec env, String bucket) {
+                                     Provisioning provisioning, Env env, String bucket) {
         ForkJoinTask<?> task = ForkJoinPool.commonPool().submit(() -> servantMain.invoke(null, (Object) new String[]{
                 "--lzy-address", serverConfig.getServerUri(),
                 "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),

@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import org.apache.commons.io.IOUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
