@@ -49,7 +49,6 @@ public class LzyContext implements AutoCloseable {
     private final URI servantUri;
     private final List<Consumer<ServantProgress>> listeners = new ArrayList<>();
     private final Map<String, Map<String, LzySlot>> namespaces = Collections.synchronizedMap(new HashMap<>());
-    private final CompletableFuture<Boolean> started = new CompletableFuture<>();
     private String arguments = "";
     private Environment env;
 
@@ -58,6 +57,10 @@ public class LzyContext implements AutoCloseable {
         this.slotsManager = snapshooter;
         this.servantUri = servantUri;
         this.storage = snapshooter.snapshooter().storage();
+    }
+
+    public void start() {
+        progress(ServantProgress.newBuilder().setStart(Servant.Started.newBuilder().build()).build());
     }
 
     public Stream<LzySlot> slots() {
