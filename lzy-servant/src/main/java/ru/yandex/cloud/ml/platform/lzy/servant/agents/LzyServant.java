@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
@@ -43,8 +42,8 @@ public class LzyServant extends LzyAgent {
     private final Server agentServer;
     private final String contextId;
     private final LzyAgentConfig config;
+    private final CompletableFuture<Boolean> started = new CompletableFuture<>();
     private LzyContext context;
-    private CompletableFuture<Boolean> started = new CompletableFuture<>();
 
     public LzyServant(LzyAgentConfig config) throws URISyntaxException {
         super(config);
@@ -119,7 +118,8 @@ public class LzyServant extends LzyAgent {
 
         // [TODO] this trash must be removed somehow, the only usage of this field is to determine cloud
         // environment type, which is completely incorrect, since storage location could differ from the compute
-        final SlotConnectionManager slotsManager = new SlotConnectionManager(server, auth, config.getWhiteboardAddress(), config.getBucket(), contextId);
+        final SlotConnectionManager slotsManager =
+            new SlotConnectionManager(server, auth, config.getWhiteboardAddress(), config.getBucket(), contextId);
 
         context = new LzyContext(contextId, slotsManager, agentInternalAddress);
 
@@ -143,7 +143,6 @@ public class LzyServant extends LzyAgent {
 
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
         private LzyExecution currentExecution;
-        private final AtomicBoolean executing = new AtomicBoolean(false);
 
         @Override
         public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
@@ -180,7 +179,7 @@ public class LzyServant extends LzyAgent {
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             status.set(AgentStatus.PREPARING_EXECUTION);
             LOG.info("LzyServant::execute " + JsonUtils.printRequest(request));
-            if (executing.get()) {
+            if (status.get() == AgentStatus.EXECUTING) {
                 responseObserver.onError(Status.RESOURCE_EXHAUSTED.withDescription("Already executing").asException());
                 return;
             }
@@ -198,7 +197,6 @@ public class LzyServant extends LzyAgent {
             ));
 
             try {
-                executing.set(true);
                 currentExecution = context.execute(tid, zygote, progress -> {
                     LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
@@ -221,7 +219,7 @@ public class LzyServant extends LzyAgent {
                             UserEvent.UserEventType.ExecutionComplete
                         ));
                         LOG.info("LzyServant::exit {}", agentAddress);
-                        executing.set(false);
+                        status.set(AgentStatus.REGISTERED);
                         responseObserver.onCompleted();
                     }
                 });
@@ -234,7 +232,7 @@ public class LzyServant extends LzyAgent {
                 return;
             }
             Context.current().addListener(context -> {
-                if (executing.get()) {
+                if (status.get() == AgentStatus.EXECUTING) {
                     LOG.info("Execution terminated from server ");
                     UserEventLogger.log(new UserEvent(
                         "Servant task exit",
@@ -250,15 +248,30 @@ public class LzyServant extends LzyAgent {
             }, Runnable::run);
 
             status.set(AgentStatus.EXECUTING);
-            responseObserver.onNext(Servant.ExecutionStarted.newBuilder()
-                .build()
-            );
+            responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
             responseObserver.onCompleted();
         }
 
         private void stop() {
             lzyFS.umount();
             agentServer.shutdown();
+        }
+
+        @Override
+        public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
+            LOG.info("Servant::stop {}", agentAddress);
+            responseObserver.onNext(IAM.Empty.newBuilder().build());
+            responseObserver.onCompleted();
+            UserEventLogger.log(new UserEvent(
+                "Servant task exit",
+                Map.of(
+                    "task_id", contextId,
+                    "address", agentAddress.toString(),
+                    "exit_code", String.valueOf(0)
+                ),
+                UserEvent.UserEventType.TaskStop
+            ));
+            stop();
         }
 
         @Override
@@ -319,7 +332,7 @@ public class LzyServant extends LzyAgent {
                 responseObserver.onError(Status.ABORTED.asException());
                 return;
             }
-            if (!executing.get()) {
+            if (status.get() != AgentStatus.EXECUTING) {
                 responseObserver.onError(Status.NOT_FOUND
                     .withDescription("Cannot send signal when servant not executing").asException());
                 return;
@@ -330,32 +343,13 @@ public class LzyServant extends LzyAgent {
         }
 
         @Override
-        public void update(IAM.Auth request,
-                           StreamObserver<Servant.ExecutionStarted> responseObserver) {
+        public void update(IAM.Auth request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             LzyServant.this.update(request, responseObserver);
         }
 
         @Override
-        public void status(IAM.Empty request,
-                           StreamObserver<Servant.ServantStatus> responseObserver) {
+        public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             LzyServant.this.status(request, responseObserver);
-        }
-
-        @Override
-        public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
-            LOG.info("Servant::stop {}", agentAddress);
-            responseObserver.onNext(IAM.Empty.newBuilder().build());
-            responseObserver.onCompleted();
-            UserEventLogger.log(new UserEvent(
-                "Servant task exit",
-                Map.of(
-                    "task_id", contextId,
-                    "address", agentAddress.toString(),
-                    "exit_code", String.valueOf(0)
-                ),
-                UserEvent.UserEventType.TaskStop
-            ));
-            stop();
         }
     }
 }
