@@ -208,7 +208,7 @@ public class LzyServant extends LzyAgent {
                         ),
                         UserEvent.UserEventType.ExecutionProgress
                     ));
-                    if (progress.hasExit()) {
+                    if (progress.hasExecuteStop()) {
                         UserEventLogger.log(new UserEvent(
                             "Servant execution exit",
                             Map.of(
@@ -220,7 +220,6 @@ public class LzyServant extends LzyAgent {
                         ));
                         LOG.info("LzyServant::exit {}", agentAddress);
                         status.set(AgentStatus.REGISTERED);
-                        responseObserver.onCompleted();
                     }
                 });
 
