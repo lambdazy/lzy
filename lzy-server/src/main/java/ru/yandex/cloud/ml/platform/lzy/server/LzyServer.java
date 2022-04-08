@@ -323,7 +323,10 @@ public class LzyServer {
             );
             Context.current().addListener(ctxt -> {
                 concluded.set(true);
-                task.signal(TasksManager.Signal.HUB);
+                try {
+                    if (task.state().phase() < Task.State.SUCCESS.phase()) // task is not complete yet
+                        task.signal(TasksManager.Signal.HUB);
+                } catch (TaskException ignore) { }
             }, Runnable::run);
             task.state(Task.State.QUEUE);
         }
