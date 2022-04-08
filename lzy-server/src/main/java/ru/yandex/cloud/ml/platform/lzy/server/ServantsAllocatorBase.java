@@ -247,8 +247,15 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             completed.set(true);
         }
 
-        public void progress(Servant.ServantProgress progress) {
-            List.copyOf(trackers).stream().filter(t -> t.test(progress)).forEach(trackers::remove);
+        protected void progress(Servant.ServantProgress progress) {
+            List.copyOf(trackers).stream().filter(t -> {
+                try {
+                    return !t.test(progress);
+                } catch (RuntimeException e) {
+                    LOG.error(e);
+                    return false; // this could cause memory leak
+                }
+            }).forEach(trackers::remove);
         }
 
         @Override

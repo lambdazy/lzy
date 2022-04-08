@@ -231,22 +231,6 @@ public class LzyServant extends LzyAgent {
                 );
                 return;
             }
-            Context.current().addListener(context -> {
-                if (status.get() == AgentStatus.EXECUTING) {
-                    LOG.info("Execution terminated from server ");
-                    UserEventLogger.log(new UserEvent(
-                        "Servant task exit",
-                        Map.of(
-                            "task_id", contextId,
-                            "address", agentAddress.toString(),
-                            "exit_code", String.valueOf(1)
-                        ),
-                        UserEvent.UserEventType.TaskStop
-                    ));
-                    stop();
-                }
-            }, Runnable::run);
-
             status.set(AgentStatus.EXECUTING);
             responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
             responseObserver.onCompleted();
