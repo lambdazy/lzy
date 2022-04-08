@@ -31,7 +31,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     private final ConcurrentHashMap<UUID, ServantDescription> servantThreads = new ConcurrentHashMap<>();
 
     public ThreadServantsAllocator(ServerConfig serverConfig, Authenticator authenticator) {
-        super(authenticator, 10);
+        super(authenticator, 1);
         this.serverConfig = serverConfig;
         try {
             final File servantJar = new File(serverConfig.getThreadAllocator().getFilePath());

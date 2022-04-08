@@ -147,7 +147,10 @@ public class LzyContext implements AutoCloseable {
         final WriterSlot stdinSlot = (WriterSlot) configureSlot(taskId, Slot.STDIN, null);
         final LineReaderSlot stdoutSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, null);
         final LineReaderSlot stderrSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, null);
-        execution.onProgress(onProgress);
+        execution.onProgress((progress) -> {
+            progress(progress);
+            onProgress.accept(progress);
+        });
         execution.start(env);
         stdinSlot.setStream(new OutputStreamWriter(execution.process().in(), StandardCharsets.UTF_8));
         stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
