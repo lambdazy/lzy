@@ -4,6 +4,7 @@ resource "kubernetes_deployment" "server" {
     labels = {
       app = "lzy-server"
     }
+    namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
   spec {
     strategy {
@@ -20,6 +21,7 @@ resource "kubernetes_deployment" "server" {
         labels = {
           app = "lzy-server"
         }
+        namespace = kubernetes_namespace.server_namespace.metadata[0].name
       }
       spec {
         container {
