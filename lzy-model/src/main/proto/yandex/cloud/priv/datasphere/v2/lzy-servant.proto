@@ -106,7 +106,8 @@ message ServantProgress {
     SlotDetach detach = 4;
     ExecutionStarted executeStart = 5;
     ExecutionConcluded executeStop = 6;
-    Concluded exit = 7;
+    CommunicationCompleted communicationCompleted = 7;
+    Concluded exit = 8;
   }
 }
 
@@ -118,6 +119,8 @@ message Started {
 
 message Concluded {
 }
+
+message CommunicationCompleted {}
 
 message EnvResult {
   string description = 1;
