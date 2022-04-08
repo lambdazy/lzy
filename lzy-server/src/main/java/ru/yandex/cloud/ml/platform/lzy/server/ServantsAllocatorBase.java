@@ -198,7 +198,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             .filter(s -> spareServants.get(s).isBefore(now))
             .peek(spareServants::remove).collect(Collectors.toList());
         final List<ServantConnection> tasksToForceStop = Set.copyOf(shuttingDown.keySet()).stream()
-            .filter(s -> spareServants.get(s).isBefore(now))
+            .filter(s -> shuttingDown.get(s).isBefore(now))
             .peek(shuttingDown::remove)
             .collect(Collectors.toList());
         executor.execute(() -> {
