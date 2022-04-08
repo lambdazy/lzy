@@ -48,6 +48,7 @@ public class LzySlotBase implements LzySlot {
         if (state == newState) {
             return;
         }
+        LOG.info("Slot " + name() + " changed state " + this.state + " -> " + newState);
         state = newState;
         notifyAll();
         ForkJoinPool.commonPool().execute(() -> actions.getOrDefault(newState, List.of()).forEach(Runnable::run));
