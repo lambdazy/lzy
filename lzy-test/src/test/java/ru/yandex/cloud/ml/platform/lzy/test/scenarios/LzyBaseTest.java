@@ -33,7 +33,7 @@ public class LzyBaseTest {
         serverContext.init();
         whiteboardContext = new LzySnapshotProcessesContext(serverContext.address(false));
         whiteboardContext.init();
-        kharonContext = new LzyKharonProcessesContext(serverContext.address(false), whiteboardContext.address(false));
+        kharonContext = new LzyKharonThreadContext(serverContext.address(false), whiteboardContext.address(false));
         kharonContext.init();
         terminalContext = new TerminalThreadContext();
         pyTerminalContext = new LzyPythonTerminalDockerContext();
