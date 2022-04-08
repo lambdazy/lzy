@@ -310,7 +310,7 @@ public class LzyServant extends LzyAgent {
         }
 
         @Override
-        public void signal(Tasks.TaskSignal request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
+        public void signal(Tasks.TaskSignal request, StreamObserver<IAM.Empty> responseObserver) {
             if (status.get().getValue() < AgentStatus.EXECUTING.getValue()) {
                 responseObserver.onError(Status.ABORTED.asException());
                 return;
@@ -321,12 +321,12 @@ public class LzyServant extends LzyAgent {
                 return;
             }
             currentExecution.signal(request.getSigValue());
-            responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
+            responseObserver.onNext(IAM.Empty.newBuilder().build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void update(IAM.Auth request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
+        public void update(IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
             LzyServant.this.update(request, responseObserver);
         }
 

@@ -156,7 +156,8 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public void publishTool(Operations.Zygote z, Path to, String... servantArgs) {
-        LOG.info("publish tool " + z + " to " + to);
+        if (z != null)
+            LOG.info("published zygote " + to);
         try {
             final String zygoteJson = z != null ? JsonFormat.printer().print(z) : null;
             final String logConfFile = System.getProperty("log4j.configurationFile");
@@ -307,12 +308,12 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public void update(@SuppressWarnings("unused") IAM.Auth request,
-                       StreamObserver<Servant.ExecutionStarted> responseObserver) {
+                       StreamObserver<IAM.Empty> responseObserver) {
         final Operations.ZygoteList zygotes = serverApi().zygotes(auth);
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
             publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());
         }
-        responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
+        responseObserver.onNext(IAM.Empty.newBuilder().build());
         responseObserver.onCompleted();
     }
 

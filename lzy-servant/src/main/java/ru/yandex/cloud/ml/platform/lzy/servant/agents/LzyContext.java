@@ -77,8 +77,7 @@ public class LzyContext implements AutoCloseable {
             + (spec.name().startsWith("/") ? spec.name() : "/" + spec.name())
         );
 
-        LOG.info("LzyExecution::configureSlot servant: " + servantUri + " task: " + task + "" + spec.name()
-            + " binding: " + binding + " uri: " + slotUri);
+        LOG.info("configure slot: " + spec.name() + " binding: ");
 
         final Map<String, LzySlot> slots = namespaces.computeIfAbsent(task, t -> new HashMap<>());
         if (slots.containsKey(spec.name())) {
@@ -143,11 +142,11 @@ public class LzyContext implements AutoCloseable {
             throw new LzyExecutionException(new RuntimeException("Cannot execute before prepare"));
         }
 
-        LzyExecution execution = new LzyExecution(contextId, zygote, arguments);
+        final LzyExecution execution = new LzyExecution(contextId, zygote, arguments);
         final WriterSlot stdinSlot = (WriterSlot) configureSlot(taskId, Slot.STDIN, null);
         final LineReaderSlot stdoutSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, null);
-        final LineReaderSlot stderrSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, null);
-        execution.onProgress((progress) -> {
+        final LineReaderSlot stderrSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDERR, null);
+        execution.onProgress(progress -> {
             progress(progress);
             onProgress.accept(progress);
         });
@@ -213,7 +212,7 @@ public class LzyContext implements AutoCloseable {
     }
 
     private void progress(ServantProgress progress) {
-        LOG.info("LzyContext::progress " + JsonUtils.printRequest(progress));
+        LOG.info("Progress " + JsonUtils.printRequest(progress));
         listeners.forEach(l -> l.accept(progress));
     }
 
