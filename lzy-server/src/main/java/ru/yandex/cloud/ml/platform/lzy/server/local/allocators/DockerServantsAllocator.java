@@ -21,7 +21,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(UUID servantId, String servantToken, Provisioning provisioning, Env env, String bucket) {
+    protected void requestAllocation(UUID servantId, String servantToken, Provisioning provisioning, String bucket) {
 
     }
 
