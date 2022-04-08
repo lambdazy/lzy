@@ -6,7 +6,7 @@ from unittest import TestCase
 # noinspection PyProtectedMember
 from lzy.api._proxy import proxy
 from lzy.api.lazy_op import LzyOp
-from lzy.api.utils import lazy_proxy, is_lazy_proxy
+from lzy.api.utils import lazy_proxy, is_lazy_proxy, infer_real_type
 from lzy.model.signatures import CallSignature, FuncSignature
 
 
@@ -209,7 +209,7 @@ class ProxyTests(TestCase):
             val: int
 
         a = [A(0), A(1), A(2)]
-        prxy_a = proxy(lambda: a, List[A])
+        prxy_a = proxy(lambda: a, infer_real_type(List[A]))
         self.assertEqual(prxy_a[0].val, 0)
         self.assertEqual(prxy_a[1].val, 1)
         self.assertEqual(prxy_a[2].val, 2)
