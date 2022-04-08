@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -13,6 +14,8 @@ import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
@@ -21,8 +24,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.task.TaskImpl;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-
-import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.ERROR;
 
 public abstract class ServantsAllocatorBase extends TimerTask implements ServantsAllocator.Ex {
     private static final Logger LOG = LogManager.getLogger(ServantsAllocatorBase.class);
@@ -40,7 +41,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     private final Map<UUID, SessionImpl> sessionsById = new ConcurrentHashMap<>();
 
     private final Map<String, Session> userSessions = new ConcurrentHashMap<>();
-
+    private final Map<UUID, ServantConnectionImpl> uncompletedConnections = new ConcurrentHashMap<>();
 
     private final Authenticator auth;
     private final int waitBeforeShutdown;
@@ -53,7 +54,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     protected abstract void requestAllocation(UUID servantId, String servantToken,
-                                              Provisioning provisioning, Env env,
+                                              Provisioning provisioning,
                                               String bucket);
     @SuppressWarnings("unused")
     protected boolean mutate(ServantConnection connection, Provisioning provisioning, Env env) {
@@ -83,10 +84,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             final UUID servantId = UUID.randomUUID();
             servant2sessions.put(servantId, session);
             requests.put(servantId, requestResult);
+            ServantConnectionImpl connection = new ServantConnectionImpl(servantId, env, provisioning);
+            uncompletedConnections.put(servantId, connection);
             ForkJoinPool.commonPool().execute(() -> {
                 final String servantToken = auth.registerServant(servantId);
                 try {
-                    requestAllocation(servantId, servantToken, provisioning, env, session.bucket());
+                    requestAllocation(servantId, servantToken, provisioning, session.bucket());
                 } catch (Exception e) {
                     requestResult.completeExceptionally(e);
                 }
@@ -112,11 +115,19 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             return;
         }
         final CompletableFuture<ServantConnection> request = requests.remove(servantId);
-        final ServantConnectionImpl connection = new ServantConnectionImpl(servantId, servantUri, blockingStub);
+        ServantConnectionImpl connection = uncompletedConnections.get(servantId);
+        if (connection == null) {
+            throw new RuntimeException("Trying to register already connected servant");
+        }
         final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
             final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(emptyRequest);
             progressIterator.forEachRemaining(progress -> {
                 if (progress.hasStart()) {
+                    Servant.EnvResult result = blockingStub.env(GrpcConverter.to(connection.env()));
+                    if (result.getRc() != 0) {
+                        request.completeExceptionally(new EnvironmentInstallationException(result.getDescription()));
+                        return;
+                    }
                     request.complete(connection);
                 }
                 if (progress.hasExecuteStop()) {
@@ -129,11 +140,14 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                     synchronized (ServantsAllocatorBase.this) {
                         shuttingDown.remove(connection);
                         cleanup(connection);
+                        if (!request.isDone()) {
+                            request.completeExceptionally(new RuntimeException("Servant disconnected"));
+                        }
                     }
                 }, Runnable::run);
             });
         }, "connection-to-" + servantId);
-        connection.connectionThread = connectionThread;
+        connection.complete(blockingStub, connectionThread, servantUri);
         servant2sessions.get(servantId).servants.add(connection);
         connectionThread.setDaemon(true);
         connectionThread.start();
@@ -208,16 +222,29 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
     private static class ServantConnectionImpl implements ServantConnection {
         private final UUID servantId;
-        private final URI servantUri;
+        private URI servantUri;
         private Thread connectionThread;
-        private final LzyServantGrpc.LzyServantBlockingStub control;
+        private LzyServantGrpc.LzyServantBlockingStub control;
         private final List<Predicate<Servant.ServantProgress>> trackers;
+        private final Env env;
+        private final Provisioning provisioning;
+        private final AtomicBoolean completed = new AtomicBoolean(false);
 
-        protected ServantConnectionImpl(UUID servantId, URI servantUri, LzyServantGrpc.LzyServantBlockingStub c) {
+        protected ServantConnectionImpl(UUID servantId, Env env, Provisioning provisioning) {
             this.servantId = servantId;
-            this.servantUri = servantUri;
-            this.control = c;
             trackers = Collections.synchronizedList(new ArrayList<>());
+            this.env = env;
+            this.provisioning = provisioning;
+        }
+
+        public void complete(LzyServantGrpc.LzyServantBlockingStub control, Thread connectionThread, URI servantUri) {
+            if (completed.get()) {
+                throw new RuntimeException("Servant connection already completed");
+            }
+            this.servantUri = servantUri;
+            this.control = control;
+            this.connectionThread = connectionThread;
+            completed.set(true);
         }
 
         public void progress(Servant.ServantProgress progress) {
@@ -242,6 +269,16 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         @Override
         public LzyServantGrpc.LzyServantBlockingStub control() {
             return control;
+        }
+
+        @Override
+        public Env env() {
+            return env;
+        }
+
+        @Override
+        public Provisioning provisioning() {
+            return provisioning;
         }
 
         @Override

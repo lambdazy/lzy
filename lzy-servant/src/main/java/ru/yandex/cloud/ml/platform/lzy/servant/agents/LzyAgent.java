@@ -9,6 +9,7 @@ import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.serce.jnrfuse.FuseException;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -58,7 +59,12 @@ public abstract class LzyAgent implements Closeable {
             this.lzyFS = new LzyLinuxFsManagerImpl();
         }
         LOG.info("Mounting LZY FS: " + mount);
-        this.lzyFS.mount(mount);
+        try {
+            this.lzyFS.mount(mount);
+        } catch (FuseException e) {
+            this.lzyFS.umount();
+            throw e;
+        }
         //this.lzyFS.mount(mount, false, true);
 
         auth = getAuth(config);
@@ -132,6 +138,7 @@ public abstract class LzyAgent implements Closeable {
             try {
                 close();
             } catch (Exception e) {
+                LOG.error(e);
                 throw new RuntimeException(e);
             }
         }));
