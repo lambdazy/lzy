@@ -115,8 +115,10 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         final ServantConnectionImpl connection = new ServantConnectionImpl(servantId, servantUri, blockingStub);
         final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
             final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(emptyRequest);
-            request.complete(connection);
             progressIterator.forEachRemaining(progress -> {
+                if (progress.hasStart()) {
+                    request.complete(connection);
+                }
                 if (progress.hasExecuteStop()) {
                     synchronized (ServantsAllocatorBase.this) {
                         spareServants.put(connection, Instant.now().plus(waitBeforeShutdown, ChronoUnit.SECONDS));

@@ -173,19 +173,19 @@ public class LzyServant extends LzyAgent {
                     responseObserver.onCompleted();
                 }
             });
+            LzyServant.this.context.start();
         }
 
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
-            status.set(AgentStatus.PREPARING_EXECUTION);
             LOG.info("LzyServant::execute " + JsonUtils.printRequest(request));
             if (status.get() == AgentStatus.EXECUTING) {
                 responseObserver.onError(Status.RESOURCE_EXHAUSTED.withDescription("Already executing").asException());
                 return;
             }
 
+            status.set(AgentStatus.PREPARING_EXECUTION);
             final AtomicZygote zygote = (AtomicZygote) GrpcConverter.from(request.getZygote());
-
             final String tid = request.getTid();
             UserEventLogger.log(new UserEvent(
                 "Servant execution preparing",
