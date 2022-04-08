@@ -7,6 +7,7 @@ resource "random_password" "lzy_server_db_password" {
 resource "kubernetes_secret" "lzy_server_db" {
   metadata {
     name = "postgres"
+    namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
 
   data = {
