@@ -96,9 +96,15 @@ resource "kubernetes_secret" "oauth_github" {
   type = "Opaque"
 }
 
-resource "kubernetes_cluster_role" "server_pods_operations" {
+resource "kubernetes_namespace" "server_namespace" {
   metadata {
-    name = "server-pods-operations"
+    name = "server"
+  }
+}
+
+resource "kubernetes_cluster_role" "pods_operations" {
+  metadata {
+    name = "pods-operations"
   }
   rule {
     api_groups = [""]
@@ -107,18 +113,18 @@ resource "kubernetes_cluster_role" "server_pods_operations" {
   }
 }
 
-resource "kubernetes_cluster_role_binding" "server_pods_operations" {
+resource "kubernetes_role_binding" "server_pods_operations" {
   metadata {
     name = "server-pods-operations"
   }
   role_ref {
     api_group = "rbac.authorization.k8s.io"
     kind      = "ClusterRole"
-    name      = "server-pods-operations"
+    name      = kubernetes_cluster_role.pods_operations.metadata[0].name
   }
   subject {
     kind      = "ServiceAccount"
     name      = "default"
-    namespace = "default"
+    namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
 }
