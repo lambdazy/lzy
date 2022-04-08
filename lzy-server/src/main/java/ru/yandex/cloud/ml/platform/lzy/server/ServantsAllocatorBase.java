@@ -166,7 +166,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public Session byServant(String servantId) {
+    public Session byServant(UUID servantId) {
         return servant2sessions.get(servantId);
     }
 

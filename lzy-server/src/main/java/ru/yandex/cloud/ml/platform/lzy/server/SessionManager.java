@@ -9,7 +9,7 @@ public interface SessionManager {
 
     Session get(UUID sessionId);
     Stream<Session> sessions(String userId);
-    Session byServant(String servantId);
+    Session byServant(UUID servantId);
 
     /** [TODO] move this logic to kharon or even terminal */
     Session userSession(String user);
