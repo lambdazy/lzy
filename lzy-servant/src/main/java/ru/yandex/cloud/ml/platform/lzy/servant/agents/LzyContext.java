@@ -87,26 +87,28 @@ public class LzyContext implements AutoCloseable {
         try {
             final LzySlot slot = createSlot(spec, binding);
             if (slot.state() != DESTROYED) {
-                LOG.info("LzyExecution::Slots.put(\n" + spec.name() + ",\n" + slot + "\n)");
                 if (spec.name().startsWith("local://")) { // No scheme in slot name
                     slots.put(spec.name().substring("local://".length()), slot);
                 } else {
                     slots.put(spec.name(), slot);
                 }
+            } else {
+                LOG.warn("Unable to create slot " + spec.name());
             }
 
             slot.onState(SUSPENDED,
-                () -> progress(ServantProgress.newBuilder()
-                    .setDetach(Servant.SlotDetach.newBuilder()
-                        .setSlot(GrpcConverter.to(spec))
-                        .setUri(slotUri.toString())
-                        .build()
-                    ).build()
-                )
+                () -> {
+                    progress(ServantProgress.newBuilder()
+                        .setDetach(Servant.SlotDetach.newBuilder()
+                            .setSlot(GrpcConverter.to(spec))
+                            .setUri(slotUri.toString())
+                            .build()
+                        ).build()
+                    );
+                }
             );
             slot.onState(DESTROYED, () -> {
                 synchronized (LzyContext.this) {
-                    LOG.info("LzyContext::Slots.remove(\n" + slot.name() + "\n)");
                     slots.remove(slot.name());
                     if (slots.isEmpty())
                         namespaces.remove(task);
@@ -176,11 +178,11 @@ public class LzyContext implements AutoCloseable {
 
     private LzySlot createSlot(Slot spec, String binding) throws IOException {
         if (spec.equals(Slot.STDIN)) {
-            return new WriterSlot(contextId, new TextLinesInSlot(binding));
+            return new WriterSlot(contextId, new TextLinesInSlot(spec.name()));
         } else if (spec.equals(Slot.STDOUT)) {
-            return new LineReaderSlot(contextId, new TextLinesOutSlot(binding));
+            return new LineReaderSlot(contextId, new TextLinesOutSlot(spec.name()));
         } else if (spec.equals(Slot.STDERR)) {
-            return new LineReaderSlot(contextId, new TextLinesOutSlot("/dev/stderr"));
+            return new LineReaderSlot(contextId, new TextLinesOutSlot(spec.name()));
         }
 
         switch (spec.media()) {
