@@ -56,7 +56,7 @@ resource "kubernetes_deployment" "server" {
             name = "CLICKHOUSE_USERNAME"
             value_from {
               secret_key_ref {
-                name = "clickhouse"
+                name = kubernetes_secret.clickhouse_secret["server"].metadata[0].name
                 key  = "username"
               }
             }
@@ -65,7 +65,7 @@ resource "kubernetes_deployment" "server" {
             name = "CLICKHOUSE_PASSWORD"
             value_from {
               secret_key_ref {
-                name = "clickhouse"
+                name = kubernetes_secret.clickhouse_secret["server"].metadata[0].name
                 key  = "password"
               }
             }

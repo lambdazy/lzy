@@ -5,8 +5,10 @@ resource "random_password" "clickhouse_user_password" {
 }
 
 resource "kubernetes_secret" "clickhouse_secret" {
+  for_each = toset( ["default", kubernetes_namespace.server_namespace.metadata[0].name] )
   metadata {
     name = "clickhouse"
+    namespace = each.key
   }
   data = {
     username = "clickhouse"
