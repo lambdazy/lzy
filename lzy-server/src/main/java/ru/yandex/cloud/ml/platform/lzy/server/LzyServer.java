@@ -504,7 +504,14 @@ public class LzyServer {
             }
             final String owner;
             if (!auth.hasUser()) {
-                owner = servantsAllocator.byServant(auth.getTask().getServantId()).owner();
+                final String servantId = auth.getTask().getServantId();
+                final SessionManager.Session session = servantsAllocator.byServant(servantId);
+                if (session == null) {
+                    LOG.warn("Astray servant found: " + servantId);
+                    responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+                    return;
+                }
+                owner = session.owner();
             } else {
                 owner = auth.getUser().getUserId();
             }
