@@ -313,8 +313,7 @@ public class LzyKharon {
                 while (start.hasNext()) {
                     responseObserver.onNext(start.next());
                 }
-                LOG.info(
-                    "Kharon::start user task completed " + request.getAuth().getUser().getUserId());
+                LOG.info("Kharon::start user task completed " + request.getAuth().getUser().getUserId());
                 responseObserver.onCompleted();
             } catch (Throwable th) {
                 responseObserver.onError(th);

@@ -187,10 +187,11 @@ public class LzyServant extends LzyAgent {
 
             final AtomicZygote zygote = (AtomicZygote) GrpcConverter.from(request.getZygote());
 
+            final String tid = request.getTid();
             UserEventLogger.log(new UserEvent(
                 "Servant execution preparing",
                 Map.of(
-                    "task_id", request.getAuth().getTask().getTaskId(),
+                    "task_id", tid,
                     "zygote_description", zygote.description()
                 ),
                 UserEvent.UserEventType.ExecutionPreparing
@@ -198,12 +199,12 @@ public class LzyServant extends LzyAgent {
 
             try {
                 executing.set(true);
-                currentExecution = context.execute(request.getAuth().getTask().getTaskId(), zygote, progress -> {
+                currentExecution = context.execute(tid, zygote, progress -> {
                     LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
                         "Servant execution progress",
                         Map.of(
-                            "task_id", request.getAuth().getTask().getTaskId(),
+                            "task_id", tid,
                             "zygote_description", zygote.description(),
                             "progress", JsonUtils.printRequest(progress)
                         ),
@@ -213,7 +214,7 @@ public class LzyServant extends LzyAgent {
                         UserEventLogger.log(new UserEvent(
                             "Servant execution exit",
                             Map.of(
-                                "task_id", request.getAuth().getTask().getTaskId(),
+                                "task_id", tid,
                                 "zygote_description", zygote.description(),
                                 "exit_code", String.valueOf(progress.getExecuteStop().getRc())
                             ),
