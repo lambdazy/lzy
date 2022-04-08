@@ -12,7 +12,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.OperationStatus.Status.FAILED;
-import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.DESTROYED;
+import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.*;
 
 public class SnapshooterImpl implements Snapshooter {
     private final SlotSnapshotProvider snapshotProvider;
@@ -62,7 +62,7 @@ public class SnapshooterImpl implements Snapshooter {
             snapshotProvider.slotSnapshot(slot.definition()).onChunk(chunk);
         });
 
-        slot.onState(Set.of(DESTROYED), () -> {
+        slot.onState(Set.of(OPEN), () -> {
             final LzyWhiteboard.CommitCommand commitCommand = LzyWhiteboard.CommitCommand
                 .newBuilder()
                 .setSnapshotId(snapshotId)
@@ -83,7 +83,7 @@ public class SnapshooterImpl implements Snapshooter {
     }
 
     @Override
-    public synchronized void close() throws Exception {
+    public synchronized void close() throws InterruptedException {
         closed = true;
         while (!trackedSlots.isEmpty()) {
             this.wait();

@@ -226,7 +226,7 @@ public class LzyContext implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() throws Exception {
+    public synchronized void close() throws InterruptedException {
         while (!namespaces.isEmpty()) {
             LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
             namespaces.wait();
