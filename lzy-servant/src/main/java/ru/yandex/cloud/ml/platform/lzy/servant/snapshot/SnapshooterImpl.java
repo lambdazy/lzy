@@ -13,6 +13,7 @@ import java.util.Set;
 
 import static yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.OperationStatus.Status.FAILED;
 import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.*;
+import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.OPEN;
 
 public class SnapshooterImpl implements Snapshooter {
     private final SlotSnapshotProvider snapshotProvider;
@@ -62,24 +63,42 @@ public class SnapshooterImpl implements Snapshooter {
             snapshotProvider.slotSnapshot(slot.definition()).onChunk(chunk);
         });
 
-        slot.onState(Set.of(OPEN), () -> {
-            final LzyWhiteboard.CommitCommand commitCommand = LzyWhiteboard.CommitCommand
+        slot.onState(OPEN, () -> {
+            commit(slot, snapshotId, entryId);
+            slot.suspend();
+            synchronized (SnapshooterImpl.this) {
+                trackedSlots.remove(slot.name());
+                SnapshooterImpl.this.notifyAll();
+            }
+        });
+
+        slot.onState(DESTROYED, () -> {
+            if (!trackedSlots.contains(slot.name())) {  // Already committed in OPEN
+                return;
+            }
+
+            commit(slot, snapshotId, entryId);
+            synchronized (SnapshooterImpl.this) {
+                trackedSlots.remove(slot.name());
+                SnapshooterImpl.this.notifyAll();
+            }
+        });
+
+        this.notifyAll();
+    }
+
+    private synchronized void commit(LzySlot slot, String snapshotId, String entryId) {
+        final LzyWhiteboard.CommitCommand commitCommand = LzyWhiteboard.CommitCommand
                 .newBuilder()
                 .setSnapshotId(snapshotId)
                 .setEntryId(entryId)
                 .setEmpty(snapshotProvider.slotSnapshot(slot.definition()).isEmpty())
                 .setAuth(auth)
                 .build();
-            final LzyWhiteboard.OperationStatus status = snapshotApi.commit(commitCommand);
-            synchronized (SnapshooterImpl.this) {
-                trackedSlots.remove(slot.name());
-                SnapshooterImpl.this.notifyAll();
-            }
-            if (status.getStatus().equals(FAILED)) {
-                throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");
-            }
-        });
-        this.notifyAll();
+        final LzyWhiteboard.OperationStatus status = snapshotApi.commit(commitCommand);
+        if (status.getStatus().equals(FAILED)) {
+            throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");
+        }
     }
 
     @Override

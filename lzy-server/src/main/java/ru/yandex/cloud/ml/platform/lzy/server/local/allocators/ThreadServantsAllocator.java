@@ -2,6 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.server.local.allocators;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
@@ -29,6 +31,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     private final AtomicInteger servantCounter = new AtomicInteger(0);
     private final ServerConfig serverConfig;
     private final ConcurrentHashMap<UUID, ServantDescription> servantThreads = new ConcurrentHashMap<>();
+    private final static Logger LOG = LogManager.getLogger(ThreadServantsAllocator.class);
 
     public ThreadServantsAllocator(ServerConfig serverConfig, Authenticator authenticator) {
         super(authenticator, 1);
@@ -69,7 +72,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                         "--token", servantToken,
                     });
                 } catch (IllegalAccessException | InvocationTargetException e) {
-                    throw new RuntimeException(e);
+                    LOG.error(e);
                 }
             }
         };
