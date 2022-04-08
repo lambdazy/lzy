@@ -236,7 +236,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
         @Override
         public void update(IAM.Auth request,
-                           StreamObserver<Servant.ExecutionStarted> responseObserver) {
+                           StreamObserver<IAM.Empty> responseObserver) {
             LzyTerminal.this.update(request, responseObserver);
         }
 

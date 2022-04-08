@@ -106,12 +106,11 @@ public class TaskImpl implements Task {
     public synchronized void attachServant(ServantsAllocator.ServantConnection connection) {
         LOG.info("Server is attached to servant {}", connection.uri());
 
-
         connection.onProgress(progress -> {
             synchronized (TaskImpl.this) {
                 switch (progress.getStatusCase()) {
                     case ATTACH: {
-                        LOG.info("BaseTask::attach " + JsonUtils.printRequest(progress));
+                        LOG.info("Attach " + JsonUtils.printRequest(progress));
                         final Servant.SlotAttach attach = progress.getAttach();
                         final Slot slot = GrpcConverter.from(attach.getSlot());
                         final URI slotUri = URI.create(attach.getUri());
@@ -140,7 +139,7 @@ public class TaskImpl implements Task {
                         return true;
                     }
                     case DETACH: {
-                        LOG.info("BaseTask::detach " + JsonUtils.printRequest(progress));
+                        LOG.info("Detach " + JsonUtils.printRequest(progress));
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = GrpcConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
