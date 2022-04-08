@@ -10,6 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
@@ -27,7 +28,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     private final Method servantMain;
     private final AtomicInteger servantCounter = new AtomicInteger(0);
     private final ServerConfig serverConfig;
-    private final ConcurrentHashMap<UUID, Thread> servantThreads = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, ServantDescription> servantThreads = new ConcurrentHashMap<>();
 
     public ThreadServantsAllocator(ServerConfig serverConfig, Authenticator authenticator) {
         super(authenticator, 10);
@@ -47,7 +48,9 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     protected void requestAllocation(UUID servantId, String servantToken,
-                                     Provisioning provisioning, Env env, String bucket) {
+                                     Provisioning provisioning, String bucket) {
+        int servantNumber = servantCounter.incrementAndGet();
+
         @SuppressWarnings("CheckStyle")
         Thread task = new Thread("servant-" + servantId.toString()){
             @Override
@@ -56,7 +59,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                     servantMain.invoke(null, (Object) new String[]{
                         "--lzy-address", serverConfig.getServerUri(),
                         "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
-                        "--lzy-mount", "/tmp/lzy" + servantCounter.incrementAndGet(),
+                        "--lzy-mount", "/private/tmp/lzy" + servantNumber,
                         "--host", URI.create(serverConfig.getServerUri()).getHost(),
                         "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
                         "--port", Integer.toString(FreePortFinder.find(10000, 20000)),
@@ -70,12 +73,21 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                 }
             }
         };
+
+        ServantDescription description = new ServantDescription(
+            "servant-" + servantId,
+            "/private/tmp/lzy" + servantNumber,
+            task
+        );
         task.start();
-        servantThreads.put(servantId, task);
+        servantThreads.put(servantId, description);
     }
 
     @Override
     protected void cleanup(ServantConnection s) {
+        if (!servantThreads.containsKey(s.id())) {
+            return;
+        }
         servantThreads.get(s.id()).stop();
         servantThreads.remove(s.id());
     }
@@ -84,5 +96,26 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     protected void terminate(ServantConnection connection) {
         servantThreads.get(connection.id()).stop();
         servantThreads.remove(connection.id());
+    }
+
+    private static class ServantDescription {
+        private final String name;
+        private final String mountPoint;
+        private final Thread thread;
+
+        public ServantDescription(String name, String mountPoint, Thread thread) {
+            this.name = name;
+            this.mountPoint = mountPoint;
+            this.thread = thread;
+        }
+
+        private void stop() {
+            thread.stop();
+            try {
+                Runtime.getRuntime().exec("umount -f " + mountPoint);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

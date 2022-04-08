@@ -23,6 +23,8 @@ public interface ServantsAllocator extends SessionManager {
         UUID id();
         URI uri();
         LzyServantGrpc.LzyServantBlockingStub control();
+        Env env();
+        Provisioning provisioning();
         void onProgress(Predicate<Servant.ServantProgress> tracker);
     }
 
