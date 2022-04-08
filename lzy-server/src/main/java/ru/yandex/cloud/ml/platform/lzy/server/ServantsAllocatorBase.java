@@ -128,7 +128,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                     }
                     request.complete(connection);
                 }
-                if (progress.hasExecuteStop()) {
+                if (progress.hasCommunicationCompleted()) {
                     synchronized (ServantsAllocatorBase.this) {
                         spareServants.put(connection, Instant.now().plus(waitBeforeShutdown, ChronoUnit.SECONDS));
                     }
