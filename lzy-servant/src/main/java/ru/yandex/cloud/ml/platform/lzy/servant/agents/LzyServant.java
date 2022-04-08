@@ -244,7 +244,7 @@ public class LzyServant extends LzyAgent {
                         ),
                         UserEvent.UserEventType.TaskStop
                     ));
-                    System.exit(1);
+                    stop();
                 }
             }, Runnable::run);
 
@@ -253,6 +253,11 @@ public class LzyServant extends LzyAgent {
                 .build()
             );
             responseObserver.onCompleted();
+        }
+
+        private void stop() {
+            lzyFS.umount();
+            agentServer.shutdown();
         }
 
         @Override
@@ -349,8 +354,7 @@ public class LzyServant extends LzyAgent {
                 ),
                 UserEvent.UserEventType.TaskStop
             ));
-            lzyFS.umount();
-            agentServer.shutdown();
+            stop();
         }
     }
 }
