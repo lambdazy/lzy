@@ -9,15 +9,20 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
+import ru.yandex.cloud.ml.platform.lzy.server.task.TaskImpl;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.ERROR;
 
 public abstract class ServantsAllocatorBase extends TimerTask implements ServantsAllocator.Ex {
     private static final Logger LOG = LogManager.getLogger(ServantsAllocatorBase.class);
@@ -110,19 +115,24 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         final ServantConnectionImpl connection = new ServantConnectionImpl(servantId, servantUri, blockingStub);
         final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
             final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(emptyRequest);
+            request.complete(connection);
             progressIterator.forEachRemaining(progress -> {
-                if (progress.hasExit()) { // graceful shutdown
-                    shuttingDown.remove(connection);
-                    cleanup(connection);
-                } else if (progress.hasExecuteStop()) {
-                    spareServants.put(connection, Instant.now().plus(waitBeforeShutdown, ChronoUnit.SECONDS));
+                if (progress.hasExecuteStop()) {
+                    synchronized (ServantsAllocatorBase.this) {
+                        spareServants.put(connection, Instant.now().plus(waitBeforeShutdown, ChronoUnit.SECONDS));
+                    }
                 }
                 connection.progress(progress);
+                Context.current().addListener((ctx) -> {
+                    synchronized (ServantsAllocatorBase.this) {
+                        shuttingDown.remove(connection);
+                        cleanup(connection);
+                    }
+                }, Runnable::run);
             });
         }, "connection-to-" + servantId);
         connection.connectionThread = connectionThread;
         servant2sessions.get(servantId).servants.add(connection);
-        request.complete(connection);
         connectionThread.setDaemon(true);
         connectionThread.start();
     }
