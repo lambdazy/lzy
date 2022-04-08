@@ -504,7 +504,7 @@ public class LzyServer {
             }
             final String owner;
             if (!auth.hasUser()) {
-                final String servantId = auth.getTask().getServantId();
+                final UUID servantId = UUID.fromString(auth.getTask().getServantId());
                 final SessionManager.Session session = servantsAllocator.byServant(servantId);
                 if (session == null) {
                     LOG.warn("Astray servant found: " + servantId);
@@ -676,9 +676,7 @@ public class LzyServer {
         }
 
         private String resolveUser(IAM.Auth auth) {
-            return auth.hasUser()
-                ? auth.getUser().getUserId()
-                : servantsAllocator.byServant(auth.getTask().getServantId()).owner();
+            return resolveSession(auth).owner();
         }
 
         private Task resolveTask(IAM.Auth auth) {
@@ -687,7 +685,7 @@ public class LzyServer {
 
         private SessionManager.Session resolveSession(IAM.Auth auth) {
             if (auth.hasTask()) {
-                return servantsAllocator.byServant(auth.getTask().getServantId());
+                return servantsAllocator.byServant(UUID.fromString(auth.getTask().getServantId()));
             } else {
                 return servantsAllocator.userSession(auth.getUser().getUserId());
             }
