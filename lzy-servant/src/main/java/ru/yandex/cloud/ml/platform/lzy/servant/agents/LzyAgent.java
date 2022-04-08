@@ -47,6 +47,7 @@ public abstract class LzyAgent implements Closeable {
     protected final URI agentInternalAddress;
     protected final URI whiteboardAddress;
     protected final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
+    private static final ThreadGroup SHUTDOWN_HOOK_TG = new ThreadGroup("shutdown-hooks");
 
     protected LzyAgent(LzyAgentConfig config) throws URISyntaxException {
         final long start = System.currentTimeMillis();
@@ -132,7 +133,7 @@ public abstract class LzyAgent implements Closeable {
             );
         }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        Runtime.getRuntime().addShutdownHook(new Thread(SHUTDOWN_HOOK_TG, () -> {
             LOG.info("Shutdown hook in lzy-agent {}", agentAddress);
             agentServer.shutdown();
             try {
@@ -141,7 +142,7 @@ public abstract class LzyAgent implements Closeable {
                 LOG.error(e);
                 throw new RuntimeException(e);
             }
-        }));
+        }, "agent-shutdown-hook"));
         started();
     }
 

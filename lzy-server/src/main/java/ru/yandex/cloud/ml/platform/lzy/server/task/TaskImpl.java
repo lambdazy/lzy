@@ -68,13 +68,24 @@ public class TaskImpl implements Task {
     }
 
     @SuppressWarnings("WeakerAccess")
-    public synchronized void state(State newState, String... description) {
+    public synchronized void state(State newState, int rc, String... description) {
         if (newState != state) {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
                 .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
                 .setDescription(String.join("\n", description))
+                .setRc(rc)
                 .build());
+        }
+    }
+
+    public synchronized void state(State newState, String... description) {
+        if (newState != state) {
+            state = newState;
+            progress(Tasks.TaskProgress.newBuilder()
+                    .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
+                    .setDescription(String.join("\n", description))
+                    .build());
         }
     }
 
@@ -158,17 +169,18 @@ public class TaskImpl implements Task {
                         final ExecutionConcluded executeStop = progress.getExecuteStop();
                         LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
                         if (executeStop.getRc() != 0) {
-                            state(ERROR, "Exit code: " + executeStop.getRc(), executeStop.getDescription());
+                            state(ERROR, executeStop.getRc(), "Exit code: " + executeStop.getRc(), executeStop.getDescription());
                         } else {
-                            state(State.SUCCESS);
+                            state(State.SUCCESS, 0, "Success");
                         }
                         servant = null;
                         TaskImpl.this.notifyAll();
-                        break;
+                        return false;
                     }
-                    default:
+                    default: {
+                        return true;
+                    }
                 }
-                return false;
             }
         });
         Context.current().addListener((ctx) -> {
