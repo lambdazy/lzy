@@ -93,18 +93,7 @@ public class TaskImpl implements Task {
     @Override
     public synchronized void attachServant(ServantsAllocator.ServantConnection connection) {
         LOG.info("Server is attached to servant {}", connection.uri());
-        final Tasks.TaskSpec.Builder taskSpecBuilder = Tasks.TaskSpec.newBuilder();
-        taskSpecBuilder.setTid(tid.toString());
-        taskSpecBuilder.setZygote(GrpcConverter.to(workload));
-        assignments.forEach((slot, binding) -> {
-            // need to filter out std* slots because they don't exist on prepare
-            if (Stream.of(Slot.STDIN, Slot.STDOUT, Slot.STDERR).map(Slot::name).noneMatch(s -> s.equals(slot.name()))) {
-                taskSpecBuilder.addAssignmentsBuilder()
-                    .setSlot(GrpcConverter.to(slot))
-                    .setBinding(binding)
-                    .build();
-            }
-        });
+
 
         connection.onProgress(progress -> {
             synchronized (TaskImpl.this) {
@@ -192,6 +181,20 @@ public class TaskImpl implements Task {
         }, Runnable::run);
         this.servant = connection;
         TaskImpl.this.notifyAll();
+        final Tasks.TaskSpec.Builder taskSpecBuilder = Tasks.TaskSpec.newBuilder();
+        taskSpecBuilder.setTid(tid.toString());
+        taskSpecBuilder.setZygote(GrpcConverter.to(workload));
+        assignments.forEach((slot, binding) -> {
+            // need to filter out std* slots because they don't exist on prepare
+            if (Stream.of(Slot.STDIN, Slot.STDOUT, Slot.STDERR).map(Slot::name).noneMatch(s -> s.equals(slot.name()))) {
+                taskSpecBuilder.addAssignmentsBuilder()
+                    .setSlot(GrpcConverter.to(slot))
+                    .setBinding(binding)
+                    .build();
+            }
+        });
+        //noinspection ResultOfMethodCallIgnored
+        connection.control().execute(taskSpecBuilder.build());
     }
 
 
