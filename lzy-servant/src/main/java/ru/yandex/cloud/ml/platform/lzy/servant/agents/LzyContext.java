@@ -109,8 +109,13 @@ public class LzyContext implements AutoCloseable {
             slot.onState(DESTROYED, () -> {
                 synchronized (LzyContext.this) {
                     slots.remove(slot.name());
-                    if (slots.isEmpty())
+                    if (slots.isEmpty()) {
                         namespaces.remove(task);
+                        progress(
+                            ServantProgress.newBuilder()
+                                .setCommunicationCompleted(Servant.CommunicationCompleted.newBuilder().build())
+                                .build());
+                    }
                     LzyContext.this.notifyAll();
                 }
             });
