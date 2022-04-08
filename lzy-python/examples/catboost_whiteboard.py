@@ -13,8 +13,8 @@ from lzy.api.whiteboard import whiteboard, view
 @dataclass
 @whiteboard(tags=['best_model'])
 class BestModel:
-    model: CatBoostClassifier = None
-    params: Dict[str, int] = None
+    model: Optional[CatBoostClassifier] = None
+    params: Optional[Dict[str, int]] = None
     score: float = 0.0
 
     @view

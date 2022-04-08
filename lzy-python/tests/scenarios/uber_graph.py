@@ -1,4 +1,3 @@
-import os
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -39,7 +38,7 @@ class Rule:
 
 
 class SimpleView:
-    rules: List[Rule] = None
+    rules: Optional[List[Rule]] = None
     id: str = ''
 
     def __init__(self, id_: str, rules: List[Rule]):
@@ -63,7 +62,7 @@ default_whiteboard_tag = "default_whiteboard_" + str(uuid.uuid4())
 @whiteboard(tags=[simple_whiteboard_tag])
 class SimpleWhiteboard:
     a: int = 0
-    b: List[str] = None
+    b: Optional[List[str]] = None
 
     @view
     def to_simple_view_plus_one_rule(self) -> SimpleView:
@@ -96,7 +95,7 @@ class AnotherSimpleWhiteboard:
 @whiteboard(tags=[simple_whiteboard_tag])
 class OneMoreSimpleWhiteboard:
     a: int = 0
-    b: List[str] = None
+    b: Optional[List[str]] = None
 
     @view
     def to_simple_view_with_plus_two_rule(self) -> SimpleView:
@@ -107,7 +106,7 @@ class OneMoreSimpleWhiteboard:
 @whiteboard(tags=[default_whiteboard_tag])
 class DefaultWhiteboard:
     a: int = 0
-    b: List[str] = None
+    b: Optional[List[str]] = None
     c: str = "Hello"
 
 

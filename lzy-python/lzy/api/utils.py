@@ -1,9 +1,8 @@
-from itertools import chain
-
+import hashlib
 import inspect
-
 import os
 from io import BytesIO
+from itertools import chain
 from typing import (
     Any,
     Callable,
@@ -11,10 +10,8 @@ from typing import (
     Type,
     Tuple,
     TypeVar,
-    get_type_hints,
+    get_type_hints, Union
 )
-import hashlib
-
 from zipfile import ZipFile
 
 # noinspection PyProtectedMember
@@ -27,15 +24,25 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 TypeInferResult = Result[type]
 
 
+def infer_real_type(type_: Type) -> Type:
+    if hasattr(type_, "__origin__"):
+        origin: Type = type_.__origin__
+        if origin == Union:  # type: ignore
+            # noinspection PyUnresolvedReferences
+            args = type_.__args__  # TODO: what should we do with real Union?
+            if len(args) == 2 and args[1] is type(None):  # check typ is Optional
+                return infer_real_type(args[0])
+        return origin
+    return type_
+
+
 def infer_return_type(func: Callable) -> TypeInferResult:
     hints = get_type_hints(func)
     if "return" not in hints:
         return Nothing()
 
     or_type = hints["return"]
-    if hasattr(or_type, "__origin__"):
-        return Just(or_type.__origin__)  # type: ignore
-
+    or_type = infer_real_type(or_type)
     if isinstance(or_type, type):
         return Just(or_type)
 

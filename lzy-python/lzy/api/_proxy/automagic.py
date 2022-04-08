@@ -176,10 +176,6 @@ def proxy(
     cls_attrs = cls_attrs or {}
     obj_attrs = obj_attrs or {}
 
-    # for type annotations (i.e. List[MyClass]) we should extract origin type
-    if hasattr(proto_type, '__origin__'):
-        proto_type =  proto_type.__origin__ # type: ignore
-
     # yea, creates new class everytime
     # probably all this stuff could be done with just one `type` call
     #
