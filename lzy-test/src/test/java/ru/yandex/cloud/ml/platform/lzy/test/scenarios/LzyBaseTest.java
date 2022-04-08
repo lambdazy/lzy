@@ -31,7 +31,7 @@ public class LzyBaseTest {
         createServantLzyFolder();
         serverContext = new LzyServerThreadContext();
         serverContext.init();
-        whiteboardContext = new LzySnapshotProcessesContext(serverContext.address(false));
+        whiteboardContext = new LzySnapshotThreadContext(serverContext.address(false));
         whiteboardContext.init();
         kharonContext = new LzyKharonThreadContext(serverContext.address(false), whiteboardContext.address(false));
         kharonContext.init();
