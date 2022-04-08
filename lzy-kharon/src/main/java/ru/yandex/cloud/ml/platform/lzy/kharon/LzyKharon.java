@@ -140,6 +140,11 @@ public class LzyKharon {
         kharonServantProxy.awaitTermination();
     }
 
+    public void close() {
+        kharonServer.shutdown();
+        kharonServantProxy.shutdown();
+    }
+
     private static class ProxyCall {
 
         public static <ReqT, RespT> void exec(Function<ReqT, RespT> impl, ReqT request,
