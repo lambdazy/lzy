@@ -228,16 +228,15 @@ public abstract class LzyAgent implements Closeable {
     }
 
     public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) throws StatusException {
-        LOG.info("Agent::configureSlot " + request.getTid() + request.getSlot()
-            + JsonUtils.printRequest(request)
-        );
+        final String slotName = request.getTid() + request.getSlot();
+        LOG.info("configure " + slotName + JsonUtils.printRequest(request));
         final LzySlot slot = context().slot(request.getTid(), request.getSlot()); // null for create
         if (slot == null && request.getCommandCase() != Servant.SlotCommand.CommandCase.CREATE) {
             return Servant.SlotCommandStatus.newBuilder()
                 .setRc(
                     Servant.SlotCommandStatus.RC.newBuilder()
                         .setCodeValue(1)
-                        .setDescription("Slot " + request.getSlot() + " not found at LzyContext")
+                        .setDescription("Slot " + slotName + " not found at LzyContext")
                         .build()
                 ).build();
         }
@@ -250,11 +249,8 @@ public abstract class LzyAgent implements Closeable {
                     slotSpec,
                     create.getChannelId()
                 );
-                if (lzySlot instanceof LzyFileSlot) {
-                    LOG.info("lzyFS::addSlot " + lzySlot.name());
+                if (lzySlot instanceof LzyFileSlot)
                     lzyFS.addSlot((LzyFileSlot) lzySlot);
-                    LOG.info("lzyFS:: slot added " + lzySlot.name());
-                }
                 break;
             case SNAPSHOT:
                 if (context().slotManager().snapshooter() == null) {
@@ -276,13 +272,12 @@ public abstract class LzyAgent implements Closeable {
                 if (slot instanceof LzyInputSlot) {
                     ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToSlot(slotUri, 0));
                 } else {
-                    return Servant.SlotCommandStatus.newBuilder()
-                        .setRc(
-                            Servant.SlotCommandStatus.RC.newBuilder()
-                                .setCodeValue(1)
-                                .setDescription("Slot " + request.getSlot() + " is not found in LzyContext")
-                                .build()
-                        ).build();
+                    return Servant.SlotCommandStatus.newBuilder().setRc(
+                        Servant.SlotCommandStatus.RC.newBuilder()
+                            .setCodeValue(1)
+                            .setDescription("Slot " + request.getSlot() + " not found in " + request.getTid())
+                            .build()
+                    ).build();
                 }
                 break;
             case DISCONNECT:
@@ -298,12 +293,11 @@ public abstract class LzyAgent implements Closeable {
             case DESTROY:
                 slot.destroy();
                 lzyFS.removeSlot(slot.name());
-                LOG.info("Agent::Explicitly closing slot " + slot.name());
+                LOG.info("Explicitly closing slot tid: " + slotName);
                 break;
             default:
                 throw Status.INVALID_ARGUMENT.asException();
         }
-        LOG.info("Agent::configureSlot " + request.getTid() + "/" + request.getSlot() + " SUCCESS");
         return Servant.SlotCommandStatus.newBuilder().build();
     }
 
