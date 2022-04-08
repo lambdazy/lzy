@@ -6,7 +6,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 public interface Snapshooter extends AutoCloseable {
     void registerSlot(LzySlot slot, String snapshotId, String entryId);
-    void close() throws Exception;
+    void close() throws InterruptedException;
 
     StorageClient storage();
 }

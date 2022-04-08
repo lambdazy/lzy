@@ -243,6 +243,12 @@ public class LzyServant extends LzyAgent {
         @Override
         public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
             LOG.info("Servant::stop {}", agentAddress);
+            try {
+                context.close();
+            } catch (InterruptedException e) {
+                LOG.error("Failed to wait until all output slots successfully read");
+            }
+
             responseObserver.onNext(IAM.Empty.newBuilder().build());
             responseObserver.onCompleted();
             UserEventLogger.log(new UserEvent(
