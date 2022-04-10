@@ -2,7 +2,9 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 
 import io.micronaut.context.ApplicationContext;
 import org.junit.*;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -19,7 +21,7 @@ public class ServantAllocatorBaseTest {
 
     private static Authenticator authenticator;
     private static ExecutorService executor;
-    private ServantsAllocatorBase allocator;
+    private ServantAllocatorMock allocator;
 
     @BeforeClass
     public static void classSetUp() {
@@ -38,22 +40,7 @@ public class ServantAllocatorBaseTest {
 
     @Before
     public void setUp() {
-        allocator = new ServantsAllocatorBase(authenticator, 1) {
-            @Override
-            protected void requestAllocation(UUID servantId, String servantToken, Provisioning provisioning, String bucket) {
-
-            }
-
-            @Override
-            protected void cleanup(ServantConnection s) {
-
-            }
-
-            @Override
-            protected void terminate(ServantConnection connection) {
-
-            }
-        };
+        allocator = new ServantAllocatorMock(authenticator, 1);
     }
 
     @Ignore
@@ -204,5 +191,34 @@ public class ServantAllocatorBaseTest {
         //Assert
         //Checking that there were no ConcurrentModificationException
         Assert.assertNotNull(sessions);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testAllocationWithNonexistentSession() {
+        //Arrange
+        final UUID sessionUUID = UUID.randomUUID();
+
+        //Act
+        allocator.allocate(sessionUUID, new Provisioning.Any(),
+                GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+    }
+
+    @Test
+    public void testSingleAllocation() {
+        //Arrange
+        final UUID sessionUUID = UUID.randomUUID();
+        allocator.registerSession(DEFAULT_USER, sessionUUID, DEFAULT_BUCKET);
+
+        //Act
+        allocator.allocate(sessionUUID, new Provisioning.Any(),
+                GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+        final boolean allocated = allocator.waitForAllocations();
+        final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
+        final SessionManager.Session session = allocator.byServant(request.servantId());
+
+        //Assert
+        Assert.assertTrue(allocated);
+        Assert.assertNotNull(session);
+        Assert.assertEquals(sessionUUID, session.id());
     }
 }
