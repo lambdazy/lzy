@@ -16,7 +16,6 @@ public interface ServantsAllocator extends SessionManager {
         Provisioning provisioning,
         Env env
     );
-    void deleteSession(UUID sessionId);
 
     /** [TODO] notify task on disconnected state */
     interface ServantConnection {
