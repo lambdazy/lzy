@@ -56,7 +56,8 @@ public class DbAuthenticator implements Authenticator {
             if (taskModel == null) {
                 return false;
             }
-            return taskModel.servant().servantId().equals(servantId) && taskModel.servant().token().equals(servantToken);
+            return taskModel.servant().servantId().equals(servantId)
+                    && taskModel.servant().token().equals(servantToken);
         }
     }
 

@@ -27,11 +27,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Singleton
 @Requires(property = "server.threadAllocator.enabled", value = "true")
 public class ThreadServantsAllocator extends ServantsAllocatorBase {
+    private static final Logger LOG = LogManager.getLogger(ThreadServantsAllocator.class);
+
     private final Method servantMain;
     private final AtomicInteger servantCounter = new AtomicInteger(0);
     private final ServerConfig serverConfig;
     private final ConcurrentHashMap<UUID, ServantDescription> servantThreads = new ConcurrentHashMap<>();
-    private final static Logger LOG = LogManager.getLogger(ThreadServantsAllocator.class);
 
     public ThreadServantsAllocator(ServerConfig serverConfig, Authenticator authenticator) {
         super(authenticator, 1);
@@ -55,7 +56,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
         int servantNumber = servantCounter.incrementAndGet();
 
         @SuppressWarnings("CheckStyle")
-        Thread task = new Thread("servant-" + servantId.toString()){
+        Thread task = new Thread("servant-" + servantId.toString()) {
             @Override
             public void run() {
                 try {
