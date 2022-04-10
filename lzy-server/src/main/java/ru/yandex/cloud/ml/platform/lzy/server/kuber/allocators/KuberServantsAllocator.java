@@ -8,7 +8,6 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
@@ -24,10 +23,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Singleton
 @Requires(property = "server.kuberAllocator.enabled", value = "true")
 public class KuberServantsAllocator extends ServantsAllocatorBase {
+    private static final Logger LOG = LogManager.getLogger(KuberServantsAllocator.class);
+    private static final String NAMESPACE = "default";
+
     private final ServantPodProvider provider;
-    private final static Logger LOG = LogManager.getLogger(KuberServantsAllocator.class);
     private final ConcurrentHashMap<UUID, V1Pod> servantPods = new ConcurrentHashMap<>();
-    private final static String NAMESPACE = "default";
     private final CoreV1Api api = new CoreV1Api();
 
     public KuberServantsAllocator(Authenticator auth, ServantPodProvider provider) {
@@ -40,7 +40,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         final V1Pod servantPodSpec;
         try {
             servantPodSpec = provider.createServantPod(
-                provisioning, servantToken, servantId, bucket
+                    provisioning, servantToken, servantId, bucket
             );
         } catch (PodProviderException e) {
             throw new RuntimeException("Exception while creating servant pod spec", e);
@@ -80,7 +80,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         try {
             if (isPodExists(namespace, name)) {
                 api.deleteNamespacedPod(name, namespace, null, null, 0,
-                    null, null, null);
+                        null, null, null);
             }
         } catch (ApiException e) {
             throw new RuntimeException(e);
@@ -90,16 +90,16 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
 
     private boolean isPodExists(String namespace, String name) throws ApiException {
         final V1PodList listNamespacedPod = api.listNamespacedPod(
-            namespace,
-            null,
-            null,
-            null,
-            null,
-            "app=lzy-servant",
-            Integer.MAX_VALUE,
-            null,
-            null,
-            Boolean.FALSE
+                namespace,
+                null,
+                null,
+                null,
+                null,
+                "app=lzy-servant",
+                Integer.MAX_VALUE,
+                null,
+                null,
+                Boolean.FALSE
         );
         final Optional<V1Pod> queriedPod = KuberUtils.findPodByName(listNamespacedPod, name);
         return queriedPod.isPresent();

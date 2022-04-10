@@ -12,7 +12,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
@@ -168,7 +167,8 @@ public class TaskImpl implements Task {
                         final ExecutionConcluded executeStop = progress.getExecuteStop();
                         LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
                         if (executeStop.getRc() != 0) {
-                            state(ERROR, executeStop.getRc(), "Exit code: " + executeStop.getRc(), executeStop.getDescription());
+                            state(ERROR, executeStop.getRc(), "Exit code: " + executeStop.getRc(),
+                                    executeStop.getDescription());
                         } else {
                             state(State.SUCCESS, 0, "Success");
                         }
