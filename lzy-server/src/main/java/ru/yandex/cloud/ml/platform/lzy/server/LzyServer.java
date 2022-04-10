@@ -326,7 +326,9 @@ public class LzyServer {
                 try {
                     if (task.state().phase() < Task.State.SUCCESS.phase()) // task is not complete yet
                         task.signal(TasksManager.Signal.HUB);
-                } catch (TaskException ignore) { }
+                } catch (TaskException e) {
+                    LOG.warn("Exception during HUB signal, task id={}", task.tid(), e);
+                }
             }, Runnable::run);
             task.state(Task.State.QUEUE);
         }
