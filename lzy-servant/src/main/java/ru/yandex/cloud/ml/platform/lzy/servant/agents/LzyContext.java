@@ -77,7 +77,7 @@ public class LzyContext implements AutoCloseable {
             + (spec.name().startsWith("/") ? spec.name() : "/" + spec.name())
         );
 
-        LOG.info("configure slot: " + spec.name() + " binding: ");
+        LOG.info("configure slot: " + spec.name() + " binding: " + binding);
 
         final Map<String, LzySlot> slots = namespaces.computeIfAbsent(task, t -> new HashMap<>());
         if (slots.containsKey(spec.name())) {

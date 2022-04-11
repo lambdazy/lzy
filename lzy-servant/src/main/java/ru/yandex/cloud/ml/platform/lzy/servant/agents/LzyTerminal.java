@@ -141,8 +141,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     LOG.info("TerminalCommand::onNext " + JsonUtils.printRequest(terminalCommand));
 
                     final String commandId = terminalCommand.getCommandId();
-                    if (terminalCommand.getCommandCase()
-                        != TerminalCommand.CommandCase.SLOTCOMMAND) {
+                    if (terminalCommand.getCommandCase() != TerminalCommand.CommandCase.SLOTCOMMAND) {
                         CommandHandler.this.onError(Status.INVALID_ARGUMENT.asException());
                     }
 
@@ -171,9 +170,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                             return;
                         }
 
-                        final Servant.SlotCommandStatus slotCommandStatus = configureSlot(
-                            slotCommand
-                        );
+                        final Servant.SlotCommandStatus slotCommandStatus = configureSlot(slotCommand);
                         final TerminalState terminalState = TerminalState.newBuilder()
                             .setCommandId(commandId)
                             .setSlotStatus(slotCommandStatus)
@@ -230,7 +227,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             Servant.SlotCommand request,
             StreamObserver<Servant.SlotCommandStatus> responseObserver
         ) {
-            LOG.info("LzyTerminal configureSlot " + JsonUtils.printRequest(request));
+            LOG.info("configureSlot " + JsonUtils.printRequest(request));
             LzyTerminal.this.configureSlot(request, responseObserver);
         }
 
