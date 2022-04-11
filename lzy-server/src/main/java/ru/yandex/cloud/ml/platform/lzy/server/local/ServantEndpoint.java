@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import io.grpc.StatusRuntimeException;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Objects;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
@@ -20,6 +21,7 @@ public class ServantEndpoint implements Endpoint {
     private final Slot slot;
     private final UUID sessionId;
     private final LzyServantBlockingStub servant;
+    private final String tid;
     private boolean invalid = false;
 
     public ServantEndpoint(Slot slot, URI uri, UUID sessionId, LzyServantBlockingStub servant) {
@@ -27,6 +29,7 @@ public class ServantEndpoint implements Endpoint {
         this.slot = slot;
         this.sessionId = sessionId;
         this.servant = servant;
+        this.tid = Path.of(uri.getPath()).getName(0).toString();
     }
 
     public URI uri() {
@@ -84,7 +87,7 @@ public class ServantEndpoint implements Endpoint {
             final Servant.SlotCommandStatus rc = servant.configureSlot(
                 Servant.SlotCommand.newBuilder()
                     .setSlot(slot().name())
-                    .setTid(sessionId.toString())
+                    .setTid(tid)
                     .setConnect(Servant.ConnectSlotCommand.newBuilder()
                             .setSlotUri(endpoint.uri().toString())
                             .build()
@@ -111,7 +114,7 @@ public class ServantEndpoint implements Endpoint {
             final Servant.SlotCommandStatus slotCommandStatus = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
-                        .setTid(sessionId.toString())
+                        .setTid(tid)
                         .setSlot(slot().name())
                         .setStatus(Servant.StatusCommand.newBuilder().build())
                         .build()
@@ -132,7 +135,7 @@ public class ServantEndpoint implements Endpoint {
             final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
-                        .setTid(sessionId.toString())
+                        .setTid(tid)
                         .setSlot(slot().name())
                         .setSnapshot(Servant.SnapshotCommand.newBuilder()
                             .setSnapshotId(snapshotId)
@@ -154,7 +157,7 @@ public class ServantEndpoint implements Endpoint {
             final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
-                        .setTid(sessionId.toString())
+                        .setTid(tid)
                         .setSlot(slot().name())
                         .setDisconnect(Servant.DisconnectCommand.newBuilder().build())
                         .build()
@@ -176,7 +179,7 @@ public class ServantEndpoint implements Endpoint {
             final Servant.SlotCommandStatus rc = servant
                 .configureSlot(
                     Servant.SlotCommand.newBuilder()
-                        .setTid(sessionId.toString())
+                        .setTid(tid)
                         .setSlot(slot().name())
                         .setDestroy(Servant.DestroyCommand.newBuilder().build())
                         .build()
