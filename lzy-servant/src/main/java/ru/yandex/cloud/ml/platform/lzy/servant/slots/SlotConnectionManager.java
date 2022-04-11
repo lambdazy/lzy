@@ -130,7 +130,7 @@ public class SlotConnectionManager {
     }
 
     public Stream<ByteString> connectToSlot(URI slotUri, long offset) {
-        final Channel channel = ChannelBuilder
+        final ManagedChannel channel = ChannelBuilder
             .forAddress(slotUri.getHost(), slotUri.getPort())
             .usePlaintext()
             .enableRetry(LzyServantGrpc.SERVICE_NAME)
@@ -145,7 +145,7 @@ public class SlotConnectionManager {
         return StreamSupport.stream(
             Spliterators.spliteratorUnknownSize(msgIter, Spliterator.NONNULL),
             false
-        ).map(msg -> msg.hasChunk() ? msg.getChunk() : ByteString.EMPTY);
+        ).map(msg -> msg.hasChunk() ? msg.getChunk() : ByteString.EMPTY).onClose(channel::shutdown);
     }
 
     private Transmitter resolveStorage(URI uri) {
