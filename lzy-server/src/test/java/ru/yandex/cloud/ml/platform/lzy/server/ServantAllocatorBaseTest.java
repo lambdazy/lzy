@@ -112,7 +112,6 @@ public class ServantAllocatorBaseTest {
         Assert.assertEquals(0, sessions.size());
     }
 
-    @Ignore
     @Test
     public void testUserSessionNotOverrideExistingOne() {
         //Arrange
