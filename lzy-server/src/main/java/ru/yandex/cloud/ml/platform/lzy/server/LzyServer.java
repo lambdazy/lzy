@@ -467,8 +467,6 @@ public class LzyServer {
             if (auth.hasTask()) {
                 final UUID servantId = UUID.fromString(auth.getTask().getServantId());
                 servantsAllocator.register(servantId, servantUri);
-                responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
-                responseObserver.onCompleted();
             } else {
                 final Thread terminalThread = new Thread(
                     TERMINAL_THREADS,
@@ -489,13 +487,15 @@ public class LzyServer {
                         } finally {
                             channel.shutdownNow();
                         }
+                        Context.current().addListener(ctxt -> Thread.currentThread().interrupt(), Runnable::run);
                     },
                     "Terminal " + request.getServantId() + " for user " + auth.getUser()
                 );
                 terminalThread.setDaemon(true);
                 terminalThread.start();
-                Context.current().addListener(ctxt -> terminalThread.interrupt(), Runnable::run);
             }
+            responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
+            responseObserver.onCompleted();
         }
 
         @Override

@@ -276,7 +276,7 @@ public class LocalChannelsManager implements ChannelsManager {
             this.id = id;
             this.contentType = contentType;
             this.logic = logic;
-            this.channelGraph = new LocalChannelGraph();
+            this.channelGraph = new LocalChannelGraph(this);
         }
 
         @Override
