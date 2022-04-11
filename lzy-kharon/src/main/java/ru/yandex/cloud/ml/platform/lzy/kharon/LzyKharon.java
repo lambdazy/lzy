@@ -245,8 +245,7 @@ public class LzyKharon {
     private class KharonService extends LzyKharonGrpc.LzyKharonImplBase {
 
         @Override
-        public StreamObserver<TerminalState> attachTerminal(
-            StreamObserver<TerminalCommand> responseObserver) {
+        public StreamObserver<TerminalState> attachTerminal(StreamObserver<TerminalCommand> responseObserver) {
             LOG.info("Kharon::attachTerminal");
             return terminalManager.createSession(responseObserver);
         }

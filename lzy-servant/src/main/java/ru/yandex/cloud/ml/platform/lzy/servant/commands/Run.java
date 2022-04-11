@@ -144,8 +144,8 @@ public class Run implements LzyCommand {
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
-                if (progress.getStatus() == Tasks.TaskProgress.Status.ERROR ||
-                        progress.getStatus() == Tasks.TaskProgress.Status.SUCCESS) {
+                if (progress.getStatus() == Tasks.TaskProgress.Status.ERROR
+                    || progress.getStatus() == Tasks.TaskProgress.Status.SUCCESS) {
                     exit[0] = progress.getRc();
                     descriptionArr[0] = progress.getDescription();
                     System.in.close();

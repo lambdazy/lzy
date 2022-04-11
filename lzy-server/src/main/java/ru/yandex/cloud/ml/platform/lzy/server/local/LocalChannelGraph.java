@@ -1,27 +1,25 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import java.text.MessageFormat;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraphException;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
+import ru.yandex.cloud.ml.platform.lzy.server.channel.*;
 
 public class LocalChannelGraph implements ChannelGraph {
     private static final Logger LOG = LogManager.getLogger(LocalChannelGraph.class);
     private final Set<Endpoint> senders = new HashSet<>();
     private final Set<Endpoint> receivers = new HashSet<>();
     private final Map<Endpoint, HashSet<Endpoint>> edges = new HashMap<>();
+    private final Channel owner;
+
+    public LocalChannelGraph(Channel channel) {
+        this.owner = channel;
+    }
 
     private static void checkConsistency(Endpoint sender, Endpoint receiver) {
         if (sender.slot().direction() != Slot.Direction.OUTPUT) {
@@ -35,6 +33,11 @@ public class LocalChannelGraph implements ChannelGraph {
                     .direction()
             );
         }
+    }
+
+    @Override
+    public Channel owner() {
+      return owner;
     }
 
     @Override

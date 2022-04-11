@@ -28,7 +28,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus.RC;
 
 public class TerminalSession {
-
     public static final String SESSION_ID_KEY = "kharon_session_id";
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
     private final CompletableFuture<StreamObserver<Servant.ServantProgress>> executeFromServerFuture =
@@ -56,8 +55,7 @@ public class TerminalSession {
                     LOG.info("Kharon::TerminalSession session_id:" + servantId + " request:"
                         + JsonUtils.printRequest(terminalState));
                 }
-                if (terminalState.getProgressCase()
-                    != Kharon.TerminalState.ProgressCase.ATTACHTERMINAL) {
+                if (terminalState.getProgressCase() != Kharon.TerminalState.ProgressCase.ATTACHTERMINAL) {
                     checkTerminalAndServantState();
                 }
                 switch (terminalState.getProgressCase()) {
@@ -201,8 +199,7 @@ public class TerminalSession {
             try {
                 executionProgress = executeFromServerFuture.get(10, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                throw new IllegalStateException(
-                    "Got terminal state before execute from server. " + e);
+                throw new IllegalStateException("Got terminal state before execute from server. " + e);
             }
         }
     }
