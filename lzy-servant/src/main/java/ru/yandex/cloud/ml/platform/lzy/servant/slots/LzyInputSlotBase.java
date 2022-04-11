@@ -46,8 +46,8 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     }
 
     protected void readAll() {
-        try {
-            dataProvider.forEach(chunk -> {
+        try (final Stream<ByteString> data = dataProvider) {
+            data.forEach(chunk -> {
                 try {
                     LOG.info("From {} chunk received {}", name(), chunk.toString(StandardCharsets.UTF_8));
                     onChunk(chunk);
