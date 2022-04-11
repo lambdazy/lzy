@@ -152,6 +152,7 @@ public abstract class LzyAgent implements Closeable {
 
     @Override
     public void close() {
+        LOG.info("LzyAgent::close {}", agentAddress);
         lzyFS.umount();
     }
 
@@ -160,7 +161,7 @@ public abstract class LzyAgent implements Closeable {
             LOG.info("published zygote " + to);
         try {
             final String zygoteJson = z != null ? JsonFormat.printer().print(z) : null;
-            final String logConfFile = System.getProperty("log4j.configurationFile");
+            final String logConfFile = System.getProperty("cmd.log4j.configurationFile");
             final List<String> commandParts = new ArrayList<>();
             commandParts.add(System.getProperty("java.home") + "/bin/java");
             commandParts.add("-Xmx1g");
