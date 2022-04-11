@@ -29,6 +29,10 @@ public class BashApi {
     }
 
     public static void main(String[] args) {
+        System.exit(execute(args));
+    }
+
+    public static int execute(String[] args) {
         final CommandLineParser cliParser = new DefaultParser();
         final HelpFormatter cliHelp = new HelpFormatter();
         String commandStr = "lzy";
@@ -37,16 +41,17 @@ public class BashApi {
             if (parse.getArgs().length > 0) {
                 commandStr = parse.getArgs()[0];
                 final LzyCommand.Commands command = LzyCommand.Commands.valueOf(commandStr);
-                System.exit(command.execute(parse));
+                return command.execute(parse);
             } else {
-                new Start().execute(parse);
+                return new Start().execute(parse);
             }
         } catch (ParseException e) {
             System.out.println(e.getMessage());
             cliHelp.printHelp(commandStr, options);
-            System.exit(-1);
+            return -1;
         } catch (Exception e) {
             LOG.error("Error while executing: " + String.join(" ", args), e);
+            return -1;
         }
     }
 }

@@ -276,7 +276,8 @@ public class LzyServant extends LzyAgent {
                 return;
             } else {
                 tid = path.getName(0).toString();
-                slotName = path.getName(0).relativize(path).toString();
+                // TODO(artolord) Make better slot name resolving
+                slotName = "/" + path.getName(0).relativize(Path.of("/").relativize(path));
                 System.out.println("tid: " + tid + " slot: " + slotName);
             }
 
