@@ -119,31 +119,32 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
         final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
             final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(emptyRequest);
-            progressIterator.forEachRemaining(progress -> {
-                if (progress.hasStart()) {
-                    Servant.EnvResult result = blockingStub.env(GrpcConverter.to(connection.env()));
-                    if (result.getRc() != 0) {
-                        request.completeExceptionally(new EnvironmentInstallationException(result.getDescription()));
-                        return;
+            try {
+                progressIterator.forEachRemaining(progress -> {
+                    if (progress.hasStart()) {
+                        Servant.EnvResult result = blockingStub.env(GrpcConverter.to(connection.env()));
+                        if (result.getRc() != 0) {
+                            request.completeExceptionally(new EnvironmentInstallationException(result.getDescription()));
+                            return;
+                        }
+                        request.complete(connection);
                     }
-                    request.complete(connection);
-                }
-                if (progress.hasCommunicationCompleted()) {
-                    synchronized (ServantsAllocatorBase.this) {
-                        spareServants.put(connection, Instant.now().plus(waitBeforeShutdown, ChronoUnit.SECONDS));
-                    }
-                }
-                connection.progress(progress);
-                Context.current().addListener((ctx) -> {
-                    synchronized (ServantsAllocatorBase.this) {
-                        shuttingDown.remove(connection);
-                        cleanup(connection);
-                        if (!request.isDone()) {
-                            request.completeExceptionally(new RuntimeException("Servant disconnected"));
+                    if (progress.hasCommunicationCompleted()) {
+                        synchronized (ServantsAllocatorBase.this) {
+                            spareServants.put(connection, Instant.now().plus(waitBeforeShutdown, ChronoUnit.SECONDS));
                         }
                     }
-                }, Runnable::run);
-            });
+                    connection.progress(progress);
+                });
+            } finally {
+                synchronized (ServantsAllocatorBase.this) {
+                    shuttingDown.remove(connection);
+                    cleanup(connection);
+                    if (!request.isDone()) {
+                        request.completeExceptionally(new RuntimeException("Servant disconnected"));
+                    }
+                }
+            }
         }, "connection-to-" + servantId);
         connection.complete(blockingStub, connectionThread, servantUri);
         servant2sessions.get(servantId).servants.add(connection);
@@ -210,6 +211,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                     //noinspection ResultOfMethodCallIgnored
                     s.control().stop(IAM.Empty.newBuilder().build());
                 } catch (Exception e) {
+                    LOG.error("Failed to shutdown servant: ", e);
                     terminate(s);
                     shuttingDown.remove(s);
                 }
