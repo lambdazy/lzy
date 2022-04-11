@@ -95,11 +95,11 @@ public class RunTest extends LzyBaseTest {
     public void testReadWrite() {
         //Arrange
         final String fileContent = "fileContent";
-        final String fileName = "/tmp/lzy/kek/some_file.txt";
+        final String fileName = "/tmp/lzy1/kek/some_file.txt";
         final String localFileName = "/tmp/lzy/lol/some_file.txt";
         final String channelName = "channel1";
 
-        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
+        final String fileOutName = "/tmp/lzy1/kek/some_file_out.txt";
         final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
         final String channelOutName = "channel2";
 

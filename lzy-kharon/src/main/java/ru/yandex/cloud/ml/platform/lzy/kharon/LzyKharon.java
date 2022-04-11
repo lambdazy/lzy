@@ -56,22 +56,25 @@ public class LzyKharon {
     private final ServantConnectionManager connectionManager = new ServantConnectionManager();
     private final Server kharonServer;
     private final Server kharonServantProxy;
+    private final ManagedChannel serverChannel;
+    private final ManagedChannel whiteboardChannel;
+    private final ManagedChannel snapshotChannel;
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
                      int servantProxyPort) throws URISyntaxException {
-        final ManagedChannel serverChannel = ChannelBuilder
+        serverChannel = ChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
             .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
 
-        final ManagedChannel whiteboardChannel = ChannelBuilder
+        whiteboardChannel = ChannelBuilder
             .forAddress(whiteboardUri.getHost(), whiteboardUri.getPort())
             .usePlaintext()
             .build();
         whiteboard = WbApiGrpc.newBlockingStub(whiteboardChannel);
 
-        final ManagedChannel snapshotChannel = ChannelBuilder
+        snapshotChannel = ChannelBuilder
             .forAddress(snapshotUri.getHost(), snapshotUri.getPort())
             .usePlaintext()
             .build();
@@ -141,8 +144,11 @@ public class LzyKharon {
     }
 
     public void close() {
-        kharonServer.shutdown();
-        kharonServantProxy.shutdown();
+        serverChannel.shutdownNow();
+        whiteboardChannel.shutdownNow();
+        snapshotChannel.shutdownNow();
+        kharonServer.shutdownNow();
+        kharonServantProxy.shutdownNow();
     }
 
     private static class ProxyCall {

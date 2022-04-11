@@ -25,6 +25,16 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
     public Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort, String user, String privateKeyPath) {
         mount = path;
 
+        final String pathServantLog4jFile =
+                Path.of(System.getProperty("user.dir")).getParent() +
+                        "/lzy-servant/src/main/resources/log4j2.yaml";
+        final String pathServantCmdLog4jFile =
+                Path.of(System.getProperty("user.dir")).getParent() +
+                        "/lzy-servant/src/main/resources/cmd_config_log4j2.yaml";
+
+        System.setProperty("log4j.configurationFile", pathServantLog4jFile);
+        System.setProperty("cmd.log4j.configurationFile", pathServantCmdLog4jFile);
+
         final LzyAgentConfig config = LzyAgentConfig.builder()
             .serverAddress(URI.create(serverAddress))
             .whiteboardAddress(URI.create(serverAddress))
