@@ -167,6 +167,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         final SessionImpl session = new SessionImpl(sessionId, userId, bucket);
         userToSessions.computeIfAbsent(userId, u -> new HashSet<>()).add(session);
         sessionsById.put(sessionId, session);
+        userSessions.put(userId, session);
         return session;
     }
 
