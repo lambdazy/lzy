@@ -148,7 +148,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     final Servant.SlotCommand slotCommand = terminalCommand.getSlotCommand();
                     try {
                         // TODO: find out if we need namespaces here
-                        final LzySlot slot = context.slot("terminal", slotCommand.getSlot());
+                        final LzySlot slot = context.slot(slotCommand.getTid(), slotCommand.getSlot());
                         if (slotCommand.hasConnect()) {
                             final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
                             ForkJoinPool.commonPool().execute(() -> {
