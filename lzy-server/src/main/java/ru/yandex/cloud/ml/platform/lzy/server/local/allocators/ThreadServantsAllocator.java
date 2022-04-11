@@ -43,7 +43,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                     ClassLoader.getSystemClassLoader());
             final Class<?> servantClass = Class.forName(serverConfig.getThreadAllocator().getServantClassName(),
                     true, classLoader);
-            servantMain = servantClass.getDeclaredMethod("main", String[].class);
+            servantMain = servantClass.getDeclaredMethod("execute", String[].class);
 
         } catch (MalformedURLException | ClassNotFoundException | NoSuchMethodException e) {
             throw new RuntimeException(e);

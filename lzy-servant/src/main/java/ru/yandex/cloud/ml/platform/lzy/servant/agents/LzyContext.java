@@ -52,11 +52,11 @@ public class LzyContext implements AutoCloseable {
     private String arguments = "";
     private Environment env;
 
-    public LzyContext(String contextId, SlotConnectionManager snapshooter, URI servantUri) {
+    public LzyContext(String contextId, SlotConnectionManager slotConnectionManager, URI servantUri) {
         this.contextId = contextId;
-        this.slotsManager = snapshooter;
+        this.slotsManager = slotConnectionManager;
         this.servantUri = servantUri;
-        this.storage = snapshooter.snapshooter().storage();
+        this.storage = slotConnectionManager.snapshooter().storage();
     }
 
     public void start() {

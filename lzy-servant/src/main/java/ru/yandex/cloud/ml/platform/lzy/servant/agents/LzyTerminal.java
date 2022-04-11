@@ -88,8 +88,8 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         status.set(AgentStatus.EXECUTING);
 
         Context.current().addListener(context -> {
-            LOG.info("Execution terminated from server ");
-            System.exit(1);
+            LOG.info("Terminal session terminated from server ");
+            close();
         }, Runnable::run);
 
         this.context.onProgress(progress -> {
@@ -124,7 +124,6 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     @Override
     public void close() {
         super.close();
-        commandHandler.onCompleted();
         channel.shutdown();
         agentServer.shutdown();
     }
@@ -186,13 +185,13 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                 @Override
                 public void onError(Throwable throwable) {
                     LOG.error("Exception during terminal <-> server: " + throwable);
-                    System.exit(-1);
+                    close();
                 }
 
                 @Override
                 public void onCompleted() {
                     LOG.warn("Terminal was detached from server");
-                    System.exit(0);
+                    close();
                 }
             };
 
