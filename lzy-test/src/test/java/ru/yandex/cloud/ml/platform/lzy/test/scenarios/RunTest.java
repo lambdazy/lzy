@@ -123,21 +123,25 @@ public class RunTest extends LzyBaseTest {
             .execute(() -> terminal.execute("bash", "-c",
                 "echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file.getName(), cat_to_file);
-        final CompletableFuture<ExecutionResult> result1 = new CompletableFuture<>();
+        final CompletableFuture<ExecutionResult> result = new CompletableFuture<>();
+
         ForkJoinPool.commonPool()
-            .execute(() -> result1.complete(terminal.execute("bash", "-c",
-                "/tmp/lzy/sbin/cat " + localFileOutName)));
-        final ExecutionResult result = terminal.run(
-            cat_to_file.getName(),
-            "",
-            Map.of(
-                fileName.substring("/tmp/lzy1".length()), channelName,
-                fileOutName.substring("/tmp/lzy1".length()), channelOutName
-            )
-        );
+            .execute(() -> result.complete(
+                terminal.run(
+                    cat_to_file.getName(),
+                    "",
+                    Map.of(
+                        fileName.substring("/tmp/lzy1".length()), channelName,
+                        fileOutName.substring("/tmp/lzy1".length()), channelOutName
+                    )
+                )
+            ));
+
+        final ExecutionResult result1 = terminal.execute("bash", "-c",
+                "/tmp/lzy/sbin/cat " + localFileOutName);
 
         //Assert
-        Assert.assertEquals(fileContent + "\n", result1.get().stdout());
-        Assert.assertEquals(0, result.exitCode());
+        Assert.assertEquals(fileContent + "\n", result1.stdout());
+        Assert.assertEquals(0, result.get().exitCode());
     }
 }
