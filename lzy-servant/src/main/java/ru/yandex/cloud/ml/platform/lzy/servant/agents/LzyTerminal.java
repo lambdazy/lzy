@@ -31,7 +31,6 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private final LzyKharonGrpc.LzyKharonStub kharon;
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final String sessionId = UUID.randomUUID().toString();
-    private final Lzy.GetS3CredentialsResponse credentials;
     private final SlotConnectionManager slotManager;
     private CommandHandler commandHandler;
     private LzyContext context;
@@ -51,12 +50,6 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         kharon = LzyKharonGrpc.newStub(channel);
         server = LzyServerGrpc.newBlockingStub(channel);
         final String bucket = server.getBucket(GetBucketRequest.newBuilder().setAuth(this.auth).build()).getBucket();
-        credentials = server.getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder()
-            .setAuth(this.auth)
-            .setBucket(bucket)
-            .build()
-        );
-
         slotManager = new SlotConnectionManager(
             server,
             this.auth,
@@ -130,7 +123,6 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     private class CommandHandler {
-
         private final StreamObserver<TerminalState> responseObserver;
         private final TerminalSlotSender slotSender = new TerminalSlotSender(kharon);
 
@@ -142,13 +134,47 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
                     final String commandId = terminalCommand.getCommandId();
                     if (terminalCommand.getCommandCase() != TerminalCommand.CommandCase.SLOTCOMMAND) {
-                        CommandHandler.this.onError(Status.INVALID_ARGUMENT.asException());
+                        CommandHandler.this.onNext(TerminalState.newBuilder()
+                            .setCommandId(commandId)
+                            .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
+                                .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                    .setCodeValue(1)
+                                    .setDescription("Invalid terminal command")
+                                    .build())
+                                .build())
+                            .build());
+                        return;
                     }
 
                     final Servant.SlotCommand slotCommand = terminalCommand.getSlotCommand();
                     try {
                         // TODO: find out if we need namespaces here
                         final LzySlot slot = context.slot(slotCommand.getTid(), slotCommand.getSlot());
+                        if (slot == null) {
+                            if (slotCommand.hasDestroy() || slotCommand.hasDisconnect()) {
+                                CommandHandler.this.onNext(TerminalState.newBuilder()
+                                    .setCommandId(commandId)
+                                    .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
+                                        .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                            .setCodeValue(0)
+                                            .build())
+                                        .build())
+                                    .build());
+                                return;
+                            } else {
+                                CommandHandler.this.onNext(TerminalState.newBuilder()
+                                    .setCommandId(commandId)
+                                    .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
+                                        .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                            .setCodeValue(1)
+                                            .setDescription("Slot " + slotCommand.getSlot()
+                                                + " not found in ns: " + slotCommand.getTid())
+                                            .build())
+                                        .build())
+                                    .build());
+                                return;
+                            }
+                        }
                         if (slotCommand.hasConnect()) {
                             final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
                             ForkJoinPool.commonPool().execute(() -> {

@@ -257,15 +257,13 @@ public class LzyKharon {
         }
 
         @Override
-        public StreamObserver<SendSlotDataMessage> writeToInputSlot(
-            StreamObserver<ReceivedDataStatus> responseObserver) {
+        public StreamObserver<SendSlotDataMessage> writeToInputSlot(StreamObserver<ReceivedDataStatus> response) {
             LOG.info("Kharon::writeToInputSlot");
-            return dataCarrier.connectTerminalConnection(responseObserver);
+            return dataCarrier.connectTerminalConnection(response);
         }
 
         @Override
-        public void openOutputSlot(Servant.SlotRequest request,
-                                   StreamObserver<Servant.Message> responseObserver) {
+        public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
             LOG.info("Kharon::openOutputSlot from Terminal " + JsonUtils.printRequest(request));
             final URI slotUri = URI.create(request.getSlotUri());
             String slotHost = slotUri.getHost();
@@ -394,9 +392,7 @@ public class LzyKharon {
                     .getTerminalSessionFromSlotUri(request.getSlotUri());
                 LOG.info("KharonServantProxyService sessionId = " + session.sessionId()
                     + "::openOutputSlot " + JsonUtils.printRequest(request));
-                LOG.info("carryTerminalSlotContent: slot " + request.getSlotUri());
-                dataCarrier.openServantConnection(URI.create(request.getSlotUri()),
-                    responseObserver);
+                dataCarrier.openServantConnection(URI.create(request.getSlotUri()), responseObserver);
                 session.configureSlot(Servant.SlotCommand.newBuilder()
                     .setConnect(Servant.ConnectSlotCommand.newBuilder()
                         .setSlotUri(request.getSlotUri())

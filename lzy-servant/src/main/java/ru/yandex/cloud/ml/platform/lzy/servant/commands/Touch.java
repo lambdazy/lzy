@@ -129,8 +129,10 @@ public class Touch implements LzyCommand {
         }
         createCommandBuilder.setChannelId(channelName);
 
+        final Servant.SlotCommand.Builder commandBuilder = Servant.SlotCommand.newBuilder();
+        commandBuilder.setTid("init");
         final Servant.SlotCommandStatus status = terminal.configureSlot(
-            Servant.SlotCommand.newBuilder().setCreate(createCommandBuilder.build()).build()
+            commandBuilder.setCreate(createCommandBuilder.build()).build()
         );
         System.out.println(JsonFormat.printer().print(status));
         return 0;

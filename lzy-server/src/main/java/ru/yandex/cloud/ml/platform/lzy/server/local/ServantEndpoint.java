@@ -29,6 +29,7 @@ public class ServantEndpoint implements Endpoint {
         this.slot = slot;
         this.sessionId = sessionId;
         this.servant = servant;
+        // [TODO] in case of terminal slot uri this will cause invalid tid assignment (terminal has no tids)
         this.tid = Path.of(uri.getPath()).getName(0).toString();
     }
 
