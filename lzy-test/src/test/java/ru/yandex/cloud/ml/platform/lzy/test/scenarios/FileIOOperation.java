@@ -34,12 +34,7 @@ class FileIOOperation implements AtomicZygote {
             env = new Env() {
                 @Override
                 public BaseEnv baseEnv() {
-                    return new BaseEnv() {
-                        @Override
-                        public String name() {
-                            return null;
-                        }
-                    };
+                    return () -> null;
                 }
 
                 @Override

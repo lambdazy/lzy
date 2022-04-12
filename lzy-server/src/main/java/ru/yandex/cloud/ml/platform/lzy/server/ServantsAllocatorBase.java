@@ -189,7 +189,11 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
     @Override
     public Session userSession(String user) {
-        return userSessions.computeIfAbsent(user, u -> registerSession(u, UUID.randomUUID(), auth.bucketForUser(u)));
+        Session session = userSessions.get(user);
+        if (session == null) {
+            session = registerSession(user, UUID.randomUUID(), auth.bucketForUser(user));
+        }
+        return session;
     }
 
     private final Executor executor = new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
