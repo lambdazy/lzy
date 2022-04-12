@@ -7,11 +7,9 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.google.protobuf.ByteString;
-import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -22,6 +20,7 @@ import java.util.Spliterators;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -130,6 +129,7 @@ public class SlotConnectionManager {
     }
 
     public Stream<ByteString> connectToSlot(URI slotUri, long offset) {
+
         final ManagedChannel channel = ChannelBuilder
             .forAddress(slotUri.getHost(), slotUri.getPort())
             .usePlaintext()
@@ -137,10 +137,11 @@ public class SlotConnectionManager {
             .build();
         final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(channel);
 
-        final Iterator<Servant.Message> msgIter = stub.openOutputSlot(Servant.SlotRequest.newBuilder()
-            .setOffset(offset)
-            .setSlotUri(slotUri.toString())
-            .build()
+        final Iterator<Servant.Message> msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
+                .setOffset(offset)
+                .setSlotUri(slotUri.toString())
+                .build()
+            )
         );
         return StreamSupport.stream(
             Spliterators.spliteratorUnknownSize(msgIter, Spliterator.NONNULL),
@@ -222,5 +223,31 @@ public class SlotConnectionManager {
 
     public Snapshooter snapshooter() {
         return snapshooter;
+    }
+
+    private static class LazyIterator<T> implements Iterator<T>{
+        private final Supplier<Iterator<T>> supplier;
+        private Iterator<T> createdIterator;
+
+        public LazyIterator(Supplier<Iterator<T>> supplier) {
+            this.supplier = supplier;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return iter().hasNext();
+        }
+
+        @Override
+        public T next() {
+            return iter().next();
+        }
+
+        private synchronized Iterator<T> iter() {
+            if (createdIterator == null) {
+                createdIterator = supplier.get();
+            }
+            return createdIterator;
+        }
     }
 }

@@ -147,7 +147,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
                 LOG.info("Closing file {} for slot {}", storage.toString(), name());
                 channel.close();
                 trackers().forEach(ContentsTracker::onClose);
-                state(State.DESTROYED);
+                state(State.SUSPENDED);
             }
         };
     }

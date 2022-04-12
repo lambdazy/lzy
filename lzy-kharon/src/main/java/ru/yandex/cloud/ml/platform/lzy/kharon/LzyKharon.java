@@ -21,6 +21,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -393,7 +394,14 @@ public class LzyKharon {
                 LOG.info("KharonServantProxyService sessionId = " + session.sessionId()
                     + "::openOutputSlot " + JsonUtils.printRequest(request));
                 dataCarrier.openServantConnection(URI.create(request.getSlotUri()), responseObserver);
+
+                Path path = Path.of(URI.create(request.getSlotUri()).getPath());
+                String tid = path.getName(0).toString();
+                String slot = Path.of("/", path.subpath(1, path.getNameCount()).toString()).toString();
+
                 session.configureSlot(Servant.SlotCommand.newBuilder()
+                    .setSlot(slot)
+                    .setTid(tid)
                     .setConnect(Servant.ConnectSlotCommand.newBuilder()
                         .setSlotUri(request.getSlotUri())
                         .build())
