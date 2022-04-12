@@ -198,6 +198,8 @@ public class LzyServant extends LzyAgent {
                 ),
                 UserEvent.UserEventType.ExecutionPreparing
             ));
+            responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
+            responseObserver.onCompleted();
 
             assignments.map(
                     entry -> context.configureSlot(tid, entry.slot(), entry.binding())
@@ -244,8 +246,6 @@ public class LzyServant extends LzyAgent {
                 return;
             }
             status.set(AgentStatus.EXECUTING);
-            responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
-            responseObserver.onCompleted();
         }
 
         private void stop() {
