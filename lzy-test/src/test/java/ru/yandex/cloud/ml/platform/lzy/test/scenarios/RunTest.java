@@ -3,6 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
@@ -92,7 +94,7 @@ public class RunTest extends LzyBaseTest {
     }
 
     @Test
-    public void testReadWrite() {
+    public void testReadWrite() throws ExecutionException, InterruptedException {
         //Arrange
         final String fileContent = "fileContent";
         final String fileName = "/tmp/lzy1/kek/some_file.txt";
@@ -121,10 +123,10 @@ public class RunTest extends LzyBaseTest {
             .execute(() -> terminal.execute("bash", "-c",
                 "echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file.getName(), cat_to_file);
-        final ExecutionResult[] result1 = new ExecutionResult[1];
+        final CompletableFuture<ExecutionResult> result1 = new CompletableFuture<>();
         ForkJoinPool.commonPool()
-            .execute(() -> result1[0] = terminal.execute("bash", "-c",
-                "/tmp/lzy/sbin/cat " + localFileOutName));
+            .execute(() -> result1.complete(terminal.execute("bash", "-c",
+                "/tmp/lzy/sbin/cat " + localFileOutName)));
         final ExecutionResult result = terminal.run(
             cat_to_file.getName(),
             "",
@@ -135,7 +137,7 @@ public class RunTest extends LzyBaseTest {
         );
 
         //Assert
-        Assert.assertEquals(fileContent + "\n", result1[0].stdout());
+        Assert.assertEquals(fileContent + "\n", result1.get().stdout());
         Assert.assertEquals(0, result.exitCode());
     }
 }
