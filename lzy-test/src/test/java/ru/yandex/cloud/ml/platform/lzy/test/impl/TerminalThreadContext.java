@@ -149,6 +149,9 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
 
     @Override
     public void close() {
+        if (terminal == null)
+            return;
+
         terminal.close();
         try {
             terminal.awaitTermination();
