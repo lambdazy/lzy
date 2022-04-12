@@ -148,7 +148,6 @@ public class ServantAllocatorBaseTest {
                         allocator.sessions(uid).map(SessionManager.Session::id).collect(Collectors.toSet())));
     }
 
-    @Ignore
     @Test
     public void testRemovingSessionsInParallelWithGetting() throws ExecutionException, InterruptedException {
         //Arrange

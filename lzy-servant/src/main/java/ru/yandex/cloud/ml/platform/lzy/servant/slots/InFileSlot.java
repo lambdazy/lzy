@@ -43,7 +43,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     @Override
     public void connect(URI slotUri, Stream<ByteString> dataProvider) {
         super.connect(slotUri, dataProvider);
-        LOG.info("LzyInputSlotBase:: Attempt to connect to " + slotUri + " slot " + this);
+        LOG.info("Attempt to connect to " + slotUri + " slot " + this);
         ForkJoinPool.commonPool().execute(this::readAll);
     }
 
