@@ -46,19 +46,19 @@ public class LzyServerThreadContext implements LzyServerTestContext {
         String lzywhiteboard = "http://localhost:8999";
 
         try (ApplicationContext context = ApplicationContext.run(
-                PropertySource.of(
-                        Map.of(
-                                "server.server-uri", address(false),
-                                "storage.amazon.endpoint", serviceEndpoint,
-                                "server.whiteboardUrl", lzywhiteboard,
-                                "storage.amazon.enabled", "true",
-                                "storage.bucket", "lzy-bucket",
-                                "storage.amazon.accessToken", "access-key",
-                                "storage.amazon.secretToken", "secret-key",
-                                "server.threadAllocator.enabled", "true",
-                                "server.threadAllocator.filePath", "lzy-servant/target/classes/ru/yandex/cloud/ml/platform/lzy/servant/BashApi.class"
-                        )
+            PropertySource.of(
+                Map.of(
+                    "server.server-uri", address(false),
+                    "storage.amazon.endpoint", serviceEndpoint,
+                    "server.whiteboardUrl", lzywhiteboard,
+                    "storage.amazon.enabled", "true",
+                    "storage.bucket", "lzy-bucket",
+                    "storage.amazon.accessToken", "access-key",
+                    "storage.amazon.secretToken", "secret-key",
+                    "server.threadAllocator.enabled", "true",
+                    "server.threadAllocator.filePath", "lzy-servant/target/classes/ru/yandex/cloud/ml/platform/lzy/servant/BashApi.class"
                 )
+            )
         )) {
             LzyServer.Impl impl = context.getBean(LzyServer.Impl.class);
             ServerBuilder<?> builder = NettyServerBuilder.forPort(LZY_SERVER_PORT)

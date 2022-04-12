@@ -72,6 +72,7 @@ public class DataCarrier {
                         .build()
                 );
                 receiver.onCompleted();
+                getServantMessageStream().onCompleted();
             }
         };
     }
