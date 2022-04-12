@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Context;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -15,9 +16,11 @@ import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvironmentFactory;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.*;
 import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.Concluded;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ServantProgress;
@@ -29,6 +32,7 @@ import java.io.LineNumberReader;
 import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -73,9 +77,7 @@ public class LzyContext implements AutoCloseable {
     }
 
     public synchronized LzySlot configureSlot(String task, Slot spec, String binding) {
-        final URI slotUri = servantUri.resolve("/" + task
-            + (spec.name().startsWith("/") ? spec.name() : "/" + spec.name())
-        );
+        final URI slotUri = servantUri.resolve(Path.of("/", task, spec.name()).toString());
 
         LOG.info("configure slot: " + spec.name() + " binding: " + binding);
 

@@ -105,9 +105,9 @@ public class RunTest extends LzyBaseTest {
 
         final FileIOOperation cat_to_file = new FileIOOperation(
             "cat_to_file_lzy",
-            List.of(fileName.substring(LZY_MOUNT.length())),
-            List.of(fileOutName.substring(LZY_MOUNT.length())),
-            "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName,
+            List.of(fileName.substring("/tmp/lzy1".length())),
+            List.of(fileOutName.substring("/tmp/lzy1".length())),
+            "/tmp/lzy1/sbin/cat " + fileName + " > " + fileOutName,
             false
         );
 
@@ -129,8 +129,8 @@ public class RunTest extends LzyBaseTest {
             cat_to_file.getName(),
             "",
             Map.of(
-                fileName.substring(LZY_MOUNT.length()), channelName,
-                fileOutName.substring(LZY_MOUNT.length()), channelOutName
+                fileName.substring("/tmp/lzy1".length()), channelName,
+                fileOutName.substring("/tmp/lzy1".length()), channelOutName
             )
         );
 

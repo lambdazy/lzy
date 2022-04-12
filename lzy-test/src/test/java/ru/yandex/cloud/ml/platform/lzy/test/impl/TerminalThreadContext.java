@@ -34,6 +34,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
 
         System.setProperty("log4j.configurationFile", pathServantLog4jFile);
         System.setProperty("cmd.log4j.configurationFile", pathServantCmdLog4jFile);
+        System.setProperty("custom.log.file", "/tmp/lzy_servant.log");
 
         final LzyAgentConfig config = LzyAgentConfig.builder()
             .serverAddress(URI.create(serverAddress))
@@ -155,7 +156,8 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
         terminal.close();
         try {
             terminal.awaitTermination();
-        } catch (InterruptedException e) {
+            Runtime.getRuntime().exec("umount -f " + mount);
+        } catch (InterruptedException | IOException e) {
             throw new RuntimeException(e);
         }
     }

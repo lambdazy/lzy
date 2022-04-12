@@ -44,6 +44,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskSignal;
 import java.io.IOException;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;

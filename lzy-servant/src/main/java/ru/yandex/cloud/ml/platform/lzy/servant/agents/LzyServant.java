@@ -7,6 +7,7 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.Context;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
@@ -17,6 +18,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
@@ -33,6 +35,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
@@ -185,6 +188,7 @@ public class LzyServant extends LzyAgent {
 
             status.set(AgentStatus.PREPARING_EXECUTION);
             final AtomicZygote zygote = (AtomicZygote) GrpcConverter.from(request.getZygote());
+            final Stream<Context.SlotAssignment> assignments = GrpcConverter.from(request.getAssignmentsList().stream());
             final String tid = request.getTid();
             UserEventLogger.log(new UserEvent(
                 "Servant execution preparing",
@@ -194,6 +198,16 @@ public class LzyServant extends LzyAgent {
                 ),
                 UserEvent.UserEventType.ExecutionPreparing
             ));
+
+            assignments.map(
+                    entry -> context.configureSlot(tid, entry.slot(), entry.binding())
+            ).forEach(slot -> {
+                if (slot instanceof LzyFileSlot) {
+                    LOG.info("lzyFS::addSlot " + slot.name());
+                    lzyFS.addSlot((LzyFileSlot) slot);
+                    LOG.info("lzyFS::slot added " + slot.name());
+                }
+            });
 
             try {
                 currentExecution = context.execute(tid, zygote, progress -> {
