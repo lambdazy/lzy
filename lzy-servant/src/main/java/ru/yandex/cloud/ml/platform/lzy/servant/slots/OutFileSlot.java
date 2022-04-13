@@ -173,6 +173,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     public Stream<ByteString> readFromPosition(long offset) throws IOException {
         LOG.info("OutFileSlot.readFromPosition for slot " + this.definition().name());
         final FileChannel channel;
+        waitForState(OPEN);
         try {
             channel = channelSupplier.get().get();
         } catch (InterruptedException | ExecutionException e) {
