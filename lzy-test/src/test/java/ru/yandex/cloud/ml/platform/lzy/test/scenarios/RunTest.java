@@ -141,7 +141,10 @@ public class RunTest extends LzyBaseTest {
                 "/tmp/lzy/sbin/cat " + localFileOutName);
 
         //Assert
-        Assert.assertEquals(fileContent + "\n", result1.stdout());
         Assert.assertEquals(0, result.get().exitCode());
+        Assert.assertEquals(fileContent + "\n", result1.stdout());
+
+        terminal.destroyChannel(channelName);
+        terminal.destroyChannel(channelOutName);
     }
 }

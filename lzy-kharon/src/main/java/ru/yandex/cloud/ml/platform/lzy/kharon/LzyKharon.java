@@ -4,6 +4,9 @@ import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.cli.*;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -21,8 +24,11 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -60,9 +66,12 @@ public class LzyKharon {
     private final ManagedChannel serverChannel;
     private final ManagedChannel whiteboardChannel;
     private final ManagedChannel snapshotChannel;
+    private final URI address;
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
                      int servantProxyPort) throws URISyntaxException {
+        address = new URI("http", null, host, port, null, null,
+            null);
         serverChannel = ChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
@@ -266,18 +275,34 @@ public class LzyKharon {
         @Override
         public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
             LOG.info("Kharon::openOutputSlot from Terminal " + JsonUtils.printRequest(request));
-            final URI slotUri = URI.create(request.getSlotUri());
+            final URI connectUri = URI.create(request.getSlotUri());
+            final Optional<String> uri =
+                URLEncodedUtils.parse(connectUri, StandardCharsets.UTF_8)
+                    .stream()
+                    .filter(t -> t.getName().equals("servant_uri"))
+                    .findFirst()
+                    .map(NameValuePair::getValue);
+            if (uri.isEmpty()) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Bad uri").asException());
+                return;
+            }
+            final URI slotUri = URI.create(uri.get());
             String slotHost = slotUri.getHost();
             if (slotHost.equals("host.docker.internal")) {
                 slotHost = "localhost";
             }
+
+            Servant.SlotRequest newRequest = Servant.SlotRequest.newBuilder()
+                .mergeFrom(request)
+                .setSlotUri(slotUri.toString())
+                .build();
 
             URI servantUri = null;
             try {
                 servantUri = new URI(null, null, slotHost, slotUri.getPort(), null, null, null);
                 final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager.getOrCreate(servantUri);
                 LOG.info("Created connection to servant " + servantUri);
-                final Iterator<Servant.Message> messageIterator = servant.openOutputSlot(request);
+                final Iterator<Servant.Message> messageIterator = servant.openOutputSlot(newRequest);
                 while (messageIterator.hasNext()) {
                     responseObserver.onNext(messageIterator.next());
                 }
@@ -416,11 +441,27 @@ public class LzyKharon {
                                   StreamObserver<Servant.SlotCommandStatus> responseObserver) {
             try {
                 final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
+                if (request.hasConnect()) {
+                    URI builtURI = new URIBuilder()
+                        .setScheme("kharon")
+                        .setHost(address.getHost())
+                        .setPort(address.getPort())
+                        .addParameter("servant_uri", request.getConnect().getSlotUri())
+                        .build();
+                    request = Servant.SlotCommand.newBuilder()
+                        .mergeFrom(request)
+                        .setConnect(Servant.ConnectSlotCommand.newBuilder()
+                            .setSlotUri(builtURI.toString()).build())
+                        .build();
+                }
                 final SlotCommandStatus slotCommandStatus = session.configureSlot(request);
                 responseObserver.onNext(slotCommandStatus);
                 responseObserver.onCompleted();
             } catch (InvalidSessionRequestException e) {
                 responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            } catch (URISyntaxException e) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Invalid servant uri")
+                    .asRuntimeException());
             }
         }
     }

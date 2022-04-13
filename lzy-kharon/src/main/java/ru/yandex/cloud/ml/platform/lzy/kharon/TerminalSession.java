@@ -233,15 +233,11 @@ public class TerminalSession {
             invalidate();
             terminalController.onCompleted();
         } catch (Exception e) {
-            LOG.error("Failed to close stream with Terminal session_id {}. Already closed.", servantId);
+            LOG.error("Failed to close stream with Terminal session_id {}. Already closed: ", servantId, e);
         }
     }
 
     private void invalidate() {
-        if (invalid.get()) {
-            throw new IllegalStateException("Session is already invalid");
-        }
-
         invalid.set(true);
     }
 }

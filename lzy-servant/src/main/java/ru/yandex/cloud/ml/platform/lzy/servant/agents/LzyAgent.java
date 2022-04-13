@@ -271,7 +271,11 @@ public abstract class LzyAgent implements Closeable {
                 final Servant.ConnectSlotCommand connect = request.getConnect();
                 final URI slotUri = URI.create(connect.getSlotUri());
                 if (slot instanceof LzyInputSlot) {
-                    ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToSlot(slotUri, 0));
+                    if (slotUri.getScheme().equals("s3") || slotUri.getScheme().equals("azure")) {
+                        ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToS3(slotUri, 0));
+                    } else {
+                        ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToSlot(slotUri, 0));
+                    }
                 } else {
                     return Servant.SlotCommandStatus.newBuilder().setRc(
                         Servant.SlotCommandStatus.RC.newBuilder()
