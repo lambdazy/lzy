@@ -72,7 +72,7 @@ public class LocalChannelGraph implements ChannelGraph {
 
         checkConsistency(sender, receiver);
 
-        final int rc = receiver.connect(sender);
+        final int rc = receiver.connect(sender.uri());
         if (rc != 0) {
             throw new ChannelException(MessageFormat.format(
                 "Failure rc:{2} while connecting sender:{0} to receiver:{1}",

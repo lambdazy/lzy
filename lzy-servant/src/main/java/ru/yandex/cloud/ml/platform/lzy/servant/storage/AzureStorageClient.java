@@ -47,7 +47,10 @@ public class AzureStorageClient implements StorageClient {
     @Override
     public URI getURI(String bucketName, String key) {
         try {
-            return new URIBuilder().setScheme("azure").setPath(Path.of(bucketName, key).toString()).build();
+            return new URIBuilder(client.getAccountUrl())
+                .setScheme("azure")
+                .setPath(Path.of(bucketName, key).toString())
+                .build();
         } catch (URISyntaxException e) {
             LOG.info(e);
             return null;

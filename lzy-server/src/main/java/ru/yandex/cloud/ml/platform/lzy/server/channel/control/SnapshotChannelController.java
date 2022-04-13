@@ -1,7 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.server.channel.control;
 
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+
+import java.net.URI;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang.NotImplementedException;
@@ -24,6 +25,7 @@ public class SnapshotChannelController implements ChannelController {
     private final IAM.Auth auth;
     private final Lock lock = new ReentrantLock();
     private Status status = Status.UNBOUND;
+    private URI storageURI;
 
     public SnapshotChannelController(String entryId,
         String snapshotId,
@@ -80,7 +82,7 @@ public class SnapshotChannelController implements ChannelController {
                     }
                     if (isCompleted()) {
                         status = Status.COMPLETED;
-                        slot.snapshot(snapshotId, entryId);
+                        slot.connect(storageURI);
                     }
                     channelGraph.addReceiver(slot);
                     return;
@@ -107,7 +109,7 @@ public class SnapshotChannelController implements ChannelController {
                     if (status == Status.IN_PROGRESS) {
                         if (isCompleted()) {  // Entry is finished, notifying all receivers
                             this.status = Status.COMPLETED;
-                            channelGraph.receivers().forEach(s -> s.snapshot(snapshotId, entryId));
+                            channelGraph.receivers().forEach(s -> s.connect(storageURI));
                         } else {  // Some error in sender, entry is not finished, destroying all receivers
                             status = Status.ERRORED;
                             channelGraph.receivers().forEach(channelGraph::removeReceiver);
@@ -146,6 +148,9 @@ public class SnapshotChannelController implements ChannelController {
                 .setEntryId(entryId)
                 .setAuth(auth)
                 .build());
+        if (status.getStatus() == LzyWhiteboard.EntryStatusResponse.Status.FINISHED) {
+            storageURI = URI.create(status.getStorageUri());
+        }
         return status.getStatus() == LzyWhiteboard.EntryStatusResponse.Status.FINISHED;
     }
 

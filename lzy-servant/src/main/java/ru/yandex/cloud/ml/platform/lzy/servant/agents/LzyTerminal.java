@@ -181,7 +181,11 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                 if (slot instanceof LzyOutputSlot) {
                                     slotSender.connect((LzyOutputSlot) slot, slotUri);
                                 } else if (slot instanceof LzyInputSlot) {
-                                    ((LzyInputSlot) slot).connect(slotUri, slotManager.connectToSlot(slotUri, 0));
+                                    if (slotUri.getScheme().equals("s3") || slotUri.getScheme().equals("azure")) {
+                                        ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToS3(slotUri, 0));
+                                    } else {
+                                        ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToSlot(slotUri, 0));
+                                    }
                                 }
                             });
 
@@ -242,7 +246,11 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         }
 
         public void onCompleted() {
-            responseObserver.onCompleted();
+            try {
+                responseObserver.onCompleted();
+            } catch (IllegalStateException e) {
+                LOG.warn("Terminal command handler already completed");
+            }
         }
     }
 
