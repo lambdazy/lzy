@@ -72,7 +72,8 @@ public class S3SlotSnapshot implements SlotSnapshot {
             .key(generateKey(slot))
             .metadata(Metadata.empty())
             .stream(() -> is)
-            .build());
+            .build()
+        );
         return new StreamsWrapper(is, os, future);
     }
 

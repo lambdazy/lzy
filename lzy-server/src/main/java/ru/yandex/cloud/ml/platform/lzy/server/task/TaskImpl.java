@@ -174,6 +174,9 @@ public class TaskImpl implements Task {
                         }
                         servant = null;
                         TaskImpl.this.notifyAll();
+                        return true;
+                    }
+                    case COMMUNICATIONCOMPLETED: {
                         return false;
                     }
                     default: {
