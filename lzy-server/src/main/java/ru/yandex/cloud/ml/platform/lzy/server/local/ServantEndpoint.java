@@ -79,7 +79,7 @@ public class ServantEndpoint implements Endpoint {
     }
 
     @Override
-    public int connect(Endpoint endpoint) {
+    public int connect(URI endpoint) {
         if (isInvalid()) {
             LOG.warn("Attempt to connect to invalid endpoint " + this);
             return 1;
@@ -90,7 +90,7 @@ public class ServantEndpoint implements Endpoint {
                     .setSlot(slot().name())
                     .setTid(tid)
                     .setConnect(Servant.ConnectSlotCommand.newBuilder()
-                            .setSlotUri(endpoint.uri().toString())
+                            .setSlotUri(endpoint.toString())
                             .build()
                     )
                     .build()

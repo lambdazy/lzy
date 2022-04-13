@@ -12,7 +12,7 @@ public interface Endpoint {
 
     UUID sessionId();
 
-    int connect(Endpoint endpoint);
+    int connect(URI endpoint);
 
     SlotStatus status();
 

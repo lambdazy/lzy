@@ -50,7 +50,8 @@ public class AmazonStorageClient implements StorageClient {
     @Override
     public URI getURI(String bucketName, String key) {
         try {
-            return new URIBuilder().setScheme("s3").setPath(Path.of(bucketName, key).toString()).build();
+            return new URIBuilder(client.getUrl(bucketName, key).toString())
+                .setScheme("s3").setPath(Path.of(bucketName, key).toString()).build();
         } catch (URISyntaxException e) {
             LOG.info(e);
             return null;

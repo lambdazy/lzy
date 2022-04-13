@@ -34,12 +34,8 @@ import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
 import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc.LzyServerBlockingStub;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 
 public class SlotConnectionManager {
     private static final Logger LOG = LogManager.getLogger(SlotConnectionManager.class);
@@ -129,24 +125,46 @@ public class SlotConnectionManager {
     }
 
     public Stream<ByteString> connectToSlot(URI slotUri, long offset) {
+        final Iterator<Servant.Message> msgIter;
+        final ManagedChannel channel;
 
-        final ManagedChannel channel = ChannelBuilder
-            .forAddress(slotUri.getHost(), slotUri.getPort())
-            .usePlaintext()
-            .enableRetry(LzyServantGrpc.SERVICE_NAME)
-            .build();
-        final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(channel);
+        switch (slotUri.getScheme()) {
+            case "kharon": {
+                channel = ChannelBuilder
+                    .forAddress(slotUri.getHost(), slotUri.getPort())
+                    .usePlaintext()
+                    .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                    .build();
+                final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(channel);
 
-        final Iterator<Servant.Message> msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
-                .setOffset(offset)
-                .setSlotUri(slotUri.toString())
-                .build()
-            )
-        );
+                msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
+                        .setOffset(offset)
+                        .setSlotUri(slotUri.toString())
+                        .build()
+                ));
+                break;
+            }
+            default:
+            {
+                channel = ChannelBuilder
+                    .forAddress(slotUri.getHost(), slotUri.getPort())
+                    .usePlaintext()
+                    .enableRetry(LzyServantGrpc.SERVICE_NAME)
+                    .build();
+                final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(channel);
+
+                msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
+                    .setOffset(offset)
+                    .setSlotUri(slotUri.toString())
+                    .build()
+                ));
+            }
+        }
+
         return StreamSupport.stream(
             Spliterators.spliteratorUnknownSize(msgIter, Spliterator.NONNULL),
             false
-        ).map(msg -> msg.hasChunk() ? msg.getChunk() : ByteString.EMPTY).onClose(channel::shutdown);
+        ).map(msg -> msg.hasChunk() ? msg.getChunk() : ByteString.EMPTY).onClose(channel::shutdownNow);
     }
 
     private Transmitter resolveStorage(URI uri) {
