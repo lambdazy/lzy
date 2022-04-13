@@ -442,6 +442,11 @@ public class LzyKharon {
             try {
                 final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
                 if (request.hasConnect()) {
+                    URI uri = URI.create(request.getConnect().getSlotUri());
+                    if (uri.getScheme().equals("s3") || uri.getScheme().equals("azure")) {
+                        ProxyCall.exec(session::configureSlot, request, responseObserver);
+                        return;
+                    }
                     URI builtURI = new URIBuilder()
                         .setScheme("kharon")
                         .setHost(address.getHost())

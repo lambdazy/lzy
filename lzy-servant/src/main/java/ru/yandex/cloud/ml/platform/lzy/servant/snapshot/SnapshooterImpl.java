@@ -88,6 +88,7 @@ public class SnapshooterImpl implements Snapshooter {
     }
 
     private synchronized void commit(LzySlot slot, String snapshotId, String entryId) {
+        snapshotProvider.slotSnapshot(slot.definition()).onFinish();
         final LzyWhiteboard.CommitCommand commitCommand = LzyWhiteboard.CommitCommand
                 .newBuilder()
                 .setSnapshotId(snapshotId)

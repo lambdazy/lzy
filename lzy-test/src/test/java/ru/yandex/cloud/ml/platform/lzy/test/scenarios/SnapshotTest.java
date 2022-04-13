@@ -16,6 +16,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -77,24 +79,25 @@ public class SnapshotTest extends LzyBaseTest {
     }
 
     @Test
-    public void testTaskPersistent() throws IOException, ParseException {
+    public void testTaskPersistent() throws IOException, ParseException, ExecutionException, InterruptedException {
         //Arrange
-        final String fileContent = "fileContent";
-        final String fileName = "/tmp/lzy/kek/some_file.txt";
-        final String localFileName = "/tmp/lzy/lol/some_file.txt";
-        final String channelName = "channel1";
         final String channelEntryId = "firstEntryId";
         final String channelOutEntryId = "secondEntryId";
 
-        final String fileOutName = "/tmp/lzy/kek/some_file_out.txt";
+        final String fileContent = "fileContent";
+        final String fileName = "/tmp/lzy1/kek/some_file.txt";
+        final String localFileName = "/tmp/lzy/lol/some_file.txt";
+        final String channelName = "channel1";
+
+        final String fileOutName = "/tmp/lzy1/kek/some_file_out.txt";
         final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
         final String channelOutName = "channel2";
 
         final FileIOOperation cat_to_file = new FileIOOperation(
             "cat_to_file_lzy",
-            List.of(fileName.substring(LZY_MOUNT.length())),
-            List.of(fileOutName.substring(LZY_MOUNT.length())),
-            "/tmp/lzy/sbin/cat " + fileName + " > " + fileOutName,
+            List.of(fileName.substring("/tmp/lzy1".length())),
+            List.of(fileOutName.substring("/tmp/lzy1".length())),
+            "/tmp/lzy1/sbin/cat " + fileName + " > " + fileOutName,
             false
         );
 
@@ -109,11 +112,6 @@ public class SnapshotTest extends LzyBaseTest {
         ForkJoinPool.commonPool()
             .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file.getName(), cat_to_file);
-        final LzyTerminalTestContext.Terminal.ExecutionResult[] result1 =
-            new LzyTerminalTestContext.Terminal.ExecutionResult[1];
-        ForkJoinPool.commonPool()
-            .execute(() -> result1[0] = terminal.execute("bash", "-c", "/tmp/lzy/sbin/cat " + localFileOutName));
-        Assert.assertNotNull(spId);
 
         final String firstTag = "firstTag";
         final String secondTag = "secondTag";
@@ -123,21 +121,29 @@ public class SnapshotTest extends LzyBaseTest {
             createWhiteboard(spId, List.of(localFileName, localFileOutName), List.of(firstTag, secondTag), namespace);
         Assert.assertNotNull(wbId);
 
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.run(
-            cat_to_file.getName(),
-            "",
-            Map.of(
-                fileName.substring(LZY_MOUNT.length()), channelName,
-                fileOutName.substring(LZY_MOUNT.length()), channelOutName
-            )
-        );
+        final CompletableFuture<LzyTerminalTestContext.Terminal.ExecutionResult> result = new CompletableFuture<>();
+
+        ForkJoinPool.commonPool()
+            .execute(() -> result.complete(
+                terminal.run(
+                    cat_to_file.getName(),
+                    "",
+                    Map.of(
+                        fileName.substring("/tmp/lzy1".length()), channelName,
+                        fileOutName.substring("/tmp/lzy1".length()), channelOutName
+                    )
+                )
+            ));
+
+        final LzyTerminalTestContext.Terminal.ExecutionResult result1 = terminal.execute("bash", "-c",
+                "/tmp/lzy/sbin/cat " + localFileOutName);
+
+        //Assert
+        Assert.assertEquals(0, result.get().exitCode());
+        Assert.assertEquals(fileContent + "\n", result1.stdout());
 
         terminal.destroyChannel(channelName);
         terminal.destroyChannel(channelOutName);
-
-        //Assert
-        Assert.assertEquals(fileContent + "\n", result1[0].stdout());
-        Assert.assertEquals(0, result.exitCode());
 
         final AmazonS3 client = AmazonS3ClientBuilder
             .standard()
