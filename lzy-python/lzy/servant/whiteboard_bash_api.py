@@ -4,7 +4,7 @@ from json.decoder import JSONDecodeError
 from typing import Any, Type, Dict, List, TypeVar, Optional
 
 # noinspection PyProtectedMember
-from lzy.api._proxy import proxy
+from lzy.api._proxy import proxy_optional
 from lzy.api.utils import infer_real_type
 from lzy.api.whiteboard.credentials import StorageCredentials
 from lzy.api.serializer.serializer import Serializer
@@ -77,7 +77,7 @@ class WhiteboardBashApi(WhiteboardApi):
 
         bucket = get_bucket_from_url(field_url)
         real_type = infer_real_type(field_type)
-        return proxy(lambda: self.__serializer.deserialize_from_byte_string(
+        return proxy_optional(lambda: self.__serializer.deserialize_from_byte_string(
             self._whiteboard_storage(bucket).read(field_url), real_type), real_type)  # type: ignore
         # type: ignore[no-any-return]
 
