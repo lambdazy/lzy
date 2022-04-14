@@ -173,7 +173,6 @@ public class ServantAllocatorBaseTest {
         Assert.assertEquals(added.get(), collect.size());
     }
 
-    @Ignore
     @Test
     public void testParallelRemovingAndSessionsGettingByUser() throws ExecutionException, InterruptedException {
         //Arrange
