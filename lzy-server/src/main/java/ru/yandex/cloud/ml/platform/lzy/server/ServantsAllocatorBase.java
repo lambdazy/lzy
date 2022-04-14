@@ -34,12 +34,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     private final Map<ServantConnection, Instant> spareServants = new HashMap<>();
     private final Map<ServantConnection, Instant> shuttingDown = new HashMap<>();
 
-    private final Map<String, Set<SessionImpl>> userToSessions = new ConcurrentHashMap<>();
-    private final Map<UUID, SessionImpl> servant2sessions = new ConcurrentHashMap<>();
-    private final Map<UUID, SessionImpl> sessionsById = new ConcurrentHashMap<>();
+    private final Map<String, Set<SessionImpl>> userToSessions = new HashMap<>();
+    private final Map<UUID, SessionImpl> servant2sessions = new HashMap<>();
+    private final Map<UUID, SessionImpl> sessionsById = new HashMap<>();
 
-    private final Map<String, Session> userSessions = new ConcurrentHashMap<>();
-    private final Map<UUID, ServantConnectionImpl> uncompletedConnections = new ConcurrentHashMap<>();
+    private final Map<String, Session> userSessions = new HashMap<>();
+    private final Map<UUID, ServantConnectionImpl> uncompletedConnections = new HashMap<>();
 
     private final Authenticator auth;
     private final int waitBeforeShutdown;
@@ -163,7 +163,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
 
     @Override
-    public Session registerSession(String userId, UUID sessionId, String bucket) {
+    public synchronized Session registerSession(String userId, UUID sessionId, String bucket) {
         final SessionImpl session = new SessionImpl(sessionId, userId, bucket);
         userToSessions.computeIfAbsent(userId, u -> new HashSet<>()).add(session);
         sessionsById.put(sessionId, session);
@@ -172,23 +172,22 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public Session get(UUID sessionId) {
+    public synchronized Session get(UUID sessionId) {
         return sessionsById.get(sessionId);
     }
 
     @Override
-    public Stream<Session> sessions(String userId) {
-        return userToSessions.get(userId).stream().map(s -> s);
+    public synchronized Stream<Session> sessions(String userId) {
+        return new ArrayList<>(userToSessions.get(userId)).stream().map(s -> s);
     }
 
     @Override
-    public Session byServant(UUID servantId) {
+    public synchronized Session byServant(UUID servantId) {
         return servant2sessions.get(servantId);
     }
 
-
     @Override
-    public Session userSession(String user) {
+    public synchronized Session userSession(String user) {
         Session session = userSessions.get(user);
         if (session == null) {
             session = registerSession(user, UUID.randomUUID(), auth.bucketForUser(user));
