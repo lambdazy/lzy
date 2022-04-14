@@ -108,6 +108,7 @@ class DefaultWhiteboard:
     a: int = 0
     b: Optional[List[str]] = None
     c: str = "Hello"
+    d: int = None
 
 
 @op
@@ -321,4 +322,4 @@ with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
 
 env = LzyRemoteEnv()
 wb = env.whiteboard(wb_id, DefaultWhiteboard)
-print(f"Value a in DefaultWhiteboard is {wb.a}, b length is {len(wb.b)}, c is {wb.c}")
+print(f"Value a in DefaultWhiteboard is {wb.a}, b length is {len(wb.b)}, c is {wb.c}, d is {wb.d}")
