@@ -117,6 +117,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     @Override
     public void close() {
         super.close();
+        context.slots().forEach(LzySlot::suspend);
+        try {
+            context.close();
+        } catch (InterruptedException e) {
+            LOG.error(e);
+        }
         commandHandler.onCompleted();
         channel.shutdown();
         agentServer.shutdown();

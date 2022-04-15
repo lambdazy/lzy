@@ -144,8 +144,7 @@ public class SlotConnectionManager {
                 ));
                 break;
             }
-            default:
-            {
+            default: {
                 channel = ChannelBuilder
                     .forAddress(slotUri.getHost(), slotUri.getPort())
                     .usePlaintext()

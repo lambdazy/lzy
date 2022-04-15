@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
@@ -84,6 +85,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             requests.put(servantId, requestResult);
             ServantConnectionImpl connection = new ServantConnectionImpl(servantId, env, provisioning);
             uncompletedConnections.put(servantId, connection);
+            session.servants.add(connection);
             ForkJoinPool.commonPool().execute(() -> {
                 final String servantToken = auth.registerServant(servantId);
                 try {
@@ -123,6 +125,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 progressIterator.forEachRemaining(progress -> {
                     if (progress.hasStart()) {
                         Servant.EnvResult result = blockingStub.env(GrpcConverter.to(connection.env()));
+                        uncompletedConnections.remove(servantId);
                         if (result.getRc() != 0) {
                             request.completeExceptionally(new EnvironmentInstallationException(result.getDescription()));
                             return;
@@ -138,6 +141,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 });
             } finally {
                 synchronized (ServantsAllocatorBase.this) {
+                    connection.progress(Servant.ServantProgress.newBuilder()
+                            .setDisconnected(Servant.Disconnected.newBuilder().build()).build());
                     shuttingDown.remove(connection);
                     cleanup(connection);
                     if (!request.isDone()) {
@@ -157,7 +162,23 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         final SessionImpl session = sessionsById.remove(sessionId);
         if (session != null) {
             userToSessions.getOrDefault(session.owner(), Set.of()).remove(session);
-            session.servants.forEach(c -> spareServants.put(c, Instant.now()));
+            session.servants.forEach(
+                c -> {
+                    servant2sessions.remove(c.servantId);
+                    if (uncompletedConnections.containsKey(c.servantId)) {
+                        requests.remove(c.servantId).completeExceptionally(
+                            new RuntimeException("Session deleted before start")
+                        );
+                        uncompletedConnections.remove(c.servantId);
+                        if (c.connectionThread != null) {
+                            c.connectionThread.interrupt();
+                        }
+                        terminate(c);
+                        return;
+                    }
+                    spareServants.put(c, Instant.now());
+                }
+            );
         }
     }
 
@@ -209,7 +230,9 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         executor.execute(() -> {
             tasksToShutdown.forEach(s -> {
                 final SessionImpl session = servant2sessions.remove(s.id());
-                session.servants.remove(s);
+                if (session != null) {
+                    session.servants.remove(s);
+                }
                 shuttingDown.put(s, Instant.now().plus(GRACEFUL_SHUTDOWN_PERIOD_SEC, ChronoUnit.SECONDS));
                 try {
                     //noinspection ResultOfMethodCallIgnored
@@ -309,7 +332,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     private static class SessionImpl implements SessionManager.Session {
         private final UUID id;
         private final String user;
-        private final List<ServantConnection> servants = new ArrayList<>();
+        private final List<ServantConnectionImpl> servants = new ArrayList<>();
         private final String bucket;
 
         private SessionImpl(UUID id, String user, String bucket) {
