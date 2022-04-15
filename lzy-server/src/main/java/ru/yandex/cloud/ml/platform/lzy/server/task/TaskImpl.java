@@ -173,9 +173,13 @@ public class TaskImpl implements Task {
                         }
                         servant = null;
                         TaskImpl.this.notifyAll();
-                        return true;
+                        return state != COMMUNICATION_COMPLETED;
                     }
                     case COMMUNICATIONCOMPLETED: {
+                        if (state.phase() <= EXECUTING.phase()) {
+                            state(COMMUNICATION_COMPLETED);
+                            return true;
+                        }
                         return false;
                     }
                     case DISCONNECTED: {

@@ -16,6 +16,7 @@ import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
@@ -121,6 +122,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
         final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
             final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(emptyRequest);
+            Context.current().addListener(l -> connection.progress(Servant.ServantProgress.newBuilder()
+                    .setDisconnected(Servant.Disconnected.newBuilder().build()).build()), Runnable::run);
             try {
                 progressIterator.forEachRemaining(progress -> {
                     if (progress.hasStart()) {
@@ -142,8 +145,6 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 });
             } finally {
                 synchronized (ServantsAllocatorBase.this) {
-                    connection.progress(Servant.ServantProgress.newBuilder()
-                            .setDisconnected(Servant.Disconnected.newBuilder().build()).build());
                     shuttingDown.remove(connection);
                     cleanup(connection);
                     if (!request.isDone()) {
@@ -276,6 +277,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
 
         protected void progress(Servant.ServantProgress progress) {
+            LOG.info("Progress of servant connection: " + JsonUtils.printRequest(progress));
             List.copyOf(trackers).stream().filter(t -> {
                 try {
                     return !t.test(progress);
