@@ -42,7 +42,7 @@ public class MultiSessionTest extends LzyBaseTest {
         //Arrange
         final Terminal terminal1 = createTerminal(9998, 5006, "user1");
         final Terminal terminal2 = createTerminal(9999, 5007, "user2");
-        final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph_cpu.py";
+        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_integration_cpu.py";
 
         //Act
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
@@ -62,7 +62,7 @@ public class MultiSessionTest extends LzyBaseTest {
     public void parallelPyGraphExecutionInSingleTerminal()
         throws ExecutionException, InterruptedException {
         final Terminal terminal = createTerminal(9998, 5006, "user1");
-        final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph_cpu.py";
+        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_integration_cpu.py";
 
         //Act
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();

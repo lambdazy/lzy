@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import os
+import uuid
 from io import BytesIO
 from itertools import chain
 from typing import (
@@ -120,7 +121,14 @@ def infer_call_signature(f: Callable, output_type: type, *args, **kwargs) -> Cal
         # noinspection PyProtectedMember
         types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
 
-    arg_names = tuple(argspec.args[:len(args)])
+    generated_names = []
+    for arg in args[len(argspec.args):]:
+        name = str(uuid.uuid4())
+        generated_names.append(name)
+        # noinspection PyProtectedMember
+        types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+
+    arg_names = tuple(argspec.args[:len(args)] + generated_names)
     kwarg_names = tuple(kwargs.keys())
     return CallSignature(FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names), args, kwargs)
 
