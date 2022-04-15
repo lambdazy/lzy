@@ -36,7 +36,8 @@ public interface Task {
     URI servantUri();
 
     enum State {
-        QUEUE(0), PREPARING(1), CONNECTED(2), EXECUTING(3), SUSPENDED(4), DISCONNECTED(5), SUCCESS(6), ERROR(7);
+        QUEUE(0), PREPARING(1), CONNECTED(2), EXECUTING(3),
+        COMMUNICATION_COMPLETED(4), DISCONNECTED(5), SUCCESS(6), ERROR(7);
 
         private final int phaseNo;
 

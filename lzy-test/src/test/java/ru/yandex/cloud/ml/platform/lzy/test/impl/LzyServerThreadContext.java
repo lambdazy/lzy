@@ -25,6 +25,7 @@ public class LzyServerThreadContext implements LzyServerTestContext {
     protected LzyServerGrpc.LzyServerBlockingStub lzyServerClient;
     private Server lzyServer;
     private ManagedChannel channel;
+    private LzyServer.Impl impl;
 
     @Override
     public String address(boolean fromDocker) {
@@ -60,7 +61,7 @@ public class LzyServerThreadContext implements LzyServerTestContext {
                 )
             )
         )) {
-            LzyServer.Impl impl = context.getBean(LzyServer.Impl.class);
+            impl = context.getBean(LzyServer.Impl.class);
             ServerBuilder<?> builder = NettyServerBuilder.forPort(LZY_SERVER_PORT)
                     .permitKeepAliveWithoutCalls(true)
                     .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
@@ -92,10 +93,11 @@ public class LzyServerThreadContext implements LzyServerTestContext {
     public void close() {
         if (lzyServer != null) {
             try {
-                channel.shutdown();
+                channel.shutdownNow();
                 channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-                lzyServer.shutdown();
-                lzyServer.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+                lzyServer.shutdownNow();
+                lzyServer.awaitTermination();
+                impl.close();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
