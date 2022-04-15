@@ -167,6 +167,25 @@ pacman -Sy fuse2 inetutils
 9) terraform plan -var-file=tvars.json -out=tfplan
 10) terraform apply tfplan
 
+### View logs
+
+**Requirements**
+* `az aks get-credentials --name lzy-prod --resource-group lzy-prod --context lzy-prod` to create context
+* `kubectl config use-context lzy-prod` to use context
+
+**Server logs online**
+* `kubectl get pods` to find out server pod name (looks like `lzy-server-<id>`)
+* `kubectl get logs -f lzy-server-<id>`
+
+**Servant logs online**
+* `kubectl get pods` to find out servant pod name (looks like `lzy-servant-<id>`)
+* `kubectl exec -it lzy-servant-<id> -- cat /tmp/lzy-log/servant/servant.log` 
+
+**Old server or servant logs**
+* `kubectl get pods` to find out clickhouse pod name (looks like `clickhouse-<id>`)
+* `kubectl port-forward clickhouse-<id> 8123:8123`
+* Go to azure for credentials: Azure -> lzy-prod -> Configuration (you can search for it or find in left bar) -> Secrets tab -> clickhousse
+
 ### Example
 
 In example, we use backend `azurerm` for remote terraform state storing
