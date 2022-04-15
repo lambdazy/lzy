@@ -116,6 +116,7 @@ public class LzyServer {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("gRPC server is shutting down!");
                 server.shutdown();
+                impl.close();
             }));
             server.awaitTermination();
         }
@@ -124,6 +125,7 @@ public class LzyServer {
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
         public static final ThreadGroup TERMINAL_THREADS = new ThreadGroup("Terminal threads");
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
+        private final Set<Thread> terminalThreads = new HashSet<>();
 
         @Inject
         private ChannelsManager channels;
@@ -474,6 +476,7 @@ public class LzyServer {
                     TERMINAL_THREADS,
                     () -> {
                         final String sessionId = request.getServantId();
+                        Context.current().addListener(ctxt -> Thread.currentThread().interrupt(), Runnable::run);
                         final ManagedChannel channel = ChannelBuilder
                             .forAddress(servantUri.getHost(), servantUri.getPort())
                             .usePlaintext()
@@ -488,13 +491,14 @@ public class LzyServer {
                             runTerminal(auth, servant, UUID.fromString(sessionId));
                         } finally {
                             channel.shutdownNow();
+                            terminalThreads.remove(Thread.currentThread());
                         }
-                        Context.current().addListener(ctxt -> Thread.currentThread().interrupt(), Runnable::run);
                     },
                     "Terminal " + request.getServantId() + " for user " + auth.getUser()
                 );
                 terminalThread.setDaemon(true);
                 terminalThread.start();
+                terminalThreads.add(terminalThread);
             }
             responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
             responseObserver.onCompleted();
@@ -696,6 +700,10 @@ public class LzyServer {
             } else {
                 return servantsAllocator.userSession(auth.getUser().getUserId());
             }
+        }
+
+        public void close() {
+            terminalThreads.forEach(Thread::interrupt);
         }
     }
 }
