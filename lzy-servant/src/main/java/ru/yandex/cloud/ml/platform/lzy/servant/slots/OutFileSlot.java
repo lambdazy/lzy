@@ -30,6 +30,7 @@ import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.Run;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.FileContents;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
@@ -174,6 +175,9 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         LOG.info("OutFileSlot.readFromPosition for slot " + this.definition().name());
         final FileChannel channel;
         waitForState(OPEN);
+        if (state() != OPEN) {
+            throw new IllegalStateException("Slot is not open, cannot read");
+        }
         try {
             channel = channelSupplier.get().get();
         } catch (InterruptedException | ExecutionException e) {

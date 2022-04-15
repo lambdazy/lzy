@@ -231,14 +231,14 @@ public class LzyContext implements AutoCloseable {
     public synchronized void close() throws InterruptedException {
         while (!namespaces.isEmpty()) {
             LOG.info("Slots: " + Arrays.toString(slots().map(LzySlot::name).toArray()));
-            namespaces.wait();
-        }
-        if (slotsManager.snapshooter() != null) {
-            slotsManager.snapshooter().close();
+            this.wait();
         }
         progress(ServantProgress.newBuilder()
             .setExit(Concluded.newBuilder().build())
             .build());
+        if (slotsManager.snapshooter() != null) {
+            slotsManager.snapshooter().close();
+        }
     }
 
     public SlotConnectionManager slotManager() {

@@ -26,6 +26,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
 
 public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private static final Logger LOG = LogManager.getLogger(InFileSlot.class);
+    private static final ThreadGroup READER_TG = new ThreadGroup("input-slot-readers");
 
     private final Path storage;
     private final OutputStream outputStream;
@@ -44,7 +45,9 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     public void connect(URI slotUri, Stream<ByteString> dataProvider) {
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
-        ForkJoinPool.commonPool().execute(this::readAll);
+        Thread t = new Thread(READER_TG, this::readAll, "reader-from-" + slotUri +"-to-" + definition().name());
+        t.start();
+        onState(State.DESTROYED, t::interrupt);
     }
 
     @Override
@@ -116,6 +119,9 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
             @Override
             public int read(Pointer buf, long offset, long size) throws IOException {
                 if (state() != State.OPEN) {
+                    if (state() == State.DESTROYED) {
+                        return -ErrorCodes.EIO();
+                    }
                     try {
                         //to avoid non-stop retries which take CPU
                         Thread.sleep(10);

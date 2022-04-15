@@ -141,7 +141,9 @@ public class TerminalSession {
             public void onCompleted() {
                 LOG.info("Terminal for " + user + " disconnected; sessionId = " + servantId);
                 invalidate();
-                executionProgress.onCompleted();
+                if (executionProgress != null) {
+                    executionProgress.onCompleted();
+                }
             }
         };
     }
