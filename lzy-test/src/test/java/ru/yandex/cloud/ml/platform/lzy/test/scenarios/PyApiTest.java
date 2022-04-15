@@ -1,14 +1,14 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
-import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
-
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
+
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
 
 public class PyApiTest extends LzyBaseTest {
 
@@ -42,7 +42,7 @@ public class PyApiTest extends LzyBaseTest {
         arrangeTerminal("testUser");
         terminal.execute(Map.of(), "bash", "-c",
             condaPrefix + "pip install catboost");
-        final String pyCommand = "python /lzy-python/tests/scenarios/simple_graph_cpu.py";
+        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_integration_cpu.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),

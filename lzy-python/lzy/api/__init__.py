@@ -99,3 +99,11 @@ def op_(provisioning: Provisioning, *, output_type=None):
         return lazy
 
     return deco
+
+
+# register cloud injections
+# noinspection PyBroadException
+try:
+    from lzy.injections import catboost_injection
+except:
+    pass
