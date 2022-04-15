@@ -199,3 +199,16 @@ class BaseApiTests(TestCase):
 
         # the result depends on the order of execution here
         self.assertEqual(s, ["str", "str"])
+
+    def test_args_kwargs(self):
+        @op
+        def opt(a, b, *args, **kwargs) -> List[str]:
+            return [a, b, args[0], kwargs['s']]
+
+        # Act
+        # noinspection PyUnusedLocal
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME) as env:
+            s = opt('str', 'str', *('str',), **{'s': 'str'})
+
+        # the result depends on the order of execution here
+        self.assertEqual(s, ["str", "str", "str", "str"])
