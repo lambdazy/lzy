@@ -2,10 +2,10 @@
 from catboost import CatBoostClassifier, CatBoostRegressor, CatBoostRanker
 
 from lzy.api import op, Provisioning, LzyRemoteEnv
-from lzy.injections.extensions import add_method
+from lzy.injections.extensions import extend
 
 
-@add_method((CatBoostClassifier, CatBoostRegressor, CatBoostRanker))
+@extend((CatBoostClassifier, CatBoostRegressor, CatBoostRanker))
 def fit(self, *args, provisioning: Provisioning = None, **kwargs):
     if provisioning:
         if provisioning.gpu:

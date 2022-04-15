@@ -2,7 +2,7 @@ from functools import wraps
 from typing import Tuple
 
 
-def add_method(classes: Tuple[type, ...], original_prefix: str = 'original_'):
+def extend(classes: Tuple[type, ...], original_prefix: str = 'original_'):
     def decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
