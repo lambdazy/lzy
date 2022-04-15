@@ -108,7 +108,11 @@ message ServantProgress {
     ExecutionConcluded executeStop = 6;
     CommunicationCompleted communicationCompleted = 7;
     Concluded exit = 8;
+    Disconnected disconnected = 9;
   }
+}
+
+message Disconnected {
 }
 
 message ExecutionStarted {

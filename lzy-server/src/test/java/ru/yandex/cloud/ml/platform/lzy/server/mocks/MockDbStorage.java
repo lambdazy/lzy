@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.server;
+package ru.yandex.cloud.ml.platform.lzy.server.mocks;
 
 import io.micronaut.context.annotation.Replaces;
 import io.micronaut.context.annotation.Requires;

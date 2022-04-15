@@ -22,7 +22,7 @@ public class PyApiTest extends LzyBaseTest {
     public void arrangeTerminal(String mount, Integer port, String serverAddress, String user,
                                 String keyPath) {
         int debugPort = 5006;
-        terminal = pyTerminalContext.startTerminalAtPathAndPort(mount, port, serverAddress,
+        terminal = terminalContext.startTerminalAtPathAndPort(mount, port, serverAddress,
             debugPort, user, keyPath);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,

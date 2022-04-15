@@ -293,11 +293,12 @@ public class LzyServer {
                     final UUID sessionId = session.id();
                     servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
                         .whenComplete((connection, th) -> {
-                            auth.registerTask(uid, task, connection.id());
-                            if (th != null)
+                            if (th != null) {
                                 task.state(Task.State.ERROR, th.getMessage(), Arrays.toString(th.getStackTrace()));
-                            else
+                            } else {
                                 task.attachServant(connection);
+                                auth.registerTask(uid, task, connection.id());
+                            }
                         });
                 } else if (progress.getStatus() == DISCONNECTED) {
                     if (retries[0]++ < MAX_TASK_RETRIES)

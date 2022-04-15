@@ -21,13 +21,13 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public class TerminalCrashTest extends LzyBaseTest {
 
-    private LzyTerminalTestContext.Terminal createTerminal() {
-        return createTerminal(DEFAULT_SERVANT_PORT, 5006);
+    private LzyTerminalTestContext.Terminal createTerminal(String mount) {
+        return createTerminal(DEFAULT_SERVANT_PORT, 5006, mount);
     }
 
-    private LzyTerminalTestContext.Terminal createTerminal(int port, int debugPort) {
+    private LzyTerminalTestContext.Terminal createTerminal(int port, int debugPort, String mount) {
         LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
+            mount,
             port,
             kharonContext.serverAddress(terminalContext.inDocker()),
             debugPort,
@@ -46,15 +46,15 @@ public class TerminalCrashTest extends LzyBaseTest {
     @Test
     public void testReadSlotToStdout() {
         //Arrange
-        final LzyTerminalTestContext.Terminal terminal1 = createTerminal();
-        final String fileName = "/tmp/lzy/kek/some_file.txt";
-        final String localFileName = "/tmp/lzy/lol/some_file.txt";
+        final LzyTerminalTestContext.Terminal terminal1 = createTerminal("/tmp/term1");
+        final String fileName = "/tmp/lzy1/kek/some_file.txt";
+        final String localFileName = "/tmp/term1/lol/some_file.txt";
         final String channelName = "channel1";
         final FileIOOperation cat = new FileIOOperation(
             "cat_lzy",
-            List.of(fileName.substring(LZY_MOUNT.length())),
+            List.of(fileName.substring("/tmp/lzy1".length())),
             Collections.emptyList(),
-            "/tmp/lzy/sbin/cat " + fileName,
+            "/tmp/lzy1/sbin/cat " + fileName,
             false
         );
 
@@ -73,10 +73,10 @@ public class TerminalCrashTest extends LzyBaseTest {
         terminal1.run(
             cat.getName(),
             "",
-            Map.of(fileName.substring(LZY_MOUNT.length()), channelName)
+            Map.of(fileName.substring("/tmp/lzy1".length()), channelName)
         );
 
-        LzyTerminalTestContext.Terminal terminal2 = createTerminal();
+        LzyTerminalTestContext.Terminal terminal2 = createTerminal(1000, 1200, "/tmp/term2");
 
         //Assert
         Assert.assertTrue(
@@ -115,8 +115,8 @@ public class TerminalCrashTest extends LzyBaseTest {
     @Test
     public void parallelExecutionOneTerminalFails() throws ExecutionException, InterruptedException {
         //Arrange
-        final LzyTerminalTestContext.Terminal terminal1 = createTerminal(9998, 5006);
-        final LzyTerminalTestContext.Terminal terminal2 = createTerminal(9997, 5007);
+        final LzyTerminalTestContext.Terminal terminal1 = createTerminal(9998, 5006, "");
+        final LzyTerminalTestContext.Terminal terminal2 = createTerminal(9997, 5007, "");
         final FileIOOperation echo42 = new FileIOOperation(
             "echo42",
             Collections.emptyList(),

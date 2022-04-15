@@ -1,6 +1,8 @@
-package ru.yandex.cloud.ml.platform.lzy.server;
+package ru.yandex.cloud.ml.platform.lzy.server.mocks;
 
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
+import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +54,7 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
         return allocationRequests.stream();
     }
 
-    static class AllocationRequest {
+    public static class AllocationRequest {
         private final UUID servantId;
         private final String token;
         private final Provisioning provisioning;

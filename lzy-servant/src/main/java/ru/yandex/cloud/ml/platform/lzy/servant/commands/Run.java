@@ -24,6 +24,9 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
+
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -265,9 +268,10 @@ public class Run implements LzyCommand {
                             }
                         } catch (IOException e) {
                             LOG.warn("Unable to read from input stream", e);
+                        } finally {
+                            LOG.info("Slot {} has been processed, counting down latch", devSlot);
+                            communicationLatch.countDown();
                         }
-                        LOG.info("Slot {} has been processed, counting down latch", devSlot);
-                        communicationLatch.countDown();
                     });
                     return stdinChannel;
                 }
@@ -302,10 +306,11 @@ public class Run implements LzyCommand {
                             }
                         } catch (IOException e) {
                             LOG.warn("Unable to read from " + devSlot, e);
+                        } finally {
+                            destroyChannel(channelName);
+                            LOG.info("Slot {} has been processed, counting down latch", devSlot);
+                            communicationLatch.countDown();
                         }
-                        destroyChannel(channelName);
-                        LOG.info("Slot {} has been processed, counting down latch", devSlot);
-                        communicationLatch.countDown();
                     });
                     return channelId;
                 }
@@ -345,13 +350,21 @@ public class Run implements LzyCommand {
     }
 
     private void destroyChannel(String channelName) {
-        //noinspection ResultOfMethodCallIgnored
-        server.channel(Channels.ChannelCommand.newBuilder()
-            .setAuth(auth)
-            .setChannelName(channelName)
-            .setDestroy(Channels.ChannelDestroy.newBuilder().build())
-            .build()
-        );
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            server.channel(Channels.ChannelCommand.newBuilder()
+                    .setAuth(auth)
+                    .setChannelName(channelName)
+                    .setDestroy(Channels.ChannelDestroy.newBuilder().build())
+                    .build()
+            );
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus() == Status.NOT_FOUND) {
+                return;
+            }
+            throw e;
+        }
+
     }
 
     private String createChannel(Slot slot, String channelName) {

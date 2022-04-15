@@ -45,7 +45,7 @@ public class LzySlotBase implements LzySlot {
     }
 
     public synchronized void state(Operations.SlotStatus.State newState) {
-        if (state == newState) {
+        if (state == newState || state == DESTROYED) {
             return;
         }
         LOG.info("Slot " + name() + " changed state " + this.state + " -> " + newState);

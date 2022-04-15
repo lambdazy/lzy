@@ -22,8 +22,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.ERROR;
-import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.SUCCESS;
+import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.*;
 
 public class TaskImpl implements Task {
     private static final Logger LOG = LogManager.getLogger(TaskImpl.class);
@@ -177,6 +176,10 @@ public class TaskImpl implements Task {
                         return true;
                     }
                     case COMMUNICATIONCOMPLETED: {
+                        return false;
+                    }
+                    case DISCONNECTED: {
+                        state(DISCONNECTED, 1, "Unexpected connection close");
                         return false;
                     }
                     default: {
