@@ -37,7 +37,7 @@ public class LocalChannelGraph implements ChannelGraph {
 
     @Override
     public Channel owner() {
-      return owner;
+        return owner;
     }
 
     @Override
