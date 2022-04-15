@@ -11,10 +11,8 @@ import ru.yandex.cloud.ml.platform.lzy.server.mocks.AllocatedServantMock;
 import ru.yandex.cloud.ml.platform.lzy.server.mocks.ServantAllocatorMock;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.*;

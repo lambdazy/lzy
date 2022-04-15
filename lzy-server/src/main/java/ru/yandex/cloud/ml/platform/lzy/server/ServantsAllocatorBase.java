@@ -127,7 +127,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                         Servant.EnvResult result = blockingStub.env(GrpcConverter.to(connection.env()));
                         uncompletedConnections.remove(servantId);
                         if (result.getRc() != 0) {
-                            request.completeExceptionally(new EnvironmentInstallationException(result.getDescription()));
+                            request.completeExceptionally(
+                                    new EnvironmentInstallationException(result.getDescription()));
                             return;
                         }
                         request.complete(connection);
