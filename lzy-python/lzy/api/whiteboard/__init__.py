@@ -1,16 +1,14 @@
 import dataclasses
-import uuid
 import os
-from typing import List, Any, Callable, Optional, Dict, Type, Set
+import uuid
+from typing import List, Any, Callable, Optional, Dict, Set
 
+from pure_protobuf.dataclasses_ import message  # type: ignore
+
+from lzy.api.serializer.serializer import FileSerializer
 from lzy.api.utils import is_lazy_proxy
 from lzy.api.whiteboard.model import WhiteboardApi, WhiteboardDescription
-from lzy.servant.servant_client import ServantClient
-from lzy.model.slot import Direction
-from lzy.model.channel import Channel, SnapshotChannelSpec, ChannelManager
-from lzy.model.file_slots import create_slot
-from lzy.api.serializer.serializer import Serializer
-from pure_protobuf.dataclasses_ import message  # type: ignore
+from lzy.servant.channel_manager import ChannelManager
 
 ALREADY_WRAPPED = '_already_wrapped_whiteboard'
 ALREADY_WRAPPED_READY = '_already_wrapped_ready_whiteboard'
@@ -61,7 +59,8 @@ def wrap_whiteboard(
         instance: Any,
         whiteboard_api: WhiteboardApi,
         whiteboard_id_getter: Callable[[], Optional[str]],
-        channel_manager: ChannelManager
+        channel_manager: ChannelManager,
+        serializer: FileSerializer
 ):
     check_whiteboard(instance)
     if hasattr(instance, ALREADY_WRAPPED):
@@ -99,7 +98,11 @@ def wrap_whiteboard(
             whiteboard_id = whiteboard_id_getter()
             if whiteboard_id is None:
                 raise RuntimeError("Cannot get whiteboard id")
-            channel_manager.write(entry_id, value)
+            path = channel_manager.out_slot(entry_id)
+            with path.open("wb") as handle:
+                serializer.serialize(value, handle)
+                handle.flush()
+                os.fsync(handle.fileno())
             whiteboard_api.link(whiteboard_id, key, entry_id)
 
         fields_assigned.add(key)

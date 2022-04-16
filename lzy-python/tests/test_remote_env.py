@@ -29,8 +29,8 @@ class MockStorageClient(StorageClient):
         super().__init__()
         self._storage = {}
 
-    def read(self, url: str) -> Any:
-        return self._storage[url]
+    def read(self, url: str, dest: BinaryIO) -> None:
+        dest.write(self._storage[url])
 
     def write(self, container: str, blob: str, data: BinaryIO):
         uri = self.generate_uri(container, blob)

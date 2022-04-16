@@ -1,10 +1,66 @@
+import abc
+import os
 from pathlib import Path
-from typing import TypeVar, Type, Any
+from typing import TypeVar, Dict
 
-from lzy.api.result import Result
-from lzy.model.channel import ChannelManager, Channel
-from lzy.model.slot import Slot
+from lzy.model.channel import Channel, SnapshotChannelSpec
+from lzy.model.file_slots import create_slot
+from lzy.model.slot import Slot, Direction
 from lzy.servant.servant_client import ServantClient
+
+
+class ChannelManager(abc.ABC):
+    def __init__(self, snapshot_id: str):
+        self._entry_id_to_channel: Dict[str, Channel] = {}
+        self._snapshot_id = snapshot_id
+
+    def channel(self, entry_id: str) -> Channel:
+        if entry_id in self._entry_id_to_channel:
+            return self._entry_id_to_channel[entry_id]
+        channel = Channel(entry_id, SnapshotChannelSpec(self._snapshot_id, entry_id))
+        self._create_channel(channel)
+        self._entry_id_to_channel[entry_id] = channel
+        return channel
+
+    def destroy(self, entry_id: str):
+        if entry_id not in self._entry_id_to_channel:
+            return
+        self._destroy_channel(self._entry_id_to_channel[entry_id])
+        self._entry_id_to_channel.pop(entry_id)
+
+    def destroy_all(self):
+        for entry in list(self._entry_id_to_channel):
+            self.destroy(entry)
+
+    def in_slot(self, entry_id: str) -> Path:
+        return self._resolve(entry_id, Direction.INPUT)
+
+    def out_slot(self, entry_id) -> Path:
+        return self._resolve(entry_id, Direction.OUTPUT)
+
+    def _resolve(self, entry_id: str, direction: Direction) -> Path:
+        if entry_id not in self._entry_id_to_channel:
+            raise ValueError('Unknown entry ID')
+        slot = create_slot(os.path.sep.join(("tasks", "snapshot", self._snapshot_id, entry_id)), direction)
+        self._touch(slot, self.channel(entry_id))
+        path = self._resolve_slot_path(slot)
+        return path
+
+    @abc.abstractmethod
+    def _create_channel(self, channel: Channel):
+        pass
+
+    @abc.abstractmethod
+    def _destroy_channel(self, channel: Channel):
+        pass
+
+    @abc.abstractmethod
+    def _touch(self, slot: Slot, channel: Channel):
+        pass
+
+    @abc.abstractmethod
+    def _resolve_slot_path(self, slot: Slot) -> Path:
+        pass
 
 
 class ServantChannelManager(ChannelManager):
@@ -51,10 +107,4 @@ class LocalChannelManager(ChannelManager):
         pass
 
     def destroy_all(self):
-        pass
-
-    def read(self, entry_id: str, obj_type: Type[T]) -> Result[Any]:
-        pass
-
-    def write(self, entry_id: str, obj: Any):
         pass
