@@ -19,15 +19,11 @@ def write_big_data(data) -> None:
     output_file.close()
     print(sys.getsizeof(data), "bytes")
 
-def test_big_data(filename) -> None:
-    in_file = open(filename, "rb")
-    data = in_file.read()
-    in_file.close()
-    write_big_data(data)
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
 if __name__ == "__main__":
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
-        test_big_data("data/1k.bin")
+        data = b'\x07\x08\x07'
+        write_big_data(data)
 ```
