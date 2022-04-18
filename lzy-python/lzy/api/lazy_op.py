@@ -295,9 +295,9 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             servant,
             call_s,
             snapshot_id,
+            UUIDEntryIdGenerator(snapshot_id),
             mem_serializer,
             file_serializer,
-            UUIDEntryIdGenerator(snapshot_id),
             provisioning,
             env,
             deployed=False

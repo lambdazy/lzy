@@ -1,5 +1,6 @@
 import abc
 import os
+import tempfile
 from pathlib import Path
 from typing import TypeVar, Dict
 
@@ -87,6 +88,7 @@ T = TypeVar("T")
 class LocalChannelManager(ChannelManager):
     def __init__(self, snapshot_id: str):
         super(LocalChannelManager, self).__init__(snapshot_id)
+        self._tmp_files = []
 
     def _create_channel(self, channel: Channel):
         pass
@@ -107,4 +109,10 @@ class LocalChannelManager(ChannelManager):
         pass
 
     def destroy_all(self):
-        pass
+        for path in self._tmp_files:
+            os.remove(path)
+
+    def _resolve(self, entry_id: str, direction: Direction) -> Path:
+        file = tempfile.NamedTemporaryFile()
+        self._tmp_files.append(file.name)
+        return Path(file.name)

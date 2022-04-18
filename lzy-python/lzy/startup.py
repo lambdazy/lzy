@@ -57,8 +57,7 @@ def main():
 
     def build_proxy(arg_name: str) -> Any:
         return lazy_proxy(
-            lambda n=arg_name: load_arg(servant.mount() / func_s.name / n, func_s.input_types[n], inputs.get(n)),
-            # type: ignore
+            lambda n=arg_name: load_arg(servant.mount() / func_s.name / n, func_s.input_types[n], inputs.get(n)), # type: ignore
             func_s.input_types[arg_name],
             {},
         )

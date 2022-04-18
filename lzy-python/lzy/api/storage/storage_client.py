@@ -2,7 +2,7 @@ import logging
 import os.path
 import pathlib
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Tuple, BinaryIO
+from typing import Any, TypeVar, Tuple, IO
 from urllib import parse
 
 import boto3
@@ -25,11 +25,11 @@ class StorageClient(ABC):
         self.__logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod
-    def read(self, url: str, dest: BinaryIO):
+    def read(self, url: str, dest: IO):
         pass
 
     @abstractmethod
-    def write(self, container: str, blob: str, data: BinaryIO) -> str:
+    def write(self, container: str, blob: str, data: IO) -> str:
         pass
 
     @abstractmethod
@@ -59,7 +59,7 @@ class AzureClient(StorageClient):
         super().__init__()
         self.client: BlobServiceClient = client
 
-    def read(self, url: str, dest: BinaryIO) -> Any:
+    def read(self, url: str, dest: IO) -> Any:
         uri = parse.urlparse(url)
         assert uri.scheme == "azure"
         bucket, other = bucket_from_url(url)
@@ -72,7 +72,7 @@ class AzureClient(StorageClient):
         data = downloader.readinto(dest)
         return data
 
-    def write(self, container: str, blob: str, data: BinaryIO):
+    def write(self, container: str, blob: str, data: IO):
         container_client: ContainerClient = self.client.get_container_client(container)
         blob_client = container_client.get_blob_client(blob)
         blob_client.upload_blob(data)  # type: ignore
@@ -106,13 +106,13 @@ class AmazonClient(StorageClient):
         )
         self.__logger = logging.getLogger(self.__class__.__name__)
 
-    def read(self, url: str, dest: BinaryIO) -> Any:
+    def read(self, url: str, dest: IO) -> Any:
         uri = parse.urlparse(url)
         assert uri.scheme == "s3"
         bucket, key = bucket_from_url(url)
         self._client.download_fileobj(bucket, key, dest)
 
-    def write(self, bucket: str, key: str, data: BinaryIO) -> str:
+    def write(self, bucket: str, key: str, data: IO) -> str:
         self._client.upload_fileobj(data, bucket, key)
         return self.generate_uri(bucket, key)
 

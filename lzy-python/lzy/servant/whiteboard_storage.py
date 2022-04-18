@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import TypeVar, BinaryIO
+from typing import TypeVar, BinaryIO, IO
 
 from azure.storage.blob import BlobServiceClient
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
@@ -21,7 +21,7 @@ class WhiteboardStorage(ABC):
         self.__logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod
-    def read(self, url: str, dest: BinaryIO) -> None:
+    def read(self, url: str, dest: IO) -> None:
         pass
 
     @staticmethod
@@ -38,7 +38,7 @@ class AzureWhiteboardStorage(WhiteboardStorage):
         super().__init__()
         self.client: AzureClient = AzureClient(client)
 
-    def read(self, url: str, dest: BinaryIO) -> None:
+    def read(self, url: str, dest: IO) -> None:
         self.client.read(url, dest)
 
     @staticmethod
@@ -57,5 +57,5 @@ class AmazonWhiteboardStorage(WhiteboardStorage):
         # pylint: disable=unused-private-member
         self.__logger = logging.getLogger(self.__class__.__name__)
 
-    def read(self, url: str, dest: BinaryIO) -> None:
+    def read(self, url: str, dest: IO) -> None:
         self.client.read(url, dest)

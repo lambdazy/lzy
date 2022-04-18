@@ -2,21 +2,20 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional, Mapping, Iterable, List
-
-import sys
 from time import sleep
+from typing import Any, Dict, Optional, Iterable, List
 
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
 from lzy.model.channel import Channel, Bindings, SnapshotChannelSpec
+from lzy.model.encoding import ENCODING as encoding
+from lzy.model.execution import ExecutionResult, ExecutionValue
 from lzy.model.slot import Slot, Direction
 from lzy.model.zygote import Zygote
-from lzy.servant.servant_client import ServantClient, Execution, ExecutionResult, CredentialsTypes, InputExecutionValue, \
-    ExecutionDescription, ExecutionValue
-
-from lzy.model.encoding import ENCODING as encoding
+from lzy.servant.servant_client import ServantClient, Execution, CredentialsTypes, InputExecutionValue, \
+    ExecutionDescription
 
 
 def exec_bash(*command):
