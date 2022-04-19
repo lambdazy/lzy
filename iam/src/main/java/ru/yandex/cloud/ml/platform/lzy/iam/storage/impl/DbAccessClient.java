@@ -7,6 +7,9 @@ import java.util.List;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessClient;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthBadRequestException;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthPermission;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.Role;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
@@ -24,6 +27,19 @@ public class DbAccessClient implements AccessClient {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {
+                List<ResourceBindingModel> hasView = session.createQuery(
+                        "SELECT r FROM ResourceBindingModel r "
+                            + "WHERE r.userId = :userId "
+                            + "AND r.resourceId = :resourceId ",
+                        ResourceBindingModel.class
+                    ).setParameter("userId", userId)
+                    .setParameter("resourceId", resourceId)
+                    .getResultList();
+
+                if (hasView.size() == 0) {
+                    throw new AuthBadRequestException("Resource: " + resourceId + " not found");
+                }
+
                 List<ResourceBindingModel> bindings = session.createQuery(
                         "SELECT r FROM ResourceBindingModel r "
                             + "WHERE r.userId = :userId "
@@ -38,6 +54,10 @@ public class DbAccessClient implements AccessClient {
                 }
             } catch (Exception e) {
                 tx.rollback();
+                if (e instanceof AuthException) {
+                    throw e;
+                }
+                throw new AuthInternalException(e);
             }
         }
         return false;

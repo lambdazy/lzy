@@ -38,7 +38,7 @@ public class LzyASService extends LzyASGrpc.LzyASImplBase {
                     .asException());
             }
         } catch (AuthException e) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.asException());
+            responseObserver.onError(e.status().asException());
         } catch (Exception e) {
             responseObserver.onError(Status.INTERNAL.asException());
         }
