@@ -2,7 +2,7 @@ import abc
 import os
 import tempfile
 from pathlib import Path
-from typing import TypeVar, Dict
+from typing import TypeVar, Dict, List
 
 from lzy.model.channel import Channel, SnapshotChannelSpec
 from lzy.model.file_slots import create_slot
@@ -88,7 +88,7 @@ T = TypeVar("T")
 class LocalChannelManager(ChannelManager):
     def __init__(self, snapshot_id: str):
         super(LocalChannelManager, self).__init__(snapshot_id)
-        self._tmp_files = []
+        self._tmp_files: List[str] = []
 
     def _create_channel(self, channel: Channel):
         pass
