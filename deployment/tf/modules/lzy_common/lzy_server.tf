@@ -224,6 +224,7 @@ resource "kubernetes_deployment" "server" {
 resource "kubernetes_service" "lzy_server" {
   metadata {
     name = "lzy-server-service"
+    namespace = kubernetes_namespace.server_namespace.metadata[0].name
     annotations = {
       #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
