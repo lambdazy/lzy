@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Type, TypeVar, IO
+from typing import Type, TypeVar, IO, Any
 
 import cloudpickle
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
@@ -11,7 +11,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 class FileSerializer:
     @abstractmethod
-    def serialize(self, obj: T, file: IO, obj_type: Type[T] = None) -> None:
+    def serialize(self, obj: T, file: IO) -> None:
         pass
 
     @abstractmethod
@@ -21,7 +21,7 @@ class FileSerializer:
 
 class MemBytesSerializer:
     @abstractmethod
-    def serialize(self, obj: T, obj_type: Type[T] = None) -> bytes:
+    def serialize(self, obj: Any) -> bytes:
         pass
 
     @abstractmethod
@@ -30,8 +30,8 @@ class MemBytesSerializer:
 
 
 class FileSerializerImpl(FileSerializer):
-    def serialize(self, obj: T, file: IO, obj_type: Type[T] = None) -> None:
-        if check_message_field(obj_type) or check_message_field(obj):
+    def serialize(self, obj: T, file: IO) -> None:
+        if check_message_field(type(obj)) or check_message_field(obj):
             obj.dump(file)  # type: ignore
         else:
             cloudpickle.dump(obj, file)
@@ -43,8 +43,8 @@ class FileSerializerImpl(FileSerializer):
 
 
 class MemBytesSerializerImpl(MemBytesSerializer):
-    def serialize(self, obj: T, obj_type: Type[T] = None) -> bytes:
-        return cloudpickle.dumps(obj) # type: ignore
+    def serialize(self, obj: Any) -> bytes:
+        return cloudpickle.dumps(obj)  # type: ignore
 
     def deserialize(self, data: bytes, obj_type: Type[T] = None) -> T:
-        return cloudpickle.load(data)  # type: ignore
+        return cloudpickle.loads(data)  # type: ignore

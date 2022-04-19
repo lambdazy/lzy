@@ -71,8 +71,9 @@ def main():
     print(f"Loaded {len(args) + len(kwargs)} lazy args")
 
     print(f"Running {func_s.name}")
-    op_ = LzyRemoteOp(servant, lazy_call, exec_description.snapshot_id,
-                      UUIDEntryIdGenerator(exec_description.snapshot_id),
+    snapshot_id = "" if exec_description is None else exec_description.snapshot_id
+    op_ = LzyRemoteOp(servant, lazy_call, snapshot_id,
+                      UUIDEntryIdGenerator(snapshot_id),
                       mem_serializer,
                       file_serializer,
                       deployed=True)
@@ -86,7 +87,7 @@ def main():
     result_path = servant.mount() / func_s.name / "return"
     print(f"Writing result to file {result_path}")
     with open(result_path, "wb") as out_handle:
-        file_serializer.serialize(result, out_handle, func_s.output_type)
+        file_serializer.serialize(result, out_handle)
         out_handle.flush()
         os.fsync(out_handle.fileno())
 

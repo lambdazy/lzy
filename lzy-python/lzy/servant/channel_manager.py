@@ -40,8 +40,6 @@ class ChannelManager(abc.ABC):
         return self._resolve(entry_id, Direction.OUTPUT)
 
     def _resolve(self, entry_id: str, direction: Direction) -> Path:
-        if entry_id not in self._entry_id_to_channel:
-            raise ValueError('Unknown entry ID')
         slot = create_slot(os.path.sep.join(("tasks", "snapshot", self._snapshot_id, entry_id)), direction)
         self._touch(slot, self.channel(entry_id))
         path = self._resolve_slot_path(slot)
