@@ -1,12 +1,12 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import TypeVar, Any
+from typing import TypeVar, BinaryIO, IO
 
 from azure.storage.blob import BlobServiceClient
+from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
 from lzy.api.storage.storage_client import AzureClient, AmazonClient
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
-from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -21,7 +21,7 @@ class WhiteboardStorage(ABC):
         self.__logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod
-    def read(self, url: str) -> Any:
+    def read(self, url: str, dest: IO) -> None:
         pass
 
     @staticmethod
@@ -38,8 +38,8 @@ class AzureWhiteboardStorage(WhiteboardStorage):
         super().__init__()
         self.client: AzureClient = AzureClient(client)
 
-    def read(self, url: str) -> Any:
-        return self.client.read(url)
+    def read(self, url: str, dest: IO) -> None:
+        self.client.read(url, dest)
 
     @staticmethod
     def from_connection_string(credentials: AzureCredentials) -> 'AzureWhiteboardStorage':
@@ -57,5 +57,5 @@ class AmazonWhiteboardStorage(WhiteboardStorage):
         # pylint: disable=unused-private-member
         self.__logger = logging.getLogger(self.__class__.__name__)
 
-    def read(self, url: str) -> Any:
-        return self.client.read(url)
+    def read(self, url: str, dest: IO) -> None:
+        self.client.read(url, dest)

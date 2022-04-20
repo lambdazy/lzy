@@ -2,28 +2,28 @@ import base64
 import os
 from typing import Generic, TypeVar, Optional, Dict, List
 
-from lzy.model.channel import Binding, Channel
-
-from lzy.model.signatures import FuncSignature
+from lzy.api.serializer.serializer import MemBytesSerializer
 from lzy.model.env import Env
-from lzy.model.slot import Direction, Slot
+from lzy.model.execution import ExecutionDescription
 from lzy.model.file_slots import create_slot
+from lzy.model.signatures import FuncSignature
+from lzy.model.slot import Direction, Slot
 from lzy.model.zygote import Zygote, Provisioning
-from lzy.api.serializer.serializer import Serializer
-from lzy.servant.servant_client import ExecutionDescription
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class ZygotePythonFunc(Zygote, Generic[T]):
     def __init__(
-        self,
-        sign: FuncSignature[T],
-        env: Env,
-        provisioning: Optional[Provisioning],
-        execution: Optional[ExecutionDescription] = None
+            self,
+            serializer: MemBytesSerializer,
+            sign: FuncSignature[T],
+            env: Env,
+            provisioning: Optional[Provisioning],
+            execution: Optional[ExecutionDescription] = None
     ):
         arg_slots: List[Slot] = []
+        self._serializer = serializer
         self._name_to_slot: Dict[str, Slot] = {}
         self.execution_description = execution
 
@@ -45,9 +45,9 @@ class ZygotePythonFunc(Zygote, Generic[T]):
             "$(python -c 'import site; print(site.getsitepackages()[0])')",
             "/lzy/startup.py "
         ])
-        serialized_func = base64.b64encode(Serializer.serialize_to_byte_string(self.signature)).decode('ascii')
+        serialized_func = base64.b64encode(self._serializer.serialize(self.signature)).decode('ascii')
         serialized_execution_description = base64.b64encode(
-            Serializer.serialize_to_byte_string(self.execution_description)).decode('ascii')
+            self._serializer.serialize(self.execution_description)).decode('ascii')
         return _com + serialized_func + " " + serialized_execution_description
 
     def slot(self, arg: str) -> Slot:
