@@ -12,6 +12,8 @@ from lzy.api.lazy_op import LzyOp
 from lzy.api.cache_policy import CachePolicy
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
+
+from lzy.api.serializer.serializer import MemBytesSerializerImpl, FileSerializerImpl, MemBytesSerializer, FileSerializer
 from lzy.api.utils import zipdir, fileobj_hash
 from lzy.api.storage.storage_client import StorageClient, from_credentials
 from lzy.api.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
@@ -24,11 +26,10 @@ from lzy.api.whiteboard.model import (
     WhiteboardDescription,
     WhiteboardFieldStatus
 )
-from lzy.model.channel import ChannelManager
 from lzy.model.encoding import ENCODING as encoding
 from lzy.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.channel_manager import ServantChannelManager, LocalChannelManager
+from lzy.servant.channel_manager import ServantChannelManager, LocalChannelManager, ChannelManager
 from lzy.servant.servant_client import ServantClient, CredentialsTypes, ServantClientMock
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 
@@ -142,6 +143,7 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard_api=InMemWhiteboardApi(),
             snapshot_api=InMemSnapshotApi(),
         )
+        self._file_serializer = FileSerializerImpl()
 
     def workflow(
             self,
@@ -152,6 +154,7 @@ class LzyLocalEnv(LzyEnvBase):
     ):
         return LzyLocalWorkflow(
             name=name,
+            file_serializer=self._file_serializer,
             eager=eager,
             whiteboard=whiteboard,
             buses=buses
@@ -166,8 +169,10 @@ class LzyRemoteEnv(LzyEnvBase):
         self._servant_client: BashServantClient = BashServantClient() \
             .instance(lzy_mount)
         self._lzy_mount = lzy_mount
+        self._mem_serializer = MemBytesSerializerImpl()
+        self._file_serializer = FileSerializerImpl()
         super().__init__(
-            whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client),
+            whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client, self._file_serializer),
             snapshot_api=SnapshotBashApi(lzy_mount),
         )
 
@@ -191,7 +196,9 @@ class LzyRemoteEnv(LzyEnvBase):
             cache_policy=cache_policy,
             eager=eager,
             whiteboard=whiteboard,
-            buses=buses
+            buses=buses,
+            mem_serializer=self._mem_serializer,
+            file_serializer=self._file_serializer
         )
 
 
@@ -297,6 +304,8 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             name: str,
             whiteboard_api: WhiteboardApi,
             snapshot_api: SnapshotApi,
+            mem_serializer: MemBytesSerializer,
+            file_serializer: FileSerializer,
             lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
             conda_yaml_path: Optional[Path] = None,
             local_module_paths: Optional[List[str]] = None,
@@ -306,6 +315,8 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             buses: Optional[BusList] = None,
 
     ):
+        self._mem_serializer = mem_serializer
+        self._file_serializer = file_serializer
         self._yaml = conda_yaml_path
         self._restart_policy = cache_policy
         self._servant_client: BashServantClient = BashServantClient() \
@@ -318,7 +329,6 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         credentials = self._servant_client.get_credentials(CredentialsTypes.S3, bucket)
         self._storage_client: StorageClient = from_credentials(credentials)
         self._local_module_paths = local_module_paths
-
 
         super().__init__(
             name=name,
@@ -342,7 +352,8 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                 self._execution_context.whiteboard,
                 self._execution_context.whiteboard_api,
                 self.whiteboard_id,
-                self._channel_manager
+                self._channel_manager,
+                self._file_serializer
             )
 
     def servant(self) -> Optional[ServantClient]:
@@ -350,6 +361,12 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
 
     def channel_manager(self) -> ChannelManager:
         return self._channel_manager
+
+    def mem_serializer(self) -> MemBytesSerializer:
+        return self._mem_serializer
+
+    def file_serializer(self) -> FileSerializer:
+        return self._file_serializer
 
     def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._py_env is not None:
@@ -405,6 +422,7 @@ class LzyLocalWorkflow(LzyWorkflowBase):
     def __init__(
             self,
             name: str,
+            file_serializer: FileSerializer,
             eager: bool = False,
             whiteboard: Any = None,
             buses: Optional[BusList] = None
@@ -424,5 +442,6 @@ class LzyLocalWorkflow(LzyWorkflowBase):
                 self._execution_context.whiteboard,
                 self._execution_context.whiteboard_api,
                 self.whiteboard_id,
-                LocalChannelManager("")
+                LocalChannelManager(""),
+                file_serializer
             )

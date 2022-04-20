@@ -1,21 +1,21 @@
+import os
 import pathlib
 import sys
-import os
+import tempfile
 import uuid
-from typing import Any, BinaryIO
+from typing import IO
 from unittest import TestCase
 
 import cloudpickle
 
 from lzy.api import LzyRemoteEnv
 from lzy.api.storage.storage_client import StorageClient
-from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.servant_client import ServantClientMock
-
 from lzy.api.whiteboard.model import (
     InMemWhiteboardApi,
     InMemSnapshotApi
 )
+from lzy.servant.bash_servant_client import BashServantClient
+from lzy.servant.servant_client import ServantClientMock
 
 
 class MockStorageClient(StorageClient):
@@ -29,12 +29,12 @@ class MockStorageClient(StorageClient):
         super().__init__()
         self._storage = {}
 
-    def read(self, url: str) -> Any:
-        return self._storage[url]
+    def read(self, url: str, dest: IO) -> None:
+        dest.write(self._storage[url])
 
-    def write(self, container: str, blob: str, data: BinaryIO):
+    def write(self, container: str, blob: str, data: IO):
         uri = self.generate_uri(container, blob)
-        self._storage[uri] = data
+        self._storage[uri] = data.read()
         return uri
 
     def generate_uri(self, container: str, blob: str) -> str:
@@ -72,7 +72,10 @@ class ModulesSearchTests(TestCase):
         })
         result = dict()
         for k, v in py_env.local_modules_uploaded():
-            result[k] = self._storage_client.read(v)
+            with tempfile.NamedTemporaryFile("wb+") as handle:
+                self._storage_client.read(v, handle)
+                handle.seek(0)
+                result[k] = handle.read()
         self.assertEqual(len(result), 1)
         self.assertTrue('test_modules' in result)
 
@@ -87,7 +90,10 @@ class ModulesSearchTests(TestCase):
         })
         result = dict()
         for k, v in py_env.local_modules_uploaded():
-            result[k] = self._storage_client.read(v)
+            with tempfile.NamedTemporaryFile("wb+") as handle:
+                self._storage_client.read(v, handle)
+                handle.seek(0)
+                result[k] = handle.read()
         self.assertEqual(len(result), 1)
         self.assertTrue('test_modules_2' in result)
         self.assertFalse('test_modules' in result)

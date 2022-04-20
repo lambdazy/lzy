@@ -1,19 +1,16 @@
 import logging
 import os.path
 import pathlib
-import tempfile
-import boto3
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Tuple, BinaryIO
+from typing import Any, TypeVar, Tuple, IO
 from urllib import parse
 
+import boto3
 from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
-import logging
-
 from botocore.exceptions import ClientError
+from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
 from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials, StorageCredentials
-from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
 logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
     logging.WARNING
@@ -28,15 +25,11 @@ class StorageClient(ABC):
         self.__logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod
-    def read(self, url: str) -> Any:
+    def read(self, url: str, dest: IO):
         pass
 
     @abstractmethod
-    def read_to_file(self, url: str, path: str):
-        pass
-
-    @abstractmethod
-    def write(self, container: str, blob: str, data: BinaryIO) -> str:
+    def write(self, container: str, blob: str, data: IO) -> str:
         pass
 
     @abstractmethod
@@ -66,7 +59,7 @@ class AzureClient(StorageClient):
         super().__init__()
         self.client: BlobServiceClient = client
 
-    def read(self, url: str) -> Any:
+    def read(self, url: str, dest: IO) -> Any:
         uri = parse.urlparse(url)
         assert uri.scheme == "azure"
         bucket, other = bucket_from_url(url)
@@ -76,10 +69,10 @@ class AzureClient(StorageClient):
                 .get_blob_client(str(other))
                 .download_blob()
         )
-        data = downloader.readall()
+        data = downloader.readinto(dest)
         return data
 
-    def write(self, container: str, blob: str, data: BinaryIO):
+    def write(self, container: str, blob: str, data: IO):
         container_client: ContainerClient = self.client.get_container_client(container)
         blob_client = container_client.get_blob_client(blob)
         blob_client.upload_blob(data)  # type: ignore
@@ -113,23 +106,13 @@ class AmazonClient(StorageClient):
         )
         self.__logger = logging.getLogger(self.__class__.__name__)
 
-    def read_to_file(self, url: str, path: str):
+    def read(self, url: str, dest: IO) -> Any:
         uri = parse.urlparse(url)
         assert uri.scheme == "s3"
         bucket, key = bucket_from_url(url)
-        with open(path, "wb") as file:
-            self._client.download_fileobj(bucket, key, file)
+        self._client.download_fileobj(bucket, key, dest)
 
-    def read(self, url: str) -> Any:
-        uri = parse.urlparse(url)
-        assert uri.scheme == "s3"
-        bucket, key = bucket_from_url(url)
-        with tempfile.TemporaryFile() as file:
-            self._client.download_fileobj(bucket, key, file)
-            file.seek(0)
-            return file.read()
-
-    def write(self, bucket: str, key: str, data: BinaryIO) -> str:
+    def write(self, bucket: str, key: str, data: IO) -> str:
         self._client.upload_fileobj(data, bucket, key)
         return self.generate_uri(bucket, key)
 
