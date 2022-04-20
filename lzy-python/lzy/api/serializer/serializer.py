@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Type, TypeVar, IO, Any
 
 import cloudpickle
@@ -9,9 +9,9 @@ from lzy.api.utils import check_message_field
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-class FileSerializer:
+class FileSerializer(ABC):
     @abstractmethod
-    def serialize(self, obj: T, file: IO) -> None:
+    def serialize(self, obj: Any, file: IO) -> None:
         pass
 
     @abstractmethod
@@ -19,7 +19,7 @@ class FileSerializer:
         pass
 
 
-class MemBytesSerializer:
+class MemBytesSerializer(ABC):
     @abstractmethod
     def serialize(self, obj: Any) -> bytes:
         pass
