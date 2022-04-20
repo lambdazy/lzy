@@ -1,5 +1,6 @@
 import json
 import logging
+import tempfile
 from json.decoder import JSONDecodeError
 from typing import Any, Type, Dict, List, TypeVar, Optional
 
@@ -7,7 +8,7 @@ from typing import Any, Type, Dict, List, TypeVar, Optional
 from lzy.api._proxy import proxy_optional
 from lzy.api.utils import infer_real_type
 from lzy.api.whiteboard.credentials import StorageCredentials
-from lzy.api.serializer.serializer import Serializer
+from lzy.api.serializer.serializer import FileSerializer
 from lzy.api.whiteboard.model import (
     SnapshotApi,
     SnapshotDescription,
@@ -53,39 +54,46 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class WhiteboardBashApi(WhiteboardApi):
-    def __init__(self, mount_point: str, client: ServantClient) -> None:
+    def __init__(self, mount_point: str, client: ServantClient, serializer: FileSerializer) -> None:
         super().__init__()
-        self.__mount = mount_point
-        self.__client = client
+        self._mount = mount_point
+        self._client = client
         self._log = logging.getLogger(str(self.__class__))
-        self.__credentials: Dict[str, StorageCredentials] = {}
-        self.__whiteboard_storage_by_bucket: Dict[str, WhiteboardStorage] = {}
-        self.__serializer = Serializer()
+        self._credentials: Dict[str, StorageCredentials] = {}
+        self._whiteboard_storage_by_bucket: Dict[str, WhiteboardStorage] = {}
+        self._serializer = serializer
 
     def _whiteboard_storage(self, bucket: str) -> WhiteboardStorage:
-        if bucket not in self.__credentials:
-            self.__credentials[bucket] = self.__client.get_credentials(
+        if bucket not in self._credentials:
+            self._credentials[bucket] = self._client.get_credentials(
                 CredentialsTypes.S3,
                 bucket
             )
-        if bucket not in self.__whiteboard_storage_by_bucket:
-            self.__whiteboard_storage_by_bucket[bucket] = WhiteboardStorage.create(self.__credentials[bucket])
-        return self.__whiteboard_storage_by_bucket[bucket]
+        if bucket not in self._whiteboard_storage_by_bucket:
+            self._whiteboard_storage_by_bucket[bucket] = WhiteboardStorage.create(self._credentials[bucket])
+        return self._whiteboard_storage_by_bucket[bucket]
 
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
 
         bucket = get_bucket_from_url(field_url)
         real_type = infer_real_type(field_type)
-        return proxy_optional(lambda: self.__serializer.deserialize_from_byte_string(
-            self._whiteboard_storage(bucket).read(field_url), real_type), real_type)  # type: ignore
+
+        def fetch() -> Any:
+            with tempfile.TemporaryFile() as file:
+                self._whiteboard_storage(bucket).read(field_url, file)
+                file.seek(0)
+                obj = self._serializer.deserialize(file, real_type)
+            return obj
+
+        return proxy_optional(lambda: fetch(), real_type)  # type: ignore
         # type: ignore[no-any-return]
 
     def create(self, fields: List[str], snapshot_id: str, namespace: str, tags: List[str]) -> WhiteboardDescription:
         logging.info(
             f"Creating whiteboard for snapshot {snapshot_id} with fields {fields}, namespace {namespace}, tags {tags}"
         )
-        command = " ".join([f"{self.__mount}/sbin/whiteboard", "create", snapshot_id, "-l", ",".join(fields)])
+        command = " ".join([f"{self._mount}/sbin/whiteboard", "create", snapshot_id, "-l", ",".join(fields)])
         if len(tags) > 0:
             command = " ".join([command, "-t", ",".join(tags)])
         if namespace:
@@ -102,7 +110,7 @@ class WhiteboardBashApi(WhiteboardApi):
             f"Linking field {field_name} of whiteboard {wb_id} to entry {entry_id}"
         )
         exec_bash(
-            f"{self.__mount}/sbin/whiteboard",
+            f"{self._mount}/sbin/whiteboard",
             "link",
             wb_id,
             "-e",
@@ -114,7 +122,7 @@ class WhiteboardBashApi(WhiteboardApi):
     def get(self, wb_id: str) -> WhiteboardDescription:
         self._log.info(f"Getting whiteboard {wb_id}")
         out = exec_bash(
-            f"{self.__mount}/sbin/whiteboard", "get", wb_id
+            f"{self._mount}/sbin/whiteboard", "get", wb_id
         )
         try:
             res = json.loads(out)
@@ -145,7 +153,7 @@ class WhiteboardBashApi(WhiteboardApi):
     def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None) \
             -> List[WhiteboardDescription]:
         self._log.info(f"Getting whiteboards in namespace {namespace} with tags {tags}")
-        command = " ".join([f"{self.__mount}/sbin/whiteboard", "list"])
+        command = " ".join([f"{self._mount}/sbin/whiteboard", "list"])
         if tags:
             command = " ".join([command, "-t", ",".join(tags)])
         if namespace:

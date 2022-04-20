@@ -1,36 +1,50 @@
-from io import BytesIO
+from abc import abstractmethod, ABC
+from typing import Type, TypeVar, IO, Any
 
 import cloudpickle
-from lzy.api.utils import check_message_field
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
-from typing import Type, TypeVar, Union, BinaryIO
+
+from lzy.api.utils import check_message_field
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-class Serializer:
-    @staticmethod
-    def deserialize_from_byte_string(data: bytes, obj_type: Type[T] = None) -> T:
-        if check_message_field(obj_type):
-            return loads(obj_type, data)  # type: ignore
-        return cloudpickle.loads(data)  # type: ignore
+class FileSerializer(ABC):
+    @abstractmethod
+    def serialize(self, obj: Any, file: IO) -> None:
+        pass
 
-    @staticmethod
-    def deserialize_from_file(data: Union[BinaryIO, BytesIO], obj_type: Type[T] = None) -> T:
-        if check_message_field(obj_type):
-            return load(obj_type, data)  # type: ignore
-        return cloudpickle.load(data)  # type: ignore
+    @abstractmethod
+    def deserialize(self, data: IO, obj_type: Type[T] = None) -> T:
+        pass
 
-    @staticmethod
-    def serialize_to_file(obj: T, file: Union[BinaryIO, BytesIO], obj_type: Type[T] = None):
-        if check_message_field(obj_type) or check_message_field(obj):
+
+class MemBytesSerializer(ABC):
+    @abstractmethod
+    def serialize(self, obj: Any) -> bytes:
+        pass
+
+    @abstractmethod
+    def deserialize(self, data: bytes, obj_type: Type[T] = None) -> T:
+        pass
+
+
+class FileSerializerImpl(FileSerializer):
+    def serialize(self, obj: T, file: IO) -> None:
+        if check_message_field(type(obj)) or check_message_field(obj):
             obj.dump(file)  # type: ignore
         else:
             cloudpickle.dump(obj, file)
 
-    @staticmethod
-    def serialize_to_byte_string(obj: T, obj_type: Type[T] = None) -> bytes:
-        if check_message_field(obj_type) or check_message_field(obj):
-            return obj.dumps()  # type: ignore
-        else:
-            return cloudpickle.dumps(obj)
+    def deserialize(self, data: IO, obj_type: Type[T] = None) -> T:
+        if check_message_field(obj_type):
+            return load(obj_type, data)  # type: ignore
+        return cloudpickle.load(data)  # type: ignore
+
+
+class MemBytesSerializerImpl(MemBytesSerializer):
+    def serialize(self, obj: Any) -> bytes:
+        return cloudpickle.dumps(obj)  # type: ignore
+
+    def deserialize(self, data: bytes, obj_type: Type[T] = None) -> T:
+        return cloudpickle.loads(data)  # type: ignore

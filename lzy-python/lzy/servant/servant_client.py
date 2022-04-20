@@ -1,67 +1,19 @@
-from abc import ABC, abstractmethod
 import logging
-from dataclasses import dataclass
+from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Iterable, List
+from typing import Iterable, List
 
 from lzy.api.whiteboard.credentials import AmazonCredentials
-
 from lzy.api.whiteboard.credentials import (
     # AzureCredentials,
     # AmazonCredentials,
     StorageCredentials,
 )
 from lzy.model.channel import Channel, Bindings
+from lzy.model.execution import Execution, ExecutionDescription, InputExecutionValue
 from lzy.model.slot import Slot
 from lzy.model.zygote import Zygote
-
-
-@dataclass
-class ExecutionResult:
-    stdout: str
-    stderr: str
-    returncode: int
-
-
-@dataclass
-class ExecutionValue:
-    name: str
-    entry_id: Optional[str]
-
-
-@dataclass
-class InputExecutionValue(ExecutionValue):
-    hash: Optional[str]
-
-
-@dataclass
-class ExecutionDescription:
-    name: str
-    snapshot_id: str
-    inputs: Iterable[InputExecutionValue]
-    outputs: Iterable[ExecutionValue]
-
-
-class Execution(ABC):
-    # pylint: disable=invalid-name
-    @abstractmethod
-    def id(self) -> str:
-        pass
-
-    @abstractmethod
-    def bindings(self) -> Bindings:
-        pass
-
-    @abstractmethod
-    def wait_for(self) -> ExecutionResult:
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        return False
 
 
 class CredentialsTypes(Enum):
@@ -133,8 +85,8 @@ class ServantClientMock(ServantClient):
     def save_execution(self, execution: ExecutionDescription):
         pass
 
-    def resolve_executions(self, name: str, snapshot_id: str, inputs: Iterable[InputExecutionValue]) -> List[
-        ExecutionDescription]:
+    def resolve_executions(self, name: str, snapshot_id: str, inputs: Iterable[InputExecutionValue]) \
+            -> List[ExecutionDescription]:
         return []
 
     def mount(self) -> Path:
