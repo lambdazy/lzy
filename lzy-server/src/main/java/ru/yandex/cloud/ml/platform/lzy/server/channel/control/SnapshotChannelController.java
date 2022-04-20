@@ -113,6 +113,15 @@ public class SnapshotChannelController implements ChannelController {
                         } else {  // Some error in sender, entry is not finished, destroying all receivers
                             status = Status.ERRORED;
                             channelGraph.receivers().forEach(channelGraph::removeReceiver);
+                            snapshotApi.commit(
+                                LzyWhiteboard.CommitCommand.newBuilder()
+                                    .setAuth(auth)
+                                    .setSnapshotId(snapshotId)
+                                    .setEntryId(entryId)
+                                    .setEmpty(true)
+                                    .setErrored(true)
+                                    .build()
+                            );
                         }
                     }
                     channelGraph.removeSender(slot);
@@ -131,6 +140,18 @@ public class SnapshotChannelController implements ChannelController {
         LOG.info("SnapshotChannelController::executeDestroy, entryId={}", entryId);
         lock.lock();
         try {
+            if (status == Status.IN_PROGRESS) {
+                status = Status.ERRORED;
+                snapshotApi.commit(
+                        LzyWhiteboard.CommitCommand.newBuilder()
+                                .setAuth(auth)
+                                .setSnapshotId(snapshotId)
+                                .setEntryId(entryId)
+                                .setEmpty(true)
+                                .setErrored(true)
+                                .build()
+                );
+            }
             channelGraph.receivers().forEach(Endpoint::destroy);
             channelGraph.senders().forEach(Endpoint::destroy);
         } finally {

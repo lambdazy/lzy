@@ -63,7 +63,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                     servantMain.invoke(null, (Object) new String[]{
                         "--lzy-address", serverConfig.getServerUri(),
                         "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
-                        "--lzy-mount", "/private/tmp/lzy" + servantNumber,
+                        "--lzy-mount", "/tmp/lzy" + servantNumber,
                         "--host", URI.create(serverConfig.getServerUri()).getHost(),
                         "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
                         "--port", Integer.toString(FreePortFinder.find(10000, 20000)),

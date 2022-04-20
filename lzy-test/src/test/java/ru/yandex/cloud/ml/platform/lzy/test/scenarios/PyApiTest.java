@@ -42,7 +42,7 @@ public class PyApiTest extends LzyBaseTest {
         arrangeTerminal("testUser");
         terminal.execute(Map.of(), "bash", "-c",
             condaPrefix + "pip install catboost");
-        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_integration_cpu.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
@@ -57,7 +57,7 @@ public class PyApiTest extends LzyBaseTest {
     public void testExecFail() {
         //Arrange
         arrangeTerminal("phil");
-        final String pyCommand = "python /lzy-python/tests/scenarios/exec_fail.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/exec_fail.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
@@ -72,7 +72,7 @@ public class PyApiTest extends LzyBaseTest {
     public void testEnvFail() {
         //Arrange
         arrangeTerminal("phil");
-        final String pyCommand = "python /lzy-python/tests/scenarios/env_fail.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/env_fail.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
@@ -90,7 +90,7 @@ public class PyApiTest extends LzyBaseTest {
     public void testCache() {
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python /lzy-python/tests/scenarios/test_cache.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/test_cache.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
@@ -110,7 +110,7 @@ public class PyApiTest extends LzyBaseTest {
 
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python /lzy-python/tests/scenarios/uber_graph.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/uber_graph.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),

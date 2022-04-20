@@ -145,11 +145,14 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 });
             } finally {
                 synchronized (ServantsAllocatorBase.this) {
-                    shuttingDown.remove(connection);
-                    cleanup(connection);
                     if (!request.isDone()) {
                         request.completeExceptionally(new RuntimeException("Servant disconnected"));
+                    } else {
+                        connection.progress(Servant.ServantProgress.newBuilder()
+                                .setDisconnected(Servant.Disconnected.newBuilder().build()).build());
                     }
+                    shuttingDown.remove(connection);
+                    cleanup(connection);
                 }
             }
         }, "connection-to-" + servantId);

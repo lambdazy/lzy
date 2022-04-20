@@ -12,6 +12,7 @@ public class ServerConfig {
 
     private ThreadAllocator threadAllocator;
     private KuberAllocator kuberAllocator;
+    private DockerAllocator dockerAllocator;
 
     public String getBaseEnvDefaultImage() {
         return baseEnvDefaultImage;
@@ -69,6 +70,14 @@ public class ServerConfig {
 
     public void setUserLimit(int userLimit) {
         this.userLimit = userLimit;
+    }
+
+    public DockerAllocator getDockerAllocator() {
+        return dockerAllocator;
+    }
+
+    public void setDockerAllocator(DockerAllocator dockerAllocator) {
+        this.dockerAllocator = dockerAllocator;
     }
 
     @ConfigurationProperties("yc")
@@ -158,6 +167,19 @@ public class ServerConfig {
 
     @ConfigurationProperties("kuberAllocator")
     public static class KuberAllocator {
+        private boolean enabled = false;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
+    @ConfigurationProperties("dockerAllocator")
+    public static class DockerAllocator {
         private boolean enabled = false;
 
         public boolean isEnabled() {

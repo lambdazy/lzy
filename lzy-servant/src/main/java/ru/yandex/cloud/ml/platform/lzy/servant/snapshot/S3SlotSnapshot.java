@@ -20,6 +20,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyExecution;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
+import ru.yandex.qe.s3.transfer.StreamSuppliers;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;

@@ -64,21 +64,23 @@ public class SnapshooterImpl implements Snapshooter {
         });
 
         slot.onState(OPEN, () -> {
-            commit(slot, snapshotId, entryId);
-            slot.suspend();
             synchronized (SnapshooterImpl.this) {
+                try {
+                    commit(slot, snapshotId, entryId);
+                } finally {
+                    slot.suspend();
+                }
                 trackedSlots.remove(slot.name());
                 SnapshooterImpl.this.notifyAll();
             }
         });
 
         slot.onState(DESTROYED, () -> {
-            if (!trackedSlots.contains(slot.name())) {  // Already committed in OPEN
-                return;
-            }
-
-            commit(slot, snapshotId, entryId);
             synchronized (SnapshooterImpl.this) {
+                if (!trackedSlots.contains(slot.name())) {  // Already committed in OPEN
+                    return;
+                }
+                commit(slot, snapshotId, entryId);
                 trackedSlots.remove(slot.name());
                 SnapshooterImpl.this.notifyAll();
             }
@@ -95,6 +97,7 @@ public class SnapshooterImpl implements Snapshooter {
                 .setEntryId(entryId)
                 .setEmpty(snapshotProvider.slotSnapshot(slot.definition()).isEmpty())
                 .setAuth(auth)
+                .setErrored(false)
                 .build();
         final LzyWhiteboard.OperationStatus status = snapshotApi.commit(commitCommand);
         if (status.getStatus().equals(FAILED)) {

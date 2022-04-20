@@ -200,7 +200,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             return;
         }
         try {
-            repository.commit(entry.get(), request.getEmpty());
+            repository.commit(entry.get(), request.getEmpty(), request.getErrored());
         } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::commit: Got exception while commiting entry {} to snapshot with id {}: {}",
                 request.getEntryId(), request.getSnapshotId(), e.getMessage());

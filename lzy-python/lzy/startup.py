@@ -40,7 +40,7 @@ def load_arg(path: Path, inp_type: Type[T], input_value: Optional[InputExecution
 
 def main():
     argv = sys.argv[1:]
-    servant: ServantClient = BashServantClient.instance()
+    servant: ServantClient = BashServantClient.instance(os.getenv("LZY_MOUNT"))
     if 'LOCAL_MODULES' in os.environ:
         sys.path.append(os.environ['LOCAL_MODULES'])
 

@@ -34,7 +34,11 @@ public interface SnapshotRepository {
     void prepare(@NotNull SnapshotEntry entry, @NotNull String storage, @NotNull List<String> dependentEntryIds)
         throws SnapshotRepositoryException;
 
-    void commit(@NotNull SnapshotEntry entry, boolean empty) throws SnapshotRepositoryException;
+    void commit(@NotNull SnapshotEntry entry, boolean empty, boolean errored) throws SnapshotRepositoryException;
+
+    default void commit(@NotNull SnapshotEntry entry, boolean empty) throws SnapshotRepositoryException {
+        commit(entry, empty, false);
+    }
 
     Optional<SnapshotEntry> resolveEntry(@NotNull Snapshot snapshot, @NotNull String id);
 

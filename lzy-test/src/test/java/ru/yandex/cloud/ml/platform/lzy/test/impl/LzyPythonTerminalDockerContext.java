@@ -4,7 +4,7 @@ import org.testcontainers.containers.GenericContainer;
 
 public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
     public static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
-        "conda activate default && ";
+        "conda activate py39 && ";
 
     @Override
     public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user,

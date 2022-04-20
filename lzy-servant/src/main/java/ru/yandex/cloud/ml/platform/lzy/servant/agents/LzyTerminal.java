@@ -77,7 +77,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         commandHandler = new CommandHandler();
         status.set(AgentStatus.PREPARING_EXECUTION);
 
-        context = new LzyContext(sessionId, slotManager, agentInternalAddress);
+        context = new LzyContext(sessionId, slotManager, agentInternalAddress, mount.toString());
         status.set(AgentStatus.EXECUTING);
 
         Context.current().addListener(context -> {
@@ -188,9 +188,11 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                     slotSender.connect((LzyOutputSlot) slot, slotUri);
                                 } else if (slot instanceof LzyInputSlot) {
                                     if (slotUri.getScheme().equals("s3") || slotUri.getScheme().equals("azure")) {
-                                        ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToS3(slotUri, 0));
+                                        ((LzyInputSlot) slot).connect(slotUri,
+                                                context().slotManager().connectToS3(slotUri, 0));
                                     } else {
-                                        ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToSlot(slotUri, 0));
+                                        ((LzyInputSlot) slot).connect(slotUri,
+                                                context().slotManager().connectToSlot(slotUri, 0));
                                     }
                                 }
                             });
