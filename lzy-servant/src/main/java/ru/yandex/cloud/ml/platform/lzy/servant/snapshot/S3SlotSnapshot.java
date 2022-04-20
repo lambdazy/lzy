@@ -7,7 +7,9 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
@@ -34,20 +36,26 @@ public class S3SlotSnapshot implements SlotSnapshot {
     private final String taskId;
     private final String bucket;
     private final Slot slot;
-    private final Lock lock = new ReentrantLock();
     private final AtomicBoolean nonEmpty = new AtomicBoolean(false);
-    private StreamsWrapper slotStream = null;
+    private final PipedOutputStream out = new PipedOutputStream();
+    private final ListenableFuture<UploadState> future;
 
     public S3SlotSnapshot(String taskId, String bucket, Slot slot, StorageClient storage) {
         this.bucket = bucket;
         this.taskId = taskId;
         this.slot = slot;
         this.storage = storage;
+        future = storage.transmitter().upload(new UploadRequestBuilder()
+            .bucket(bucket)
+            .key(generateKey(slot))
+            .metadata(Metadata.empty())
+            .stream(() -> new PipedInputStream(out))
+            .build()
+        );
     }
 
     private String generateKey(Slot slot) {
-        final String key = "task/" + taskId + "/slot/" + slot.name();
-        return key.replace("//", "/");
+        return Path.of( "task" ,taskId, "slot", slot.name()).toString();
     }
 
     @Override
@@ -55,76 +63,30 @@ public class S3SlotSnapshot implements SlotSnapshot {
         return storage.getURI(bucket, generateKey(slot));
     }
 
-    private StreamsWrapper createStreams() {
-        PipedInputStream is = new PipedInputStream();
-        PipedOutputStream os;
-        try {
-            os = new PipedOutputStream(is);
-        } catch (IOException e) {
-            try {
-                is.close();
-            } catch (IOException e1) {
-                e.addSuppressed(e1);
-            }
-            throw new RuntimeException("S3ExecutionSnapshot::createStreams exception while creating streams", e);
-        }
-        final ListenableFuture<UploadState> future = storage.transmitter().upload(new UploadRequestBuilder()
-            .bucket(bucket)
-            .key(generateKey(slot))
-            .metadata(Metadata.empty())
-            .stream(() -> is)
-            .build()
-        );
-        return new StreamsWrapper(is, os, future);
-    }
-
-    private void initStream() {
-        try {
-            lock.lock();
-            if (slotStream == null) {
-                slotStream = createStreams();
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
     @Override
-    public void onChunk(ByteString chunk) {
+    public synchronized void onChunk(ByteString chunk) {
         LOG.info("S3SlotSnapshot::onChunk invoked with slot " + slot.name());
-        initStream();
-        slotStream.write(chunk);
-        nonEmpty.set(true);
+        try {
+            out.write(chunk.toByteArray());
+            nonEmpty.set(true);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public boolean isEmpty() {
-        LOG.info("S3SlotSnapshot::isEmpty invoked with slot " + slot.name());
         return !nonEmpty.get();
     }
 
     @Override
-    public void writeFromStream(InputStream stream) {
-        LOG.info("S3SlotSnapshot::readAll invoked with slot " + slot.name());
-        initStream();
-        slotStream.write(stream);
-        nonEmpty.set(true);
-        onFinish();
-    }
-
-    @Override
-    public void onFinish() {
+    public synchronized void onFinish() {
         LOG.info("S3SlotSnapshot::onFinish invoked with slot " + slot.name());
         try {
-            lock.lock();
-            if (slotStream == null) {
-                return;
-            }
-            slotStream.close();
-            slotStream = null;
-        } finally {
-            lock.unlock();
+            out.close();
+            future.get();
+        } catch (IOException | InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
         }
-
     }
 }

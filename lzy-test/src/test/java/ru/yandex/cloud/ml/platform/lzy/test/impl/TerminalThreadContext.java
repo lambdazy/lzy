@@ -16,6 +16,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class TerminalThreadContext implements LzyTerminalTestContext {
     LzyTerminal terminal;
@@ -77,10 +79,16 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             @Override
             public ExecutionResult execute(Map<String, String> env, String... command) {
                 try {
-                    final Process exec = Runtime.getRuntime().exec(command);
+                    var stream = Stream.concat(
+                        System.getenv().entrySet().stream(),
+                        env.entrySet().stream()
+                    );
+                    final Process exec = Runtime.getRuntime().exec(command, stream
+                        .map(e -> e.getKey() + "=" + Utils.bashEscape(e.getValue()))
+                        .toArray(String[]::new));
                     final OutputStreamWriter stdin = new OutputStreamWriter(
-                            exec.getOutputStream(),
-                            StandardCharsets.UTF_8
+                        exec.getOutputStream(),
+                        StandardCharsets.UTF_8
                     );
                     stdin.close();
 

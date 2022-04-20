@@ -42,10 +42,6 @@ public class DevNullSlotSnapshot implements SlotSnapshot {
     }
 
     @Override
-    public void writeFromStream(InputStream stream) {
-    }
-
-    @Override
     public void onFinish() {
         // do nothing
         LOG.info("EmptyExecutionSnapshot::onFinish invoked with slot " + slot.name());

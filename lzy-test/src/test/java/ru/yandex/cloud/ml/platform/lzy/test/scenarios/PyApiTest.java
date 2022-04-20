@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
 import org.junit.Assert;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
@@ -15,13 +16,13 @@ public class PyApiTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
 
     public void arrangeTerminal(String user) {
-        this.arrangeTerminal(LZY_MOUNT, 9998,
+        this.arrangeTerminal(LZY_MOUNT, FreePortFinder.find(1000, 10000),
             kharonContext.serverAddress(terminalContext.inDocker()), user, null);
     }
 
     public void arrangeTerminal(String mount, Integer port, String serverAddress, String user,
                                 String keyPath) {
-        int debugPort = 5006;
+        int debugPort = FreePortFinder.find(1000, 10000);
         terminal = terminalContext.startTerminalAtPathAndPort(mount, port, serverAddress,
             debugPort, user, keyPath);
         terminal.waitForStatus(
