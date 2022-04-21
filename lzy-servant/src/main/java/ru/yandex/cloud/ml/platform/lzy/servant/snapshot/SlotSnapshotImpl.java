@@ -29,7 +29,7 @@ import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadState;
 import ru.yandex.qe.s3.util.function.ThrowingConsumer;
 
-public class S3SlotSnapshot implements SlotSnapshot {
+public class SlotSnapshotImpl implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(LzyExecution.class);
     private final StorageClient storage;
 
@@ -40,7 +40,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
     private final PipedOutputStream out = new PipedOutputStream();
     private final ListenableFuture<UploadState> future;
 
-    public S3SlotSnapshot(String taskId, String bucket, Slot slot, StorageClient storage) {
+    public SlotSnapshotImpl(String taskId, String bucket, Slot slot, StorageClient storage) {
         this.bucket = bucket;
         this.taskId = taskId;
         this.slot = slot;
@@ -55,7 +55,7 @@ public class S3SlotSnapshot implements SlotSnapshot {
     }
 
     private String generateKey(Slot slot) {
-        return Path.of( "task" ,taskId, "slot", slot.name()).toString();
+        return Path.of("task", taskId, "slot", slot.name()).toString();
     }
 
     @Override

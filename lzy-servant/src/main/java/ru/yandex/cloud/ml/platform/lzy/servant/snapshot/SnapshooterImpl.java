@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.snapshot;
 
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
@@ -41,7 +40,7 @@ public class SnapshooterImpl implements Snapshooter {
             throw new RuntimeException("Snapshooter is already closed");
         }
 
-        final SlotSnapshot snapshot = new S3SlotSnapshot(sessionId, bucket, slot.definition(), storage);
+        final SlotSnapshot snapshot = new SlotSnapshotImpl(sessionId, bucket, slot.definition(), storage);
 
         final URI uri = snapshot.uri();
         if (slot instanceof LzyInputSlot) {

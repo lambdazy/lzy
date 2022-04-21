@@ -54,6 +54,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     protected void requestAllocation(UUID servantId, String servantToken,
                                      Provisioning provisioning, String bucket) {
         int servantNumber = servantCounter.incrementAndGet();
+        LOG.info("Allocating servant {}", servantId);
 
         @SuppressWarnings("CheckStyle")
         Thread task = new Thread("servant-" + servantId.toString()) {

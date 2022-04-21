@@ -78,6 +78,7 @@ public class TaskImpl implements Task {
         }
     }
 
+    @Override
     public synchronized void state(State newState, String... description) {
         if (newState != state) {
             state = newState;

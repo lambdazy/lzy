@@ -169,6 +169,16 @@ public class DbSnapshotRepository implements SnapshotRepository {
             waitForAllEntriesCompleted(snapshotId, session);
 
             List<SnapshotEntryModel> snapshotEntries = SessionHelper.getSnapshotEntries(snapshotId, session);
+
+            for (SnapshotEntryModel spEntry : snapshotEntries) {
+                if (spEntry.getEntryState() != State.FINISHED || spEntry.getStorageUri() == null) {
+                    LOG.warn("Error in entry {}: status {}", spEntry.getEntryId(),
+                            spEntry.getEntryState());
+                    spEntry.setEntryState(State.ERRORED);
+                    snapshotModel.setSnapshotState(SnapshotStatus.State.ERRORED);
+                }
+            }
+
             if (snapshotModel.getSnapshotState() != SnapshotStatus.State.ERRORED) {
                 LOG.info("Finalized snapshot with id {}", snapshot.id());
                 snapshotModel.setSnapshotState(SnapshotStatus.State.FINALIZED);
@@ -317,7 +327,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public void commit(@NotNull SnapshotEntry entry, boolean empty, boolean errored) throws SnapshotRepositoryException {
+    public void commit(@NotNull SnapshotEntry entry,
+                       boolean empty, boolean errored) throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = entry.snapshot().id().toString();

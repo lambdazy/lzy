@@ -128,6 +128,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         agentServer.shutdown();
     }
 
+    @Override
+    public void awaitTermination() throws InterruptedException {
+        super.awaitTermination();
+        channel.awaitTermination(10, TimeUnit.SECONDS);
+    }
+
     private class CommandHandler {
         private final StreamObserver<TerminalState> responseObserver;
         private final TerminalSlotSender slotSender = new TerminalSlotSender(kharon);
