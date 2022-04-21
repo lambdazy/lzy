@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
@@ -164,7 +165,11 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
         terminal.close();
         try {
             terminal.awaitTermination();
-            Runtime.getRuntime().exec("umount -f " + mount);
+            if (SystemUtils.IS_OS_MAC) {
+                Runtime.getRuntime().exec("umount -f" + mount);
+            } else {
+                Runtime.getRuntime().exec("umount " + mount);
+            }
         } catch (InterruptedException | IOException e) {
             throw new RuntimeException(e);
         }

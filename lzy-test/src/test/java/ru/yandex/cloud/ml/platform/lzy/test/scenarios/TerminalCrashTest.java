@@ -14,6 +14,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.JsonNode;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
@@ -22,7 +23,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 public class TerminalCrashTest extends LzyBaseTest {
 
     private LzyTerminalTestContext.Terminal createTerminal(String mount) {
-        return createTerminal(DEFAULT_SERVANT_PORT, 5006, mount);
+        return createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), mount);
     }
 
     private LzyTerminalTestContext.Terminal createTerminal(int port, int debugPort, String mount) {
@@ -76,7 +77,7 @@ public class TerminalCrashTest extends LzyBaseTest {
             Map.of(fileName.substring("/tmp/lzy1".length()), channelName)
         );
 
-        LzyTerminalTestContext.Terminal terminal2 = createTerminal(1000, 1200, "/tmp/term2");
+        LzyTerminalTestContext.Terminal terminal2 = createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), "/tmp/term2");
 
         //Assert
         Assert.assertTrue(
@@ -115,8 +116,8 @@ public class TerminalCrashTest extends LzyBaseTest {
     @Test
     public void parallelExecutionOneTerminalFails() throws ExecutionException, InterruptedException {
         //Arrange
-        final LzyTerminalTestContext.Terminal terminal1 = createTerminal(9998, 5006, "");
-        final LzyTerminalTestContext.Terminal terminal2 = createTerminal(9997, 5007, "");
+        final LzyTerminalTestContext.Terminal terminal1 = createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), "");
+        final LzyTerminalTestContext.Terminal terminal2 = createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), "");
         final FileIOOperation echo42 = new FileIOOperation(
             "echo42",
             Collections.emptyList(),

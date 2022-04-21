@@ -41,8 +41,8 @@ public class MultiSessionTest extends LzyBaseTest {
     @Test
     public void parallelPyGraphExecution() throws ExecutionException, InterruptedException {
         //Arrange
-        final Terminal terminal1 = createTerminal(FreePortFinder.find(1000, 10000), FreePortFinder.find(1000, 10000), "user1", "/tmp/term1");
-        final Terminal terminal2 = createTerminal(FreePortFinder.find(1000, 10000), FreePortFinder.find(1000, 10000), "user2", "/tmp/term2");
+        final Terminal terminal1 = createTerminal(FreePortFinder.find(20000, 25000), FreePortFinder.find(20000, 30000), "user1", "/tmp/term1");
+        final Terminal terminal2 = createTerminal(FreePortFinder.find(25001, 30000), FreePortFinder.find(20000, 30000), "user2", "/tmp/term2");
         terminal1.execute(Map.of(), "bash", "-c",
                 condaPrefix + "pip install catboost");
         terminal2.execute(Map.of(), "bash", "-c",
@@ -66,7 +66,7 @@ public class MultiSessionTest extends LzyBaseTest {
     @Test
     public void parallelPyGraphExecutionInSingleTerminal()
         throws ExecutionException, InterruptedException {
-        final Terminal terminal = createTerminal(FreePortFinder.find(1000, 10000), FreePortFinder.find(1000, 10000), "user1", "/tmp/lzy");
+        final Terminal terminal = createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), "user1", "/tmp/lzy");
         final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu.py";
 
         //Act
