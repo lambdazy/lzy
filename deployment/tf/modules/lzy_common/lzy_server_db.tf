@@ -22,6 +22,7 @@ resource "kubernetes_secret" "lzy_server_db" {
 
 resource "helm_release" "lzy_server_db" {
   name       = "postgres"
+  namespace  = kubernetes_namespace.server_namespace.metadata[0].name
   chart      = "postgresql"
   repository = "https://charts.bitnami.com/bitnami"
 
