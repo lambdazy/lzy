@@ -8,7 +8,7 @@ from typing import Any, Type, Dict, List, TypeVar, Optional
 from lzy.api._proxy import proxy_optional
 from lzy.api.utils import infer_real_type
 from lzy.api.whiteboard.credentials import StorageCredentials
-from lzy.api.serializer.serializer import FileSerializer
+from lzy.api.serialization.serializer import FileSerializer
 from lzy.api.whiteboard.model import (
     SnapshotApi,
     SnapshotDescription,

@@ -72,6 +72,7 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     id_generator,
                     current_workflow.mem_serializer(),
                     current_workflow.file_serializer(),
+                    current_workflow.hasher(),
                     provisioning,
                     pyenv,
                     deployed=False,

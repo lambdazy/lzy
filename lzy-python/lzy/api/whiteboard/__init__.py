@@ -5,7 +5,7 @@ from typing import List, Any, Callable, Optional, Dict, Set
 
 from pure_protobuf.dataclasses_ import message  # type: ignore
 
-from lzy.api.serializer.serializer import FileSerializer
+from lzy.api.serialization.serializer import FileSerializer
 from lzy.api.utils import is_lazy_proxy
 from lzy.api.whiteboard.model import WhiteboardApi, WhiteboardDescription
 from lzy.servant.channel_manager import ChannelManager

@@ -246,6 +246,11 @@ def proxy(
             if DEBUG:
                 print(f"Called __getattribute__: {item}")
 
+            if item == '_origin':
+                create_and_cache(type(self), constructor)
+                # noinspection PyProtectedMember
+                return type(self)._origin  # pylint: disable=protected-access
+
             if item in obj_attrs or item in cls_attrs:
                 candidate = super().__getattribute__(item)
             else:

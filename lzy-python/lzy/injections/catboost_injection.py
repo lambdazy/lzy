@@ -16,12 +16,14 @@ def fit(self, *args, provisioning: Provisioning = None, **kwargs):
             self._init_params['devices'] = None
 
         @op(gpu=provisioning.gpu)
-        def train(model: CatBoostClassifier, *fit_args, **fit_kwargs) -> CatBoostClassifier:
-            model.fit(*fit_args, **fit_kwargs)
+        def train(model: CatBoostClassifier, x, *fit_args, **fit_kwargs) -> CatBoostClassifier:
+            # noinspection PyProtectedMember
+            x = x._origin  # use _origin as catboost checks the type of data
+            model.fit(x, *fit_args, **fit_kwargs)
             return model
 
         with LzyRemoteEnv().workflow('catboost'):
-            result = train(self, *args, **kwargs)
+            result = train(self, args[0], *(args[1:]), **kwargs)
 
         # update internal state is case of running `fit(...)` and not `model = fit(...)`
         # noinspection PyProtectedMember,PyUnresolvedReferences
