@@ -42,7 +42,7 @@ resource "kubernetes_deployment" "server" {
           }
           env {
             name  = "DATABASE_URL"
-            value = "jdbc:postgresql://postgres-postgresql.default.svc.cluster.local:5432/serverDB"
+            value = "jdbc:postgresql://postgres-postgresql.server.svc.cluster.local:5432/serverDB"
           }
           env {
             name  = "DATABASE_USERNAME"
