@@ -18,7 +18,7 @@ def fit(self, *args, provisioning: Provisioning = None, **kwargs):
         @op(gpu=provisioning.gpu)
         def train(model: CatBoostClassifier, x, *fit_args, **fit_kwargs) -> CatBoostClassifier:
             # noinspection PyProtectedMember
-            x = x._origin  # use _origin as catboost checks the type of data
+            x = x.__lzy_origin__  # use __lzy_origin as catboost checks the type of data
             model.fit(x, *fit_args, **fit_kwargs)
             return model
 
