@@ -2,7 +2,7 @@ import base64
 import os
 from typing import Generic, TypeVar, Optional, Dict, List
 
-from lzy.api.serializer.serializer import MemBytesSerializer
+from lzy.api.serialization.serializer import MemBytesSerializer
 from lzy.model.env import Env
 from lzy.model.execution import ExecutionDescription
 from lzy.model.file_slots import create_slot
