@@ -11,9 +11,9 @@ from typing import TypeVar, Type
 from pure_protobuf.dataclasses_ import load  # type: ignore
 from pure_protobuf.dataclasses_ import load  # type: ignore
 
-from lzy.api.hasher import hash_data
 from lzy.api.lazy_op import LzyRemoteOp
-from lzy.api.serializer.serializer import MemBytesSerializerImpl, FileSerializerImpl
+from lzy.api.serialization.hasher import DelegatingHasher
+from lzy.api.serialization.serializer import MemBytesSerializerImpl, FileSerializerImpl
 from lzy.api.utils import lazy_proxy
 from lzy.api.whiteboard.model import UUIDEntryIdGenerator
 from lzy.model.signatures import CallSignature, FuncSignature
@@ -24,6 +24,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 mem_serializer = MemBytesSerializerImpl()
 file_serializer = FileSerializerImpl()
+hasher = DelegatingHasher(file_serializer)
 
 
 def load_arg(path: Path, inp_type: Type[T], input_value: Optional[InputExecutionValue]) -> T:
@@ -34,7 +35,7 @@ def load_arg(path: Path, inp_type: Type[T], input_value: Optional[InputExecution
         file.seek(0)
         data: T = file_serializer.deserialize(file, inp_type)
         if input_value:
-            input_value.hash = hash_data(data)
+            input_value.hash = hasher.hash(data)
         return data
 
 
@@ -76,6 +77,7 @@ def main():
                       UUIDEntryIdGenerator(snapshot_id),
                       mem_serializer,
                       file_serializer,
+                      hasher,
                       deployed=True)
     result = op_.materialize()
 

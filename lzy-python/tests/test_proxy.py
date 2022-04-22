@@ -224,3 +224,8 @@ class ProxyTests(TestCase):
 
         prxy = proxy(ClassWithCustomNew, ClassWithCustomNew)
         self.assertEqual(prxy.test_attr, 42)
+
+    def test_origin(self):
+        integer = self.lazy_constructed_obj(int, 42)
+        self.assertNotEqual(int, type(integer))
+        self.assertEqual(int, type(integer.__lzy_origin__))
