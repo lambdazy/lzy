@@ -2,6 +2,7 @@ import dataclasses
 import logging
 import os
 import tempfile
+from yaml import safe_load
 from abc import abstractmethod, ABC
 from pathlib import Path
 from datetime import datetime
@@ -405,10 +406,10 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
 
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option
-        # TODO: parse yaml and get name?
         with open(self._yaml, "r", encoding=encoding) as file:
-            name, yaml = "default", "".join(file.readlines())
-            self._py_env = PyEnv(name, yaml, [])
+            name, yaml_str = "default", "".join(file.readlines())
+            data = safe_load(yaml_str)
+            self._py_env = PyEnv(data.get('name', 'default'), yaml_str, [])
             return self._py_env
 
 
