@@ -16,9 +16,9 @@ if __name__ == "__main__":
     with tempfile.NamedTemporaryFile(mode="w", dir="/tmp", suffix=".yaml") as f:
         f.write(
             '\n'.join([
-                "name: default",
+                "name: py39",
                 "dependencies:",
-                "- python==3.7.11",
+                "- python==3.9.7",
                 "- pip",
                 "- pip:",
                 "  - kekreader==5653749",

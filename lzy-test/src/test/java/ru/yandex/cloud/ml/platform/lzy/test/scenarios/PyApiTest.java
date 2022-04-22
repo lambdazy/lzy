@@ -1,7 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
@@ -11,17 +14,18 @@ import java.util.concurrent.TimeUnit;
 import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
 
 public class PyApiTest extends LzyBaseTest {
+    private static final Logger LOG = LogManager.getLogger(PyApiTest.class);
 
     private LzyTerminalTestContext.Terminal terminal;
 
     public void arrangeTerminal(String user) {
-        this.arrangeTerminal(LZY_MOUNT, 9998,
+        this.arrangeTerminal(LZY_MOUNT, FreePortFinder.find(20000, 30000),
             kharonContext.serverAddress(terminalContext.inDocker()), user, null);
     }
 
     public void arrangeTerminal(String mount, Integer port, String serverAddress, String user,
                                 String keyPath) {
-        int debugPort = 5006;
+        int debugPort = FreePortFinder.find(20000, 30000);
         terminal = terminalContext.startTerminalAtPathAndPort(mount, port, serverAddress,
             debugPort, user, keyPath);
         terminal.waitForStatus(
@@ -42,12 +46,15 @@ public class PyApiTest extends LzyBaseTest {
         arrangeTerminal("testUser");
         terminal.execute(Map.of(), "bash", "-c",
             condaPrefix + "pip install catboost");
-        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_integration_cpu.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
             "bash", "-c",
             condaPrefix + pyCommand);
+
+        LOG.info("testSimpleCatboostGraph: STDOUT: {}", result.stdout());
+        LOG.info("testSimpleCatboostGraph: STDERR: {}", result.stderr());
 
         //Assert
         Assert.assertTrue(result.stdout().contains("Prediction: 1"));
@@ -57,12 +64,15 @@ public class PyApiTest extends LzyBaseTest {
     public void testExecFail() {
         //Arrange
         arrangeTerminal("phil");
-        final String pyCommand = "python /lzy-python/tests/scenarios/exec_fail.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/exec_fail.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
             "bash", "-c",
             condaPrefix + pyCommand);
+
+        LOG.info("testExecFail: STDOUT: {}", result.stdout());
+        LOG.info("testExecFail: STDERR: {}", result.stderr());
 
         //Assert
         Assert.assertTrue(result.stderr().contains("LzyExecutionException"));
@@ -72,12 +82,15 @@ public class PyApiTest extends LzyBaseTest {
     public void testEnvFail() {
         //Arrange
         arrangeTerminal("phil");
-        final String pyCommand = "python /lzy-python/tests/scenarios/env_fail.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/env_fail.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
             "bash", "-c",
             condaPrefix + pyCommand);
+
+        LOG.info("testEnvFail: STDOUT: {}", result.stdout());
+        LOG.info("testEnvFail: STDERR: {}", result.stderr());
 
         //Assert
         Assert.assertTrue(
@@ -90,13 +103,15 @@ public class PyApiTest extends LzyBaseTest {
     public void testCache() {
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python /lzy-python/tests/scenarios/test_cache.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/test_cache.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
             "bash", "-c",
             condaPrefix + pyCommand);
-        System.out.println(result.stdout());
+
+        LOG.info("testCache: STDOUT: {}", result.stdout());
+        LOG.info("testCache: STDERR: {}", result.stderr());
         Assert.assertTrue(result.stdout().contains("Is fun2 cached? True"));
     }
 
@@ -110,12 +125,15 @@ public class PyApiTest extends LzyBaseTest {
 
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python /lzy-python/tests/scenarios/uber_graph.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/uber_graph.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
             "bash", "-c",
             condaPrefix + pyCommand);
+
+        LOG.info("testUberGraph: STDOUT: {}", result.stdout());
+        LOG.info("testUberGraph: STDERR: {}", result.stderr());
 
         // Assert
         Assert.assertTrue(result.stdout().contains("base echo"));

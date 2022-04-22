@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
@@ -16,6 +17,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class TerminalThreadContext implements LzyTerminalTestContext {
     LzyTerminal terminal;
@@ -77,10 +80,16 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             @Override
             public ExecutionResult execute(Map<String, String> env, String... command) {
                 try {
-                    final Process exec = Runtime.getRuntime().exec(command);
+                    var stream = Stream.concat(
+                        System.getenv().entrySet().stream(),
+                        env.entrySet().stream()
+                    );
+                    final Process exec = Runtime.getRuntime().exec(command, stream
+                        .map(e -> e.getKey() + "=" + Utils.bashEscape(e.getValue()))
+                        .toArray(String[]::new));
                     final OutputStreamWriter stdin = new OutputStreamWriter(
-                            exec.getOutputStream(),
-                            StandardCharsets.UTF_8
+                        exec.getOutputStream(),
+                        StandardCharsets.UTF_8
                     );
                     stdin.close();
 
@@ -156,7 +165,11 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
         terminal.close();
         try {
             terminal.awaitTermination();
-            Runtime.getRuntime().exec("umount -f " + mount);
+            if (SystemUtils.IS_OS_MAC) {
+                Runtime.getRuntime().exec("umount -f" + mount);
+            } else {
+                Runtime.getRuntime().exec("umount " + mount);
+            }
         } catch (InterruptedException | IOException e) {
             throw new RuntimeException(e);
         }

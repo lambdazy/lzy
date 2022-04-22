@@ -1,7 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local.allocators;
 
+import com.gc.iotools.stream.utils.StreamUtils;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
@@ -19,6 +22,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,6 +58,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     protected void requestAllocation(UUID servantId, String servantToken,
                                      Provisioning provisioning, String bucket) {
         int servantNumber = servantCounter.incrementAndGet();
+        LOG.info("Allocating servant {}", servantId);
 
         @SuppressWarnings("CheckStyle")
         Thread task = new Thread("servant-" + servantId.toString()) {
@@ -63,7 +68,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                     servantMain.invoke(null, (Object) new String[]{
                         "--lzy-address", serverConfig.getServerUri(),
                         "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
-                        "--lzy-mount", "/private/tmp/lzy" + servantNumber,
+                        "--lzy-mount", "/tmp/lzy" + servantNumber,
                         "--host", URI.create(serverConfig.getServerUri()).getHost(),
                         "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
                         "--port", Integer.toString(FreePortFinder.find(10000, 20000)),
@@ -80,7 +85,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
 
         ServantDescription description = new ServantDescription(
             "servant-" + servantId,
-            "/private/tmp/lzy" + servantNumber,
+            "/tmp/lzy" + servantNumber,
             task
         );
         task.start();
@@ -114,11 +119,23 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
         }
 
         private void stop() {
-            thread.stop();
             try {
-                Runtime.getRuntime().exec("umount -f " + mountPoint);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+                thread.stop();
+            } finally {
+                try {
+                    final Process run;
+                    if (SystemUtils.IS_OS_MAC) {
+                        run = Runtime.getRuntime().exec("umount -f" + mountPoint);
+                    } else {
+                        run = Runtime.getRuntime().exec("umount " + mountPoint);
+                    }
+                    String out = IOUtils.toString(run.getInputStream(), StandardCharsets.UTF_8);
+                    String err = IOUtils.toString(run.getErrorStream(), StandardCharsets.UTF_8);
+                    int rc = run.waitFor();
+                    LOG.info("Unmounting servant fs. RC: {}\n STDOUT: {}\n STDERR: {}", rc, out, err);
+                } catch (IOException | InterruptedException e) {
+                    LOG.error(e);
+                }
             }
         }
     }

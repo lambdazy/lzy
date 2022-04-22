@@ -11,6 +11,7 @@ import io.micronaut.context.exceptions.NoSuchBeanException;
 import jakarta.inject.Inject;
 import org.apache.commons.cli.*;
 import org.apache.commons.lang.NotImplementedException;
+import org.apache.commons.lang.SystemUtils;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,6 +26,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager.Signal;
+import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
@@ -296,7 +298,8 @@ public class LzyServer {
                     servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
                         .whenComplete((connection, th) -> {
                             if (th != null) {
-                                task.state(Task.State.ERROR, th.getMessage(), Arrays.toString(th.getStackTrace()));
+                                task.state(Task.State.ERROR, ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
+                                        th.getMessage(), Arrays.toString(th.getStackTrace()));
                             } else {
                                 task.attachServant(connection);
                                 auth.registerTask(uid, task, connection.id());
@@ -306,7 +309,7 @@ public class LzyServer {
                     if (retries[0]++ < MAX_TASK_RETRIES)
                         task.state(Task.State.QUEUE, "Disconnected from servant. Retry: " + retries[0]);
                     else
-                        task.state(Task.State.ERROR, "Disconnected from servant. Maximum retries reached.");
+                        task.state(Task.State.ERROR, 1, "Disconnected from servant. Maximum retries reached.");
                 } else if (EnumSet.of(ERROR, SUCCESS).contains(progress.getStatus())) {
                     concluded.set(true);
                     responseObserver.onCompleted();

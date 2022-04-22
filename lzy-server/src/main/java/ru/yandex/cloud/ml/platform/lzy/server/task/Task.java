@@ -27,6 +27,7 @@ public interface Task {
 
     State state();
     void state(State state, String... description);
+    void state(State state, int rc, String... description);
     void signal(TasksManager.Signal signal) throws TaskException;
 
     void onProgress(Consumer<Tasks.TaskProgress> listener);

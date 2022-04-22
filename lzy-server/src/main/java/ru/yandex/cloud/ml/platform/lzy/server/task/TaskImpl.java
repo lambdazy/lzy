@@ -65,6 +65,7 @@ public class TaskImpl implements Task {
         return state;
     }
 
+    @Override
     @SuppressWarnings("WeakerAccess")
     public synchronized void state(State newState, int rc, String... description) {
         if (newState != state) {
@@ -77,6 +78,7 @@ public class TaskImpl implements Task {
         }
     }
 
+    @Override
     public synchronized void state(State newState, String... description) {
         if (newState != state) {
             state = newState;
@@ -165,6 +167,7 @@ public class TaskImpl implements Task {
                     case EXECUTESTOP: {
                         final ExecutionConcluded executeStop = progress.getExecuteStop();
                         LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
+                        final boolean communicationNotCompleted = state != COMMUNICATION_COMPLETED;
                         if (executeStop.getRc() != 0) {
                             state(ERROR, executeStop.getRc(), "Exit code: " + executeStop.getRc(),
                                     executeStop.getDescription());
@@ -173,7 +176,7 @@ public class TaskImpl implements Task {
                         }
                         servant = null;
                         TaskImpl.this.notifyAll();
-                        return state != COMMUNICATION_COMPLETED;
+                        return communicationNotCompleted;
                     }
                     case COMMUNICATIONCOMPLETED: {
                         if (state.phase() <= EXECUTING.phase()) {

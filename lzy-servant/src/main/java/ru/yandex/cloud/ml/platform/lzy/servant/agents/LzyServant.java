@@ -123,7 +123,7 @@ public class LzyServant extends LzyAgent {
         final SlotConnectionManager slotsManager =
             new SlotConnectionManager(server, auth, config.getWhiteboardAddress(), config.getBucket(), contextId);
 
-        context = new LzyContext(contextId, slotsManager, agentInternalAddress);
+        context = new LzyContext(contextId, slotsManager, agentInternalAddress, mount.toString());
 
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
@@ -188,7 +188,9 @@ public class LzyServant extends LzyAgent {
 
             status.set(AgentStatus.PREPARING_EXECUTION);
             final AtomicZygote zygote = (AtomicZygote) GrpcConverter.from(request.getZygote());
-            final Stream<Context.SlotAssignment> assignments = GrpcConverter.from(request.getAssignmentsList().stream());
+            final Stream<Context.SlotAssignment> assignments = GrpcConverter.from(
+                    request.getAssignmentsList().stream()
+            );
             final String tid = request.getTid();
             UserEventLogger.log(new UserEvent(
                 "Servant execution preparing",

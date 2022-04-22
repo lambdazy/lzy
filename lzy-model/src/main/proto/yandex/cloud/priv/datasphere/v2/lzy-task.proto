@@ -84,14 +84,15 @@ message TaskProgress {
   string description = 3;
   int32 rc = 4;
   enum Status {
-    QUEUE = 0;
-    PREPARING = 1;
-    CONNECTED = 2;
-    EXECUTING = 3;
-    SUSPENDED = 4;
-    DISCONNECTED = 5;
-    SUCCESS = 6;
-    ERROR = 7;
+    UNKNOWN = 0;
+    QUEUE = 1;
+    PREPARING = 2;
+    CONNECTED = 3;
+    EXECUTING = 4;
+    SUSPENDED = 5;
+    DISCONNECTED = 6;
+    SUCCESS = 7;
+    ERROR = 8;
   }
 }
 

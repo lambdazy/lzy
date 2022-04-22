@@ -45,7 +45,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     public void connect(URI slotUri, Stream<ByteString> dataProvider) {
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
-        Thread t = new Thread(READER_TG, this::readAll, "reader-from-" + slotUri +"-to-" + definition().name());
+        Thread t = new Thread(READER_TG, this::readAll, "reader-from-" + slotUri + "-to-" + definition().name());
         t.start();
         onState(State.DESTROYED, t::interrupt);
     }

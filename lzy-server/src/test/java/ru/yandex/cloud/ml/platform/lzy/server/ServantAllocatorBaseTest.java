@@ -5,6 +5,7 @@ import io.micronaut.context.ApplicationContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.junit.*;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.mocks.AllocatedServantMock;
@@ -226,13 +227,16 @@ public class ServantAllocatorBaseTest {
         allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build());
         ServantsAllocator.ServantConnection connection = feature.get();
         final AtomicBoolean progressComplete = new AtomicBoolean(false);
+        CountDownLatch latch = new CountDownLatch(1);
         connection.onProgress(progress -> {
             if (progress.hasChanged()) {
                 progressComplete.set(true);
+                latch.countDown();
             }
-            return false;
+            return true;
         });
         servantMock.progress(Servant.ServantProgress.newBuilder().setChanged(Servant.StateChanged.newBuilder().build()).build());
+        latch.await();
         servantMock.complete(null);
         servantMock.close();
 
@@ -292,8 +296,9 @@ public class ServantAllocatorBaseTest {
             if (p.hasDisconnected()) {
                 gotDisconnectedWhenDeleted.set(true);
                 called.complete(null);
+                return false;
             }
-            return false;
+            return true;
         });
 
         allocator.deleteSession(sessionUUID);
@@ -333,8 +338,9 @@ public class ServantAllocatorBaseTest {
             if (p.hasDisconnected()) {
                 gotExit.set(true);
                 called.complete(null);
+                return false;
             }
-            return false;
+            return true;
         });
 
         called.get();

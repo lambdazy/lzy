@@ -26,12 +26,10 @@ def exec_bash(*command):
     ) as process:
 
         out, err = process.communicate()
-        if err:
-            raise BashExecutionException(message=str(err, encoding=encoding))
 
         if process.returncode != 0:
             raise BashExecutionException(
-                message=f"Process exited with code {process.returncode}"
+                message=f"Process exited with code {process.returncode}\n STDERR: " + str(err, encoding)
             )
     return out
 

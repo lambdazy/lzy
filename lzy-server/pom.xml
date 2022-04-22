@@ -80,33 +80,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <version>${checkstyle-maven-plugin.version}</version>
       </plugin>
-      <plugin>
-        <artifactId>docker-maven-plugin</artifactId>
-        <configuration>
-          <autoPull>always</autoPull>
-          <images>
-            <image>
-              <alias>dockerfile</alias>
-              <build>
-                <contextDir>${project.basedir}</contextDir>
-                <dockerFile>${project.basedir}/Dockerfile</dockerFile>
-                <noCache>true</noCache>
-              </build>
-              <name>lzy-server</name>
-            </image>
-          </images>
-          <verbose>true</verbose>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>build</goal>
-            </goals>
-            <phase>install</phase>
-          </execution>
-        </executions>
-        <groupId>io.fabric8</groupId>
-      </plugin>
     </plugins>
     <resources>
       <resource>
