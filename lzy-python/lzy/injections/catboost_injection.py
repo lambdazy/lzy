@@ -1,7 +1,7 @@
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier, CatBoostRegressor, CatBoostRanker
 
-from lzy.api import op, Provisioning, LzyRemoteEnv
+from lzy.api.v1 import op, Provisioning, LzyRemoteEnv
 from lzy.injections.extensions import extend
 
 

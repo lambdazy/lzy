@@ -10,7 +10,7 @@ from sklearn import datasets
 from sklearn.utils import Bunch
 
 from catboost import CatBoostClassifier
-from lzy.api import op, LzyRemoteEnv, Gpu
+from lzy.api.v1 import op, LzyRemoteEnv, Gpu
 
 @op
 def dataset() -> Bunch:

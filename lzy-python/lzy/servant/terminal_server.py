@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from lzy.model.encoding import ENCODING as encoding
+from lzy.servant.model.encoding import ENCODING as encoding
 # noinspection PyUnresolvedReferences
 import lzy.api  # needed to instantiate logging #  pylint: disable=unused-import
 

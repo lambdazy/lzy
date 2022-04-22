@@ -8,9 +8,9 @@ from unittest import TestCase
 
 import cloudpickle
 
-from lzy.api import LzyRemoteEnv
-from lzy.api.storage.storage_client import StorageClient
-from lzy.api.whiteboard.model import (
+from lzy.api.v1 import LzyRemoteEnv
+from lzy.storage.storage_client import StorageClient
+from lzy.api.v1.whiteboard.model import (
     InMemWhiteboardApi,
     InMemSnapshotApi
 )

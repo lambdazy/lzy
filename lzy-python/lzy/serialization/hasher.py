@@ -2,7 +2,7 @@ import abc
 import hashlib
 from typing import Any
 
-from lzy.api.serialization.serializer import FileSerializer
+from lzy.serialization.serializer import FileSerializer
 
 
 class HashableFileLikeObj:

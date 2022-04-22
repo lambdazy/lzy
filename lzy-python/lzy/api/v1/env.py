@@ -8,18 +8,18 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
-from lzy.api.buses import Bus
-from lzy.api.lazy_op import LzyOp
-from lzy.api.cache_policy import CachePolicy
-from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
+from lzy.api.v1.buses import Bus
+from lzy.api.v1.lazy_op import LzyOp
+from lzy.api.v1.cache_policy import CachePolicy
+from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 
-from lzy.api.serialization.hasher import DelegatingHasher, Hasher
-from lzy.api.serialization.serializer import MemBytesSerializerImpl, FileSerializerImpl, MemBytesSerializer, FileSerializer
-from lzy.api.utils import zipdir, fileobj_hash
-from lzy.api.storage.storage_client import StorageClient, from_credentials
-from lzy.api.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
-from lzy.api.whiteboard.model import (
+from lzy.serialization.hasher import DelegatingHasher, Hasher
+from lzy.serialization.serializer import MemBytesSerializerImpl, FileSerializerImpl, MemBytesSerializer, FileSerializer
+from lzy.utils import zipdir, fileobj_hash
+from lzy.storage.storage_client import StorageClient, from_credentials
+from lzy.api.v1.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
+from lzy.api.v1.whiteboard.model import (
     InMemSnapshotApi,
     InMemWhiteboardApi,
     SnapshotApi,
@@ -28,8 +28,8 @@ from lzy.api.whiteboard.model import (
     WhiteboardDescription,
     WhiteboardFieldStatus
 )
-from lzy.model.encoding import ENCODING as encoding
-from lzy.model.env import PyEnv
+from lzy.servant.model.encoding import ENCODING as encoding
+from lzy.servant.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
 from lzy.servant.channel_manager import ServantChannelManager, LocalChannelManager, ChannelManager
 from lzy.servant.servant_client import ServantClient, CredentialsTypes, ServantClientMock

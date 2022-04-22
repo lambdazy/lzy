@@ -11,7 +11,7 @@ from inspect import Signature
 from typing import Dict, List, Optional, Any, Type, TypeVar
 from urllib import parse
 
-from lzy.model.slot import Slot
+from lzy.servant.model.slot import Slot
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
