@@ -1,12 +1,12 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import TypeVar, BinaryIO, IO
+from typing import TypeVar, IO
 
 from azure.storage.blob import BlobServiceClient
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
-from lzy.api.storage.storage_client import AzureClient, AmazonClient
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
+from lzy.storage.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
+from lzy.storage.storage_client import AzureClient, AmazonClient
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

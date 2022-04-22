@@ -2,13 +2,13 @@ import base64
 import os
 from typing import Generic, TypeVar, Optional, Dict, List
 
-from lzy.api.serialization.serializer import MemBytesSerializer
-from lzy.model.env import Env
-from lzy.model.execution import ExecutionDescription
-from lzy.model.file_slots import create_slot
-from lzy.model.signatures import FuncSignature
-from lzy.model.slot import Direction, Slot
-from lzy.model.zygote import Zygote, Provisioning
+from lzy.serialization.serializer import MemBytesSerializer
+from lzy.servant.model.env import Env
+from lzy.servant.model.execution import ExecutionDescription
+from lzy.servant.model.file_slots import create_slot
+from lzy.api.v1.signatures import FuncSignature
+from lzy.servant.model.slot import Direction, Slot
+from lzy.servant.model.zygote import Zygote, Provisioning
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -43,7 +43,7 @@ class ZygotePythonFunc(Zygote, Generic[T]):
         _com = "".join([
             "python ",
             "$(python -c 'import site; print(site.getsitepackages()[0])')",
-            "/lzy/startup.py "
+            "/lzy/api/v1/startup.py "
         ])
         serialized_func = base64.b64encode(self._serializer.serialize(self.signature)).decode('ascii')
         serialized_execution_description = base64.b64encode(

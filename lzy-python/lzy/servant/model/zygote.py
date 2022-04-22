@@ -3,9 +3,9 @@ import json
 from dataclasses import dataclass
 from typing import Generic, List, Optional, TypeVar
 
-from lzy.model.env import Env
-from lzy.model.slot import Slot
-from lzy.model.signatures import FuncSignature
+from lzy.servant.model.env import Env
+from lzy.servant.model.slot import Slot
+from lzy.api.v1.signatures import FuncSignature
 
 
 class Tag(ABC):

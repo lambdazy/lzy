@@ -10,7 +10,7 @@ from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, Conta
 from botocore.exceptions import ClientError
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials, StorageCredentials
+from lzy.storage.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials, StorageCredentials
 
 logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
     logging.WARNING

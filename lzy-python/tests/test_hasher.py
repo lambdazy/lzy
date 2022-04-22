@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from lzy.api.serialization.hasher import DelegatingHasher
-from lzy.api.serialization.serializer import FileSerializerImpl
+from lzy.serialization.hasher import DelegatingHasher
+from lzy.serialization.serializer import FileSerializerImpl
 
 
 class A:
