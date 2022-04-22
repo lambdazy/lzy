@@ -72,6 +72,7 @@ message CommitCommand {
   string snapshotId = 2;
   string entryId = 3;
   bool empty = 4;
+  bool errored = 5;
 }
 
 message LinkCommand {

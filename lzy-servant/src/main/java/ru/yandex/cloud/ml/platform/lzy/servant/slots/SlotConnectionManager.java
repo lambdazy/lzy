@@ -242,7 +242,7 @@ public class SlotConnectionManager {
         return snapshooter;
     }
 
-    private static class LazyIterator<T> implements Iterator<T>{
+    private static class LazyIterator<T> implements Iterator<T> {
         private final Supplier<Iterator<T>> supplier;
         private Iterator<T> createdIterator;
 

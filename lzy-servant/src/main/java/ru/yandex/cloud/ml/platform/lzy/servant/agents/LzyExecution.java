@@ -1,6 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -26,12 +27,14 @@ public class LzyExecution {
     private final AtomicZygote zygote;
     private final String arguments;
     private final List<Consumer<Servant.ServantProgress>> listeners = new ArrayList<>();
+    private final String lzyMount;
     private Environment.LzyProcess process;
 
-    public LzyExecution(String taskId, AtomicZygote zygote, String arguments) {
+    public LzyExecution(String taskId, AtomicZygote zygote, String arguments, String lzyMount) {
         this.taskId = taskId;
         this.zygote = zygote;
         this.arguments = arguments;
+        this.lzyMount = lzyMount;
     }
 
     public void start(Environment environment) throws LzyExecutionException {
@@ -60,7 +63,7 @@ public class LzyExecution {
                     envExecStartMillis - startMillis
                 )
             );
-            this.process = environment.runProcess(command);
+            this.process = environment.runProcess(command, new String[]{"LZY_MOUNT=" + lzyMount});
             UserEventLogger.log(new UserEvent(
                 "Servant execution start",
                 Map.of(

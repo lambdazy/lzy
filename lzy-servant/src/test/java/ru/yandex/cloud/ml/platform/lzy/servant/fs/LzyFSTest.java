@@ -19,8 +19,6 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.servant.slots.InFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.DevNullSlotSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.servant.snapshot.SlotSnapshotProvider.Cached;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
 
 public class LzyFSTest {

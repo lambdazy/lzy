@@ -14,7 +14,5 @@ public interface SlotSnapshot {
 
     boolean isEmpty();
 
-    void writeFromStream(InputStream stream);
-
     void onFinish();
 }

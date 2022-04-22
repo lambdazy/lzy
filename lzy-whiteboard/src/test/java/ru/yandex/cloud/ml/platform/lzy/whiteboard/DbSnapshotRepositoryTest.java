@@ -157,9 +157,11 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.prepare(new SnapshotEntry.Impl(entryIdFirst, snapshot), storageUri,
             Collections.emptyList());
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
+        SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdSecond);
         implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
         implSnapshotRepository.commit(secondEntry, false);
+        implSnapshotRepository.commit(firstEntry, false, true);
         implSnapshotRepository.finalize(snapshot);
         Optional<SnapshotStatus> statusOptional = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
         Assert.assertTrue(statusOptional.isPresent());

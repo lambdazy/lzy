@@ -16,11 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.text.MessageFormat;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
@@ -73,7 +69,7 @@ public class Run implements LzyCommand {
     private LzyServantGrpc.LzyServantBlockingStub servant;
     private long pid;
     private String lzyRoot;
-    private String stdinChannel;
+    private final List<String> channels = new ArrayList<>();
 
     @Override
     public int execute(CommandLine command) throws Exception {
@@ -176,9 +172,10 @@ public class Run implements LzyCommand {
         LOG.info("Run:: Task finished RC = {}, Description = {}", rc, description);
         if (rc != 0) {
             System.err.print(description);
+        } else {
+            communicationLatch.await(); // waiting for slots to finish communication
         }
-        communicationLatch.await(); // waiting for slots to finish communication
-        destroyChannel(stdinChannel);
+        channels.forEach(this::destroyChannel);
         return rc;
     }
 
@@ -241,6 +238,7 @@ public class Run implements LzyCommand {
             switch (devSlot) {
                 case "stdin": {
                     boolean pipe = false;
+                    final String stdinChannel;
                     if (!pipeConfig.getOrDefault("node", "").isEmpty()) { // linux
                         stdinChannel = prefix + ":" + devSlot + ":" + pipeConfig.get("node");
                         pipe = true;
@@ -250,6 +248,7 @@ public class Run implements LzyCommand {
                     } else {
                         stdinChannel = UUID.randomUUID().toString();
                     }
+                    channels.add(stdinChannel);
 
                     final String slotName = String.join("/", "/tasks", prefix, devSlot);
                     createChannel(slot, stdinChannel);
@@ -288,6 +287,7 @@ public class Run implements LzyCommand {
                     } else {
                         channelName = UUID.randomUUID().toString();
                     }
+                    channels.add(channelName);
 
                     final String slotName = String.join("/", "/tasks", prefix, devSlot);
                     final String channelId = createChannel(slot, channelName);

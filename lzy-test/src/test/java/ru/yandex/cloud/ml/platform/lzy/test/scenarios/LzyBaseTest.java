@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
@@ -19,7 +20,6 @@ public class LzyBaseTest {
     protected static final int S3_PORT = 8001;
 
     protected LzyTerminalTestContext terminalContext;
-    protected LzyPythonTerminalDockerContext pyTerminalContext;
     protected LzyServerTestContext serverContext;
     protected LzyKharonTestContext kharonContext;
     protected LzySnapshotTestContext whiteboardContext;
@@ -36,7 +36,6 @@ public class LzyBaseTest {
         kharonContext = new LzyKharonThreadContext(serverContext.address(false), whiteboardContext.address(false));
         kharonContext.init();
         terminalContext = new TerminalThreadContext();
-        pyTerminalContext = new LzyPythonTerminalDockerContext();
         api = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
         api.start();
     }
@@ -45,7 +44,6 @@ public class LzyBaseTest {
     public void tearDown() {
         api.shutdown();
         terminalContext.close();
-        pyTerminalContext.close();
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();

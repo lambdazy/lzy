@@ -54,13 +54,15 @@ public class LzyContext implements AutoCloseable {
     private final List<Consumer<ServantProgress>> listeners = new ArrayList<>();
     private final Map<String, Map<String, LzySlot>> namespaces = Collections.synchronizedMap(new HashMap<>());
     private String arguments = "";
+    private final String mountRoot;
     private Environment env;
 
-    public LzyContext(String contextId, SlotConnectionManager slotConnectionManager, URI servantUri) {
+    public LzyContext(String contextId, SlotConnectionManager slotConnectionManager, URI servantUri, String mountRoot) {
         this.contextId = contextId;
         this.slotsManager = slotConnectionManager;
         this.servantUri = servantUri;
         this.storage = slotConnectionManager.snapshooter().storage();
+        this.mountRoot = mountRoot;
     }
 
     public void start() {
@@ -149,7 +151,7 @@ public class LzyContext implements AutoCloseable {
             throw new LzyExecutionException(new RuntimeException("Cannot execute before prepare"));
         }
 
-        final LzyExecution execution = new LzyExecution(contextId, zygote, arguments);
+        final LzyExecution execution = new LzyExecution(contextId, zygote, arguments, mountRoot);
         final WriterSlot stdinSlot = (WriterSlot) configureSlot(taskId, Slot.STDIN, null);
         final LineReaderSlot stdoutSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, null);
         final LineReaderSlot stderrSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDERR, null);

@@ -9,10 +9,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import net.lingala.zip4j.core.ZipFile;
@@ -37,6 +35,7 @@ public class CondaEnvironment implements AuxEnvironment {
     private final BaseEnvironment baseEnv;
     private final StorageClient storage;
     private final String resourcesPath;
+    private final String localModulesDir;
 
     public CondaEnvironment(
         PythonEnv pythonEnv,
@@ -48,6 +47,7 @@ public class CondaEnvironment implements AuxEnvironment {
         this.baseEnv = baseEnv;
         this.storage = storage;
         this.resourcesPath = resourcesPath;
+        this.localModulesDir = Path.of("/", "tmp", "local_modules" + UUID.randomUUID()).toString();
 
         final long pyEnvInstallStart = System.currentTimeMillis();
         installPyenv();
@@ -85,7 +85,7 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     private String localModulesDirectoryAbsolutePath() {
-        return "/local_modules";
+        return localModulesDir;
     }
 
     private void installPyenv() throws EnvironmentInstallationException {
@@ -173,8 +173,8 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, String[] envp) throws LzyExecutionException {
         LOG.info("Executing command " + command);
-        String[] bashCmd = new String[] {"bash", "-c", "source /root/miniconda3/etc/profile.d/conda.sh && "
-                + "conda activate " + pythonEnv.name() + " && " + command};
+        String[] bashCmd = new String[] {"bash", "-c", "eval \"$(conda shell.bash hook)\" && conda activate "
+                + pythonEnv.name() + " && " + command};
         return baseEnv.runProcess(bashCmd, envp);
     }
 

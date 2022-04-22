@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
@@ -21,9 +22,9 @@ public class MultiSessionTest extends LzyBaseTest {
         super.setUp();
     }
 
-    private Terminal createTerminal(int port, int debugPort, String user) {
+    private Terminal createTerminal(int port, int debugPort, String user, String mount) {
         final Terminal terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
+            mount,
             port,
             kharonContext.serverAddress(terminalContext.inDocker()),
             debugPort,
@@ -40,18 +41,22 @@ public class MultiSessionTest extends LzyBaseTest {
     @Test
     public void parallelPyGraphExecution() throws ExecutionException, InterruptedException {
         //Arrange
-        final Terminal terminal1 = createTerminal(9998, 5006, "user1");
-        final Terminal terminal2 = createTerminal(9999, 5007, "user2");
-        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_integration_cpu.py";
+        final Terminal terminal1 = createTerminal(FreePortFinder.find(20000, 25000), FreePortFinder.find(20000, 30000), "user1", "/tmp/term1");
+        final Terminal terminal2 = createTerminal(FreePortFinder.find(25001, 30000), FreePortFinder.find(20000, 30000), "user2", "/tmp/term2");
+        terminal1.execute(Map.of(), "bash", "-c",
+                condaPrefix + "pip install catboost");
+        terminal2.execute(Map.of(), "bash", "-c",
+                condaPrefix + "pip install catboost");
+        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu.py";
 
         //Act
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> result1.complete(
-            terminal1.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
+            terminal1.execute(Map.of("LZY_MOUNT", "/tmp/term1"), "bash", "-c", condaPrefix + pyCommand)));
 
         final CompletableFuture<Terminal.ExecutionResult> result2 = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> result2.complete(
-            terminal2.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
+            terminal2.execute(Map.of("LZY_MOUNT", "/tmp/term2"), "bash", "-c", condaPrefix + pyCommand)));
 
         //Assert
         Assert.assertTrue(result1.get().stdout().contains("Prediction: 1"));
@@ -61,8 +66,8 @@ public class MultiSessionTest extends LzyBaseTest {
     @Test
     public void parallelPyGraphExecutionInSingleTerminal()
         throws ExecutionException, InterruptedException {
-        final Terminal terminal = createTerminal(9998, 5006, "user1");
-        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_integration_cpu.py";
+        final Terminal terminal = createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), "user1", "/tmp/lzy");
+        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu.py";
 
         //Act
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();

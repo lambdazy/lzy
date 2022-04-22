@@ -16,11 +16,12 @@ import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.*;
 import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.OPEN;
 
 public class SnapshooterImpl implements Snapshooter {
-    private final SlotSnapshotProvider snapshotProvider;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
     private final IAM.Auth auth;
     private final Set<String> trackedSlots = new HashSet<>();
     private final StorageClient storage;
+    private final String sessionId;
+    private final String bucket;
     private boolean closed = false;
 
     public SnapshooterImpl(IAM.Auth auth, String bucket,
@@ -29,9 +30,8 @@ public class SnapshooterImpl implements Snapshooter {
         this.snapshotApi = snapshotApi;
         this.auth = auth;
         this.storage = storage;
-        snapshotProvider = new SlotSnapshotProvider.Cached(slot ->
-            new S3SlotSnapshot(sessionId, bucket, slot, storage)
-        );
+        this.bucket = bucket;
+        this.sessionId = sessionId;
     }
 
     @Override
@@ -39,7 +39,10 @@ public class SnapshooterImpl implements Snapshooter {
         if (closed) {
             throw new RuntimeException("Snapshooter is already closed");
         }
-        final URI uri = snapshotProvider.slotSnapshot(slot.definition()).uri();
+
+        final SlotSnapshot snapshot = new SlotSnapshotImpl(sessionId, bucket, slot.definition(), storage);
+
+        final URI uri = snapshot.uri();
         if (slot instanceof LzyInputSlot) {
             throw new RuntimeException("Input slot snapshooting is not supported yet");
         }
@@ -59,26 +62,26 @@ public class SnapshooterImpl implements Snapshooter {
         }
 
         trackedSlots.add(slot.name());
-        slot.onChunk(chunk -> {
-            snapshotProvider.slotSnapshot(slot.definition()).onChunk(chunk);
-        });
+        slot.onChunk(snapshot::onChunk);
 
         slot.onState(OPEN, () -> {
-            commit(slot, snapshotId, entryId);
-            slot.suspend();
             synchronized (SnapshooterImpl.this) {
+                try {
+                    commit(snapshotId, entryId, snapshot);
+                } finally {
+                    slot.suspend();
+                }
                 trackedSlots.remove(slot.name());
                 SnapshooterImpl.this.notifyAll();
             }
         });
 
         slot.onState(DESTROYED, () -> {
-            if (!trackedSlots.contains(slot.name())) {  // Already committed in OPEN
-                return;
-            }
-
-            commit(slot, snapshotId, entryId);
             synchronized (SnapshooterImpl.this) {
+                if (!trackedSlots.contains(slot.name())) {  // Already committed in OPEN
+                    return;
+                }
+                commit(snapshotId, entryId, snapshot);
                 trackedSlots.remove(slot.name());
                 SnapshooterImpl.this.notifyAll();
             }
@@ -87,14 +90,15 @@ public class SnapshooterImpl implements Snapshooter {
         this.notifyAll();
     }
 
-    private synchronized void commit(LzySlot slot, String snapshotId, String entryId) {
-        snapshotProvider.slotSnapshot(slot.definition()).onFinish();
+    private synchronized void commit(String snapshotId, String entryId, SlotSnapshot snapshot) {
+        snapshot.onFinish();
         final LzyWhiteboard.CommitCommand commitCommand = LzyWhiteboard.CommitCommand
                 .newBuilder()
                 .setSnapshotId(snapshotId)
                 .setEntryId(entryId)
-                .setEmpty(snapshotProvider.slotSnapshot(slot.definition()).isEmpty())
+                .setEmpty(snapshot.isEmpty())
                 .setAuth(auth)
+                .setErrored(false)
                 .build();
         final LzyWhiteboard.OperationStatus status = snapshotApi.commit(commitCommand);
         if (status.getStatus().equals(FAILED)) {
