@@ -1,21 +1,20 @@
 # noinspection PyPackageRequirements
 import numpy as np
 # noinspection PyPackageRequirements
-from catboost import CatBoostClassifier
+from catboost import CatBoostClassifier, Pool
 
 from lzy.api import Provisioning, Gpu
 
 if __name__ == '__main__':
-    data = np.array([[0, 3],
-                     [4, 1],
-                     [8, 1],
-                     [9, 1]])
-    labels = np.array([0, 0, 1, 1])
+    train_data = Pool(data=[[1, 4, 5, 6],
+                            [4, 5, 6, 7],
+                            [30, 40, 50, 60]],
+                      label=[1, 1, -1],
+                      weight=[0.1, 0.2, 0.3])
 
     model = CatBoostClassifier(iterations=1000, train_dir='/tmp/catboost')
     # noinspection PyArgumentList
-    model.fit(data, labels,
-              provisioning=Provisioning(gpu=Gpu.any()))  # если убрать provisioning - будет обычный вызов catboost
+    model.fit(train_data, provisioning=Provisioning(gpu=Gpu.any()))
 
-    result = model.predict(np.array([9, 1]))
+    result = model.predict(np.array([1, 4, 5, 6]))
     print("Prediction: " + str(result))

@@ -13,7 +13,8 @@ from lzy.api.cache_policy import CachePolicy
 from lzy.api.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 
-from lzy.api.serializer.serializer import MemBytesSerializerImpl, FileSerializerImpl, MemBytesSerializer, FileSerializer
+from lzy.api.serialization.hasher import DelegatingHasher, Hasher
+from lzy.api.serialization.serializer import MemBytesSerializerImpl, FileSerializerImpl, MemBytesSerializer, FileSerializer
 from lzy.api.utils import zipdir, fileobj_hash
 from lzy.api.storage.storage_client import StorageClient, from_credentials
 from lzy.api.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
@@ -171,6 +172,7 @@ class LzyRemoteEnv(LzyEnvBase):
         self._lzy_mount = lzy_mount
         self._mem_serializer = MemBytesSerializerImpl()
         self._file_serializer = FileSerializerImpl()
+        self._hasher = DelegatingHasher(self._file_serializer)
         super().__init__(
             whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client, self._file_serializer),
             snapshot_api=SnapshotBashApi(lzy_mount),
@@ -198,7 +200,8 @@ class LzyRemoteEnv(LzyEnvBase):
             whiteboard=whiteboard,
             buses=buses,
             mem_serializer=self._mem_serializer,
-            file_serializer=self._file_serializer
+            file_serializer=self._file_serializer,
+            hasher=self._hasher
         )
 
 
@@ -306,6 +309,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             snapshot_api: SnapshotApi,
             mem_serializer: MemBytesSerializer,
             file_serializer: FileSerializer,
+            hasher: Hasher,
             lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
             conda_yaml_path: Optional[Path] = None,
             local_module_paths: Optional[List[str]] = None,
@@ -317,6 +321,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
     ):
         self._mem_serializer = mem_serializer
         self._file_serializer = file_serializer
+        self._hasher = hasher
         self._yaml = conda_yaml_path
         self._restart_policy = cache_policy
         self._servant_client: BashServantClient = BashServantClient() \
@@ -367,6 +372,9 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
 
     def file_serializer(self) -> FileSerializer:
         return self._file_serializer
+
+    def hasher(self) -> Hasher:
+        return self._hasher
 
     def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._py_env is not None:

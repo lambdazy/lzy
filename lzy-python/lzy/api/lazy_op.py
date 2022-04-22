@@ -10,8 +10,8 @@ from typing import Optional, Any, TypeVar, Generic, Tuple, Iterable, Union, List
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 
 from lzy.api.cache_policy import CachePolicy
-from lzy.api.hasher import hash_data
-from lzy.api.serializer.serializer import MemBytesSerializer, FileSerializer
+from lzy.api.serialization.hasher import Hasher
+from lzy.api.serialization.serializer import MemBytesSerializer, FileSerializer
 from lzy.api.utils import is_lazy_proxy, LzyExecutionException
 from lzy.api.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
 from lzy.model.channel import Binding, Bindings
@@ -91,6 +91,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             entry_id_generator: EntryIdGenerator,
             mem_serializer: MemBytesSerializer,
             file_serializer: FileSerializer,
+            hasher: Hasher,
             provisioning: Optional[Provisioning] = None,
             env: Optional[PyEnv] = None,
             deployed: bool = False,
@@ -100,6 +101,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         if (not provisioning or not env) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
 
+        self._hasher = hasher
         self._mem_serializer = mem_serializer
         self._file_serializer = file_serializer
         self._deployed = deployed
@@ -200,7 +202,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 channel = self._channel_manager.channel(entry_id)
                 bindings.append(Binding(slot, channel))
                 write_later.append((entry_id, data))
-                inputs.append(InputExecutionValue(name, entry_id, hash_data(data)))
+                inputs.append(InputExecutionValue(name, entry_id, self._hasher.hash(data)))
 
         bindings.append(Binding(self.zygote.return_slot, self._channel_manager.channel(self.return_entry_id())))
 
@@ -289,7 +291,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             env: PyEnv,
             snapshot_id: str,
             mem_serializer: MemBytesSerializer,
-            file_serializer: FileSerializer
+            file_serializer: FileSerializer,
+            hasher: Hasher
     ):
         op_ = LzyRemoteOp(
             servant,
@@ -298,6 +301,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             UUIDEntryIdGenerator(snapshot_id),
             mem_serializer,
             file_serializer,
+            hasher,
             provisioning,
             env,
             deployed=False
@@ -316,7 +320,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             op_.zygote.env,
             op_._snapshot_id,
             op_._mem_serializer,
-            op_._file_serializer
+            op_._file_serializer,
+            op_._hasher
         )
 
     def _destroy_binding(self, binding: Binding) -> None:
