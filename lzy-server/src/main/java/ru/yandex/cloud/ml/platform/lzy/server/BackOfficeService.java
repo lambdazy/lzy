@@ -408,7 +408,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
     }
 
     private String generateBucket(String userId) {
-        return (userId + "-" + UUID.randomUUID().toString().substring(0, 24)).toLowerCase(Locale.ROOT);
+        return (userId + "-" + UUID.randomUUID().toString().substring(0, 8)).toLowerCase(Locale.ROOT);
     }
 
     private UserVerificationType typeForNewUser(Session session) {
