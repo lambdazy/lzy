@@ -8,14 +8,13 @@ from pathlib import Path
 from time import sleep
 from typing import Any, Dict, Optional, Iterable, List
 
-from lzy.api.whiteboard.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
-from lzy.model.channel import Channel, Bindings, SnapshotChannelSpec
-from lzy.model.encoding import ENCODING as encoding
-from lzy.model.execution import ExecutionResult, ExecutionValue
-from lzy.model.slot import Slot, Direction
-from lzy.model.zygote import Zygote
-from lzy.servant.servant_client import ServantClient, Execution, CredentialsTypes, InputExecutionValue, \
-    ExecutionDescription
+from lzy.storage.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
+from lzy.servant.model.channel import Channel, Bindings, SnapshotChannelSpec
+from lzy.servant.model.encoding import ENCODING as encoding
+from lzy.servant.model.execution import ExecutionResult, ExecutionValue, Execution, InputExecutionValue, ExecutionDescription
+from lzy.servant.model.slot import Slot, Direction
+from lzy.servant.model.zygote import Zygote
+from lzy.servant.servant_client import ServantClient, CredentialsTypes
 
 
 def exec_bash(*command):

@@ -16,9 +16,10 @@ from typing import (
 from zipfile import ZipFile
 
 # noinspection PyProtectedMember
-from lzy.api._proxy import proxy
-from lzy.api.result import Result, Just, Nothing
-from lzy.model.signatures import CallSignature, FuncSignature
+from lzy._proxy import proxy
+# noinspection PyProtectedMember
+from lzy._proxy.result import Result, Just, Nothing
+from lzy.api.v1.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
