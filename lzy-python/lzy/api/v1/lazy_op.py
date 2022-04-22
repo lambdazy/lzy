@@ -9,18 +9,18 @@ from typing import Optional, Any, TypeVar, Generic, Tuple, Iterable, Union, List
 
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 
-from lzy.api.cache_policy import CachePolicy
-from lzy.api.serialization.hasher import Hasher
-from lzy.api.serialization.serializer import MemBytesSerializer, FileSerializer
-from lzy.api.utils import is_lazy_proxy, LzyExecutionException
-from lzy.api.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
-from lzy.model.channel import Binding, Bindings
-from lzy.model.env import PyEnv, Env
-from lzy.model.execution import Execution, InputExecutionValue, ExecutionDescription, ExecutionValue
-from lzy.model.return_codes import ReturnCode
-from lzy.model.signatures import CallSignature, FuncSignature
-from lzy.model.zygote import Zygote, Provisioning
-from lzy.model.zygote_python_func import ZygotePythonFunc
+from lzy.api.v1.cache_policy import CachePolicy
+from lzy.serialization.hasher import Hasher
+from lzy.serialization.serializer import MemBytesSerializer, FileSerializer
+from lzy.utils import is_lazy_proxy, LzyExecutionException
+from lzy.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
+from lzy.servant.model.channel import Binding, Bindings
+from lzy.servant.model.env import PyEnv, Env
+from lzy.servant.model.execution import Execution, InputExecutionValue, ExecutionDescription, ExecutionValue
+from lzy.servant.model.return_codes import ReturnCode
+from lzy.api.v1.signatures import CallSignature, FuncSignature
+from lzy.servant.model.zygote import Zygote, Provisioning
+from lzy.servant.model.zygote_python_func import ZygotePythonFunc
 from lzy.servant.channel_manager import ChannelManager
 from lzy.servant.servant_client import ServantClient
 

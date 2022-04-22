@@ -4,16 +4,16 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterable, List
 
-from lzy.api.whiteboard.credentials import AmazonCredentials
-from lzy.api.whiteboard.credentials import (
+from lzy.storage.credentials import AmazonCredentials
+from lzy.storage.credentials import (
     # AzureCredentials,
     # AmazonCredentials,
     StorageCredentials,
 )
-from lzy.model.channel import Channel, Bindings
-from lzy.model.execution import Execution, ExecutionDescription, InputExecutionValue
-from lzy.model.slot import Slot
-from lzy.model.zygote import Zygote
+from lzy.servant.model.channel import Channel, Bindings
+from lzy.servant.model.execution import Execution, ExecutionDescription, InputExecutionValue
+from lzy.servant.model.slot import Slot
+from lzy.servant.model.zygote import Zygote
 
 
 class CredentialsTypes(Enum):

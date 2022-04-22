@@ -3,7 +3,7 @@ __package__ = None
 import os
 from unittest import TestCase
 
-from lzy.api.pkg_info import select_modules
+from lzy.pkg_info import select_modules
 
 from test_modules.level1.level1 import Level1
 from test_modules.level1.level2_nb import level_foo

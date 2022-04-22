@@ -1,4 +1,4 @@
-from lzy.api import op, LzyRemoteEnv
+from lzy.api.v1 import op, LzyRemoteEnv
 import uuid
 
 
