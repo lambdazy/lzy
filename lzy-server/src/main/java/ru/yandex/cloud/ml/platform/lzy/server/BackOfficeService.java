@@ -397,7 +397,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
     @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
     private UserModel createUser(Session session, String userId) {
-        UserModel user = new UserModel(userId, userId.toLowerCase(Locale.ROOT), typeForNewUser(session));
+        UserModel user = new UserModel(userId, generateBucket(userId), typeForNewUser(session));
         session.save(user);
         UserRoleModel role = session.find(UserRoleModel.class, "user");
         Set<UserModel> users = role.getUsers();
@@ -405,6 +405,10 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         role.setUsers(users);
         session.save(role);
         return user;
+    }
+
+    private String generateBucket(String userId) {
+        return (userId + "-" + UUID.randomUUID().toString().substring(0, 24)).toLowerCase(Locale.ROOT);
     }
 
     private UserVerificationType typeForNewUser(Session session) {
