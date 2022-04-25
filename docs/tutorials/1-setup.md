@@ -2,7 +2,7 @@
 
 ### Requirements
 * Fuse
-  * Ubuntu: `apt get install fuse`
+  * Ubuntu: `apt install fuse`
   * macOS: [macFuse](https://osxfuse.github.io)
 * Java (>= 11)
   * Ubuntu: `apt install default-jre`
