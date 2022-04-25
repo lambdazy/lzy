@@ -103,6 +103,9 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     protected void terminate(ServantConnection connection) {
+        if (!servantThreads.containsKey(connection.id())) {
+            return;
+        }
         servantThreads.get(connection.id()).stop();
         servantThreads.remove(connection.id());
     }
@@ -125,7 +128,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                 try {
                     final Process run;
                     if (SystemUtils.IS_OS_MAC) {
-                        run = Runtime.getRuntime().exec("umount -f" + mountPoint);
+                        run = Runtime.getRuntime().exec("umount -f " + mountPoint);
                     } else {
                         run = Runtime.getRuntime().exec("umount " + mountPoint);
                     }

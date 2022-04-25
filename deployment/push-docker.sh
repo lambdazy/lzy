@@ -42,6 +42,10 @@ if [[ $REBUILD = true ]]; then
     docker build -t lzy-servant-base -t lzydock/lzy-servant-base:old-scheme -f lzy-servant/docker/old-scheme/Base.Dockerfile .
   fi
   mvn clean install -DskipTests
+  docker build -t lzy-servant -f lzy-servant/docker/old-scheme/Dockerfile .
+  docker build -t lzy-server -f lzy-server/Dockerfile lzy-server
+  docker build -t lzy-whiteboard -f lzy-whiteboard/Dockerfile lzy-whiteboard
+  docker build -t lzy-kharon -f lzy-kharon/Dockerfile lzy-kharon
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-backend:$CUSTOM_TAG" lzy-backoffice/Dockerfile
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
 fi
