@@ -3,17 +3,15 @@ package ru.yandex.cloud.ml.platform.lzy.iam.storage.impl;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.util.List;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessClient;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthBadRequestException;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthPermission;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.Role;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
-import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.models.ResourceBindingModel;
 
 @Singleton
 @Requires(beans = DbStorage.class)
@@ -24,41 +22,37 @@ public class DbAccessClient implements AccessClient {
 
     @Override
     public boolean hasResourcePermission(String userId, String resourceId, AuthPermission permission) {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            Transaction tx = session.beginTransaction();
-            try {
-                List<ResourceBindingModel> hasView = session.createQuery(
-                        "SELECT r FROM ResourceBindingModel r "
-                            + "WHERE r.userId = :userId "
-                            + "AND r.resourceId = :resourceId ",
-                        ResourceBindingModel.class
-                    ).setParameter("userId", userId)
-                    .setParameter("resourceId", resourceId)
-                    .getResultList();
-
-                if (hasView.size() == 0) {
-                    throw new AuthBadRequestException("Resource: " + resourceId + " not found");
-                }
-
-                List<ResourceBindingModel> bindings = session.createQuery(
-                        "SELECT r FROM ResourceBindingModel r "
-                            + "WHERE r.userId = :userId "
-                            + "AND r.resourceId = :resourceId "
-                            + "AND " + queryByPermission(permission),
-                        ResourceBindingModel.class
-                    ).setParameter("userId", userId)
-                    .setParameter("resourceId", resourceId)
-                    .getResultList();
-                if (bindings.size() > 0) {
-                    return true;
-                }
-            } catch (Exception e) {
-                tx.rollback();
-                if (e instanceof AuthException) {
-                    throw e;
-                }
-                throw new AuthInternalException(e);
+        try (final PreparedStatement st = storage.connect().prepareStatement(
+                "SELECT * FROM user_resource_roles "
+                        + "WHERE user_id = ? "
+                        + "AND resource_id = ? "
+                        + ";"
+        )) {
+            int parameterIndex = 0;
+            st.setString(++parameterIndex, userId);
+            st.setString(++parameterIndex, resourceId);
+            final ResultSet rs = st.executeQuery();
+            if (!rs.next()) {
+                throw new AuthBadRequestException("Resource: " + resourceId + " not found");
             }
+        } catch (SQLException e) {
+            throw new AuthInternalException(e);
+        }
+        try (final PreparedStatement st = storage.connect().prepareStatement(
+                "SELECT * FROM user_resource_roles "
+                        + "WHERE user_id = ? "
+                        + "AND resource_id = ? "
+                        + "AND " + queryByPermission(permission)
+        )) {
+            int parameterIndex = 0;
+            st.setString(++parameterIndex, userId);
+            st.setString(++parameterIndex, resourceId);
+            final ResultSet rs = st.executeQuery();
+            if (rs.next()) {
+                return true;
+            }
+        } catch (SQLException e) {
+            throw new AuthInternalException(e);
         }
         return false;
     }
@@ -68,13 +62,13 @@ public class DbAccessClient implements AccessClient {
         final boolean[] first = {true};
         Role.rolesByPermission(permission).forEach(r -> {
             if (first[0]) {
-                query.append("r.role = '").append(r.role()).append("' ");
+                query.append("role = '").append(r.role()).append("' ");
                 first[0] = false;
             } else {
-                query.append("OR r.role = '").append(r.role()).append("' ");
+                query.append("OR role = '").append(r.role()).append("' ");
             }
         });
-        query.append(")");
+        query.append(");");
         return query.toString();
     }
 }

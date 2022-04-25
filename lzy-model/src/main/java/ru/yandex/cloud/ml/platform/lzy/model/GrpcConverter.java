@@ -30,6 +30,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import yandex.cloud.lzy.v1.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AmazonCredentials;
@@ -42,7 +43,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
-import yandex.cloud.priv.lzy.v1.IAM;
 
 public abstract class GrpcConverter {
 
@@ -361,6 +361,7 @@ public abstract class GrpcConverter {
         return new AccessBinding(accessBinding.getRole(), accessBinding.getSubject().getId());
     }
 
+    @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
     public static IAM.AccessBinding from(AccessBinding accessBinding) {
         return IAM.AccessBinding.newBuilder()
             .setRole(accessBinding.role())
@@ -370,6 +371,7 @@ public abstract class GrpcConverter {
             .build();
     }
 
+    @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
     public static AccessBindingDelta to(IAM.AccessBindingDelta accessBindingDelta) {
         return new AccessBindingDelta(
             AccessBindingDelta.AccessBindingAction.valueOf(accessBindingDelta.getAction().name()),

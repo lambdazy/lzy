@@ -14,8 +14,8 @@ import org.apache.logging.log4j.core.LoggerContext;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.LzyABSService;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.LzyASService;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.lzy.v1.IAM.Resource;
-import yandex.cloud.priv.lzy.v1.IAM.Subject;
+import yandex.cloud.lzy.v1.IAM.Resource;
+import yandex.cloud.lzy.v1.IAM.Subject;
 import yandex.cloud.priv.lzy.v1.LAS.AuthorizeRequest;
 import yandex.cloud.priv.lzy.v1.LzyASGrpc;
 

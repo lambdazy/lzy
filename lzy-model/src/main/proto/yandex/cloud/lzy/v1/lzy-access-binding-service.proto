@@ -1,14 +1,13 @@
 syntax = "proto3";
 
-package yandex.cloud.priv.lzy.v1;
+package yandex.cloud.lzy.v1;
 
-import "yandex/cloud/priv/lzy/v1/lzy-iam.proto";
-import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
+import "yandex/cloud/lzy/v1/lzy-iam.proto";
 import "google/protobuf/empty.proto";
 
 option go_package = "lzy";
 option java_outer_classname = "LABS";
-option java_package = "yandex.cloud.priv.lzy.v1";
+option java_package = "yandex.cloud.lzy.v1";
 
 service LzyABS {
   rpc ListAccessBindings (ListAccessBindingsRequest) returns (ListAccessBindingsResponse);
@@ -20,7 +19,6 @@ service LzyABS {
 
 message ListAccessBindingsRequest {
   Resource resource = 1;
-  yandex.cloud.priv.datasphere.v2.Auth auth = 2;
 }
 
 message ListAccessBindingsResponse {
@@ -30,12 +28,10 @@ message ListAccessBindingsResponse {
 message SetAccessBindingsRequest {
   Resource resource = 1;
   repeated AccessBinding bindings = 2;
-  yandex.cloud.priv.datasphere.v2.Auth auth = 3;
 }
 
 
 message UpdateAccessBindingsRequest {
   Resource resource = 1;
   repeated AccessBindingDelta deltas = 2;
-  yandex.cloud.priv.datasphere.v2.Auth auth = 3;
 }

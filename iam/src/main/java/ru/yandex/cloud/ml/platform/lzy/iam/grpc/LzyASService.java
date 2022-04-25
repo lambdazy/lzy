@@ -9,7 +9,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessClient;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthPermission;
-import yandex.cloud.priv.lzy.v1.IAM.Subject;
+import yandex.cloud.lzy.v1.IAM.Subject;
 import yandex.cloud.priv.lzy.v1.LAS.AuthorizeRequest;
 import yandex.cloud.priv.lzy.v1.LzyASGrpc;
 

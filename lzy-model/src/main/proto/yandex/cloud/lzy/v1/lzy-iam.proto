@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package yandex.cloud.priv.lzy.v1;
+package yandex.cloud.lzy.v1;
 
 option go_package = "lzy";
 option java_outer_classname = "IAM";
-option java_package = "yandex.cloud.priv.lzy.v1";
+option java_package = "yandex.cloud.lzy.v1";
 
 message Resource {
   string id = 1;

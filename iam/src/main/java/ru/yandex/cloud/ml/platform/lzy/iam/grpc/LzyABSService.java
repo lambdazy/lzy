@@ -7,12 +7,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import yandex.cloud.priv.lzy.v1.IAM;
-import yandex.cloud.priv.lzy.v1.LABS.ListAccessBindingsRequest;
-import yandex.cloud.priv.lzy.v1.LABS.ListAccessBindingsResponse;
-import yandex.cloud.priv.lzy.v1.LABS.SetAccessBindingsRequest;
-import yandex.cloud.priv.lzy.v1.LABS.UpdateAccessBindingsRequest;
-import yandex.cloud.priv.lzy.v1.LzyABSGrpc;
+import yandex.cloud.lzy.v1.IAM;
+import yandex.cloud.lzy.v1.LABS.ListAccessBindingsRequest;
+import yandex.cloud.lzy.v1.LABS.ListAccessBindingsResponse;
+import yandex.cloud.lzy.v1.LABS.SetAccessBindingsRequest;
+import yandex.cloud.lzy.v1.LABS.UpdateAccessBindingsRequest;
+import yandex.cloud.lzy.v1.LzyABSGrpc;
 
 public class LzyABSService extends LzyABSGrpc.LzyABSImplBase {
 
@@ -23,7 +23,6 @@ public class LzyABSService extends LzyABSGrpc.LzyABSImplBase {
     public void listAccessBindings(ListAccessBindingsRequest request,
         StreamObserver<ListAccessBindingsResponse> responseObserver) {
         Stream<IAM.AccessBinding> bindings = client.listAccessBindings(GrpcConverter.to(request.getResource()))
-            .stream()
             .map(GrpcConverter::from);
         responseObserver.onNext(ListAccessBindingsResponse.newBuilder()
             .addAllBindings(bindings.collect(Collectors.toList())).build());

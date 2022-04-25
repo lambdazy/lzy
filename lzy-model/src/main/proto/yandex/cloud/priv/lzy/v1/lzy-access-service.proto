@@ -2,20 +2,18 @@ syntax = "proto3";
 
 package yandex.cloud.priv.lzy.v1;
 
-import "yandex/cloud/priv/lzy/v1/lzy-iam.proto";
-import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
+import "yandex/cloud/lzy/v1/lzy-iam.proto";
 
 option go_package = "lzy";
 option java_outer_classname = "LAS";
 option java_package = "yandex.cloud.priv.lzy.v1";
 
 service LzyAS {
-  rpc Authorize (AuthorizeRequest) returns (Subject);
+  rpc Authorize (AuthorizeRequest) returns (yandex.cloud.lzy.v1.Subject);
 }
 
 message AuthorizeRequest {
   string subject_id = 1;
   string permission = 2;
-  Resource resource = 3;
-  yandex.cloud.priv.datasphere.v2.Auth auth = 4;
+  yandex.cloud.lzy.v1.Resource resource = 3;
 }
