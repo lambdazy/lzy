@@ -26,9 +26,9 @@ public class StreamsWrapper {
         }
     }
 
-    public synchronized void write(InputStream b) {
+    public synchronized void write(InputStream in) {
         try {
-            wrappedOutputStream.write(b.readAllBytes());
+            in.transferTo(wrappedOutputStream);
         } catch (IOException e) {
             throw new RuntimeException("StreamsWrapper::write exception while writing to output stream");
         }
