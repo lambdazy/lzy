@@ -29,7 +29,7 @@ with env.workflow("data-loading"):
 print(data_set.DESCR)
 ```
 
-You can also specify resources required by a function. Currently, only GPU requirement is supported (function will be run on the VM with 12 vCPU, 112GB RAM, and Tesla M60 GPU):
+You can also specify resources required by a function. Currently, only GPU requirement is supported (function will be run on the VM with 8 vCPU, 48GB RAM, and Tesla V100 GPU):
 
 ```python
 @op(gpu=Gpu.any())
@@ -39,7 +39,7 @@ def train(data_set: Bunch) -> CatBoostClassifier:
     return cb_model
 ```
 
-If resources are not specified, a function will be run on the default VM with 2 vCPU and 8GB RAM.
+If resources are not specified, a function will be run on the default VM with 4 vCPU and 32GB RAM.
 
 ### Running graph
 
