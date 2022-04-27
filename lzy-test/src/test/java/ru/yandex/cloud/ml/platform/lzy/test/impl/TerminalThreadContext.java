@@ -2,11 +2,14 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.SystemUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.URI;
@@ -15,6 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -38,6 +43,16 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
         System.setProperty("log4j.configurationFile", pathServantLog4jFile);
         System.setProperty("cmd.log4j.configurationFile", pathServantCmdLog4jFile);
         System.setProperty("custom.log.file", "/tmp/lzy_servant.log");
+        final String token;
+        if (privateKeyPath == null) {
+            token = "";
+        } else {
+            try (final FileReader reader = new FileReader(privateKeyPath)) {
+                token = JwtCredentials.buildJWT(user, reader);
+            } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
         final LzyAgentConfig config = LzyAgentConfig.builder()
             .serverAddress(URI.create(serverAddress))
@@ -47,7 +62,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             .agentInternalName("localhost")
             .agentPort(port)
             .root(Path.of(path))
-            .token("")
+            .token(token)
             .build();
         try {
             terminal = new LzyTerminal(config);
