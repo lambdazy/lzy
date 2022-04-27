@@ -38,7 +38,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc.LzyServerBlockingStub;
 
 public class SlotConnectionManager {
-    private static final Logger LOG = LogManager.getLogger(SlotConnectionManager.class);
     private final Map<String, Transmitter> transmitters = new HashMap<>();
     private final Snapshooter snapshooter;
 
@@ -50,75 +49,27 @@ public class SlotConnectionManager {
                     .setBucket(bucket)
                     .build()
             );
+        final StorageClient client = StorageClient.create(credentials);
+        final String endpoint;
         if (credentials.hasAmazon()) {
-            final Lzy.AmazonCredentials amazonCreds = credentials.getAmazon();
-            final BasicAWSCredentials awsCreds = new BasicAWSCredentials(
-                amazonCreds.getAccessToken(),
-                amazonCreds.getSecretToken()
-            );
+            endpoint = URI.create(credentials.getAmazon().getEndpoint()).getHost();
+        } else if (credentials.hasAzure()) {
+            endpoint = URI.create(credentials.getAzure().getConnectionString()).getHost();
+        } else if (credentials.hasAzureSas()) {
+            endpoint = URI.create(credentials.getAzureSas().getEndpoint()).getHost();
+        } else {
+            throw new RuntimeException("Cannot init ConnectionManager from credentials");
+        }
 
-            final String endpoint = amazonCreds.getEndpoint();
-            final AmazonS3 client = AmazonS3ClientBuilder.standard()
-                .withCredentials(new AWSStaticCredentialsProvider(awsCreds))
-                .withEndpointConfiguration(
-                    new AmazonS3ClientBuilder.EndpointConfiguration(
-                        endpoint, "us-west-1"
-                    )
-                )
-                .withPathStyleAccessEnabled(true)
-                .build();
-            transmitters.put(
-                URI.create(endpoint).getHost(),
-                new AmazonTransmitterFactory(client)
-                    .fixedPoolsTransmitter(
-                        StorageClient.DEFAULT_TRANSMITTER_NAME,
-                        StorageClient.DEFAULT_DOWNLOAD_POOL_SIZE,
-                        StorageClient.DEFAULT_UPLOAD_POOL_SIZE
-                    )
-            );
-        }
-        if (credentials.hasAzure()) {
-            final String connectionString = credentials.getAzure().getConnectionString();
-            final BlobServiceClient client;
-            client = new BlobServiceClientBuilder()
-                .connectionString(connectionString)
-                .buildClient();
-            transmitters.put(
-                URI.create(connectionString).getHost(),
-                new AzureTransmitterFactory(client)
-                    .fixedPoolsTransmitter(
-                        StorageClient.DEFAULT_TRANSMITTER_NAME,
-                        StorageClient.DEFAULT_DOWNLOAD_POOL_SIZE,
-                        StorageClient.DEFAULT_UPLOAD_POOL_SIZE
-                    )
-            );
-        }
-        if (credentials.hasAzureSas()) {
-            final String endpoint = credentials.getAzureSas().getEndpoint();
-            final BlobServiceClient client;
-            client = new BlobServiceClientBuilder()
-                .endpoint(endpoint)
-                .sasToken(credentials.getAzureSas().getSignature())
-                .buildClient();
-            transmitters.put(
-                URI.create(endpoint).getHost(),
-                new AzureTransmitterFactory(client)
-                    .fixedPoolsTransmitter(
-                        StorageClient.DEFAULT_TRANSMITTER_NAME,
-                        StorageClient.DEFAULT_DOWNLOAD_POOL_SIZE,
-                        StorageClient.DEFAULT_UPLOAD_POOL_SIZE
-                    )
-            );
-        }
+        transmitters.put(endpoint, client.transmitter());
         if (wb != null) {
-            StorageClient storage = StorageClient.create(credentials);
             final ManagedChannel channelWb = ChannelBuilder
                 .forAddress(wb.getHost(), wb.getPort())
                 .usePlaintext()
                 .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
                 .build();
             final SnapshotApiGrpc.SnapshotApiBlockingStub api = SnapshotApiGrpc.newBlockingStub(channelWb);
-            this.snapshooter = new SnapshooterImpl(auth, bucket, api, storage, sessionId);
+            this.snapshooter = new SnapshooterImpl(auth, bucket, api, client, sessionId);
         } else {
             this.snapshooter = null;
         }

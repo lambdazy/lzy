@@ -2,7 +2,7 @@ ALTER TABLE tasks
 DROP COLUMN token;
 
 CREATE TABLE servants (
-    servant_id text PRIMARY KEY,
+    servant_id uuid PRIMARY KEY,
     token text NOT NULL
 );
 

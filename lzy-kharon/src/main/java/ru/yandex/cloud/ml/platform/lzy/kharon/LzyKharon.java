@@ -45,6 +45,7 @@ public class LzyKharon {
 
     static {
         options.addOption(new Option("h", "host", true, "Kharon host name"));
+        options.addOption(new Option("e", "external", true, "Kharon external host"));
         options.addOption(new Option("p", "port", true, "gRPC port setting"));
         options.addOption(new Option("s", "servant-proxy-port", true, "gRPC servant port setting"));
         options.addOption(
@@ -67,11 +68,14 @@ public class LzyKharon {
     private final ManagedChannel whiteboardChannel;
     private final ManagedChannel snapshotChannel;
     private final URI address;
+    private final URI externalAddress;
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
-                     int servantProxyPort) throws URISyntaxException {
+                     int servantProxyPort, String externalHost) throws URISyntaxException {
         address = new URI("http", null, host, port, null, null,
             null);
+        externalAddress = new URI("http", null, externalHost, port, null, null,
+                null);
         serverChannel = ChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
@@ -124,6 +128,7 @@ public class LzyKharon {
             System.exit(-1);
         }
         host = parse.getOptionValue('h', "localhost");
+        final String externalHost = parse.getOptionValue('e', "api.lzy.ai");
         port = Integer.parseInt(parse.getOptionValue('p', "8899"));
         servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
         serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
@@ -132,7 +137,7 @@ public class LzyKharon {
             .create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
 
         final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, snapshotAddress,
-            host, port, servantPort);
+            host, port, servantPort, externalHost);
         kharon.start();
         kharon.awaitTermination();
     }
@@ -449,8 +454,8 @@ public class LzyKharon {
                     }
                     URI builtURI = new URIBuilder()
                         .setScheme("kharon")
-                        .setHost(address.getHost())
-                        .setPort(address.getPort())
+                        .setHost(externalAddress.getHost())
+                        .setPort(externalAddress.getPort())
                         .addParameter("servant_uri", request.getConnect().getSlotUri())
                         .build();
                     request = Servant.SlotCommand.newBuilder()

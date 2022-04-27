@@ -15,9 +15,6 @@ public class ServantModel {
     @Column(name = "token")
     private String token;
 
-    @OneToMany(mappedBy = "servant")
-    private Set<ServantModel> servants;
-
     public ServantModel(UUID servantId, String token) {
         this.servantId = servantId;
         this.token = token;
@@ -31,10 +28,6 @@ public class ServantModel {
 
     public void setServantId(UUID servantId) {
         this.servantId = servantId;
-    }
-
-    public Set<ServantModel> servants() {
-        return servants;
     }
 
     public void setToken(String token) {

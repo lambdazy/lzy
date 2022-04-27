@@ -55,7 +55,8 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
                 URI.create(whiteboardAddress),
                 outerHost(false),
                 LZY_KHARON_PORT,
-                LZY_KHARON_SERVANT_PROXY_PORT
+                LZY_KHARON_SERVANT_PROXY_PORT,
+                outerHost(false)
             );
             kharon.start();
         } catch (URISyntaxException | IOException e) {
