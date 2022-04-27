@@ -4,7 +4,7 @@ import {UserTableFC} from "./UsersTable";
 import {BACKEND_HOST} from "../config";
 import {PrivateRoute} from "../logic/Auth";
 import {AuthUser} from "./AuthUser";
-import {Basics, Environment, Setup, Cache, Whiteboards, Views} from "./Docs";
+import {Basics, Environment, Setup, Cache, Whiteboards, Views, Integrations} from "./Docs";
 import {Tasks} from "./Tasks";
 import {Keys} from "./Tokens";
 
@@ -23,6 +23,7 @@ export const MainRouter = () => (
             <Route exact path="/docs/4-cache.md" component={Cache}/>
             <Route exact path="/docs/5-whiteboards.md" component={Whiteboards}/>
             <Route exact path="/docs/6-views.md" component={Views}/>
+            <Route exact path="/docs/7-integrations.md" component={Integrations}/>
             <Route exact path="/login" component={LoginFormFC}/>
             <Route exact path="/login_user" component={AuthUser}/>
             <PrivateRoute path="/keys" exact>

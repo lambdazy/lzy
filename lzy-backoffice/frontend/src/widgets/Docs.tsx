@@ -4,6 +4,7 @@ import environment from '../docs/3-environment.md';
 import cache from '../docs/4-cache.md';
 import whiteboard from '../docs/5-whiteboards.md';
 import views from '../docs/6-views.md';
+import integrations from '../docs/7-integrations.md'
 import ReactMarkdown from 'react-markdown'
 import {Header} from './Header';
 import {useState} from 'react';
@@ -102,6 +103,24 @@ export function Views(props: {}) {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(views)
+            .then(async (response) => {
+                    let mdtext = await response.text();
+                    setState(<ReactMarkdown className="markdown-body">{mdtext}</ReactMarkdown>);
+                }
+            )
+    }
+    return (
+        <>
+            <Header/>
+            {state}
+        </>
+    )
+}
+
+export function Integrations(props: {}) {
+    let [state, setState] = useState<any>(null);
+    if (state == null) {
+        fetch(integrations)
             .then(async (response) => {
                     let mdtext = await response.text();
                     setState(<ReactMarkdown className="markdown-body">{mdtext}</ReactMarkdown>);
