@@ -20,7 +20,7 @@ def dataset() -> Bunch:
 
 ### Running function
 
-To run the decorated function on the cluster, you can just call it within the `workflow` block:
+To run the decorated function on the cluster, you can call it within the `workflow` block:
 
 ```python
 env = LzyRemoteEnv()
@@ -43,7 +43,7 @@ If resources are not specified, a function will be run on the default VM with 4 
 
 ### Running graph
 
-You can build and run an execution graph just using function calls:
+You can build and run an execution graph using function calls:
 
 ```python
 env = LzyRemoteEnv()
@@ -75,7 +75,7 @@ with env.workflow("training") as wf:
     print(result)
 ```
 
-Or just enforce eager execution for the whole graph:
+Or enforce eager execution for the whole graph:
 
 ```python
 env = LzyRemoteEnv()
