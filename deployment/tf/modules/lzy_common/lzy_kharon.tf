@@ -49,6 +49,8 @@ resource "kubernetes_deployment" "kharon" {
             "http://$(LZY_SERVER_IP):8888",
             "--host",
             "$(LZY_HOST)",
+            "-e",
+            var.kharon_public_ip,
             "--port",
             "8899",
             "--servant-proxy-port",

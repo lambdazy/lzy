@@ -171,6 +171,12 @@ resource "kubernetes_deployment" "server" {
               }
             }
           }
+
+          env {
+            name = "_JAVA_OPTIONS"
+            value = "-Dserver.kuberAllocator.enabled=true"
+          }
+
           dynamic "env" {
             for_each = var.server-additional-envs
             iterator = data

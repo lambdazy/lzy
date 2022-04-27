@@ -7,6 +7,7 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyTerminalDockerContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.TerminalThreadContext;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -25,7 +26,7 @@ public class KuberRunTest {
     private final String LZY_KHARON_DOMAIN = System.getProperty(LZY_KHARON_DOMAIN_PROPERTY,
         DEFAULT_LZY_KHARON_DOMAIN);
     private final String SERVER_URL = String.format("http://%s:8899", LZY_KHARON_DOMAIN);
-    private final LzyTerminalTestContext terminalContext = new LzyTerminalDockerContext();
+    private final LzyTerminalTestContext terminalContext = new TerminalThreadContext();
     private LzyTerminalTestContext.Terminal terminal;
 
     @Before
@@ -59,7 +60,7 @@ public class KuberRunTest {
          */
 
         //Arrange
-        final String pyCommand = "python /lzy-python/tests/scenarios/catboost_integration_gpu.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_gpu.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
@@ -79,7 +80,7 @@ public class KuberRunTest {
          */
 
         //Arrange
-        final String pyCommand = "python /lzy-python/tests/scenarios/uber_graph.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/uber_graph.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),

@@ -1,9 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.server.kuber.allocators;
 
 import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.util.Config;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -15,6 +17,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.kuber.KuberUtils;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.PodProviderException;
 import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProvider;
 
+import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,11 +31,17 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
 
     private final ServantPodProvider provider;
     private final ConcurrentHashMap<UUID, V1Pod> servantPods = new ConcurrentHashMap<>();
-    private final CoreV1Api api = new CoreV1Api();
+    private final CoreV1Api api;
 
     public KuberServantsAllocator(Authenticator auth, ServantPodProvider provider) {
         super(auth, 10);
         this.provider = provider;
+        try {
+            Configuration.setDefaultApiClient(Config.defaultClient());
+            api = new CoreV1Api();
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot init KuberServantsAllocator: ", e);
+        }
     }
 
     @Override
