@@ -43,31 +43,31 @@ jobs:
 
       - name: 'LzyStartupTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=LzyStartupTest -DfailIfNoTests=false && cd ..
+        run: cd lzy-test && mvn test -Dtest=LzyStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=32" && cd ..
 
       - name: 'MultiSessionTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=MultiSessionTest -DfailIfNoTests=false && cd ..
+        run: cd lzy-test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=32" && cd ..
 
       - name: 'PyApiTest'
         timeout-minutes: 15
-        run: cd lzy-test && mvn test -Dtest=PyApiTest -DfailIfNoTests=false && cd ..
+        run: cd lzy-test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=32" && cd ..
 
       - name: 'RunTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=RunTest -DfailIfNoTests=false && cd ..
+        run: cd lzy-test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=32" && cd ..
 
       - name: 'SignTokenTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=SignTokenTest -DfailIfNoTests=false && cd ..
+        run: cd lzy-test && mvn test -Dtest=SignTokenTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=32" && cd ..
 
       - name: 'SnapshotTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=SnapshotTest -DfailIfNoTests=false && cd ..
+        run: cd lzy-test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=32" && cd ..
 
       - name: 'TerminalCrashTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=TerminalCrashTest -DfailIfNoTests=false && cd ..
+        run: cd lzy-test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=32" && cd ..
 
       - name: 'python-test'
         timeout-minutes: 5
