@@ -30,6 +30,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus.RC;
 public class TerminalSession {
     public static final String SESSION_ID_KEY = "kharon_session_id";
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
+
     private final CompletableFuture<StreamObserver<Servant.ServantProgress>> executeFromServerFuture =
         new CompletableFuture<>();
     private final StreamObserver<Kharon.TerminalState> terminalStateObserver;
@@ -37,6 +38,7 @@ public class TerminalSession {
     private final AtomicBoolean invalid = new AtomicBoolean(false);
     private final UUID servantId = UUID.randomUUID();
     private final URI kharonServantProxyAddress;
+    private final URI kharonFsProxyAddress;
     private final Map<UUID, CompletableFuture<Kharon.TerminalState>> tasks = new ConcurrentHashMap<>();
     private StreamObserver<Servant.ServantProgress> executionProgress;
     private String user;
@@ -44,9 +46,10 @@ public class TerminalSession {
     public TerminalSession(
         LzyServerGrpc.LzyServerBlockingStub lzyServer,
         StreamObserver<Kharon.TerminalCommand> terminalCommandObserver,
-        URI kharonServantAddress
+        URI kharonServantAddress, URI kharonFsAddress
     ) {
         this.kharonServantProxyAddress = kharonServantAddress;
+        this.kharonFsProxyAddress = kharonFsAddress;
         terminalController = terminalCommandObserver;
         terminalStateObserver = new StreamObserver<>() {
             @Override
@@ -77,6 +80,11 @@ public class TerminalSession {
                         if (servantAddr.contains("host.docker.internal")) {
                             servantAddr = servantAddr.replace("host.docker.internal", "localhost");
                         }
+                        String fsAddr = kharonFsAddress.toString();
+                        if (fsAddr.contains("host.docker.internal")) {
+                            fsAddr = fsAddr.replace("host.docker.internal", "localhost");
+                        }
+
                         try {
                             //noinspection ResultOfMethodCallIgnored
                             lzyServer.registerServant(AttachServant.newBuilder()
@@ -84,6 +92,7 @@ public class TerminalSession {
                                     .setUser(userCredentials)
                                     .build())
                                 .setServantURI(servantAddr)
+                                .setFsURI(fsAddr)
                                 .setServantId(servantId.toString())
                                 .build());
                         } catch (StatusRuntimeException e) {

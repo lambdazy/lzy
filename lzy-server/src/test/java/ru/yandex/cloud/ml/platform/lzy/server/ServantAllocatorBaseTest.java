@@ -14,6 +14,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -224,7 +225,7 @@ public class ServantAllocatorBaseTest {
         int port = FreePortFinder.find(10000, 20000);
 
         AllocatedServantMock servantMock = new AllocatedServantMock(false, t -> {}, port);
-        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build());
+        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(), new URI("dummy://foo"));
         ServantsAllocator.ServantConnection connection = feature.get();
         final AtomicBoolean progressComplete = new AtomicBoolean(false);
         CountDownLatch latch = new CountDownLatch(1);
@@ -287,7 +288,7 @@ public class ServantAllocatorBaseTest {
             stopCalled.set(true);
             t.complete(null);
         }, port);
-        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build());
+        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(), new URI("dummy://foo"));
         ServantsAllocator.ServantConnection connection = feature.get();
 
         AtomicBoolean gotDisconnectedWhenDeleted = new AtomicBoolean(false);
@@ -328,7 +329,7 @@ public class ServantAllocatorBaseTest {
         int port = FreePortFinder.find(10000, 20000);
 
         AllocatedServantMock servantMock = new AllocatedServantMock(false, t -> {}, port);
-        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build());
+        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(), new URI("dummy://foo"));
         ServantsAllocator.ServantConnection connection = feature.get();
         servantMock.complete(Status.UNKNOWN.asRuntimeException());
 

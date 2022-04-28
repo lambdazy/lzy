@@ -25,10 +25,10 @@ public interface LzyTerminalTestContext extends AutoCloseable {
     String TEST_USER = "test-user";
 
     default Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress) {
-        return startTerminalAtPathAndPort(path, port, serverAddress, 5006, TEST_USER, null);
+        return startTerminalAtPathAndPort(path, port, port + 1, serverAddress, 5006, TEST_USER, null);
     }
 
-    Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort,
+    Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress, int debugPort,
                                         String user, String privateKeyPath);
 
     boolean inDocker();

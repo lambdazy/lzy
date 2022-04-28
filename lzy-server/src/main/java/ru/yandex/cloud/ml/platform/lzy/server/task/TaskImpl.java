@@ -4,6 +4,7 @@ package ru.yandex.cloud.ml.platform.lzy.server.task;
 import io.grpc.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
@@ -12,6 +13,7 @@ import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
@@ -128,7 +130,7 @@ public class TaskImpl implements Task {
                         if (channel != null) {
                             attachedSlots.put(slot, channel);
                             try {
-                                channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, connection.control()));
+                                channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, connection.fs()));
                             } catch (ChannelException ce) {
                                 LOG.warn("Unable to connect channel " + channelName + " to the slot " + slotUri);
                             }
@@ -143,7 +145,7 @@ public class TaskImpl implements Task {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = GrpcConverter.from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
-                        final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, connection.control());
+                        final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, connection.fs());
                         final ChannelSpec channel = channels.bound(endpoint);
                         if (channel != null) {
                             attachedSlots.remove(slot);
@@ -232,6 +234,12 @@ public class TaskImpl implements Task {
         return servant != null ? servant.uri() : null;
     }
 
+    @Nullable
+    @Override
+    public synchronized URI servantFsUri() {
+        return servant != null ? servant.fsUri() : null;
+    }
+
     @Override
     public Stream<Slot> slots() {
         return attachedSlots.keySet().stream();
@@ -239,7 +247,7 @@ public class TaskImpl implements Task {
 
     @Override
     public SlotStatus slotStatus(Slot slot) throws TaskException {
-        final LzyServantGrpc.LzyServantBlockingStub control;
+        final LzyFsGrpc.LzyFsBlockingStub fs;
         synchronized (this) {
             final Slot definedSlot = workload.slot(slot.name());
             if (servant == null) {
@@ -248,9 +256,9 @@ public class TaskImpl implements Task {
                 }
                 throw new TaskException("No such slot: " + tid + ":" + slot);
             }
-            control = servant.control();
+            fs = servant.fs();
         }
-        final Servant.SlotCommandStatus slotStatus = control.configureSlot(
+        final Servant.SlotCommandStatus slotStatus = fs.configureSlot(
             Servant.SlotCommand.newBuilder()
                 .setTid(tid.toString())
                 .setSlot(slot.name())

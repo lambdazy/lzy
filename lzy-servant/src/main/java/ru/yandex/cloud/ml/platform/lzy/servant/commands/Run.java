@@ -4,12 +4,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
-import java.io.OutputStream;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import org.apache.commons.cli.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
+
+import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -20,32 +29,6 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
-
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 public class Run implements LzyCommand {
 
@@ -60,13 +43,13 @@ public class Run implements LzyCommand {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final CountDownLatch communicationLatch = new CountDownLatch(3);
+    private final List<String> channels = new ArrayList<>();
     private LzyServerGrpc.LzyServerBlockingStub server;
     private IAM.Auth auth;
     private Map<String, Map<String, String>> pipesConfig;
-    private LzyServantGrpc.LzyServantBlockingStub servant;
+    private LzyFsGrpc.LzyFsBlockingStub servantFs;
     private long pid;
     private String lzyRoot;
-    private final List<String> channels = new ArrayList<>();
 
     @Override
     public int execute(CommandLine command) throws Exception {
@@ -97,22 +80,22 @@ public class Run implements LzyCommand {
 
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
-            {
-                final ManagedChannel serverCh = ChannelBuilder
-                    .forAddress(serverAddr.getHost(), serverAddr.getPort())
-                    .usePlaintext()
-                    .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                    .build();
-                server = LzyServerGrpc.newBlockingStub(serverCh);
-            }
-            {
-                final ManagedChannel servant = ChannelBuilder
-                    .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
-                    .usePlaintext()
-                    .enableRetry(LzyServantGrpc.SERVICE_NAME)
-                    .build();
-                this.servant = LzyServantGrpc.newBlockingStub(servant);
-            }
+        {
+            final ManagedChannel serverCh = ChannelBuilder
+                .forAddress(serverAddr.getHost(), serverAddr.getPort())
+                .usePlaintext()
+                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                .build();
+            server = LzyServerGrpc.newBlockingStub(serverCh);
+        }
+        {
+            final ManagedChannel servant = ChannelBuilder
+                .forAddress("localhost", Integer.parseInt(command.getOptionValue('q')))
+                .usePlaintext()
+                .enableRetry(LzyFsGrpc.SERVICE_NAME)
+                .build();
+            this.servantFs = LzyFsGrpc.newBlockingStub(servant);
+        }
 
         final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
         JsonFormat.parser().merge(System.getenv("ZYGOTE"), builder);
@@ -139,8 +122,8 @@ public class Run implements LzyCommand {
 
         final long startTimeMillis = System.currentTimeMillis();
         final Iterator<Tasks.TaskProgress> executionProgress = server.start(taskSpec.build());
-        final int[] exit = new int[]{-1};
-        final String[] descriptionArr = new String[]{"Got no exit code"};
+        final int[] exit = new int[] {-1};
+        final String[] descriptionArr = new String[] {"Got no exit code"};
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info(JsonFormat.printer().print(progress));
@@ -330,7 +313,7 @@ public class Run implements LzyCommand {
                 .setName(slotName)
                 .build();
             //noinspection ResultOfMethodCallIgnored
-            servant.configureSlot(Servant.SlotCommand.newBuilder()
+            servantFs.configureSlot(Servant.SlotCommand.newBuilder()
                 .setSlot(name)
                 .setTid(Long.toString(pid))
                 .setCreate(Servant.CreateSlotCommand.newBuilder()
@@ -350,10 +333,10 @@ public class Run implements LzyCommand {
         try {
             //noinspection ResultOfMethodCallIgnored
             server.channel(Channels.ChannelCommand.newBuilder()
-                    .setAuth(auth)
-                    .setChannelName(channelName)
-                    .setDestroy(Channels.ChannelDestroy.newBuilder().build())
-                    .build()
+                .setAuth(auth)
+                .setChannelName(channelName)
+                .setDestroy(Channels.ChannelDestroy.newBuilder().build())
+                .build()
             );
         } catch (StatusRuntimeException e) {
             if (e.getStatus() == Status.NOT_FOUND) {

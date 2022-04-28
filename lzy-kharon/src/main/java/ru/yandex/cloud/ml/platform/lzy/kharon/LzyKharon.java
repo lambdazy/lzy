@@ -24,13 +24,15 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyKharon;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.*;
 
 public class LzyKharon {
 
@@ -39,21 +41,20 @@ public class LzyKharon {
     public static String host;
     public static int port;
     public static int servantPort;
+    public static int servantFsPort;
     public static URI serverAddress;
     public static URI whiteboardAddress;
     public static URI snapshotAddress;
 
     static {
-        options.addOption(new Option("h", "host", true, "Kharon host name"));
-        options.addOption(new Option("e", "external", true, "Kharon external host"));
-        options.addOption(new Option("p", "port", true, "gRPC port setting"));
-        options.addOption(new Option("s", "servant-proxy-port", true, "gRPC servant port setting"));
-        options.addOption(
-            new Option("z", "lzy-server-address", true, "Lzy server address [host:port]"));
-        options.addOption(
-            new Option("w", "lzy-whiteboard-address", true, "Lzy whiteboard address [host:port]"));
-        options.addOption(
-            new Option("lsa", "lzy-snapshot-address", true, "Lzy snapshot address [host:port]"));
+        options.addRequiredOption("h", "host", true, "Kharon host name");
+        options.addOption("e", "external", true, "Kharon external host");
+        options.addRequiredOption("p", "port", true, "gRPC port setting");
+        options.addRequiredOption("s", "servant-proxy-port", true, "gRPC servant port setting");
+        options.addRequiredOption("fs", "servantfs-proxy-port", true, "gRPC servant fs port setting");
+        options.addRequiredOption("z", "lzy-server-address", true, "Lzy server address [host:port]");
+        options.addRequiredOption("w", "lzy-whiteboard-address", true, "Lzy whiteboard address [host:port]");
+        options.addRequiredOption("lsa", "lzy-snapshot-address", true, "Lzy snapshot address [host:port]");
     }
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
@@ -67,15 +68,11 @@ public class LzyKharon {
     private final ManagedChannel serverChannel;
     private final ManagedChannel whiteboardChannel;
     private final ManagedChannel snapshotChannel;
-    private final URI address;
     private final URI externalAddress;
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
-                     int servantProxyPort, String externalHost) throws URISyntaxException {
-        address = new URI("http", null, host, port, null, null,
-            null);
-        externalAddress = new URI("http", null, externalHost, port, null, null,
-                null);
+                     int servantProxyPort, int servantFsProxyPort, String externalHost) throws URISyntaxException {
+        externalAddress = new URI("http", null, externalHost, port, null, null, null);
         serverChannel = ChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
@@ -94,9 +91,10 @@ public class LzyKharon {
             .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(snapshotChannel);
 
-        final URI servantProxyAddress = new URI("http", null, host, servantProxyPort, null, null,
-            null);
-        terminalManager = new TerminalSessionManager(server, servantProxyAddress);
+        final URI servantProxyAddress = new URI(LzyServant.scheme(), null, host, servantProxyPort, null, null, null);
+        final URI servantFsProxyAddress = new URI(LzyFs.scheme(), null, host, servantFsProxyPort, null, null, null);
+
+        terminalManager = new TerminalSessionManager(server, servantProxyAddress, servantFsProxyAddress);
 
         kharonServer = NettyServerBuilder.forPort(port)
             .permitKeepAliveWithoutCalls(true)
@@ -107,11 +105,12 @@ public class LzyKharon {
             .addService(ServerInterceptors.intercept(new WhiteboardService(), new SessionIdInterceptor()))
             .addService(ServerInterceptors.intercept(new ServerService(), new SessionIdInterceptor()))
             .build();
+
         kharonServantProxy = NettyServerBuilder.forPort(servantProxyPort)
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors
-                .intercept(new KharonServantProxyService(), new SessionIdInterceptor()))
+            .addService(ServerInterceptors.intercept(new KharonServantProxyService(), new SessionIdInterceptor()))
+            .addService(ServerInterceptors.intercept(new KharonServantFsProxyService(), new SessionIdInterceptor()))
             .build();
     }
 
@@ -131,13 +130,13 @@ public class LzyKharon {
         final String externalHost = parse.getOptionValue('e', "api.lzy.ai");
         port = Integer.parseInt(parse.getOptionValue('p', "8899"));
         servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
+        servantFsPort = parse.hasOption("fs") ? Integer.parseInt(parse.getOptionValue("fs")) : servantPort + 1;
         serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
         whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
-        snapshotAddress = URI
-            .create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
+        snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
 
         final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, snapshotAddress,
-            host, port, servantPort, externalHost);
+            host, port, servantPort, servantFsPort, externalHost);
         kharon.start();
         kharon.awaitTermination();
     }
@@ -195,7 +194,7 @@ public class LzyKharon {
 
         @Override
         public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
-            StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+                                 StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
             ProxyCall.exec(snapshot::lastSnapshot, request, responseObserver);
         }
 
@@ -219,7 +218,7 @@ public class LzyKharon {
 
         @Override
         public void createEntry(LzyWhiteboard.CreateEntryCommand request,
-            StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                                StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
             ProxyCall.exec(snapshot::createEntry, request, responseObserver);
         }
 
@@ -284,7 +283,7 @@ public class LzyKharon {
             final Optional<String> uri =
                 URLEncodedUtils.parse(connectUri, StandardCharsets.UTF_8)
                     .stream()
-                    .filter(t -> t.getName().equals("servant_uri"))
+                    .filter(t -> t.getName().equals("slot_uri"))
                     .findFirst()
                     .map(NameValuePair::getValue);
             if (uri.isEmpty()) {
@@ -302,23 +301,23 @@ public class LzyKharon {
                 .setSlotUri(slotUri.toString())
                 .build();
 
-            URI servantUri = null;
+            URI servantFsUri = null;
             try {
-                servantUri = new URI(null, null, slotHost, slotUri.getPort(), null, null, null);
-                final LzyServantGrpc.LzyServantBlockingStub servant = connectionManager.getOrCreate(servantUri);
-                LOG.info("Created connection to servant " + servantUri);
-                final Iterator<Servant.Message> messageIterator = servant.openOutputSlot(newRequest);
+                servantFsUri = new URI(LzyFs.scheme(), null, slotHost, slotUri.getPort(), null, null, null);
+                final LzyFsGrpc.LzyFsBlockingStub servantFs = connectionManager.getOrCreate(servantFsUri);
+                LOG.info("Created connection to servant fs " + servantFsUri);
+                final Iterator<Servant.Message> messageIterator = servantFs.openOutputSlot(newRequest);
                 while (messageIterator.hasNext()) {
                     responseObserver.onNext(messageIterator.next());
                 }
                 responseObserver.onCompleted();
-                LOG.info("openOutputSlot completed for " + servantUri);
+                LOG.info("openOutputSlot completed for " + servantFsUri);
             } catch (Exception e) {
                 LOG.error("Exception while openOutputSlot " + e);
                 responseObserver.onError(e);
             } finally {
-                if (servantUri != null) {
-                    connectionManager.shutdownConnection(servantUri);
+                if (servantFsUri != null) {
+                    connectionManager.shutdownConnection(servantFsUri);
                 }
             }
         }
@@ -415,13 +414,17 @@ public class LzyKharon {
             }
         }
 
+    }
+
+    private class KharonServantFsProxyService extends LzyFsGrpc.LzyFsImplBase {
+
         @Override
         public void openOutputSlot(Servant.SlotRequest request,
                                    StreamObserver<Servant.Message> responseObserver) {
             try {
                 final TerminalSession session = terminalManager
                     .getTerminalSessionFromSlotUri(request.getSlotUri());
-                LOG.info("KharonServantProxyService sessionId = " + session.sessionId()
+                LOG.info("KharonServantFsProxyService sessionId = " + session.sessionId()
                     + "::openOutputSlot " + JsonUtils.printRequest(request));
                 dataCarrier.openServantConnection(URI.create(request.getSlotUri()), responseObserver);
 
@@ -448,15 +451,15 @@ public class LzyKharon {
                 final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
                 if (request.hasConnect()) {
                     URI uri = URI.create(request.getConnect().getSlotUri());
-                    if (uri.getScheme().equals("s3") || uri.getScheme().equals("azure")) {
+                    if (SlotS3.match(uri) || SlotAzure.match(uri)) {
                         ProxyCall.exec(session::configureSlot, request, responseObserver);
                         return;
                     }
                     URI builtURI = new URIBuilder()
-                        .setScheme("kharon")
+                        .setScheme(LzyKharon.scheme())
                         .setHost(externalAddress.getHost())
                         .setPort(externalAddress.getPort())
-                        .addParameter("servant_uri", request.getConnect().getSlotUri())
+                        .addParameter("slot_uri", request.getConnect().getSlotUri())
                         .build();
                     request = Servant.SlotCommand.newBuilder()
                         .mergeFrom(request)

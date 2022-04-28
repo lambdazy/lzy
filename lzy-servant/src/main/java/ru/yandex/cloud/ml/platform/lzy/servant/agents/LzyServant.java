@@ -3,7 +3,6 @@ package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
-import io.grpc.StatusException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
@@ -21,10 +20,10 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -32,10 +31,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyServant;
+
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
+    private final URI agentAddress;
     private final Server agentServer;
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();
     private LzyContext context;
@@ -44,13 +46,18 @@ public class LzyServant extends LzyAgent {
         super(config);
         final long start = System.currentTimeMillis();
 
-        final ManagedChannel channel = ChannelBuilder.forAddress(serverAddress.getHost(), serverAddress.getPort())
+        final ManagedChannel channel = ChannelBuilder
+            .forAddress(config.getServerAddress().getHost(), config.getServerAddress().getPort())
             .usePlaintext()
             .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
         server = LzyServerGrpc.newBlockingStub(channel);
 
-        agentServer = NettyServerBuilder.forPort(config.getAgentPort())
+        agentAddress =
+            new URI(LzyServant.scheme(), null, config.getAgentName(), config.getAgentPort(), null, null, null);
+
+        agentServer = NettyServerBuilder
+            .forAddress(new InetSocketAddress(agentAddress.getHost(), agentAddress.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(new Impl())
@@ -61,7 +68,7 @@ public class LzyServant extends LzyAgent {
             new MetricEvent(
                 "time from agent construct finish to LzyServant construct finish",
                 Map.of(
-                    "context_id", sessionId,
+                    "context_id", config.getServantId(),
                     "metric_type", "system_metric"
                 ),
                 finish - start
@@ -72,6 +79,11 @@ public class LzyServant extends LzyAgent {
     @Override
     protected LzyContext context() {
         return context;
+    }
+
+    @Override
+    protected URI serverUri() {
+        return agentAddress;
     }
 
     @Override
@@ -97,7 +109,7 @@ public class LzyServant extends LzyAgent {
         UserEventLogger.log(new UserEvent(
             "Servant startup",
             Map.of(
-                "context_id", sessionId,
+                "context_id", config.getServantId(),
                 "address", agentAddress.toString()
             ),
             UserEvent.UserEventType.TaskStartUp
@@ -106,12 +118,13 @@ public class LzyServant extends LzyAgent {
         final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
         commandBuilder.setAuth(auth);
         commandBuilder.setServantURI(agentAddress.toString());
-        commandBuilder.setServantId(sessionId);
+        commandBuilder.setFsURI(lzyFs.getUri().toString());
+        commandBuilder.setServantId(config.getServantId());
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
 
-        context = new LzyContext(sessionId, lzyFs.getSlotsManager(), lzyFs.getSlotConnectionManager(),
+        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(), lzyFs.getSlotConnectionManager(),
             lzyFs.getMountPoint().toString());
 
         final long finish = System.currentTimeMillis();
@@ -119,7 +132,7 @@ public class LzyServant extends LzyAgent {
             new MetricEvent(
                 "LzyServant startUp time",
                 Map.of(
-                    "context_id", sessionId,
+                    "context_id", config.getServantId(),
                     "metric_type", "system_metric"
                 ),
                 finish - start
@@ -247,7 +260,7 @@ public class LzyServant extends LzyAgent {
             UserEventLogger.log(new UserEvent(
                 "Servant task exit",
                 Map.of(
-                    "task_id", sessionId,
+                    "task_id", config.getServantId(),
                     "address", agentAddress.toString(),
                     "exit_code", String.valueOf(0)
                 ),
@@ -258,22 +271,6 @@ public class LzyServant extends LzyAgent {
                 lzyFs.stop();
             } catch (Exception e) {
                 e.printStackTrace();
-            }
-        }
-
-        @Override
-        public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
-            lzyFs.openOutputSlot(request, responseObserver);
-        }
-
-        @Override
-        public void configureSlot(SlotCommand request, StreamObserver<SlotCommandStatus> responseObserver) {
-            try {
-                final Servant.SlotCommandStatus slotCommandStatus = LzyServant.this.lzyFs.configureSlot(request);
-                responseObserver.onNext(slotCommandStatus);
-                responseObserver.onCompleted();
-            } catch (StatusException e) {
-                responseObserver.onError(e);
             }
         }
 

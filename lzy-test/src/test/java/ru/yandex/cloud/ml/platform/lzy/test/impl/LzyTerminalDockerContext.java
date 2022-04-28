@@ -211,13 +211,14 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     }
 
     @Override
-    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user,
-                                               String private_key_path) {
+    public Terminal startTerminalAtPathAndPort(String mount, int port, int fsPort, String serverAddress, int debugPort,
+                                               String user, String private_key_path) {
         GenericContainer<?> servantContainer = createDockerWithCommandAndModifier(
             user, port, private_key_path, debugPort,
             () -> "--lzy-address " + serverAddress + " "
                 + "--host localhost "
                 + "--port " + port + " "
+                + "--fs-port " + fsPort + " "
                 + "--lzy-mount " + mount + " "
                 + "--private-key " + private_key_path + " "
                 + "terminal",

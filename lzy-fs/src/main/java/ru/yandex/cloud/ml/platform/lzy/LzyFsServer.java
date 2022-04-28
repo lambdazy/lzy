@@ -23,16 +23,15 @@ import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.*;
 
 public final class LzyFsServer {
     private static final Logger LOG = LogManager.getLogger(LzyFsServer.class);
@@ -40,57 +39,55 @@ public final class LzyFsServer {
     private final String sessionId;
     private final Path mountPoint;
     private final LzyFSManager fs;
-    private final String lzyServerHost;
-    private final int lzyServerPort;
-    private final IAM.Auth lzyServerAuth;
+    private final URI selfUri;
+    private final URI lzyServerUri;
+    private final IAM.Auth auth;
     private final SlotsManager slotsManager;
-    // TODO: remove it from LzyFs
     private final ManagedChannel lzyServerChannel;
     private final SlotConnectionManager slotConnectionManager;
     private final Server localServer;
 
-    public LzyFsServer(String sessionId, String mountPoint, String serverHost, int serverPort, String whiteboard,
-                       IAM.Auth auth, int localGrpcPort) throws IOException, URISyntaxException {
+    public LzyFsServer(String sessionId, String mountPoint, URI selfUri, URI lzyServerUri, URI lzyWhiteboardUri,
+                       IAM.Auth auth) throws IOException {
+        assert LzyFs.scheme().equals(selfUri.getScheme());
+
         this.sessionId = sessionId;
         this.mountPoint = Path.of(mountPoint);
         fs = startFuse();
 
-        lzyServerHost = serverHost;
-        lzyServerPort = serverPort;
-        lzyServerAuth = auth;
+        this.selfUri = selfUri;
+        this.lzyServerUri = lzyServerUri;
+        this.auth = auth;
 
-        final String localHost = InetAddress.getLocalHost().getHostName();
-        LOG.info("Starting local gRPC server at {}:{}.", localHost, localGrpcPort);
-        localServer = NettyServerBuilder.forAddress(new InetSocketAddress(localHost, localGrpcPort))
+        LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
+        localServer = NettyServerBuilder.forAddress(new InetSocketAddress(selfUri.getHost(), selfUri.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(new LzyFsServiceImpl(), new SessionIdInterceptor()))
+            .addService(ServerInterceptors.intercept(new Impl(), new SessionIdInterceptor()))
             .build();
         localServer.start();
 
-        slotsManager = new SlotsManager(sessionId,
-            new URI("http", null, localHost, localGrpcPort, null, null, null));
+        slotsManager = new SlotsManager(sessionId, selfUri);
 
         // TODO: remove it from LzyFs
         // <<<
         lzyServerChannel = ChannelBuilder
-            .forAddress(lzyServerHost, lzyServerPort)
+            .forAddress(lzyServerUri.getHost(), lzyServerUri.getPort())
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        final LzyServerGrpc.LzyServerBlockingStub lzyServer = LzyServerGrpc.newBlockingStub(lzyServerChannel);
+        final LzyServerGrpc.LzyServerBlockingStub lzyServerClient = LzyServerGrpc.newBlockingStub(lzyServerChannel);
 
-        final String bucket = lzyServer
-            .getBucket(Lzy.GetBucketRequest.newBuilder().setAuth(lzyServerAuth).build())
+        final String bucket = lzyServerClient
+            .getBucket(Lzy.GetBucketRequest.newBuilder().setAuth(auth).build())
             .getBucket();
-        final Lzy.GetS3CredentialsResponse credentials = lzyServer
+        final Lzy.GetS3CredentialsResponse credentials = lzyServerClient
             .getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder()
                 .setAuth(auth)
                 .setBucket(bucket)
                 .build());
 
-        slotConnectionManager = new SlotConnectionManager(credentials, lzyServerAuth, URI.create(whiteboard),
-            bucket, sessionId);
+        slotConnectionManager = new SlotConnectionManager(credentials, auth, lzyWhiteboardUri, bucket, sessionId);
         // >>>
 
         LOG.info("Registering lzy commands...");
@@ -98,11 +95,15 @@ public final class LzyFsServer {
             registerBuiltinCommand(Path.of(command.name()), command.name());
         }
 
-        LOG.info("LzyFs started.");
+        LOG.info("LzyFs started on {}.", selfUri);
     }
 
     public Path getMountPoint() {
         return mountPoint;
+    }
+
+    public URI getUri() {
+        return selfUri;
     }
 
     public SlotConnectionManager getSlotConnectionManager() {
@@ -126,7 +127,7 @@ public final class LzyFsServer {
             slotConnectionManager.snapshooter().close();
         }
         fs.umount();
-        LOG.info("LzyFs terminated.");
+        LOG.info("LzyFs at {} terminated.", selfUri);
     }
 
     public void addSlot(LzyFileSlot slot) {
@@ -180,7 +181,7 @@ public final class LzyFsServer {
                 final Servant.ConnectSlotCommand connect = request.getConnect();
                 final URI slotUri = URI.create(connect.getSlotUri());
                 if (slot instanceof LzyInputSlot) {
-                    if (slotUri.getScheme().equals("s3") || slotUri.getScheme().equals("azure")) {
+                    if (SlotS3.match(slotUri) || SlotAzure.match(slotUri)) {
                         ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToS3(slotUri, 0));
                     } else {
                         ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToSlot(slotUri, 0));
@@ -203,8 +204,8 @@ public final class LzyFsServer {
 
             case STATUS: {
                 final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());
-                if (lzyServerAuth.hasUser()) {
-                    status.setUser(lzyServerAuth.getUser().getUserId());
+                if (auth.hasUser()) {
+                    status.setUser(auth.getUser().getUserId());
                 }
                 return Servant.SlotCommandStatus.newBuilder()
                     .setStatus(status.build())
@@ -321,14 +322,14 @@ public final class LzyFsServer {
         commandParts.add("-classpath");
         commandParts.add('"' + System.getProperty("java.class.path") + '"');
         commandParts.add(BashApi.class.getCanonicalName());
-        commandParts.addAll(List.of("--lzy-address", lzyServerHost + ":" + lzyServerPort));
+        commandParts.addAll(List.of("--lzy-address", lzyServerUri.getHost() + ":" + lzyServerUri.getPort()));
         //commandParts.addAll(List.of("--lzy-whiteboard", whiteboardAddress.toString()));
         commandParts.addAll(List.of("--lzy-mount", mountPoint.toAbsolutePath().toString()));
-        commandParts.addAll(List.of("--lzy-fs-port", Integer.toString(localServer.getPort())));
+        commandParts.addAll(List.of("--lzy-fs-port", Integer.toString(selfUri.getPort())));
         // TODO: move it to Env
         commandParts.addAll(List.of(
             "--auth",
-            new String(Base64.getEncoder().encode(lzyServerAuth.toByteString().toByteArray()))
+            new String(Base64.getEncoder().encode(auth.toByteString().toByteArray()))
         ));
         commandParts.add(name);
         commandParts.addAll(Arrays.asList(args));
@@ -371,7 +372,7 @@ public final class LzyFsServer {
     }
 
 
-    private final class LzyFsServiceImpl extends LzyFsGrpc.LzyFsImplBase {
+    private final class Impl extends LzyFsGrpc.LzyFsImplBase {
         @Override
         public void registerCommand(LzyFsApi.RegisterCommandRequest request,
                                     StreamObserver<LzyFsApi.RegisterCommandResponse> responseObserver) {

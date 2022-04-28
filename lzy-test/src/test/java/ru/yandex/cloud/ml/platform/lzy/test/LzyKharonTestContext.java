@@ -7,6 +7,8 @@ public interface LzyKharonTestContext {
 
     String servantAddress(boolean fromDocker);
 
+    String servantFsAddress(boolean fromDocker);
+
     LzyKharonGrpc.LzyKharonBlockingStub client();
 
     void init();

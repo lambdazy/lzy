@@ -30,6 +30,7 @@ public class TerminalCrashTest extends LzyBaseTest {
         LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             mount,
             port,
+            port + 1,
             kharonContext.serverAddress(terminalContext.inDocker()),
             debugPort,
             LzyTerminalTestContext.TEST_USER,

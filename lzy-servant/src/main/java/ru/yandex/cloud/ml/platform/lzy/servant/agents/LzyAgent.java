@@ -9,7 +9,6 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.LzyFsServer;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommands;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -28,35 +27,30 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyFs;
 
 public abstract class LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);
     private static final ThreadGroup SHUTDOWN_HOOK_TG = new ThreadGroup("shutdown-hooks");
 
-    protected final String sessionId;
-    protected final URI serverAddress;
+    protected final LzyAgentConfig config;
     protected final IAM.Auth auth;
-    protected final URI agentAddress;
-    protected final URI agentInternalAddress;
-    protected final URI whiteboardAddress;
     protected final LzyFsServer lzyFs;
     protected final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
 
     protected LzyAgent(LzyAgentConfig config) throws URISyntaxException, IOException {
         final long start = System.currentTimeMillis();
 
-        sessionId = config.getServantId();
-        serverAddress = config.getServerAddress();
-        whiteboardAddress = config.getWhiteboardAddress();
-        auth = getAuth(config);
+        this.config = config;
+        this.auth = getAuth(config);
 
-        lzyFs = new LzyFsServer(sessionId, config.getRoot().toString(), serverAddress.getHost(),
-            serverAddress.getPort(), whiteboardAddress.toString(), auth, FreePortFinder.find(20000, 30000));
-
-        agentAddress = new URI("http", null, config.getAgentName(), config.getAgentPort(), null, null, null);
-        agentInternalAddress = config.getAgentInternalName() == null
-            ? agentAddress
-            : new URI("http", null, config.getAgentInternalName(), config.getAgentPort(), null, null, null);
+        this.lzyFs = new LzyFsServer(
+            config.getServantId(),
+            config.getRoot().toString(),
+            new URI(LzyFs.scheme(), null, config.getAgentName(), config.getFsPort(), null, null, null),
+            config.getServerAddress(),
+            config.getWhiteboardAddress(),
+            auth);
 
         final long finish = System.currentTimeMillis();
 
@@ -97,11 +91,14 @@ public abstract class LzyAgent implements Closeable {
     protected void started() {
     }
 
+    protected abstract URI serverUri();
+
     protected abstract Server server();
 
     protected abstract LzyServerGrpc.LzyServerBlockingStub serverApi();
 
     public void start() throws IOException {
+        final URI agentUri = serverUri();
         final Server agentServer = server();
         agentServer.start();
 
@@ -120,7 +117,7 @@ public abstract class LzyAgent implements Closeable {
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(SHUTDOWN_HOOK_TG, () -> {
-            LOG.info("Shutdown hook in lzy-agent {}", agentAddress);
+            LOG.info("Shutdown hook in lzy-agent {}", agentUri);
             agentServer.shutdown();
             try {
                 close();
@@ -143,7 +140,7 @@ public abstract class LzyAgent implements Closeable {
 
     @Override
     public void close() {
-        LOG.info("LzyAgent::close {}", agentAddress);
+        LOG.info("LzyAgent::close {}", serverUri());
         try {
             lzyFs.stop();
         } catch (Exception e) {
@@ -167,9 +164,10 @@ public abstract class LzyAgent implements Closeable {
             commandParts.add("-classpath");
             commandParts.add('"' + System.getProperty("java.class.path") + '"');
             commandParts.add(BashApi.class.getCanonicalName());
-            commandParts.addAll(List.of("--port", Integer.toString(agentAddress.getPort())));
-            commandParts.addAll(List.of("--lzy-address", serverAddress.toString()));
-            commandParts.addAll(List.of("--lzy-whiteboard", whiteboardAddress.toString()));
+            commandParts.addAll(List.of("--port", Integer.toString(serverUri().getPort())));
+            commandParts.addAll(List.of("--fs-port", Integer.toString(lzyFs.getUri().getPort())));
+            commandParts.addAll(List.of("--lzy-address", config.getServerAddress().toString()));
+            commandParts.addAll(List.of("--lzy-whiteboard", config.getWhiteboardAddress().toString()));
             commandParts.addAll(List.of("--lzy-mount", lzyFs.getMountPoint().toAbsolutePath().toString()));
             commandParts.addAll(List.of(
                 "--auth",

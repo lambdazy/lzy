@@ -30,7 +30,8 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
     String mount;
 
     @Override
-    public Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress, int debugPort, String user, String privateKeyPath) {
+    public Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress, int debugPort,
+                                               String user, String privateKeyPath) {
         mount = path;
 
         final String pathServantLog4jFile =
@@ -61,6 +62,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             .agentName("localhost")
             .agentInternalName("localhost")
             .agentPort(port)
+            .fsPort(fsPort)
             .root(Path.of(path))
             .token(token)
             .build();

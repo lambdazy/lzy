@@ -1,11 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy;
 
 import org.apache.commons.cli.*;
+import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +25,7 @@ public final class LzyFsApp {
         options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
 
         // local grpc server
+        options.addOption("h", "grpc-host", true, "Local gRPC-server host");
         options.addOption("p", "grpc-port", true, "Local gRPC-server port");
 
         // user auth
@@ -58,6 +61,7 @@ public final class LzyFsApp {
         final int serverPort = Integer.parseInt(addressParts[1]);
 
         final String mountPoint = cmdLine.getOptionValue("lzy-mount", DEFAULT_LZY_MOUNT);
+        final String grpcHost = cmdLine.getOptionValue("grpc-host", "localhost");
         final int grpcPort = Integer.parseInt(cmdLine.getOptionValue("grpc-port", DEFAULT_GRPC_PORT));
 
         final String whiteboardAddress = "grpc://" + cmdLine.getOptionValue("lzy-whiteboard", serverAddress);
@@ -99,8 +103,13 @@ public final class LzyFsApp {
                 .build());
         }
 
-        final LzyFsServer server = new LzyFsServer(UUID.randomUUID().toString(), mountPoint, serverHost, serverPort,
-            whiteboardAddress, authBuilder.build(), grpcPort);
+        final LzyFsServer server = new LzyFsServer(
+            UUID.randomUUID().toString(),
+            mountPoint,
+            new URI(UriScheme.LzyFs.scheme(), null, grpcHost, grpcPort, null, null, null),
+            new URI("http", null, serverHost, serverPort, null, null, null),
+            new URI(whiteboardAddress),
+            authBuilder.build());
         server.awaitTermination();
     }
 }

@@ -26,7 +26,7 @@ public class PyApiTest extends LzyBaseTest {
     public void arrangeTerminal(String mount, Integer port, String serverAddress, String user,
                                 String keyPath) {
         int debugPort = FreePortFinder.find(20000, 30000);
-        terminal = terminalContext.startTerminalAtPathAndPort(mount, port, serverAddress,
+        terminal = terminalContext.startTerminalAtPathAndPort(mount, port, port + 1, serverAddress,
             debugPort, user, keyPath);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,

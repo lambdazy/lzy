@@ -26,6 +26,7 @@ public class MultiSessionTest extends LzyBaseTest {
         final Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             mount,
             port,
+            port + 1,
             kharonContext.serverAddress(terminalContext.inDocker()),
             debugPort,
             user,

@@ -2,22 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.slots;
 
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
-import java.io.InputStream;
-import java.net.URI;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.snapshot.Snapshooter;
 import ru.yandex.cloud.ml.platform.lzy.snapshot.SnapshooterImpl;
@@ -25,6 +9,17 @@ import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
+
+import java.io.InputStream;
+import java.net.URI;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class SlotConnectionManager {
     private final Map<String, Transmitter> transmitters = new HashMap<>();
@@ -72,9 +67,9 @@ public class SlotConnectionManager {
                 final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(channel);
 
                 msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
-                        .setOffset(offset)
-                        .setSlotUri(slotUri.toString())
-                        .build()
+                    .setOffset(offset)
+                    .setSlotUri(slotUri.toString())
+                    .build()
                 ));
                 break;
             }
@@ -82,9 +77,9 @@ public class SlotConnectionManager {
                 channel = ChannelBuilder
                     .forAddress(slotUri.getHost(), slotUri.getPort())
                     .usePlaintext()
-                    .enableRetry(LzyServantGrpc.SERVICE_NAME)
+                    .enableRetry(LzyFsGrpc.SERVICE_NAME)
                     .build();
-                final LzyServantGrpc.LzyServantBlockingStub stub = LzyServantGrpc.newBlockingStub(channel);
+                final LzyFsGrpc.LzyFsBlockingStub stub = LzyFsGrpc.newBlockingStub(channel);
 
                 msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
                     .setOffset(offset)
@@ -133,16 +128,17 @@ public class SlotConnectionManager {
                     while (len != -1) {
                         final ByteString chunk = ByteString.copyFrom(buffer, 0, len);
                         //noinspection StatementWithEmptyBody,CheckStyle
-                        while (!queue.offer(chunk, 1, TimeUnit.SECONDS));
+                        while (!queue.offer(chunk, 1, TimeUnit.SECONDS)) ;
                         len = stream.read(buffer);
                     }
                     //noinspection StatementWithEmptyBody,CheckStyle
-                    while (!queue.offer(ByteString.EMPTY, 1, TimeUnit.SECONDS));
+                    while (!queue.offer(ByteString.EMPTY, 1, TimeUnit.SECONDS)) ;
                 }
             }
         );
         final Iterator<ByteString> chunkIterator = new Iterator<>() {
             ByteString chunk = null;
+
             @Override
             public boolean hasNext() {
                 try {

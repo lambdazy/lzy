@@ -20,13 +20,18 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyTerminal;
+
 public class LzyTerminal extends LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
+
+    private final URI agentUri;
     private final Server agentServer;
     private final ManagedChannel channel;
     private final LzyKharonGrpc.LzyKharonStub kharon;
@@ -37,14 +42,17 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     public LzyTerminal(LzyAgentConfig config) throws URISyntaxException, IOException {
         super(config);
 
-        agentServer = NettyServerBuilder.forPort(config.getAgentPort())
+        agentUri = new URI(LzyTerminal.scheme(), null, config.getAgentName(), config.getAgentPort(), null, null, null);
+
+        agentServer = NettyServerBuilder
+            .forAddress(new InetSocketAddress(config.getAgentName(), config.getAgentPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(new Impl())
             .build();
 
         channel = ChannelBuilder
-            .forAddress(serverAddress.getHost(), serverAddress.getPort())
+            .forAddress(config.getServerAddress().getHost(), config.getServerAddress().getPort())
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
@@ -61,6 +69,11 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     @Override
+    protected URI serverUri() {
+        return agentUri;
+    }
+
+    @Override
     protected Server server() {
         return agentServer;
     }
@@ -70,7 +83,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         commandHandler = new CommandHandler();
         status.set(AgentStatus.PREPARING_EXECUTION);
 
-        context = new LzyContext(sessionId, lzyFs.getSlotsManager(), lzyFs.getSlotConnectionManager(),
+        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(), lzyFs.getSlotConnectionManager(),
             lzyFs.getMountPoint().toString());
         status.set(AgentStatus.EXECUTING);
 
@@ -80,7 +93,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         }, Runnable::run);
 
         context.onProgress(progress -> {
-            LOG.info("LzyTerminal::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
+            LOG.info("LzyTerminal::progress {} {}", agentUri, JsonUtils.printRequest(progress));
             if (progress.hasAttach()) {
                 final TerminalState terminalState = TerminalState.newBuilder()
                     .setAttach(progress.getAttach())
@@ -97,7 +110,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             }
 
             if (progress.hasExit()) {
-                LOG.info("LzyTerminal::exit {}", agentAddress);
+                LOG.info("LzyTerminal::exit {}", agentUri);
                 commandHandler.onCompleted();
             }
         });
@@ -259,19 +272,6 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
-
-        @Override
-        public void configureSlot(Servant.SlotCommand request,
-                                  StreamObserver<Servant.SlotCommandStatus> responseObserver) {
-            LOG.info("configureSlot " + JsonUtils.printRequest(request));
-            try {
-                final Servant.SlotCommandStatus slotCommandStatus = LzyTerminal.this.lzyFs.configureSlot(request);
-                responseObserver.onNext(slotCommandStatus);
-                responseObserver.onCompleted();
-            } catch (StatusException e) {
-                responseObserver.onError(e);
-            }
-        }
 
         @Override
         public void update(IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
