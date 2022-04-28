@@ -8,29 +8,24 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Constants;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc.LzyServerBlockingStub;
 
 public class TerminalSessionManager {
 
     private static final Logger LOG = LogManager.getLogger(TerminalSessionManager.class);
 
     private final Map<UUID, TerminalSession> sessions = new ConcurrentHashMap<>();
-    private final LzyServerBlockingStub server;
     private final URI kharonServantAddress;
     private final URI kharonServantFsAddress;
 
-    public TerminalSessionManager(LzyServerBlockingStub server, URI kharonServantAddress,
-                                  URI kharonServantFsAddress) {
-        this.server = server;
+    public TerminalSessionManager(URI kharonServantAddress, URI kharonServantFsAddress) {
         this.kharonServantAddress = kharonServantAddress;
         this.kharonServantFsAddress = kharonServantFsAddress;
     }
 
-    public StreamObserver<TerminalState> createSession(StreamObserver<TerminalCommand> terminalCommandObserver) {
+    public StreamObserver<TerminalState> createSession(TerminalConnection terminalConnection) {
         final TerminalSession terminalSession =
-            new TerminalSession(server, terminalCommandObserver, kharonServantAddress, kharonServantFsAddress);
+                new TerminalSession(terminalConnection, kharonServantAddress, kharonServantFsAddress);
         sessions.put(terminalSession.sessionId(), terminalSession);
         return terminalSession.terminalStateObserver();
     }

@@ -276,7 +276,7 @@ public class LzyKharon {
         @Override
         public StreamObserver<TerminalState> attachTerminal(StreamObserver<TerminalCommand> responseObserver) {
             LOG.info("Kharon::attachTerminal");
-            return terminalManager.createSession(responseObserver);
+            return terminalManager.createSession(new TerminalConnection(responseObserver));
         }
 
         @Override
