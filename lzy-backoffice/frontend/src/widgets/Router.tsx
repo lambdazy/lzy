@@ -4,7 +4,7 @@ import {UserTableFC} from "./UsersTable";
 import {BACKEND_HOST} from "../config";
 import {PrivateRoute} from "../logic/Auth";
 import {AuthUser} from "./AuthUser";
-import {Basics, Environment, Setup, Cache, Whiteboards, Views, Integrations} from "./Docs";
+import {Basics, Environment, Setup, Cache, Whiteboards, Views, Integrations, Overview} from "./Docs";
 import {Tasks} from "./Tasks";
 import {Keys} from "./Tokens";
 
@@ -17,6 +17,7 @@ export const MainRouter = () => (
             <PrivateRoute path="/tasks" exact>
                 <Tasks/>
             </PrivateRoute>
+            <Route exact path="/docs/0-overview.md" component={Overview}/>
             <Route exact path="/docs/1-setup.md" component={Setup}/>
             <Route exact path="/docs/2-basics.md" component={Basics}/>
             <Route exact path="/docs/3-environment.md" component={Environment}/>
@@ -29,7 +30,7 @@ export const MainRouter = () => (
             <PrivateRoute path="/keys" exact>
                 <Keys/>
             </PrivateRoute>
-            <Redirect to="/docs/1-setup.md"/>
+            <Redirect to="/docs/0-overview.md"/>
         </Switch>
     </main>
 );
