@@ -37,9 +37,37 @@ jobs:
       - name: 'install pylzy'
         run: eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python && pip install -r requirements.txt && python setup.py install && cd ..
 
-      - name: 'java-test'
-        timeout-minutes: 45
+      - name: 'java unit tests and install'
+        timeout-minutes: 5
         run: mvn clean install
+
+      - name: 'LzyStartupTest'
+        timeout-minutes: 5
+        run: cd lzy-test && mvn test -Dtest=LzyStartupTest -DfailIfNoTests=false && cd ..
+
+      - name: 'MultiSessionTest'
+        timeout-minutes: 5
+        run: cd lzy-test && mvn test -Dtest=MultiSessionTest -DfailIfNoTests=false && cd ..
+
+      - name: 'PyApiTest'
+        timeout-minutes: 15
+        run: cd lzy-test && mvn test -Dtest=PyApiTest -DfailIfNoTests=false && cd ..
+
+      - name: 'RunTest'
+        timeout-minutes: 5
+        run: cd lzy-test && mvn test -Dtest=RunTest -DfailIfNoTests=false && cd ..
+
+      - name: 'SignTokenTest'
+        timeout-minutes: 5
+        run: cd lzy-test && mvn test -Dtest=SignTokenTest -DfailIfNoTests=false && cd ..
+
+      - name: 'SnapshotTest'
+        timeout-minutes: 5
+        run: cd lzy-test && mvn test -Dtest=SnapshotTest -DfailIfNoTests=false && cd ..
+
+      - name: 'TerminalCrashTest'
+        timeout-minutes: 5
+        run: cd lzy-test && mvn test -Dtest=TerminalCrashTest -DfailIfNoTests=false && cd ..
 
       - name: 'python-test'
         timeout-minutes: 5
