@@ -7,14 +7,9 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 

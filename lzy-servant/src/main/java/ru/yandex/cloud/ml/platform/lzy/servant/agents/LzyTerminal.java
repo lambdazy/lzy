@@ -1,26 +1,27 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
-import io.grpc.*;
+import io.grpc.Context;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.StatusException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzyInputSlot;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyInputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetBucketRequest;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -30,18 +31,18 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private final ManagedChannel channel;
     private final LzyKharonGrpc.LzyKharonStub kharon;
     private final LzyServerGrpc.LzyServerBlockingStub server;
-    private final String sessionId = UUID.randomUUID().toString();
-    private final SlotConnectionManager slotManager;
     private CommandHandler commandHandler;
     private LzyContext context;
 
-    public LzyTerminal(LzyAgentConfig config) throws URISyntaxException {
+    public LzyTerminal(LzyAgentConfig config) throws URISyntaxException, IOException {
         super(config);
-        final LzyTerminal.Impl impl = new Impl();
+
         agentServer = NettyServerBuilder.forPort(config.getAgentPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(impl).build();
+            .addService(new Impl())
+            .build();
+
         channel = ChannelBuilder
             .forAddress(serverAddress.getHost(), serverAddress.getPort())
             .usePlaintext()
@@ -49,14 +50,6 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             .build();
         kharon = LzyKharonGrpc.newStub(channel);
         server = LzyServerGrpc.newBlockingStub(channel);
-        final String bucket = server.getBucket(GetBucketRequest.newBuilder().setAuth(this.auth).build()).getBucket();
-        slotManager = new SlotConnectionManager(
-            server,
-            this.auth,
-            config.getWhiteboardAddress(),
-            bucket,
-            sessionId
-        );
     }
 
     @Override
@@ -77,7 +70,8 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         commandHandler = new CommandHandler();
         status.set(AgentStatus.PREPARING_EXECUTION);
 
-        context = new LzyContext(sessionId, slotManager, agentInternalAddress, mount.toString());
+        context = new LzyContext(sessionId, lzyFs.getSlotsManager(), lzyFs.getSlotConnectionManager(),
+            lzyFs.getMountPoint().toString());
         status.set(AgentStatus.EXECUTING);
 
         Context.current().addListener(context -> {
@@ -85,7 +79,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             close();
         }, Runnable::run);
 
-        this.context.onProgress(progress -> {
+        context.onProgress(progress -> {
             LOG.info("LzyTerminal::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
             if (progress.hasAttach()) {
                 final TerminalState terminalState = TerminalState.newBuilder()
@@ -116,22 +110,18 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
     @Override
     public void close() {
-        super.close();
         context.slots().forEach(LzySlot::suspend);
-        try {
-            context.close();
-        } catch (InterruptedException e) {
-            LOG.error(e);
-        }
+        context.close();
         commandHandler.onCompleted();
         channel.shutdown();
         agentServer.shutdown();
+        super.close();
     }
 
     @Override
     public void awaitTermination() throws InterruptedException {
-        super.awaitTermination();
         channel.awaitTermination(10, TimeUnit.SECONDS);
+        super.awaitTermination();
     }
 
     private class CommandHandler {
@@ -195,10 +185,10 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                 } else if (slot instanceof LzyInputSlot) {
                                     if (slotUri.getScheme().equals("s3") || slotUri.getScheme().equals("azure")) {
                                         ((LzyInputSlot) slot).connect(slotUri,
-                                                context().slotManager().connectToS3(slotUri, 0));
+                                            lzyFs.getSlotConnectionManager().connectToS3(slotUri, 0));
                                     } else {
                                         ((LzyInputSlot) slot).connect(slotUri,
-                                                context().slotManager().connectToSlot(slotUri, 0));
+                                            lzyFs.getSlotConnectionManager().connectToSlot(slotUri, 0));
                                     }
                                 }
                             });
@@ -214,7 +204,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                             return;
                         }
 
-                        final Servant.SlotCommandStatus slotCommandStatus = configureSlot(slotCommand);
+                        final Servant.SlotCommandStatus slotCommandStatus = lzyFs.configureSlot(slotCommand);
                         final TerminalState terminalState = TerminalState.newBuilder()
                             .setCommandId(commandId)
                             .setSlotStatus(slotCommandStatus)
@@ -271,23 +261,25 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
 
         @Override
-        public void configureSlot(
-            Servant.SlotCommand request,
-            StreamObserver<Servant.SlotCommandStatus> responseObserver
-        ) {
+        public void configureSlot(Servant.SlotCommand request,
+                                  StreamObserver<Servant.SlotCommandStatus> responseObserver) {
             LOG.info("configureSlot " + JsonUtils.printRequest(request));
-            LzyTerminal.this.configureSlot(request, responseObserver);
+            try {
+                final Servant.SlotCommandStatus slotCommandStatus = LzyTerminal.this.lzyFs.configureSlot(request);
+                responseObserver.onNext(slotCommandStatus);
+                responseObserver.onCompleted();
+            } catch (StatusException e) {
+                responseObserver.onError(e);
+            }
         }
 
         @Override
-        public void update(IAM.Auth request,
-                           StreamObserver<IAM.Empty> responseObserver) {
+        public void update(IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
             LzyTerminal.this.update(request, responseObserver);
         }
 
         @Override
-        public void status(IAM.Empty request,
-                           StreamObserver<Servant.ServantStatus> responseObserver) {
+        public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             LzyTerminal.this.status(request, responseObserver);
         }
     }

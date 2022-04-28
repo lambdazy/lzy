@@ -3,10 +3,12 @@ package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzyFileSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.Context;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -18,19 +20,12 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFileSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.servant.slots.SlotConnectionManager;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -42,33 +37,31 @@ public class LzyServant extends LzyAgent {
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final Server agentServer;
-    private final String contextId;
-    private final LzyAgentConfig config;
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();
     private LzyContext context;
 
-    public LzyServant(LzyAgentConfig config) throws URISyntaxException {
+    public LzyServant(LzyAgentConfig config) throws URISyntaxException, IOException {
         super(config);
         final long start = System.currentTimeMillis();
-        contextId = config.getServantId();
-        final Impl impl = new Impl();
+
         final ManagedChannel channel = ChannelBuilder.forAddress(serverAddress.getHost(), serverAddress.getPort())
             .usePlaintext()
             .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();
         server = LzyServerGrpc.newBlockingStub(channel);
+
         agentServer = NettyServerBuilder.forPort(config.getAgentPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(impl).build();
-        this.config = config;
+            .addService(new Impl())
+            .build();
 
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(
                 "time from agent construct finish to LzyServant construct finish",
                 Map.of(
-                    "context_id", contextId,
+                    "context_id", sessionId,
                     "metric_type", "system_metric"
                 ),
                 finish - start
@@ -104,7 +97,7 @@ public class LzyServant extends LzyAgent {
         UserEventLogger.log(new UserEvent(
             "Servant startup",
             Map.of(
-                "context_id", contextId,
+                "context_id", sessionId,
                 "address", agentAddress.toString()
             ),
             UserEvent.UserEventType.TaskStartUp
@@ -113,24 +106,20 @@ public class LzyServant extends LzyAgent {
         final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
         commandBuilder.setAuth(auth);
         commandBuilder.setServantURI(agentAddress.toString());
-        commandBuilder.setServantId(contextId);
+        commandBuilder.setServantId(sessionId);
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
 
-        // [TODO] this trash must be removed somehow, the only usage of this field is to determine cloud
-        // environment type, which is completely incorrect, since storage location could differ from the compute
-        final SlotConnectionManager slotsManager =
-            new SlotConnectionManager(server, auth, config.getWhiteboardAddress(), config.getBucket(), contextId);
-
-        context = new LzyContext(contextId, slotsManager, agentInternalAddress, mount.toString());
+        context = new LzyContext(sessionId, lzyFs.getSlotsManager(), lzyFs.getSlotConnectionManager(),
+            lzyFs.getMountPoint().toString());
 
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(
                 "LzyServant startUp time",
                 Map.of(
-                    "context_id", contextId,
+                    "context_id", sessionId,
                     "metric_type", "system_metric"
                 ),
                 finish - start
@@ -189,7 +178,7 @@ public class LzyServant extends LzyAgent {
             status.set(AgentStatus.PREPARING_EXECUTION);
             final AtomicZygote zygote = (AtomicZygote) GrpcConverter.from(request.getZygote());
             final Stream<Context.SlotAssignment> assignments = GrpcConverter.from(
-                    request.getAssignmentsList().stream()
+                request.getAssignmentsList().stream()
             );
             final String tid = request.getTid();
             UserEventLogger.log(new UserEvent(
@@ -204,12 +193,10 @@ public class LzyServant extends LzyAgent {
             responseObserver.onCompleted();
 
             assignments.map(
-                    entry -> context.configureSlot(tid, entry.slot(), entry.binding())
+                entry -> context.configureSlot(tid, entry.slot(), entry.binding())
             ).forEach(slot -> {
                 if (slot instanceof LzyFileSlot) {
-                    LOG.info("lzyFS::addSlot " + slot.name());
-                    lzyFS.addSlot((LzyFileSlot) slot);
-                    LOG.info("lzyFS::slot added " + slot.name());
+                    lzyFs.addSlot((LzyFileSlot) slot);
                 }
             });
 
@@ -250,85 +237,44 @@ public class LzyServant extends LzyAgent {
             status.set(AgentStatus.EXECUTING);
         }
 
-        private void stop() {
-            lzyFS.umount();
-            agentServer.shutdown();
-        }
-
         @Override
         public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
             LOG.info("Servant::stop {}", agentAddress);
-            try {
-                context.close();
-            } catch (InterruptedException e) {
-                LOG.error("Failed to wait until all output slots successfully read");
-            }
+            context.close();
 
             responseObserver.onNext(IAM.Empty.newBuilder().build());
             responseObserver.onCompleted();
             UserEventLogger.log(new UserEvent(
                 "Servant task exit",
                 Map.of(
-                    "task_id", contextId,
+                    "task_id", sessionId,
                     "address", agentAddress.toString(),
                     "exit_code", String.valueOf(0)
                 ),
                 UserEvent.UserEventType.TaskStop
             ));
-            stop();
+            try {
+                agentServer.shutdown();
+                lzyFs.stop();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
-        public void openOutputSlot(Servant.SlotRequest request,
-                                   StreamObserver<Servant.Message> responseObserver) {
-            final long start = System.currentTimeMillis();
-            LOG.info("LzyServant::openOutputSlot " + JsonUtils.printRequest(request));
-            final Path path = Paths.get(URI.create(request.getSlotUri()).getPath());
-            final String tid;
-            final String slotName;
-            if (path.getNameCount() < 2) {
-                responseObserver.onError(Status.INVALID_ARGUMENT
-                    .withDescription("Wrong slot format, must be [task]/[slot]").asException());
-                return;
-            } else {
-                tid = path.getName(0).toString();
-                // TODO(artolord) Make better slot name resolving
-                slotName = "/" + path.getName(0).relativize(Path.of("/").relativize(path));
-                System.out.println("tid: " + tid + " slot: " + slotName);
-            }
-
-            final LzySlot slot = context.slot(tid, slotName);
-            if (!(slot instanceof LzyOutputSlot)) {
-                LOG.info("Trying to read from input slot " + path);
-                responseObserver
-                    .onError(Status.NOT_FOUND.withDescription("Reading from input slot: " + path).asException());
-                return;
-            }
-            final LzyOutputSlot outputSlot = (LzyOutputSlot) slot;
-            try {
-                outputSlot.readFromPosition(request.getOffset())
-                    .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
-                responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
-                responseObserver.onCompleted();
-            } catch (IOException iae) {
-                responseObserver.onError(iae);
-            }
-            final long finish = System.currentTimeMillis();
-            MetricEventLogger.log(
-                new MetricEvent(
-                    "LzyServant openOutputSlot time",
-                    Map.of(
-                        "task_id", contextId,
-                        "metric_type", "system_metric"
-                    ),
-                    finish - start
-                )
-            );
+        public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+            lzyFs.openOutputSlot(request, responseObserver);
         }
 
         @Override
         public void configureSlot(SlotCommand request, StreamObserver<SlotCommandStatus> responseObserver) {
-            LzyServant.this.configureSlot(request, responseObserver);
+            try {
+                final Servant.SlotCommandStatus slotCommandStatus = LzyServant.this.lzyFs.configureSlot(request);
+                responseObserver.onNext(slotCommandStatus);
+                responseObserver.onCompleted();
+            } catch (StatusException e) {
+                responseObserver.onError(e);
+            }
         }
 
         @Override

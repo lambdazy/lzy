@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package yandex.cloud.priv.datasphere.v2;
+
+import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-servant.proto";
+
+option go_package = "datasphere";
+option java_outer_classname = "LzyFsApi";
+option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+
+service LzyFs {
+  rpc RegisterCommand (RegisterCommandRequest) returns (RegisterCommandResponse);
+  rpc UnregisterCommand (UnregisterCommandRequest) returns (UnregisterCommandResponse);
+
+  rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
+  rpc OpenOutputSlot (SlotRequest) returns (stream Message);
+}
+
+message RegisterCommandRequest {
+  string path = 1;    // [required] command name (path relative to lzy-fs root)
+  string command = 2; // [required] command to execute
+  Zygote zygote = 3;  // [optional]
+}
+
+message RegisterCommandResponse {
+  uint32 errno = 1; // see /usr/include/asm-generic/errno-base.h
+}
+
+message UnregisterCommandRequest {
+  string path = 1;
+}
+
+message UnregisterCommandResponse {
+}

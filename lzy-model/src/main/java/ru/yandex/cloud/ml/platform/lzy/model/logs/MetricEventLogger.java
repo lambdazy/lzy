@@ -8,7 +8,7 @@ public class MetricEventLogger {
     private static final Logger LOG = LogManager.getLogger("MetricEventLogs");
 
     public static void log(MetricEvent event) {
-        LOG.info(String.format("{\"metric\": %s }", event.toJson()));
+        LOG.trace(String.format("{\"metric\": %s }", event.toJson()));
     }
 
     public static void timeIt(String description, Map<String, String> tags, Runnable runnable) {

@@ -5,7 +5,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
-import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
+import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
 
 public class EnvironmentFactory {
 

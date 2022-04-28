@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommands;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Start;
 
 public class BashApi {
@@ -40,7 +40,7 @@ public class BashApi {
             final CommandLine parse = cliParser.parse(options, args, true);
             if (parse.getArgs().length > 0) {
                 commandStr = parse.getArgs()[0];
-                final LzyCommand.Commands command = LzyCommand.Commands.valueOf(commandStr);
+                final LzyCommands command = LzyCommands.valueOf(commandStr);
                 return command.execute(parse);
             } else {
                 return new Start().execute(parse);

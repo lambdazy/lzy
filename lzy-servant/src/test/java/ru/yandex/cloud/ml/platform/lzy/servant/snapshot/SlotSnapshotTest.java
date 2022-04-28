@@ -15,8 +15,10 @@ import org.apache.commons.io.IOUtils;
 import org.junit.*;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.servant.storage.AmazonStorageClient;
-import ru.yandex.cloud.ml.platform.lzy.servant.storage.StorageClient;
+import ru.yandex.cloud.ml.platform.lzy.snapshot.SlotSnapshot;
+import ru.yandex.cloud.ml.platform.lzy.snapshot.SlotSnapshotImpl;
+import ru.yandex.cloud.ml.platform.lzy.storage.AmazonStorageClient;
+import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
 
 public class SlotSnapshotTest {
     private static final String SERVICE_ENDPOINT = "http://localhost:8001";
