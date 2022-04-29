@@ -4,7 +4,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
 public interface LzySnapshotTestContext {
-    String address(boolean fromDocker);
+    String address();
 
     WbApiGrpc.WbApiBlockingStub wbClient();
 

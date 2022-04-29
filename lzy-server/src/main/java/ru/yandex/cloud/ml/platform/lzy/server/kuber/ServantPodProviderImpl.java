@@ -15,7 +15,6 @@ import io.kubernetes.client.util.ClientBuilder;
 import io.kubernetes.client.util.Yaml;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,8 +26,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 
@@ -123,9 +120,9 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         ).addEnvItem(
             new V1EnvVar().name("SERVANT_TOKEN").value(token)
         ).addEnvItem(
-            new V1EnvVar().name("LZY_SERVER_URI").value(serverConfig.getServerUri())
+            new V1EnvVar().name("LZY_SERVER_URI").value(serverConfig.getServerUri().toString())
         ).addEnvItem(
-            new V1EnvVar().name("LZYWHITEBOARD").value(serverConfig.getWhiteboardUrl())
+            new V1EnvVar().name("LZYWHITEBOARD").value(serverConfig.getWhiteboardUri().toString())
         ).addEnvItem(
             new V1EnvVar().name("BUCKET_NAME").value(bucketName)
         ).addEnvItem(

@@ -54,7 +54,7 @@ public class LzyServant extends LzyAgent {
         server = LzyServerGrpc.newBlockingStub(channel);
 
         agentAddress =
-            new URI(LzyServant.scheme(), null, config.getAgentName(), config.getAgentPort(), null, null, null);
+            new URI(LzyServant.scheme(), null, config.getAgentHost(), config.getAgentPort(), null, null, null);
 
         agentServer = NettyServerBuilder
             .forAddress(new InetSocketAddress(agentAddress.getHost(), agentAddress.getPort()))

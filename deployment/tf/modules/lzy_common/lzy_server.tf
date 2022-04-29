@@ -137,7 +137,7 @@ resource "kubernetes_deployment" "server" {
             value = var.s3-separated-per-bucket
           }
           env {
-            name  = "SERVER_WHITEBOARD_URL"
+            name  = "SERVER_WHITEBOARD_URI"
             value = "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:8999"
           }
           env {

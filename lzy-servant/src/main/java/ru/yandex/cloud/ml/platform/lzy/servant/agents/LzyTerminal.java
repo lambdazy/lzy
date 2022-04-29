@@ -46,7 +46,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         agentUri = new URI(LzyTerminal.scheme(), null, config.getAgentName(), config.getAgentPort(), null, null, null);
 
         agentServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(config.getAgentName(), config.getAgentPort()))
+            .forAddress(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(new Impl())

@@ -2,10 +2,12 @@ package ru.yandex.cloud.ml.platform.lzy.server.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 
+import java.net.URI;
+
 @ConfigurationProperties("server")
 public class ServerConfig {
-    private String serverUri;
-    private String whiteboardUrl;
+    private URI serverUri;
+    private URI whiteboardUri;
     private String baseEnvDefaultImage;
 
     private YcCredentials yc;
@@ -32,11 +34,11 @@ public class ServerConfig {
 
     private int userLimit;
 
-    public String getServerUri() {
+    public URI getServerUri() {
         return serverUri;
     }
 
-    public void setServerUri(String serverUri) {
+    public void setServerUri(URI serverUri) {
         this.serverUri = serverUri;
     }
 
@@ -48,12 +50,12 @@ public class ServerConfig {
         this.yc = yc;
     }
 
-    public String getWhiteboardUrl() {
-        return whiteboardUrl;
+    public URI getWhiteboardUri() {
+        return whiteboardUri;
     }
 
-    public void setWhiteboardUrl(String whiteboardUrl) {
-        this.whiteboardUrl = whiteboardUrl;
+    public void setWhiteboardUri(URI whiteboardUri) {
+        this.whiteboardUri = whiteboardUri;
     }
 
     public KuberAllocator getKuberAllocator() {

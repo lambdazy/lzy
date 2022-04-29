@@ -29,13 +29,9 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
     }
 
     @Override
-    public String address(boolean fromDocker) {
+    public String address() {
         init();
-        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
-            return "http://host.docker.internal:" + SNAPSHOT_PORT;
-        } else {
-            return "http://localhost:" + SNAPSHOT_PORT;
-        }
+        return "http://localhost:" + SNAPSHOT_PORT;
     }
 
     @Override

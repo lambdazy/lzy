@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -63,12 +62,11 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
             @Override
             public void run() {
                 try {
-                    servantMain.invoke(null, (Object) new String[] {
-                        "--lzy-address", serverConfig.getServerUri(),
-                        "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
+                    servantMain.invoke(null, (Object) new String[]{
+                        "--lzy-address", serverConfig.getServerUri().toString(),
+                        "--lzy-whiteboard", serverConfig.getWhiteboardUri().toString(),
                         "--lzy-mount", "/tmp/lzy" + servantNumber,
-                        "--host", URI.create(serverConfig.getServerUri()).getHost(),
-                        "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
+                        "--host", serverConfig.getServerUri().getHost(),
                         "--port", Integer.toString(FreePortFinder.find(10000, 11000)),
                         "--fs-port", Integer.toString(FreePortFinder.find(11000, 12000)),
                         "start",

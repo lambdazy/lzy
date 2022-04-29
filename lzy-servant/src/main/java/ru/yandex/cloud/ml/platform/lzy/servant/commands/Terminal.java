@@ -61,8 +61,7 @@ public class Terminal implements LzyCommand {
             .serverAddress(URI.create(serverAddress))
             .whiteboardAddress(URI.create(serverAddress))
             .user(System.getenv("USER"))
-            .agentName(host)
-            .agentInternalName(parse.getOptionValue('i', host))
+            .agentHost(host)
             .agentPort(port)
             .root(lzyRoot);
 

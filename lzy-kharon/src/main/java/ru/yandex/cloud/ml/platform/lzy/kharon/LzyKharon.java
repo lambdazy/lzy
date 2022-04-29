@@ -302,10 +302,6 @@ public class LzyKharon {
                 return;
             }
             final URI slotUri = URI.create(uri.get());
-            String slotHost = slotUri.getHost();
-            if (slotHost.equals("host.docker.internal")) {
-                slotHost = "localhost";
-            }
 
             LzyFsApi.SlotRequest newRequest = LzyFsApi.SlotRequest.newBuilder()
                 .mergeFrom(request)
@@ -314,7 +310,7 @@ public class LzyKharon {
 
             URI servantFsUri = null;
             try {
-                servantFsUri = new URI(LzyFs.scheme(), null, slotHost, slotUri.getPort(), null, null, null);
+                servantFsUri = new URI(LzyFs.scheme(), null, slotUri.getHost(), slotUri.getPort(), null, null, null);
                 final LzyFsGrpc.LzyFsBlockingStub servantFs = connectionManager.getOrCreate(servantFsUri);
                 LOG.info("Created connection to servant fs " + servantFsUri);
                 final Iterator<LzyFsApi.Message> messageIterator = servantFs.openOutputSlot(newRequest);

@@ -28,12 +28,8 @@ public class LzyServerThreadContext implements LzyServerTestContext {
     private LzyServer.Impl impl;
 
     @Override
-    public String address(boolean fromDocker) {
-        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
-            return "http://host.docker.internal:" + LZY_SERVER_PORT;
-        } else {
-            return "http://localhost:" + LZY_SERVER_PORT;
-        }
+    public String address() {
+        return "http://localhost:" + LZY_SERVER_PORT;
     }
 
     @Override
@@ -43,15 +39,15 @@ public class LzyServerThreadContext implements LzyServerTestContext {
 
     @Override
     public void init() {
-        String serviceEndpoint = "http://localhost:8001";
-        String lzywhiteboard = "http://localhost:8999";
+        final String serviceEndpoint = "http://localhost:8001";
+        final String lzyWhiteboard = "http://localhost:8999";
 
         try (ApplicationContext context = ApplicationContext.run(
             PropertySource.of(
                 Map.of(
-                    "server.server-uri", address(false),
+                    "server.server-uri", address(),
                     "storage.amazon.endpoint", serviceEndpoint,
-                    "server.whiteboardUrl", lzywhiteboard,
+                    "server.whiteboardUri", lzyWhiteboard,
                     "storage.amazon.enabled", "true",
                     "storage.bucket", "lzy-bucket",
                     "storage.amazon.accessToken", "access-key",

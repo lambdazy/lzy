@@ -41,7 +41,7 @@ public class InMemTasksManager implements TasksManager {
     private final Map<String, Map<Slot, ChannelSpec>> userSlots = new ConcurrentHashMap<>();
 
     public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels) {
-        this.serverURI = URI.create(serverConfig.getServerUri());
+        this.serverURI = serverConfig.getServerUri();
         this.channels = channels;
     }
 

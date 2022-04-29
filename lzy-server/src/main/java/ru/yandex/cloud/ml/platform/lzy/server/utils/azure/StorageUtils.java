@@ -66,11 +66,7 @@ public class StorageUtils {
             case Amazon: {
                 AmazonCredentials amazonCredentials = (AmazonCredentials) credentials;
 
-                String endpoint = amazonCredentials.endpoint();
-                if (endpoint.contains("host.docker.internal")) {
-                    endpoint = endpoint.replace("host.docker.internal", "localhost");
-                }
-
+                final String endpoint = amazonCredentials.endpoint();
                 AmazonS3 client = AmazonS3ClientBuilder.standard()
                     .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(
                         amazonCredentials.accessToken(), amazonCredentials.secretToken()

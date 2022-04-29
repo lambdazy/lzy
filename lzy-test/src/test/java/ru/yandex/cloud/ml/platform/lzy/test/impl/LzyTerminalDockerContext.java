@@ -235,11 +235,6 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     }
 
     @Override
-    public boolean inDocker() {
-        return true;
-    }
-
-    @Override
     public void close() {
         startedContainers.forEach(GenericContainer::stop);
     }

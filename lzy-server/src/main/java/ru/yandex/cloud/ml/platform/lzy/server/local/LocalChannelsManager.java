@@ -248,11 +248,7 @@ public class LocalChannelsManager implements ChannelsManager {
         if (snapshotApi != null) {
             return snapshotApi;
         }
-        String url = config.getWhiteboardUrl();
-        if (url.contains("host.docker.internal")) {
-            url = url.replace("host.docker.internal", "localhost");
-        }
-        URI snapshotUri = URI.create(url);
+        final URI snapshotUri = config.getWhiteboardUri();
         io.grpc.Channel channel = ChannelBuilder.forAddress(snapshotUri.getHost(), snapshotUri.getPort())
             .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
             .usePlaintext()

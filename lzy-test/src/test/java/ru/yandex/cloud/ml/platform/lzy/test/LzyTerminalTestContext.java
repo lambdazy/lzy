@@ -31,8 +31,6 @@ public interface LzyTerminalTestContext extends AutoCloseable {
     Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress, int debugPort,
                                         String user, String privateKeyPath);
 
-    boolean inDocker();
-
     void close();
 
     interface Terminal {
