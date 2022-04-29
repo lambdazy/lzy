@@ -269,6 +269,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 except Exception as e:
                     self._log.error(e)
                     raise LzyExecutionException("Materialization failed: cannot read data from return slot")
+                finally:
+                    self._channel_manager.destroy(self.return_entry_id())
         else:
             # noinspection PyTypeChecker
             self._log.info("Function %s has been already materialized", name)
