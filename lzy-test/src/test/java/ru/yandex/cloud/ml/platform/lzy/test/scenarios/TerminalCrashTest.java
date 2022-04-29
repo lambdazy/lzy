@@ -23,14 +23,15 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 public class TerminalCrashTest extends LzyBaseTest {
 
     private LzyTerminalTestContext.Terminal createTerminal(String mount) {
-        return createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), mount);
+        return createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(20000, 30000), mount);
     }
 
-    private LzyTerminalTestContext.Terminal createTerminal(int port, int debugPort, String mount) {
+    private LzyTerminalTestContext.Terminal createTerminal(int port, int fsPort, int debugPort, String mount) {
         LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             mount,
             port,
-            port + 1,
+            fsPort,
             kharonContext.serverAddress(terminalContext.inDocker()),
             debugPort,
             LzyTerminalTestContext.TEST_USER,
@@ -78,7 +79,11 @@ public class TerminalCrashTest extends LzyBaseTest {
             Map.of(fileName.substring("/tmp/lzy1".length()), channelName)
         );
 
-        LzyTerminalTestContext.Terminal terminal2 = createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), "/tmp/term2");
+        LzyTerminalTestContext.Terminal terminal2 = createTerminal(
+            FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(20000, 30000),
+            "/tmp/term2");
 
         //Assert
         Assert.assertTrue(
@@ -117,8 +122,16 @@ public class TerminalCrashTest extends LzyBaseTest {
     @Test
     public void parallelExecutionOneTerminalFails() throws ExecutionException, InterruptedException {
         //Arrange
-        final LzyTerminalTestContext.Terminal terminal1 = createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), "");
-        final LzyTerminalTestContext.Terminal terminal2 = createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000), "");
+        final LzyTerminalTestContext.Terminal terminal1 = createTerminal(
+            FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(20000, 30000),
+            "");
+        final LzyTerminalTestContext.Terminal terminal2 = createTerminal(
+            FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(20000, 30000),
+            "");
         final FileIOOperation echo42 = new FileIOOperation(
             "echo42",
             Collections.emptyList(),

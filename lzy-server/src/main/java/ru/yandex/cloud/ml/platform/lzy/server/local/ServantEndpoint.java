@@ -18,24 +18,24 @@ import java.util.UUID;
 public class ServantEndpoint implements Endpoint {
     private static final Logger LOG = LogManager.getLogger(ServantEndpoint.class);
 
-    private final URI fsUri;
     private final Slot slot;
+    private final URI slotUri;
     private final UUID sessionId;
     private final LzyFsBlockingStub fs;
     private final String tid;
     private boolean invalid = false;
 
-    public ServantEndpoint(Slot slot, URI fsUri, UUID sessionId, LzyFsBlockingStub fs) {
+    public ServantEndpoint(Slot slot, URI slotUri, UUID sessionId, LzyFsBlockingStub fs) {
         this.slot = slot;
-        this.fsUri = fsUri;
+        this.slotUri = slotUri;
         this.sessionId = sessionId;
         this.fs = fs;
         // [TODO] in case of terminal slot uri this will cause invalid tid assignment (terminal has no tids)
-        this.tid = Path.of(fsUri.getPath()).getName(0).toString();
+        this.tid = Path.of(slotUri.getPath()).getName(0).toString();
     }
 
     public URI uri() {
-        return fsUri;
+        return slotUri;
     }
 
     public Slot slot() {
@@ -56,17 +56,17 @@ public class ServantEndpoint implements Endpoint {
             return false;
         }
         final ServantEndpoint endpoint = (ServantEndpoint) o;
-        return fsUri.equals(endpoint.fsUri);
+        return slotUri.equals(endpoint.slotUri);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(fsUri);
+        return Objects.hash(slotUri);
     }
 
     @Override
     public String toString() {
-        return "(endpoint) {" + fsUri + "}";
+        return "(endpoint) {" + slotUri + "}";
     }
 
     @Override
@@ -142,10 +142,10 @@ public class ServantEndpoint implements Endpoint {
                             .setSnapshotId(snapshotId)
                             .setEntryId(entryId)
                             .build())
-                        .build()
-                );
+                        .build());
+            System.err.println("--> " + rc.toString());
         } catch (StatusRuntimeException sre) {
-            LOG.warn("Unable to send snapshot command " + this + "\n Cause:\n" + sre);
+            LOG.error("Unable to send snapshot command " + this + "\n Cause:\n" + sre);
         }
     }
 

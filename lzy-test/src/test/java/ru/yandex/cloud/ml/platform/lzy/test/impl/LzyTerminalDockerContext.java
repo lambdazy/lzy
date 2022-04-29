@@ -1,12 +1,24 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
-
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.exception.ConflictException;
+import org.apache.commons.lang3.SystemUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.Container;
+import org.testcontainers.containers.FixedHostPortGenericContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.output.FrameConsumerResultCallback;
+import org.testcontainers.containers.output.OutputFrame;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.containers.output.ToStringConsumer;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -20,20 +32,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.apache.commons.lang3.SystemUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testcontainers.DockerClientFactory;
-import org.testcontainers.containers.Container;
-import org.testcontainers.containers.FixedHostPortGenericContainer;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.output.FrameConsumerResultCallback;
-import org.testcontainers.containers.output.OutputFrame;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.containers.output.ToStringConsumer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+
+import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
 
 public class LzyTerminalDockerContext implements LzyTerminalTestContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(LzyTerminalDockerContext.class);
@@ -68,10 +68,10 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             terminalContainer = base.withNetworkMode("host");
         } else {
             terminalContainer = base
-                    .withFixedExposedPort(exposedPort, exposedPort)
-                    .withFixedExposedPort(debugPort, debugPort) //to attach debugger
-                    .withExposedPorts(exposedPort, debugPort)
-                    .withStartupTimeout(Duration.ofSeconds(150));
+                .withFixedExposedPort(exposedPort, exposedPort)
+                .withFixedExposedPort(debugPort, debugPort) //to attach debugger
+                .withExposedPorts(exposedPort, debugPort)
+                .withStartupTimeout(Duration.ofSeconds(150));
         }
 
         terminalContainer.start();
@@ -84,6 +84,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
         String mount,
         String serverAddress,
         int port,
+        int fsPort,
         GenericContainer<?> servantContainer
     ) {
         return new Terminal() {
@@ -100,6 +101,11 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             @Override
             public int port() {
                 return port;
+            }
+
+            @Override
+            public int fsPort() {
+                return fsPort;
             }
 
             @Override
@@ -225,7 +231,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
             (cmd) -> {
             }
         );
-        return createTerminal(mount, serverAddress, port, servantContainer);
+        return createTerminal(mount, serverAddress, port, fsPort, servantContainer);
     }
 
     @Override

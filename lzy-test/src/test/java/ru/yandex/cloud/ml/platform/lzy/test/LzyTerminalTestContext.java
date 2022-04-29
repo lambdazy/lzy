@@ -24,8 +24,8 @@ public interface LzyTerminalTestContext extends AutoCloseable {
     int DEFAULT_TIMEOUT_SEC = 30;
     String TEST_USER = "test-user";
 
-    default Terminal startTerminalAtPathAndPort(String path, int port, String serverAddress) {
-        return startTerminalAtPathAndPort(path, port, port + 1, serverAddress, 5006, TEST_USER, null);
+    default Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress) {
+        return startTerminalAtPathAndPort(path, port, fsPort, serverAddress, 5006, TEST_USER, null);
     }
 
     Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress, int debugPort,
@@ -43,6 +43,8 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         @SuppressWarnings("unused")
         int port();
+
+        int fsPort();
 
         String serverAddress();
 

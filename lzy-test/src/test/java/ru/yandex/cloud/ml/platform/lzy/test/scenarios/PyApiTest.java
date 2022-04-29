@@ -19,14 +19,14 @@ public class PyApiTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
 
     public void arrangeTerminal(String user) {
-        this.arrangeTerminal(LZY_MOUNT, FreePortFinder.find(20000, 30000),
+        this.arrangeTerminal(LZY_MOUNT, FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000),
             kharonContext.serverAddress(terminalContext.inDocker()), user, null);
     }
 
-    public void arrangeTerminal(String mount, Integer port, String serverAddress, String user,
+    public void arrangeTerminal(String mount, int port, int fsPort, String serverAddress, String user,
                                 String keyPath) {
         int debugPort = FreePortFinder.find(20000, 30000);
-        terminal = terminalContext.startTerminalAtPathAndPort(mount, port, port + 1, serverAddress,
+        terminal = terminalContext.startTerminalAtPathAndPort(mount, port, fsPort, serverAddress,
             debugPort, user, keyPath);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,

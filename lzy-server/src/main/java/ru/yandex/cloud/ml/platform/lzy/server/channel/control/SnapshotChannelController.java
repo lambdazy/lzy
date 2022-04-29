@@ -59,7 +59,7 @@ public class SnapshotChannelController implements ChannelController {
 
     @Override
     public void executeBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException {
-        LOG.info("SnapshotChannelController::executeBind {}, entryId={}", slot.uri(), entryId);
+        LOG.info("SnapshotChannelController::executeBind, slot: {} to entryId: {}", slot.uri(), entryId);
         lock.lock();
         try {
             switch (slot.slot().direction()) {

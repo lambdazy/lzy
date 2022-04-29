@@ -78,6 +78,11 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
             }
 
             @Override
+            public int fsPort() {
+                return fsPort;
+            }
+
+            @Override
             public boolean pathExists(Path path) {
                 return Files.exists(path);
             }

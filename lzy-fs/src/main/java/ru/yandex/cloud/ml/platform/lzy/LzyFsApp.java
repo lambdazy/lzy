@@ -14,8 +14,6 @@ import java.nio.file.Path;
 import java.util.UUID;
 
 public final class LzyFsApp {
-    private static final String DEFAULT_LZY_MOUNT = "/tmp/lzy";
-    private static final String DEFAULT_GRPC_PORT = "2135";
     private static final Options options = new Options();
 
     static {
@@ -60,9 +58,9 @@ public final class LzyFsApp {
         final String serverHost = addressParts[0];
         final int serverPort = Integer.parseInt(addressParts[1]);
 
-        final String mountPoint = cmdLine.getOptionValue("lzy-mount", DEFAULT_LZY_MOUNT);
-        final String grpcHost = cmdLine.getOptionValue("grpc-host", "localhost");
-        final int grpcPort = Integer.parseInt(cmdLine.getOptionValue("grpc-port", DEFAULT_GRPC_PORT));
+        final String mountPoint = cmdLine.getOptionValue("lzy-mount", LzyFsServer.DEFAULT_MOUNT_POINT);
+        final String grpcHost = cmdLine.getOptionValue("grpc-host", LzyFsServer.DEFAULT_HOST);
+        final int grpcPort = Integer.parseInt(cmdLine.getOptionValue("grpc-port", "" + LzyFsServer.DEFAULT_PORT));
 
         final String whiteboardAddress = "grpc://" + cmdLine.getOptionValue("lzy-whiteboard", serverAddress);
 

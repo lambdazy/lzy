@@ -623,9 +623,13 @@ public class LzyServer {
                         .build())
                     .build();
                 final Servant.SlotCommandStatus status = kharonFs.configureSlot(slotCommand);
-                if (status.hasRc() && status.getRc().getCode() != Servant.SlotCommandStatus.RC.Code.SUCCESS)
-                    LOG.warn("Unable to configure kharon slot. session: " + sessionId + " slot: " + slot);
+
+                if (status.hasRc() && status.getRc().getCode() != Servant.SlotCommandStatus.RC.Code.SUCCESS) {
+                    LOG.error("Unable to configure kharon slot. session: {}, slot: {}, error: {}",
+                        sessionId, slot, status.getRc().toString());
+                }
             });
+
             try {
                 start.forEachRemaining(progress -> {
                     LOG.info("LzyServer::kharonTerminalProgress " + JsonUtils.printRequest(progress));

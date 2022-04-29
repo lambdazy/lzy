@@ -11,6 +11,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.LzyFsServer;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
@@ -25,6 +26,7 @@ public class RunTest extends LzyBaseTest {
         terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             9999,
+            LzyFsServer.DEFAULT_PORT,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
         terminal.waitForStatus(

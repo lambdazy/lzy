@@ -36,6 +36,10 @@ import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.*;
 public final class LzyFsServer {
     private static final Logger LOG = LogManager.getLogger(LzyFsServer.class);
 
+    public static final String DEFAULT_MOUNT_POINT = "/tmp/lzy";
+    public static final String DEFAULT_HOST = "localhost";
+    public static final int DEFAULT_PORT = 8901;
+
     private final String sessionId;
     private final Path mountPoint;
     private final LzyFSManager fs;

@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import org.apache.commons.lang3.SystemUtils;
+import ru.yandex.cloud.ml.platform.lzy.LzyFsServer;
 import ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon;
 import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
@@ -20,7 +21,6 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
     private static final long KHARON_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_KHARON_PORT = 8899;
     private static final int LZY_KHARON_SERVANT_PROXY_PORT = 8900;
-    private static final int LZY_KHARON_SERVANT_FS_PROXY_PORT = 8950;
 
     private final String serverAddress;
     private final String whiteboardAddress;
@@ -45,7 +45,7 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
 
     @Override
     public String servantFsAddress(boolean fromDocker) {
-        return UriScheme.LzyFs.scheme() + outerHost(fromDocker) + ":" + LZY_KHARON_SERVANT_FS_PROXY_PORT;
+        return UriScheme.LzyFs.scheme() + outerHost(fromDocker) + ":" + LzyFsServer.DEFAULT_PORT;
     }
 
     @Override
@@ -63,7 +63,7 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
                 outerHost(false),
                 LZY_KHARON_PORT,
                 LZY_KHARON_SERVANT_PROXY_PORT,
-                LZY_KHARON_SERVANT_FS_PROXY_PORT,
+                LzyFsServer.DEFAULT_PORT,
                 outerHost(false)
             );
             kharon.start();

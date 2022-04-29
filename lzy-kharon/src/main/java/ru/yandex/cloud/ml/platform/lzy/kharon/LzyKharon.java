@@ -38,6 +38,7 @@ public class LzyKharon {
 
     private static final Logger LOG = LogManager.getLogger(LzyKharon.class);
     private static final Options options = new Options();
+
     public static String host;
     public static int port;
     public static int servantPort;

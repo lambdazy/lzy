@@ -32,6 +32,6 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
             () -> command,
             (cmd) -> cmd.withEntrypoint("/test_entrypoint.sh")
         );
-        return createTerminal(mount, serverAddress, port, servantContainer);
+        return createTerminal(mount, serverAddress, port, fsPort, servantContainer);
     }
 }

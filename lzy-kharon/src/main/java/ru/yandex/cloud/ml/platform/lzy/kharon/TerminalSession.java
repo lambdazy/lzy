@@ -2,17 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -27,6 +16,14 @@ import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus.RC;
 
+import javax.annotation.Nullable;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class TerminalSession {
     public static final String SESSION_ID_KEY = "kharon_session_id";
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
@@ -37,7 +34,6 @@ public class TerminalSession {
     private final StreamObserver<Kharon.TerminalCommand> terminalController;
     private final AtomicBoolean invalid = new AtomicBoolean(false);
     private final UUID servantId = UUID.randomUUID();
-    private final URI kharonServantProxyAddress;
     private final URI kharonFsProxyAddress;
     private final Map<UUID, CompletableFuture<Kharon.TerminalState>> tasks = new ConcurrentHashMap<>();
     private StreamObserver<Servant.ServantProgress> executionProgress;
@@ -48,7 +44,6 @@ public class TerminalSession {
         StreamObserver<Kharon.TerminalCommand> terminalCommandObserver,
         URI kharonServantAddress, URI kharonFsAddress
     ) {
-        this.kharonServantProxyAddress = kharonServantAddress;
         this.kharonFsProxyAddress = kharonFsAddress;
         terminalController = terminalCommandObserver;
         terminalStateObserver = new StreamObserver<>() {
@@ -106,7 +101,7 @@ public class TerminalSession {
                         executionProgress.onNext(Servant.ServantProgress.newBuilder()
                             .setAttach(Servant.SlotAttach.newBuilder()
                                 .setSlot(attach.getSlot())
-                                .setUri(convertToKharonServantUri(attach.getUri()))
+                                .setUri(convertToKharonServantFsUri(attach.getUri()))
                                 .setChannel(attach.getChannel())
                                 .build())
                             .build());
@@ -117,7 +112,7 @@ public class TerminalSession {
                         executionProgress.onNext(Servant.ServantProgress.newBuilder()
                             .setDetach(Servant.SlotDetach.newBuilder()
                                 .setSlot(detach.getSlot())
-                                .setUri(convertToKharonServantUri(detach.getUri()))
+                                .setUri(convertToKharonServantFsUri(detach.getUri()))
                                 .build())
                             .build());
                         break;
@@ -222,14 +217,14 @@ public class TerminalSession {
         return taskId.toString();
     }
 
-    private String convertToKharonServantUri(String slotStrUri) {
+    private String convertToKharonServantFsUri(String slotStrUri) {
         try {
             final URI slotUri = URI.create(slotStrUri);
             return new URI(
                 slotUri.getScheme(),
                 null,
-                kharonServantProxyAddress.getHost(),
-                kharonServantProxyAddress.getPort(),
+                kharonFsProxyAddress.getHost(),
+                kharonFsProxyAddress.getPort(),
                 slotUri.getPath(),
                 SESSION_ID_KEY + "=" + servantId,
                 null
