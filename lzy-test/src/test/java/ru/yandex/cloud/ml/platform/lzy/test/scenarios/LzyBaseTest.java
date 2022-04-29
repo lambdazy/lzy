@@ -16,6 +16,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.*;
 public class LzyBaseTest {
     protected static final int DEFAULT_TIMEOUT_SEC = 30;
     protected static final int DEFAULT_SERVANT_PORT = 9999;
+    protected static final int DEFAULT_SERVANT_FS_PORT = 9998;
     protected static final String LZY_MOUNT = "/tmp/lzy";
     protected static final int S3_PORT = 8001;
 

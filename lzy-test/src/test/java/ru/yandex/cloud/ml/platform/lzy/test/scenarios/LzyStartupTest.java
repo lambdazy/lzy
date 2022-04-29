@@ -8,7 +8,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.Assert;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.LzyFsServer;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -21,7 +20,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
-            LzyFsServer.DEFAULT_PORT,
+            DEFAULT_SERVANT_FS_PORT,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
 
@@ -48,7 +47,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
-            LzyFsServer.DEFAULT_PORT,
+            DEFAULT_SERVANT_FS_PORT,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
         final boolean status = terminal.waitForStatus(
@@ -98,7 +97,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
-            LzyFsServer.DEFAULT_PORT,
+            DEFAULT_SERVANT_FS_PORT,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
         final boolean started = terminal.waitForStatus(
@@ -128,7 +127,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
-            LzyFsServer.DEFAULT_PORT,
+            DEFAULT_SERVANT_FS_PORT,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
 
