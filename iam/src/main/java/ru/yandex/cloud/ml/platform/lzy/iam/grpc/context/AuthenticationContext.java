@@ -4,20 +4,21 @@ import io.grpc.Context;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.TokenParser;
-import yandex.cloud.lzy.v1.IAM;
 
 public class AuthenticationContext {
     public static Context.Key<AuthenticationContext> KEY = Context.key("authentication-context");
 
     private final TokenParser.Token token;
-    private final AbstractCredentials credentials;
-    private final IAM.Subject subject;
+    private final Credentials credentials;
+    private final Subject subject;
 
     public AuthenticationContext(
             @Nonnull TokenParser.Token token,
-            @Nonnull AbstractCredentials credentials,
-            @Nonnull IAM.Subject subject
+            @Nonnull Credentials credentials,
+            @Nonnull Subject subject
     ) {
         this.token =  Objects.requireNonNull(token, "token is null");
         this.credentials = Objects.requireNonNull(credentials, "credentials is null");
@@ -30,7 +31,7 @@ public class AuthenticationContext {
     }
 
     @Nonnull
-    public AbstractCredentials getCredentials() {
+    public Credentials getCredentials() {
         return this.credentials;
     }
 

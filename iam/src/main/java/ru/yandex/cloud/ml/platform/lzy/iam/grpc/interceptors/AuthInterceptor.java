@@ -12,10 +12,14 @@ import io.grpc.StatusException;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.function.Function;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AuthenticateService;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthUnauthenticatedException;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.TokenParser;
-import yandex.cloud.lzy.v1.IAM;
 
 
 public class AuthInterceptor implements ServerInterceptor {
@@ -24,18 +28,23 @@ public class AuthInterceptor implements ServerInterceptor {
     );
     private final Function<AuthException, StatusException> exceptionMapper;
     private final Set<MethodDescriptor<?, ?>> unauthenticatedMethods;
+    private final AuthenticateService cloudAuthClient;
 
-    public AuthInterceptor() {
-        this(AuthInterceptor::defaultExceptionMapper);
+    public AuthInterceptor(AuthenticateService cloudAuthClient) {
+        this(AuthInterceptor::defaultExceptionMapper, cloudAuthClient);
     }
 
-    public AuthInterceptor(Function<AuthException, StatusException> exceptionMapper) {
-        this(exceptionMapper, ImmutableSet.of());
+    public AuthInterceptor(Function<AuthException, StatusException> exceptionMapper,
+                           AuthenticateService cloudAuthClient) {
+        this(exceptionMapper, ImmutableSet.of(), cloudAuthClient);
     }
 
-    AuthInterceptor(Function<AuthException, StatusException> exceptionMapper, Set<MethodDescriptor<?, ?>> unauthenticatedMethods) {
+    AuthInterceptor(Function<AuthException, StatusException> exceptionMapper,
+                    Set<MethodDescriptor<?, ?>> unauthenticatedMethods,
+                    AuthenticateService cloudAuthClient) {
         this.exceptionMapper = exceptionMapper;
         this.unauthenticatedMethods = unauthenticatedMethods;
+        this.cloudAuthClient = cloudAuthClient;
     }
 
     private static StatusException defaultExceptionMapper(AuthException e) {
@@ -43,10 +52,10 @@ public class AuthInterceptor implements ServerInterceptor {
     }
 
     public AuthInterceptor withUnauthenticated(MethodDescriptor<?, ?>... unauthenticatedMethods) {
-        return this.withUnauthenticated((Iterable) Arrays.asList(unauthenticatedMethods));
+        return this.withUnauthenticated(Arrays.asList(unauthenticatedMethods));
     }
 
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public AuthInterceptor withUnauthenticated(Iterable<MethodDescriptor<?, ?>> unauthenticatedMethods) {
         ImmutableSet unauthenticatedMethodSet;
         if (this.unauthenticatedMethods.isEmpty()) {
@@ -55,7 +64,7 @@ public class AuthInterceptor implements ServerInterceptor {
             unauthenticatedMethodSet = ImmutableSet.builder().addAll(this.unauthenticatedMethods).addAll(unauthenticatedMethods).build();
         }
 
-        return new AuthInterceptor(this.exceptionMapper, unauthenticatedMethodSet);
+        return new AuthInterceptor(exceptionMapper, unauthenticatedMethodSet, cloudAuthClient);
     }
 
     @Override
@@ -65,7 +74,7 @@ public class AuthInterceptor implements ServerInterceptor {
             ServerCallHandler<T, R> next
     ) {
         try {
-            if (this.unauthenticatedMethods.contains(call.getMethodDescriptor())) {
+            if (unauthenticatedMethods.contains(call.getMethodDescriptor())) {
                 return next.startCall(call, headers);
             } else {
                 AuthenticationContext authContext = authenticate(headers);
@@ -76,34 +85,33 @@ public class AuthInterceptor implements ServerInterceptor {
                     return Contexts.interceptCall(context, call, headers, next);
                 }
             }
-        } catch (IllegalArgumentException var6) {
-            return this.closeCall(call, (StatusException) this.exceptionMapper.apply(new CloudAuthUnauthenticatedException(var6, "")));
-        } catch (CloudAuthException var7) {
-            return this.closeCall(call, (StatusException) this.exceptionMapper.apply(var7));
+        } catch (IllegalArgumentException iaException) {
+            return this.closeCall(call, exceptionMapper.apply(new AuthUnauthenticatedException(iaException, "")));
+        } catch (AuthException authException) {
+            return this.closeCall(call, exceptionMapper.apply(authException));
         }
     }
 
     protected AuthenticationContext authenticate(Metadata headers) {
-        String authorizationHeader = (String) headers.get(AUTHORIZATION);
+        String authorizationHeader = headers.get(AUTHORIZATION);
         if (authorizationHeader == null) {
             return null;
         } else {
             TokenParser.Token token = TokenParser.parse(authorizationHeader);
-            AbstractCredentials credentials;
+            Credentials credentials;
             if (token.kind() == TokenParser.Token.Kind.JWT_TOKEN) {
-                credentials = new IamToken(token.token());
+                credentials = new JwtCredentials(token.token());
             } else {
                 throw new IllegalStateException("Unknown kind of credentials");
             }
-            IAM.Subject subject = this.cloudAuthClient.authenticate(credentials);
+            Subject subject = cloudAuthClient.authenticate(credentials);
             return new AuthenticationContext(token, credentials, subject);
         }
     }
 
     private <T, R> ServerCall.Listener<T> closeCall(ServerCall<T, R> call, StatusException statusException) {
         call.close(statusException.getStatus(), statusException.getTrailers());
-        return new ServerCall.Listener<T>() {
-        };
+        return new ServerCall.Listener<>() {};
     }
 
 }
