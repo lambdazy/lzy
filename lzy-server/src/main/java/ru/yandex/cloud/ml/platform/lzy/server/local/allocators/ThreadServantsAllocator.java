@@ -1,13 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local.allocators;
 
-import com.gc.iotools.stream.utils.StreamUtils;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
@@ -24,7 +22,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -43,10 +41,10 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
         this.serverConfig = serverConfig;
         try {
             final File servantJar = new File(serverConfig.getThreadAllocator().getFilePath());
-            final URLClassLoader classLoader = new URLClassLoader(new URL[]{servantJar.toURI().toURL()},
-                    ClassLoader.getSystemClassLoader());
+            final URLClassLoader classLoader = new URLClassLoader(new URL[] {servantJar.toURI().toURL()},
+                ClassLoader.getSystemClassLoader());
             final Class<?> servantClass = Class.forName(serverConfig.getThreadAllocator().getServantClassName(),
-                    true, classLoader);
+                true, classLoader);
             servantMain = servantClass.getDeclaredMethod("execute", String[].class);
 
         } catch (MalformedURLException | ClassNotFoundException | NoSuchMethodException e) {
@@ -65,13 +63,14 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
             @Override
             public void run() {
                 try {
-                    servantMain.invoke(null, (Object) new String[]{
+                    servantMain.invoke(null, (Object) new String[] {
                         "--lzy-address", serverConfig.getServerUri(),
                         "--lzy-whiteboard", serverConfig.getWhiteboardUrl(),
                         "--lzy-mount", "/tmp/lzy" + servantNumber,
                         "--host", URI.create(serverConfig.getServerUri()).getHost(),
                         "--internal-host", URI.create(serverConfig.getServerUri()).getHost(),
-                        "--port", Integer.toString(FreePortFinder.find(10000, 20000)),
+                        "--port", Integer.toString(FreePortFinder.find(10000, 11000)),
+                        "--fs-port", Integer.toString(FreePortFinder.find(11000, 12000)),
                         "start",
                         "--bucket", bucket,
                         "--sid", servantId.toString(),

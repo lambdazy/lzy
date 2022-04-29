@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -40,7 +41,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private LzyContext context;
 
     public LzyTerminal(LzyAgentConfig config) throws URISyntaxException, IOException {
-        super(config);
+        super(LzyAgentConfig.updateServantId(config, "term_" + UUID.randomUUID()));
 
         agentUri = new URI(LzyTerminal.scheme(), null, config.getAgentName(), config.getAgentPort(), null, null, null);
 

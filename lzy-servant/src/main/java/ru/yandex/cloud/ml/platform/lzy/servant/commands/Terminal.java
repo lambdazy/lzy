@@ -75,10 +75,6 @@ public class Terminal implements LzyCommand {
             builder.token("");
         }
 
-        if (!localCmd.hasOption('d')) {
-            builder.servantId(UUID.randomUUID().toString());
-        }
-
         final LzyAgentConfig agentConfig = builder.build();
         final LzyAgent terminal = localCmd.hasOption('d') ? new LzyServant(agentConfig) : new LzyTerminal(agentConfig);
 

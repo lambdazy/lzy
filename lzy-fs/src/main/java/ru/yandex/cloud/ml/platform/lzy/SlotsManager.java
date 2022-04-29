@@ -41,6 +41,7 @@ public class SlotsManager implements AutoCloseable {
 
     @Override
     public synchronized void close() throws InterruptedException {
+        LOG.info("Close SlotsManager...");
         while (!task2slots.isEmpty()) {
             LOG.info("Waiting for slots: {}...", Arrays.toString(slots().map(LzySlot::name).toArray()));
             this.wait();

@@ -66,6 +66,7 @@ public class LzyKharon {
     private final ServantConnectionManager connectionManager = new ServantConnectionManager();
     private final Server kharonServer;
     private final Server kharonServantProxy;
+    private final Server kharonServantFsProxy;
     private final ManagedChannel serverChannel;
     private final ManagedChannel whiteboardChannel;
     private final ManagedChannel snapshotChannel;
@@ -111,6 +112,11 @@ public class LzyKharon {
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors.intercept(new KharonServantProxyService(), new SessionIdInterceptor()))
+            .build();
+
+        kharonServantFsProxy = NettyServerBuilder.forPort(servantFsProxyPort)
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors.intercept(new KharonServantFsProxyService(), new SessionIdInterceptor()))
             .build();
     }
@@ -145,17 +151,20 @@ public class LzyKharon {
     public void start() throws IOException {
         kharonServer.start();
         kharonServantProxy.start();
+        kharonServantFsProxy.start();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("gRPC server is shutting down!");
             kharonServer.shutdown();
             kharonServantProxy.shutdown();
+            kharonServantFsProxy.shutdown();
         }));
     }
 
     public void awaitTermination() throws InterruptedException {
         kharonServer.awaitTermination();
         kharonServantProxy.awaitTermination();
+        kharonServantFsProxy.awaitTermination();
     }
 
     public void close() {
@@ -164,6 +173,7 @@ public class LzyKharon {
         snapshotChannel.shutdownNow();
         kharonServer.shutdownNow();
         kharonServantProxy.shutdownNow();
+        kharonServantFsProxy.shutdownNow();
     }
 
     private static class ProxyCall {

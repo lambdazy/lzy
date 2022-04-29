@@ -508,7 +508,7 @@ public class LzyServer {
                             terminalThreads.remove(Thread.currentThread());
                         }
                     },
-                    "Terminal " + request.getServantId() + " for user " + auth.getUser()
+                    "Terminal " + request.getServantId() + " for user " + auth.getUser().getUserId()
                 );
                 terminalThread.setDaemon(true);
                 terminalThread.start();

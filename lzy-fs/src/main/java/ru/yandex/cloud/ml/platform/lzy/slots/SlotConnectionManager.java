@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.slots;
 
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
+import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.snapshot.Snapshooter;
 import ru.yandex.cloud.ml.platform.lzy.snapshot.SnapshooterImpl;
@@ -57,42 +58,37 @@ public class SlotConnectionManager {
         final Iterator<Servant.Message> msgIter;
         final ManagedChannel channel;
 
-        switch (slotUri.getScheme()) {
-            case "kharon": {
-                channel = ChannelBuilder
-                    .forAddress(slotUri.getHost(), slotUri.getPort())
-                    .usePlaintext()
-                    .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                    .build();
-                final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(channel);
+        if (UriScheme.LzyKharon.match(slotUri)) {
+            channel = ChannelBuilder
+                .forAddress(slotUri.getHost(), slotUri.getPort())
+                .usePlaintext()
+                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                .build();
+            final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(channel);
 
-                msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
-                    .setOffset(offset)
-                    .setSlotUri(slotUri.toString())
-                    .build()
-                ));
-                break;
-            }
-            default: {
-                channel = ChannelBuilder
-                    .forAddress(slotUri.getHost(), slotUri.getPort())
-                    .usePlaintext()
-                    .enableRetry(LzyFsGrpc.SERVICE_NAME)
-                    .build();
-                final LzyFsGrpc.LzyFsBlockingStub stub = LzyFsGrpc.newBlockingStub(channel);
+            msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
+                .setOffset(offset)
+                .setSlotUri(slotUri.toString())
+                .build()
+            ));
+        } else  {
+            channel = ChannelBuilder
+                .forAddress(slotUri.getHost(), slotUri.getPort())
+                .usePlaintext()
+                .enableRetry(LzyFsGrpc.SERVICE_NAME)
+                .build();
+            final LzyFsGrpc.LzyFsBlockingStub stub = LzyFsGrpc.newBlockingStub(channel);
 
-                msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
-                    .setOffset(offset)
-                    .setSlotUri(slotUri.toString())
-                    .build()
-                ));
-            }
+            msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
+                .setOffset(offset)
+                .setSlotUri(slotUri.toString())
+                .build()
+            ));
         }
 
-        return StreamSupport.stream(
-            Spliterators.spliteratorUnknownSize(msgIter, Spliterator.NONNULL),
-            false
-        ).map(msg -> msg.hasChunk() ? msg.getChunk() : ByteString.EMPTY).onClose(channel::shutdownNow);
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(msgIter, Spliterator.NONNULL), false)
+            .map(msg -> msg.hasChunk() ? msg.getChunk() : ByteString.EMPTY)
+            .onClose(channel::shutdownNow);
     }
 
     private Transmitter resolveStorage(URI uri) {

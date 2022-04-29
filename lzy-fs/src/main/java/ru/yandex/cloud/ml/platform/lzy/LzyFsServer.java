@@ -119,11 +119,13 @@ public final class LzyFsServer {
     }
 
     public void stop() {
+        LOG.info("LzyFs shutdown request at {}.", selfUri);
         lzyServerChannel.shutdown();
         localServer.shutdown();
     }
 
     public void awaitTermination() throws InterruptedException, IOException {
+        LOG.info("LzyFs awaiting termination at {}.", selfUri);
         lzyServerChannel.awaitTermination(30, TimeUnit.SECONDS);
         localServer.awaitTermination();
         slotsManager.close();

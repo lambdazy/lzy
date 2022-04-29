@@ -41,7 +41,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             return;
         }
         connected = null;
-        LOG.info("LzyInputSlotBase:: disconnected " + this);
+        LOG.info("LzyInputSlotBase:: disconnected {}", toString());
         state(Operations.SlotStatus.State.SUSPENDED);
     }
 
@@ -60,6 +60,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                     offset += chunk.size();
                 }
             });
+            dataProvider.close();
         } catch (StatusRuntimeException e) {
             LOG.error("InputSlotBase:: Failed openOutputSlot connection to servant " + connected, e);
         } finally {

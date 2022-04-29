@@ -23,8 +23,8 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 public class TerminalCrashTest extends LzyBaseTest {
 
     private LzyTerminalTestContext.Terminal createTerminal(String mount) {
-        return createTerminal(FreePortFinder.find(20000, 30000), FreePortFinder.find(20000, 30000),
-            FreePortFinder.find(20000, 30000), mount);
+        return createTerminal(FreePortFinder.find(20000, 21000), FreePortFinder.find(21000, 22000),
+            FreePortFinder.find(22000, 23000), mount);
     }
 
     private LzyTerminalTestContext.Terminal createTerminal(int port, int fsPort, int debugPort, String mount) {
@@ -80,9 +80,9 @@ public class TerminalCrashTest extends LzyBaseTest {
         );
 
         LzyTerminalTestContext.Terminal terminal2 = createTerminal(
-            FreePortFinder.find(20000, 30000),
-            FreePortFinder.find(20000, 30000),
-            FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(23000, 23100),
+            FreePortFinder.find(23100, 23200),
+            FreePortFinder.find(23200, 23300),
             "/tmp/term2");
 
         //Assert
@@ -123,14 +123,14 @@ public class TerminalCrashTest extends LzyBaseTest {
     public void parallelExecutionOneTerminalFails() throws ExecutionException, InterruptedException {
         //Arrange
         final LzyTerminalTestContext.Terminal terminal1 = createTerminal(
-            FreePortFinder.find(20000, 30000),
-            FreePortFinder.find(20000, 30000),
-            FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(20000, 20100),
+            FreePortFinder.find(20100, 20200),
+            FreePortFinder.find(20200, 20300),
             "");
         final LzyTerminalTestContext.Terminal terminal2 = createTerminal(
-            FreePortFinder.find(20000, 30000),
-            FreePortFinder.find(20000, 30000),
-            FreePortFinder.find(20000, 30000),
+            FreePortFinder.find(20300, 20400),
+            FreePortFinder.find(20400, 20500),
+            FreePortFinder.find(20500, 20600),
             "");
         final FileIOOperation echo42 = new FileIOOperation(
             "echo42",

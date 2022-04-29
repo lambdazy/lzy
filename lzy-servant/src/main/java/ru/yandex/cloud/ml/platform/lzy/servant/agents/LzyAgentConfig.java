@@ -32,6 +32,12 @@ public class LzyAgentConfig {
         this.bucket = bucket;
     }
 
+    public static LzyAgentConfig updateServantId(LzyAgentConfig config, String servantId) {
+        return new LzyAgentConfig(config.serverAddress, config.whiteboardAddress, config.agentName,
+            config.agentInternalName, config.token, config.root, config.user, servantId, config.agentPort,
+            config.fsPort, config.bucket);
+    }
+
     public static LzyAgentConfigBuilder builder() {
         return new LzyAgentConfigBuilder();
     }
