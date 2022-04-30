@@ -115,7 +115,7 @@ public final class Channel implements LzyCommand {
                     final Channels.ChannelStatus channelStatus = server.channel(channelReq);
                     System.out.println(JsonFormat.printer().print(channelStatus));
                 } catch (StatusRuntimeException e) {
-                    System.err.println(
+                    System.out.println(
                         "Got exception while channel status (status_code=" + e.getStatus().getCode() + ")");
                 }
 
@@ -138,7 +138,7 @@ public final class Channel implements LzyCommand {
                     System.out.println(JsonFormat.printer().print(channelStatus));
                     System.out.println("Channel destroyed");
                 } catch (StatusRuntimeException e) {
-                    System.err.println(
+                    System.out.println(
                         "Got exception while channel destroy (status_code=" + e.getStatus().getCode() + ")");
                 }
 

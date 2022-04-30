@@ -143,7 +143,6 @@ public class ServantEndpoint implements Endpoint {
                             .setEntryId(entryId)
                             .build())
                         .build());
-            System.err.println("--> " + rc.toString());
         } catch (StatusRuntimeException sre) {
             LOG.error("Unable to send snapshot command " + this + "\n Cause:\n" + sre);
         }

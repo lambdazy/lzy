@@ -23,8 +23,11 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 public class TerminalCrashTest extends LzyBaseTest {
 
     private LzyTerminalTestContext.Terminal createTerminal(String mount) {
-        return createTerminal(FreePortFinder.find(20000, 21000), FreePortFinder.find(21000, 22000),
-            FreePortFinder.find(22000, 23000), mount);
+        return createTerminal(
+            FreePortFinder.find(20000, 21000),
+            FreePortFinder.find(21000, 22000),
+            FreePortFinder.find(22000, 23000),
+            mount);
     }
 
     private LzyTerminalTestContext.Terminal createTerminal(int port, int fsPort, int debugPort, String mount) {
@@ -72,6 +75,7 @@ public class TerminalCrashTest extends LzyBaseTest {
                 throw new RuntimeException(e);
             }
             terminal1.shutdownNow();
+            terminal1.waitForShutdown(30, TimeUnit.SECONDS);
         });
         terminal1.run(
             cat.getName(),

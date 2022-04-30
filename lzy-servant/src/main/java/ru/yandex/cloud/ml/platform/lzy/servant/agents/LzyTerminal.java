@@ -124,7 +124,11 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
     @Override
     public void close() {
-        context.slots().forEach(LzySlot::suspend);
+        LOG.info("Close terminal...");
+        context.slots().forEach(slot -> {
+            LOG.info("  suspending slot {} ({})...", slot.name(), slot.status().getState());
+            slot.suspend();
+        });
         context.close();
         commandHandler.onCompleted();
         channel.shutdown();

@@ -127,5 +127,10 @@ public class LzyContext implements AutoCloseable {
 
     @Override
     public void close() {
+        try {
+            slotsManager.close();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

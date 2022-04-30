@@ -32,6 +32,7 @@ public class SlotsManager implements AutoCloseable {
     // { task -> { slot -> LzySlot } }
     private final Map<String, Map<String, LzySlot>> task2slots = new ConcurrentHashMap<>();
     private final List<Consumer<Servant.ServantProgress>> listeners = new ArrayList<>();
+    private boolean closed = false;
 
 
     public SlotsManager(String contextId, URI localLzyFsUri) {
@@ -41,6 +42,9 @@ public class SlotsManager implements AutoCloseable {
 
     @Override
     public synchronized void close() throws InterruptedException {
+        if (closed) {
+            return;
+        }
         LOG.info("Close SlotsManager...");
         while (!task2slots.isEmpty()) {
             LOG.info("Waiting for slots: {}...", Arrays.toString(slots().map(LzySlot::name).toArray()));
@@ -49,6 +53,7 @@ public class SlotsManager implements AutoCloseable {
         progress(Servant.ServantProgress.newBuilder()
             .setExit(Servant.Concluded.newBuilder().build())
             .build());
+        closed = true;
     }
 
     @Nullable
