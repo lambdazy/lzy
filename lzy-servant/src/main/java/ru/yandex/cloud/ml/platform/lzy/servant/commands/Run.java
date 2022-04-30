@@ -80,7 +80,8 @@ public class Run implements LzyCommand {
 
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
-        {
+
+        if (pid != 0 /* always true */) {
             final ManagedChannel serverCh = ChannelBuilder
                 .forAddress(serverAddr.getHost(), serverAddr.getPort())
                 .usePlaintext()
@@ -88,7 +89,8 @@ public class Run implements LzyCommand {
                 .build();
             server = LzyServerGrpc.newBlockingStub(serverCh);
         }
-        {
+
+        if (pid != 0 /* always true */) {
             final ManagedChannel servant = ChannelBuilder
                 .forAddress("localhost", Integer.parseInt(command.getOptionValue('q')))
                 .usePlaintext()
