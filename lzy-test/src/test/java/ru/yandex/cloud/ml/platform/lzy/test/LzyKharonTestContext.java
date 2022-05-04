@@ -11,6 +11,8 @@ public interface LzyKharonTestContext {
 
     String servantFsAddress(boolean fromDocker);
 
+    String servantFsAddress(boolean fromDocker);
+
     LzyKharonGrpc.LzyKharonBlockingStub client();
 
     void init();
