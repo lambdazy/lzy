@@ -190,7 +190,6 @@ public abstract class LzyAgent implements Closeable {
             scriptBuilder.append(String.join(" ", commandParts)).append("\n");
             final String script = scriptBuilder.toString();
 
-            // todo: replace with grpc-call
             if (lzyFs.registerCommand(to, script, z)) {
                 LOG.info("Command `{}` registered.", to);
             } else {

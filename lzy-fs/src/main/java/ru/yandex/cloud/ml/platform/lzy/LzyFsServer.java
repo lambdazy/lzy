@@ -6,7 +6,6 @@ import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.serce.jnrfuse.ErrorCodes;
 import ru.serce.jnrfuse.FuseException;
 import ru.yandex.cloud.ml.platform.lzy.commands.BuiltinLzyCommands;
 import ru.yandex.cloud.ml.platform.lzy.fs.*;
@@ -370,28 +369,6 @@ public final class LzyFsServer {
 
 
     private final class Impl extends LzyFsGrpc.LzyFsImplBase {
-        @Override
-        public void registerCommand(LzyFsApi.RegisterCommandRequest request,
-                                    StreamObserver<LzyFsApi.RegisterCommandResponse> responseObserver) {
-            boolean added = LzyFsServer.this.registerCommand(
-                Path.of(request.getPath()), request.getCommand(), request.getZygote());
-
-            responseObserver.onNext(
-                LzyFsApi.RegisterCommandResponse.newBuilder()
-                    .setErrno(added ? 0 : ErrorCodes.EEXIST())
-                    .build());
-            responseObserver.onCompleted();
-        }
-
-        @Override
-        public void unregisterCommand(LzyFsApi.UnregisterCommandRequest request,
-                                      StreamObserver<LzyFsApi.UnregisterCommandResponse> responseObserver) {
-            responseObserver.onNext(
-                LzyFsApi.UnregisterCommandResponse.newBuilder()
-                    .build());
-            responseObserver.onCompleted();
-        }
-
         @Override
         public void configureSlot(LzyFsApi.SlotCommand request,
                                   StreamObserver<LzyFsApi.SlotCommandStatus> responseObserver) {

@@ -207,7 +207,6 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             @Override
             public ByteString next() {
                 bb.flip();
-                LOG.info("Send from slot {} data {}", name(), bb.toString());
                 return ByteString.copyFrom(bb);
             }
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), false);
