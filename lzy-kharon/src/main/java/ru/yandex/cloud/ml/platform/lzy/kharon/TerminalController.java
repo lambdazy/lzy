@@ -7,30 +7,23 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
-import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 
-public class TerminalConnection {
-    private static final Logger LOG = LogManager.getLogger(TerminalConnection.class);
+public class TerminalController {
+    private static final Logger LOG = LogManager.getLogger(TerminalController.class);
 
-    private final StreamObserver<Kharon.TerminalCommand> terminalController;
-    private final Map<UUID, CompletableFuture<Kharon.TerminalState>> terminalCommands = new ConcurrentHashMap<>();
-    private String user;
+    private final StreamObserver<Kharon.TerminalCommand> commandStreamObserver;
+    private final Map<UUID, CompletableFuture<Servant.SlotCommandStatus>> terminalCommands = new ConcurrentHashMap<>();
 
-    public TerminalConnection(StreamObserver<Kharon.TerminalCommand> terminalController) {
-        this.terminalController = terminalController;
+    public TerminalController(StreamObserver<Kharon.TerminalCommand> commandStreamObserver) {
+        this.commandStreamObserver = commandStreamObserver;
     }
 
-    public String user() {
-        return user;
-    }
-
-    @Nullable
     public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) {
-        LOG.info("Kharon sessionId " + sessionId + " ::configureSlot " + JsonUtils.printRequest(request));
-        final CompletableFuture<Kharon.TerminalState> future = new CompletableFuture<>();
+        LOG.info("Kharon sessionId " + sessionId + " configureSlot " + JsonUtils.printRequest(request));
+        final CompletableFuture<Servant.SlotCommandStatus> future = new CompletableFuture<>();
 
         final UUID commandId = UUID.randomUUID();
         terminalCommands.put(commandId, future);
@@ -40,30 +33,33 @@ public class TerminalConnection {
                 .setSlotCommand(request)
                 .build();
         LOG.info("terminalController send request " + JsonUtils.printRequest(sendingRequest));
-        synchronized (terminalController) {
+        synchronized (commandStreamObserver) {
             try {
-                terminalController.onNext(sendingRequest);
+                commandStreamObserver.onNext(sendingRequest);
             } catch (RuntimeException e) { // FIXME(d-kruchinin): why cannot catch StatusRuntimeException?
                 LOG.warn(
-                        "Kharon session={} was cancelled, but got configureSlot return -1;\n Cause: {}",
-                        sessionId, e);
+                    "Kharon terminal stream for session={} was cancelled, "
+                    + "but got configureSlot, returning -1;\n Cause: {}",
+                    sessionId, e);
                 return Servant.SlotCommandStatus.newBuilder()
                         .setRc(Servant.SlotCommandStatus.RC.newBuilder().setCodeValue(-1)).build();
             }
         }
         try {
-            return future.get(10, TimeUnit.SECONDS).getSlotStatus();
+            return future.get(10, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             LOG.error("Failed while configure slot in bidirectional stream " + e);
         }
         return Servant.SlotCommandStatus.newBuilder().build();
     }
 
-    public void slotStatus(UUID commandId, Servant.SlotCommandStatus slotStatus) {
-        final CompletableFuture<Kharon.TerminalState> future = terminalCommands.get(commandId);
+    public void handleTerminalResponse(Kharon.TerminalResponse response) {
+        final UUID commandId = UUID.fromString(response.getCommandId());
+        final Servant.SlotCommandStatus slotStatus = response.getSlotStatus();
+        final CompletableFuture<Servant.SlotCommandStatus> future = terminalCommands.get(commandId);
         if (future == null) {
             throw new IllegalStateException("No such terminal command " + commandId);
         }
-        future.complete(terminalState);
+        future.complete(slotStatus);
     }
 }

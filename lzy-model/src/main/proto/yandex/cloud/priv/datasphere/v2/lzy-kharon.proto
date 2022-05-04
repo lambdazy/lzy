@@ -24,17 +24,23 @@ service LzyKharon {
 }
 
 message TerminalState {
-  string commandId = 1;
   oneof progress {
-    AttachTerminal attachTerminal = 2;
-    SlotAttach attach = 3;
-    SlotDetach detach = 4;
-    SlotCommandStatus slotStatus = 5;
+    AttachTerminal attachTerminal = 1;
+    SlotAttach attach = 2;
+    SlotDetach detach = 3;
+    TerminalResponse terminalResponse = 4;
   }
 }
 
 message AttachTerminal {
   UserCredentials auth = 1;
+}
+
+message TerminalResponse {
+  string commandId = 1;
+  oneof content {
+    SlotCommandStatus slotStatus = 2;
+  }
 }
 
 message TerminalCommand {
