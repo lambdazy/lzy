@@ -49,7 +49,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         try (final Stream<ByteString> data = dataProvider) {
             data.forEach(chunk -> {
                 try {
-                    LOG.info("From {} chunk received {}", name(), chunk.toString(StandardCharsets.UTF_8));
+                    LOG.debug("From {} received chunk of size {}", name(), chunk.size());
                     onChunk(chunk);
                 } catch (IOException ioe) {
                     LOG.warn(
