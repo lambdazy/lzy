@@ -2,17 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -22,21 +11,31 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AttachServant;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus.RC;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommandStatus.RC;
+
+import javax.annotation.Nullable;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TerminalSession {
     public static final String SESSION_ID_KEY = "kharon_session_id";
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
+
     private final CompletableFuture<StreamObserver<Servant.ServantProgress>> executeFromServerFuture =
         new CompletableFuture<>();
     private final StreamObserver<Kharon.TerminalState> terminalStateObserver;
     private final StreamObserver<Kharon.TerminalCommand> terminalController;
     private final AtomicBoolean invalid = new AtomicBoolean(false);
     private final UUID servantId = UUID.randomUUID();
-    private final URI kharonServantProxyAddress;
+    private final URI kharonFsProxyAddress;
     private final Map<UUID, CompletableFuture<Kharon.TerminalState>> tasks = new ConcurrentHashMap<>();
     private StreamObserver<Servant.ServantProgress> executionProgress;
     private String user;
@@ -44,9 +43,9 @@ public class TerminalSession {
     public TerminalSession(
         LzyServerGrpc.LzyServerBlockingStub lzyServer,
         StreamObserver<Kharon.TerminalCommand> terminalCommandObserver,
-        URI kharonServantAddress
+        URI kharonServantAddress, URI kharonFsAddress
     ) {
-        this.kharonServantProxyAddress = kharonServantAddress;
+        this.kharonFsProxyAddress = kharonFsAddress;
         terminalController = terminalCommandObserver;
         terminalStateObserver = new StreamObserver<>() {
             @Override
@@ -77,6 +76,11 @@ public class TerminalSession {
                         if (servantAddr.contains("host.docker.internal")) {
                             servantAddr = servantAddr.replace("host.docker.internal", "localhost");
                         }
+                        String fsAddr = kharonFsAddress.toString();
+                        if (fsAddr.contains("host.docker.internal")) {
+                            fsAddr = fsAddr.replace("host.docker.internal", "localhost");
+                        }
+
                         try {
                             //noinspection ResultOfMethodCallIgnored
                             lzyServer.registerServant(AttachServant.newBuilder()
@@ -84,6 +88,7 @@ public class TerminalSession {
                                     .setUser(userCredentials)
                                     .build())
                                 .setServantURI(servantAddr)
+                                .setFsURI(fsAddr)
                                 .setServantId(servantId.toString())
                                 .build());
                         } catch (StatusRuntimeException e) {
@@ -97,7 +102,7 @@ public class TerminalSession {
                         executionProgress.onNext(Servant.ServantProgress.newBuilder()
                             .setAttach(Servant.SlotAttach.newBuilder()
                                 .setSlot(attach.getSlot())
-                                .setUri(convertToKharonServantUri(attach.getUri()))
+                                .setUri(convertToKharonServantFsUri(attach.getUri()))
                                 .setChannel(attach.getChannel())
                                 .build())
                             .build());
@@ -108,7 +113,7 @@ public class TerminalSession {
                         executionProgress.onNext(Servant.ServantProgress.newBuilder()
                             .setDetach(Servant.SlotDetach.newBuilder()
                                 .setSlot(detach.getSlot())
-                                .setUri(convertToKharonServantUri(detach.getUri()))
+                                .setUri(convertToKharonServantFsUri(detach.getUri()))
                                 .build())
                             .build());
                         break;
@@ -165,7 +170,7 @@ public class TerminalSession {
     }
 
     @Nullable
-    public Servant.SlotCommandStatus configureSlot(SlotCommand request) {
+    public LzyFsApi.SlotCommandStatus configureSlot(SlotCommand request) {
         LOG.info("Kharon sessionId " + servantId + " ::configureSlot " + JsonUtils.printRequest(
             request));
         final CompletableFuture<Kharon.TerminalState> future = new CompletableFuture<>();
@@ -182,7 +187,7 @@ public class TerminalSession {
                 LOG.warn(
                     "Kharon session={} was cancelled, but got configureSlot return -1;\n Cause: {}",
                     servantId, e);
-                return Servant.SlotCommandStatus.newBuilder()
+                return LzyFsApi.SlotCommandStatus.newBuilder()
                     .setRc(RC.newBuilder().setCodeValue(-1)).build();
             }
         }
@@ -191,7 +196,7 @@ public class TerminalSession {
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             LOG.error("Failed while configure slot in bidirectional stream " + e);
         }
-        return Servant.SlotCommandStatus.newBuilder().build();
+        return LzyFsApi.SlotCommandStatus.newBuilder().build();
     }
 
     private void checkTerminalAndServantState() {
@@ -213,14 +218,14 @@ public class TerminalSession {
         return taskId.toString();
     }
 
-    private String convertToKharonServantUri(String slotStrUri) {
+    private String convertToKharonServantFsUri(String slotStrUri) {
         try {
             final URI slotUri = URI.create(slotStrUri);
             return new URI(
                 slotUri.getScheme(),
                 null,
-                kharonServantProxyAddress.getHost(),
-                kharonServantProxyAddress.getPort(),
+                kharonFsProxyAddress.getHost(),
+                kharonFsProxyAddress.getPort(),
                 slotUri.getPath(),
                 SESSION_ID_KEY + "=" + servantId,
                 null

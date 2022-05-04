@@ -11,7 +11,6 @@ import io.micronaut.context.exceptions.NoSuchBeanException;
 import jakarta.inject.Inject;
 import org.apache.commons.cli.*;
 import org.apache.commons.lang.NotImplementedException;
-import org.apache.commons.lang.SystemUtils;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,7 +25,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager.Signal;
-import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.mem.ZygoteRepositoryImpl;
@@ -46,7 +44,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskSignal;
 import java.io.IOException;
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -56,11 +53,11 @@ import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
 import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.*;
 
 public class LzyServer {
+    public static final int MAX_TASK_RETRIES = 5;
     private static final Logger LOG;
     private static final Options options = new Options();
     private static final String LZY_SERVER_HOST_ENV = "LZY_SERVER_HOST";
     private static final String DEFAULT_LZY_SERVER_LOCALHOST = "http://localhost";
-    public static final int MAX_TASK_RETRIES = 5;
 
     static {
         // This is to avoid this bug: https://issues.apache.org/jira/browse/LOG4J2-2375
@@ -288,7 +285,7 @@ public class LzyServer {
             final AtomicBoolean concluded = new AtomicBoolean(false);
             // [TODO] session per user is too simple
             final Task task = tasks.start(uid, parent, workload, assignments, auth);
-            final int[] retries = new int[]{0};
+            final int[] retries = new int[] {0};
             task.onProgress(progress -> {
                 if (concluded.get())
                     return;
@@ -299,7 +296,7 @@ public class LzyServer {
                         .whenComplete((connection, th) -> {
                             if (th != null) {
                                 task.state(Task.State.ERROR, ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
-                                        th.getMessage(), Arrays.toString(th.getStackTrace()));
+                                    th.getMessage(), Arrays.toString(th.getStackTrace()));
                             } else {
                                 task.attachServant(connection);
                                 auth.registerTask(uid, task, connection.id());
@@ -471,33 +468,47 @@ public class LzyServer {
             }
 
             final URI servantUri = URI.create(request.getServantURI());
+            final URI fsUri = URI.create(request.getFsURI());
+
             if (auth.hasTask()) {
                 final UUID servantId = UUID.fromString(auth.getTask().getServantId());
-                servantsAllocator.register(servantId, servantUri);
+                servantsAllocator.register(servantId, servantUri, fsUri);
             } else {
                 final Thread terminalThread = new Thread(
                     TERMINAL_THREADS,
                     () -> {
                         final String sessionId = request.getServantId();
                         Context.current().addListener(ctxt -> Thread.currentThread().interrupt(), Runnable::run);
-                        final ManagedChannel channel = ChannelBuilder
+
+                        final ManagedChannel servantChannel = ChannelBuilder
                             .forAddress(servantUri.getHost(), servantUri.getPort())
                             .usePlaintext()
                             .enableRetry(LzyServantGrpc.SERVICE_NAME)
                             .build();
 
+                        final ManagedChannel fsChannel = ChannelBuilder
+                            .forAddress(fsUri.getHost(), fsUri.getPort())
+                            .usePlaintext()
+                            .enableRetry(LzyFsGrpc.SERVICE_NAME)
+                            .build();
+
                         final Metadata metadata = new Metadata();
                         metadata.put(Constants.SESSION_ID_METADATA_KEY, sessionId);
+
                         final LzyServantGrpc.LzyServantBlockingStub servant = MetadataUtils
-                            .attachHeaders(LzyServantGrpc.newBlockingStub(channel), metadata);
+                            .attachHeaders(LzyServantGrpc.newBlockingStub(servantChannel), metadata);
+                        final LzyFsGrpc.LzyFsBlockingStub fs = MetadataUtils
+                            .attachHeaders(LzyFsGrpc.newBlockingStub(fsChannel), metadata);
+
                         try {
-                            runTerminal(auth, servant, UUID.fromString(sessionId));
+                            runTerminal(auth, servant, fs, UUID.fromString(sessionId));
                         } finally {
-                            channel.shutdownNow();
+                            servantChannel.shutdownNow();
+                            fsChannel.shutdownNow();
                             terminalThreads.remove(Thread.currentThread());
                         }
                     },
-                    "Terminal " + request.getServantId() + " for user " + auth.getUser()
+                    "Terminal " + request.getServantId() + " for user " + auth.getUser().getUserId()
                 );
                 terminalThread.setDaemon(true);
                 terminalThread.start();
@@ -578,7 +589,7 @@ public class LzyServer {
 
         @Override
         public void getUser(Lzy.GetUserRequest request,
-            StreamObserver<Lzy.GetUserResponse> responseObserver) {
+                            StreamObserver<Lzy.GetUserResponse> responseObserver) {
             final Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -594,24 +605,31 @@ public class LzyServer {
             responseObserver.onCompleted();
         }
 
-        /** [TODO] support interruption */
-        private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharon, UUID sessionId) {
+        /**
+         * [TODO] support interruption
+         */
+        private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharonServant,
+                                 LzyFsGrpc.LzyFsBlockingStub kharonFs, UUID sessionId) {
             final String user = auth.getUser().getUserId();
             servantsAllocator.registerSession(user, sessionId, this.auth.bucketForUser(user));
 
-            final Iterator<Servant.ServantProgress> start = kharon.start(IAM.Empty.newBuilder().build());
+            final Iterator<Servant.ServantProgress> start = kharonServant.start(IAM.Empty.newBuilder().build());
 
             tasks.slots(user).forEach((slot, channel) -> {
-                final Servant.SlotCommand slotCommand = Servant.SlotCommand.newBuilder()
-                    .setCreate(Servant.CreateSlotCommand.newBuilder()
+                final LzyFsApi.SlotCommand slotCommand = LzyFsApi.SlotCommand.newBuilder()
+                    .setCreate(LzyFsApi.CreateSlotCommand.newBuilder()
                         .setSlot(GrpcConverter.to(slot))
                         .setChannelId(channel.name())
                         .build())
                     .build();
-                final Servant.SlotCommandStatus status = kharon.configureSlot(slotCommand);
-                if (status.hasRc() && status.getRc().getCode() != Servant.SlotCommandStatus.RC.Code.SUCCESS)
-                    LOG.warn("Unable to configure kharon slot. session: " + sessionId + " slot: " + slot);
+                final LzyFsApi.SlotCommandStatus status = kharonFs.configureSlot(slotCommand);
+
+                if (status.hasRc() && status.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {
+                    LOG.error("Unable to configure kharon slot. session: {}, slot: {}, error: {}",
+                        sessionId, slot, status.getRc().toString());
+                }
             });
+
             try {
                 start.forEachRemaining(progress -> {
                     LOG.info("LzyServer::kharonTerminalProgress " + JsonUtils.printRequest(progress));
@@ -622,13 +640,13 @@ public class LzyServer {
                         final String channelName = attach.getChannel();
                         tasks.addUserSlot(user, slot, channels.get(channelName));
                         this.channels.bind(channels.get(channelName),
-                            new ServantEndpoint(slot, slotUri, sessionId, kharon));
+                            new ServantEndpoint(slot, slotUri, sessionId, kharonFs));
                     } else if (progress.hasDetach()) {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
                         tasks.removeUserSlot(user, slot);
-                        final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharon);
+                        final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharonFs);
                         final ChannelSpec bound = channels.bound(endpoint);
                         if (bound != null) {
                             channels.unbind(bound, endpoint);

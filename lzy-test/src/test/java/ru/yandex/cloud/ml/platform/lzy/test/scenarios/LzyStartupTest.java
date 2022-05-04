@@ -20,6 +20,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
+            DEFAULT_SERVANT_FS_PORT,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
 
@@ -46,6 +47,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
+            DEFAULT_SERVANT_FS_PORT,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
         final boolean status = terminal.waitForStatus(
@@ -95,6 +97,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
+            DEFAULT_SERVANT_FS_PORT,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
         final boolean started = terminal.waitForStatus(
@@ -124,6 +127,7 @@ public class LzyStartupTest extends LzyBaseTest {
         final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
+            DEFAULT_SERVANT_FS_PORT,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
 

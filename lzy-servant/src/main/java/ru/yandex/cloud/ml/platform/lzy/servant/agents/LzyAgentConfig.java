@@ -14,9 +14,11 @@ public class LzyAgentConfig {
     private final String servantId;
     private final String bucket;
     private final int agentPort;
+    private final int fsPort;
 
     private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentName, String agentInternalName,
-                           String token, Path root, String user, String servantId, int agentPort, String bucket) {
+                           String token, Path root, String user, String servantId, int agentPort, int fsPort,
+                           String bucket) {
         this.serverAddress = serverAddress;
         this.whiteboardAddress = whiteboardAddress;
         this.agentName = agentName;
@@ -26,7 +28,14 @@ public class LzyAgentConfig {
         this.user = user;
         this.servantId = servantId;
         this.agentPort = agentPort;
+        this.fsPort = fsPort;
         this.bucket = bucket;
+    }
+
+    public static LzyAgentConfig updateServantId(LzyAgentConfig config, String servantId) {
+        return new LzyAgentConfig(config.serverAddress, config.whiteboardAddress, config.agentName,
+            config.agentInternalName, config.token, config.root, config.user, servantId, config.agentPort,
+            config.fsPort, config.bucket);
     }
 
     public static LzyAgentConfigBuilder builder() {
@@ -73,6 +82,10 @@ public class LzyAgentConfig {
         return agentPort;
     }
 
+    public int getFsPort() {
+        return fsPort;
+    }
+
     public static class LzyAgentConfigBuilder {
         private URI serverAddress;
         private URI whiteboardAddress;
@@ -84,6 +97,7 @@ public class LzyAgentConfig {
         private String servantId;
         private String bucket;
         private int agentPort;
+        private int fsPort;
 
         public LzyAgentConfigBuilder agentInternalName(String agentInternalName) {
             this.agentInternalName = agentInternalName;
@@ -97,6 +111,11 @@ public class LzyAgentConfig {
 
         public LzyAgentConfigBuilder agentPort(int agentPort) {
             this.agentPort = agentPort;
+            return this;
+        }
+
+        public LzyAgentConfigBuilder fsPort(int fsPort) {
+            this.fsPort = fsPort;
             return this;
         }
 
@@ -137,7 +156,7 @@ public class LzyAgentConfig {
 
         public LzyAgentConfig build() {
             return new LzyAgentConfig(serverAddress, whiteboardAddress, agentName, agentInternalName, token, root, user,
-                servantId, agentPort, bucket);
+                servantId, agentPort, fsPort, bucket);
         }
     }
 }

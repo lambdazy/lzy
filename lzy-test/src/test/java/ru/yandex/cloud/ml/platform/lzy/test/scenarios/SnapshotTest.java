@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
-import java.time.OffsetDateTime;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -11,16 +10,6 @@ import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.jose4j.json.internal.json_simple.JSONObject;
 import org.jose4j.json.internal.json_simple.parser.JSONParser;
@@ -34,6 +23,15 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
+
 public class SnapshotTest extends LzyBaseTest {
     private LzyTerminalTestContext.Terminal terminal;
 
@@ -43,6 +41,7 @@ public class SnapshotTest extends LzyBaseTest {
         terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             9999,
+            9998,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
         terminal.waitForStatus(
@@ -71,7 +70,8 @@ public class SnapshotTest extends LzyBaseTest {
     }
 
     private List<LzyWhiteboard.Whiteboard> getWhiteboardsList(String namespace, List<String> tags,
-        Long fromDateLocalTimezone, Long toDateLocalTimezone) throws InvalidProtocolBufferException {
+                                                              Long fromDateLocalTimezone, Long toDateLocalTimezone)
+        throws InvalidProtocolBufferException {
         String whiteboardsJson = terminal.whiteboards(namespace, tags, fromDateLocalTimezone, toDateLocalTimezone);
         LzyWhiteboard.WhiteboardsResponse.Builder builder = LzyWhiteboard.WhiteboardsResponse.newBuilder();
         JsonFormat.parser().merge(whiteboardsJson, builder);
@@ -136,7 +136,7 @@ public class SnapshotTest extends LzyBaseTest {
             ));
 
         final LzyTerminalTestContext.Terminal.ExecutionResult result1 = terminal.execute("bash", "-c",
-                "/tmp/lzy/sbin/cat " + localFileOutName);
+            "/tmp/lzy/sbin/cat " + localFileOutName);
 
         //Assert
         Assert.assertEquals(0, result.get().exitCode());

@@ -4,6 +4,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

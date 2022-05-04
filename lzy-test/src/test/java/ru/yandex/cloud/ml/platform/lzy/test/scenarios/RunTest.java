@@ -25,6 +25,7 @@ public class RunTest extends LzyBaseTest {
         terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             9999,
+            9998,
             kharonContext.serverAddress(terminalContext.inDocker())
         );
         terminal.waitForStatus(

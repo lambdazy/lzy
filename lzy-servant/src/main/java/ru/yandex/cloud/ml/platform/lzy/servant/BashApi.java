@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.servant;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommands;
 import ru.yandex.cloud.ml.platform.lzy.servant.commands.Start;
 
 public class BashApi {
@@ -11,21 +11,15 @@ public class BashApi {
     private static final Logger LOG = LogManager.getLogger(BashApi.class);
 
     static {
-        options.addOption(new Option("p", "port", true,
-            "gRPC port setting"));
-        options.addOption(new Option("a", "auth", true,
-            "Enforce auth"));
-        options.addOption(new Option("z", "lzy-address", true,
-            "Lzy server address [host:port]"));
-        options.addOption(new Option("w", "lzy-whiteboard", true, "Lzy whiteboard address [host:port]"));
-        options.addOption(new Option("m", "lzy-mount", true,
-            "Lzy FS mount point"));
-        options.addOption(new Option("h", "host", true,
-            "Servant host name"));
-        options.addOption(new Option("i", "internal-host", true,
-            "Servant host name for connection from another servants"));
-        options.addOption(new Option("k", "private-key", true,
-            "Path to private key for user auth"));
+        options.addOption("p", "port", true, "Agent gRPC port.");
+        options.addOption("q", "fs-port", true, "LzyFs gRPC port.");
+        options.addOption("a", "auth", true, "Enforce auth");
+        options.addOption("z", "lzy-address", true, "Lzy server address [host:port]");
+        options.addOption("w", "lzy-whiteboard", true, "Lzy whiteboard address [host:port]");
+        options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
+        options.addOption("h", "host", true, "Servant and FS host name");
+        options.addOption("i", "internal-host", true, "Servant host name for connection from another servants");
+        options.addOption("k", "private-key", true, "Path to private key for user auth");
     }
 
     public static void main(String[] args) {
@@ -40,7 +34,7 @@ public class BashApi {
             final CommandLine parse = cliParser.parse(options, args, true);
             if (parse.getArgs().length > 0) {
                 commandStr = parse.getArgs()[0];
-                final LzyCommand.Commands command = LzyCommand.Commands.valueOf(commandStr);
+                final LzyCommands command = LzyCommands.valueOf(commandStr);
                 return command.execute(parse);
             } else {
                 return new Start().execute(parse);
