@@ -181,7 +181,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
         try {
             terminal.awaitTermination();
             if (SystemUtils.IS_OS_MAC) {
-                Runtime.getRuntime().exec("umount -f" + mount);
+                Runtime.getRuntime().exec("umount -f " + mount);
             } else {
                 Runtime.getRuntime().exec("umount " + mount);
             }
