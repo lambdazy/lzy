@@ -15,7 +15,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvironmentFactory;
 import ru.yandex.cloud.ml.platform.lzy.slots.ArgumentsSlot;
 import ru.yandex.cloud.ml.platform.lzy.slots.LineReaderSlot;
-import ru.yandex.cloud.ml.platform.lzy.slots.SlotConnectionManager;
+import ru.yandex.cloud.ml.platform.lzy.SlotConnectionManager;
 import ru.yandex.cloud.ml.platform.lzy.slots.WriterSlot;
 import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;

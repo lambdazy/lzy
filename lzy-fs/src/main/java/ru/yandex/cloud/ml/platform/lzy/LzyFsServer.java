@@ -18,7 +18,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
-import ru.yandex.cloud.ml.platform.lzy.slots.SlotConnectionManager;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import javax.annotation.Nullable;
@@ -29,6 +28,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
 import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.*;
@@ -143,18 +143,20 @@ public final class LzyFsServer {
 
     public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) throws StatusException {
         final String slotName = request.getTid() + request.getSlot();
-        LOG.info("Configure slot `{}`: {}.", slotName, JsonUtils.printRequest(request));
+        LOG.info("LzyFsServer::configureSlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
+
+        final Function<String, Servant.SlotCommandStatus> onError =
+            error -> Servant.SlotCommandStatus.newBuilder()
+                .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                    .setCode(Servant.SlotCommandStatus.RC.Code.ERROR)
+                    .setDescription(error)
+                    .build())
+                .build();
 
         final LzySlot slot = slotsManager.slot(request.getTid(), request.getSlot());
 
         if (slot == null && request.getCommandCase() != Servant.SlotCommand.CommandCase.CREATE) {
-            return Servant.SlotCommandStatus.newBuilder()
-                .setRc(
-                    Servant.SlotCommandStatus.RC.newBuilder()
-                        .setCodeValue(1)
-                        .setDescription("Slot `" + slotName + "` not found.")
-                        .build()
-                ).build();
+            return onError.apply("Slot `" + slotName + "` not found.");
         }
 
         switch (request.getCommandCase()) {
@@ -170,13 +172,7 @@ public final class LzyFsServer {
 
             case SNAPSHOT: {
                 if (slotConnectionManager.snapshooter() == null) {
-                    return Servant.SlotCommandStatus.newBuilder()
-                        .setRc(
-                            Servant.SlotCommandStatus.RC.newBuilder()
-                                .setCodeValue(1)
-                                .setDescription("Snapshot service was not initialized. Operation is not available.")
-                                .build()
-                        ).build();
+                    return onError.apply("Snapshot service was not initialized. Operation is not available.");
                 }
                 final Servant.SnapshotCommand snapshot = request.getSnapshot();
                 slotConnectionManager.snapshooter().registerSlot(slot, snapshot.getSnapshotId(), snapshot.getEntryId());
@@ -192,15 +188,10 @@ public final class LzyFsServer {
                     } else {
                         ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToSlot(slotUri, 0));
                     }
+                    break;
                 } else {
-                    return Servant.SlotCommandStatus.newBuilder()
-                        .setRc(Servant.SlotCommandStatus.RC.newBuilder()
-                            .setCodeValue(1)
-                            .setDescription("Slot " + request.getSlot() + " not found in " + request.getTid())
-                            .build())
-                        .build();
+                    return onError.apply("Slot " + request.getSlot() + " not found in " + request.getTid());
                 }
-                break;
             }
 
             case DISCONNECT: {
@@ -221,7 +212,7 @@ public final class LzyFsServer {
             case DESTROY: {
                 slot.destroy();
                 fs.removeSlot(slot.name());
-                LOG.info("Explicitly closing slot tid: " + slotName);
+                LOG.info("Explicitly closing slot tid: {}", slotName);
                 break;
             }
 
@@ -282,7 +273,7 @@ public final class LzyFsServer {
     }
 
     public boolean registerCommand(Path cmd, String script, @Nullable Operations.Zygote zygote) {
-        LOG.info("Registering command `{}`...", cmd);
+        LOG.info("Registering {}command `{}`...", (zygote == null ? "system " : ""), cmd);
 
         boolean added = fs.addScript(new LzyScriptImpl(cmd, script, zygote), /* isSystem */ zygote == null);
 
