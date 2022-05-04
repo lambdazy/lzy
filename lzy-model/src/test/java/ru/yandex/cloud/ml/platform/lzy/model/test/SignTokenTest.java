@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
+package ru.yandex.cloud.ml.platform.lzy.model.test;
 
 import java.io.FileReader;
 import java.nio.file.Files;

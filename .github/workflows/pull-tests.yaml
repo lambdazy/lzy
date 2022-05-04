@@ -57,10 +57,6 @@ jobs:
         timeout-minutes: 5
         run: cd lzy-test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
-      - name: 'SignTokenTest'
-        timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=SignTokenTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
       - name: 'SnapshotTest'
         timeout-minutes: 5
         run: cd lzy-test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
