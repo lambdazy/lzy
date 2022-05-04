@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.channels.Pipe;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;

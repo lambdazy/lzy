@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
