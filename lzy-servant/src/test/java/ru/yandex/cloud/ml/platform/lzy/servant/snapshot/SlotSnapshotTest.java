@@ -11,6 +11,9 @@ import io.findify.s3mock.S3Mock;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.commons.io.IOUtils;
 import org.junit.*;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -82,7 +85,6 @@ public class SlotSnapshotTest {
         );
     }
 
-    @Ignore
     @Test
     public void testMultipleSnapshots() throws IOException {
 
@@ -137,5 +139,37 @@ public class SlotSnapshotTest {
             getObjectContent(getKey("third-task-id", "fifth")),
             "Ciao mondo!"
         );
+    }
+
+    @Test
+    public void testWriteAndFinishFromVariousThreads() throws InterruptedException {
+        for (int i = 0; i < 10; i++) {
+            //Arrange
+            final Slot slot = slotForName("test-slot");
+            final SlotSnapshot slotSnapshot = new SlotSnapshotImpl("test-task-id", BUCKET, slot, storage);
+            final CountDownLatch writeLatch = new CountDownLatch(1);
+            final CountDownLatch finishLatch = new CountDownLatch(1);
+            final AtomicReference<Exception> thrown = new AtomicReference<>(null);
+
+            //Act
+            new Thread(() -> {
+                slotSnapshot.onChunk(ByteString.copyFrom("str", StandardCharsets.UTF_8));
+                writeLatch.countDown();
+            }).start();
+            writeLatch.await();
+            new Thread(() -> {
+                try {
+                    slotSnapshot.onFinish();
+                } catch (Exception e) {
+                    thrown.set(e);
+                } finally {
+                    finishLatch.countDown();
+                }
+            }).start();
+            finishLatch.await();
+
+            //Assert
+            Assert.assertNull(thrown.get());
+        }
     }
 }

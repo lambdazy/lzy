@@ -152,7 +152,7 @@
                 <configuration>
                     <argLine>-Djava.util.concurrent.ForkJoinPool.common.parallelism=32</argLine>
                     <excludes>
-                        <exclude>**/KuberRunTest.java</exclude>
+                        <exclude>**</exclude>
                     </excludes>
                 </configuration>
             </plugin>

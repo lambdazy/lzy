@@ -66,8 +66,7 @@ public class SnapshotChannelController implements ChannelController {
                 case OUTPUT: {
                     if (status != Status.UNBOUND) {
                         slot.destroy();  // TODO(artolord) Think about response to servant design
-                        LOG.error("Cannot write to already bound entry. Destroying slot " + slot);
-                        return;
+                        throw new ChannelException("Cannot write to already bound entry. Destroying slot " + slot);
                     }
                     status = Status.IN_PROGRESS;
                     slot.snapshot(snapshotId, entryId);
@@ -143,13 +142,13 @@ public class SnapshotChannelController implements ChannelController {
             if (status == Status.IN_PROGRESS) {
                 status = Status.ERRORED;
                 snapshotApi.commit(
-                        LzyWhiteboard.CommitCommand.newBuilder()
-                                .setAuth(auth)
-                                .setSnapshotId(snapshotId)
-                                .setEntryId(entryId)
-                                .setEmpty(true)
-                                .setErrored(true)
-                                .build()
+                    LzyWhiteboard.CommitCommand.newBuilder()
+                        .setAuth(auth)
+                        .setSnapshotId(snapshotId)
+                        .setEntryId(entryId)
+                        .setEmpty(true)
+                        .setErrored(true)
+                        .build()
                 );
             }
             channelGraph.receivers().forEach(Endpoint::destroy);

@@ -9,6 +9,11 @@
 pacman -Sy fuse2 inetutils
 ```
 
+### Prepare env for python integration tests
+
+1. Install conda
+2. Prepare conda env: `conda create --name "py39" "python=3.9.7" && conda activate py39 && pip install -r lzy-servant/docker/requirements.txt && cd lzy-python && pip install -r requirements.txt && python setup.py install && cd ..`
+
 ### Local run
 
 1. Run [Server](lzy-server/readme.md)

@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.net.URI;
 import java.util.Map;
@@ -37,7 +39,15 @@ public class DataCarrier {
                     case REQUEST: {
                         final SlotRequest request = slotDataMessage.getRequest();
                         final URI slotUri = URI.create(request.getSlotUri());
-                        servantMessageStream.complete(openDataConnections.get(slotUri));
+                        StreamObserver<Servant.Message> messageStream = openDataConnections.get(slotUri);
+                        if (messageStream == null) {
+                            StatusRuntimeException exception = Status.RESOURCE_EXHAUSTED
+                                .withDescription("writeToInputStream must be called only after openOutputSlot")
+                                .asRuntimeException();
+                            servantMessageStream.completeExceptionally(exception);
+                            throw exception;
+                        }
+                        servantMessageStream.complete(messageStream);
                         break;
                     }
                     case MESSAGE: {
