@@ -19,7 +19,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommandStatus;
 
 import java.io.IOException;
 import java.net.URI;
@@ -288,7 +288,7 @@ public class LzyKharon {
         }
 
         @Override
-        public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+        public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> responseObserver) {
             LOG.info("Kharon::openOutputSlot from Terminal " + JsonUtils.printRequest(request));
             final URI connectUri = URI.create(request.getSlotUri());
             final Optional<String> uri =
@@ -307,7 +307,7 @@ public class LzyKharon {
                 slotHost = "localhost";
             }
 
-            Servant.SlotRequest newRequest = Servant.SlotRequest.newBuilder()
+            LzyFsApi.SlotRequest newRequest = LzyFsApi.SlotRequest.newBuilder()
                 .mergeFrom(request)
                 .setSlotUri(slotUri.toString())
                 .build();
@@ -317,7 +317,7 @@ public class LzyKharon {
                 servantFsUri = new URI(LzyFs.scheme(), null, slotHost, slotUri.getPort(), null, null, null);
                 final LzyFsGrpc.LzyFsBlockingStub servantFs = connectionManager.getOrCreate(servantFsUri);
                 LOG.info("Created connection to servant fs " + servantFsUri);
-                final Iterator<Servant.Message> messageIterator = servantFs.openOutputSlot(newRequest);
+                final Iterator<LzyFsApi.Message> messageIterator = servantFs.openOutputSlot(newRequest);
                 while (messageIterator.hasNext()) {
                     responseObserver.onNext(messageIterator.next());
                 }
@@ -430,8 +430,8 @@ public class LzyKharon {
     private class KharonServantFsProxyService extends LzyFsGrpc.LzyFsImplBase {
 
         @Override
-        public void openOutputSlot(Servant.SlotRequest request,
-                                   StreamObserver<Servant.Message> responseObserver) {
+        public void openOutputSlot(LzyFsApi.SlotRequest request,
+                                   StreamObserver<LzyFsApi.Message> responseObserver) {
             try {
                 final TerminalSession session = terminalManager
                     .getTerminalSessionFromSlotUri(request.getSlotUri());
@@ -443,10 +443,10 @@ public class LzyKharon {
                 String tid = path.getName(0).toString();
                 String slot = Path.of("/", path.subpath(1, path.getNameCount()).toString()).toString();
 
-                session.configureSlot(Servant.SlotCommand.newBuilder()
+                session.configureSlot(LzyFsApi.SlotCommand.newBuilder()
                     .setSlot(slot)
                     .setTid(tid)
-                    .setConnect(Servant.ConnectSlotCommand.newBuilder()
+                    .setConnect(LzyFsApi.ConnectSlotCommand.newBuilder()
                         .setSlotUri(request.getSlotUri())
                         .build())
                     .build());
@@ -456,8 +456,8 @@ public class LzyKharon {
         }
 
         @Override
-        public void configureSlot(Servant.SlotCommand request,
-                                  StreamObserver<Servant.SlotCommandStatus> responseObserver) {
+        public void configureSlot(LzyFsApi.SlotCommand request,
+                                  StreamObserver<LzyFsApi.SlotCommandStatus> responseObserver) {
             try {
                 final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
                 if (request.hasConnect()) {
@@ -472,9 +472,9 @@ public class LzyKharon {
                         .setPort(externalAddress.getPort())
                         .addParameter("slot_uri", request.getConnect().getSlotUri())
                         .build();
-                    request = Servant.SlotCommand.newBuilder()
+                    request = LzyFsApi.SlotCommand.newBuilder()
                         .mergeFrom(request)
-                        .setConnect(Servant.ConnectSlotCommand.newBuilder()
+                        .setConnect(LzyFsApi.ConnectSlotCommand.newBuilder()
                             .setSlotUri(builtURI.toString()).build())
                         .build();
                 }

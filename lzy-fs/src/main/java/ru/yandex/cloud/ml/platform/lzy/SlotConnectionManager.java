@@ -55,10 +55,10 @@ public class SlotConnectionManager {
     }
 
     public Stream<ByteString> connectToSlot(URI slotUri, long offset) {
-        final Iterator<Servant.Message> msgIter;
+        final Iterator<LzyFsApi.Message> msgIter;
         final ManagedChannel channel;
 
-        final Servant.SlotRequest request = Servant.SlotRequest.newBuilder()
+        final LzyFsApi.SlotRequest request = LzyFsApi.SlotRequest.newBuilder()
             .setOffset(offset)
             .setSlotUri(slotUri.toString())
             .build();
@@ -123,11 +123,11 @@ public class SlotConnectionManager {
                     while (len != -1) {
                         final ByteString chunk = ByteString.copyFrom(buffer, 0, len);
                         //noinspection StatementWithEmptyBody,CheckStyle
-                        while (!queue.offer(chunk, 1, TimeUnit.SECONDS)) ;
+                        while (!queue.offer(chunk, 1, TimeUnit.SECONDS)) {}
                         len = stream.read(buffer);
                     }
                     //noinspection StatementWithEmptyBody,CheckStyle
-                    while (!queue.offer(ByteString.EMPTY, 1, TimeUnit.SECONDS)) ;
+                    while (!queue.offer(ByteString.EMPTY, 1, TimeUnit.SECONDS)) {}
                 }
             }
         );

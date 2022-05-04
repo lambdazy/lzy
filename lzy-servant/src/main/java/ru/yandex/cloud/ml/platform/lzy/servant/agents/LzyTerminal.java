@@ -156,8 +156,8 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     if (terminalCommand.getCommandCase() != TerminalCommand.CommandCase.SLOTCOMMAND) {
                         CommandHandler.this.onNext(TerminalState.newBuilder()
                             .setCommandId(commandId)
-                            .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
-                                .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                            .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
                                     .setCodeValue(1)
                                     .setDescription("Invalid terminal command")
                                     .build())
@@ -166,7 +166,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                         return;
                     }
 
-                    final Servant.SlotCommand slotCommand = terminalCommand.getSlotCommand();
+                    final LzyFsApi.SlotCommand slotCommand = terminalCommand.getSlotCommand();
                     try {
                         // TODO: find out if we need namespaces here
                         final LzySlot slot = context.slot(slotCommand.getTid(), slotCommand.getSlot());
@@ -174,8 +174,8 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                             if (slotCommand.hasDestroy() || slotCommand.hasDisconnect()) {
                                 CommandHandler.this.onNext(TerminalState.newBuilder()
                                     .setCommandId(commandId)
-                                    .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
-                                        .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                    .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                        .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
                                             .setCodeValue(0)
                                             .build())
                                         .build())
@@ -184,8 +184,8 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                             } else {
                                 CommandHandler.this.onNext(TerminalState.newBuilder()
                                     .setCommandId(commandId)
-                                    .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
-                                        .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                    .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                        .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
                                             .setCodeValue(1)
                                             .setDescription("Slot " + slotCommand.getSlot()
                                                 + " not found in ns: " + slotCommand.getTid())
@@ -213,8 +213,8 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
                             CommandHandler.this.onNext(TerminalState.newBuilder()
                                 .setCommandId(commandId)
-                                .setSlotStatus(Servant.SlotCommandStatus.newBuilder()
-                                    .setRc(Servant.SlotCommandStatus.RC.newBuilder()
+                                .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                    .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
                                         .setCodeValue(0)
                                         .build())
                                     .build())
@@ -222,7 +222,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                             return;
                         }
 
-                        final Servant.SlotCommandStatus slotCommandStatus = lzyFs.configureSlot(slotCommand);
+                        final LzyFsApi.SlotCommandStatus slotCommandStatus = lzyFs.configureSlot(slotCommand);
                         final TerminalState terminalState = TerminalState.newBuilder()
                             .setCommandId(commandId)
                             .setSlotStatus(slotCommandStatus)

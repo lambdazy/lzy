@@ -315,10 +315,10 @@ public class Run implements LzyCommand {
                 .setName(slotName)
                 .build();
             //noinspection ResultOfMethodCallIgnored
-            servantFs.configureSlot(Servant.SlotCommand.newBuilder()
+            servantFs.configureSlot(LzyFsApi.SlotCommand.newBuilder()
                 .setSlot(name)
                 .setTid(Long.toString(pid))
-                .setCreate(Servant.CreateSlotCommand.newBuilder()
+                .setCreate(LzyFsApi.CreateSlotCommand.newBuilder()
                     .setSlot(slotDeclaration)
                     .setIsPipe(pipe)
                     .setChannelId(channelId)

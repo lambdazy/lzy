@@ -13,11 +13,8 @@ import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.net.URI;
 import java.util.*;
@@ -258,11 +255,11 @@ public class TaskImpl implements Task {
             }
             fs = servant.fs();
         }
-        final Servant.SlotCommandStatus slotStatus = fs.configureSlot(
-            Servant.SlotCommand.newBuilder()
+        final LzyFsApi.SlotCommandStatus slotStatus = fs.configureSlot(
+            LzyFsApi.SlotCommand.newBuilder()
                 .setTid(tid.toString())
                 .setSlot(slot.name())
-                .setStatus(Servant.StatusCommand.newBuilder().build())
+                .setStatus(LzyFsApi.StatusCommand.newBuilder().build())
                 .build()
         );
         return GrpcConverter.from(slotStatus.getStatus());

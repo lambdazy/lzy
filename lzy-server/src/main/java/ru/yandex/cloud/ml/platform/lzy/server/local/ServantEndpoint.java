@@ -7,6 +7,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc.LzyFsBlockingStub;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -86,11 +87,11 @@ public class ServantEndpoint implements Endpoint {
             return 1;
         }
         try {
-            final Servant.SlotCommandStatus rc = fs.configureSlot(
-                Servant.SlotCommand.newBuilder()
+            final LzyFsApi.SlotCommandStatus rc = fs.configureSlot(
+                LzyFsApi.SlotCommand.newBuilder()
                     .setSlot(slot().name())
                     .setTid(tid)
-                    .setConnect(Servant.ConnectSlotCommand.newBuilder()
+                    .setConnect(LzyFsApi.ConnectSlotCommand.newBuilder()
                         .setSlotUri(endpoint.toString())
                         .build())
                     .build()
@@ -112,12 +113,12 @@ public class ServantEndpoint implements Endpoint {
             return null;
         }
         try {
-            final Servant.SlotCommandStatus slotCommandStatus = fs
+            final LzyFsApi.SlotCommandStatus slotCommandStatus = fs
                 .configureSlot(
-                    Servant.SlotCommand.newBuilder()
+                    LzyFsApi.SlotCommand.newBuilder()
                         .setTid(tid)
                         .setSlot(slot().name())
-                        .setStatus(Servant.StatusCommand.newBuilder().build())
+                        .setStatus(LzyFsApi.StatusCommand.newBuilder().build())
                         .build()
                 );
             return GrpcConverter.from(slotCommandStatus.getStatus());
@@ -133,12 +134,12 @@ public class ServantEndpoint implements Endpoint {
             return;
         }
         try {
-            final Servant.SlotCommandStatus rc = fs
+            final LzyFsApi.SlotCommandStatus rc = fs
                 .configureSlot(
-                    Servant.SlotCommand.newBuilder()
+                    LzyFsApi.SlotCommand.newBuilder()
                         .setTid(tid)
                         .setSlot(slot().name())
-                        .setSnapshot(Servant.SnapshotCommand.newBuilder()
+                        .setSnapshot(LzyFsApi.SnapshotCommand.newBuilder()
                             .setSnapshotId(snapshotId)
                             .setEntryId(entryId)
                             .build())
@@ -154,12 +155,12 @@ public class ServantEndpoint implements Endpoint {
             return 0;
         }
         try {
-            final Servant.SlotCommandStatus rc = fs
+            final LzyFsApi.SlotCommandStatus rc = fs
                 .configureSlot(
-                    Servant.SlotCommand.newBuilder()
+                    LzyFsApi.SlotCommand.newBuilder()
                         .setTid(tid)
                         .setSlot(slot().name())
-                        .setDisconnect(Servant.DisconnectCommand.newBuilder().build())
+                        .setDisconnect(LzyFsApi.DisconnectCommand.newBuilder().build())
                         .build()
                 );
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
@@ -176,12 +177,12 @@ public class ServantEndpoint implements Endpoint {
             return 0;
         }
         try {
-            final Servant.SlotCommandStatus rc = fs
+            final LzyFsApi.SlotCommandStatus rc = fs
                 .configureSlot(
-                    Servant.SlotCommand.newBuilder()
+                    LzyFsApi.SlotCommand.newBuilder()
                         .setTid(tid)
                         .setSlot(slot().name())
-                        .setDestroy(Servant.DestroyCommand.newBuilder().build())
+                        .setDestroy(LzyFsApi.DestroyCommand.newBuilder().build())
                         .build()
                 );
             invalidate();

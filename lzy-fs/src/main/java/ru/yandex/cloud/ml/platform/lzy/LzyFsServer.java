@@ -141,27 +141,27 @@ public final class LzyFsServer {
         fs.addSlot(slot);
     }
 
-    public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) throws StatusException {
+    public LzyFsApi.SlotCommandStatus configureSlot(LzyFsApi.SlotCommand request) throws StatusException {
         final String slotName = request.getTid() + request.getSlot();
         LOG.info("LzyFsServer::configureSlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
 
-        final Function<String, Servant.SlotCommandStatus> onError =
-            error -> Servant.SlotCommandStatus.newBuilder()
-                .setRc(Servant.SlotCommandStatus.RC.newBuilder()
-                    .setCode(Servant.SlotCommandStatus.RC.Code.ERROR)
+        final Function<String, LzyFsApi.SlotCommandStatus> onError =
+            error -> LzyFsApi.SlotCommandStatus.newBuilder()
+                .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
+                    .setCode(LzyFsApi.SlotCommandStatus.RC.Code.ERROR)
                     .setDescription(error)
                     .build())
                 .build();
 
         final LzySlot slot = slotsManager.slot(request.getTid(), request.getSlot());
 
-        if (slot == null && request.getCommandCase() != Servant.SlotCommand.CommandCase.CREATE) {
+        if (slot == null && request.getCommandCase() != LzyFsApi.SlotCommand.CommandCase.CREATE) {
             return onError.apply("Slot `" + slotName + "` not found.");
         }
 
         switch (request.getCommandCase()) {
             case CREATE: {
-                final Servant.CreateSlotCommand create = request.getCreate();
+                final LzyFsApi.CreateSlotCommand create = request.getCreate();
                 final Slot slotSpec = GrpcConverter.from(create.getSlot());
                 final LzySlot lzySlot = slotsManager.configureSlot(request.getTid(), slotSpec, create.getChannelId());
                 if (lzySlot instanceof LzyFileSlot) {
@@ -174,13 +174,13 @@ public final class LzyFsServer {
                 if (slotConnectionManager.snapshooter() == null) {
                     return onError.apply("Snapshot service was not initialized. Operation is not available.");
                 }
-                final Servant.SnapshotCommand snapshot = request.getSnapshot();
+                final LzyFsApi.SnapshotCommand snapshot = request.getSnapshot();
                 slotConnectionManager.snapshooter().registerSlot(slot, snapshot.getSnapshotId(), snapshot.getEntryId());
                 break;
             }
 
             case CONNECT: {
-                final Servant.ConnectSlotCommand connect = request.getConnect();
+                final LzyFsApi.ConnectSlotCommand connect = request.getConnect();
                 final URI slotUri = URI.create(connect.getSlotUri());
                 if (slot instanceof LzyInputSlot) {
                     if (SlotS3.match(slotUri) || SlotAzure.match(slotUri)) {
@@ -204,7 +204,7 @@ public final class LzyFsServer {
                 if (auth.hasUser()) {
                     status.setUser(auth.getUser().getUserId());
                 }
-                return Servant.SlotCommandStatus.newBuilder()
+                return LzyFsApi.SlotCommandStatus.newBuilder()
                     .setStatus(status.build())
                     .build();
             }
@@ -220,10 +220,10 @@ public final class LzyFsServer {
                 throw Status.INVALID_ARGUMENT.asException();
         }
 
-        return Servant.SlotCommandStatus.newBuilder().build();
+        return LzyFsApi.SlotCommandStatus.newBuilder().build();
     }
 
-    public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+    public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> responseObserver) {
         LOG.info("LzyFsServer::openOutputSlot {}.", JsonUtils.printRequest(request));
 
         final long start = System.currentTimeMillis();
@@ -251,8 +251,8 @@ public final class LzyFsServer {
         final LzyOutputSlot outputSlot = (LzyOutputSlot) slot;
         try {
             outputSlot.readFromPosition(request.getOffset())
-                .forEach(chunk -> responseObserver.onNext(Servant.Message.newBuilder().setChunk(chunk).build()));
-            responseObserver.onNext(Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build());
+                .forEach(chunk -> responseObserver.onNext(LzyFsApi.Message.newBuilder().setChunk(chunk).build()));
+            responseObserver.onNext(LzyFsApi.Message.newBuilder().setControl(LzyFsApi.Message.Controls.EOS).build());
             responseObserver.onCompleted();
         } catch (IOException iae) {
             responseObserver.onError(iae);
@@ -393,10 +393,10 @@ public final class LzyFsServer {
         }
 
         @Override
-        public void configureSlot(Servant.SlotCommand request,
-                                  StreamObserver<Servant.SlotCommandStatus> responseObserver) {
+        public void configureSlot(LzyFsApi.SlotCommand request,
+                                  StreamObserver<LzyFsApi.SlotCommandStatus> responseObserver) {
             try {
-                final Servant.SlotCommandStatus slotCommandStatus = LzyFsServer.this.configureSlot(request);
+                final LzyFsApi.SlotCommandStatus slotCommandStatus = LzyFsServer.this.configureSlot(request);
                 responseObserver.onNext(slotCommandStatus);
                 responseObserver.onCompleted();
             } catch (StatusException e) {
@@ -405,7 +405,7 @@ public final class LzyFsServer {
         }
 
         @Override
-        public void openOutputSlot(Servant.SlotRequest request, StreamObserver<Servant.Message> responseObserver) {
+        public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> responseObserver) {
             LzyFsServer.this.openOutputSlot(request, responseObserver);
         }
     }

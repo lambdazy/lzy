@@ -10,16 +10,16 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotRequest;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotRequest;
 
 public class DataCarrier {
 
     private static final Logger LOG = LogManager.getLogger(DataCarrier.class);
 
-    private final Map<URI, StreamObserver<Servant.Message>> openDataConnections = new ConcurrentHashMap<>();
+    private final Map<URI, StreamObserver<LzyFsApi.Message>> openDataConnections = new ConcurrentHashMap<>();
 
-    public void openServantConnection(URI slotUri, StreamObserver<Servant.Message> responseObserver) {
+    public void openServantConnection(URI slotUri, StreamObserver<LzyFsApi.Message> responseObserver) {
         LOG.info("DataCarrier::openServantConnection for slotUri " + slotUri);
         openDataConnections.put(slotUri, responseObserver);
     }
@@ -28,7 +28,7 @@ public class DataCarrier {
         StreamObserver<Kharon.ReceivedDataStatus> receiver) {
         LOG.info("DataCarrier::connectTerminalConnection");
         return new StreamObserver<>() {
-            final CompletableFuture<StreamObserver<Servant.Message>> servantMessageStream = new CompletableFuture<>();
+            final CompletableFuture<StreamObserver<LzyFsApi.Message>> servantMessageStream = new CompletableFuture<>();
 
             @Override
             public void onNext(Kharon.SendSlotDataMessage slotDataMessage) {
@@ -49,7 +49,7 @@ public class DataCarrier {
                 }
             }
 
-            private StreamObserver<Servant.Message> getServantMessageStream() {
+            private StreamObserver<LzyFsApi.Message> getServantMessageStream() {
                 try {
                     return servantMessageStream.get();
                 } catch (InterruptedException | ExecutionException e) {

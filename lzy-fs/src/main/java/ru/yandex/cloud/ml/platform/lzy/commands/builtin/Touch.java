@@ -57,7 +57,7 @@ public final class Touch implements LzyCommand {
             .build();
 
         final LzyFsGrpc.LzyFsBlockingStub lzyFs = LzyFsGrpc.newBlockingStub(lzyFsChannel);
-        final Servant.CreateSlotCommand.Builder createSlotCommandBuilder = Servant.CreateSlotCommand.newBuilder();
+        final LzyFsApi.CreateSlotCommand.Builder createSlotCommandBuilder = LzyFsApi.CreateSlotCommand.newBuilder();
 
         final Operations.Slot.Builder slotBuilder = Operations.Slot.newBuilder();
         slotBuilder.setName("/" + getSlotRelPath(slotPath, lzyFsRoot));
@@ -119,13 +119,13 @@ public final class Touch implements LzyCommand {
         createSlotCommandBuilder.setSlot(slotBuilder.build());
         createSlotCommandBuilder.setChannelId(channelName);
 
-        final Servant.SlotCommand slotCommand = Servant.SlotCommand.newBuilder()
+        final LzyFsApi.SlotCommand slotCommand = LzyFsApi.SlotCommand.newBuilder()
             .setTid("init")
             .setCreate(createSlotCommandBuilder.build())
             .build();
 
-        final Servant.SlotCommandStatus status = lzyFs.configureSlot(slotCommand);
-        System.out.println("-->" + JsonFormat.printer().print(status));
+        final LzyFsApi.SlotCommandStatus status = lzyFs.configureSlot(slotCommand);
+        System.out.println(JsonFormat.printer().print(status));
 
         return 0;
     }

@@ -11,10 +11,11 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AttachServant;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.SlotCommandStatus.RC;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommandStatus.RC;
 
 import javax.annotation.Nullable;
 import java.net.URI;
@@ -169,7 +170,7 @@ public class TerminalSession {
     }
 
     @Nullable
-    public Servant.SlotCommandStatus configureSlot(SlotCommand request) {
+    public LzyFsApi.SlotCommandStatus configureSlot(SlotCommand request) {
         LOG.info("Kharon sessionId " + servantId + " ::configureSlot " + JsonUtils.printRequest(
             request));
         final CompletableFuture<Kharon.TerminalState> future = new CompletableFuture<>();
@@ -186,7 +187,7 @@ public class TerminalSession {
                 LOG.warn(
                     "Kharon session={} was cancelled, but got configureSlot return -1;\n Cause: {}",
                     servantId, e);
-                return Servant.SlotCommandStatus.newBuilder()
+                return LzyFsApi.SlotCommandStatus.newBuilder()
                     .setRc(RC.newBuilder().setCodeValue(-1)).build();
             }
         }
@@ -195,7 +196,7 @@ public class TerminalSession {
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             LOG.error("Failed while configure slot in bidirectional stream " + e);
         }
-        return Servant.SlotCommandStatus.newBuilder().build();
+        return LzyFsApi.SlotCommandStatus.newBuilder().build();
     }
 
     private void checkTerminalAndServantState() {

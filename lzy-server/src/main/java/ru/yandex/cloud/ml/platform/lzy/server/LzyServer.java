@@ -616,15 +616,15 @@ public class LzyServer {
             final Iterator<Servant.ServantProgress> start = kharonServant.start(IAM.Empty.newBuilder().build());
 
             tasks.slots(user).forEach((slot, channel) -> {
-                final Servant.SlotCommand slotCommand = Servant.SlotCommand.newBuilder()
-                    .setCreate(Servant.CreateSlotCommand.newBuilder()
+                final LzyFsApi.SlotCommand slotCommand = LzyFsApi.SlotCommand.newBuilder()
+                    .setCreate(LzyFsApi.CreateSlotCommand.newBuilder()
                         .setSlot(GrpcConverter.to(slot))
                         .setChannelId(channel.name())
                         .build())
                     .build();
-                final Servant.SlotCommandStatus status = kharonFs.configureSlot(slotCommand);
+                final LzyFsApi.SlotCommandStatus status = kharonFs.configureSlot(slotCommand);
 
-                if (status.hasRc() && status.getRc().getCode() != Servant.SlotCommandStatus.RC.Code.SUCCESS) {
+                if (status.hasRc() && status.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {
                     LOG.error("Unable to configure kharon slot. session: {}, slot: {}, error: {}",
                         sessionId, slot, status.getRc().toString());
                 }

@@ -10,6 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
@@ -25,12 +26,12 @@ public class TerminalSlotSender {
 
     private static SendSlotDataMessage createChunkMessage(ByteString chunk) {
         return SendSlotDataMessage.newBuilder().setMessage(
-            Servant.Message.newBuilder().setChunk(chunk).build()).build();
+            LzyFsApi.Message.newBuilder().setChunk(chunk).build()).build();
     }
 
     private static SendSlotDataMessage createEosMessage() {
         return SendSlotDataMessage.newBuilder().setMessage(
-            Servant.Message.newBuilder().setControl(Servant.Message.Controls.EOS).build()).build();
+            LzyFsApi.Message.newBuilder().setControl(LzyFsApi.Message.Controls.EOS).build()).build();
     }
 
     public void connect(LzyOutputSlot lzySlot, URI slotUri) {
@@ -75,7 +76,7 @@ public class TerminalSlotSender {
             try {
                 LOG.info("Starting sending bytes slot:: " + lzySlot);
                 responseObserver.onNext(SendSlotDataMessage.newBuilder()
-                    .setRequest(Servant.SlotRequest.newBuilder()
+                    .setRequest(LzyFsApi.SlotRequest.newBuilder()
                         .setSlotUri(slotUri.toString())
                         .setOffset(offset)
                         .build())
