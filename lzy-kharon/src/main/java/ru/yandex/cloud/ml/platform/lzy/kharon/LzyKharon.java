@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -276,6 +277,7 @@ public class LzyKharon {
         public StreamObserver<TerminalState> attachTerminal(StreamObserver<TerminalCommand> responseObserver) {
             LOG.info("Kharon::attachTerminal");
             final TerminalSession session = terminalManager.createSession(
+                UUID.randomUUID(),
                 new TerminalController(responseObserver),
                 new ServerController(server, uriResolver, )
             );

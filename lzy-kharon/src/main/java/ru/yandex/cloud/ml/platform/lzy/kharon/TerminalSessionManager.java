@@ -15,8 +15,12 @@ public class TerminalSessionManager {
 
     private final Map<UUID, TerminalSession> sessions = new ConcurrentHashMap<>();
 
-    public TerminalSession createSession(TerminalController terminalController) {
-        final TerminalSession terminalSession = new TerminalSession(terminalController);
+    public TerminalSession createSession(
+        UUID sessionId,
+        TerminalController terminalController,
+        ServerController serverController
+    ) {
+        final TerminalSession terminalSession = new TerminalSession(sessionId, terminalController, serverController);
         sessions.put(terminalSession.sessionId(), terminalSession);
         return terminalSession;
     }

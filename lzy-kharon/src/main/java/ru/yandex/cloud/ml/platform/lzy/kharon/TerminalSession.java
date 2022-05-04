@@ -10,8 +10,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 
 import java.util.UUID;
 
-import static ru.yandex.cloud.ml.platform.lzy.kharon.TerminalSessionState.CONNECTION_ESTABLISHED;
-
 public class TerminalSession {
     public static final String SESSION_ID_KEY = "kharon_session_id";
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
@@ -22,12 +20,16 @@ public class TerminalSession {
     private final TerminalStateHandler terminalStateHandler;
     private final ServerController serverController;
 
-    private final UUID sessionId = UUID.randomUUID();
+    private final UUID sessionId;
 
     public TerminalSession(
-        TerminalController terminalController
+        UUID sessionId,
+        TerminalController terminalController,
+        ServerController serverController
     ) {
+        this.sessionId = sessionId;
         this.terminalController = terminalController;
+        this.serverController = serverController;
         this.terminalStateHandler = new TerminalStateHandler();
     }
 
@@ -80,7 +82,7 @@ public class TerminalSession {
 
         @Override
         public void onCompleted() {
-            LOG.info("Terminal for " + user + " disconnected; sessionId = " + sessionId);
+            LOG.info("Terminal with sessionId = {} disconnected", sessionId);
             invalidate();
             serverController.complete();
         }
@@ -100,14 +102,6 @@ public class TerminalSession {
 
     public TerminalController terminalController() {
         return terminalController;
-    }
-
-    public void setServerController(ServerController serverController) {
-        if (state().ordinal() >= CONNECTION_ESTABLISHED.ordinal()) {
-            throw new IllegalStateException("Server controller set twice");
-        }
-        this.serverController = serverController;
-        updateState(CONNECTION_ESTABLISHED);
     }
 
     public void close() {
