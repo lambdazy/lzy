@@ -273,7 +273,7 @@ public final class LzyFsServer {
     }
 
     public boolean registerCommand(Path cmd, String script, @Nullable Operations.Zygote zygote) {
-        LOG.info("Registering {}command `{}`...", (zygote == null ? "system " : ""), cmd);
+        LOG.info("Registering command `{}`...", cmd);
 
         boolean added = fs.addScript(new LzyScriptImpl(cmd, script, zygote), /* isSystem */ zygote == null);
 
