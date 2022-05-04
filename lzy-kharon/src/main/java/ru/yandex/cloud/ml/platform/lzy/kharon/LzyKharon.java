@@ -70,11 +70,9 @@ public class LzyKharon {
     private final ManagedChannel serverChannel;
     private final ManagedChannel whiteboardChannel;
     private final ManagedChannel snapshotChannel;
-    private final URI externalAddress;
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
-                     int servantProxyPort, int servantFsProxyPort, String externalHost) throws URISyntaxException {
-        externalAddress = new URI("http", null, externalHost, port, null, null, null);
+                     int servantProxyPort, int servantFsProxyPort) throws URISyntaxException {
         serverChannel = ChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
@@ -143,7 +141,7 @@ public class LzyKharon {
         snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
 
         final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, snapshotAddress,
-            host, port, servantPort, servantFsPort, externalHost);
+            host, port, servantPort, servantFsPort);
         kharon.start();
         kharon.awaitTermination();
     }
@@ -464,8 +462,8 @@ public class LzyKharon {
                     }
                     URI builtURI = new URIBuilder()
                         .setScheme(LzyKharon.scheme())
-                        .setHost(externalAddress.getHost())
-                        .setPort(externalAddress.getPort())
+                        .setHost(host)
+                        .setPort(port)
                         .addParameter("slot_uri", request.getConnect().getSlotUri())
                         .build();
                     request = LzyFsApi.SlotCommand.newBuilder()
