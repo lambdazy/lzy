@@ -39,7 +39,7 @@ public class DataCarrier {
                     case REQUEST: {
                         final SlotRequest request = slotDataMessage.getRequest();
                         final URI slotUri = URI.create(request.getSlotUri());
-                        StreamObserver<Servant.Message> messageStream = openDataConnections.get(slotUri);
+                        StreamObserver<LzyFsApi.Message> messageStream = openDataConnections.get(slotUri);
                         if (messageStream == null) {
                             StatusRuntimeException exception = Status.RESOURCE_EXHAUSTED
                                 .withDescription("writeToInputStream must be called only after openOutputSlot")
