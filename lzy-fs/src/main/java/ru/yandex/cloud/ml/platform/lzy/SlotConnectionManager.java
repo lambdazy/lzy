@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.slots;
+package ru.yandex.cloud.ml.platform.lzy;
 
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
@@ -58,32 +58,29 @@ public class SlotConnectionManager {
         final Iterator<Servant.Message> msgIter;
         final ManagedChannel channel;
 
+        final Servant.SlotRequest request = Servant.SlotRequest.newBuilder()
+            .setOffset(offset)
+            .setSlotUri(slotUri.toString())
+            .build();
+
         if (UriScheme.LzyKharon.match(slotUri)) {
-            channel = ChannelBuilder
-                .forAddress(slotUri.getHost(), slotUri.getPort())
+            channel = ChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
                 .usePlaintext()
                 .enableRetry(LzyKharonGrpc.SERVICE_NAME)
                 .build();
             final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(channel);
 
-            msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
-                .setOffset(offset)
-                .setSlotUri(slotUri.toString())
-                .build()
-            ));
-        } else  {
-            channel = ChannelBuilder
-                .forAddress(slotUri.getHost(), slotUri.getPort())
+            msgIter = new LazyIterator<>(() -> stub.openOutputSlot(request));
+        } else if (UriScheme.LzyFs.match(slotUri)) {
+            channel = ChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
                 .usePlaintext()
                 .enableRetry(LzyFsGrpc.SERVICE_NAME)
                 .build();
             final LzyFsGrpc.LzyFsBlockingStub stub = LzyFsGrpc.newBlockingStub(channel);
 
-            msgIter = new LazyIterator<>(() -> stub.openOutputSlot(Servant.SlotRequest.newBuilder()
-                .setOffset(offset)
-                .setSlotUri(slotUri.toString())
-                .build()
-            ));
+            msgIter = new LazyIterator<>(() -> stub.openOutputSlot(request));
+        } else {
+            throw new RuntimeException("Unexpected slot type: " + slotUri);
         }
 
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(msgIter, Spliterator.NONNULL), false)
@@ -100,6 +97,8 @@ public class SlotConnectionManager {
     }
 
     public Stream<ByteString> connectToS3(URI s3Uri, long offset) {
+        assert UriScheme.SlotS3.match(s3Uri) || UriScheme.SlotAzure.match(s3Uri) : s3Uri.toString();
+
         String storagePath = s3Uri.getPath();
         final String key;
         final String bucket;
