@@ -95,7 +95,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
                 Status.INVALID_ARGUMENT.withDescription("Snapshot creation date must be provided").asException());
             return;
         }
-        URI snapshotId = URI.create(UUID.randomUUID().toString());
+        URI snapshotId = URI.create("snapshot://" + UUID.randomUUID().toString());
         String fromSnapshotId = request.getFromSnapshot();
         try {
             if (!Objects.equals(fromSnapshotId, "")) {

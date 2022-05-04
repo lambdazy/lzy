@@ -35,6 +35,8 @@ public interface Task {
     void attachServant(ServantsAllocator.ServantConnection connection);
     @Nullable
     URI servantUri();
+    @Nullable
+    URI servantFsUri();
 
     enum State {
         QUEUE(0), PREPARING(1), CONNECTED(2), EXECUTING(3),

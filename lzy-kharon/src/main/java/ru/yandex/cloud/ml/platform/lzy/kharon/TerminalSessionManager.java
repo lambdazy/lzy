@@ -19,15 +19,18 @@ public class TerminalSessionManager {
     private final Map<UUID, TerminalSession> sessions = new ConcurrentHashMap<>();
     private final LzyServerBlockingStub server;
     private final URI kharonServantAddress;
+    private final URI kharonServantFsAddress;
 
-    public TerminalSessionManager(LzyServerBlockingStub server, URI kharonServantAddress) {
+    public TerminalSessionManager(LzyServerBlockingStub server, URI kharonServantAddress,
+                                  URI kharonServantFsAddress) {
         this.server = server;
         this.kharonServantAddress = kharonServantAddress;
+        this.kharonServantFsAddress = kharonServantFsAddress;
     }
 
     public StreamObserver<TerminalState> createSession(StreamObserver<TerminalCommand> terminalCommandObserver) {
         final TerminalSession terminalSession =
-            new TerminalSession(server, terminalCommandObserver, kharonServantAddress);
+            new TerminalSession(server, terminalCommandObserver, kharonServantAddress, kharonServantFsAddress);
         sessions.put(terminalSession.sessionId(), terminalSession);
         return terminalSession.terminalStateObserver();
     }

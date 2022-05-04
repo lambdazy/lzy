@@ -15,82 +15,10 @@ service LzyServant {
   rpc Start (Empty) returns (stream ServantProgress);
   rpc Env (EnvSpec) returns (EnvResult);
   rpc Execute (TaskSpec) returns (ExecutionStarted);
-  rpc OpenOutputSlot (SlotRequest) returns (stream Message);
-  rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
   rpc Signal (TaskSignal) returns (Empty);
   rpc Update (Auth) returns (Empty);
   rpc Status(Empty) returns (ServantStatus);
   rpc Stop (Empty) returns (Empty);
-}
-
-message SlotCommand {
-  string tid = 1;
-  string slot = 2;
-  oneof command {
-    CreateSlotCommand create = 3;
-    ConnectSlotCommand connect = 4;
-    DisconnectCommand disconnect = 5;
-    StatusCommand status = 6;
-    DestroyCommand destroy = 7;
-    SnapshotCommand snapshot = 8;
-  }
-}
-
-message CreateSlotCommand {
-  Slot slot = 1;
-  string channelId = 2;
-  bool isPipe = 3;
-}
-
-message ConnectSlotCommand {
-  string slotUri = 1;
-}
-
-message DisconnectCommand {
-}
-
-message DestroyCommand {
-}
-
-message StatusCommand {
-}
-
-message SnapshotCommand {
-  string snapshotId = 1;
-  string entryId = 2;
-}
-
-message SlotCommandStatus {
-  oneof payload {
-    RC rc = 1;
-    SlotStatus status = 2;
-  }
-
-  message RC {
-    Code code = 1;
-    string description = 2;
-
-    enum Code {
-      SUCCESS = 0;
-      ERROR = 1;
-    }
-  }
-}
-
-message SlotRequest {
-  string slotUri = 1;
-  int64 offset = 2;
-}
-
-message Message {
-  enum Controls {
-    EOS = 0;
-  }
-
-  oneof message {
-    Controls control = 1;
-    bytes chunk = 2;
-  }
 }
 
 message SlotSpec {

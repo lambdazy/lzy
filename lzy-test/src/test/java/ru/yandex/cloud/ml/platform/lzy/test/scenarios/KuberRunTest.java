@@ -18,6 +18,7 @@ public class KuberRunTest {
 
     private static final int DEFAULT_TIMEOUT_SEC = 30;
     private static final int DEFAULT_SERVANT_PORT = 9999;
+    private static final int DEFAULT_SERVANT_FS_PORT = 19999;
     private static final String LZY_MOUNT = "/tmp/lzy";
     private static final String TEST_USER = "phil";
     private static final String TEST_USER_KEY_PATH = "/tmp/test-private.pem";
@@ -34,6 +35,7 @@ public class KuberRunTest {
         terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
+            DEFAULT_SERVANT_FS_PORT,
             SERVER_URL,
             5006,
             TEST_USER,

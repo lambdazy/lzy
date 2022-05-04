@@ -7,8 +7,8 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
         "conda activate py39 && ";
 
     @Override
-    public Terminal startTerminalAtPathAndPort(String mount, int port, String serverAddress, int debugPort, String user,
-                                               String private_key_path) {
+    public Terminal startTerminalAtPathAndPort(String mount, int port, int fsPort, String serverAddress, int debugPort,
+                                               String user, String private_key_path) {
         String terminalCommand = "";
         if (serverAddress != null) {
             terminalCommand += "-s " + serverAddress + " ";
@@ -23,6 +23,7 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
             terminalCommand += "-u " + user + " ";
         }
         terminalCommand += "-p " + port + " ";
+        terminalCommand += "-q " + fsPort + " ";
         terminalCommand += "-d " + debugPort + " ";
         final String command = terminalCommand;
         System.out.println("running command " + command);
@@ -31,6 +32,6 @@ public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
             () -> command,
             (cmd) -> cmd.withEntrypoint("/test_entrypoint.sh")
         );
-        return createTerminal(mount, serverAddress, port, servantContainer);
+        return createTerminal(mount, serverAddress, port, fsPort, servantContainer);
     }
 }

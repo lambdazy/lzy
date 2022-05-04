@@ -3,22 +3,14 @@ package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.Server;
-import io.grpc.Status;
-import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.serce.jnrfuse.FuseException;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.LzyFsServer;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.*;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommands;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -35,47 +27,31 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyFs;
 
 public abstract class LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);
-
-    protected final URI serverAddress;
-    protected final Path mount;
-    protected final IAM.Auth auth;
-    protected final LzyFSManager lzyFS;
-    protected final URI agentAddress;
-    protected final URI agentInternalAddress;
-    protected final URI whiteboardAddress;
-    protected final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
     private static final ThreadGroup SHUTDOWN_HOOK_TG = new ThreadGroup("shutdown-hooks");
 
-    protected LzyAgent(LzyAgentConfig config) throws URISyntaxException {
-        final long start = System.currentTimeMillis();
-        this.mount = config.getRoot();
-        this.serverAddress = config.getServerAddress();
-        this.whiteboardAddress = config.getWhiteboardAddress();
-        if (SystemUtils.IS_OS_MAC) {
-            this.lzyFS = new LzyMacosFsManagerImpl();
-        } else {
-            this.lzyFS = new LzyLinuxFsManagerImpl();
-        }
-        LOG.info("Mounting LZY FS: " + mount);
-        try {
-            this.lzyFS.mount(mount);
-        } catch (FuseException e) {
-            this.lzyFS.umount();
-            throw e;
-        }
-        //this.lzyFS.mount(mount, false, true);
+    protected final LzyAgentConfig config;
+    protected final IAM.Auth auth;
+    protected final LzyFsServer lzyFs;
+    protected final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
 
-        auth = getAuth(config);
-        agentAddress = new URI("http", null, config.getAgentName(), config.getAgentPort(), null,
-            null, null);
-        agentInternalAddress =
-            config.getAgentInternalName() == null ? agentAddress : new URI("http", null,
-                config.getAgentInternalName(),
-                config.getAgentPort(), null, null, null
-            );
+    protected LzyAgent(LzyAgentConfig config) throws URISyntaxException, IOException {
+        final long start = System.currentTimeMillis();
+
+        this.config = config;
+        this.auth = getAuth(config);
+
+        this.lzyFs = new LzyFsServer(
+            config.getServantId(),
+            config.getRoot().toString(),
+            new URI(LzyFs.scheme(), null, config.getAgentName(), config.getFsPort(), null, null, null),
+            config.getServerAddress(),
+            config.getWhiteboardAddress(),
+            auth);
+
         final long finish = System.currentTimeMillis();
 
         MetricEventLogger.log(
@@ -111,17 +87,24 @@ public abstract class LzyAgent implements Closeable {
     protected abstract LzyContext context();
 
     protected abstract void onStartUp();
-    protected void started() {};
+
+    protected void started() {
+    }
+
+    protected abstract URI serverUri();
+
     protected abstract Server server();
+
     protected abstract LzyServerGrpc.LzyServerBlockingStub serverApi();
 
     public void start() throws IOException {
+        final URI agentUri = serverUri();
         final Server agentServer = server();
         agentServer.start();
 
         onStartUp();
 
-        for (LzyCommand.Commands command : LzyCommand.Commands.values()) {
+        for (LzyCommands command : LzyCommands.values()) {
             publishTool(null, Paths.get(command.name()), command.name());
         }
         final Operations.ZygoteList zygotes = serverApi().zygotes(auth);
@@ -134,7 +117,7 @@ public abstract class LzyAgent implements Closeable {
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(SHUTDOWN_HOOK_TG, () -> {
-            LOG.info("Shutdown hook in lzy-agent {}", agentAddress);
+            LOG.info("Shutdown hook in lzy-agent {}", agentUri);
             agentServer.shutdown();
             try {
                 close();
@@ -148,12 +131,21 @@ public abstract class LzyAgent implements Closeable {
 
     public void awaitTermination() throws InterruptedException {
         server().awaitTermination();
+        try {
+            lzyFs.awaitTermination();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void close() {
-        LOG.info("LzyAgent::close {}", agentAddress);
-        lzyFS.umount();
+        LOG.info("LzyAgent::close {}", serverUri());
+        try {
+            lzyFs.stop();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void publishTool(Operations.Zygote z, Path to, String... servantArgs) {
@@ -172,10 +164,11 @@ public abstract class LzyAgent implements Closeable {
             commandParts.add("-classpath");
             commandParts.add('"' + System.getProperty("java.class.path") + '"');
             commandParts.add(BashApi.class.getCanonicalName());
-            commandParts.addAll(List.of("--port", Integer.toString(agentAddress.getPort())));
-            commandParts.addAll(List.of("--lzy-address", serverAddress.toString()));
-            commandParts.addAll(List.of("--lzy-whiteboard", whiteboardAddress.toString()));
-            commandParts.addAll(List.of("--lzy-mount", mount.toAbsolutePath().toString()));
+            commandParts.addAll(List.of("--port", Integer.toString(serverUri().getPort())));
+            commandParts.addAll(List.of("--fs-port", Integer.toString(lzyFs.getUri().getPort())));
+            commandParts.addAll(List.of("--lzy-address", config.getServerAddress().toString()));
+            commandParts.addAll(List.of("--lzy-whiteboard", config.getWhiteboardAddress().toString()));
+            commandParts.addAll(List.of("--lzy-mount", lzyFs.getMountPoint().toAbsolutePath().toString()));
             commandParts.addAll(List.of(
                 "--auth",
                 new String(Base64.getEncoder().encode(auth.toByteString().toByteArray()))
@@ -196,118 +189,18 @@ public abstract class LzyAgent implements Closeable {
             }
             scriptBuilder.append(String.join(" ", commandParts)).append("\n");
             final String script = scriptBuilder.toString();
-            lzyFS.addScript(new LzyScript() {
-                @Override
-                public Zygote operation() {
-                    return GrpcConverter.from(z);
-                }
 
-                @Override
-                public Path location() {
-                    return to;
-                }
-
-                @Override
-                public CharSequence scriptText() {
-                    return script;
-                }
-            }, z == null);
-
+            if (lzyFs.registerCommand(to, script, z)) {
+                LOG.info("Command `{}` registered.", to);
+            } else {
+                LOG.warn("Command `{}` already exists.", to);
+            }
         } catch (InvalidProtocolBufferException ignore) {
             // Ignored
         }
     }
 
-    public void configureSlot(Servant.SlotCommand request, StreamObserver<Servant.SlotCommandStatus> responseObserver) {
-        try {
-            final Servant.SlotCommandStatus slotCommandStatus = configureSlot(request);
-            responseObserver.onNext(slotCommandStatus);
-            responseObserver.onCompleted();
-        } catch (StatusException e) {
-            responseObserver.onError(e);
-        }
-    }
-
-    public Servant.SlotCommandStatus configureSlot(Servant.SlotCommand request) throws StatusException {
-        final String slotName = request.getTid() + request.getSlot();
-        LOG.info("configure " + slotName + JsonUtils.printRequest(request));
-        final LzySlot slot = context().slot(request.getTid(), request.getSlot()); // null for create
-        if (slot == null && request.getCommandCase() != Servant.SlotCommand.CommandCase.CREATE) {
-            return Servant.SlotCommandStatus.newBuilder()
-                .setRc(
-                    Servant.SlotCommandStatus.RC.newBuilder()
-                        .setCodeValue(1)
-                        .setDescription("Slot " + slotName + " not found at LzyContext")
-                        .build()
-                ).build();
-        }
-        switch (request.getCommandCase()) {
-            case CREATE:
-                final Servant.CreateSlotCommand create = request.getCreate();
-                final Slot slotSpec = GrpcConverter.from(create.getSlot());
-                final LzySlot lzySlot = context().configureSlot(
-                    request.getTid(),
-                    slotSpec,
-                    create.getChannelId()
-                );
-                if (lzySlot instanceof LzyFileSlot)
-                    lzyFS.addSlot((LzyFileSlot) lzySlot);
-                break;
-            case SNAPSHOT:
-                if (context().slotManager().snapshooter() == null) {
-                    return Servant.SlotCommandStatus.newBuilder()
-                        .setRc(
-                            Servant.SlotCommandStatus.RC.newBuilder()
-                                .setCodeValue(1)
-                                .setDescription("Snapshot service was not initialized. Operation is not available.")
-                                .build()
-                        ).build();
-                }
-                final Servant.SnapshotCommand snapshot = request.getSnapshot();
-                context().slotManager().snapshooter()
-                    .registerSlot(slot, snapshot.getSnapshotId(), snapshot.getEntryId());
-                break;
-            case CONNECT:
-                final Servant.ConnectSlotCommand connect = request.getConnect();
-                final URI slotUri = URI.create(connect.getSlotUri());
-                if (slot instanceof LzyInputSlot) {
-                    if (slotUri.getScheme().equals("s3") || slotUri.getScheme().equals("azure")) {
-                        ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToS3(slotUri, 0));
-                    } else {
-                        ((LzyInputSlot) slot).connect(slotUri, context().slotManager().connectToSlot(slotUri, 0));
-                    }
-                } else {
-                    return Servant.SlotCommandStatus.newBuilder().setRc(
-                        Servant.SlotCommandStatus.RC.newBuilder()
-                            .setCodeValue(1)
-                            .setDescription("Slot " + request.getSlot() + " not found in " + request.getTid())
-                            .build()
-                    ).build();
-                }
-                break;
-            case DISCONNECT:
-                slot.suspend();
-                break;
-            case STATUS:
-                final Operations.SlotStatus.Builder status = Operations.SlotStatus
-                    .newBuilder(slot.status());
-                if (auth.hasUser()) {
-                    status.setUser(auth.getUser().getUserId());
-                }
-                return Servant.SlotCommandStatus.newBuilder().setStatus(status.build()).build();
-            case DESTROY:
-                slot.destroy();
-                lzyFS.removeSlot(slot.name());
-                LOG.info("Explicitly closing slot tid: " + slotName);
-                break;
-            default:
-                throw Status.INVALID_ARGUMENT.asException();
-        }
-        return Servant.SlotCommandStatus.newBuilder().build();
-    }
-
-    public void update(@SuppressWarnings("unused") IAM.Auth request,
-                       StreamObserver<IAM.Empty> responseObserver) {
+    public void update(@SuppressWarnings("unused") IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
         final Operations.ZygoteList zygotes = serverApi().zygotes(auth);
         for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
             publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());

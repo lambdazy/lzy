@@ -1,17 +1,17 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
 import io.grpc.ManagedChannel;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.locks.Lock;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc.LzyServantBlockingStub;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
+
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.locks.Lock;
 
 public class ServantConnectionManager {
 
@@ -19,39 +19,7 @@ public class ServantConnectionManager {
     private final Map<URI, Connection> connectionMap = new HashMap<>();
     private final LockManager lockManager = new LocalLockManager();
 
-    private static class Connection {
-
-        private final LzyServantBlockingStub stub;
-        private final ManagedChannel channel;
-        private int numReferences = 1;
-
-        Connection(URI uri) {
-            LOG.info("Creating connection for uri " + uri);
-            channel = ChannelBuilder
-                .forAddress(uri.getHost(), uri.getPort())
-                .usePlaintext()
-                .build();
-            stub = LzyServantGrpc.newBlockingStub(channel);
-        }
-
-        public LzyServantBlockingStub getStub() {
-            return stub;
-        }
-
-        public void increaseCounter() {
-            numReferences++;
-        }
-
-        public void decreaseCounter() {
-            numReferences--;
-        }
-
-        public int getNumReferences() {
-            return numReferences;
-        }
-    }
-
-    public LzyServantBlockingStub getOrCreate(URI uri) {
+    public LzyFsGrpc.LzyFsBlockingStub getOrCreate(URI uri) {
         LOG.info("getOrCreate connection for uri " + uri);
         final Lock lock = lockManager.getOrCreate(uri.toString());
         lock.lock();
@@ -86,6 +54,38 @@ public class ServantConnectionManager {
             }
         } finally {
             lock.unlock();
+        }
+    }
+
+    private static class Connection {
+
+        private final LzyFsGrpc.LzyFsBlockingStub stub;
+        private final ManagedChannel channel;
+        private int numReferences = 1;
+
+        Connection(URI uri) {
+            LOG.info("Creating connection for uri " + uri);
+            channel = ChannelBuilder
+                .forAddress(uri.getHost(), uri.getPort())
+                .usePlaintext()
+                .build();
+            stub = LzyFsGrpc.newBlockingStub(channel);
+        }
+
+        public LzyFsGrpc.LzyFsBlockingStub getStub() {
+            return stub;
+        }
+
+        public void increaseCounter() {
+            numReferences++;
+        }
+
+        public void decreaseCounter() {
+            numReferences--;
+        }
+
+        public int getNumReferences() {
+            return numReferences;
         }
     }
 }

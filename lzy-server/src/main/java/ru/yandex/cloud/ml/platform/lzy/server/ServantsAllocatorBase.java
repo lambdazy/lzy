@@ -1,5 +1,20 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
+import io.grpc.Context;
+import io.grpc.ManagedChannel;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+
 import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -10,26 +25,11 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-
 public abstract class ServantsAllocatorBase extends TimerTask implements ServantsAllocator.Ex {
-    private static final Logger LOG = LogManager.getLogger(ServantsAllocatorBase.class);
     public static final int PERIOD = 1000;
     public static final int GRACEFUL_SHUTDOWN_PERIOD_SEC = 10;
     public static final ThreadGroup SERVANT_CONNECTIONS_TG = new ThreadGroup("Servant connections");
+    private static final Logger LOG = LogManager.getLogger(ServantsAllocatorBase.class);
     @SuppressWarnings("FieldCanBeLocal")
     private final Timer ttl;
     private final Map<UUID, CompletableFuture<ServantConnection>> requests = new HashMap<>();
@@ -45,6 +45,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
     private final Authenticator auth;
     private final int waitBeforeShutdown;
+    private final Executor executor = new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     public ServantsAllocatorBase(Authenticator auth, int waitBeforeShutdownInSec) {
         this.auth = auth;
@@ -56,14 +57,15 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     protected abstract void requestAllocation(UUID servantId, String servantToken,
                                               Provisioning provisioning,
                                               String bucket);
+
     @SuppressWarnings("unused")
     protected boolean mutate(ServantConnection connection, Provisioning provisioning, Env env) {
         return false;
     }
 
     protected abstract void cleanup(ServantConnection s);
-    protected abstract void terminate(ServantConnection connection);
 
+    protected abstract void terminate(ServantConnection connection);
 
     @Override
     public synchronized CompletableFuture<ServantConnection> allocate(
@@ -100,19 +102,26 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public synchronized void register(UUID servantId, URI servantUri) {
-        final ManagedChannel channel = ChannelBuilder.forAddress(servantUri.getHost(), servantUri.getPort())
+    public synchronized void register(UUID servantId, URI servantUri, URI servantFsUri) {
+        final ManagedChannel servantChannel = ChannelBuilder.forAddress(servantUri.getHost(), servantUri.getPort())
             .usePlaintext()
             .enableRetry(LzyServantGrpc.SERVICE_NAME)
             .build();
-        final LzyServantGrpc.LzyServantBlockingStub blockingStub = LzyServantGrpc.newBlockingStub(channel);
+        final LzyServantGrpc.LzyServantBlockingStub servantStub = LzyServantGrpc.newBlockingStub(servantChannel);
+
+        final ManagedChannel fsChannel = ChannelBuilder.forAddress(servantFsUri.getHost(), servantFsUri.getPort())
+            .usePlaintext()
+            .enableRetry(LzyFsGrpc.SERVICE_NAME)
+            .build();
+        final LzyFsGrpc.LzyFsBlockingStub servantFsStub = LzyFsGrpc.newBlockingStub(fsChannel);
 
         final IAM.Empty emptyRequest = IAM.Empty.newBuilder().build();
         if (!requests.containsKey(servantId)) {
             LOG.error("Astray servant found: " + servantId);
             //noinspection ResultOfMethodCallIgnored
-            blockingStub.stop(emptyRequest);
-            channel.shutdownNow();
+            servantStub.stop(emptyRequest);
+            servantChannel.shutdownNow();
+            fsChannel.shutdownNow();
             return;
         }
         final CompletableFuture<ServantConnection> request = requests.remove(servantId);
@@ -121,17 +130,17 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             throw new RuntimeException("Trying to register already connected servant");
         }
         final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
-            final Iterator<Servant.ServantProgress> progressIterator = blockingStub.start(emptyRequest);
+            final Iterator<Servant.ServantProgress> progressIterator = servantStub.start(emptyRequest);
             Context.current().addListener(l -> connection.progress(Servant.ServantProgress.newBuilder()
-                    .setDisconnected(Servant.Disconnected.newBuilder().build()).build()), Runnable::run);
+                .setDisconnected(Servant.Disconnected.newBuilder().build()).build()), Runnable::run);
             try {
                 progressIterator.forEachRemaining(progress -> {
                     if (progress.hasStart()) {
-                        Servant.EnvResult result = blockingStub.env(GrpcConverter.to(connection.env()));
+                        Servant.EnvResult result = servantStub.env(GrpcConverter.to(connection.env()));
                         uncompletedConnections.remove(servantId);
                         if (result.getRc() != 0) {
                             request.completeExceptionally(
-                                    new EnvironmentInstallationException(result.getDescription()));
+                                new EnvironmentInstallationException(result.getDescription()));
                             return;
                         }
                         request.complete(connection);
@@ -149,14 +158,14 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                         request.completeExceptionally(new RuntimeException("Servant disconnected"));
                     } else {
                         connection.progress(Servant.ServantProgress.newBuilder()
-                                .setDisconnected(Servant.Disconnected.newBuilder().build()).build());
+                            .setDisconnected(Servant.Disconnected.newBuilder().build()).build());
                     }
                     shuttingDown.remove(connection);
                     cleanup(connection);
                 }
             }
         }, "connection-to-" + servantId);
-        connection.complete(blockingStub, connectionThread, servantUri);
+        connection.complete(connectionThread, servantUri, servantStub, servantFsUri, servantFsStub);
         servant2sessions.get(servantId).servants.add(connection);
         connectionThread.setDaemon(true);
         connectionThread.start();
@@ -186,7 +195,6 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             );
         }
     }
-
 
     @Override
     public synchronized Session registerSession(String userId, UUID sessionId, String bucket) {
@@ -221,8 +229,6 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         return session;
     }
 
-    private final Executor executor = new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-
     public synchronized void run() {
         final Instant now = Instant.now();
         final List<ServantConnection> tasksToShutdown = Set.copyOf(spareServants.keySet()).stream()
@@ -254,13 +260,15 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
     private static class ServantConnectionImpl implements ServantConnection {
         private final UUID servantId;
-        private URI servantUri;
-        private Thread connectionThread;
-        private LzyServantGrpc.LzyServantBlockingStub control;
         private final List<Predicate<Servant.ServantProgress>> trackers;
         private final Env env;
         private final Provisioning provisioning;
         private final AtomicBoolean completed = new AtomicBoolean(false);
+        private URI servantUri;
+        private URI servantFsUri;
+        private Thread connectionThread;
+        private LzyServantGrpc.LzyServantBlockingStub control;
+        private LzyFsGrpc.LzyFsBlockingStub fs;
 
         protected ServantConnectionImpl(UUID servantId, Env env, Provisioning provisioning) {
             this.servantId = servantId;
@@ -269,12 +277,16 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             this.provisioning = provisioning;
         }
 
-        public void complete(LzyServantGrpc.LzyServantBlockingStub control, Thread connectionThread, URI servantUri) {
+        public void complete(Thread connectionThread,
+                             URI servantUri, LzyServantGrpc.LzyServantBlockingStub control,
+                             URI servantFsUri, LzyFsGrpc.LzyFsBlockingStub fs) {
             if (completed.get()) {
                 throw new RuntimeException("Servant connection already completed");
             }
             this.servantUri = servantUri;
             this.control = control;
+            this.servantFsUri = servantFsUri;
+            this.fs = fs;
             this.connectionThread = connectionThread;
             completed.set(true);
         }
@@ -307,8 +319,18 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
 
         @Override
+        public URI fsUri() {
+            return servantFsUri;
+        }
+
+        @Override
         public LzyServantGrpc.LzyServantBlockingStub control() {
             return control;
+        }
+
+        @Override
+        public LzyFsGrpc.LzyFsBlockingStub fs() {
+            return fs;
         }
 
         @Override
@@ -326,12 +348,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             ServantConnectionImpl that = (ServantConnectionImpl) o;
-            return servantUri.equals(that.servantUri);
+            return servantUri.equals(that.servantUri) && servantFsUri.equals(that.servantFsUri);
         }
 
         @Override
         public final int hashCode() {
-            return Objects.hash(servantUri);
+            return Objects.hash(servantUri, servantFsUri);
         }
     }
 

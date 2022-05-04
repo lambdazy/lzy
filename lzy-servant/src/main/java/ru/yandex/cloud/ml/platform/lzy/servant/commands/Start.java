@@ -6,10 +6,12 @@ import java.nio.file.Path;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyServant;
-import ru.yandex.cloud.ml.platform.lzy.servant.fs.LzyFS;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzyFS;
 
 public class Start implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Start.class);
@@ -40,10 +42,13 @@ public class Start implements LzyCommand {
             return -1;
         }
 
-        final int port = Integer.parseInt(parse.getOptionValue('p', "9999"));
+        final int agentPort = Integer.parseInt(parse.getOptionValue('p', "9999"));
+        final int fsPort = parse.hasOption('q') ? Integer.parseInt(parse.getOptionValue('q')) : agentPort + 1;
+
         final Path path = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
         final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
         final String internalHost = parse.getOptionValue('i', host);
+
         final LzyAgent agent = new LzyServant(
             LzyAgentConfig.builder()
                 .serverAddress(URI.create(serverAddress))
@@ -53,12 +58,14 @@ public class Start implements LzyCommand {
                 .bucket(localCmd.getOptionValue('b'))
                 .agentName(host)
                 .agentInternalName(internalHost)
-                .agentPort(port)
+                .agentPort(agentPort)
+                .fsPort(fsPort)
                 .root(path)
                 .build()
         );
 
-        LOG.info("Starting servant at " + host + ":" + port + path);
+        LOG.info("Starting servant at {}://{}:{}/{} with fs at {}:{}",
+            UriScheme.LzyServant.scheme(), host, agent, path, host, fsPort);
 
         agent.start();
         agent.awaitTermination();
