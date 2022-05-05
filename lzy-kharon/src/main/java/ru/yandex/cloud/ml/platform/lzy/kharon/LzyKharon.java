@@ -39,14 +39,6 @@ public class LzyKharon {
     private static final Logger LOG = LogManager.getLogger(LzyKharon.class);
     private static final Options options = new Options();
 
-    public static String host;
-    public static int port;
-    public static int servantPort;
-    public static int servantFsPort;
-    public static URI serverAddress;
-    public static URI whiteboardAddress;
-    public static URI snapshotAddress;
-
     static {
         options.addRequiredOption("h", "host", true, "Kharon host name");
         options.addOption("e", "external", true, "Kharon external host");
@@ -58,6 +50,7 @@ public class LzyKharon {
         options.addRequiredOption("lsa", "lzy-snapshot-address", true, "Lzy snapshot address [host:port]");
     }
 
+    private final URI address;
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final WbApiGrpc.WbApiBlockingStub whiteboard;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
@@ -73,6 +66,7 @@ public class LzyKharon {
 
     public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
                      int servantProxyPort, int servantFsProxyPort) throws URISyntaxException {
+        address = new URI(LzyKharon.scheme(), null, host, port, null, null, null);
         serverChannel = ChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
@@ -131,14 +125,14 @@ public class LzyKharon {
             cliHelp.printHelp("lzy-kharon", options);
             System.exit(-1);
         }
-        host = parse.getOptionValue('h', "localhost");
-        final String externalHost = parse.getOptionValue('e', "api.lzy.ai");
-        port = Integer.parseInt(parse.getOptionValue('p', "8899"));
-        servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
-        servantFsPort = parse.hasOption("fs") ? Integer.parseInt(parse.getOptionValue("fs")) : servantPort + 1;
-        serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
-        whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
-        snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
+        final String host = parse.getOptionValue('h', "localhost");
+        final int port = Integer.parseInt(parse.getOptionValue('p', "8899"));
+        final int servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
+        final int servantFsPort = parse.hasOption("fs") ? Integer.parseInt(parse.getOptionValue("fs"))
+                : servantPort + 1;
+        final URI serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
+        final URI whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
+        final URI snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
 
         final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, snapshotAddress,
             host, port, servantPort, servantFsPort);
@@ -462,8 +456,8 @@ public class LzyKharon {
                     }
                     URI builtURI = new URIBuilder()
                         .setScheme(LzyKharon.scheme())
-                        .setHost(host)
-                        .setPort(port)
+                        .setHost(address.getHost())
+                        .setPort(address.getPort())
                         .addParameter("slot_uri", request.getConnect().getSlotUri())
                         .build();
                     request = LzyFsApi.SlotCommand.newBuilder()
