@@ -157,7 +157,8 @@ public class SnapshotChannelController implements ChannelController {
         switch (status.getStatus()) {
             case FINISHED: {
                 if (this.status == Status.ERRORED) {
-                    throw new IllegalStateException("Entry already FINISHED, but ChannelController is in illegal state ERRORED");
+                    throw new IllegalStateException(
+                            "Entry already FINISHED, but ChannelController is in illegal state ERRORED");
                 }
                 this.status = Status.COMPLETED;
                 storageURI = URI.create(status.getStorageUri());
@@ -166,7 +167,8 @@ public class SnapshotChannelController implements ChannelController {
             case ERRORED: {
                 if (this.status == Status.COMPLETED) {
                     this.status = Status.ERRORED;
-                    throw new IllegalStateException("Entry ERRORED, but ChannelController is in illegal state COMPLETED");
+                    throw new IllegalStateException(
+                            "Entry ERRORED, but ChannelController is in illegal state COMPLETED");
                 }
                 this.status = Status.ERRORED;
                 break;
@@ -174,14 +176,16 @@ public class SnapshotChannelController implements ChannelController {
             case IN_PROGRESS: {
                 if (this.status != Status.IN_PROGRESS) {
                     this.status = Status.ERRORED;
-                    throw new IllegalStateException("Entry IN_PROGRESS, but ChannelController is not bound to OutSlot");
+                    throw new IllegalStateException(
+                            "Entry IN_PROGRESS, but ChannelController is not bound to OutSlot");
                 }
                 break;
             }
             case CREATED: {
                 if (this.status == Status.COMPLETED || this.status == Status.ERRORED) {
                     this.status = Status.ERRORED;
-                    throw new IllegalStateException("Entry CREATED, but ChannelController is already " + this.status.name());
+                    throw new IllegalStateException(
+                            "Entry CREATED, but ChannelController is already " + this.status.name());
                 }
                 break;
             }
