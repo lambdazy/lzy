@@ -52,6 +52,10 @@ resource "kubernetes_deployment" "clickhouse" {
           port {
             container_port = 8123
           }
+          volume_mount {
+            mount_path = "/var/lib/clickhouse/"
+            name       = "persistent"
+          }
         }
         node_selector = {
           type = "lzy"
@@ -83,9 +87,30 @@ resource "kubernetes_deployment" "clickhouse" {
         }
         host_network = true
         dns_policy   = "ClusterFirstWithHostNet"
+        volume {
+          name = "persistent"
+          persistent_volume_claim {
+            claim_name = kubernetes_persistent_volume_claim.clickhouse_volume.metadata[0].name
+          }
+        }
       }
     }
   }
+}
+
+resource "kubernetes_persistent_volume_claim" "clickhouse_volume" {
+  metadata {
+    name = "clickhouse-volume"
+  }
+  spec {
+    access_modes = ["ReadWriteOnce"]
+    resources {
+      requests = {
+        storage = "64Gi"
+      }
+    }
+  }
+  wait_until_bound = false
 }
 
 resource "kubernetes_service" "clickhouse_service" {
