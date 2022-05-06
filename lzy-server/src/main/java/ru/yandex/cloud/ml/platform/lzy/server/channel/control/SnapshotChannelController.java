@@ -130,13 +130,11 @@ public class SnapshotChannelController implements ChannelController {
         }
         if (status == Status.IN_PROGRESS || status == Status.ERRORED) {
             status = Status.ERRORED;
-            snapshotApi.commit(
-                LzyWhiteboard.CommitCommand.newBuilder()
+            snapshotApi.abort(
+                LzyWhiteboard.AbortCommand.newBuilder()
                     .setAuth(auth)
                     .setSnapshotId(snapshotId)
                     .setEntryId(entryId)
-                    .setEmpty(true)
-                    .setErrored(true)
                     .build()
             );
         }

@@ -180,27 +180,9 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
                 Status.PERMISSION_DENIED.withDescription("Permission denied for commit command").asException());
             return;
         }
-        final Optional<SnapshotStatus> snapshotStatus = resolveSnapshot(request.getAuth(), request.getSnapshotId());
-        if (snapshotStatus.isEmpty()) {
-            responseObserver.onError(
-                Status.NOT_FOUND.withDescription("Could not find snapshot with id " + request.getSnapshotId())
-                    .asException());
-            return;
-        }
-        final Optional<SnapshotEntry> entry = repository
-            .resolveEntry(snapshotStatus.get().snapshot(), request.getEntryId());
-        if (entry.isEmpty()) {
-            LOG.error("SnapshotApi::commit: Could not find snapshot entry with id " + request.getEntryId()
-                + " and snapshot id " + request.getSnapshotId());
-            responseObserver.onError(
-                Status.NOT_FOUND.withDescription(
-                        "Could not find snapshot entry with id " + request.getEntryId()
-                            + " and snapshot id " + request.getSnapshotId())
-                    .asException());
-            return;
-        }
         try {
-            repository.commit(entry.get(), request.getEmpty(), request.getErrored());
+            SnapshotEntry entry = resolveEntry(request.getAuth(), request.getSnapshotId(), request.getEntryId());
+            repository.commit(entry, request.getEmpty());
         } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::commit: Got exception while commiting entry {} to snapshot with id {}: {}",
                 request.getEntryId(), request.getSnapshotId(), e.getMessage());
@@ -208,6 +190,34 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             return;
         }
         LOG.info("SnapshotApi::commit: Successfully executed commit command");
+        final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
+            .newBuilder()
+            .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
+            .build();
+        responseObserver.onNext(status);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void abort(LzyWhiteboard.AbortCommand request,
+        StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+        LOG.info("SnapshotApi::abort: Received request");
+        if (!auth.checkPermissions(request.getAuth(), Permissions.WHITEBOARD_ALL)) {
+            LOG.error("SnapshotApi::abort: Permission denied");
+            responseObserver.onError(
+                Status.PERMISSION_DENIED.withDescription("Permission denied for abort command").asException());
+            return;
+        }
+        try {
+            SnapshotEntry entry = resolveEntry(request.getAuth(), request.getSnapshotId(), request.getEntryId());
+            repository.abort(entry);
+        } catch (SnapshotRepositoryException e) {
+            LOG.error("SnapshotApi::abort: Got exception while aborting entry {} to snapshot with id {}: {}",
+                request.getEntryId(), request.getSnapshotId(), e.getMessage());
+            responseObserver.onError(e.statusException());
+            return;
+        }
+        LOG.info("SnapshotApi::abort: Successfully executed abort command");
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
             .newBuilder()
             .setStatus(LzyWhiteboard.OperationStatus.Status.OK)
@@ -433,5 +443,27 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
             return Optional.empty();
         }
         return snapshotStatus;
+    }
+
+    private SnapshotEntry resolveEntry(Auth auth, String snapshotId, String entryId)
+            throws SnapshotRepositoryException{
+        Optional<SnapshotStatus> snapshot = resolveSnapshot(auth, snapshotId);
+        if (snapshot.isEmpty()) {
+            throw new SnapshotRepositoryException(Status.NOT_FOUND
+                    .withDescription("Snapshot with id " + snapshotId + " not found").asException());
+        }
+        final Optional<SnapshotEntry> entry = repository
+                .resolveEntry(snapshot.get().snapshot(), entryId);
+        if (entry.isEmpty()) {
+            LOG.error("Could not find snapshot entry with id " + entryId
+                    + " and snapshot id " + snapshotId);
+            throw new SnapshotRepositoryException(
+                Status.NOT_FOUND.withDescription(
+                    "Could not find snapshot entry with id " + entryId
+                    + " and snapshot id " + snapshotId)
+                    .asException()
+            );
+        }
+        return entry.get();
     }
 }

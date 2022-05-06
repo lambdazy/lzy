@@ -67,10 +67,7 @@ public class SnapshooterImpl implements Snapshooter {
         slot.onState(OPEN, () -> {
             synchronized (SnapshooterImpl.this) {
                 try {
-                    commit(snapshotId, entryId, snapshot, false);
-                } catch (Exception e) {
-                    commit(snapshotId, entryId, snapshot, true);
-                    throw new RuntimeException(e);
+                    commit(snapshotId, entryId, snapshot);
                 } finally {
                     slot.suspend();
                     trackedSlots.remove(slot.name());
@@ -84,7 +81,7 @@ public class SnapshooterImpl implements Snapshooter {
                 if (!trackedSlots.contains(slot.name())) {  // Already committed in OPEN
                     return;
                 }
-                commit(snapshotId, entryId, snapshot, true);
+                abort(snapshotId, entryId);
                 trackedSlots.remove(slot.name());
                 SnapshooterImpl.this.notifyAll();
             }
@@ -93,20 +90,35 @@ public class SnapshooterImpl implements Snapshooter {
         this.notifyAll();
     }
 
-    private synchronized void commit(String snapshotId, String entryId, SlotSnapshot snapshot, boolean errored) {
-        snapshot.onFinish();
-        final LzyWhiteboard.CommitCommand commitCommand = LzyWhiteboard.CommitCommand
+    private synchronized void commit(String snapshotId, String entryId, SlotSnapshot snapshot) {
+        try {
+            snapshot.onFinish();
+            final LzyWhiteboard.CommitCommand commitCommand = LzyWhiteboard.CommitCommand
+                .newBuilder()
+                .setSnapshotId(snapshotId)
+                .setEntryId(entryId)
+                .setEmpty(snapshot.isEmpty())
+                .setAuth(auth)
+                .build();
+            final LzyWhiteboard.OperationStatus status = snapshotApi.commit(commitCommand);
+            if (status.getStatus().equals(FAILED)) {
+                throw new RuntimeException("Failed to commit to whiteboard");
+            }
+        } catch (Exception e) {
+            abort(snapshotId, entryId);
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private void abort(String snapshotId, String entryId) {
+        final LzyWhiteboard.AbortCommand abortCommand = LzyWhiteboard.AbortCommand
             .newBuilder()
             .setSnapshotId(snapshotId)
             .setEntryId(entryId)
-            .setEmpty(snapshot.isEmpty())
-            .setErrored(errored)
             .setAuth(auth)
             .build();
-        final LzyWhiteboard.OperationStatus status = snapshotApi.commit(commitCommand);
-        if (status.getStatus().equals(FAILED)) {
-            throw new RuntimeException("LzyExecution::configureSlot failed to commit to whiteboard");
-        }
+        final LzyWhiteboard.OperationStatus status = snapshotApi.abort(abortCommand);
     }
 
     @Override
