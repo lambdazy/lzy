@@ -35,7 +35,7 @@ public class TerminalCrashTest extends LzyBaseTest {
             mount,
             port,
             fsPort,
-            kharonContext.serverAddress(terminalContext.inDocker()),
+            kharonContext.serverAddress(),
             debugPort,
             LzyTerminalTestContext.TEST_USER,
             null

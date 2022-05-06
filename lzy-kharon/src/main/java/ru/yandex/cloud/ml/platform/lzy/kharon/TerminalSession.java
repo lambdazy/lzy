@@ -72,15 +72,8 @@ public class TerminalSession {
                             .setToken(auth.getToken())
                             .build();
 
-                        String servantAddr = kharonServantAddress.toString();
-                        if (servantAddr.contains("host.docker.internal")) {
-                            servantAddr = servantAddr.replace("host.docker.internal", "localhost");
-                        }
-                        String fsAddr = kharonFsAddress.toString();
-                        if (fsAddr.contains("host.docker.internal")) {
-                            fsAddr = fsAddr.replace("host.docker.internal", "localhost");
-                        }
-
+                        final String servantAddr = kharonServantAddress.toString();
+                        final String fsAddr = kharonFsAddress.toString();
                         try {
                             //noinspection ResultOfMethodCallIgnored
                             lzyServer.registerServant(AttachServant.newBuilder()

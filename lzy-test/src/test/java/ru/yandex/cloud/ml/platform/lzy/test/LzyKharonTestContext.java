@@ -3,11 +3,11 @@ package ru.yandex.cloud.ml.platform.lzy.test;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 
 public interface LzyKharonTestContext {
-    String serverAddress(boolean fromDocker);
+    String serverAddress();
 
-    String servantAddress(boolean fromDocker);
+    String servantAddress();
 
-    String servantFsAddress(boolean fromDocker);
+    String servantFsAddress();
 
     LzyKharonGrpc.LzyKharonBlockingStub client();
 

@@ -91,6 +91,7 @@ public class SnapshotChannelController implements ChannelController {
             }
         } finally {
             lock.unlock();
+            LOG.info("SnapshotChannelController::successfulBind, entryId={}", entryId);
         }
     }
 
@@ -131,6 +132,7 @@ public class SnapshotChannelController implements ChannelController {
             }
         } finally {
             lock.unlock();
+            LOG.info("SnapshotChannelController::successfulUnbind, entryId={}", entryId);
         }
     }
 
@@ -155,6 +157,7 @@ public class SnapshotChannelController implements ChannelController {
             channelGraph.senders().forEach(Endpoint::destroy);
         } finally {
             lock.unlock();
+            LOG.info("SnapshotChannelController::successfulDestroy, entryId={}", entryId);
         }
     }
 

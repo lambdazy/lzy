@@ -31,9 +31,9 @@ public class LzyBaseTest {
         createServantLzyFolder();
         serverContext = new LzyServerThreadContext();
         serverContext.init();
-        whiteboardContext = new LzySnapshotThreadContext(serverContext.address(false));
+        whiteboardContext = new LzySnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
-        kharonContext = new LzyKharonThreadContext(serverContext.address(false), whiteboardContext.address(false));
+        kharonContext = new LzyKharonThreadContext(serverContext.address(), whiteboardContext.address());
         kharonContext.init();
         terminalContext = new TerminalThreadContext();
         api = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();

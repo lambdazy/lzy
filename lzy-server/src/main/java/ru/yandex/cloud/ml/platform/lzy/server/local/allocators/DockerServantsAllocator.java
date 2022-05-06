@@ -1,8 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local.allocators;
 
 import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.async.ResultCallback;
-import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.*;
@@ -12,17 +10,13 @@ import jakarta.inject.Singleton;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.slf4j.LoggerFactory;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 
-import java.io.IOException;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,11 +38,6 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     protected void requestAllocation(UUID servantId, String servantToken, Provisioning provisioning, String bucket) {
-        final String updatedServerHost = SystemUtils.IS_OS_LINUX ? serverConfig.getServerUri()
-            : serverConfig.getServerUri().replace("localhost", "host.docker.internal");
-        final String updatedWhiteboardHost = SystemUtils.IS_OS_LINUX ? serverConfig.getWhiteboardUrl()
-                : serverConfig.getWhiteboardUrl().replace("localhost", "host.docker.internal");
-        final String internalHost = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final int debugPort = FreePortFinder.find(5000, 6000);
         LOG.info("Found port for servant {}", debugPort);
 
@@ -83,11 +72,10 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
             .withExposedPorts(ExposedPort.tcp(debugPort), ExposedPort.tcp(servantPort))
             .withHostConfig(hostConfig)
             .withCmd(
-                "--lzy-address", updatedServerHost,
-                "--lzy-whiteboard", updatedWhiteboardHost,
+                "--lzy-address", serverConfig.getServerUri().toString(),
+                "--lzy-whiteboard", serverConfig.getWhiteboardUri().toString(),
                 "--lzy-mount", "/tmp/lzy",
-                "--host", URI.create(serverConfig.getServerUri()).getHost(),
-                "--internal-host", internalHost,
+                "--host", serverConfig.getServerUri().getHost(),
                 "--port", Integer.toString(servantPort),
                 "start",
                 "--bucket", bucket,

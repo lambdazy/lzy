@@ -23,13 +23,9 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
     private ManagedChannel channel;
 
     @Override
-    public String address(boolean fromDocker) {
+    public String address() {
         init();
-        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
-            return "http://host.docker.internal:" + LZY_SERVER_PORT;
-        } else {
-            return "http://localhost:" + LZY_SERVER_PORT;
-        }
+        return "http://localhost:" + LZY_SERVER_PORT;
     }
 
     @Override
@@ -71,17 +67,10 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                 env.put("STORAGE_AMAZON_SECRET_TOKEN", "secret-key");
                 env.put("STORAGE_AMAZON_ENABLED", "true");
                 env.put("STORAGE_BUCKET", "lzy-bucket");
-                String serviceEndpoint;
-                String lzywhiteboard;
-                if (!SystemUtils.IS_OS_LINUX) {
-                    serviceEndpoint = "http://host.docker.internal:8001";
-                    lzywhiteboard = "http://host.docker.internal:8999";
-                } else {
-                    serviceEndpoint = "http://localhost:8001";
-                    lzywhiteboard = "http://localhost:8999";
-                }
+                final String serviceEndpoint = "http://localhost:8001";
+                final String lzyWhiteboard = "http://localhost:8999";
                 env.put("STORAGE_AMAZON_ENDPOINT", serviceEndpoint);
-                env.put("SERVER_WHITEBOARD_URL", lzywhiteboard);
+                env.put("SERVER_WHITEBOARD_URL", lzyWhiteboard);
                 env.put("SERVER_BASE_ENV_DEFAULT_IMAGE", "some-image");
                 lzyServer = builder.inheritIO().start();
             } catch (IOException e) {
