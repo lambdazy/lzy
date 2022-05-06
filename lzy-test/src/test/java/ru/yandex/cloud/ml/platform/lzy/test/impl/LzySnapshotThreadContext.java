@@ -34,12 +34,8 @@ public class LzySnapshotThreadContext implements LzySnapshotTestContext {
     }
 
     @Override
-    public String address(boolean fromDocker) {
-        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
-            return "http://host.docker.internal:" + SNAPSHOT_PORT;
-        } else {
-            return "http://localhost:" + SNAPSHOT_PORT;
-        }
+    public String address() {
+        return "http://localhost:" + SNAPSHOT_PORT;
     }
 
     @Override
@@ -57,7 +53,7 @@ public class LzySnapshotThreadContext implements LzySnapshotTestContext {
         try (ApplicationContext context = ApplicationContext.run(
                 PropertySource.of(
                         Map.of(
-                                "snapshot.uri", address(false),
+                                "snapshot.uri", address(),
                                 "server.uri", serverAddress
                         )
                 )

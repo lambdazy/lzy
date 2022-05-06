@@ -18,7 +18,6 @@ Program arguments:
 * `--lzy-mount /tmp/lzy` (path for ʎzy FS)
 * `--private-key /Users/<username>/.ssh/private.pem`
 * `--host localhost`
-* `--internal-host host.docker.internal` (docker support; **only for macOS**)
 * `--port 9990`
 * `terminal` (command name)
 

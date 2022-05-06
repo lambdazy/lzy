@@ -21,7 +21,7 @@ public class LzyStartupTest extends LzyBaseTest {
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
             DEFAULT_SERVANT_FS_PORT,
-            kharonContext.serverAddress(terminalContext.inDocker())
+            kharonContext.serverAddress()
         );
 
         //Act
@@ -48,7 +48,7 @@ public class LzyStartupTest extends LzyBaseTest {
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
             DEFAULT_SERVANT_FS_PORT,
-            kharonContext.serverAddress(terminalContext.inDocker())
+            kharonContext.serverAddress()
         );
         final boolean status = terminal.waitForStatus(
             AgentStatus.EXECUTING,
@@ -98,7 +98,7 @@ public class LzyStartupTest extends LzyBaseTest {
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
             DEFAULT_SERVANT_FS_PORT,
-            kharonContext.serverAddress(terminalContext.inDocker())
+            kharonContext.serverAddress()
         );
         final boolean started = terminal.waitForStatus(
             AgentStatus.EXECUTING,
@@ -128,7 +128,7 @@ public class LzyStartupTest extends LzyBaseTest {
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
             DEFAULT_SERVANT_FS_PORT,
-            kharonContext.serverAddress(terminalContext.inDocker())
+            kharonContext.serverAddress()
         );
 
         //Act

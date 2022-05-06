@@ -7,7 +7,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
-import org.apache.commons.lang3.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.LzyFsServer;
 import ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon;
 import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
@@ -33,18 +32,18 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
     }
 
     @Override
-    public String serverAddress(boolean fromDocker) {
-        return "http://" + outerHost(fromDocker) + ":" + LZY_KHARON_PORT;
+    public String serverAddress() {
+        return "http://localhost:" + LZY_KHARON_PORT;
     }
 
     @Override
-    public String servantAddress(boolean fromDocker) {
-        return UriScheme.LzyServant.scheme() + outerHost(fromDocker) + ":" + LZY_KHARON_SERVANT_PROXY_PORT;
+    public String servantAddress() {
+        return UriScheme.LzyServant.scheme() + "localhost:" + LZY_KHARON_SERVANT_PROXY_PORT;
     }
 
     @Override
-    public String servantFsAddress(boolean fromDocker) {
-        return UriScheme.LzyFs.scheme() + outerHost(fromDocker) + ":" + LzyFsServer.DEFAULT_PORT;
+    public String servantFsAddress() {
+        return UriScheme.LzyFs.scheme() + "localhost:" + LzyFsServer.DEFAULT_PORT;
     }
 
     @Override
@@ -60,7 +59,7 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
                     LzyKharon.class.getCanonicalName(),
                     new String[] {
                         "--host",
-                        outerHost(true),
+                        "localhost",
                         "--port",
                         String.valueOf(LZY_KHARON_PORT),
                         "--servant-proxy-port",
@@ -106,14 +105,6 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 throw new RuntimeException(e);
             }
-        }
-    }
-
-    private String outerHost(boolean fromDocker) {
-        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
-            return "host.docker.internal";
-        } else {
-            return "localhost";
         }
     }
 }

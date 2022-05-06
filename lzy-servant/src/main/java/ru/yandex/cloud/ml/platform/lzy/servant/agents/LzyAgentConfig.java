@@ -6,8 +6,7 @@ import java.nio.file.Path;
 public class LzyAgentConfig {
     private final URI serverAddress;
     private final URI whiteboardAddress;
-    private final String agentName;
-    private final String agentInternalName;
+    private final String agentHost;
     private final String token;
     private final Path root;
     private final String user;
@@ -16,26 +15,23 @@ public class LzyAgentConfig {
     private final int agentPort;
     private final int fsPort;
 
-    private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentName, String agentInternalName,
-                           String token, Path root, String user, String servantId, int agentPort, int fsPort,
-                           String bucket) {
+    private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentHost, int agentPort, int fsPort,
+                           String token, Path root, String user, String servantId, String bucket) {
         this.serverAddress = serverAddress;
         this.whiteboardAddress = whiteboardAddress;
-        this.agentName = agentName;
-        this.agentInternalName = agentInternalName;
+        this.agentHost = agentHost;
+        this.agentPort = agentPort;
+        this.fsPort = fsPort;
         this.token = token;
         this.root = root;
         this.user = user;
         this.servantId = servantId;
-        this.agentPort = agentPort;
-        this.fsPort = fsPort;
         this.bucket = bucket;
     }
 
     public static LzyAgentConfig updateServantId(LzyAgentConfig config, String servantId) {
-        return new LzyAgentConfig(config.serverAddress, config.whiteboardAddress, config.agentName,
-            config.agentInternalName, config.token, config.root, config.user, servantId, config.agentPort,
-            config.fsPort, config.bucket);
+        return new LzyAgentConfig(config.serverAddress, config.whiteboardAddress, config.agentHost,
+            config.agentPort, config.fsPort, config.token, config.root, config.user, servantId, config.bucket);
     }
 
     public static LzyAgentConfigBuilder builder() {
@@ -54,12 +50,8 @@ public class LzyAgentConfig {
         return whiteboardAddress;
     }
 
-    public String getAgentName() {
-        return agentName;
-    }
-
-    public String getAgentInternalName() {
-        return agentInternalName;
+    public String getAgentHost() {
+        return agentHost;
     }
 
     public String getToken() {
@@ -89,8 +81,7 @@ public class LzyAgentConfig {
     public static class LzyAgentConfigBuilder {
         private URI serverAddress;
         private URI whiteboardAddress;
-        private String agentName;
-        private String agentInternalName;
+        private String agentHost;
         private String token;
         private Path root;
         private String user;
@@ -99,13 +90,8 @@ public class LzyAgentConfig {
         private int agentPort;
         private int fsPort;
 
-        public LzyAgentConfigBuilder agentInternalName(String agentInternalName) {
-            this.agentInternalName = agentInternalName;
-            return this;
-        }
-
-        public LzyAgentConfigBuilder agentName(String agentName) {
-            this.agentName = agentName;
+        public LzyAgentConfigBuilder agentHost(String agentHost) {
+            this.agentHost = agentHost;
             return this;
         }
 
@@ -155,8 +141,8 @@ public class LzyAgentConfig {
         }
 
         public LzyAgentConfig build() {
-            return new LzyAgentConfig(serverAddress, whiteboardAddress, agentName, agentInternalName, token, root, user,
-                servantId, agentPort, fsPort, bucket);
+            return new LzyAgentConfig(serverAddress, whiteboardAddress, agentHost, agentPort, fsPort, token, root, user,
+                servantId, bucket);
         }
     }
 }

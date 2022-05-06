@@ -47,8 +47,6 @@ public class Start implements LzyCommand {
 
         final Path path = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
         final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
-        final String internalHost = parse.getOptionValue('i', host);
-
         final LzyAgent agent = new LzyServant(
             LzyAgentConfig.builder()
                 .serverAddress(URI.create(serverAddress))
@@ -56,8 +54,7 @@ public class Start implements LzyCommand {
                 .servantId(localCmd.getOptionValue('s'))
                 .token(localCmd.getOptionValue('o'))
                 .bucket(localCmd.getOptionValue('b'))
-                .agentName(host)
-                .agentInternalName(internalHost)
+                .agentHost(host)
                 .agentPort(agentPort)
                 .fsPort(fsPort)
                 .root(path)

@@ -27,7 +27,7 @@ public class MultiSessionTest extends LzyBaseTest {
             mount,
             port,
             fsPort,
-            kharonContext.serverAddress(terminalContext.inDocker()),
+            kharonContext.serverAddress(),
             debugPort,
             user,
             null);

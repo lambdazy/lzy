@@ -8,7 +8,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -22,7 +21,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class TerminalThreadContext implements LzyTerminalTestContext {
@@ -59,8 +57,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             .serverAddress(URI.create(serverAddress))
             .whiteboardAddress(URI.create(serverAddress))
             .user(user)
-            .agentName("localhost")
-            .agentInternalName("localhost")
+            .agentHost("localhost")
             .agentPort(port)
             .fsPort(fsPort)
             .root(Path.of(path))
@@ -172,11 +169,6 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
                 terminal.close();
             }
         };
-    }
-
-    @Override
-    public boolean inDocker() {
-        return false;
     }
 
     @Override

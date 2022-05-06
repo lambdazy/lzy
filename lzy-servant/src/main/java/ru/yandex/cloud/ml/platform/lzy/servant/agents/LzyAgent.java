@@ -47,7 +47,7 @@ public abstract class LzyAgent implements Closeable {
         this.lzyFs = new LzyFsServer(
             config.getServantId(),
             config.getRoot().toString(),
-            new URI(LzyFs.scheme(), null, config.getAgentName(), config.getFsPort(), null, null, null),
+            new URI(LzyFs.scheme(), null, config.getAgentHost(), config.getFsPort(), null, null, null),
             config.getServerAddress(),
             config.getWhiteboardAddress(),
             auth);

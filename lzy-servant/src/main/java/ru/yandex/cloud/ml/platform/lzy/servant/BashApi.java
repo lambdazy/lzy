@@ -18,7 +18,6 @@ public class BashApi {
         options.addOption("w", "lzy-whiteboard", true, "Lzy whiteboard address [host:port]");
         options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
         options.addOption("h", "host", true, "Servant and FS host name");
-        options.addOption("i", "internal-host", true, "Servant host name for connection from another servants");
         options.addOption("k", "private-key", true, "Path to private key for user auth");
     }
 

@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
-import org.apache.commons.lang3.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon;
 import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
@@ -34,18 +33,18 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
     }
 
     @Override
-    public String serverAddress(boolean fromDocker) {
-        return "http://" + outerHost(fromDocker) + ":" + LZY_KHARON_PORT;
+    public String serverAddress() {
+        return "http://localhost:" + LZY_KHARON_PORT;
     }
 
     @Override
-    public String servantAddress(boolean fromDocker) {
-        return UriScheme.LzyServant.scheme() + outerHost(fromDocker) + ":" + LZY_KHARON_SERVANT_PROXY_PORT;
+    public String servantAddress() {
+        return UriScheme.LzyServant.scheme() + "localhost:" + LZY_KHARON_SERVANT_PROXY_PORT;
     }
 
     @Override
-    public String servantFsAddress(boolean fromDocker) {
-        return UriScheme.LzyFs.scheme() + outerHost(fromDocker) + ":" + LZY_KHARON_SERVANT_FS_PROXY_PORT;
+    public String servantFsAddress() {
+        return UriScheme.LzyFs.scheme() + "localhost:" + LZY_KHARON_SERVANT_FS_PROXY_PORT;
     }
 
     @Override
@@ -60,11 +59,10 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
                 URI.create(serverAddress),
                 URI.create(whiteboardAddress),
                 URI.create(whiteboardAddress),
-                outerHost(false),
+                "localhost",
                 LZY_KHARON_PORT,
                 LZY_KHARON_SERVANT_PROXY_PORT,
-                LZY_KHARON_SERVANT_FS_PROXY_PORT,
-                outerHost(false)
+                LZY_KHARON_SERVANT_FS_PROXY_PORT
             );
             kharon.start();
         } catch (URISyntaxException | IOException e) {
@@ -92,14 +90,6 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
             kharon.awaitTermination();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    private String outerHost(boolean fromDocker) {
-        if (!SystemUtils.IS_OS_LINUX && fromDocker) {
-            return "host.docker.internal";
-        } else {
-            return "localhost";
         }
     }
 }

@@ -26,7 +26,7 @@ public class RunTest extends LzyBaseTest {
             LZY_MOUNT,
             9999,
             9998,
-            kharonContext.serverAddress(terminalContext.inDocker())
+            kharonContext.serverAddress()
         );
         terminal.waitForStatus(
             AgentStatus.EXECUTING,

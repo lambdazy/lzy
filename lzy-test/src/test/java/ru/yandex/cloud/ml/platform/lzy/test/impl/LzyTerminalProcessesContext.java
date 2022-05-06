@@ -1,7 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
-import static org.testcontainers.shaded.org.apache.commons.lang.SystemUtils.IS_OS_LINUX;
-
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
@@ -23,7 +21,6 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
     @Override
     public Terminal startTerminalAtPathAndPort(String mount, int port, int fsPort, String serverAddress, int debugPort,
                                                String user, String privateKeyPath) {
-        final String internalHost = IS_OS_LINUX ? "localhost" : "host.docker.internal";
         final String[] lzyArgs = {
             "--lzy-address",
             serverAddress,
@@ -37,8 +34,6 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
             mount,
             "--private-key",
             privateKeyPath,
-            "--internal-host",
-            internalHost,
             "terminal"
         };
         final String pathServantLog4jFile =
@@ -151,11 +146,6 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
                 }
             }
         };
-    }
-
-    @Override
-    public boolean inDocker() {
-        return false;
     }
 
     @Override

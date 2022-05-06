@@ -20,7 +20,7 @@ public class PyApiTest extends LzyBaseTest {
 
     public void arrangeTerminal(String user) {
         this.arrangeTerminal(LZY_MOUNT, FreePortFinder.find(20000, 21000), FreePortFinder.find(21000, 22000),
-            kharonContext.serverAddress(terminalContext.inDocker()), user, null);
+            kharonContext.serverAddress(), user, null);
     }
 
     public void arrangeTerminal(String mount, int port, int fsPort, String serverAddress, String user,
