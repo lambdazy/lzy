@@ -446,7 +446,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     }
 
     private SnapshotEntry resolveEntry(Auth auth, String snapshotId, String entryId)
-            throws SnapshotRepositoryException{
+            throws SnapshotRepositoryException {
         Optional<SnapshotStatus> snapshot = resolveSnapshot(auth, snapshotId);
         if (snapshot.isEmpty()) {
             throw new SnapshotRepositoryException(Status.NOT_FOUND
