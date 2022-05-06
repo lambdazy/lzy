@@ -61,6 +61,12 @@ resource "kubernetes_daemonset" "servant_gpu_fictive_containers" {
         node_selector = {
           type = "gpu"
         }
+        toleration {
+          key      = "sku"
+          operator = "Equal"
+          value    = "gpu"
+          effect   = "NoSchedule"
+        }
       }
     }
   }
