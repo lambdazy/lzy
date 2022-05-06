@@ -55,6 +55,8 @@ resource "kubernetes_deployment" "kharon" {
             "8899",
             "--servant-proxy-port",
             "8900",
+            "--servantfs-proxy-port",
+            "8901",
             "-w",
             "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:8999",
             "-lsa",
