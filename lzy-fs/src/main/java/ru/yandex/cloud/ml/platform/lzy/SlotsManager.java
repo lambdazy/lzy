@@ -6,6 +6,7 @@ import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.slots.*;
@@ -15,6 +16,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -84,7 +86,6 @@ public class SlotsManager implements AutoCloseable {
             return existing;
         }
 
-        // TODO: ???
         final URI slotUri = localLzyFsUri.resolve(Path.of("/", task, spec.name()).toString());
 
         try {
@@ -96,18 +97,24 @@ public class SlotsManager implements AutoCloseable {
                     taskSlots.put(spec.name(), slot);
                 }
             } else {
-                LOG.warn("Unable to create slot " + spec.name());
+                final String msg = MessageFormat.format("Unable to create slot. Task: {}, spec: {}, binding: {}",
+                    task, spec.name(), binding);
+                LOG.error(msg);
+                throw new RuntimeException(msg);
             }
 
             slot.onState(SUSPENDED, () -> {
-                progress(Servant.ServantProgress.newBuilder()
-                    .setDetach(Servant.SlotDetach.newBuilder()
-                        .setSlot(GrpcConverter.to(spec))
-                        .setUri(slotUri.toString())
-                        .build())
-                    .build()
-                );
+                synchronized (SlotsManager.this) {
+                    progress(Servant.ServantProgress.newBuilder()
+                        .setDetach(Servant.SlotDetach.newBuilder()
+                            .setSlot(GrpcConverter.to(spec))
+                            .setUri(slotUri.toString())
+                            .build())
+                        .build());
+                    SlotsManager.this.notifyAll();
+                }
             });
+
             slot.onState(DESTROYED, () -> {
                 synchronized (SlotsManager.this) {
                     taskSlots.remove(slot.name());
@@ -120,6 +127,7 @@ public class SlotsManager implements AutoCloseable {
                     SlotsManager.this.notifyAll();
                 }
             });
+
             if (binding != null && binding.startsWith("channel:")) {
                 binding = binding.substring("channel:".length());
             }

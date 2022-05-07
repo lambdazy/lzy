@@ -13,7 +13,6 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public class MultiSessionTest extends LzyBaseTest {
 
