@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.slots;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -12,8 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class LzySlotBaseTest {
 
@@ -111,6 +111,20 @@ public class LzySlotBaseTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         assertEquals(State.DESTROYED, lzySlot.state());
         assertEquals(1, counter.get());
+    }
+
+    @Test
+    @Ignore
+    public void failTest() {
+        var lzySlot = new LzySlotBase(new LzySlotImpl()) {};
+
+        lzySlot.onState(State.OPEN, () -> {
+            throw new RuntimeException("Hi there!");
+        });
+
+        lzySlot.state(State.OPEN);
+
+        fail("should not happen");
     }
 
     private static class LzySlotImpl implements Slot {
