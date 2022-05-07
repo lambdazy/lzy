@@ -4,7 +4,6 @@ import com.google.protobuf.ByteString;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
-import javax.annotation.Nullable;
 import java.util.Set;
 import java.util.function.Consumer;
 

@@ -10,7 +10,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -52,8 +51,8 @@ public class LzySlotBase implements LzySlot {
         LOG.info("Slot `{}` change state {} -> {}.", name(), state, newState);
         state.set(newState);
 
-        ForkJoinPool.commonPool().execute(
-            () -> actions.getOrDefault(newState, List.of()).forEach(action -> {
+        actions.getOrDefault(newState, List.of()).forEach(
+            action -> {
                 if (state.get() == newState) {
                     try {
                         action.run();
@@ -64,7 +63,7 @@ public class LzySlotBase implements LzySlot {
                     LOG.error("Slot `{}` state has changed (expected {}, got {}), don't run obsolete action ({}).",
                         definition.name(), newState, state.get(), action);
                 }
-            }));
+            });
 
         notifyAll();
     }
@@ -80,6 +79,12 @@ public class LzySlotBase implements LzySlot {
             @Override
             public void onError(Throwable th) {
                 LOG.fatal("Uncaught exception in slot {}.", definition.name(), th);
+
+                for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
+                    if (element.getClassName().startsWith("org.junit.")) {
+                        System.exit(-1);
+                    }
+                }
             }
 
             @Override
