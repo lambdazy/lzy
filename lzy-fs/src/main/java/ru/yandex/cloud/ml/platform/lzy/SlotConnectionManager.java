@@ -4,6 +4,8 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.snapshot.SlotSnapshotImpl;
+import ru.yandex.cloud.ml.platform.lzy.snapshot.SlotSnapshotProvider;
 import ru.yandex.cloud.ml.platform.lzy.snapshot.Snapshooter;
 import ru.yandex.cloud.ml.platform.lzy.snapshot.SnapshooterImpl;
 import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
@@ -48,7 +50,9 @@ public class SlotConnectionManager {
                 .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
                 .build();
             final SnapshotApiGrpc.SnapshotApiBlockingStub api = SnapshotApiGrpc.newBlockingStub(channelWb);
-            this.snapshooter = new SnapshooterImpl(auth, bucket, api, client, sessionId);
+            this.snapshooter = new SnapshooterImpl(auth, api, new SlotSnapshotProvider.Cached(slot ->
+                new SlotSnapshotImpl(sessionId, bucket, slot, client)
+            ));
         } else {
             this.snapshooter = null;
         }

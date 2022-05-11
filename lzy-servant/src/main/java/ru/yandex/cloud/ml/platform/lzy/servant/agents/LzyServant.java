@@ -21,6 +21,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -126,7 +127,7 @@ public class LzyServant extends LzyAgent {
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
 
-        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(), lzyFs.getSlotConnectionManager(),
+        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(),
             lzyFs.getMountPoint().toString());
 
         final long finish = System.currentTimeMillis();
@@ -159,7 +160,15 @@ public class LzyServant extends LzyAgent {
                 () -> {
                     final Servant.EnvResult.Builder result = Servant.EnvResult.newBuilder();
                     try {
-                        context().prepare(GrpcConverter.from(request));
+                        final String bucket = server.getBucket(Lzy.GetBucketRequest
+                            .newBuilder().setAuth(auth).build()).getBucket();
+                        final Lzy.GetS3CredentialsResponse credentials = server.getS3Credentials(
+                            Lzy.GetS3CredentialsRequest.newBuilder()
+                                .setBucket(bucket)
+                                .setAuth(auth)
+                                .build()
+                        );
+                        context().prepare(GrpcConverter.from(request), StorageClient.create(credentials));
                     } catch (EnvironmentInstallationException e) {
                         LOG.error("Unable to install environment", e);
                         result.setRc(-1);

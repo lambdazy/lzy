@@ -19,19 +19,14 @@ public class SnapshooterImpl implements Snapshooter {
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
     private final IAM.Auth auth;
     private final Set<String> trackedSlots = new HashSet<>();
-    private final StorageClient storage;
-    private final String sessionId;
-    private final String bucket;
+    private final SlotSnapshotProvider snapshotProvider;
     private boolean closed = false;
 
-    public SnapshooterImpl(IAM.Auth auth, String bucket,
-                           SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
-                           StorageClient storage, String sessionId) {
+    public SnapshooterImpl(IAM.Auth auth, SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
+                           SlotSnapshotProvider snapshotProvider) {
         this.snapshotApi = snapshotApi;
         this.auth = auth;
-        this.storage = storage;
-        this.bucket = bucket;
-        this.sessionId = sessionId;
+        this.snapshotProvider = snapshotProvider;
     }
 
     @Override
@@ -40,7 +35,7 @@ public class SnapshooterImpl implements Snapshooter {
             throw new RuntimeException("Snapshooter is already closed");
         }
 
-        final SlotSnapshot snapshot = new SlotSnapshotImpl(sessionId, bucket, slot.definition(), storage);
+        final SlotSnapshot snapshot = snapshotProvider.slotSnapshot(slot.definition());
 
         final URI uri = snapshot.uri();
         if (slot instanceof LzyInputSlot) {
@@ -127,10 +122,5 @@ public class SnapshooterImpl implements Snapshooter {
         while (!trackedSlots.isEmpty()) {
             this.wait();
         }
-    }
-
-    @Override
-    public StorageClient storage() {
-        return storage;
     }
 }
