@@ -23,7 +23,7 @@ public class SnapshooterTest {
         AtomicBoolean suspended = new AtomicBoolean(false);
         AtomicBoolean aborted = new AtomicBoolean(false);
 
-        SnapshotApiGrpc.SnapshotApiImplBase impl = new SnapshotApiGrpc.SnapshotApiImplBase(){
+        SnapshotApiGrpc.SnapshotApiImplBase impl = new SnapshotApiGrpc.SnapshotApiImplBase() {
             @Override
             public void abort(LzyWhiteboard.AbortCommand request,
                               StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
@@ -34,14 +34,16 @@ public class SnapshooterTest {
             }
 
             @Override
-            public void prepareToSave(LzyWhiteboard.PrepareCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            public void prepareToSave(LzyWhiteboard.PrepareCommand request,
+                    StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
                 responseObserver.onNext(LzyWhiteboard.OperationStatus.newBuilder()
                         .setStatus(LzyWhiteboard.OperationStatus.Status.OK).build());
                 responseObserver.onCompleted();
             }
 
             @Override
-            public void commit(LzyWhiteboard.CommitCommand request, StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            public void commit(LzyWhiteboard.CommitCommand request,
+                    StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
                 responseObserver.onNext(LzyWhiteboard.OperationStatus.newBuilder()
                         .setStatus(LzyWhiteboard.OperationStatus.Status.OK).build());
                 responseObserver.onCompleted();

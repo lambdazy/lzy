@@ -64,6 +64,11 @@ public class OutputSlotMock implements LzyOutputSlot {
         return state;
     }
 
+    public void state(Operations.SlotStatus.State state) {
+        this.state = state;
+        stateTrackers.getOrDefault(state, List.of()).forEach(Runnable::run);
+    }
+
     @Override
     public void onState(Operations.SlotStatus.State state, Runnable action) {
         stateTrackers.compute(state, (k, v) -> {
@@ -76,7 +81,7 @@ public class OutputSlotMock implements LzyOutputSlot {
     }
 
     @Override
-    public void onState(Set<Operations.SlotStatus.State> state, Runnable action) {
+    public void onState(Set<Operations.SlotStatus.State> state, StateChangeAction action) {
         state.forEach(state1 -> onState(state1, action));
     }
 
@@ -90,10 +95,6 @@ public class OutputSlotMock implements LzyOutputSlot {
         consumers.add(trafficTracker);
     }
 
-    public void state(Operations.SlotStatus.State state) {
-        this.state = state;
-        stateTrackers.getOrDefault(state, List.of()).forEach(Runnable::run);
-    }
     public void chunk(ByteString string) {
         consumers.forEach(t -> t.accept(string));
     }

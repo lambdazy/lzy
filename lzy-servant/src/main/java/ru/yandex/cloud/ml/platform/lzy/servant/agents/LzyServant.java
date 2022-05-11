@@ -29,6 +29,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -227,7 +228,7 @@ public class LzyServant extends LzyAgent {
                         channelName = entry.binding();
                     }
                     final URI channelUri = URI.create(channelName);
-                    if (channelUri.getScheme().equals("snapshot") && slot instanceof LzyOutputSlot) {
+                    if (Objects.equals(channelUri.getScheme(), "snapshot") && slot instanceof LzyOutputSlot) {
                         String snapshotId = "snapshot://" + channelUri.getHost();
                         lzyFs.getSlotConnectionManager().snapshooter().registerSlot(slot, snapshotId, channelName);
                     }

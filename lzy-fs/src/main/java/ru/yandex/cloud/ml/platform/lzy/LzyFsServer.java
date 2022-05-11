@@ -167,7 +167,7 @@ public final class LzyFsServer {
                 // TODO: It will be removed after creating Portal
                 final URI channelUri = URI.create(request.getCreate()
                     .getChannelId());
-                if (channelUri.getScheme().equals("snapshot") && lzySlot instanceof LzyOutputSlot) {
+                if (Objects.equals(channelUri.getScheme(), "snapshot") && lzySlot instanceof LzyOutputSlot) {
                     if (slotConnectionManager.snapshooter() == null) {
                         return onError.apply("Snapshot service was not initialized. Operation is not available.");
                     }
