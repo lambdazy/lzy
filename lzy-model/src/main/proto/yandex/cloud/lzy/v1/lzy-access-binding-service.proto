@@ -9,7 +9,7 @@ option go_package = "lzy";
 option java_outer_classname = "LABS";
 option java_package = "yandex.cloud.lzy.v1";
 
-service LzyABS {
+service LzyAccessBindingService {
   rpc ListAccessBindings (ListAccessBindingsRequest) returns (ListAccessBindingsResponse);
 
   rpc SetAccessBindings (SetAccessBindingsRequest) returns (google.protobuf.Empty);

@@ -3,6 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.iam.grpc;
 import com.google.protobuf.Empty;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
+
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
@@ -12,9 +14,9 @@ import yandex.cloud.lzy.v1.LABS.ListAccessBindingsRequest;
 import yandex.cloud.lzy.v1.LABS.ListAccessBindingsResponse;
 import yandex.cloud.lzy.v1.LABS.SetAccessBindingsRequest;
 import yandex.cloud.lzy.v1.LABS.UpdateAccessBindingsRequest;
-import yandex.cloud.lzy.v1.LzyABSGrpc;
+import yandex.cloud.lzy.v1.LzyAccessBindingServiceGrpc;
 
-public class LzyABSService extends LzyABSGrpc.LzyABSImplBase {
+public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingServiceImplBase {
 
     @Inject
     private AccessBindingClient client;

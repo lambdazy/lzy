@@ -8,7 +8,7 @@ option go_package = "lzy";
 option java_outer_classname = "LAS";
 option java_package = "yandex.cloud.priv.lzy.v1";
 
-service LzyAS {
+service LzyAccessService {
   rpc Authorize (AuthorizeRequest) returns (yandex.cloud.lzy.v1.Subject);
 }
 

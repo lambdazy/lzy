@@ -23,7 +23,7 @@ import ru.yandex.cloud.ml.platform.lzy.iam.utils.TokenParser;
 
 
 public class AuthInterceptor implements ServerInterceptor {
-    static final Metadata.Key<String> AUTHORIZATION = Metadata.Key.of(
+    public static final Metadata.Key<String> AUTHORIZATION = Metadata.Key.of(
             "Authorization", Metadata.ASCII_STRING_MARSHALLER
     );
     private final Function<AuthException, StatusException> exceptionMapper;
