@@ -65,12 +65,10 @@ public class SnapshotChannelController implements ChannelController {
         }
         switch (slot.slot().direction()) {
             case OUTPUT: {
-                if (status != Status.UNBOUND) {
+                if (channelGraph.senders().size() != 0) {
                     slot.destroy();  // TODO(artolord) Think about response to servant design
                     throw new ChannelException("Cannot write to already bound entry. Destroying slot " + slot);
                 }
-                status = Status.IN_PROGRESS;
-                slot.snapshot(snapshotId, entryId);
                 channelGraph.addSender(slot);
                 return;
             }
@@ -172,11 +170,7 @@ public class SnapshotChannelController implements ChannelController {
                 break;
             }
             case IN_PROGRESS: {
-                if (this.status != Status.IN_PROGRESS) {
-                    this.status = Status.ERRORED;
-                    throw new IllegalStateException(
-                            "Entry IN_PROGRESS, but ChannelController is not bound to OutSlot");
-                }
+                this.status = Status.IN_PROGRESS;
                 break;
             }
             case CREATED: {

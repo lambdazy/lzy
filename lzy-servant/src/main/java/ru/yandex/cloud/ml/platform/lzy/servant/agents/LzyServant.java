@@ -8,6 +8,8 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyFileSlot;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.Context;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -206,7 +208,22 @@ public class LzyServant extends LzyAgent {
             responseObserver.onCompleted();
 
             assignments.map(
-                entry -> context.configureSlot(tid, entry.slot(), entry.binding())
+                entry -> {
+                    LzySlot slot = context.configureSlot(tid, entry.slot(), entry.binding());
+                    // TODO: It will be removed after creating Portal
+                    final String channelName;
+                    if (entry.binding().startsWith("channel:")) {
+                        channelName = entry.binding().substring("channel:".length());
+                    } else {
+                        channelName = entry.binding();
+                    }
+                    final URI channelUri = URI.create(channelName);
+                    if (channelUri.getScheme().equals("snapshot") && slot instanceof LzyOutputSlot) {
+                        String snapshotId = "snapshot://" + channelUri.getHost();
+                        lzyFs.getSlotConnectionManager().snapshooter().registerSlot(slot, snapshotId, channelName);
+                    }
+                    return slot;
+                }
             ).forEach(slot -> {
                 if (slot instanceof LzyFileSlot) {
                     lzyFs.addSlot((LzyFileSlot) slot);
