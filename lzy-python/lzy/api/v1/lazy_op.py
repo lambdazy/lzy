@@ -132,7 +132,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
         self._entry_id_generator = entry_id_generator
 
-        super().__init__(signature, entry_id_generator.generate(self._zygote.return_slot))
+        super().__init__(signature, entry_id_generator.generate(self._zygote.return_slot.name))
 
     @property
     def zygote(self) -> Zygote:
@@ -198,7 +198,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 inputs.append(InputExecutionValue(name, data.entry_id, None))
                 bindings.append(Binding(slot, channel))
             else:
-                entry_id = self._entry_id_generator.generate(slot)
+                entry_id = self._entry_id_generator.generate(slot.name)
                 channel = self._channel_manager.channel(entry_id)
                 bindings.append(Binding(slot, channel))
                 write_later.append((entry_id, data))

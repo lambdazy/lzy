@@ -214,6 +214,12 @@ public class LzyKharon {
         }
 
         @Override
+        public void abort(LzyWhiteboard.AbortCommand request,
+                          StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+            ProxyCall.exec(snapshot::abort, request, responseObserver);
+        }
+
+        @Override
         public void prepareToSave(LzyWhiteboard.PrepareCommand request,
                                   StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
             ProxyCall.exec(snapshot::prepareToSave, request, responseObserver);

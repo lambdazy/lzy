@@ -161,7 +161,7 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.createEntry(snapshot, entryIdSecond);
         implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList());
         implSnapshotRepository.commit(secondEntry, false);
-        implSnapshotRepository.commit(firstEntry, false, true);
+        implSnapshotRepository.abort(firstEntry);
         implSnapshotRepository.finalize(snapshot);
         Optional<SnapshotStatus> statusOptional = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
         Assert.assertTrue(statusOptional.isPresent());
