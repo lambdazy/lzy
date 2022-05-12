@@ -13,10 +13,10 @@ import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.ResourceBinding;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBinding;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta.AccessBindingAction;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AuthResource;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBinding;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBindingDelta;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBindingDelta.AccessBindingAction;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthResource;
 
 @Singleton
 @Requires(beans = DbStorage.class)
@@ -48,10 +48,17 @@ public class DbAccessBindingClient implements AccessBindingClient {
     public void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) {
         try {
             StringBuilder query = new StringBuilder();
-            for (AccessBinding binding : accessBinding) {
-                query.append(insertQuery(resource, binding.role(), binding.subject()));
+            for (AccessBinding ignored : accessBinding) {
+                query.append(insertQuery());
             }
             final PreparedStatement st = storage.connect().prepareStatement(query.toString());
+            int parameterIndex = 0;
+            for (AccessBinding binding : accessBinding) {
+                st.setString(++parameterIndex, binding.subject());
+                st.setString(++parameterIndex, resource.resourceId());
+                st.setString(++parameterIndex, resource.type());
+                st.setString(++parameterIndex, binding.role());
+            }
             st.executeUpdate();
         } catch (SQLException e) {
             throw new AuthInternalException(e);
@@ -64,14 +71,29 @@ public class DbAccessBindingClient implements AccessBindingClient {
             StringBuilder query = new StringBuilder();
             for (AccessBindingDelta binding : accessBindingDeltas) {
                 if (binding.action() == AccessBindingAction.ADD) {
-                    query.append(insertQuery(resource, binding.binding().role(), binding.binding().subject()));
+                    query.append(insertQuery());
                 } else if (binding.action() == AccessBindingAction.REMOVE) {
-                    query.append(deleteQuery(resource, binding.binding().role(), binding.binding().subject()));
+                    query.append(deleteQuery());
                 } else {
                     throw new RuntimeException("Unknown bindingDelta action:: " + binding.action());
                 }
             }
             final PreparedStatement st = storage.connect().prepareStatement(query.toString());
+            int parameterIndex = 0;
+            for (AccessBindingDelta binding : accessBindingDeltas) {
+                if (binding.action() == AccessBindingAction.ADD) {
+                    st.setString(++parameterIndex, binding.binding().subject());
+                    st.setString(++parameterIndex, resource.resourceId());
+                    st.setString(++parameterIndex, resource.type());
+                    st.setString(++parameterIndex, binding.binding().role());
+                } else if (binding.action() == AccessBindingAction.REMOVE) {
+                    st.setString(++parameterIndex, binding.binding().subject());
+                    st.setString(++parameterIndex, binding.binding().role());
+                    st.setString(++parameterIndex, resource.resourceId());
+                } else {
+                    throw new RuntimeException("Unknown bindingDelta action:: " + binding.action());
+                }
+            }
             st.executeUpdate();
         } catch (SQLException e) {
             throw new AuthInternalException(e);
@@ -83,20 +105,17 @@ public class DbAccessBindingClient implements AccessBindingClient {
         return new AccessBinding(model.role(), model.userId());
     }
 
-    private String deleteQuery(AuthResource resource, String role, String subjectId) {
+    private String deleteQuery() {
         return "DELETE from user_resource_roles"
-                + " WHERE user_id = " + subjectId
-                + " AND role = " + role
-                + " AND resource_id  = " + resource.resourceId() + "; ";
+                + " WHERE user_id = ?"
+                + " AND role = ?"
+                + " AND resource_id  = ?; ";
     }
 
-    private String insertQuery(AuthResource resource, String role, String subjectId) {
+    private String insertQuery() {
         return "INSERT INTO user_resource_roles"
                 + " (user_id, resource_id, resource_type, role) values ("
-                + subjectId + ", "
-                + resource.resourceId() + ", "
-                + resource.type() + ", "
-                + role
+                + "?, ?, ?, ?"
                 + ") ON CONFLICT DO NOTHING; ";
     }
 }

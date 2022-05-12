@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.model.iam;
+package ru.yandex.cloud.ml.platform.lzy.iam.resources;
 
 public class AccessBinding {
 

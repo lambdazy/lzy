@@ -1,12 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.iam.grpc.context;
 
 import io.grpc.Context;
-import java.util.Objects;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.TokenParser;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.Objects;
 
 public class AuthenticationContext {
     public static Context.Key<AuthenticationContext> KEY = Context.key("authentication-context");
@@ -15,29 +15,12 @@ public class AuthenticationContext {
     private final Credentials credentials;
     private final Subject subject;
 
-    public AuthenticationContext(
-            @Nonnull TokenParser.Token token,
-            @Nonnull Credentials credentials,
-            @Nonnull Subject subject
-    ) {
-        this.token =  Objects.requireNonNull(token, "token is null");
+    public AuthenticationContext(@Nonnull TokenParser.Token token,
+                                 @Nonnull Credentials credentials,
+                                 @Nonnull Subject subject) {
+        this.token = Objects.requireNonNull(token, "token is null");
         this.credentials = Objects.requireNonNull(credentials, "credentials is null");
         this.subject = Objects.requireNonNull(subject, "subject is null");
-    }
-
-    @Nonnull
-    public TokenParser.Token getToken() {
-        return this.token;
-    }
-
-    @Nonnull
-    public Credentials getCredentials() {
-        return this.credentials;
-    }
-
-    @Nonnull
-    public Subject getSubject() {
-        return this.subject;
     }
 
     @Nullable
@@ -57,5 +40,20 @@ public class AuthenticationContext {
         } else {
             return ctx.getSubject();
         }
+    }
+
+    @Nonnull
+    public TokenParser.Token getToken() {
+        return this.token;
+    }
+
+    @Nonnull
+    public Credentials getCredentials() {
+        return this.credentials;
+    }
+
+    @Nonnull
+    public Subject getSubject() {
+        return this.subject;
     }
 }

@@ -1,14 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.iam.resources.impl;
 
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AuthResource;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthResource;
 
 public class Workflow implements AuthResource {
 
-    private final String type;
+    public static final String TYPE = "workflow";
     private final String resourceId;
 
-    public Workflow(String type, String resourceId) {
-        this.type = type;
+    public Workflow(String resourceId) {
         this.resourceId = resourceId;
     }
 
@@ -19,6 +18,6 @@ public class Workflow implements AuthResource {
 
     @Override
     public String type() {
-        return type;
+        return TYPE;
     }
 }

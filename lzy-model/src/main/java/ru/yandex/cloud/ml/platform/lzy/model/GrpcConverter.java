@@ -19,9 +19,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.LocalModule;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBinding;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AccessBindingDelta;
-import ru.yandex.cloud.ml.platform.lzy.model.iam.AuthResource;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionValue;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionValue;
@@ -30,7 +27,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-import yandex.cloud.lzy.v1.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AmazonCredentials;
@@ -341,42 +337,6 @@ public abstract class GrpcConverter {
                     .build()
             ).collect(Collectors.toList()))
             .build();
-    }
-
-    public static AuthResource to(IAM.Resource resource) {
-        return new AuthResource() {
-            @Override
-            public String resourceId() {
-                return resource.getId();
-            }
-
-            @Override
-            public String type() {
-                return resource.getType();
-            }
-        };
-    }
-
-    public static AccessBinding to(IAM.AccessBinding accessBinding) {
-        return new AccessBinding(accessBinding.getRole(), accessBinding.getSubject().getId());
-    }
-
-    @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
-    public static IAM.AccessBinding from(AccessBinding accessBinding) {
-        return IAM.AccessBinding.newBuilder()
-            .setRole(accessBinding.role())
-            .setSubject(
-                IAM.Subject.newBuilder().setId(accessBinding.subject()).build()
-            )
-            .build();
-    }
-
-    @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
-    public static AccessBindingDelta to(IAM.AccessBindingDelta accessBindingDelta) {
-        return new AccessBindingDelta(
-            AccessBindingDelta.AccessBindingAction.valueOf(accessBindingDelta.getAction().name()),
-            to(accessBindingDelta.getBinding())
-        );
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {
