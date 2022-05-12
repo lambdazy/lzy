@@ -21,6 +21,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.channel.DirectChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.SnapshotChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.LogContextHelper;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
@@ -79,7 +80,7 @@ public class LzyServer {
         try {
             parse = cliParser.parse(options, args);
         } catch (ParseException e) {
-            System.out.println(e.getMessage());
+            LOG.error("Failed to parse args: {}", String.join(" ", args), e);
             cliHelp.printHelp("lzy-server", options);
             System.exit(-1);
         }
@@ -91,6 +92,7 @@ public class LzyServer {
             lzyServerHost = DEFAULT_LZY_SERVER_LOCALHOST;
         }
         URI serverURI = URI.create(lzyServerHost + ":" + port);
+        LOG.info("Server uri = {}", serverURI.toString());
 
         try (ApplicationContext context = ApplicationContext.run(
             PropertySource.of(
@@ -183,158 +185,189 @@ public class LzyServer {
 
         @Override
         public void publish(Lzy.PublishRequest request, StreamObserver<Operations.RegisteredZygote> responseObserver) {
-            LOG.info("Server::Publish " + JsonUtils.printRequest(request));
-            final IAM.UserCredentials auth = request.getAuth();
-            if (!this.auth.checkUser(auth.getUserId(), auth.getToken())) {
-                responseObserver.onError(Status.ABORTED.asException());
-                return;
-            }
-            if (!this.auth.canPublish(auth.getUserId())) {
-                responseObserver.onError(Status.PERMISSION_DENIED.asException());
-                return;
-            }
-            final Operations.Zygote operation = request.getOperation();
-            if (!operations.publish(request.getName(), from(operation))) {
-                responseObserver.onError(Status.ALREADY_EXISTS.asException());
-                return;
-            }
+            LogContextHelper.newContext().withUserId(request.getAuth().getUserId()).run(() -> {
+                LOG.info("Publish request received {}", JsonUtils.printRequest(request));
+                final IAM.UserCredentials auth = request.getAuth();
+                if (!this.auth.checkUser(auth.getUserId(), auth.getToken())) {
+                    responseObserver.onError(Status.ABORTED.asException());
+                    return;
+                }
+                if (!this.auth.canPublish(auth.getUserId())) {
+                    responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                    return;
+                }
+                final Operations.Zygote operation = request.getOperation();
+                if (!operations.publish(request.getName(), from(operation))) {
+                    responseObserver.onError(Status.ALREADY_EXISTS.asException());
+                    return;
+                }
 
-            this.auth.registerOperation(request.getName(), auth.getUserId(), request.getScope());
-            responseObserver.onNext(Operations.RegisteredZygote.newBuilder()
-                .setWorkload(operation)
-                .setName(request.getName())
-                .build()
-            );
-            responseObserver.onCompleted();
+                this.auth.registerOperation(request.getName(), auth.getUserId(), request.getScope());
+                responseObserver.onNext(Operations.RegisteredZygote.newBuilder()
+                    .setWorkload(operation)
+                    .setName(request.getName())
+                    .build()
+                );
+                responseObserver.onCompleted();
+                LOG.info("Publish request done {}", JsonUtils.printRequest(request));
+            });
         }
 
         @Override
         public void zygotes(IAM.Auth auth, StreamObserver<Operations.ZygoteList> responseObserver) {
-            if (!checkAuth(auth, responseObserver)) {
-                responseObserver.onError(Status.PERMISSION_DENIED.asException());
-                return;
+            var logContext = LogContextHelper.newContext();
+            if (auth.hasUser()) {
+                logContext.withUserId(auth.getUser().getUserId());
             }
+            if (auth.hasTask()) {
+                logContext.withTaskId(auth.getTask().getTaskId());
+            }
+            logContext.run(() -> {
+                LOG.info("Zygotes request received");
+                if (!checkAuth(auth, responseObserver)) {
+                    responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                    return;
+                }
 
-            final String user = resolveUser(auth);
-            final Operations.ZygoteList.Builder builder = Operations.ZygoteList.newBuilder();
-            operations.list().filter(op -> this.auth.canAccess(op, user)).forEach(zyName ->
-                builder.addZygoteBuilder()
-                    .setName(zyName)
-                    .setWorkload(to(operations.get(zyName)))
-                    .build()
-            );
-            responseObserver.onNext(builder.build());
-            responseObserver.onCompleted();
+                final String user = resolveUser(auth);
+                final Operations.ZygoteList.Builder builder = Operations.ZygoteList.newBuilder();
+                operations.list().filter(op -> this.auth.canAccess(op, user)).forEach(zyName ->
+                    builder.addZygoteBuilder()
+                        .setName(zyName)
+                        .setWorkload(to(operations.get(zyName)))
+                        .build()
+                );
+                responseObserver.onNext(builder.build());
+                responseObserver.onCompleted();
+                LOG.info("Zygotes request done");
+            });
         }
 
         @Override
         public void task(Tasks.TaskCommand request, StreamObserver<Tasks.TaskStatus> responseObserver) {
-            if (!checkAuth(request.getAuth(), responseObserver)) {
-                responseObserver.onError(Status.PERMISSION_DENIED.asException());
-                return;
+            var logContext = LogContextHelper.newContext();
+            if (request.getAuth().hasUser()) {
+                logContext.withUserId(request.getAuth().getUser().getUserId());
             }
-
-            Task task = null;
-            switch (request.getCommandCase()) {
-                case STATE:
-                case SIGNAL: {
-                    task = tasks.task(UUID.fromString(request.getTid()));
-                    final TaskSignal signal = request.getSignal();
-                    if (task == null) {
-                        responseObserver.onError(Status.NOT_FOUND.asException());
-                        return;
-                    }
-                    if (!auth.canAccess(task, resolveUser(request.getAuth()))) {
-                        responseObserver.onError(Status.PERMISSION_DENIED.asException());
-                        return;
-                    }
-                    if (request.hasSignal()) {
-                        task.signal(Signal.valueOf(signal.getSigValue()));
-                    }
-                    break;
+            logContext.withTaskId(request.getTid()).run(() -> {
+                LOG.info("Task request received, command = {}", request.getCommandCase().name());
+                if (!checkAuth(request.getAuth(), responseObserver)) {
+                    responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                    return;
                 }
-                case COMMAND_NOT_SET:
-                    break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + request.getCommandCase());
-            }
-            if (task != null) {
-                responseObserver.onNext(taskStatus(task, tasks));
-                responseObserver.onCompleted();
-            } else {
-                responseObserver.onError(new IllegalArgumentException());
-            }
+
+                Task task = null;
+                switch (request.getCommandCase()) {
+                    case STATE:
+                    case SIGNAL: {
+                        task = tasks.task(UUID.fromString(request.getTid()));
+                        final TaskSignal signal = request.getSignal();
+                        if (task == null) {
+                            responseObserver.onError(Status.NOT_FOUND.asException());
+                            return;
+                        }
+                        if (!auth.canAccess(task, resolveUser(request.getAuth()))) {
+                            responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                            return;
+                        }
+                        if (request.hasSignal()) {
+                            task.signal(Signal.valueOf(signal.getSigValue()));
+                        }
+                        break;
+                    }
+                    case COMMAND_NOT_SET:
+                        break;
+                    default:
+                        throw new IllegalStateException("Unexpected value: " + request.getCommandCase());
+                }
+                if (task != null) {
+                    responseObserver.onNext(taskStatus(task, tasks));
+                    responseObserver.onCompleted();
+                    LOG.info("Task request done, command = {}", request.getCommandCase().name());
+                } else {
+                    LOG.error("Task request: unexpected command {}, task is null", request.getCommandCase().name());
+                    responseObserver.onError(new IllegalArgumentException());
+                }
+            });
         }
 
         @Override
         public void start(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> responseObserver) {
-            if (!checkAuth(request.getAuth(), responseObserver)) {
-                responseObserver.onError(Status.PERMISSION_DENIED.asException());
-                return;
+            var logContext = LogContextHelper.newContext();
+            if (request.getAuth().hasUser()) {
+                logContext.withUserId(request.getAuth().getUser().getUserId());
             }
-            LOG.info("Server::start " + JsonUtils.printRequest(request));
-            final Operations.Zygote zygote = request.getZygote();
-            final Zygote workload = from(zygote);
-            final Map<Slot, String> assignments = new HashMap<>();
-            request.getAssignmentsList()
-                .forEach(ass -> assignments.put(from(ass.getSlot()), ass.getBinding()));
-
-            final String uid = resolveUser(request.getAuth());
-            final Task parent = resolveTask(request.getAuth());
-            final SessionManager.Session session = resolveSession(request.getAuth());
-            final AtomicBoolean concluded = new AtomicBoolean(false);
-            // [TODO] session per user is too simple
-            final Task task = tasks.start(uid, parent, workload, assignments, auth);
-            final int[] retries = new int[] {0};
-            task.onProgress(progress -> {
-                if (concluded.get())
+            logContext.withTaskId(request.getTid()).run(() -> {
+                LOG.info("Start request received {}", JsonUtils.printRequest(request));
+                if (!checkAuth(request.getAuth(), responseObserver)) {
+                    responseObserver.onError(Status.PERMISSION_DENIED.asException());
                     return;
-                responseObserver.onNext(progress);
-                if (progress.getStatus() == QUEUE) {
-                    final UUID sessionId = session.id();
-                    servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
-                        .whenComplete((connection, th) -> {
-                            if (th != null) {
-                                task.state(Task.State.ERROR, ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
-                                    th.getMessage(), Arrays.toString(th.getStackTrace()));
-                            } else {
-                                task.attachServant(connection);
-                                auth.registerTask(uid, task, connection.id());
-                            }
-                        });
-                } else if (progress.getStatus() == DISCONNECTED) {
-                    if (retries[0]++ < MAX_TASK_RETRIES)
-                        task.state(Task.State.QUEUE, "Disconnected from servant. Retry: " + retries[0]);
-                    else
-                        task.state(Task.State.ERROR, 1, "Disconnected from servant. Maximum retries reached.");
-                } else if (EnumSet.of(ERROR, SUCCESS).contains(progress.getStatus())) {
-                    concluded.set(true);
-                    responseObserver.onCompleted();
-                    if (parent != null) {
-                        parent.signal(TasksManager.Signal.CHLD);
+                }
+                final Operations.Zygote zygote = request.getZygote();
+                final Zygote workload = from(zygote);
+                final Map<Slot, String> assignments = new HashMap<>();
+                request.getAssignmentsList()
+                    .forEach(ass -> assignments.put(from(ass.getSlot()), ass.getBinding()));
+
+                final String uid = resolveUser(request.getAuth());
+                final Task parent = resolveTask(request.getAuth());
+                final SessionManager.Session session = resolveSession(request.getAuth());
+                final AtomicBoolean concluded = new AtomicBoolean(false);
+                // [TODO] session per user is too simple
+                final Task task = tasks.start(uid, parent, workload, assignments, auth);
+                final int[] retries = new int[]{0};
+                task.onProgress(progress -> {
+                    if (concluded.get())
+                        return;
+                    responseObserver.onNext(progress);
+                    if (progress.getStatus() == QUEUE) {
+                        final UUID sessionId = session.id();
+                        servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
+                            .whenComplete((connection, th) -> {
+                                if (th != null) {
+                                    task.state(Task.State.ERROR, ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
+                                        th.getMessage(), Arrays.toString(th.getStackTrace()));
+                                } else {
+                                    task.attachServant(connection);
+                                    auth.registerTask(uid, task, connection.id());
+                                }
+                            });
+                    } else if (progress.getStatus() == DISCONNECTED) {
+                        if (retries[0]++ < MAX_TASK_RETRIES)
+                            task.state(Task.State.QUEUE, "Disconnected from servant. Retry: " + retries[0]);
+                        else
+                            task.state(Task.State.ERROR, 1, "Disconnected from servant. Maximum retries reached.");
+                    } else if (EnumSet.of(ERROR, SUCCESS).contains(progress.getStatus())) {
+                        concluded.set(true);
+                        responseObserver.onCompleted();
+                        if (parent != null) {
+                            parent.signal(TasksManager.Signal.CHLD);
+                        }
                     }
-                }
+                });
+                UserEventLogger.log(
+                    new UserEvent(
+                        "Task created",
+                        Map.of(
+                            "task_id", task.tid().toString(),
+                            "user_id", uid
+                        ),
+                        UserEvent.UserEventType.TaskCreate
+                    )
+                );
+                LOG.info("Created new task {} of user {}", task.tid().toString(), uid);
+                Context.current().addListener(ctxt -> {
+                    concluded.set(true);
+                    try {
+                        if (task.state().phase() < Task.State.SUCCESS.phase()) // task is not complete yet
+                            task.signal(Signal.HUB);
+                    } catch (TaskException e) {
+                        LOG.warn("Exception during HUB signal, task id={}", task.tid(), e);
+                    }
+                }, Runnable::run);
+                task.state(Task.State.QUEUE);
+                LOG.info("Start request done {}", JsonUtils.printRequest(request));
             });
-            UserEventLogger.log(
-                new UserEvent(
-                    "Task created",
-                    Map.of(
-                        "task_id", task.tid().toString(),
-                        "user_id", uid
-                    ),
-                    UserEvent.UserEventType.TaskCreate
-                )
-            );
-            Context.current().addListener(ctxt -> {
-                concluded.set(true);
-                try {
-                    if (task.state().phase() < Task.State.SUCCESS.phase()) // task is not complete yet
-                        task.signal(TasksManager.Signal.HUB);
-                } catch (TaskException e) {
-                    LOG.warn("Exception during HUB signal, task id={}", task.tid(), e);
-                }
-            }, Runnable::run);
-            task.state(Task.State.QUEUE);
         }
 
         @Override

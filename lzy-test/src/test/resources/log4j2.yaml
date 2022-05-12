@@ -6,7 +6,7 @@ Configuration:
       name: Console
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+        pattern: "%d %-5level [%t] %notEmpty{{%notEmpty{user_id: \"%X{user_id}\"}%notEmpty{, task_id: \"%X{task_id}\"}}} %c{1.}: %msg%n%throwable"
 
   Loggers:
     Root:

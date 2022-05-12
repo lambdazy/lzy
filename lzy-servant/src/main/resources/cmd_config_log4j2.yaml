@@ -6,7 +6,7 @@ Configuration:
       name: LogFile
       fileName: ${sys:custom.log.file}
       PatternLayout:
-        pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] [%t] %c{1} - %msg%n"
+        pattern: "%d %-5level [%t] %notEmpty{{%notEmpty{user_id: \"%X{user_id}\"}%notEmpty{, task_id: \"%X{task_id}\"}}} %c{1.}: %msg%n%throwable"
 
   Loggers:
     Root:
