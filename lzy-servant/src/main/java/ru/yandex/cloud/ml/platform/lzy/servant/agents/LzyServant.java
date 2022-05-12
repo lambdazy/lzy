@@ -8,6 +8,8 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyFileSlot;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.Context;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -19,6 +21,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
+import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.IOException;
@@ -26,6 +29,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -124,7 +128,7 @@ public class LzyServant extends LzyAgent {
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
 
-        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(), lzyFs.getSlotConnectionManager(),
+        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(),
             lzyFs.getMountPoint().toString());
 
         final long finish = System.currentTimeMillis();
@@ -157,7 +161,15 @@ public class LzyServant extends LzyAgent {
                 () -> {
                     final Servant.EnvResult.Builder result = Servant.EnvResult.newBuilder();
                     try {
-                        context().prepare(GrpcConverter.from(request));
+                        final String bucket = server.getBucket(Lzy.GetBucketRequest
+                            .newBuilder().setAuth(auth).build()).getBucket();
+                        final Lzy.GetS3CredentialsResponse credentials = server.getS3Credentials(
+                            Lzy.GetS3CredentialsRequest.newBuilder()
+                                .setBucket(bucket)
+                                .setAuth(auth)
+                                .build()
+                        );
+                        context().prepare(GrpcConverter.from(request), StorageClient.create(credentials));
                     } catch (EnvironmentInstallationException e) {
                         LOG.error("Unable to install environment", e);
                         result.setRc(-1);
@@ -206,7 +218,22 @@ public class LzyServant extends LzyAgent {
             responseObserver.onCompleted();
 
             assignments.map(
-                entry -> context.configureSlot(tid, entry.slot(), entry.binding())
+                entry -> {
+                    LzySlot slot = context.configureSlot(tid, entry.slot(), entry.binding());
+                    // TODO: It will be removed after creating Portal
+                    final String channelName;
+                    if (entry.binding().startsWith("channel:")) {
+                        channelName = entry.binding().substring("channel:".length());
+                    } else {
+                        channelName = entry.binding();
+                    }
+                    final URI channelUri = URI.create(channelName);
+                    if (Objects.equals(channelUri.getScheme(), "snapshot") && slot instanceof LzyOutputSlot) {
+                        String snapshotId = "snapshot://" + channelUri.getHost();
+                        lzyFs.getSlotConnectionManager().snapshooter().registerSlot(slot, snapshotId, channelName);
+                    }
+                    return slot;
+                }
             ).forEach(slot -> {
                 if (slot instanceof LzyFileSlot) {
                     lzyFs.addSlot((LzyFileSlot) slot);

@@ -163,18 +163,21 @@ public final class LzyFsServer {
                 final LzyFsApi.CreateSlotCommand create = request.getCreate();
                 final Slot slotSpec = GrpcConverter.from(create.getSlot());
                 final LzySlot lzySlot = slotsManager.configureSlot(request.getTid(), slotSpec, create.getChannelId());
+
+                // TODO: It will be removed after creating Portal
+                final URI channelUri = URI.create(request.getCreate()
+                    .getChannelId());
+                if (Objects.equals(channelUri.getScheme(), "snapshot") && lzySlot instanceof LzyOutputSlot) {
+                    if (slotConnectionManager.snapshooter() == null) {
+                        return onError.apply("Snapshot service was not initialized. Operation is not available.");
+                    }
+                    String entryId = request.getCreate().getChannelId();
+                    String snapshotId = "snapshot://" + channelUri.getHost();
+                    slotConnectionManager.snapshooter().registerSlot(lzySlot, snapshotId, entryId);
+                }
                 if (lzySlot instanceof LzyFileSlot) {
                     fs.addSlot((LzyFileSlot) lzySlot);
                 }
-                break;
-            }
-
-            case SNAPSHOT: {
-                if (slotConnectionManager.snapshooter() == null) {
-                    return onError.apply("Snapshot service was not initialized. Operation is not available.");
-                }
-                final LzyFsApi.SnapshotCommand snapshot = request.getSnapshot();
-                slotConnectionManager.snapshooter().registerSlot(slot, snapshot.getSnapshotId(), snapshot.getEntryId());
                 break;
             }
 

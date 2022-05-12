@@ -26,7 +26,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardApi,
     WhiteboardList,
     WhiteboardDescription,
-    WhiteboardFieldStatus
+    WhiteboardFieldStatus, UUIDEntryIdGenerator
 )
 from lzy.servant.model.encoding import ENCODING as encoding
 from lzy.servant.model.env import PyEnv
@@ -359,7 +359,8 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                 self._execution_context.whiteboard_api,
                 self.whiteboard_id,
                 self._channel_manager,
-                self._file_serializer
+                self._file_serializer,
+                UUIDEntryIdGenerator(self.snapshot_id())
             )
 
     def servant(self) -> Optional[ServantClient]:
@@ -452,5 +453,6 @@ class LzyLocalWorkflow(LzyWorkflowBase):
                 self._execution_context.whiteboard_api,
                 self.whiteboard_id,
                 LocalChannelManager(""),
-                file_serializer
+                file_serializer,
+                UUIDEntryIdGenerator(self.snapshot_id())
             )

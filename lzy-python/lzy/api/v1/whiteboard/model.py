@@ -137,7 +137,7 @@ class WhiteboardApi(ABC):
 
 class EntryIdGenerator(ABC):
     @abstractmethod
-    def generate(self, slot: Slot) -> str:
+    def generate(self, slot: str) -> str:
         pass
 
 
@@ -145,8 +145,8 @@ class UUIDEntryIdGenerator(EntryIdGenerator):
     def __init__(self, snapshot_id: str) -> None:
         self.__snapshot_id = snapshot_id
 
-    def generate(self, slot: Slot) -> str:
-        return "/".join([self.__snapshot_id, slot.name, str(uuid.uuid1())])
+    def generate(self, slot_name: str) -> str:
+        return "/".join([self.__snapshot_id, slot_name, str(uuid.uuid1())])
 
 
 class InMemWhiteboardApi(WhiteboardApi):
