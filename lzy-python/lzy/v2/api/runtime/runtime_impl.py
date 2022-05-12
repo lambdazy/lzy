@@ -15,6 +15,7 @@ from lzy.v2.servant.bash_servant_client import BashServantClient
 from lzy.v2.servant.channel_manager import ChannelManager
 from lzy.v2.servant.model.channel import Bindings, Binding
 from lzy.v2.servant.model.env import Env, BaseEnv, PyEnv
+from lzy.v2.servant.model.provisioning import Gpu, Provisioning
 from lzy.v2.servant.model.signatures import FuncSignature
 from lzy.v2.servant.model.zygote_python_func import ZygotePythonFunc
 from lzy.v2.servant.servant_client import ServantClient
@@ -73,14 +74,17 @@ class RuntimeImpl(Runtime):
     def _task_spec(self, call: LzyCall, snapshot_id: str):
         call_id = call.id
         operation_name = call.operation_name
+        if call.op.provisioning.gpu is not None and call.op.provisioning.gpu.is_any:
+            provisioning = Provisioning(Gpu.any())
+        else:
+            provisioning = Provisioning()
 
-        # TODO: think about provisioning
         zygote = ZygotePythonFunc(
             self._serializer,
             FuncSignature(call.op.callable, call.op.input_types, call.op.output_type, call.op.arg_names,
                           call.op.kwarg_names),
             self._env(call),
-            call.op.provisioning
+            provisioning
         )
 
         args = self._resolve_args(call)

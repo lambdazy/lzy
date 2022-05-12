@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import TypeVar, Generic, Callable, Dict, Type, Tuple, Iterable
 
 from lzy.v2.api.env.env import Env
-from lzy.v2.servant.model.provisioning import Provisioning
+from lzy.v2.api.provisioning import Provisioning
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
