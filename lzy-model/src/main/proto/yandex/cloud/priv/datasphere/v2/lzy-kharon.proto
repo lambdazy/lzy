@@ -18,12 +18,12 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service LzyKharon {
   // API for terminal
-  rpc AttachTerminal (stream TerminalState) returns (stream TerminalCommand);
+  rpc AttachTerminal (stream ServerCommand) returns (stream TerminalCommand);
   rpc WriteToInputSlot(stream SendSlotDataMessage) returns (ReceivedDataStatus);
   rpc OpenOutputSlot (SlotRequest) returns (stream Message);
 }
 
-message TerminalState {
+message ServerCommand {
   oneof progress {
     AttachTerminal attachTerminal = 1;
     SlotAttach attach = 2;

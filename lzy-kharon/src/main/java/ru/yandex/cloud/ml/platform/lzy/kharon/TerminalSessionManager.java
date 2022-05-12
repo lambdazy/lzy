@@ -25,12 +25,12 @@ public class TerminalSessionManager {
         return terminalSession;
     }
 
-    public TerminalSession getTerminalSessionFromGrpcContext() throws InvalidSessionRequestException {
+    public TerminalSession getSessionFromGrpcContext() throws InvalidSessionRequestException {
         final UUID sessionId = UUID.fromString(Constants.SESSION_ID_CTX_KEY.get());
         return safeGetSession(sessionId);
     }
 
-    public TerminalSession getTerminalSessionFromSlotUri(String slotUri) throws InvalidSessionRequestException {
+    public TerminalSession getSessionFromSlotUri(String slotUri) throws InvalidSessionRequestException {
         final UUID sessionIdFromUri = UriResolver.parseSessionIdFromSlotUri(URI.create(slotUri));
         return safeGetSession(sessionIdFromUri);
     }
@@ -43,11 +43,17 @@ public class TerminalSessionManager {
                 String.format("Unknown sessionId %s", sessionId)
             );
         }
-        if (!session.isAlive()) {
-            sessions.remove(sessionId);
+        final TerminalSessionState state = session.state();
+        if (state == TerminalSessionState.ERRORED || state == TerminalSessionState.COMPLETED) {
+            deleteSession(sessionId);
             LOG.error("Got request on invalid session with id = {}", sessionId);
             throw new InvalidSessionRequestException("Got request on invalid session with id = " + sessionId);
         }
         return session;
+    }
+
+    public void deleteSession(UUID sessionId) {
+        LOG.info("Deleting session with id={}", sessionId);
+        sessions.remove(sessionId);
     }
 }

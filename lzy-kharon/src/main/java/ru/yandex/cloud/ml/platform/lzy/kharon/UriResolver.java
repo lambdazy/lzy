@@ -14,12 +14,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class UriResolver {
-    private final URI kharonServantProxyAddress;
-    private final URI kharonAddress;
+    private final URI address;
+    private final URI servantFsProxyAddress;
 
-    public UriResolver(URI kharonServantProxyAddress, URI kharonAddress) {
-        this.kharonServantProxyAddress = kharonServantProxyAddress;
-        this.kharonAddress = kharonAddress;
+    public UriResolver(URI address, URI servantFsProxyAddress) {
+        this.address = address;
+        this.servantFsProxyAddress = servantFsProxyAddress;
     }
 
     public static String parseTidFromSlotUri(URI slotUri) {
@@ -43,31 +43,31 @@ public class UriResolver {
         throw new IllegalStateException("Failed to parse sessionId from uri " + slotUri);
     }
 
-    public URI convertSlotUri(URI slotUri, UUID sessionId) throws URISyntaxException {
+    public URI appendWithSessionId(URI slotUri, UUID sessionId) throws URISyntaxException {
         return new URI(
             slotUri.getScheme(),
             null,
-            kharonServantProxyAddress.getHost(),
-            kharonServantProxyAddress.getPort(),
+            servantFsProxyAddress.getHost(),
+            servantFsProxyAddress.getPort(),
             slotUri.getPath(),
             SESSION_ID_KEY + "=" + sessionId.toString(),
             null
         );
     }
 
-    public URI convertServantUri(URI slotUri) throws URISyntaxException {
+    public URI convertToKharonWithSlotUri(URI servantUri) throws URISyntaxException {
         return new URIBuilder()
                 .setScheme("kharon")
-                .setHost(kharonAddress.getHost())
-                .setPort(kharonAddress.getPort())
-                .addParameter("servant_uri", slotUri.toString())
+                .setHost(address.getHost())
+                .setPort(address.getPort())
+                .addParameter("slot_uri", servantUri.toString())
                 .build();
     }
 
-    public static Optional<URI> resolveSlotUri(URI slotUri) {
-        return URLEncodedUtils.parse(slotUri, StandardCharsets.UTF_8)
+    public static Optional<URI> parseSlotUri(URI servantUri) {
+        return URLEncodedUtils.parse(servantUri, StandardCharsets.UTF_8)
                 .stream()
-                .filter(t -> t.getName().equals("servant_uri"))
+                .filter(t -> t.getName().equals("slot_uri"))
                 .findFirst()
                 .map(NameValuePair::getValue)
                 .map(URI::create);

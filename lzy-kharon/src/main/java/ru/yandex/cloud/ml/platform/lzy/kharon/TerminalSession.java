@@ -1,14 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.kharon.ServerController.ServerControllerResetException;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 
 import java.util.UUID;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 public class TerminalSession {
     public static final String SESSION_ID_KEY = "kharon_session_id";
@@ -17,7 +18,7 @@ public class TerminalSession {
     private TerminalSessionState state = TerminalSessionState.UNBOUND;
 
     private final TerminalController terminalController;
-    private final TerminalStateHandler terminalStateHandler;
+    private final ServerCommandHandler serverCommandHandler;
     private final ServerController serverController;
 
     private final UUID sessionId;
@@ -30,60 +31,60 @@ public class TerminalSession {
         this.sessionId = sessionId;
         this.terminalController = terminalController;
         this.serverController = serverController;
-        this.terminalStateHandler = new TerminalStateHandler();
+        this.serverCommandHandler = new ServerCommandHandler();
     }
 
-    public class TerminalStateHandler implements StreamObserver<Kharon.TerminalState> {
+    public class ServerCommandHandler implements StreamObserver<Kharon.ServerCommand> {
         @Override
-        public void onNext(Kharon.TerminalState terminalState) {
+        public void onNext(Kharon.ServerCommand terminalState) {
             LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:"
                     + JsonUtils.printRequest(terminalState));
 
-            switch (terminalState.getProgressCase()) {
-                case ATTACHTERMINAL: {
-                    final AttachTerminal attachTerminal = terminalState.getAttachTerminal();
-                    if (state != TerminalSessionState.UNBOUND) {
-                        throw new IllegalStateException("Double attach to terminal from user "
+            try {
+                switch (terminalState.getProgressCase()) {
+                    case ATTACHTERMINAL: {
+                        final AttachTerminal attachTerminal = terminalState.getAttachTerminal();
+                        if (state != TerminalSessionState.UNBOUND) {
+                            throw new IllegalStateException("Double attach to terminal from user "
                                 + attachTerminal.getAuth().getUserId());
-                    }
-                    updateState(TerminalSessionState.TERMINAL_ATTACHED);
-
-                    try {
+                        }
+                        updateState(TerminalSessionState.TERMINAL_ATTACHED);
                         serverController.register(attachTerminal.getAuth());
-                    } catch (StatusRuntimeException e) {
-                        LOG.error("registerServant failed. " + e);
-                        terminalController.onError(e);
+                        break;
                     }
-                    break;
+                    case ATTACH: {
+                        serverController.attach(terminalState.getAttach());
+                        break;
+                    }
+                    case DETACH: {
+                        serverController.detach(terminalState.getDetach());
+                        break;
+                    }
+                    case TERMINALRESPONSE: {
+                        terminalController.handleTerminalResponse(terminalState.getTerminalResponse());
+                        break;
+                    }
+                    default:
+                        throw new IllegalStateException("Unexpected value: " + terminalState.getProgressCase());
                 }
-                case ATTACH: {
-                    serverController.attach(terminalState.getAttach());
-                    break;
-                }
-                case DETACH: {
-                    serverController.detach(terminalState.getDetach());
-                    break;
-                }
-                case TERMINALRESPONSE: {
-                    terminalController.handleTerminalResponse(terminalState.getTerminalResponse());
-                    break;
-                }
-                default:
-                    throw new IllegalStateException("Unexpected value: " + terminalState.getProgressCase());
+            } catch (ServerControllerResetException e) {
+                LOG.error(e);
+                updateState(TerminalSessionState.ERRORED);
+                terminalController.terminate(e);
             }
         }
 
         @Override
         public void onError(Throwable throwable) {
-            LOG.error("Terminal execution terminated ", throwable);
-            invalidate();
+            LOG.error("Terminal connection with sessionId={} terminated, exception = {} ", sessionId, throwable);
+            updateState(TerminalSessionState.ERRORED);
             serverController.terminate(throwable);
         }
 
         @Override
         public void onCompleted() {
-            LOG.info("Terminal with sessionId = {} disconnected", sessionId);
-            invalidate();
+            LOG.info("Terminal connection with sessionId={} completed", sessionId);
+            updateState(TerminalSessionState.COMPLETED);
             serverController.complete();
         }
     }
@@ -96,20 +97,33 @@ public class TerminalSession {
         return state;
     }
 
-    public StreamObserver<Kharon.TerminalState> terminalStateHandler() {
-        return terminalStateHandler;
+    private synchronized void updateState(TerminalSessionState state) {
+        this.state = state;
+    }
+
+    public StreamObserver<Kharon.ServerCommand> serverCommandHandler() {
+        return serverCommandHandler;
     }
 
     public TerminalController terminalController() {
         return terminalController;
     }
 
-    public void close() {
-        try {
-            invalidate();
-            terminalController.onCompleted();
-        } catch (Exception e) {
-            LOG.error("Failed to close stream with Terminal session_id {}. Already closed: ", sessionId, e);
-        }
+    public void setServerStream(StreamObserver<Servant.ServantProgress> responseObserver)
+        throws ServerControllerResetException {
+        serverController.setProgress(responseObserver);
+        updateState(TerminalSessionState.CONNECTION_ESTABLISHED);
+    }
+
+    public void onServerDisconnect() {
+        LOG.info("Server DISCONNECTED for sessionId = {}", sessionId);
+        updateState(TerminalSessionState.COMPLETED);
+        terminalController.complete();
+    }
+
+    public void onTerminalDisconnect() {
+        LOG.info("Terminal DISCONNECTED for sessionId = {}", sessionId);
+        updateState(TerminalSessionState.COMPLETED);
+        serverController.complete();
     }
 }

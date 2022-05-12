@@ -18,7 +18,10 @@ public class ServerController {
     private final LzyServerGrpc.LzyServerBlockingStub lzyServer;
     private StreamObserver<Servant.ServantProgress> progress;
     private final UriResolver uriResolver;
+
     private final UUID sessionId;
+    private final URI kharonServantProxyUri;
+    private final URI kharonServantFsProxyUri;
 
     private enum State {
         UNBOUND,
@@ -31,11 +34,17 @@ public class ServerController {
     private State state;
 
     public ServerController(
-            LzyServerGrpc.LzyServerBlockingStub lzyServer,
-            UriResolver uriResolver, UUID sessionId) {
+        LzyServerGrpc.LzyServerBlockingStub lzyServer,
+        UriResolver uriResolver,
+        UUID sessionId,
+        URI kharonServantProxyUri,
+        URI kharonServantFsProxyUri
+    ) {
         this.lzyServer = lzyServer;
         this.uriResolver = uriResolver;
         this.sessionId = sessionId;
+        this.kharonServantProxyUri = kharonServantProxyUri;
+        this.kharonServantFsProxyUri = kharonServantFsProxyUri;
         this.state = State.UNBOUND;
     }
 
@@ -51,54 +60,71 @@ public class ServerController {
                 IAM.Auth.newBuilder()
                 .setUser(userCredentials)
                 .build())
-            .setServantURI(servantUri.toString())
+            .setServantURI(kharonServantProxyUri.toString())
+            .setFsURI(kharonServantFsProxyUri.toString())
             .setServantId(sessionId.toString())
             .build());
         updateState(State.REGISTERED);
     }
 
-    public void setProgress(StreamObserver<Servant.ServantProgress> progress) {
+    public void setProgress(StreamObserver<Servant.ServantProgress> progress) throws ServerControllerResetException {
+        if (state == State.ERRORED || state == State.COMPLETED) {
+            throw new ServerControllerResetException();
+        }
         this.progress = progress;
         updateState(State.CONNECTED);
     }
 
-    public void attach(Servant.SlotAttach attach) throws URISyntaxException {
-        waitForConnection();
-        progress.onNext(Servant.ServantProgress.newBuilder()
-            .setAttach(Servant.SlotAttach.newBuilder()
-                .setSlot(attach.getSlot())
-                .setUri(uriResolver.convertSlotUri(URI.create(attach.getUri()), sessionId).toString())
-                .setChannel(attach.getChannel())
-                .build())
-            .build());
+    public void attach(Servant.SlotAttach attach) throws ServerControllerResetException {
+        try {
+            sendMessage(Servant.ServantProgress.newBuilder()
+                .setAttach(Servant.SlotAttach.newBuilder()
+                    .setSlot(attach.getSlot())
+                    .setUri(uriResolver.appendWithSessionId(URI.create(attach.getUri()), sessionId).toString())
+                    .setChannel(attach.getChannel())
+                    .build())
+                .build());
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public void detach(Servant.SlotDetach detach) throws URISyntaxException {
-        waitForConnection();
-        progress.onNext(Servant.ServantProgress.newBuilder()
-            .setDetach(Servant.SlotDetach.newBuilder()
-                .setSlot(detach.getSlot())
-                .setUri(uriResolver.convertSlotUri(URI.create(detach.getUri()), sessionId).toString())
-                .build())
-            .build());
+    public void detach(Servant.SlotDetach detach) throws ServerControllerResetException {
+        try {
+            sendMessage(Servant.ServantProgress.newBuilder()
+                .setDetach(Servant.SlotDetach.newBuilder()
+                    .setSlot(detach.getSlot())
+                    .setUri(uriResolver.appendWithSessionId(URI.create(detach.getUri()), sessionId).toString())
+                    .build())
+                .build());
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public void terminate(Throwable th) {
-        progress.onError(th);
+    public synchronized void terminate(Throwable th) {
+        LOG.info("Server connection sessionId={} terminated, throwable={}", sessionId, th);
+        if (state == State.CONNECTED) {
+            progress.onError(th);
+        }
         updateState(State.ERRORED);
     }
 
-    public void complete() {
-        progress.onCompleted();
+    public synchronized void complete() {
+        LOG.info("ServerController sessionId={} completed", sessionId);
+        if (state == State.CONNECTED) {
+            progress.onCompleted();
+        }
         updateState(State.COMPLETED);
     }
 
     private synchronized void updateState(State state) {
+        LOG.info("ServerController sessionId={} change state from {} to {}", sessionId, this.state, state);
         this.state = state;
         notifyAll();
     }
 
-    private synchronized void waitForConnection() {
+    private synchronized void sendMessage(Servant.ServantProgress message) throws ServerControllerResetException {
         while (State.CONNECTED != state && state != State.ERRORED && state != State.COMPLETED) {
             try {
                 wait();
@@ -107,8 +133,12 @@ public class ServerController {
             }
         }
 
-        if (state == State.ERRORED || state == State.COMPLETED) {
-            throw new
+        if (state != State.CONNECTED) {
+            throw new ServerControllerResetException();
         }
+
+        this.progress.onNext(message);
     }
+
+    public static class ServerControllerResetException extends Exception { }
 }

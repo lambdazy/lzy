@@ -5,5 +5,5 @@ public enum TerminalSessionState {
     TERMINAL_ATTACHED,
     CONNECTION_ESTABLISHED,
     ERRORED,
-    COMPLETED;
+    COMPLETED
 }
