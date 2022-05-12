@@ -48,9 +48,6 @@ def read_requirements() -> List[str]:
     with open("requirements.txt", "r") as file:
         for line in file:
             requirements.append(line.rstrip())
-    requirements.append(
-        "pure-protobuf @ git+https://github.com/eigenein/protobuf@2699b92fafc212ab3e7278aaa3931e9f4d326308#egg=pure-protobuf",
-    )
     return requirements
 
 
