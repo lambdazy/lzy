@@ -18,7 +18,6 @@ class LzyWorkflowSplitter:
                 graph_builder.add_call(call)
             self._calls = []
         else:
-            if not call.executed:
-                graph_builder.add_call(call)
+            graph_builder.add_call(call)
         return graph_builder.build()
 

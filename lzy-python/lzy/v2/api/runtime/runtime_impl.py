@@ -39,7 +39,7 @@ class RuntimeImpl(Runtime):
 
     def _resolve_args(self, call: LzyCall) -> Iterable[Tuple[str, Union[Any, __EntryId]]]:
         for name, arg in call.named_arguments():
-            if is_lazy_proxy(arg) and arg.lzy_call.executed:
+            if is_lazy_proxy(arg) and hasattr(arg, "_origin"):
                 yield name, self.__EntryId(arg.lzy_call.entry_id)
                 continue
             yield name, arg
@@ -106,7 +106,7 @@ class RuntimeImpl(Runtime):
 
         dependent_calls = []
         for name, arg in call.named_arguments():
-            if is_lazy_proxy(arg) and not arg.op.executed:
+            if is_lazy_proxy(arg) and not hasattr(arg, "_origin"):
                 dependent_calls.append(arg.id)
 
         return TaskSpec(call_id, operation_name, zygote, bindings, dependent_calls), write_later

@@ -3,14 +3,16 @@ import inspect
 import logging
 import sys
 import uuid
-from typing import Callable
+from typing import Callable, TypeVar
 
 from lzy.v2._proxy.result import Nothing
 from lzy.v2.api.lzy_call import LzyCall
 from lzy.v2.api.lzy_op import LzyOp
 from lzy.v2.api.lzy_workflow import LzyWorkflow
-from lzy.v2.servant.model.provisioning import Provisioning, Gpu
+from lzy.v2.api.provisioning import Gpu, Provisioning
 from lzy.v2.utils import infer_return_type, infer_call_signature, lazy_proxy
+
+T = TypeVar("T")  # pylint: disable=invalid-name
 
 logging.root.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
@@ -20,7 +22,6 @@ handler.setFormatter(formatter)
 logging.root.addHandler(handler)
 
 
-# TODO: another provisioning?
 # pylint: disable=[invalid-name]
 def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
     provisioning = Provisioning(gpu)
@@ -92,12 +93,13 @@ def op_(provisioning: Provisioning, *, output_type=None):
             if issubclass(output_type, type(None)):
                 return None
             else:
-                return lazy_proxy(lzy_call.execute, output_type, {"lzy_call": lzy_call})
+                return lazy_proxy(lambda: lzy_call.op.callable(lzy_call.args, lzy_call.kwargs), output_type,
+                                  {"lzy_call": lzy_call})
 
         return lazy
 
-
     return deco
+
 
 # register cloud injections
 # noinspection PyBroadException

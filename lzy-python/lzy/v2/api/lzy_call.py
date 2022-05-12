@@ -14,7 +14,6 @@ class LzyCall(Generic[T]):
         self._args = args
         self._kwargs = kwargs
         self._entry_id = entry_id
-        self._executed = False
 
     @property
     def id(self) -> str:
@@ -29,17 +28,16 @@ class LzyCall(Generic[T]):
         return self._op.name
 
     @property
-    def executed(self) -> bool:
-        return self._executed
-
-    @property
     def entry_id(self) -> str:
         return self._entry_id
 
-    def execute(self) -> T:
-        res = self._op.callable(*self._args, **self._kwargs)
-        self._executed = True
-        return res
+    @property
+    def args(self) -> Tuple[Any, ...]:
+        return self._args
+
+    @property
+    def kwargs(self) -> Dict[str, Any]:
+        return self._kwargs
 
     def named_arguments(self) -> Iterator[Tuple[str, Any]]:
         for name, arg in chain(zip(self._op.arg_names, self._args), self._kwargs.items()):

@@ -55,7 +55,7 @@ class GraphBuilder:
     def _dependent_calls(self, call: LzyCall):
         dependent_calls: List[LzyCall] = []
         for name, arg in call.named_arguments():
-            if is_lazy_proxy(arg) and not arg.op.executed:
+            if is_lazy_proxy(arg) and not hasattr(arg, "_origin"):
                 dependent_calls.extend(self._dependent_calls(arg))
                 dependent_calls.append(arg)
         return unique_values(dependent_calls)
