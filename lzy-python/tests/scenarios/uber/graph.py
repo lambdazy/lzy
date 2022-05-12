@@ -12,7 +12,7 @@ from lzy.api.v1.whiteboard import whiteboard, view
 
 
 from .data import Test1, MessageClass, TestEnum
-from .wbs import SimpleWhiteboard,
+from .wbs import SimpleWhiteboard
 
 
 """
@@ -25,16 +25,6 @@ This scenario contains:
 
     4. Custom field serialization scenarios
 """
-
-
-from some_imported_file import foo
-from base_module.base import Base
-@op
-def just_print() -> None:
-    base = Base(1, "before")
-    print(foo())
-    print(base.echo())
-    print("Just print some text")
 
 
 class SimpleView:
@@ -75,7 +65,6 @@ def fun4(a: int) -> int:
 @op
 def fun5(a: int) -> int:
     return a * 2
-
 
 
 @op

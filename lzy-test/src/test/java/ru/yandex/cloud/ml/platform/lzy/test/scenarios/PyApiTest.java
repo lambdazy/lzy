@@ -125,7 +125,7 @@ public class PyApiTest extends LzyBaseTest {
 
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python ../lzy-python/tests/scenarios/uber_graph.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/uber/graph.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
