@@ -31,11 +31,15 @@ jobs:
           python-version: 3.9.7
           activate-environment: "py39"
 
-      - name: 'install conda requirements'
+      - name: 'install python requirements'
         run: eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r lzy-servant/docker/requirements.txt
 
       - name: 'install pylzy'
-        run: eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python && pip install -r requirements.txt && python setup.py install && cd ..
+        run: eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python/ && pip install . && cd ..
+
+      - name: 'python-test'
+        timeout-minutes: 5
+        run: eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python/ && python -m unittest discover tests/ && cd ..
 
       - name: 'java unit tests and install'
         timeout-minutes: 5
@@ -64,8 +68,4 @@ jobs:
       - name: 'TerminalCrashTest'
         timeout-minutes: 5
         run: cd lzy-test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'python-test'
-        timeout-minutes: 5
-        run: eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python/ && python -m unittest discover tests/
   #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
