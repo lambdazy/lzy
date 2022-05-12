@@ -328,7 +328,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
     @Override
     public void commit(@NotNull SnapshotEntry entry,
-                       boolean empty, boolean errored) throws SnapshotRepositoryException {
+                       boolean empty) throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             String snapshotId = entry.snapshot().id().toString();
@@ -337,10 +337,34 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
             if (snapshotEntryModel == null) {
                 throw new SnapshotRepositoryException(Status.NOT_FOUND.withDescription(
-                    "DbSnapshotRepository::commit snapshot entry " + entry + " not found").asException());
+                    "Snapshot entry " + entry + " not found").asException());
             }
-            snapshotEntryModel.setEntryState(errored ? State.ERRORED : SnapshotEntryStatus.State.FINISHED);
+            snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.FINISHED);
             snapshotEntryModel.setEmpty(empty);
+            try {
+                session.update(snapshotEntryModel);
+                tx.commit();
+            } catch (Exception e) {
+                tx.rollback();
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Override
+    public void abort(SnapshotEntry entry) throws SnapshotRepositoryException {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            Transaction tx = session.beginTransaction();
+            String snapshotId = entry.snapshot().id().toString();
+            String entryId = entry.id();
+            SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
+                new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
+            if (snapshotEntryModel == null) {
+                throw new SnapshotRepositoryException(Status.NOT_FOUND.withDescription(
+                    "Snapshot entry " + entry + " not found").asException());
+            }
+            snapshotEntryModel.setEntryState(State.ERRORED);
+            snapshotEntryModel.setEmpty(true);
             try {
                 session.update(snapshotEntryModel);
                 tx.commit();

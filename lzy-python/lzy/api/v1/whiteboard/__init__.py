@@ -7,7 +7,7 @@ from pure_protobuf.dataclasses_ import message  # type: ignore
 
 from lzy.serialization.serializer import FileSerializer
 from lzy.utils import is_lazy_proxy
-from lzy.api.v1.whiteboard.model import WhiteboardApi, WhiteboardDescription
+from lzy.api.v1.whiteboard.model import WhiteboardApi, WhiteboardDescription, EntryIdGenerator
 from lzy.servant.channel_manager import ChannelManager
 
 ALREADY_WRAPPED = '_already_wrapped_whiteboard'
@@ -60,7 +60,8 @@ def wrap_whiteboard(
         whiteboard_api: WhiteboardApi,
         whiteboard_id_getter: Callable[[], Optional[str]],
         channel_manager: ChannelManager,
-        serializer: FileSerializer
+        serializer: FileSerializer,
+        entry_id_generator: EntryIdGenerator
 ):
     check_whiteboard(instance)
     if hasattr(instance, ALREADY_WRAPPED):
@@ -94,7 +95,7 @@ def wrap_whiteboard(
 
             whiteboard_api.link(whiteboard_id, key, return_entry_id)
         else:
-            entry_id = key + '_' + str(uuid.uuid4())
+            entry_id = entry_id_generator.generate("/wb/field/" + key)
             whiteboard_id = whiteboard_id_getter()
             if whiteboard_id is None:
                 raise RuntimeError("Cannot get whiteboard id")

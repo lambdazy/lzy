@@ -87,11 +87,9 @@ public class SnapshotTest extends LzyBaseTest {
         final String fileContent = "fileContent";
         final String fileName = "/tmp/lzy1/kek/some_file.txt";
         final String localFileName = "/tmp/lzy/lol/some_file.txt";
-        final String channelName = "channel1";
 
         final String fileOutName = "/tmp/lzy1/kek/some_file_out.txt";
         final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
-        final String channelOutName = "channel2";
 
         final FileIOOperation cat_to_file = new FileIOOperation(
             "cat_to_file_lzy",
@@ -103,10 +101,12 @@ public class SnapshotTest extends LzyBaseTest {
 
         //Act
         final String spId = createSnapshot();
+        final String channelName = spId + "//" + channelEntryId;
+        final String channelOutName = spId + "//" + channelOutEntryId;
 
-        terminal.createChannel(channelName, spId, spId + "/" + channelEntryId);
+        terminal.createChannel(channelName, spId, channelName);
         terminal.createSlot(localFileName, channelName, Utils.outFileSlot());
-        terminal.createChannel(channelOutName, spId, spId + "/" + channelOutEntryId);
+        terminal.createChannel(channelOutName, spId, channelOutName);
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
@@ -169,8 +169,8 @@ public class SnapshotTest extends LzyBaseTest {
             Assert.assertEquals(fileContent + "\n", content);
         }
 
-        terminal.link(wbId, localFileName, spId + "/" + channelEntryId);
-        terminal.link(wbId, localFileOutName, spId + "/" + channelOutEntryId);
+        terminal.link(wbId, localFileName, channelName);
+        terminal.link(wbId, localFileOutName, channelOutName);
 
         terminal.finalizeSnapshot(spId);
         String whiteboard = terminal.getWhiteboard(wbId);
