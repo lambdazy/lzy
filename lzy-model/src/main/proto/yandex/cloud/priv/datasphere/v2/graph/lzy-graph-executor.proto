@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package yandex.cloud.priv.datasphere.v2.graph;
+
+option go_package = "datasphere";
+option java_outer_classname = "GraphExecutorApi";
+option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+
+import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
+
+service GraphExecutor {
+  rpc Execute (PhysicalGraphDescription) returns (GraphExecutionStatus);
+  rpc Status (GraphExecutionStatusCommand) returns (GraphExecutionStatus);
+  rpc Stop (GraphStopCommand) returns (GraphExecutionStatus);
+  rpc List (GraphListCommand) returns (GraphList);
+}
+
+message PhysicalGraphDescription {
+  repeated TaskDescription tasks = 1;
+}
+
+message TaskDescription {
+  string id = 1;
+  Zygote zygote = 2;
+  repeated Assignment slotAssignments = 3;
+}
+
+message Assignment {
+  string slotName = 1;
+  string channelId = 2;
+}
+
+message TaskExecutionStatus {
+  string taskDescriptionId = 1;
+  TaskStatus progress = 2;
+}
+
+message TaskStatus {} // Info about task from scheduler
+
+message GraphExecutionStatus {
+  message Waiting {}
+  message Executing {
+    repeated TaskExecutionStatus executingTasks = 1;
+  }
+  message Completed {}
+  message Errored {}
+
+  string workflowId = 1;
+  string graphId = 2;
+
+  oneof status {
+    Waiting waiting = 3;
+    Executing executing = 4;
+    Completed completed = 5;
+    Errored errored = 6;
+  }
+}
+
+message GraphExecutionStatusCommand {
+  string workflowId = 1;
+  string graphId = 2;
+}
+
+message GraphStopCommand {
+  string workflowId = 1;
+  string graphId = 2;
+}
+
+message GraphListCommand {
+  string workflowId = 1;
+}
+
+message GraphList {
+  repeated GraphExecutionStatus graphs = 1;
+}
