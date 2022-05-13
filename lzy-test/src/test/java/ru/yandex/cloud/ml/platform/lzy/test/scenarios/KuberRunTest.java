@@ -74,42 +74,6 @@ public class KuberRunTest {
     }
 
     @Test
-    public void testImportFile() {
-        /* This scenario checks for:
-                1. Importing local file package 
-         */
-
-        //Arrange
-        final String pyCommand = "python ../lzy-python/tests/scenarios/import.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
-            "bash", "-c",
-            condaPrefix + pyCommand);
-
-        //Assert
-        Assert.assertTrue(result.stdout().contains("bar base echo"));
-    }
-
-    @Test
-    public void testNoneResult() {
-        /* This scenario checks for:
-                1. Calling @op with None as result
-         */
-
-        //Arrange
-        final String pyCommand = "python ../lzy-python/tests/scenarios/none_result.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
-            "bash", "-c",
-            condaPrefix + pyCommand);
-
-        //Assert
-        Assert.assertTrue(result.stdout().contains("None"));
-    }
-
-    @Test
     public void testUberGraph() {
         /* This scenario checks for:
                 1. Importing local modules

@@ -114,6 +114,41 @@ public class PyApiTest extends LzyBaseTest {
         LOG.info("testCache: STDERR: {}", result.stderr());
         Assert.assertTrue(result.stdout().contains("Is fun2 cached? True"));
     }
+    @Test
+    public void testImportFile() {
+        /* This scenario checks for:
+                1. Importing local file package 
+         */
+
+        //Arrange
+        final String pyCommand = "python ../lzy-python/tests/scenarios/import.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
+            "bash", "-c",
+            condaPrefix + pyCommand);
+
+        //Assert
+        Assert.assertTrue(result.stdout().contains("bar base echo"));
+    }
+
+    @Test
+    public void testNoneResult() {
+        /* This scenario checks for:
+                1. Calling @op with None as result
+         */
+
+        //Arrange
+        final String pyCommand = "python ../lzy-python/tests/scenarios/none_result.py";
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
+            "bash", "-c",
+            condaPrefix + pyCommand);
+
+        //Assert
+        Assert.assertTrue(result.stdout().contains("None"));
+    }
 
     @Test
     public void testUberGraph() {
@@ -136,9 +171,6 @@ public class PyApiTest extends LzyBaseTest {
         LOG.info("testUberGraph: STDERR: {}", result.stderr());
 
         // Assert
-        Assert.assertTrue(result.stdout().contains("base echo"));
-        Assert.assertTrue(result.stdout().contains("Just print some text"));
-
         Assert.assertTrue(result.stdout().contains("42 42"));
         Assert.assertTrue(result.stdout().contains("Len: 3"));
 

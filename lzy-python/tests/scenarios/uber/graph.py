@@ -12,34 +12,24 @@ from lzy.api.v1.whiteboard import whiteboard, view
 
 
 from .data import Test1, MessageClass, TestEnum
-from .wbs import SimpleWhiteboard
-
+from .wbs import (
+    AnotherSimpleView,
+    SimpleView,
+    AnotherSimpleWhiteboard,
+    SimpleWhiteboard,
+    DefaultWhiteboard,
+    OneMoreSimpleWhiteboard,
+    SimpleWhiteboard,
+    WhiteboardWithOneLzyMessageField,
+    WhiteboardWithTwoLzyMessageFields,
+    WhiteboardWithLzyMessageFields,
+)
 
 """
 This scenario contains:
-    1. Importing local modules
-
-    2. Functions that return None
-
-    3. Whiteboards/Views machinery
-
-    4. Custom field serialization scenarios
+    1. Whiteboards/Views machinery
+    2. Custom field serialization scenarios
 """
-
-
-class SimpleView:
-    rules: Optional[List[Rule]] = None
-    id: str = ""
-
-    def __init__(self, id_: str, rules: List[Rule]):
-        self.id = id_
-        self.rules = rules
-
-
-@dataclass
-class AnotherSimpleView:
-    id: str
-    b: str
 
 
 @op

@@ -16,6 +16,21 @@ lzy_message_fields_tag = "lzy_message_fields_" + str(uuid.uuid4())
 default_whiteboard_tag = "default_whiteboard_" + str(uuid.uuid4())
 
 
+class SimpleView:
+    rules: Optional[List[Rule]] = None
+    id: str = ""
+
+    def __init__(self, id_: str, rules: List[Rule]):
+        self.id = id_
+        self.rules = rules
+
+
+@dataclass
+class AnotherSimpleView:
+    id: str
+    b: str
+
+
 @dataclass
 @whiteboard(tags=[simple_whiteboard_tag])
 class SimpleWhiteboard:
