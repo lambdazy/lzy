@@ -121,6 +121,7 @@ public class PyApiTest extends LzyBaseTest {
          */
 
         //Arrange
+        arrangeTerminal("testUser");
         final String pyCommand = "python ../lzy-python/tests/scenarios/import.py";
 
         //Act
@@ -129,6 +130,8 @@ public class PyApiTest extends LzyBaseTest {
             condaPrefix + pyCommand);
 
         //Assert
+        LOG.info("testImportFile: STDOUT: {}", result.stdout());
+        LOG.info("testImportFile: STDERR: {}", result.stderr());
         Assert.assertTrue(result.stdout().contains("bar base echo"));
     }
 
@@ -139,6 +142,7 @@ public class PyApiTest extends LzyBaseTest {
          */
 
         //Arrange
+        arrangeTerminal("testUser");
         final String pyCommand = "python ../lzy-python/tests/scenarios/none_result.py";
 
         //Act
