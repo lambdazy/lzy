@@ -87,9 +87,9 @@ public class LzyKharon {
     private final URI servantProxyAddress;
     private final URI servantFsProxyAddress;
 
-    public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
+    public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String externalHost, String host, int port,
                      int servantProxyPort, int servantFsProxyPort) throws URISyntaxException {
-        final URI address = new URI(LzyKharon.scheme(), null, host, port, null, null, null);
+        final URI externalAddress = new URI(LzyKharon.scheme(), null, externalHost, port, null, null, null);
         serverChannel = ChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
@@ -112,7 +112,7 @@ public class LzyKharon {
         servantFsProxyAddress = new URI(LzyFs.scheme(), null, host, servantFsProxyPort, null, null, null);
 
         sessionManager = new TerminalSessionManager();
-        uriResolver = new UriResolver(address, servantFsProxyAddress);
+        uriResolver = new UriResolver(externalAddress, servantFsProxyAddress);
 
         kharonServer = NettyServerBuilder.forPort(port)
             .permitKeepAliveWithoutCalls(true)
@@ -150,6 +150,7 @@ public class LzyKharon {
             System.exit(-1);
         }
         final String host = parse.getOptionValue('h', "localhost");
+        final String externalHost = parse.getOptionValue('e', "api.lzy.ai");
         final int port = Integer.parseInt(parse.getOptionValue('p', "8899"));
         final int servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
         final int servantFsPort = parse.hasOption("fs") ? Integer.parseInt(parse.getOptionValue("fs"))
@@ -159,7 +160,7 @@ public class LzyKharon {
         final URI snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
 
         final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, snapshotAddress,
-            host, port, servantPort, servantFsPort);
+            externalHost, host, port, servantPort, servantFsPort);
         kharon.start();
         kharon.awaitTermination();
     }

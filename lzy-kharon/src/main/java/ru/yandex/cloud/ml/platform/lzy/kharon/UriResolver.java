@@ -14,11 +14,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class UriResolver {
-    private final URI address;
+    private final URI externalAddress;
     private final URI servantFsProxyAddress;
 
-    public UriResolver(URI address, URI servantFsProxyAddress) {
-        this.address = address;
+    public UriResolver(URI externalAddress, URI servantFsProxyAddress) {
+        this.externalAddress = externalAddress;
         this.servantFsProxyAddress = servantFsProxyAddress;
     }
 
@@ -58,8 +58,8 @@ public class UriResolver {
     public URI convertToKharonWithSlotUri(URI servantUri) throws URISyntaxException {
         return new URIBuilder()
                 .setScheme("kharon")
-                .setHost(address.getHost())
-                .setPort(address.getPort())
+                .setHost(externalAddress.getHost())
+                .setPort(externalAddress.getPort())
                 .addParameter("slot_uri", servantUri.toString())
                 .build();
     }
