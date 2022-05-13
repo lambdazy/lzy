@@ -36,6 +36,9 @@ jobs:
       - name: 'AC test'
         timeout-minutes: 45
         run: mvn install -Dlzy.kharon.domain=api.lzy.ai -Dtest=KuberRunTest -DfailIfNoTests=false
+
+      - uses: scacap/action-surefire-report@v1
+
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
 
 

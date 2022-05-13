@@ -32,3 +32,5 @@ jobs:
       - name: 'AC test'
         timeout-minutes: 45
         run: mvn install -Dlzy.kharon.domain=kharon-lzy-prod.northeurope.cloudapp.azure.com -Dtest=KuberRunTest -DfailIfNoTests=false
+
+      - uses: scacap/action-surefire-report@v1

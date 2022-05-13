@@ -27,6 +27,8 @@ jobs:
         timeout-minutes: 45
         run: mvn clean install
 
+      - uses: scacap/action-surefire-report@v1
+
       - name: 'install lzy-python'
         run: cd lzy-python/ && pip install -r requirements.txt && pip install .
 
