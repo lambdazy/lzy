@@ -18,7 +18,7 @@ import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
 public class DbAccessClient implements AccessClient {
 
     @Inject
-    DbStorage storage;
+    private DbStorage storage;
 
     @Override
     public boolean hasResourcePermission(String userId, String resourceId, AuthPermission permission) {

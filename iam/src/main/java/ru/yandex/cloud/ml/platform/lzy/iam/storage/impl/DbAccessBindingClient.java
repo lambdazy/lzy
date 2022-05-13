@@ -23,7 +23,7 @@ import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthResource;
 public class DbAccessBindingClient implements AccessBindingClient {
 
     @Inject
-    DbStorage storage;
+    private DbStorage storage;
 
     @Override
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) {
