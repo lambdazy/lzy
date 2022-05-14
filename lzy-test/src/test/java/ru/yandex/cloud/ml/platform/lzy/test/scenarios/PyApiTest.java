@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.LineIterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
@@ -8,8 +10,14 @@ import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
 
@@ -35,85 +43,101 @@ public class PyApiTest extends LzyBaseTest {
         );
     }
 
+    public LzyTerminalTestContext.Terminal.ExecutionResult execInCondaEnv(String cmd) {
+        return terminal.execute(Map.of(), "bash", "-c", condaPrefix + cmd);
+    }
+
+    public void runAndCompareWithExpectedFile(String scenarioName) {
+        runAndCompareWithExpectedFile(List.of(), scenarioName);
+    }
+
+    public String joinOutput(String stdout, String stderr) {
+        return String.join("\n",
+                "STDOUT: ", stderr,
+                "STDERR: ", stdout);
+    }
+
+    public void forEveryLineOfFile(File file, Consumer<String> action) throws IOException {
+        LineIterator out_it = FileUtils.lineIterator(file, "UTF-8");
+        try {
+            while (out_it.hasNext()) {
+                action.accept(out_it.nextLine().stripTrailing());
+            }
+        } finally {
+            out_it.close();
+        }
+    }
+
+    public void runAndCompareWithExpectedFile(List<String> extraPyLibs, String scenarioName) {
+        // Arrange
+        final Path scenario = Paths.get("../lzy-python/tests/scenarios/").resolve(scenarioName);
+        if (!scenario.toFile().exists()) {
+            // TODO: early fail if there is no code for this particular scenario
+        }
+
+        // install extra python libraries if provided any
+        if (!extraPyLibs.isEmpty()) {
+            execInCondaEnv("pip install " + String.join(" ", extraPyLibs));
+        }
+
+        //Act
+        final LzyTerminalTestContext.Terminal.ExecutionResult result =
+                execInCondaEnv("python " + scenario.resolve("__init__.py"));
+
+        LOG.info(scenarioName + ": STDOUT: {}", result.stdout());
+        LOG.info(scenarioName + ": STDERR: {}", result.stderr());
+
+        //Assert
+        File stdout_file = scenario.resolve("expected_stdout").toFile();
+        File stderr_file = scenario.resolve("expected_stderr").toFile();
+
+        try {
+            forEveryLineOfFile(stdout_file, line -> {
+                LOG.info("assert check if stdout contains: {}", line);
+                Assert.assertTrue(result.stdout().contains(line));
+            });
+
+            forEveryLineOfFile(stderr_file, line -> {
+                LOG.info("assert check if stderr contains: {}", line);
+                Assert.assertTrue(result.stderr().contains(line));
+            });
+        } catch (IOException ioexc) {
+            LOG.error("Happened while was reading one of expected files: ", ioexc);
+            Assert.fail();
+        }
+    }
+
     @Test
     public void testSimpleCatboostGraph() {
         /* This scenario checks for:
                 1. Importing external modules (catboost)
                 2. Functions which accept and return complex objects
          */
-
-        //Arrange
         arrangeTerminal("testUser");
-        terminal.execute(Map.of(), "bash", "-c",
-            condaPrefix + "pip install catboost");
-        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
-            "bash", "-c",
-            condaPrefix + pyCommand);
-
-        LOG.info("testSimpleCatboostGraph: STDOUT: {}", result.stdout());
-        LOG.info("testSimpleCatboostGraph: STDERR: {}", result.stderr());
-
-        //Assert
-        Assert.assertTrue(result.stdout().contains("Prediction: 1"));
+        runAndCompareWithExpectedFile(List.of("catboost"), "catboost_integration_cpu");
     }
 
     @Test
     public void testExecFail() {
         //Arrange
         arrangeTerminal("phil");
-        final String pyCommand = "python ../lzy-python/tests/scenarios/exec_fail.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
-            "bash", "-c",
-            condaPrefix + pyCommand);
-
-        LOG.info("testExecFail: STDOUT: {}", result.stdout());
-        LOG.info("testExecFail: STDERR: {}", result.stderr());
-
-        //Assert
-        Assert.assertTrue(result.stderr().contains("LzyExecutionException"));
+        runAndCompareWithExpectedFile("exec_fail");
     }
 
     @Test
     public void testEnvFail() {
         //Arrange
         arrangeTerminal("phil");
-        final String pyCommand = "python ../lzy-python/tests/scenarios/env_fail.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
-            "bash", "-c",
-            condaPrefix + pyCommand);
-
-        LOG.info("testEnvFail: STDOUT: {}", result.stdout());
-        LOG.info("testEnvFail: STDERR: {}", result.stderr());
-
-        //Assert
-        Assert.assertTrue(
-            result.stderr().contains("Could not find a version that satisfies the requirement"));
-        Assert.assertTrue(
-            result.stderr().contains("Failed to install environment on remote machine"));
+        runAndCompareWithExpectedFile("env_fail");
     }
 
     @Test
     public void testCache() {
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python ../lzy-python/tests/scenarios/test_cache.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
-            "bash", "-c",
-            condaPrefix + pyCommand);
-
-        LOG.info("testCache: STDOUT: {}", result.stdout());
-        LOG.info("testCache: STDERR: {}", result.stderr());
-        Assert.assertTrue(result.stdout().contains("Is fun2 cached? True"));
+        runAndCompareWithExpectedFile("test_cache");
     }
+
     @Test
     public void testImportFile() {
         /* This scenario checks for:
@@ -122,17 +146,7 @@ public class PyApiTest extends LzyBaseTest {
 
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python ../lzy-python/tests/scenarios/import.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
-            "bash", "-c",
-            condaPrefix + pyCommand);
-
-        //Assert
-        LOG.info("testImportFile: STDOUT: {}", result.stdout());
-        LOG.info("testImportFile: STDERR: {}", result.stderr());
-        Assert.assertTrue(result.stdout().contains("bar base echo"));
+        runAndCompareWithExpectedFile("import");
     }
 
     @Test
@@ -143,15 +157,7 @@ public class PyApiTest extends LzyBaseTest {
 
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python ../lzy-python/tests/scenarios/none_result.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
-            "bash", "-c",
-            condaPrefix + pyCommand);
-
-        //Assert
-        Assert.assertTrue(result.stdout().contains("None"));
+        runAndCompareWithExpectedFile("none_result");
     }
 
     @Test
@@ -161,65 +167,6 @@ public class PyApiTest extends LzyBaseTest {
          */
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python ../lzy-python/tests/scenarios/whiteboards/main.py";
-
-        //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
-            "bash", "-c",
-            condaPrefix + pyCommand);
-
-        LOG.info("testUberGraph: STDOUT: {}", result.stdout());
-        LOG.info("testUberGraph: STDERR: {}", result.stderr());
-
-        // Assert
-        Assert.assertTrue(result.stdout().contains("42 42"));
-        Assert.assertTrue(result.stdout().contains("Len: 3"));
-
-        Assert.assertTrue(result.stdout().contains("Number of SimpleView views 6"));
-        Assert.assertTrue(result.stdout().contains("Ids of SimpleView second_id_SimpleWhiteboard;" +
-            "first_id_SimpleWhiteboard;second_id_SimpleWhiteboard;first_id_SimpleWhiteboard;" +
-            "third_id_OneMoreSimpleWhiteboard;third_id_OneMoreSimpleWhiteboard;"));
-        Assert.assertTrue(result.stdout()
-            .contains("Rules of SimpleView minus_one_rule;plus_one_rule;minus_one_rule;" +
-                "plus_one_rule;plus_two_rule;plus_two_rule;"));
-
-        Assert.assertTrue(result.stdout().contains("Number of AnotherSimpleView views 3"));
-        Assert.assertTrue(
-            result.stdout().contains("Ids of AnotherSimpleView first_id_SimpleWhiteboard;" +
-                "first_id_SimpleWhiteboard;3;"));
-
-        Assert.assertTrue(
-            result.stdout().contains("Iterating over whiteboards with types " +
-                "SimpleWhiteboard SimpleWhiteboard AnotherSimpleWhiteboard"));
-        Assert.assertTrue(result.stdout().contains("Number of whiteboard is 3"));
-        Assert.assertTrue(result.stdout().contains("First whiteboard type is SimpleWhiteboard"));
-
-        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date lower and upper "
-            + "bounds are specified is 5"));
-        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date lower bound is "
-            + "specified is 5"));
-        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date upper bounds "
-            + "is specified is 5"));
-        Assert.assertTrue(result.stdout().contains("Number of whiteboard when date interval is set "
-            + "for the future is 0"));
-
-        Assert.assertTrue(result.stdout().contains("string_field value in WhiteboardWithLzyMessageFields is fun6:fun7"));
-        Assert.assertTrue(result.stdout().contains("int_field value in WhiteboardWithLzyMessageFields is 3"));
-        Assert.assertTrue(result.stdout().contains("list_field length in WhiteboardWithLzyMessageFields is 3"));
-        Assert.assertTrue(result.stdout().contains("optional_field value in WhiteboardWithLzyMessageFields is 1"));
-        Assert.assertTrue(result.stdout().contains("inner_field value in WhiteboardWithLzyMessageFields is 6"));
-        Assert.assertTrue(result.stdout().contains("enum_field value in WhiteboardWithLzyMessageFields is TestEnum.BAZ"));
-        Assert.assertTrue(result.stdout().contains("non lzy message int field in WhiteboardWithLzyMessageFields is 3"));
-
-        Assert.assertTrue(result.stdout().contains("string_field value in WhiteboardWithOneLzyMessageField is fun6:fun7"));
-        Assert.assertTrue(result.stdout().contains("int_field value in WhiteboardWithOneLzyMessageField is 3"));
-
-        Assert.assertFalse(result.stdout().contains("Could not create WhiteboardWithTwoLzyMessageFields because of a missing field"));
-        Assert.assertTrue(result.stdout().contains("Could create WhiteboardWithTwoLzyMessageFields"));
-
-        Assert.assertTrue(result.stdout().contains("Could not create WhiteboardWithLzyMessageFields because of a missing field"));
-        Assert.assertFalse(result.stdout().contains("Could create WhiteboardWithLzyMessageFields"));
-
-        Assert.assertTrue(result.stdout().contains("Value a in DefaultWhiteboard is 7, b length is 3, c is Hello, d is None"));
+        runAndCompareWithExpectedFile("whiteboards");
     }
 }
