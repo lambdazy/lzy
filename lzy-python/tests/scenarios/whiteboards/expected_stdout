@@ -21,8 +21,6 @@ enum_field value in WhiteboardWithLzyMessageFields is TestEnum.BAZ
 non lzy message int field in WhiteboardWithLzyMessageFields is 3
 string_field value in WhiteboardWithOneLzyMessageField is fun6:fun7
 int_field value in WhiteboardWithOneLzyMessageField is 3
-Could not create WhiteboardWithTwoLzyMessageFields because of a missing field
 Could create WhiteboardWithTwoLzyMessageFields
 Could not create WhiteboardWithLzyMessageFields because of a missing field
-Could create WhiteboardWithLzyMessageFields
 Value a in DefaultWhiteboard is 7, b length is 3, c is Hello, d is None
