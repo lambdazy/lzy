@@ -155,14 +155,13 @@ public class PyApiTest extends LzyBaseTest {
     }
 
     @Test
-    public void testUberGraph() {
+    public void testWhiteboards() {
         /* This scenario checks for:
                 1. Whiteboards/Views machinery
          */
-
         //Arrange
         arrangeTerminal("testUser");
-        final String pyCommand = "python ../lzy-python/tests/scenarios/uber/graph.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/whiteboards/main.py";
 
         //Act
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.execute(Map.of(),
