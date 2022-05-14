@@ -58,7 +58,7 @@ public class MultiSessionTest extends LzyBaseTest {
         terminal1.execute(Map.of(), "bash", "-c", condaPrefix + "pip install catboost");
         terminal2.execute(Map.of(), "bash", "-c", condaPrefix + "pip install catboost");
 
-        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu/__init__.py";
 
         //Act
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
@@ -86,7 +86,7 @@ public class MultiSessionTest extends LzyBaseTest {
             "user1",
             "/tmp/lzy");
 
-        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu.py";
+        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu/__init__.py";
 
         //Act
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
