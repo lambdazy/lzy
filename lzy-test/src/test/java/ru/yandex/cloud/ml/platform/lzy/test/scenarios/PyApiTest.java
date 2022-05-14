@@ -157,9 +157,7 @@ public class PyApiTest extends LzyBaseTest {
     @Test
     public void testUberGraph() {
         /* This scenario checks for:
-                1. Importing local modules
-                2. Functions that return None
-                3. Whiteboards/Views machinery
+                1. Whiteboards/Views machinery
          */
 
         //Arrange

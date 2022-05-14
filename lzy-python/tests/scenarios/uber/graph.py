@@ -8,15 +8,13 @@ from typing import Optional
 from pure_protobuf.types import int32
 
 from lzy.api.v1 import op, LzyRemoteEnv
-from lzy.api.v1.whiteboard import whiteboard, view
 
 
-from .data import Test1, MessageClass, TestEnum
-from .wbs import (
+from data import Test1, MessageClass, TestEnum
+from wbs import (
     AnotherSimpleView,
     SimpleView,
     AnotherSimpleWhiteboard,
-    SimpleWhiteboard,
     DefaultWhiteboard,
     OneMoreSimpleWhiteboard,
     SimpleWhiteboard,

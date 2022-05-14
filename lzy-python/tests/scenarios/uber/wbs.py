@@ -1,14 +1,11 @@
 import uuid
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
-from lzy.api.v1.whiteboard import whiteboard
+from lzy.api.v1.whiteboard import whiteboard, view
 
-if TYPE_CHECKING:
-    from .uber_graph import SimpleView, AnotherSimpleView, 
-from .data import Rule
-
+from data import Rule, MessageClass
 
 simple_whiteboard_tag = "simple_whiteboard_" + str(uuid.uuid4())
 another_simple_whiteboard_tag = "another_simple_whiteboard_" + str(uuid.uuid4())
@@ -90,3 +87,23 @@ class DefaultWhiteboard:
     b: Optional[List[str]] = None
     c: str = "Hello"
     d: int = None
+
+
+@dataclass
+@whiteboard(tags=[lzy_message_fields_tag])
+class WhiteboardWithLzyMessageFields:
+    b: int
+    a: MessageClass = MessageClass()
+
+
+@dataclass
+@whiteboard(tags=[lzy_message_fields_tag])
+class WhiteboardWithOneLzyMessageField:
+    a: MessageClass = MessageClass()
+
+
+@dataclass
+@whiteboard(tags=[lzy_message_fields_tag])
+class WhiteboardWithTwoLzyMessageFields:
+    a: MessageClass = MessageClass()
+    c: MessageClass = MessageClass()
