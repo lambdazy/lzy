@@ -22,7 +22,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected LzyKharonTestContext kharonContext;
     protected LzySnapshotTestContext whiteboardContext;
     protected S3Mock api;
-
+    protected boolean status = false;
     @Before
     public void setUp() {
         createResourcesFolder();
@@ -54,11 +54,16 @@ public abstract class LocalScenario extends LzyBaseTest {
                 DEFAULT_SERVANT_FS_PORT,
                 kharonContext.serverAddress()
         );
-        terminal.waitForStatus(
+        status = terminal.waitForStatus(
                 AgentStatus.EXECUTING,
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
+    }
+
+    public void stopTerminal() {
+        // terminal = null; ??
+        status = false;
     }
 
     private static void createResourcesFolder() {
