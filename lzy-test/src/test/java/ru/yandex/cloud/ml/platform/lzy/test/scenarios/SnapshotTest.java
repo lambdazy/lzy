@@ -37,11 +37,6 @@ public class SnapshotTest extends LocalScenario {
         startTerminalWithDefaultConfig();
     }
 
-    @After
-    public void tearDown() {
-        super.tearDown();
-    }
-
     private String createSnapshot() throws ParseException {
         final String spIdJson = terminal.createSnapshot("some-workflow");
         JSONObject spIdObject = (JSONObject) (new JSONParser()).parse(spIdJson);
