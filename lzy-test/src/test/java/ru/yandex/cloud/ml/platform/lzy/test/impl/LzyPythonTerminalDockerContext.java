@@ -3,9 +3,6 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 import org.testcontainers.containers.GenericContainer;
 
 public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
-    public static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
-        "conda activate py39 && ";
-
     @Override
     public Terminal startTerminalAtPathAndPort(String mount, int port, int fsPort, String serverAddress, int debugPort,
                                                String user, String private_key_path) {

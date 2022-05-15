@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.LineIterator;
 import org.apache.logging.log4j.Logger;
@@ -18,13 +17,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
-
 public abstract class LzyBaseTest {
     protected static final int DEFAULT_TIMEOUT_SEC = 30;
     protected static final int DEFAULT_SERVANT_PORT = 9999;
     protected static final int DEFAULT_SERVANT_FS_PORT = 9998;
     protected static final String LZY_MOUNT = "/tmp/lzy";
+    protected static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
+            "conda activate py39 && ";
+
     protected LzyTerminalTestContext terminalContext;
     protected LzyTerminalTestContext.Terminal terminal;
 
@@ -95,5 +95,4 @@ public abstract class LzyBaseTest {
             Assert.fail();
         }
     }
-
 }

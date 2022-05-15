@@ -1,7 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
-import static ru.yandex.cloud.ml.platform.lzy.test.impl.LzyPythonTerminalDockerContext.condaPrefix;
-
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
