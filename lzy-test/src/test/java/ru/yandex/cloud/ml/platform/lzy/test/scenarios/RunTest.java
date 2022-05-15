@@ -19,6 +19,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 public class RunTest extends LocalScenario {
     @Before
     public void setUp() {
+        super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             9999,
