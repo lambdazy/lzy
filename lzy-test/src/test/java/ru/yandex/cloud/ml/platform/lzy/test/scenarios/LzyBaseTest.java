@@ -63,7 +63,8 @@ public abstract class LzyBaseTest {
         // Arrange
         final Path scenario = Paths.get("../lzy-python/tests/scenarios/").resolve(scenarioName);
         if (!scenario.toFile().exists()) {
-            // TODO: early fail if there is no code for this particular scenario
+            LOG.error("THERE IS NO SUCH SCENARIO: {}", scenarioName);
+            Assert.fail();
         }
 
         // install extra python libraries if provided any
