@@ -7,6 +7,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.TerminalThreadContext;
 
 import java.io.File;
@@ -24,12 +25,11 @@ public abstract class LzyBaseTest {
     protected static final int    DEFAULT_DEBUG_PORT      = 5006;
     protected static final String LZY_MOUNT               = "/tmp/lzy";
 
+    protected static Path scenarios = Paths.get("../lzy-python/tests/scenarios/");
     protected static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
             "conda activate py39 && ";
 
     protected LzyTerminalTestContext terminalContext;
-    protected LzyTerminalTestContext.Terminal terminal;
-
     @Before
     public void setUp() {
         terminalContext = new TerminalThreadContext();
@@ -40,12 +40,12 @@ public abstract class LzyBaseTest {
         terminalContext.close();
     }
 
-    public LzyTerminalTestContext.Terminal.ExecutionResult execInCondaEnv(String cmd) {
-        return terminal.execute(Map.of(), "bash", "-c", condaPrefix + cmd);
+    public LzyTerminalTestContext.Terminal.ExecutionResult execInCondaEnv(String cmd, Terminal term) {
+        return execInCondaEnv(Map.of(), cmd, term);
     }
 
-    public void runAndCompareWithExpectedFile(String scenarioName, Logger LOG) {
-        runAndCompareWithExpectedFile(List.of(), scenarioName, LOG);
+    public LzyTerminalTestContext.Terminal.ExecutionResult execInCondaEnv(Map<String, String> env, String cmd, Terminal term) {
+        return term.execute(env, "bash", "-c", condaPrefix + cmd);
     }
 
     public void forEachLineInFile(File file, Consumer<String> action) throws IOException {
@@ -59,27 +59,41 @@ public abstract class LzyBaseTest {
         }
     }
 
-    public void runAndCompareWithExpectedFile(List<String> extraPyLibs, String scenarioName, Logger LOG) {
-        // Arrange
-        final Path scenario = Paths.get("../lzy-python/tests/scenarios/").resolve(scenarioName);
+
+    public LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(List<String> extraPyLibs, Path scenario,
+                                                                        Logger LOG, Terminal term, String customMnt) {
+        return evalScenario(extraPyLibs, scenario, LOG, term, Map.of("LZY_MOUNT", customMnt));
+    }
+
+    public LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(List<String> extraPyLibs, String scenario,
+                                                                        Logger LOG, Terminal term) {
+        return evalScenario(extraPyLibs, scenarios.resolve(scenario), LOG, term, Map.of());
+    }
+
+    public LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(String scenarioName, Logger LOG, Terminal term) {
+        return evalScenario(List.of(), scenarioName, LOG, term);
+    }
+    public LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(List<String> extraPyLibs, Path scenario,
+                                                                        Logger LOG, Terminal term, Map<String, String> env) {
         if (!scenario.toFile().exists()) {
-            LOG.error("THERE IS NO SUCH SCENARIO: {}", scenarioName);
+            LOG.error("THERE IS NO SUCH SCENARIO: {}", scenario);
             Assert.fail();
         }
 
         // install extra python libraries if provided any
         if (!extraPyLibs.isEmpty()) {
-            execInCondaEnv("pip install " + String.join(" ", extraPyLibs));
+            execInCondaEnv(env, "pip install " + String.join(" ", extraPyLibs), term);
         }
 
         //Act
-        final LzyTerminalTestContext.Terminal.ExecutionResult result =
-                execInCondaEnv("python " + scenario.resolve("__init__.py"));
+        return execInCondaEnv(env, "python " + scenario.resolve("__init__.py"), term);
+    }
 
-        LOG.info(scenarioName + ": STDOUT: {}", result.stdout());
-        LOG.info(scenarioName + ": STDERR: {}", result.stderr());
+    public void assertWithExpected(String scenarioName, LzyTerminalTestContext.Terminal.ExecutionResult result, Logger LOG) {
+        assertWithExpected(scenarios.resolve(scenarioName), result, LOG);
+    }
 
-        //Assert
+    public void assertWithExpected (Path scenario, LzyTerminalTestContext.Terminal.ExecutionResult result, Logger LOG) {
         File stdout_file = scenario.resolve("expected_stdout").toFile();
         File stderr_file = scenario.resolve("expected_stderr").toFile();
 
@@ -97,5 +111,17 @@ public abstract class LzyBaseTest {
             LOG.error("Happened while was reading one of expected files: ", ioexc);
             Assert.fail();
         }
+    }
+
+    public void runAndCompareWithExpectedFile(List<String> extraPyLibs, String scenarioName, Logger LOG, Terminal term) {
+        final Path scenario = scenarios.resolve(scenarioName);
+        LzyTerminalTestContext.Terminal.ExecutionResult result = evalScenario(extraPyLibs, scenario, LOG, term, Map.of());
+        LOG.info(scenarioName + ": STDOUT: {}", result.stdout());
+        LOG.info(scenarioName + ": STDERR: {}", result.stderr());
+        assertWithExpected(scenario, result, LOG);
+    }
+
+    public void runAndCompareWithExpectedFile(String scenarioName, Logger LOG, Terminal term) {
+        runAndCompareWithExpectedFile(List.of(), scenarioName, LOG, term);
     }
 }

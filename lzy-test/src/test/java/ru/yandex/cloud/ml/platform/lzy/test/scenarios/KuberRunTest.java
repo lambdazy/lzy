@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
 import java.util.concurrent.TimeUnit;
 
@@ -16,6 +17,7 @@ public class KuberRunTest extends LzyBaseTest {
     private static final String LZY_KHARON_DOMAIN_PROPERTY = "lzy.kharon.domain";
 
     private static final Logger LOG                        = LogManager.getLogger(KuberRunTest.class);
+    protected LzyTerminalTestContext.Terminal terminal;
 
     @Before
     public void setUp() {
@@ -43,7 +45,7 @@ public class KuberRunTest extends LzyBaseTest {
                 3. Task that requires GPU
          */
         // TODO: do we need to pass catboost as requirement here
-        runAndCompareWithExpectedFile( "catboost_integration_gpu", LOG);
+        runAndCompareWithExpectedFile( "catboost_integration_gpu", LOG, terminal);
     }
 
     @Test
@@ -53,6 +55,6 @@ public class KuberRunTest extends LzyBaseTest {
                 2. Functions that return None
                 3. Whiteboards/Views machinery
          */
-        runAndCompareWithExpectedFile("whiteboards", LOG);
+        runAndCompareWithExpectedFile("whiteboards", LOG, terminal);
     }
 }

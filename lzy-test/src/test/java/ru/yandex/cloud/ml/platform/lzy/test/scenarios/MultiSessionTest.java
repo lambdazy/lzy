@@ -1,18 +1,21 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import org.junit.Assert;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal;
 
 public class MultiSessionTest extends LocalScenario {
-
     private Terminal createTerminal(int port, int fsPort, int debugPort, String user, String mount) {
         final Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             mount,
@@ -29,68 +32,59 @@ public class MultiSessionTest extends LocalScenario {
         );
         return terminal;
     }
+    private static final Logger LOG = LogManager.getLogger(MultiSessionTest.class);
 
     @Test
     public void parallelPyGraphExecution() throws ExecutionException, InterruptedException {
-        //Arrange
+        final Path scenario = scenarios.resolve("catboost_integration_cpu");
+        final String custom_mnt1 = "/tmp/term1";
         final Terminal terminal1 = createTerminal(
             FreePortFinder.find(20000, 21000),
             FreePortFinder.find(21000, 22000),
             FreePortFinder.find(23000, 24000),
             "user1",
-            "/tmp/term1");
+                custom_mnt1
+            );
+        final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
+        ForkJoinPool.commonPool().execute(() -> result1.complete(
+            evalScenario(List.of("catboost"), scenario, LOG, terminal1, custom_mnt1)
+        ));
 
+        final String custom_mnt2 = "/tmp/term2";
         final Terminal terminal2 = createTerminal(
             FreePortFinder.find(24000, 25000),
             FreePortFinder.find(25000, 26000),
             FreePortFinder.find(26000, 27000),
             "user2",
-            "/tmp/term2");
-
-        terminal1.execute(Map.of(), "bash", "-c", condaPrefix + "pip install catboost");
-        terminal2.execute(Map.of(), "bash", "-c", condaPrefix + "pip install catboost");
-
-        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu/__init__.py";
-
-        //Act
-        final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> result1.complete(
-            terminal1.execute(Map.of("LZY_MOUNT", "/tmp/term1"), "bash", "-c", condaPrefix + pyCommand)));
-
+            custom_mnt2);
         final CompletableFuture<Terminal.ExecutionResult> result2 = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> result2.complete(
-            terminal2.execute(Map.of("LZY_MOUNT", "/tmp/term2"), "bash", "-c", condaPrefix + pyCommand)));
+            evalScenario(List.of("catboost"), scenario, LOG, terminal2, custom_mnt2)
+        ));
 
-        //Assert
-        Assert.assertTrue(result1.get().stdout() + "\n\n" + result1.get().stderr(),
-            result1.get().stdout().contains("Prediction: 1"));
-        Assert.assertTrue(result2.get().stdout() + "\n\n" + result2.get().stderr(),
-            result2.get().stdout().contains("Prediction: 1"));
+        assertWithExpected(scenario, result1.get(), LOG);
+        assertWithExpected(scenario, result2.get(), LOG);
     }
 
     @Test
-    public void parallelPyGraphExecutionInSingleTerminal()
-        throws ExecutionException, InterruptedException {
+    public void parallelPyGraphExecutionInSingleTerminal() throws ExecutionException, InterruptedException {
         final Terminal terminal = createTerminal(
             FreePortFinder.find(20000, 21000),
             FreePortFinder.find(21000, 22000),
             FreePortFinder.find(22000, 23000),
             "user1",
             "/tmp/lzy");
-
-        final String pyCommand = "python ../lzy-python/tests/scenarios/catboost_integration_cpu/__init__.py";
+        final String scenarioName = "catboost_integration_cpu";
 
         //Act
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> result1.complete(
-            terminal.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
+        ForkJoinPool.commonPool().execute(() -> result1.complete(evalScenario(scenarioName, LOG, terminal)));
 
         final CompletableFuture<Terminal.ExecutionResult> result2 = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> result2.complete(
-            terminal.execute(Map.of(), "bash", "-c", condaPrefix + pyCommand)));
+        ForkJoinPool.commonPool().execute(() -> result2.complete(evalScenario(scenarioName, LOG, terminal)));
 
         //Assert
-        Assert.assertTrue(result1.get().stdout().contains("Prediction: 1"));
-        Assert.assertTrue(result2.get().stdout().contains("Prediction: 1"));
+        assertWithExpected(scenarioName, result1.get(), LOG);
+        assertWithExpected(scenarioName, result2.get(), LOG);
     }
 }

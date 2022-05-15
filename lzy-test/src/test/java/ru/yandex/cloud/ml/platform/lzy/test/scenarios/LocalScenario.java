@@ -7,6 +7,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyKharonThreadContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerThreadContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotThreadContext;
@@ -24,6 +25,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected LzySnapshotTestContext whiteboardContext;
     protected S3Mock api;
     protected boolean status = false;
+    protected LzyTerminalTestContext.Terminal terminal;
     @Before
     public void setUp() {
         createResourcesFolder();

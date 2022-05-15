@@ -38,25 +38,25 @@ public class PyApiTest extends LocalScenario {
                 1. Importing external modules (catboost)
                 2. Functions which accept and return complex objects
          */
-        runAndCompareWithExpectedFile(List.of("catboost"), "catboost_integration_cpu", LOG);
+        runAndCompareWithExpectedFile(List.of("catboost"), "catboost_integration_cpu", LOG, terminal);
     }
 
     @Test
     public void testExecFail() {
         //Arrange
-        runAndCompareWithExpectedFile("exec_fail", LOG);
+        runAndCompareWithExpectedFile("exec_fail", LOG, terminal);
     }
 
     @Test
     public void testEnvFail() {
         //Arrange
-        runAndCompareWithExpectedFile("env_fail", LOG);
+        runAndCompareWithExpectedFile("env_fail", LOG, terminal);
     }
 
     @Test
     public void testCache() {
         //Arrange
-        runAndCompareWithExpectedFile("test_cache", LOG);
+        runAndCompareWithExpectedFile("test_cache", LOG, terminal);
     }
 
     @Test
@@ -66,7 +66,7 @@ public class PyApiTest extends LocalScenario {
          */
 
         //Arrange
-        runAndCompareWithExpectedFile("import", LOG);
+        runAndCompareWithExpectedFile("import", LOG, terminal);
     }
 
     @Test
@@ -76,7 +76,7 @@ public class PyApiTest extends LocalScenario {
          */
 
         //Arrange
-        runAndCompareWithExpectedFile("none_result", LOG);
+        runAndCompareWithExpectedFile("none_result", LOG, terminal);
     }
 
     @Test
@@ -85,6 +85,6 @@ public class PyApiTest extends LocalScenario {
                 1. Whiteboards/Views machinery
          */
         //Arrange
-        runAndCompareWithExpectedFile("whiteboards", LOG);
+        runAndCompareWithExpectedFile("whiteboards", LOG, terminal);
     }
 }
