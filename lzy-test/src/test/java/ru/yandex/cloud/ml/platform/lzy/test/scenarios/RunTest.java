@@ -16,12 +16,9 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
-public class RunTest extends LzyBaseTest {
-    private LzyTerminalTestContext.Terminal terminal;
-
+public class RunTest extends LocalScenario {
     @Before
     public void setUp() {
-        super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             9999,

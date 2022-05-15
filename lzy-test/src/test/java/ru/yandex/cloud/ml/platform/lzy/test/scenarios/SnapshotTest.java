@@ -32,9 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-public class SnapshotTest extends LzyBaseTest {
-    private LzyTerminalTestContext.Terminal terminal;
-
+public class SnapshotTest extends LocalScenario {
     @Before
     public void setUp() {
         super.setUp();

@@ -13,7 +13,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
-public class LzyStartupTest extends LzyBaseTest {
+public class LzyStartupTest extends LocalScenario {
     @Test
     public void testFuseWorks() {
         //Arrange
