@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class LocalScenario extends LzyBaseTest {
     protected static final int S3_PORT = 8001;
+
     protected LzyServerTestContext serverContext;
     protected LzyKharonTestContext kharonContext;
     protected LzySnapshotTestContext whiteboardContext;
@@ -52,7 +53,10 @@ public abstract class LocalScenario extends LzyBaseTest {
                 LZY_MOUNT,
                 DEFAULT_SERVANT_PORT,
                 DEFAULT_SERVANT_FS_PORT,
-                kharonContext.serverAddress()
+                kharonContext.serverAddress(),
+                DEFAULT_DEBUG_PORT,
+                terminalContext.TEST_USER,
+                null
         );
         status = terminal.waitForStatus(
                 AgentStatus.EXECUTING,

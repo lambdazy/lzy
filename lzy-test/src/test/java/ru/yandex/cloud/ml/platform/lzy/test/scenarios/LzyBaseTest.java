@@ -18,10 +18,12 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 public abstract class LzyBaseTest {
-    protected static final int DEFAULT_TIMEOUT_SEC = 30;
-    protected static final int DEFAULT_SERVANT_PORT = 9999;
-    protected static final int DEFAULT_SERVANT_FS_PORT = 9998;
-    protected static final String LZY_MOUNT = "/tmp/lzy";
+    protected static final int    DEFAULT_TIMEOUT_SEC     = 30;
+    protected static final int    DEFAULT_SERVANT_PORT    = 9999;
+    protected static final int    DEFAULT_SERVANT_FS_PORT = 9998;
+    protected static final int    DEFAULT_DEBUG_PORT      = 5006;
+    protected static final String LZY_MOUNT               = "/tmp/lzy";
+
     protected static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
             "conda activate py39 && ";
 
