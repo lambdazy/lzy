@@ -19,7 +19,7 @@ public class KuberRunTest extends LzyBaseTest {
         DEFAULT_LZY_KHARON_DOMAIN);
     private final String SERVER_URL = String.format("http://%s:8899", LZY_KHARON_DOMAIN);
 
-    private static final Logger LOG = LogManager.getLogger(PyApiTest.class);
+    private static final Logger LOG = LogManager.getLogger(KuberRunTest.class);
 
     @Before
     public void setUp() {

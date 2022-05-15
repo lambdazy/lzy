@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class LocalScenario extends LzyBaseTest {
+public abstract class LocalScenario extends LzyBaseTest {
     protected static final int S3_PORT = 8001;
     protected LzyServerTestContext serverContext;
     protected LzyKharonTestContext kharonContext;

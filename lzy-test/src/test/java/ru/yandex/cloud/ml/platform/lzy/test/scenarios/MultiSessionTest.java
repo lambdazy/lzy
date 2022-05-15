@@ -8,18 +8,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal;
 
 public class MultiSessionTest extends LocalScenario {
-
-    @Before
-    public void setUp() {
-        super.setUp();
-    }
 
     private Terminal createTerminal(int port, int fsPort, int debugPort, String user, String mount) {
         final Terminal terminal = terminalContext.startTerminalAtPathAndPort(

@@ -6,27 +6,43 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 public class LzyStartupTest extends LocalScenario {
-    @Test
-    public void testFuseWorks() {
-        //Arrange
-        final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
-            DEFAULT_SERVANT_PORT,
-            DEFAULT_SERVANT_FS_PORT,
-            kharonContext.serverAddress()
+    private boolean status = false;
+
+    @Before
+    public void setUp() {
+        super.setUp();
+        terminal = terminalContext.startTerminalAtPathAndPort(
+                LZY_MOUNT,
+                DEFAULT_SERVANT_PORT,
+                DEFAULT_SERVANT_FS_PORT,
+                kharonContext.serverAddress()
         );
 
-        //Act
-        terminal.waitForStatus(AgentStatus.EXECUTING, DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+        status = terminal.waitForStatus(
+                AgentStatus.EXECUTING,
+                DEFAULT_TIMEOUT_SEC,
+                TimeUnit.SECONDS
+        );
+    }
 
+    @After
+    public void tearDown() {
+        super.tearDown();
+        status = false;
+    }
+
+    @Test
+    public void testFuseWorks() {
         //Assert
         Assert.assertTrue(terminal.pathExists(Paths.get(LZY_MOUNT + "/sbin")));
         Assert.assertTrue(terminal.pathExists(Paths.get(LZY_MOUNT + "/bin")));
@@ -43,18 +59,6 @@ public class LzyStartupTest extends LocalScenario {
                 .build()))
             .collect(Collectors.toList());
 
-        //Act
-        final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
-            DEFAULT_SERVANT_PORT,
-            DEFAULT_SERVANT_FS_PORT,
-            kharonContext.serverAddress()
-        );
-        final boolean status = terminal.waitForStatus(
-            AgentStatus.EXECUTING,
-            DEFAULT_TIMEOUT_SEC,
-            TimeUnit.SECONDS
-        );
 
         //Assert
         Assert.assertTrue(status);
@@ -93,18 +97,6 @@ public class LzyStartupTest extends LocalScenario {
                 .build()))
             .collect(Collectors.toList());
 
-        //Act
-        final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
-            DEFAULT_SERVANT_PORT,
-            DEFAULT_SERVANT_FS_PORT,
-            kharonContext.serverAddress()
-        );
-        final boolean started = terminal.waitForStatus(
-            AgentStatus.EXECUTING,
-            DEFAULT_TIMEOUT_SEC,
-            TimeUnit.SECONDS
-        );
         final List<Operations.RegisteredZygote> zygotesAfterStart = IntStream.range(10, 20)
             .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
                 .setOperation(Operations.Zygote.newBuilder().build())
@@ -114,7 +106,7 @@ public class LzyStartupTest extends LocalScenario {
 
 
         //Assert
-        Assert.assertTrue(started);
+        Assert.assertTrue(status);
         zygotesBeforeStart.forEach(registeredZygote -> Assert.assertTrue(terminal.pathExists(Paths.get(
             LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
         zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(terminal.pathExists(Paths.get(
@@ -123,24 +115,10 @@ public class LzyStartupTest extends LocalScenario {
 
     @Test
     public void testServantDiesAfterServerDied() {
-        //Arrange
-        final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
-            DEFAULT_SERVANT_PORT,
-            DEFAULT_SERVANT_FS_PORT,
-            kharonContext.serverAddress()
-        );
-
-        //Act
-        final boolean started = terminal.waitForStatus(
-            AgentStatus.EXECUTING,
-            DEFAULT_TIMEOUT_SEC,
-            TimeUnit.SECONDS
-        );
         serverContext.close();
 
         //Assert
-        Assert.assertTrue(started);
+        Assert.assertTrue(status);
         Assert.assertTrue(terminal.waitForShutdown(10, TimeUnit.SECONDS));
     }
 }
