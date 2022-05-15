@@ -14,38 +14,22 @@ import java.util.concurrent.TimeUnit;
 public class PyApiTest extends LocalScenario {
     private static final Logger LOG = LogManager.getLogger(PyApiTest.class);
 
-    public void arrangeTerminal(String user) {
-        this.arrangeTerminal(
+    @Before
+    public void setUp() {
+        super.setUp();
+        terminal = terminalContext.startTerminalAtPathAndPort(
                 LZY_MOUNT,
                 FreePortFinder.find(20000, 21000),
                 FreePortFinder.find(21000, 22000),
                 kharonContext.serverAddress(),
-                user,
+                FreePortFinder.find(22000, 23000),
+                "testUser",
                 null);
-    }
-
-    public void arrangeTerminal(String mount, int port, int fsPort, String serverAddress, String user,
-                                String keyPath) {
-        int debugPort = FreePortFinder.find(22000, 23000);
-        terminal = terminalContext.startTerminalAtPathAndPort(
-                mount,
-                port,
-                fsPort,
-                serverAddress,
-                debugPort,
-                user,
-                keyPath);
         terminal.waitForStatus(
-            AgentStatus.EXECUTING,
-            DEFAULT_TIMEOUT_SEC,
-            TimeUnit.SECONDS
+                AgentStatus.EXECUTING,
+                DEFAULT_TIMEOUT_SEC,
+                TimeUnit.SECONDS
         );
-    }
-
-    @Before
-    public void setUp() {
-        super.setUp();
-        arrangeTerminal("testUser");
     }
 
     @Test
