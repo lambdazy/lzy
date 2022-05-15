@@ -6,13 +6,11 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
@@ -20,17 +18,7 @@ public class RunTest extends LocalScenario {
     @Before
     public void setUp() {
         super.setUp();
-        terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
-            9999,
-            9998,
-            kharonContext.serverAddress()
-        );
-        terminal.waitForStatus(
-            AgentStatus.EXECUTING,
-            DEFAULT_TIMEOUT_SEC,
-            TimeUnit.SECONDS
-        );
+        startTerminalWithDefaultConfig();
     }
 
     @Test

@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import io.findify.s3mock.S3Mock;
 import org.junit.After;
 import org.junit.Before;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
@@ -13,6 +14,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotThreadContext;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
 public abstract class LocalScenario extends LzyBaseTest {
     protected static final int S3_PORT = 8001;
@@ -43,6 +45,20 @@ public abstract class LocalScenario extends LzyBaseTest {
         serverContext.close();
         whiteboardContext.close();
         super.tearDown();
+    }
+
+    public void startTerminalWithDefaultConfig() {
+        terminal = terminalContext.startTerminalAtPathAndPort(
+                LZY_MOUNT,
+                DEFAULT_SERVANT_PORT,
+                DEFAULT_SERVANT_FS_PORT,
+                kharonContext.serverAddress()
+        );
+        terminal.waitForStatus(
+                AgentStatus.EXECUTING,
+                DEFAULT_TIMEOUT_SEC,
+                TimeUnit.SECONDS
+        );
     }
 
     private static void createResourcesFolder() {

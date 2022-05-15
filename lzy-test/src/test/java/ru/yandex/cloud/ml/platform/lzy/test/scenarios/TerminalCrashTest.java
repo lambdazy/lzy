@@ -47,7 +47,6 @@ public class TerminalCrashTest extends LocalScenario {
         return terminal;
     }
 
-
     @Test
     public void testReadSlotToStdout() {
         //Arrange

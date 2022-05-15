@@ -21,18 +21,7 @@ public class LzyStartupTest extends LocalScenario {
     @Before
     public void setUp() {
         super.setUp();
-        terminal = terminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                DEFAULT_SERVANT_FS_PORT,
-                kharonContext.serverAddress()
-        );
-
-        status = terminal.waitForStatus(
-                AgentStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
-                TimeUnit.SECONDS
-        );
+        startTerminalWithDefaultConfig();
     }
 
     @After
