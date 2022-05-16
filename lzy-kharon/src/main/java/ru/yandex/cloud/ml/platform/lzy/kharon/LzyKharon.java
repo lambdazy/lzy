@@ -1,38 +1,59 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
-import io.grpc.*;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyFs;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyKharon;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyServant;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.SlotAzure;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.SlotS3;
+
+import io.grpc.Context;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerInterceptors;
+import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.cli.*;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.client.utils.URLEncodedUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommandStatus;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyKharon;
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.kharon.TerminalController.TerminalControllerResetException;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
+import yandex.cloud.priv.datasphere.v2.lzy.Channels;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommandStatus;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
 public class LzyKharon {
 
@@ -50,23 +71,26 @@ public class LzyKharon {
         options.addRequiredOption("lsa", "lzy-snapshot-address", true, "Lzy snapshot address [host:port]");
     }
 
-    private final URI address;
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final WbApiGrpc.WbApiBlockingStub whiteboard;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
-    private final TerminalSessionManager terminalManager;
+    private final TerminalSessionManager sessionManager;
     private final DataCarrier dataCarrier = new DataCarrier();
     private final ServantConnectionManager connectionManager = new ServantConnectionManager();
+    private final ServerControllerFactory serverControllerFactory;
     private final Server kharonServer;
     private final Server kharonServantProxy;
     private final Server kharonServantFsProxy;
     private final ManagedChannel serverChannel;
     private final ManagedChannel whiteboardChannel;
     private final ManagedChannel snapshotChannel;
+    private final UriResolver uriResolver;
+    private final URI servantProxyAddress;
+    private final URI servantFsProxyAddress;
 
-    public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String host, int port,
+    public LzyKharon(URI serverUri, URI whiteboardUri, URI snapshotUri, String externalHost, String host, int port,
                      int servantProxyPort, int servantFsProxyPort) throws URISyntaxException {
-        address = new URI(LzyKharon.scheme(), null, host, port, null, null, null);
+        final URI externalAddress = new URI(LzyKharon.scheme(), null, externalHost, port, null, null, null);
         serverChannel = ChannelBuilder
             .forAddress(serverUri.getHost(), serverUri.getPort())
             .usePlaintext()
@@ -85,10 +109,13 @@ public class LzyKharon {
             .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(snapshotChannel);
 
-        final URI servantProxyAddress = new URI(LzyServant.scheme(), null, host, servantProxyPort, null, null, null);
-        final URI servantFsProxyAddress = new URI(LzyFs.scheme(), null, host, servantFsProxyPort, null, null, null);
+        servantProxyAddress = new URI(LzyServant.scheme(), null, host, servantProxyPort, null, null, null);
+        servantFsProxyAddress = new URI(LzyFs.scheme(), null, host, servantFsProxyPort, null, null, null);
 
-        terminalManager = new TerminalSessionManager(server, servantProxyAddress, servantFsProxyAddress);
+        sessionManager = new TerminalSessionManager();
+        uriResolver = new UriResolver(externalAddress, servantFsProxyAddress);
+        serverControllerFactory =
+                new ServerControllerFactory(server, uriResolver, servantProxyAddress, servantFsProxyAddress);
 
         kharonServer = NettyServerBuilder.forPort(port)
             .permitKeepAliveWithoutCalls(true)
@@ -126,6 +153,7 @@ public class LzyKharon {
             System.exit(-1);
         }
         final String host = parse.getOptionValue('h', "localhost");
+        final String externalHost = parse.getOptionValue('e', "api.lzy.ai");
         final int port = Integer.parseInt(parse.getOptionValue('p', "8899"));
         final int servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
         final int servantFsPort = parse.hasOption("fs") ? Integer.parseInt(parse.getOptionValue("fs"))
@@ -135,7 +163,7 @@ public class LzyKharon {
         final URI snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
 
         final LzyKharon kharon = new LzyKharon(serverAddress, whiteboardAddress, snapshotAddress,
-            host, port, servantPort, servantFsPort);
+            externalHost, host, port, servantPort, servantFsPort);
         kharon.start();
         kharon.awaitTermination();
     }
@@ -274,9 +302,19 @@ public class LzyKharon {
     private class KharonService extends LzyKharonGrpc.LzyKharonImplBase {
 
         @Override
-        public StreamObserver<TerminalState> attachTerminal(StreamObserver<TerminalCommand> responseObserver) {
+        public StreamObserver<Kharon.ServerCommand> attachTerminal(StreamObserver<TerminalCommand> responseObserver) {
             LOG.info("Kharon::attachTerminal");
-            return terminalManager.createSession(responseObserver);
+            final UUID sessionId = UUID.randomUUID();
+            final TerminalSession session = sessionManager.createSession(
+                sessionId,
+                new TerminalController(responseObserver),
+                serverControllerFactory
+            );
+            Context.current().addListener(context -> {
+                session.onTerminalDisconnect();
+                sessionManager.deleteSession(sessionId);
+            }, Runnable::run);
+            return session.serverCommandHandler();
         }
 
         @Override
@@ -288,18 +326,11 @@ public class LzyKharon {
         @Override
         public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> responseObserver) {
             LOG.info("Kharon::openOutputSlot from Terminal " + JsonUtils.printRequest(request));
-            final URI connectUri = URI.create(request.getSlotUri());
-            final Optional<String> uri =
-                URLEncodedUtils.parse(connectUri, StandardCharsets.UTF_8)
-                    .stream()
-                    .filter(t -> t.getName().equals("slot_uri"))
-                    .findFirst()
-                    .map(NameValuePair::getValue);
-            if (uri.isEmpty()) {
+            final URI slotUri = UriResolver.parseSlotUri(URI.create(request.getSlotUri()));
+            if (slotUri == null) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Bad uri").asException());
                 return;
             }
-            final URI slotUri = URI.create(uri.get());
 
             LzyFsApi.SlotRequest newRequest = LzyFsApi.SlotRequest.newBuilder()
                 .mergeFrom(request)
@@ -406,16 +437,19 @@ public class LzyKharon {
         @Override
         public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
             try {
-                final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
-                LOG.info("KharonServantProxyService sessionId = " + session.sessionId()
-                    + "::prepare " + JsonUtils.printRequest(request));
-                session.setServantProgress(responseObserver);
+                final TerminalSession session = sessionManager.getSessionFromGrpcContext();
+                final UUID sessionId = session.sessionId();
+                LOG.info("KharonServantProxyService sessionId = " + sessionId
+                    + "::start " + JsonUtils.printRequest(request));
+                session.setServerStream(responseObserver);
                 Context.current().addListener(context -> {
                     LOG.info("Execution terminated from server");
-                    session.close();
+                    session.onServerDisconnect();
+                    sessionManager.deleteSession(sessionId);
                 }, Runnable::run);
-            } catch (InvalidSessionRequestException e) {
-                responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            } catch (InvalidSessionRequestException | ServerController.ServerControllerResetException e) {
+                LOG.warn("Exception while start ", e);
+                responseObserver.onError(Status.NOT_FOUND.asRuntimeException().initCause(e));
             }
         }
 
@@ -427,25 +461,25 @@ public class LzyKharon {
         public void openOutputSlot(LzyFsApi.SlotRequest request,
                                    StreamObserver<LzyFsApi.Message> responseObserver) {
             try {
-                final TerminalSession session = terminalManager
-                    .getTerminalSessionFromSlotUri(request.getSlotUri());
+                final TerminalSession session = sessionManager.getSessionFromSlotUri(request.getSlotUri());
                 LOG.info("KharonServantFsProxyService sessionId = " + session.sessionId()
                     + "::openOutputSlot " + JsonUtils.printRequest(request));
                 dataCarrier.openServantConnection(URI.create(request.getSlotUri()), responseObserver);
 
-                Path path = Path.of(URI.create(request.getSlotUri()).getPath());
-                String tid = path.getName(0).toString();
-                String slot = Path.of("/", path.subpath(1, path.getNameCount()).toString()).toString();
+                final URI slotUri = URI.create(request.getSlotUri());
+                final String tid = UriResolver.parseTidFromSlotUri(slotUri);
+                final String slotName = UriResolver.parseSlotNameFromSlotUri(slotUri);
 
-                session.configureSlot(LzyFsApi.SlotCommand.newBuilder()
-                    .setSlot(slot)
+                session.terminalController().configureSlot(LzyFsApi.SlotCommand.newBuilder()
+                    .setSlot(slotName)
                     .setTid(tid)
                     .setConnect(LzyFsApi.ConnectSlotCommand.newBuilder()
                         .setSlotUri(request.getSlotUri())
                         .build())
                     .build());
-            } catch (InvalidSessionRequestException e) {
-                responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            } catch (InvalidSessionRequestException | TerminalControllerResetException e) {
+                LOG.warn("Exception while openOutputSlot ", e);
+                responseObserver.onError(Status.NOT_FOUND.asRuntimeException().initCause(e));
             }
         }
 
@@ -453,30 +487,24 @@ public class LzyKharon {
         public void configureSlot(LzyFsApi.SlotCommand request,
                                   StreamObserver<LzyFsApi.SlotCommandStatus> responseObserver) {
             try {
-                final TerminalSession session = terminalManager.getTerminalSessionFromGrpcContext();
+                final TerminalSession session = sessionManager.getSessionFromGrpcContext();
                 if (request.hasConnect()) {
-                    URI uri = URI.create(request.getConnect().getSlotUri());
-                    if (SlotS3.match(uri) || SlotAzure.match(uri)) {
-                        ProxyCall.exec(session::configureSlot, request, responseObserver);
-                        return;
+                    final URI uri = URI.create(request.getConnect().getSlotUri());
+                    if (!SlotS3.match(uri) && !SlotAzure.match(uri)) {
+                        final URI convertedToKharonUri = uriResolver.convertToKharonWithSlotUri(uri);
+                        request = LzyFsApi.SlotCommand.newBuilder()
+                            .mergeFrom(request)
+                            .setConnect(LzyFsApi.ConnectSlotCommand.newBuilder()
+                                .setSlotUri(convertedToKharonUri.toString()).build())
+                            .build();
                     }
-                    URI builtURI = new URIBuilder()
-                        .setScheme(LzyKharon.scheme())
-                        .setHost(address.getHost())
-                        .setPort(address.getPort())
-                        .addParameter("slot_uri", request.getConnect().getSlotUri())
-                        .build();
-                    request = LzyFsApi.SlotCommand.newBuilder()
-                        .mergeFrom(request)
-                        .setConnect(LzyFsApi.ConnectSlotCommand.newBuilder()
-                            .setSlotUri(builtURI.toString()).build())
-                        .build();
                 }
-                final SlotCommandStatus slotCommandStatus = session.configureSlot(request);
+                final SlotCommandStatus slotCommandStatus = session.terminalController().configureSlot(request);
                 responseObserver.onNext(slotCommandStatus);
                 responseObserver.onCompleted();
-            } catch (InvalidSessionRequestException e) {
-                responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            } catch (InvalidSessionRequestException | TerminalControllerResetException e) {
+                LOG.warn("Exception while configureSlot ", e);
+                responseObserver.onError(Status.NOT_FOUND.asRuntimeException().initCause(e));
             } catch (URISyntaxException e) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Invalid servant uri")
                     .asRuntimeException());

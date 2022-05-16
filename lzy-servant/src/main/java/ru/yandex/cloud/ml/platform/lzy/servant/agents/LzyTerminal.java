@@ -1,23 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyTerminal;
+
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.StatusException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.fs.LzyInputSlot;
-import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalState;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -26,8 +16,23 @@ import java.net.URISyntaxException;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyTerminal;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzyInputSlot;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
+import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ServerCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 public class LzyTerminal extends LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
@@ -95,12 +100,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         context.onProgress(progress -> {
             LOG.info("LzyTerminal::progress {} {}", agentUri, JsonUtils.printRequest(progress));
             if (progress.hasAttach()) {
-                final TerminalState terminalState = TerminalState.newBuilder()
+                final ServerCommand terminalState = ServerCommand.newBuilder()
                     .setAttach(progress.getAttach())
                     .build();
                 commandHandler.onNext(terminalState);
             } else if (progress.hasDetach()) {
-                final TerminalState terminalState = TerminalState.newBuilder()
+                final ServerCommand terminalState = ServerCommand.newBuilder()
                     .setDetach(progress.getDetach())
                     .build();
                 commandHandler.onNext(terminalState);
@@ -142,7 +147,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     private class CommandHandler {
-        private final StreamObserver<TerminalState> responseObserver;
+        private final StreamObserver<ServerCommand> responseObserver;
         private final TerminalSlotSender slotSender = new TerminalSlotSender(kharon);
 
         CommandHandler() {
@@ -153,15 +158,18 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
                     final String commandId = terminalCommand.getCommandId();
                     if (terminalCommand.getCommandCase() != TerminalCommand.CommandCase.SLOTCOMMAND) {
-                        CommandHandler.this.onNext(TerminalState.newBuilder()
-                            .setCommandId(commandId)
-                            .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
-                                    .setCodeValue(1)
-                                    .setDescription("Invalid terminal command")
+                        CommandHandler.this.onNext(ServerCommand.newBuilder()
+                            .setTerminalResponse(
+                                Kharon.TerminalResponse.newBuilder()
+                                .setCommandId(commandId)
+                                .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                    .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
+                                        .setCodeValue(1)
+                                        .setDescription("Invalid terminal command")
+                                        .build())
                                     .build())
-                                .build())
-                            .build());
+                                .build()
+                            ).build());
                         return;
                     }
 
@@ -171,26 +179,32 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                         final LzySlot slot = context.slot(slotCommand.getTid(), slotCommand.getSlot());
                         if (slot == null) {
                             if (slotCommand.hasDestroy() || slotCommand.hasDisconnect()) {
-                                CommandHandler.this.onNext(TerminalState.newBuilder()
-                                    .setCommandId(commandId)
-                                    .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                        .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
-                                            .setCodeValue(0)
+                                CommandHandler.this.onNext(ServerCommand.newBuilder()
+                                    .setTerminalResponse(
+                                        Kharon.TerminalResponse.newBuilder()
+                                        .setCommandId(commandId)
+                                        .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                            .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
+                                                .setCodeValue(0)
+                                                .build())
                                             .build())
-                                        .build())
-                                    .build());
+                                        .build()
+                                    ).build());
                                 return;
                             } else {
-                                CommandHandler.this.onNext(TerminalState.newBuilder()
-                                    .setCommandId(commandId)
-                                    .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                        .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
-                                            .setCodeValue(1)
-                                            .setDescription("Slot " + slotCommand.getSlot()
-                                                + " not found in ns: " + slotCommand.getTid())
+                                CommandHandler.this.onNext(ServerCommand.newBuilder()
+                                    .setTerminalResponse(
+                                        Kharon.TerminalResponse.newBuilder()
+                                        .setCommandId(commandId)
+                                        .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                            .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
+                                                .setCodeValue(1)
+                                                .setDescription("Slot " + slotCommand.getSlot()
+                                                    + " not found in ns: " + slotCommand.getTid())
+                                                .build())
                                             .build())
-                                        .build())
-                                    .build());
+                                        .build()
+                                    ).build());
                                 return;
                             }
                         }
@@ -210,22 +224,26 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                 }
                             });
 
-                            CommandHandler.this.onNext(TerminalState.newBuilder()
+                            CommandHandler.this.onNext(ServerCommand.newBuilder()
+                                .setTerminalResponse(Kharon.TerminalResponse.newBuilder()
                                 .setCommandId(commandId)
                                 .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
                                     .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
                                         .setCodeValue(0)
                                         .build())
                                     .build())
+                                .build())
                                 .build());
                             return;
                         }
 
                         final LzyFsApi.SlotCommandStatus slotCommandStatus = lzyFs.configureSlot(slotCommand);
-                        final TerminalState terminalState = TerminalState.newBuilder()
-                            .setCommandId(commandId)
-                            .setSlotStatus(slotCommandStatus)
-                            .build();
+                        final ServerCommand terminalState = ServerCommand.newBuilder()
+                            .setTerminalResponse(Kharon.TerminalResponse.newBuilder()
+                                .setCommandId(commandId)
+                                .setSlotStatus(slotCommandStatus)
+                                .build()
+                            ).build();
                         LOG.info("CommandHandler::onNext " + JsonUtils.printRequest(terminalState));
                         CommandHandler.this.onNext(terminalState);
                     } catch (StatusException e) {
@@ -250,7 +268,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             responseObserver = kharon.attachTerminal(supplier);
 
             status.set(AgentStatus.REGISTERING);
-            responseObserver.onNext(TerminalState.newBuilder()
+            responseObserver.onNext(ServerCommand.newBuilder()
                 .setAttachTerminal(AttachTerminal.newBuilder()
                     .setAuth(auth.getUser())
                     .build())
@@ -258,8 +276,8 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             status.set(AgentStatus.REGISTERED);
         }
 
-        public synchronized void onNext(TerminalState terminalState) {
-            responseObserver.onNext(terminalState);
+        public synchronized void onNext(ServerCommand serverCommand) {
+            responseObserver.onNext(serverCommand);
         }
 
         public void onError(Throwable th) {
