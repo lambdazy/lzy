@@ -326,12 +326,11 @@ public class LzyKharon {
         @Override
         public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> responseObserver) {
             LOG.info("Kharon::openOutputSlot from Terminal " + JsonUtils.printRequest(request));
-            final Optional<URI> uri = UriResolver.parseSlotUri(URI.create(request.getSlotUri()));
-            if (uri.isEmpty()) {
+            final URI slotUri = UriResolver.parseSlotUri(URI.create(request.getSlotUri()));
+            if (slotUri == null) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Bad uri").asException());
                 return;
             }
-            final URI slotUri = uri.get();
 
             LzyFsApi.SlotRequest newRequest = LzyFsApi.SlotRequest.newBuilder()
                 .mergeFrom(request)

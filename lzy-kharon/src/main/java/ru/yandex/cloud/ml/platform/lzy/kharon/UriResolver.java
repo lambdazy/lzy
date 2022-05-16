@@ -4,6 +4,8 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.utils.URLEncodedUtils;
 
+import javax.annotation.Nullable;
+
 import static ru.yandex.cloud.ml.platform.lzy.kharon.TerminalSession.SESSION_ID_KEY;
 
 import java.net.URI;
@@ -64,12 +66,14 @@ public class UriResolver {
                 .build();
     }
 
-    public static Optional<URI> parseSlotUri(URI servantUri) {
+    @Nullable
+    public static URI parseSlotUri(URI servantUri) {
         return URLEncodedUtils.parse(servantUri, StandardCharsets.UTF_8)
                 .stream()
                 .filter(t -> t.getName().equals("slot_uri"))
                 .findFirst()
                 .map(NameValuePair::getValue)
-                .map(URI::create);
+                .map(URI::create)
+                .orElse(null);
     }
 }
