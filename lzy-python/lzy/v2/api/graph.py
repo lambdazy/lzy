@@ -1,7 +1,7 @@
 from typing import Iterator, List, Dict, Any
 
 from lzy.v2.api import LzyCall
-from lzy.v2.utils import is_lazy_proxy
+from lzy.v2.utils import is_lazy_proxy, executed
 
 
 class BuildError(Exception):
@@ -55,7 +55,7 @@ class GraphBuilder:
     def _dependent_calls(self, call: LzyCall):
         dependent_calls: List[LzyCall] = []
         for name, arg in call.named_arguments():
-            if is_lazy_proxy(arg) and not hasattr(arg, "_origin"):
+            if is_lazy_proxy(arg) and executed(arg):
                 dependent_calls.extend(self._dependent_calls(arg))
                 dependent_calls.append(arg)
         return unique_values(dependent_calls)
@@ -70,7 +70,7 @@ class GraphBuilder:
                 self._id_to_call[dependent_call.id] = dependent_call
             self._adjacency_graph[dependent_call.id].append(call.id)
         self._calls.append(call)
-        self._id_to_call[call.id].append(call)
+        self._id_to_call[call.id] = call
 
     def build(self) -> Graph:
         self._already_built = True

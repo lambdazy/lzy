@@ -23,7 +23,7 @@ from lzy.v2.storage.storage_client import StorageClient
 from lzy.v2.utils import is_lazy_proxy, zipdir
 
 
-class RuntimeImpl(Runtime):
+class BashRuntime(Runtime):
     def __init__(self, lzy_mount: str, serializer: Serializer, channel_manager: ChannelManager,
                  servant_client: ServantClient, storage_client: StorageClient):
         self._lzy_mount = lzy_mount
@@ -118,20 +118,7 @@ class RuntimeImpl(Runtime):
             task_spec, write_later_slots = self._task_spec(call, snapshot.id())
             graph_description.append(task_spec)
             write_later.update(write_later_slots)
-
-        # TODO: implement
-        # execution = self._servant_client.run(graph)
-        # self.dump_arguments(write_later)
-        # result = execution.wait_for()
-        # rc_ = result.returncode
-        # if rc_ == 0:
-        #     self._log.info("Executed task %s for func %s with rc %s",
-        #                    execution.id()[:4], self.signature.func.operation_name, rc_, )
-        #     return
-        #
-        # message = self._execution_exception_message(execution, func, rc_)
-        # self._log.error(f"Execution exception with message: {message}")
-        # raise LzyExecutionException(message)
+        # TODO: write to slots, send tasks for execution
 
     def destroy(self) -> None:
         self._channel_manager.destroy_all()

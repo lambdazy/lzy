@@ -139,6 +139,7 @@ def create_and_cache(proxy_cls, callback):
     if not hasattr(proxy_cls, "_origin") and not hasattr(proxy_cls, "_exception"):
         try:
             proxy_cls._origin = callback()  # pylint: disable=protected-access
+            proxy_cls.__lzy_executed__ = True
         except Exception as e:
             proxy_cls._exception = e
             raise e

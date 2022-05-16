@@ -54,7 +54,7 @@ def op_(provisioning: Provisioning, *, output_type=None):
 
             nonlocal output_type
             signature = infer_call_signature(f, output_type, *args, **kwargs)
-            env_provider = current_workflow.owner().env_provider
+            env_provider = current_workflow._env_provider
 
             # we need specify globals() for caller site to find all
             # required modules
@@ -93,8 +93,13 @@ def op_(provisioning: Provisioning, *, output_type=None):
             if issubclass(output_type, type(None)):
                 return None
             else:
-                return lazy_proxy(lambda: lzy_call.op.callable(lzy_call.args, lzy_call.kwargs), output_type,
-                                  {"lzy_call": lzy_call})
+                def materialize():
+                    value = current_workflow.snapshot().get(lzy_call.id)
+                    if value is not None:
+                        return value
+                    current_workflow.barrier()
+                    return current_workflow.snapshot().get(lzy_call.id)
+                return lazy_proxy(materialize, output_type, {"lzy_call": lzy_call})
 
         return lazy
 

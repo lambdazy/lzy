@@ -1,10 +1,12 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 from lzy.v2.api import LzyCall
-from lzy.v2.api.lzy import Lzy
+from lzy.v2.api.env.env_provider import EnvProvider
 from lzy.v2.api.lzy_workflow_splitter import LzyWorkflowSplitter
+from lzy.v2.api.runtime.local_runtime import LocalRuntime
 from lzy.v2.api.runtime.runtime import Runtime
 from lzy.v2.api.snapshot.snapshot import Snapshot
+from lzy.v2.serialization.serializer import Serializer
 
 
 class LzyWorkflow:
@@ -17,26 +19,24 @@ class LzyWorkflow:
 
     def __init__(self,
                  name: str,
-                 owner: Lzy,
-                 runtime: Runtime,
-                 snapshot: Snapshot,
+                 serializer: Serializer,
+                 env_provider: EnvProvider,
+                 lzy_mount: str,
                  eager: bool = False,
+                 runtime: Runtime = LocalRuntime(),
+                 snapshot: Optional[Snapshot] = None,
                  ):
         self._name = name
-        self._owner = owner
         self._eager = eager
-        self._serializer = owner.serializer
-        self._env_provider = owner.env_provider
-        self._lzy_mount = owner.lzy_mount
+        self._serializer = serializer
+        self._env_provider = env_provider
+        self._lzy_mount = lzy_mount
         self._ops: List[LzyCall] = []
         self._runtime = runtime
         self._snapshot = snapshot
         self._splitter = LzyWorkflowSplitter()
 
-    def owner(self) -> Lzy:
-        return self._owner
-
-    def snapshot(self) -> Snapshot:
+    def snapshot(self) -> Optional[Snapshot]:
         return self._snapshot
 
     def call(self, call: LzyCall) -> Any:
@@ -46,7 +46,7 @@ class LzyWorkflow:
 
     def barrier(self) -> None:
         graph = self._splitter.barrier()
-        self._runtime.exec(graph, lambda: print("progress"))
+        self._runtime.exec(graph, self._snapshot, lambda: print("progress"))
 
     def __enter__(self) -> "LzyWorkflow":
         type(self).instances.append(self)
@@ -56,9 +56,11 @@ class LzyWorkflow:
         try:
             if not exc_val:
                 self.barrier()
-                self._snapshot.finalize()
+                if self._snapshot is not None:
+                    self._snapshot.finalize()
             else:
-                self._snapshot.error()
+                if self._snapshot is not None:
+                    self._snapshot.error()
         finally:
             self._runtime.destroy()
             type(self).instances.pop()

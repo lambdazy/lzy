@@ -51,19 +51,14 @@ def infer_return_type(func: Callable) -> TypeInferResult:
     return Nothing()
 
 
-def infer_arg_types(*args) -> Tuple[type, ...]:
-    # noinspection PyProtectedMember
-    # pylint: disable=protected-access
-    return tuple(
-        arg._op.return_type
-        if is_lazy_proxy(arg) else type(arg)
-        for arg in args
-    )
-
-
 def is_lazy_proxy(obj: Any) -> bool:
     cls = type(obj)
     return hasattr(cls, "__lzy_proxied__") and cls.__lzy_proxied__
+
+
+def executed(obj: Any) -> bool:
+    cls = type(obj)
+    return hasattr(cls, "__lzy_executed__") and cls.__lzy_executed__
 
 
 def lazy_proxy(
@@ -72,7 +67,7 @@ def lazy_proxy(
     return proxy(
         materialization,
         return_type,
-        cls_attrs={"__lzy_proxied__": True},
+        cls_attrs={"__lzy_proxied__": True, "__lzy_executed__": False},
         obj_attrs=obj_attrs,
     )
 
@@ -120,14 +115,14 @@ def infer_call_signature(f: Callable, output_type: type, *args, **kwargs) -> Cal
     # pylint: disable=protected-access
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
-        types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+        types_mapping[name] = arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
 
     generated_names = []
     for arg in args[len(argspec.args):]:
         name = str(uuid.uuid4())
         generated_names.append(name)
         # noinspection PyProtectedMember
-        types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+        types_mapping[name] = arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
 
     arg_names = tuple(argspec.args[:len(args)] + generated_names)
     kwarg_names = tuple(kwargs.keys())

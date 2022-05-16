@@ -66,7 +66,7 @@ class MemBytesSerializerImpl(MemBytesSerializer):
         return cloudpickle.loads(data)  # type: ignore
 
 
-class Serializer(ABC, FileSerializer, MemBytesSerializer):
+class Serializer(FileSerializer, MemBytesSerializer):
     """serialization facility"""
 
 

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, TypeVar, Any
+from typing import Type, TypeVar, Any, Optional
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -14,7 +14,7 @@ class Snapshot(ABC):
         pass
 
     @abstractmethod
-    def get(self, entry_id: str) -> Any:
+    def get(self, entry_id: str) -> Optional[Any]:
         pass
 
     @abstractmethod

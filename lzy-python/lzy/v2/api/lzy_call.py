@@ -2,7 +2,7 @@ import uuid
 from itertools import chain
 from typing import Tuple, Any, Dict, TypeVar, Generic, Iterator
 
-from lzy.v2.api import LzyOp
+from lzy.v2.api.lzy_op import LzyOp
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

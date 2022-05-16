@@ -7,7 +7,7 @@ from typing import Type, TypeVar, Any, Dict, Set, Callable, Optional
 from lzy.v2.api.snapshot.snapshot import Snapshot
 from lzy.v2.serialization.serializer import Serializer
 from lzy.v2.servant.snapshot_api import SnapshotApi
-from lzy.v2.servant.v2.channel_manager import ChannelManager
+from lzy.v2.servant.channel_manager import ChannelManager
 from lzy.v2.servant.whiteboard_api import WhiteboardApi
 from lzy.v2.utils import is_lazy_proxy
 
@@ -41,7 +41,7 @@ def create_instance(typ: Type[T]) -> T:
     return typ(**field_dict)
 
 
-class SnapshotImpl(Snapshot):
+class BashSnapshot(Snapshot):
     def __init__(self, snapshot_id: str, lzy_mount: str, snapshot_api_client: SnapshotApi,
                  whiteboard_api_client: WhiteboardApi, channel_manager: ChannelManager, serializer: Serializer):
         self._lzy_mount = lzy_mount
