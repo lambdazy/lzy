@@ -4,6 +4,7 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 
 @ConfigurationProperties("database")
 public class DbConfig {
+
     private String url;
     private String username;
     private String password;

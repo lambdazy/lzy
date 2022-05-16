@@ -23,11 +23,11 @@ public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase 
     public static final Logger LOG = LogManager.getLogger(LzyASService.class);
 
     @Inject
-    AccessClient accessClient;
+    private AccessClient accessClient;
 
     @Override
     public void authorize(AuthorizeRequest request, StreamObserver<Subject> responseObserver) {
-        LOG.info("Authorize user:: " + request.getSubjectId() + " to resource:: " + request.getResource().getId());
+        LOG.info("Authorize user::{}  to resource:: {}", request.getSubjectId(), request.getResource().getId());
         try {
             if (!Objects.requireNonNull(AuthenticationContext.current())
                     .getSubject().id().equals(request.getSubjectId())) {
@@ -41,13 +41,16 @@ public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase 
                     .build());
                 responseObserver.onCompleted();
             } else {
+                LOG.error("Access denied to resource::{}", request.getResource().getId());
                 responseObserver.onError(Status.PERMISSION_DENIED
                     .withDescription("Access denied to resource:: " + request.getResource().getId())
                     .asException());
             }
         } catch (AuthException e) {
+            LOG.error("Auth exception::", e);
             responseObserver.onError(e.status().asException());
         } catch (Exception e) {
+            LOG.error("Internal exception::", e);
             responseObserver.onError(Status.INTERNAL.asException());
         }
     }

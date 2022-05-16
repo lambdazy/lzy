@@ -26,7 +26,7 @@ public class DbAuthService implements AuthenticateService {
     private static final Logger LOG = LogManager.getLogger(DbAuthService.class);
 
     @Inject
-    DbStorage storage;
+    private DbStorage storage;
 
     @Override
     public Subject authenticate(Credentials credentials) {
@@ -46,8 +46,8 @@ public class DbAuthService implements AuthenticateService {
                         if (CredentialsHelper.checkJWT(keyReader,
                                 ((JwtCredentials) credentials).token(),
                                 subject.id())) {
-                            LOG.info("Successfully checked user token " + subject.id() + " with key name "
-                                    + rs.getString("name"));
+                            LOG.info("Successfully checked user::{} token with key name {}",
+                                    subject.id(), rs.getString("name"));
                             return subject;
                         }
                     } catch (Exception e) {

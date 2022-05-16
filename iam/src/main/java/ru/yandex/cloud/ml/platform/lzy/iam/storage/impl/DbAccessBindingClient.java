@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.ResourceBinding;
@@ -26,7 +27,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
     private DbStorage storage;
 
     @Override
-    public Stream<AccessBinding> listAccessBindings(AuthResource resource) {
+    public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         List<AccessBinding> bindings = new ArrayList<>();
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "SELECT * FROM user_resource_roles "
@@ -45,7 +46,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
     }
 
     @Override
-    public void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) {
+    public void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) throws AuthException {
         try {
             StringBuilder query = new StringBuilder();
             for (AccessBinding ignored : accessBinding) {
@@ -66,7 +67,8 @@ public class DbAccessBindingClient implements AccessBindingClient {
     }
 
     @Override
-    public void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBindingDeltas) {
+    public void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBindingDeltas)
+            throws AuthException {
         try {
             StringBuilder query = new StringBuilder();
             for (AccessBindingDelta binding : accessBindingDeltas) {

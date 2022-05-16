@@ -3,15 +3,16 @@ package ru.yandex.cloud.ml.platform.lzy.iam.storage.impl;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessClient;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthBadRequestException;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthPermission;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.Role;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 @Singleton
 @Requires(beans = DbStorage.class)
@@ -21,9 +22,10 @@ public class DbAccessClient implements AccessClient {
     private DbStorage storage;
 
     @Override
-    public boolean hasResourcePermission(String userId, String resourceId, AuthPermission permission) {
+    public boolean hasResourcePermission(String userId, String resourceId, AuthPermission permission)
+            throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT * FROM user_resource_roles "
+                "SELECT user_id FROM user_resource_roles "
                         + "WHERE user_id = ? "
                         + "AND resource_id = ? "
                         + ";"
@@ -39,7 +41,7 @@ public class DbAccessClient implements AccessClient {
             throw new AuthInternalException(e);
         }
         try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT * FROM user_resource_roles "
+                "SELECT user_id FROM user_resource_roles "
                         + "WHERE user_id = ? "
                         + "AND resource_id = ? "
                         + "AND " + queryByPermission(permission)
