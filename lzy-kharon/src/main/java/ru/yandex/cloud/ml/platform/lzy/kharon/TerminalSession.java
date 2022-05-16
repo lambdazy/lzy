@@ -19,18 +19,19 @@ public class TerminalSession {
 
     private final TerminalController terminalController;
     private final ServerCommandHandler serverCommandHandler;
-    private final ServerController serverController;
+    private final ServerControllerFactory serverControllerFactory;
+    private ServerController serverController;
 
     private final UUID sessionId;
 
     public TerminalSession(
         UUID sessionId,
         TerminalController terminalController,
-        ServerController serverController
+        ServerControllerFactory serverControllerFactory
     ) {
         this.sessionId = sessionId;
         this.terminalController = terminalController;
-        this.serverController = serverController;
+        this.serverControllerFactory = serverControllerFactory;
         this.serverCommandHandler = new ServerCommandHandler();
     }
 
@@ -49,7 +50,7 @@ public class TerminalSession {
                                 + attachTerminal.getAuth().getUserId());
                         }
                         updateState(TerminalSessionState.TERMINAL_ATTACHED);
-                        serverController.register(attachTerminal.getAuth());
+                        serverController = serverControllerFactory.createInstance(attachTerminal.getAuth(), sessionId);
                         break;
                     }
                     case ATTACH: {

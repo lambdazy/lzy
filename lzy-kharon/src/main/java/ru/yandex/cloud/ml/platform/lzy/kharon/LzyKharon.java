@@ -77,6 +77,7 @@ public class LzyKharon {
     private final TerminalSessionManager sessionManager;
     private final DataCarrier dataCarrier = new DataCarrier();
     private final ServantConnectionManager connectionManager = new ServantConnectionManager();
+    private final ServerControllerFactory serverControllerFactory;
     private final Server kharonServer;
     private final Server kharonServantProxy;
     private final Server kharonServantFsProxy;
@@ -113,6 +114,8 @@ public class LzyKharon {
 
         sessionManager = new TerminalSessionManager();
         uriResolver = new UriResolver(externalAddress, servantFsProxyAddress);
+        serverControllerFactory =
+                new ServerControllerFactory(server, uriResolver, servantProxyAddress, servantFsProxyAddress);
 
         kharonServer = NettyServerBuilder.forPort(port)
             .permitKeepAliveWithoutCalls(true)
@@ -303,9 +306,9 @@ public class LzyKharon {
             LOG.info("Kharon::attachTerminal");
             final UUID sessionId = UUID.randomUUID();
             final TerminalSession session = sessionManager.createSession(
-                    sessionId,
+                sessionId,
                 new TerminalController(responseObserver),
-                new ServerController(server, uriResolver, sessionId, servantProxyAddress, servantFsProxyAddress)
+                serverControllerFactory
             );
             Context.current().addListener(context -> {
                 session.onTerminalDisconnect();

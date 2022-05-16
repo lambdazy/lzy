@@ -18,9 +18,10 @@ public class TerminalSessionManager {
     public TerminalSession createSession(
         UUID sessionId,
         TerminalController terminalController,
-        ServerController serverController
+        ServerControllerFactory serverControllerFactory
     ) {
-        final TerminalSession terminalSession = new TerminalSession(sessionId, terminalController, serverController);
+        final TerminalSession terminalSession =
+                new TerminalSession(sessionId, terminalController, serverControllerFactory);
         sessions.put(terminalSession.sessionId(), terminalSession);
         return terminalSession;
     }

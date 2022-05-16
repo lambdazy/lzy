@@ -15,17 +15,12 @@ import java.util.UUID;
 public class ServerController {
     private static final Logger LOG = LogManager.getLogger(ServerController.class);
 
-    private final LzyServerGrpc.LzyServerBlockingStub lzyServer;
     private StreamObserver<Servant.ServantProgress> progress;
     private final UriResolver uriResolver;
-
     private final UUID sessionId;
-    private final URI kharonServantProxyUri;
-    private final URI kharonServantFsProxyUri;
 
-    private enum State {
-        UNBOUND,
-        REGISTERED,
+    public enum State {
+        CREATED,
         CONNECTED,
         ERRORED,
         COMPLETED
@@ -34,40 +29,18 @@ public class ServerController {
     private State state;
 
     public ServerController(
-        LzyServerGrpc.LzyServerBlockingStub lzyServer,
-        UriResolver uriResolver,
         UUID sessionId,
-        URI kharonServantProxyUri,
-        URI kharonServantFsProxyUri
+        UriResolver uriResolver
     ) {
-        this.lzyServer = lzyServer;
         this.uriResolver = uriResolver;
         this.sessionId = sessionId;
-        this.kharonServantProxyUri = kharonServantProxyUri;
-        this.kharonServantFsProxyUri = kharonServantFsProxyUri;
-        this.state = State.UNBOUND;
-    }
-
-    public void register(IAM.UserCredentials auth) {
-        final IAM.UserCredentials userCredentials = IAM.UserCredentials.newBuilder()
-                .setUserId(auth.getUserId())
-                .setToken(auth.getToken())
-                .build();
-
-        //noinspection ResultOfMethodCallIgnored
-        lzyServer.registerServant(Lzy.AttachServant.newBuilder()
-            .setAuth(
-                IAM.Auth.newBuilder()
-                .setUser(userCredentials)
-                .build())
-            .setServantURI(kharonServantProxyUri.toString())
-            .setFsURI(kharonServantFsProxyUri.toString())
-            .setServantId(sessionId.toString())
-            .build());
-        updateState(State.REGISTERED);
+        this.state = State.CREATED;
     }
 
     public void setProgress(StreamObserver<Servant.ServantProgress> progress) throws ServerControllerResetException {
+        if (state == State.CONNECTED) {
+            throw new IllegalStateException("Server already connected with servant progress sessionId=" + sessionId);
+        }
         if (state == State.ERRORED || state == State.COMPLETED) {
             throw new ServerControllerResetException();
         }
@@ -118,6 +91,10 @@ public class ServerController {
         updateState(State.COMPLETED);
     }
 
+    public State state() {
+        return state;
+    }
+
     private synchronized void updateState(State state) {
         LOG.info("ServerController sessionId={} change state from {} to {}", sessionId, this.state, state);
         this.state = state;
@@ -137,7 +114,7 @@ public class ServerController {
             throw new ServerControllerResetException();
         }
 
-        this.progress.onNext(message);
+        progress.onNext(message);
     }
 
     public static class ServerControllerResetException extends Exception { }
