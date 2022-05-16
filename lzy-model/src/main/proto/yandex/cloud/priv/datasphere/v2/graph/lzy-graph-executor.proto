@@ -83,6 +83,9 @@ message GraphStopRequest {
 message GraphStopResponse {
   GraphExecutionStatus status = 1;
 }
+message GraphStopResponse {
+  GraphExecutionStatus status = 1;
+}
 
 // =========List============
 
