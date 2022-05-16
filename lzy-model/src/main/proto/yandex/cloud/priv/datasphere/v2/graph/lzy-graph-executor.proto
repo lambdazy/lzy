@@ -9,23 +9,19 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
 
 service GraphExecutor {
-  rpc Execute (PhysicalGraphDescription) returns (GraphExecutionStatus);
-  rpc Status (GraphExecutionStatusCommand) returns (GraphExecutionStatus);
-  rpc Stop (GraphStopCommand) returns (GraphExecutionStatus);
-  rpc List (GraphListCommand) returns (GraphList);
-}
-
-message PhysicalGraphDescription {
-  repeated TaskDescription tasks = 1;
+  rpc Execute (GraphExecuteRequest) returns (GraphExecuteResponse);
+  rpc Status (GraphStatusRequest) returns (GraphStatusResponse);
+  rpc Stop (GraphStopRequest) returns (GraphStopResponse);
+  rpc List (GraphListRequest) returns (GraphListResponse);
 }
 
 message TaskDescription {
   string id = 1;
   Zygote zygote = 2;
-  repeated Assignment slotAssignments = 3;
+  repeated SlotToChannelAssignment slotAssignments = 3;
 }
 
-message Assignment {
+message SlotToChannelAssignment {
   string slotName = 1;
   string channelId = 2;
 }
@@ -56,20 +52,41 @@ message GraphExecutionStatus {
   }
 }
 
-message GraphExecutionStatusCommand {
+// =========Execute=========
+
+message GraphExecuteRequest {
+  string workflowId = 1;
+  repeated TaskDescription tasks = 2;
+}
+message GraphExecuteResponse {
+  GraphExecutionStatus status = 1;
+}
+
+// =========Status==========
+
+message GraphStatusRequest {
   string workflowId = 1;
   string graphId = 2;
 }
+message GraphStatusResponse {
+  GraphExecutionStatus status = 1;
+}
 
-message GraphStopCommand {
+// =========Stop============
+
+message GraphStopRequest {
   string workflowId = 1;
   string graphId = 2;
 }
-
-message GraphListCommand {
-  string workflowId = 1;
+message GraphStopResponse {
+  GraphExecutionStatus status = 1;
 }
 
-message GraphList {
+// =========List============
+
+message GraphListRequest {
+  string workflowId = 1;
+}
+message GraphListResponse {
   repeated GraphExecutionStatus graphs = 1;
 }
