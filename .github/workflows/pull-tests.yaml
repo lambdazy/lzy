@@ -45,9 +45,13 @@ jobs:
         timeout-minutes: 5
         run: mvn clean install
 
-      - name: 'LzyStartupTest'
+      - name: 'LzyDryStartupTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=LzyStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+        run: cd lzy-test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'LzyStartupWithAvailableZygotesTest'
+        timeout-minutes: 5
+        run: cd lzy-test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'MultiSessionTest'
         timeout-minutes: 5

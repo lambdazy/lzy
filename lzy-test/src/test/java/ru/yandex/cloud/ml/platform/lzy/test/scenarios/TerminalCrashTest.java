@@ -20,8 +20,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
-public class TerminalCrashTest extends LzyBaseTest {
-
+public class TerminalCrashTest extends LocalScenario {
     private LzyTerminalTestContext.Terminal createTerminal(String mount) {
         return createTerminal(
             FreePortFinder.find(20000, 21000),
@@ -47,7 +46,6 @@ public class TerminalCrashTest extends LzyBaseTest {
         );
         return terminal;
     }
-
 
     @Test
     public void testReadSlotToStdout() {
