@@ -21,6 +21,7 @@ public class KuberRunTest extends LzyBaseTest {
 
     @Before
     public void setUp() {
+        super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
             LZY_MOUNT,
             DEFAULT_SERVANT_PORT,
