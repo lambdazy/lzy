@@ -3,9 +3,10 @@ from typing import Any, List, Optional
 from lzy.v2.api import LzyCall
 from lzy.v2.api.env.env_provider import EnvProvider
 from lzy.v2.api.lzy_workflow_splitter import LzyWorkflowSplitter
-from lzy.v2.api.runtime.local_runtime import LocalRuntime
+from lzy.v2.in_mem.local_runtime import LocalRuntime
 from lzy.v2.api.runtime.runtime import Runtime
 from lzy.v2.api.snapshot.snapshot import Snapshot
+from lzy.v2.in_mem.local_snapshot import LocalSnapshot
 from lzy.v2.serialization.serializer import Serializer
 
 
@@ -24,7 +25,7 @@ class LzyWorkflow:
                  lzy_mount: str,
                  eager: bool = False,
                  runtime: Runtime = LocalRuntime(),
-                 snapshot: Optional[Snapshot] = None,
+                 snapshot: Snapshot = LocalSnapshot(),
                  ):
         self._name = name
         self._eager = eager
@@ -36,7 +37,7 @@ class LzyWorkflow:
         self._snapshot = snapshot
         self._splitter = LzyWorkflowSplitter()
 
-    def snapshot(self) -> Optional[Snapshot]:
+    def snapshot(self) -> Snapshot:
         return self._snapshot
 
     def call(self, call: LzyCall) -> Any:
@@ -56,11 +57,9 @@ class LzyWorkflow:
         try:
             if not exc_val:
                 self.barrier()
-                if self._snapshot is not None:
-                    self._snapshot.finalize()
+                self._snapshot.finalize()
             else:
-                if self._snapshot is not None:
-                    self._snapshot.error()
+                self._snapshot.error()
         finally:
             self._runtime.destroy()
             type(self).instances.pop()

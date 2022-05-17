@@ -34,5 +34,5 @@ class LzyWorkflowTests(TestCase):
         with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
             f = foo()
             b = bar(f)
-            print(boo(b, baz(f, 3)))
+            self.assertEquals("Foo: Bar: Foo: Baz(3): Boo", boo(b, baz(f, 3)))
             workflow.barrier()
