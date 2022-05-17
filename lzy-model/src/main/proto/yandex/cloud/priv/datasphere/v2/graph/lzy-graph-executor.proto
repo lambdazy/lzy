@@ -15,7 +15,7 @@ service GraphExecutor {
   rpc List (GraphListRequest) returns (GraphListResponse);
 }
 
-message TaskDescription {
+message TaskDesc {
   string id = 1;
   Zygote zygote = 2;
   repeated SlotToChannelAssignment slotAssignments = 3;
@@ -39,7 +39,7 @@ message GraphExecutionStatus {
     repeated TaskExecutionStatus executingTasks = 1;
   }
   message Completed {}
-  message Errored {}
+  message Failed {}
 
   string workflowId = 1;
   string graphId = 2;
@@ -48,7 +48,7 @@ message GraphExecutionStatus {
     Waiting waiting = 3;
     Executing executing = 4;
     Completed completed = 5;
-    Errored errored = 6;
+    Failed failed = 6;
   }
 }
 
@@ -56,7 +56,8 @@ message GraphExecutionStatus {
 
 message GraphExecuteRequest {
   string workflowId = 1;
-  repeated TaskDescription tasks = 2;
+  repeated TaskDesc tasks = 2;
+  optional string parentGraphId = 3;
 }
 message GraphExecuteResponse {
   GraphExecutionStatus status = 1;
@@ -77,6 +78,7 @@ message GraphStatusResponse {
 message GraphStopRequest {
   string workflowId = 1;
   string graphId = 2;
+  string issue = 3;
 }
 message GraphStopResponse {
   GraphExecutionStatus status = 1;
@@ -85,7 +87,7 @@ message GraphStopResponse {
 // =========List============
 
 message GraphListRequest {
-  string workflowId = 1;
+  optional string workflowId = 1;
 }
 message GraphListResponse {
   repeated GraphExecutionStatus graphs = 1;
