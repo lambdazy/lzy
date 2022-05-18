@@ -10,6 +10,9 @@ jobs:
   all-tests:
     runs-on: self-hosted
     timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
 
@@ -18,27 +21,33 @@ jobs:
           distribution: 'adopt'
           java-version: '11'
 
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
+      - name: "Install conda"
+        run: |
+          echo "4ee9c3aa53329cd7a63b49877c0babb49b19b7e5af29807b793a76bdb1d362b4  miniconda.sh" > sha256.hash
+          wget https://repo.anaconda.com/miniconda/Miniconda3-py39_4.11.0-Linux-x86_64.sh -O miniconda.sh
+          sha256sun miniconda.sh -c sha256.hash
+          bash miniconda.sh -b -p $RUNNER_TEMP/miniconda
 
-      - name: 'clean'
-        run: sudo iptables -t filter -F && sudo iptables -t filter -X && sudo systemctl restart docker
-
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          python-version: 3.9.7
-          activate-environment: "py39"
+      - name: "Create conda env"
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          conda create --name "py39" "python=3.9.7"
 
       - name: 'install python requirements'
-        run: eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r lzy-servant/docker/requirements.txt
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r lzy-servant/docker/requirements.txt
 
       - name: 'install pylzy'
-        run: eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python/ && pip install . && cd ..
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python/ && pip install . && cd ..
 
       - name: 'python-test'
         timeout-minutes: 5
-        run: eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python/ && python -m unittest discover tests/ && cd ..
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python/ && python -m unittest discover tests/ && cd ..
 
       - name: 'java unit tests and install'
         timeout-minutes: 5
@@ -46,29 +55,43 @@ jobs:
 
       - name: 'LzyDryStartupTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          cd lzy-test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'LzyStartupWithAvailableZygotesTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          cd lzy-test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'MultiSessionTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          cd lzy-test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'PyApiTest'
         timeout-minutes: 15
-        run: cd lzy-test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          cd lzy-test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'RunTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          cd lzy-test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'SnapshotTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          cd lzy-test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'TerminalCrashTest'
         timeout-minutes: 5
-        run: cd lzy-test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          cd lzy-test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
   #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
