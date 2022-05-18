@@ -13,6 +13,7 @@ import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthPermissi
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthUnauthenticatedException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.User;
+import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.CredentialsHelper;
 import java.io.StringReader;
@@ -21,12 +22,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Singleton
-@Requires(beans = DbStorage.class)
+@Requires(beans = Storage.class)
 public class DbAuthService implements AuthenticateService {
     private static final Logger LOG = LogManager.getLogger(DbAuthService.class);
 
     @Inject
-    private DbStorage storage;
+    private Storage storage;
 
     @Override
     public Subject authenticate(Credentials credentials) {
