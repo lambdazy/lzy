@@ -168,8 +168,7 @@ class LzyRemoteEnv(LzyEnvBase):
             self,
             lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
     ):
-        self._servant_client: BashServantClient = BashServantClient() \
-            .instance(lzy_mount)
+        self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._lzy_mount = lzy_mount
         self._mem_serializer = MemBytesSerializerImpl()
         self._file_serializer = FileSerializerImpl()
@@ -325,8 +324,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         self._hasher = hasher
         self._yaml = conda_yaml_path
         self._restart_policy = cache_policy
-        self._servant_client: BashServantClient = BashServantClient() \
-            .instance(lzy_mount)
+        self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._py_env: Optional[PyEnv] = None
 
         bucket = self._servant_client.get_bucket()
