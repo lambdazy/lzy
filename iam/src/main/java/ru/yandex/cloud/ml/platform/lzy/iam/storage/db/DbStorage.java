@@ -10,12 +10,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.flywaydb.core.Flyway;
 import ru.yandex.cloud.ml.platform.lzy.iam.configs.DbConfig;
+import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
 
 @Singleton
 @Requires(property = "database.url")
 @Requires(property = "database.username")
 @Requires(property = "database.password")
-public class DbStorage {
+public class DbStorage implements Storage {
     private static final Logger LOG = LogManager.getLogger(DbStorage.class);
     private Connection connection;
     private final DbConfig dbConfig;
@@ -30,6 +31,7 @@ public class DbStorage {
         this.dbConfig = dbConfig;
     }
 
+    @Override
     public synchronized Connection connect() throws SQLException {
         if (connection == null || !connection.isValid(1)) {
             connection = DriverManager.getConnection(

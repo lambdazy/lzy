@@ -1,6 +1,6 @@
-database:
-  enabled: true
-  url: "jdbc:postgresql://localhost:5432/atem11"
-  username: atem11
-  password: ""
+#database:
+#  enabled: true
+#  url: "jdbc:postgresql://localhost:5432/atem11"
+#  username: atem11
+#  password: ""
 
