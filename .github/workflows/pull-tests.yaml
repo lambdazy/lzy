@@ -21,12 +21,16 @@ jobs:
           distribution: 'adopt'
           java-version: '11'
 
-      - name: "Install conda"
+      - name: "Download conda"
         run: |
           echo "4ee9c3aa53329cd7a63b49877c0babb49b19b7e5af29807b793a76bdb1d362b4  miniconda.sh" > sha256.hash
           wget https://repo.anaconda.com/miniconda/Miniconda3-py39_4.11.0-Linux-x86_64.sh -O miniconda.sh
-          sha256sun miniconda.sh -c sha256.hash
-          bash miniconda.sh -b -p $RUNNER_TEMP/miniconda
+
+      - name: "Verify conda"
+        run: sha256sum -c sha256.hash
+
+      - name: "Install conda"
+        run: bash miniconda.sh -b -p $RUNNER_TEMP/miniconda
 
       - name: "Create conda env"
         run: |
