@@ -9,7 +9,7 @@ jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
   acceptance-test:
 #    runs-on: self-hosted
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2 # TODO: should it run in master or in dev?
@@ -37,7 +37,7 @@ jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml
   build-and-publish:
     needs: acceptance-test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
         with:
