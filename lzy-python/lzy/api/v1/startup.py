@@ -1,4 +1,5 @@
 import base64
+import datetime
 import os
 import sys
 import time
@@ -28,6 +29,12 @@ file_serializer = FileSerializerImpl()
 hasher = DelegatingHasher(file_serializer)
 
 
+def log(msg: str, *args, **kwargs):
+    now = datetime.datetime.utcnow()
+    time_prefix = now.strftime("%Y-%m-%d %H:%M:%S")
+    print('[LZY]', time_prefix, msg.format(args, kwargs))
+
+
 def load_arg(path: Path, inp_type: Type[T], input_value: Optional[InputExecutionValue]) -> T:
     with open(path, "rb") as file:
         # Wait for slot become open
@@ -46,11 +53,11 @@ def main():
     if 'LOCAL_MODULES' in os.environ:
         sys.path.append(os.environ['LOCAL_MODULES'])
 
-    print("Loading function")
+    log("Loading function")
     func_s: FuncSignature = mem_serializer.deserialize(base64.b64decode(argv[0].encode("ascii")))
     exec_description: Optional[ExecutionDescription] = mem_serializer.deserialize(
         base64.b64decode(argv[1].encode("ascii")))
-    print("Function loaded: " + func_s.name)
+    log("Function loaded: " + func_s.name)
 
     inputs: Mapping[str, InputExecutionValue] = {
         input_val.name: input_val
@@ -70,9 +77,9 @@ def main():
         kwargs[name] = build_proxy(name)
 
     lazy_call = CallSignature(func_s, args, kwargs)
-    print(f"Loaded {len(args) + len(kwargs)} lazy args")
+    log(f"Loaded {len(args) + len(kwargs)} lazy args")
 
-    print(f"Running {func_s.name}")
+    log(f"Running {func_s.name}")
     snapshot_id = "" if exec_description is None else exec_description.snapshot_id
     op_ = LzyRemoteOp(servant, lazy_call, snapshot_id,
                       UUIDEntryIdGenerator(snapshot_id),
@@ -85,10 +92,10 @@ def main():
     if exec_description is not None:
         servant.save_execution(exec_description)
 
-    print(f"Result of execution {result}")
+    log(f"Result of execution {result}")
 
     result_path = servant.mount() / func_s.name / "return"
-    print(f"Writing result to file {result_path}")
+    log(f"Writing result to file {result_path}")
     with open(result_path, "wb") as out_handle:
         file_serializer.serialize(result, out_handle)
         out_handle.flush()
