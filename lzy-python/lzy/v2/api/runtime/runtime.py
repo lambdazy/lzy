@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable
 
 from lzy.v2.api.graph import Graph
 from lzy.v2.api.snapshot.snapshot import Snapshot

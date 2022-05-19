@@ -139,7 +139,6 @@ def create_and_cache(proxy_cls, callback):
     if not hasattr(proxy_cls, "_origin") and not hasattr(proxy_cls, "_exception"):
         try:
             proxy_cls._origin = callback()  # pylint: disable=protected-access
-            proxy_cls.__lzy_executed__ = True
         except Exception as e:
             proxy_cls._exception = e
             raise e
@@ -251,6 +250,8 @@ def proxy(
                 create_and_cache(type(self), constructor)
                 # noinspection PyProtectedMember
                 return type(self)._origin  # pylint: disable=protected-access
+            elif item == '__lzy_materialized__':
+                return hasattr(type(self), '_origin')
 
             if item in obj_attrs or item in cls_attrs:
                 candidate = super().__getattribute__(item)

@@ -3,10 +3,10 @@ import os
 from typing import Generic, TypeVar, Optional, Dict, List
 
 from lzy.v1.serialization.serializer import MemBytesSerializer
-from lzy.v1.servant import Env
+from lzy.v1.servant.model.env import Env
 from lzy.v1.servant.model.execution import ExecutionDescription
-from lzy.v1.servant import create_slot
-from lzy.v1.api.v1.signatures import FuncSignature
+from lzy.v1.api.signatures import FuncSignature
+from lzy.v1.servant.model.file_slots import create_slot
 from lzy.v1.servant.model.slot import Direction, Slot
 from lzy.v1.servant.model.zygote import Zygote, Provisioning
 

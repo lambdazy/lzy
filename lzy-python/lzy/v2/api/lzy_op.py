@@ -29,7 +29,6 @@ class LzyOp(Generic[T]):
 
     @property
     def description(self) -> str:
-        # TODO: is it needed?
         if not hasattr(self.callable, "__name__"):
             return repr(self.callable)
         return self.callable.__name__

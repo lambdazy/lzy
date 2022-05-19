@@ -19,7 +19,7 @@ from zipfile import ZipFile
 from lzy.v1._proxy import proxy
 # noinspection PyProtectedMember
 from lzy.v1._proxy.result import Result, Just, Nothing
-from lzy.v1.api.v1.signatures import CallSignature, FuncSignature
+from lzy.v1.api.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

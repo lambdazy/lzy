@@ -30,9 +30,10 @@ class LzyWorkflowTests(TestCase):
         self._WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
         self._lzy = Lzy()
 
-    def test_py_env_modules_selected(self):
+    def test_lzy_workflow(self):
         with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
             f = foo()
             b = bar(f)
             self.assertEquals("Foo: Bar: Foo: Baz(3): Boo", boo(b, baz(f, 3)))
             workflow.barrier()
+

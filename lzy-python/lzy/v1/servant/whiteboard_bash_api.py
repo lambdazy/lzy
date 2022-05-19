@@ -6,17 +6,15 @@ from typing import Any, Type, Dict, List, TypeVar, Optional
 
 # noinspection PyProtectedMember
 from lzy.v1._proxy import proxy_optional
+from lzy.v1.api.whiteboard.model import SnapshotApi, SnapshotDescription, get_bucket_from_url, \
+    WhiteboardFieldDescription, WhiteboardFieldStatus, WhiteboardStatus
 from lzy.v1.servant.servant_client import ServantClient, CredentialsTypes
 from lzy.v1.utils import infer_real_type
 from lzy.v1.storage.credentials import StorageCredentials
 from lzy.v1.serialization.serializer import FileSerializer
-from lzy.v1.api.v1.whiteboard.model import (
-    SnapshotApi,
-    SnapshotDescription,
+from lzy.v1.api.whiteboard import (
     WhiteboardApi,
     WhiteboardDescription,
-    WhiteboardStatus,
-    WhiteboardFieldDescription, get_bucket_from_url, WhiteboardFieldStatus
 )
 from lzy.v1.servant.bash_servant_client import exec_bash
 from datetime import datetime

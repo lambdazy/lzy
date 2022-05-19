@@ -9,7 +9,8 @@ from typing import Optional, Any, TypeVar, Generic, Tuple, Iterable, Union, List
 
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 
-from lzy.v1.api.v1.cache_policy import CachePolicy
+from lzy.v1.api.cache_policy import CachePolicy
+from lzy.v1.api.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
 from lzy.v1.serialization.hasher import Hasher
 from lzy.v1.serialization.serializer import MemBytesSerializer, FileSerializer
 from lzy.v1.servant.channel_manager import ChannelManager
@@ -21,8 +22,7 @@ from lzy.v1.servant.model.zygote import Provisioning, Zygote
 from lzy.v1.servant.model.zygote_python_func import ZygotePythonFunc
 from lzy.v1.servant.servant_client import ServantClient
 from lzy.v1.utils import is_lazy_proxy, LzyExecutionException
-from lzy.v1.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
-from lzy.v1.api.v1.signatures import CallSignature, FuncSignature
+from lzy.v1.api.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

@@ -1,13 +1,11 @@
-from typing import Any, List, Optional
+from typing import Any, List, TYPE_CHECKING
 
 from lzy.v2.api import LzyCall
-from lzy.v2.api.env.env_provider import EnvProvider
 from lzy.v2.api.lzy_workflow_splitter import LzyWorkflowSplitter
-from lzy.v2.in_mem.local_runtime import LocalRuntime
-from lzy.v2.api.runtime.runtime import Runtime
 from lzy.v2.api.snapshot.snapshot import Snapshot
-from lzy.v2.in_mem.local_snapshot import LocalSnapshot
-from lzy.v2.serialization.serializer import Serializer
+
+if TYPE_CHECKING:
+    from lzy.v2.api.lzy import Lzy
 
 
 class LzyWorkflow:
@@ -20,22 +18,22 @@ class LzyWorkflow:
 
     def __init__(self,
                  name: str,
-                 serializer: Serializer,
-                 env_provider: EnvProvider,
                  lzy_mount: str,
-                 eager: bool = False,
-                 runtime: Runtime = LocalRuntime(),
-                 snapshot: Snapshot = LocalSnapshot(),
+                 owner: 'Lzy',
+                 eager: bool = False
                  ):
         self._name = name
         self._eager = eager
-        self._serializer = serializer
-        self._env_provider = env_provider
+        self._owner = owner
+        self._env_provider = self._owner.env_provider
         self._lzy_mount = lzy_mount
         self._ops: List[LzyCall] = []
-        self._runtime = runtime
-        self._snapshot = snapshot
+        self._runtime = self._owner.runtime
+        self._snapshot = self._owner.snapshot_provider.get(lzy_mount, self._owner._serializer)
         self._splitter = LzyWorkflowSplitter()
+
+    def owner(self) -> 'Lzy':
+        return self._owner
 
     def snapshot(self) -> Snapshot:
         return self._snapshot

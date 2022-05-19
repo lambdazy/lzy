@@ -2,7 +2,7 @@
 from catboost import CatBoostClassifier, CatBoostRegressor, CatBoostRanker
 
 from lzy.v1.api.v1 import op, Provisioning
-from lzy.v1.api.v1.env import LzyRemoteEnv
+from lzy.v1.api.env import LzyRemoteEnv
 from lzy.v1.injections.extensions import extend
 
 

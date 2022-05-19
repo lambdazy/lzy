@@ -8,7 +8,7 @@ from pure_protobuf.dataclasses_ import message  # type: ignore
 from lzy.v1.serialization.serializer import FileSerializer
 from lzy.v1.servant.channel_manager import ChannelManager
 from lzy.v1.utils import is_lazy_proxy
-from lzy.v1.api.v1.whiteboard.model import WhiteboardApi, WhiteboardDescription
+from lzy.v1.api.whiteboard.model import WhiteboardApi, WhiteboardDescription
 
 ALREADY_WRAPPED = '_already_wrapped_whiteboard'
 ALREADY_WRAPPED_READY = '_already_wrapped_ready_whiteboard'

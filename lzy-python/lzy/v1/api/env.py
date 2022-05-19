@@ -8,9 +8,11 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
-from lzy.v1.api.v1.buses import Bus
-from lzy.v1.api.v1.lazy_op import LzyOp
-from lzy.v1.api.v1.cache_policy import CachePolicy
+from lzy.v1.api.buses import Bus
+from lzy.v1.api.lazy_op import LzyOp
+from lzy.v1.api.cache_policy import CachePolicy
+from lzy.v1.api.whiteboard.model import SnapshotApi, WhiteboardFieldStatus, WhiteboardList, InMemWhiteboardApi, \
+    InMemSnapshotApi
 from lzy.v1.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 
@@ -25,15 +27,10 @@ from lzy.v1.servant.servant_client import ServantClient, CredentialsTypes, Serva
 from lzy.v1.servant.whiteboard_bash_api import WhiteboardBashApi, SnapshotBashApi
 from lzy.v1.utils import zipdir, fileobj_hash
 from lzy.v1.storage.storage_client import StorageClient, from_credentials
-from lzy.v1.api.v1.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
-from lzy.v1.api.v1.whiteboard.model import (
-    InMemSnapshotApi,
-    InMemWhiteboardApi,
-    SnapshotApi,
+from lzy.v1.api.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
+from lzy.v1.api.whiteboard import (
     WhiteboardApi,
-    WhiteboardList,
-    WhiteboardDescription,
-    WhiteboardFieldStatus
+    WhiteboardDescription
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name

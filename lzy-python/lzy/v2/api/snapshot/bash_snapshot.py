@@ -122,7 +122,7 @@ class BashSnapshot(Snapshot):
         return self._wrap_whiteboard(instance, lambda: whiteboard_id)
 
     def get(self, entry_id: str) -> Any:
-        # TODO(lsunko) add implementation
+        # TODO: add implementation
         pass
 
     def silent(self) -> None:

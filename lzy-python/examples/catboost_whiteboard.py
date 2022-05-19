@@ -7,7 +7,7 @@ from sklearn.utils import Bunch
 
 from catboost import CatBoostClassifier
 from lzy.v1.api.v1 import op, LzyRemoteEnv, Gpu
-from lzy.v1.api.v1.whiteboard import whiteboard, view
+from lzy.v1.api.whiteboard import whiteboard, view
 
 
 @dataclass

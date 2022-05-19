@@ -11,15 +11,15 @@ from typing import TypeVar, Type
 from pure_protobuf.dataclasses_ import load  # type: ignore
 from pure_protobuf.dataclasses_ import load  # type: ignore
 
-from lzy.v1.api.v1.lazy_op import LzyRemoteOp
+from lzy.v1.api.lazy_op import LzyRemoteOp
 from lzy.v1.serialization.hasher import DelegatingHasher
 from lzy.v1.serialization.serializer import MemBytesSerializerImpl, FileSerializerImpl
 from lzy.v1.servant.bash_servant_client import BashServantClient
 from lzy.v1.servant.model.execution import InputExecutionValue, ExecutionDescription
 from lzy.v1.servant.servant_client import ServantClient
 from lzy.v1.utils import lazy_proxy
-from lzy.v1.api.v1.whiteboard.model import UUIDEntryIdGenerator
-from lzy.v1.api.v1.signatures import CallSignature, FuncSignature
+from lzy.v1.api.whiteboard import UUIDEntryIdGenerator
+from lzy.v1.api.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

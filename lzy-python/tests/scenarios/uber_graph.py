@@ -10,8 +10,9 @@ from pure_protobuf.dataclasses_ import field, message
 from pure_protobuf.types import int32
 
 from base_module.base import Base
-from lzy.v1.api.v1 import op, LzyRemoteEnv
-from lzy.v1.api.v1.whiteboard import whiteboard, view
+from lzy.v1.api import op
+from lzy.v1.api.env import LzyRemoteEnv
+from lzy.v1.api.whiteboard import whiteboard, view
 from some_imported_file import foo
 
 '''

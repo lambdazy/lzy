@@ -1,6 +1,8 @@
 from typing import Callable
-from lzy.v1.api.v1 import op, LzyLocalEnv  # pylint: disable=no-name-in-module
+from lzy.v1.api import op  # pylint: disable=no-name-in-module
 import uuid
+
+from lzy.v1.api.env import LzyLocalEnv
 
 SOME_GLOBAL: int = 0
 

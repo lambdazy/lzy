@@ -55,9 +55,9 @@ class GraphBuilder:
     def _dependent_calls(self, call: LzyCall):
         dependent_calls: List[LzyCall] = []
         for name, arg in call.named_arguments():
-            if is_lazy_proxy(arg) and executed(arg):
-                dependent_calls.extend(self._dependent_calls(arg))
-                dependent_calls.append(arg)
+            if is_lazy_proxy(arg) and not executed(arg):
+                dependent_calls.extend(self._dependent_calls(arg.lzy_call))
+                dependent_calls.append(arg.lzy_call)
         return unique_values(dependent_calls)
 
     def add_call(self, call: LzyCall):
@@ -68,6 +68,8 @@ class GraphBuilder:
             if not self._contains_call(dependent_call):
                 self._calls.append(dependent_call)
                 self._id_to_call[dependent_call.id] = dependent_call
+            if dependent_call.id not in self._adjacency_graph:
+                self._adjacency_graph[dependent_call.id] = []
             self._adjacency_graph[dependent_call.id].append(call.id)
         self._calls.append(call)
         self._id_to_call[call.id] = call

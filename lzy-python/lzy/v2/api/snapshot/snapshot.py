@@ -1,12 +1,18 @@
 from abc import ABC, abstractmethod
 from typing import Type, TypeVar, Any, Optional
 
+from lzy.v2.serialization.serializer import Serializer
+
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class Snapshot(ABC):
     @abstractmethod
     def id(self) -> str:
+        pass
+
+    @abstractmethod
+    def serializer(self) -> Serializer:
         pass
 
     @abstractmethod
@@ -18,7 +24,7 @@ class Snapshot(ABC):
         pass
 
     @abstractmethod
-    def silent(self) -> None:
+    def put(self, entry_id: str, data: Any) -> None:
         pass
 
     @abstractmethod

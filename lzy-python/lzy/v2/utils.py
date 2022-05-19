@@ -57,8 +57,7 @@ def is_lazy_proxy(obj: Any) -> bool:
 
 
 def executed(obj: Any) -> bool:
-    cls = type(obj)
-    return hasattr(cls, "__lzy_executed__") and cls.__lzy_executed__
+    return obj.__lzy_materialized__
 
 
 def lazy_proxy(
@@ -67,7 +66,7 @@ def lazy_proxy(
     return proxy(
         materialization,
         return_type,
-        cls_attrs={"__lzy_proxied__": True, "__lzy_executed__": False},
+        cls_attrs={"__lzy_proxied__": True},
         obj_attrs=obj_attrs,
     )
 
