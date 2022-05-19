@@ -8,6 +8,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AuthenticateService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthUnauthenticatedException;
@@ -30,7 +31,7 @@ public class DbAuthService implements AuthenticateService {
     private Storage storage;
 
     @Override
-    public Subject authenticate(Credentials credentials) {
+    public Subject authenticate(Credentials credentials) throws AuthException {
         Subject subject;
         if (credentials instanceof JwtCredentials) {
             subject = new User(CredentialsHelper.issuerFromJWT(((JwtCredentials) credentials).token()));

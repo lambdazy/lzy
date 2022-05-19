@@ -86,7 +86,7 @@
         <micronaut-test.version>3.0.3</micronaut-test.version>
         <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
         <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
-        <h2database.version>2.1.212</h2database.version>
+        <h2database.version>1.4.200</h2database.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
         <maven-failsafe-plugin.version>2.22.2</maven-failsafe-plugin.version>
         <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>

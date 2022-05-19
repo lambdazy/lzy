@@ -1,6 +1,6 @@
 create TABLE IF NOT EXISTS roles
 (
-    role text NOT NULL primary key
+    role varchar(255) NOT NULL primary key
 );
 
 insert into roles (role)
@@ -9,29 +9,29 @@ values ('lzy.workflow.owner'),
 ON CONFLICT DO NOTHING;
 
 create TABLE users (
-    user_id text PRIMARY KEY,
+    user_id varchar(255) PRIMARY KEY,
 
-    auth_provider text,
-    provider_user_id text,
+    auth_provider varchar(255),
+    provider_user_id varchar(255),
 
-    access_type text
+    access_type varchar(255)
 );
 
 create TABLE IF NOT EXISTS user_resource_roles
 (
-    user_id  text NOT NULL,
-    resource_id text NOT NULL,
-    resource_type text NOT NULL,
-    role     text NOT NULL,
+    user_id  varchar(255) NOT NULL,
+    resource_id varchar(255) NOT NULL,
+    resource_type varchar(255) NOT NULL,
+    role     varchar(255) NOT NULL,
     primary key (user_id, resource_id, role),
     FOREIGN KEY (user_id) references users (user_id) ON update CASCADE ON delete CASCADE
 );
 
 create TABLE credentials (
-   name text,
-   value text,
-   user_id text,
-   type text,
+   name varchar(255),
+   value varchar(255),
+   user_id varchar(255),
+   type varchar(255),
    PRIMARY KEY (name, user_id),
    FOREIGN KEY (user_id) references users (user_id) ON update CASCADE ON delete CASCADE
 );

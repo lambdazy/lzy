@@ -15,6 +15,12 @@ message Subject {
   string id = 1;
 }
 
+message Credentials {
+  string name = 1;
+  string credentials = 2;
+  string type = 3;
+}
+
 message AccessBinding {
   string role = 1;
   Subject subject = 2;
