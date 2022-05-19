@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -197,7 +198,7 @@ public class DockerEnvironment implements BaseEnvironment {
     }
 
     private String prepareImage(BaseEnvConfig config) throws EnvironmentInstallationException {
-        if (config.image().equals(config.defaultImage())) {
+        if (Objects.equals(config.image(), config.defaultImage())) {
             LOG.info("Default image {} requested", config.image());
 
             String cachedImageName = "lzydock/default-env:from-tar";

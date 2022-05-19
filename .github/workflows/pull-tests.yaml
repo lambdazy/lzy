@@ -98,4 +98,7 @@ jobs:
         run: |
           export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd lzy-test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+      - name: 'Clear after tests'
+        if: always()
+        run: rm -rf /tmp/lzy* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
   #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
