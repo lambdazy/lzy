@@ -3,9 +3,9 @@ import uuid
 from typing import Tuple, Optional
 from unittest import TestCase
 
-from lzy.v1.api import op
-from lzy.v1.api.env import LzyLocalEnv
-from lzy.v1.api.whiteboard import whiteboard
+from lzy.api import op
+from lzy.api import LzyLocalEnv
+from lzy.api import whiteboard
 
 
 @dataclasses.dataclass

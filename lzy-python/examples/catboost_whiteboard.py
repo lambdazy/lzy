@@ -6,8 +6,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.utils import Bunch
 
 from catboost import CatBoostClassifier
-from lzy.v1.api.v1 import op, LzyRemoteEnv, Gpu
-from lzy.v1.api.whiteboard import whiteboard, view
+from lzy.api import op, LzyRemoteEnv, Gpu
+from lzy.api import whiteboard, view
 
 
 @dataclass

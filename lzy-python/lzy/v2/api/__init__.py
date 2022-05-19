@@ -5,7 +5,7 @@ import sys
 import uuid
 from typing import Callable, TypeVar
 
-from lzy.v2._proxy.result import Nothing
+from lzy._proxy.result import Nothing
 from lzy.v2.api.lzy_call import LzyCall
 from lzy.v2.api.lzy_op import LzyOp
 from lzy.v2.api.lzy_workflow import LzyWorkflow

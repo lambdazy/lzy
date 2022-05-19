@@ -4,11 +4,11 @@ import uuid
 from enum import Enum
 from typing import Type, TypeVar, Any, Dict, Set, Callable, Optional
 
+from lzy.v2.api.servant.whiteboard_api import WhiteboardApi
 from lzy.v2.api.snapshot.snapshot import Snapshot
-from lzy.v2.serialization.serializer import Serializer
-from lzy.v2.servant.snapshot_api import SnapshotApi
-from lzy.v2.servant.channel_manager import ChannelManager
-from lzy.v2.servant.whiteboard_api import WhiteboardApi
+from lzy.serialization.serializer import Serializer
+from lzy.v2.api.servant.snapshot_api import SnapshotApi
+from lzy.v2.api.servant.channel_manager import ChannelManager
 from lzy.v2.utils import is_lazy_proxy
 
 T = TypeVar("T")  # pylint: disable=invalid-name

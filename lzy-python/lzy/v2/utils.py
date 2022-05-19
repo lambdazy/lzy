@@ -9,17 +9,15 @@ from typing import (
     Callable,
     Dict,
     Type,
-    Tuple,
     TypeVar,
     get_type_hints, Union
 )
 from zipfile import ZipFile
 
 # noinspection PyProtectedMember
-from lzy.v2._proxy import proxy
-# noinspection PyProtectedMember
-from lzy.v2._proxy.result import Result, Just, Nothing
-from lzy.v2.servant.model.signatures import CallSignature, FuncSignature
+from lzy._proxy import proxy
+from lzy._proxy.result import Result, Nothing, Just
+from lzy.v2.api.servant.model.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

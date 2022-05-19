@@ -5,9 +5,9 @@ from unittest import TestCase
 
 # noinspection PyProtectedMember
 from lzy.v1._proxy import proxy
-from lzy.v1.api.lazy_op import LzyOp
-from lzy.v1.utils import lazy_proxy, is_lazy_proxy, infer_real_type
-from lzy.v1.api.signatures import CallSignature, FuncSignature
+from lzy.api import LzyOp
+from lzy.api.utils import lazy_proxy, is_lazy_proxy, infer_real_type
+from lzy.api import CallSignature, FuncSignature
 
 
 class ProxyTests(TestCase):

@@ -11,7 +11,7 @@ from lzy.v2.api.snapshot.snapshot_provider import SnapshotProvider
 from lzy.v2.api.storage_spec import StorageSpec
 from lzy.v2.in_mem.local_runtime import LocalRuntime
 from lzy.v2.in_mem.local_snapshot_provider import LocalSnapshotProvider
-from lzy.v2.serialization.serializer import DefaultSerializer
+from lzy.serialization.serializer import DefaultSerializer
 
 
 class Lzy:

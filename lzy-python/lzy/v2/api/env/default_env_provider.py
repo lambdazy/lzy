@@ -6,8 +6,8 @@ from yaml import safe_load
 
 from lzy.v2.api.env.env import Env, AuxEnv
 from lzy.v2.api.env.env_provider import EnvProvider
-from lzy.v2.pkg_info import to_str, _installed_versions, all_installed_packages, select_modules
-from lzy.v2.servant.model.encoding import ENCODING as encoding
+from lzy.pkg_info import to_str, _installed_versions, all_installed_packages, select_modules
+from lzy.v2.api.servant.model.encoding import ENCODING as encoding
 
 
 def create_yaml(installed_packages: Dict[str, Tuple[str, ...]], name: str = "default") -> Tuple[str, str]:

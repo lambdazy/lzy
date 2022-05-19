@@ -2,8 +2,8 @@ from typing import List, Optional
 from unittest import TestCase
 import uuid
 
-from lzy.v1.api import op
-from lzy.v1.api.env import LzyLocalEnv
+from lzy.api import op
+from lzy.api import LzyLocalEnv
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 

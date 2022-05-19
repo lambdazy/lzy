@@ -3,7 +3,7 @@ import numpy as np
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier
 
-from lzy.v1.api import Provisioning, Gpu
+from lzy.api import Provisioning, Gpu
 
 if __name__ == '__main__':
     data = np.array([[0, 3],

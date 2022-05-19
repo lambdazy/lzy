@@ -3,7 +3,7 @@ from typing import Type, Any, TypeVar, Optional
 
 from lzy.v2.api.snapshot.snapshot import Snapshot
 from lzy.v2.in_mem.entry_repository import EntryRepository
-from lzy.v2.serialization.serializer import Serializer
+from lzy.serialization.serializer import Serializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

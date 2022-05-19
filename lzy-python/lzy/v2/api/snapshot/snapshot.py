@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Type, TypeVar, Any, Optional
 
-from lzy.v2.serialization.serializer import Serializer
+from lzy.serialization.serializer import Serializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

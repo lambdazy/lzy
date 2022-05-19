@@ -1,7 +1,7 @@
-from lzy.v1.api import op
+from lzy.api import op
 import uuid
 
-from lzy.v1.api.env import LzyRemoteEnv
+from lzy.api import LzyRemoteEnv
 
 
 @op

@@ -4,7 +4,7 @@ from unittest import TestCase
 
 # noinspection PyProtectedMember
 from lzy.v1._proxy import proxy_optional
-from lzy.v1.utils import infer_real_type
+from lzy.api.utils import infer_real_type
 
 
 class ClassWithStaticAndClassMethods:

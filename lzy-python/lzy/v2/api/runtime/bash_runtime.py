@@ -5,21 +5,21 @@ import uuid
 import zipfile
 from typing import Iterable, Tuple, Union, Any, Callable, Dict
 
+from lzy.storage.storage_client import StorageClient
+from lzy.v2.api import Provisioning, Gpu
 from lzy.v2.api.graph import Graph
 from lzy.v2.api.lzy_call import LzyCall
 from lzy.v2.api.runtime.runtime import Runtime
 from lzy.v2.api.runtime.task_spec import TaskSpec
+from lzy.v2.api.servant.bash_servant_client import BashServantClient
+from lzy.v2.api.servant.model.env import Env, BaseEnv, PyEnv
+from lzy.v2.api.servant.model.signatures import FuncSignature
+from lzy.v2.api.servant.model.zygote_python_func import ZygotePythonFunc
+from lzy.v2.api.servant.servant_client import ServantClient
 from lzy.v2.api.snapshot.snapshot import Snapshot
-from lzy.v2.serialization.serializer import Serializer
-from lzy.v2.servant.bash_servant_client import BashServantClient
-from lzy.v2.servant.channel_manager import ChannelManager
-from lzy.v2.servant.model.channel import Bindings, Binding
-from lzy.v2.servant.model.env import Env, BaseEnv, PyEnv
-from lzy.v2.servant.model.provisioning import Gpu, Provisioning
-from lzy.v2.servant.model.signatures import FuncSignature
-from lzy.v2.servant.model.zygote_python_func import ZygotePythonFunc
-from lzy.v2.servant.servant_client import ServantClient
-from lzy.v2.storage.storage_client import StorageClient
+from lzy.serialization.serializer import Serializer
+from lzy.v2.api.servant.channel_manager import ChannelManager
+from lzy.v2.api.servant.model.channel import Bindings, Binding
 from lzy.v2.utils import is_lazy_proxy, zipdir
 
 
