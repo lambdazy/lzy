@@ -7,8 +7,6 @@ import ru.yandex.cloud.ml.platform.lzy.kharon.ServerController.ServerControllerR
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
-
-import java.util.UUID;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 public class TerminalSession {
@@ -22,10 +20,10 @@ public class TerminalSession {
     private final ServerControllerFactory serverControllerFactory;
     private ServerController serverController;
 
-    private final UUID sessionId;
+    private final String sessionId;
 
     public TerminalSession(
-        UUID sessionId,
+        String sessionId,
         TerminalController terminalController,
         ServerControllerFactory serverControllerFactory
     ) {
@@ -90,7 +88,7 @@ public class TerminalSession {
         }
     }
 
-    public UUID sessionId() {
+    public String sessionId() {
         return sessionId;
     }
 

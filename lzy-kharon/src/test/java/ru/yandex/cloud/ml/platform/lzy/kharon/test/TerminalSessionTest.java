@@ -1,12 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon.test;
 
 import io.grpc.stub.StreamObserver;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.UUID;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinTask;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Assert;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.kharon.ServerController;
@@ -14,11 +8,18 @@ import ru.yandex.cloud.ml.platform.lzy.kharon.UriResolver;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.UUID;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class TerminalSessionTest {
     @Test
     public void testServerController()
         throws URISyntaxException, InterruptedException, ServerController.ServerControllerResetException {
-        final UUID sessionId = UUID.randomUUID();
+        final String sessionId = "term_" + UUID.randomUUID();
         final String kharonExternalHost = "kharon.external";
         final String servantFsHost = "servant.fs.host";
         final URI externalAddress =

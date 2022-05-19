@@ -1,20 +1,16 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
-import ru.yandex.cloud.ml.platform.lzy.server.task.TaskException;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+
+import java.util.Map;
+import java.util.stream.Stream;
 
 public interface TasksManager {
-    Task task(UUID tid);
+    Task task(String tid);
 
     Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator token);
 
@@ -28,7 +24,7 @@ public interface TasksManager {
 
     SlotStatus[] connected(ChannelSpec channel);
 
-    String owner(UUID tid);
+    String owner(String tid);
 
     Map<Slot, ChannelSpec> slots(String user);
 

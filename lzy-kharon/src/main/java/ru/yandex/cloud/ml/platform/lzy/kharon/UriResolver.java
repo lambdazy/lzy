@@ -5,15 +5,12 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import javax.annotation.Nullable;
-
-import static ru.yandex.cloud.ml.platform.lzy.kharon.TerminalSession.SESSION_ID_KEY;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Optional;
-import java.util.UUID;
+
+import static ru.yandex.cloud.ml.platform.lzy.kharon.TerminalSession.SESSION_ID_KEY;
 
 public class UriResolver {
     private final URI externalAddress;
@@ -33,19 +30,19 @@ public class UriResolver {
         return Path.of("/", path.subpath(1, path.getNameCount()).toString()).toString();
     }
 
-    public static UUID parseSessionIdFromSlotUri(URI slotUri) {
+    public static String parseSessionIdFromSlotUri(URI slotUri) {
         for (String queryPart : slotUri.getQuery().split("\\?")) {
             final int equalPos = queryPart.indexOf('=');
             final String key = queryPart.substring(0, equalPos);
             final String value = queryPart.substring(equalPos + 1);
             if (key.equals(TerminalSession.SESSION_ID_KEY)) {
-                return UUID.fromString(value);
+                return value;
             }
         }
         throw new IllegalStateException("Failed to parse sessionId from uri " + slotUri);
     }
 
-    public URI appendWithSessionId(URI slotUri, UUID sessionId) throws URISyntaxException {
+    public URI appendWithSessionId(URI slotUri, String sessionId) throws URISyntaxException {
         return new URI(
             slotUri.getScheme(),
             null,

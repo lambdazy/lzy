@@ -4,10 +4,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -28,7 +26,7 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(UUID servantId, String servantToken, Provisioning provisioning, String bucket) {
+    protected void requestAllocation(String servantId, String servantToken, Provisioning provisioning, String bucket) {
         allocationRequests.add(new AllocationRequest(servantId, servantToken, provisioning, bucket));
         allocationLatch.countDown();
     }
@@ -56,19 +54,19 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
     }
 
     public static class AllocationRequest {
-        private final UUID servantId;
+        private final String servantId;
         private final String token;
         private final Provisioning provisioning;
         private final String bucket;
 
-        AllocationRequest(UUID servantId, String token, Provisioning provisioning, String bucket) {
+        AllocationRequest(String servantId, String token, Provisioning provisioning, String bucket) {
             this.servantId = servantId;
             this.token = token;
             this.provisioning = provisioning;
             this.bucket = bucket;
         }
 
-        public UUID servantId() {
+        public String servantId() {
             return servantId;
         }
 

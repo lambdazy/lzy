@@ -390,7 +390,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
     private void authBackofficeUserCredentials(BackOffice.BackofficeUserCredentials credentials)
         throws StatusException {
-        if (!auth.checkBackOfficeSession(UUID.fromString(credentials.getSessionId()), credentials.getUserId())) {
+        if (!auth.checkBackOfficeSession(credentials.getSessionId(), credentials.getUserId())) {
             throw Status.PERMISSION_DENIED.asException();
         }
     }

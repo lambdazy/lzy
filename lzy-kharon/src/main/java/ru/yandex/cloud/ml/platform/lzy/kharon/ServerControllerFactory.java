@@ -5,7 +5,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 import java.net.URI;
-import java.util.UUID;
 
 public class ServerControllerFactory {
     private final LzyServerGrpc.LzyServerBlockingStub lzyServer;
@@ -27,7 +26,7 @@ public class ServerControllerFactory {
 
     public ServerController createInstance(
         IAM.UserCredentials auth,
-        UUID sessionId
+        String sessionId
     ) {
         final IAM.UserCredentials userCredentials = IAM.UserCredentials.newBuilder()
                 .setUserId(auth.getUserId())

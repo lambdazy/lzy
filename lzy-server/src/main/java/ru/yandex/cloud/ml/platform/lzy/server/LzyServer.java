@@ -147,7 +147,7 @@ public class LzyServer {
         public static Tasks.TaskStatus taskStatus(Task task, TasksManager tasks) {
             final Tasks.TaskStatus.Builder builder = Tasks.TaskStatus.newBuilder();
             try {
-                builder.setTaskId(task.tid().toString());
+                builder.setTaskId(task.tid());
 
                 builder.setZygote(
                     ((AtomicZygote) task.workload()).zygote()
@@ -163,7 +163,7 @@ public class LzyServer {
                     .map(task::slotStatus)
                     .forEach(slotStatus -> {
                         final Operations.SlotStatus.Builder slotStateBuilder = builder.addConnectionsBuilder();
-                        slotStateBuilder.setTaskId(task.tid().toString());
+                        slotStateBuilder.setTaskId(task.tid());
                         slotStateBuilder.setDeclaration(to(slotStatus.slot()));
                         URI connected = slotStatus.connected();
                         if (connected != null) {
@@ -238,7 +238,7 @@ public class LzyServer {
             switch (request.getCommandCase()) {
                 case STATE:
                 case SIGNAL: {
-                    task = tasks.task(UUID.fromString(request.getTid()));
+                    task = tasks.task(request.getTid());
                     final TaskSignal signal = request.getSignal();
                     if (task == null) {
                         responseObserver.onError(Status.NOT_FOUND.asException());
@@ -291,7 +291,7 @@ public class LzyServer {
                     return;
                 responseObserver.onNext(progress);
                 if (progress.getStatus() == QUEUE) {
-                    final UUID sessionId = session.id();
+                    final String sessionId = session.id();
                     servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
                         .whenComplete((connection, th) -> {
                             if (th != null) {
@@ -319,7 +319,7 @@ public class LzyServer {
                 new UserEvent(
                     "Task created",
                     Map.of(
-                        "task_id", task.tid().toString(),
+                        "task_id", task.tid(),
                         "user_id", uid
                     ),
                     UserEvent.UserEventType.TaskCreate
@@ -471,7 +471,7 @@ public class LzyServer {
             final URI fsUri = URI.create(request.getFsURI());
 
             if (auth.hasTask()) {
-                final UUID servantId = UUID.fromString(auth.getTask().getServantId());
+                final String servantId = auth.getTask().getServantId();
                 servantsAllocator.register(servantId, servantUri, fsUri);
             } else {
                 final Thread terminalThread = new Thread(
@@ -501,7 +501,7 @@ public class LzyServer {
                             .attachHeaders(LzyFsGrpc.newBlockingStub(fsChannel), metadata);
 
                         try {
-                            runTerminal(auth, servant, fs, UUID.fromString(sessionId));
+                            runTerminal(auth, servant, fs, sessionId);
                         } finally {
                             servantChannel.shutdownNow();
                             fsChannel.shutdownNow();
@@ -529,7 +529,7 @@ public class LzyServer {
             }
             final String owner;
             if (!auth.hasUser()) {
-                final UUID servantId = UUID.fromString(auth.getTask().getServantId());
+                final String servantId = auth.getTask().getServantId();
                 final SessionManager.Session session = servantsAllocator.byServant(servantId);
                 if (session == null) {
                     LOG.warn("Astray servant found: " + servantId);
@@ -565,7 +565,7 @@ public class LzyServer {
 
             final Builder builder = GetSessionsResponse.newBuilder();
             servantsAllocator.sessions(userId).forEach(
-                s -> builder.addSessions(SessionDescription.newBuilder().setSessionId(s.id().toString()))
+                s -> builder.addSessions(SessionDescription.newBuilder().setSessionId(s.id()))
             );
             responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
@@ -609,7 +609,7 @@ public class LzyServer {
          * [TODO] support interruption
          */
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharonServant,
-                                 LzyFsGrpc.LzyFsBlockingStub kharonFs, UUID sessionId) {
+                                 LzyFsGrpc.LzyFsBlockingStub kharonFs, String sessionId) {
             final String user = auth.getUser().getUserId();
             servantsAllocator.registerSession(user, sessionId, this.auth.bucketForUser(user));
 
@@ -672,7 +672,7 @@ public class LzyServer {
             for (SlotStatus state : tasks.connected(channel)) {
                 final Operations.SlotStatus.Builder builder = slotStatus.addConnectedBuilder();
                 if (state.tid() != null) {
-                    builder.setTaskId(state.tid().toString());
+                    builder.setTaskId(state.tid());
                     builder.setUser(tasks.owner(state.tid()));
                 } else {
                     builder.setUser(state.user());
@@ -697,8 +697,8 @@ public class LzyServer {
             } else if (auth.hasTask()) {
                 final IAM.TaskCredentials task = auth.getTask();
                 return this.auth.checkTask(
-                    task.getTaskId().isEmpty() ? null : UUID.fromString(task.getTaskId()),
-                    UUID.fromString(task.getServantId()),
+                    task.getTaskId().isEmpty() ? null : task.getTaskId(),
+                    task.getServantId(),
                     task.getServantToken()
                 );
             }
@@ -712,12 +712,12 @@ public class LzyServer {
         }
 
         private Task resolveTask(IAM.Auth auth) {
-            return auth.hasTask() ? tasks.task(UUID.fromString(auth.getTask().getTaskId())) : null;
+            return auth.hasTask() ? tasks.task(auth.getTask().getTaskId()) : null;
         }
 
         private SessionManager.Session resolveSession(IAM.Auth auth) {
             if (auth.hasTask()) {
-                return servantsAllocator.byServant(UUID.fromString(auth.getTask().getServantId()));
+                return servantsAllocator.byServant(auth.getTask().getServantId());
             } else {
                 return servantsAllocator.userSession(auth.getUser().getUserId());
             }

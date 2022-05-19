@@ -1,8 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate.models;
 
-import javax.persistence.*;
-import java.util.Set;
-import java.util.UUID;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
 
 @Entity
 @Table(name = "servants")
@@ -10,23 +11,23 @@ public class ServantModel {
 
     @Id
     @Column(name = "servant_id")
-    private UUID servantId;
+    private String servantId;
 
     @Column(name = "token")
     private String token;
 
-    public ServantModel(UUID servantId, String token) {
+    public ServantModel(String servantId, String token) {
         this.servantId = servantId;
         this.token = token;
     }
 
     public ServantModel() {}
 
-    public UUID servantId() {
+    public String servantId() {
         return servantId;
     }
 
-    public void setServantId(UUID servantId) {
+    public void setServantId(String servantId) {
         this.servantId = servantId;
     }
 
