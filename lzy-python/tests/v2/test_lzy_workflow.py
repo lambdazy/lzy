@@ -3,7 +3,6 @@ from unittest import TestCase
 
 from lzy.api.v2.api import op
 from lzy.api.v2.api.lzy import Lzy
-from lzy.api.v2.utils import materialized
 
 
 @op
@@ -47,9 +46,9 @@ class LzyWorkflowTests(TestCase):
             o = boo(b, baz(f, 3))
             workflow.barrier()
             snapshot = workflow.snapshot()
-            self.assertIsNotNone(snapshot.get(entry_id(f)))
-            self.assertIsNotNone(snapshot.get(entry_id(b)))
-            self.assertIsNotNone(snapshot.get(entry_id(o)))
+            self.assertEqual("Foo:", snapshot.get(entry_id(f)))
+            self.assertEqual("Foo: Bar:", snapshot.get(entry_id(b)))
+            self.assertEqual("Foo: Bar: Foo: Baz(3): Boo", snapshot.get(entry_id(o)))
 
     def test_iteration(self):
         with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
@@ -68,19 +67,15 @@ class LzyWorkflowTests(TestCase):
     def test_already_materialized_calls_when_barrier_called(self):
         with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
             snapshot = workflow.snapshot()
-            entries = {}
             f = foo()
-            entries['f'] = entry_id(f)
             b = bar(f)
-            entries['b'] = entry_id(b)
-
             print(b)
-            o = boo(b, baz(f, 3))
-            entries['o'] = entry_id(o)
 
-            self.assertEqual("Foo:", snapshot.get(entries['f']))
-            self.assertEqual("Foo: Bar:", snapshot.get(entries['b']))
-            self.assertIsNone(snapshot.get(entries['o']))
+            o = boo(b, baz(f, 3))
+
+            self.assertEqual("Foo:", snapshot.get(entry_id(f)))
+            self.assertEqual("Foo: Bar:", snapshot.get(entry_id(b)))
+            self.assertIsNone(snapshot.get(entry_id(o)))
 
             workflow.barrier()
-            self.assertEqual("Foo: Bar: Foo: Baz(3): Boo", snapshot.get(entries['o']))
+            self.assertEqual("Foo: Bar: Foo: Baz(3): Boo", snapshot.get(entry_id(o)))
