@@ -2,8 +2,8 @@ import tempfile
 from pathlib import Path
 import uuid
 
-from lzy.api import op
-from lzy.api import LzyRemoteEnv
+from lzy.api.v1 import op
+from lzy.api.v1.env import LzyRemoteEnv
 
 
 @op

@@ -29,7 +29,6 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardDescription,
     WhiteboardFieldStatus, UUIDEntryIdGenerator
 )
-from lzy.api.v1.servant.model.encoding import ENCODING as encoding
 from lzy.api.v1.servant.model.env import PyEnv
 from lzy.api.v1.servant.bash_servant_client import BashServantClient
 from lzy.api.v1.servant.channel_manager import ServantChannelManager, LocalChannelManager, ChannelManager

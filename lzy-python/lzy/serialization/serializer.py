@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
 from typing import Type, TypeVar, IO, Any, Dict
 
-import cloudpickle
+import cloudpickle # type: ignore
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 from lzy.api.v2.utils import check_message_field
 from lzy.serialization.dumper import Dumper, CatboostPoolDumper
@@ -82,7 +82,7 @@ class DefaultSerializer(Serializer):
         self._file_serializer.serialize_to_file(obj, file)
 
     def deserialize_from_file(self, data: IO, obj_type: Type[T] = None) -> T:
-        return self.serialize_to_file(data, obj_type)
+        return self._file_serializer.deserialize_from_file(data, obj_type)
 
     def serialize_to_string(self, obj: Any) -> bytes:
         return self._mem_bytes_serializer.serialize_to_string(obj)

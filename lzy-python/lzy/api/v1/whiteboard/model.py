@@ -163,7 +163,7 @@ class InMemWhiteboardApi(WhiteboardApi):
         wb_id = str(uuid.uuid1())
         self.__whiteboards[wb_id] = WhiteboardDescription(
             wb_id,
-            [WhiteboardFieldDescription(name, WhiteboardFieldStatus.CREATED, [], None) for name in fields],
+            [WhiteboardFieldDescription(name, WhiteboardFieldStatus.CREATED, [], None) for name in fields], # type: ignore
             SnapshotDescription(snapshot_id=snapshot_id),
             WhiteboardStatus.CREATED,
         )
