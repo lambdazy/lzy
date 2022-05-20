@@ -1,12 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.iam.resources.credentials;
 
-public class UserCredentials {
+public class SubjectCredentials {
 
     private final String name;
     private final String value;
     private final String type;
 
-    public UserCredentials(String name, String value, String type) {
+    public SubjectCredentials(String name, String value, String type) {
         this.name = name;
         this.value = value;
         this.type = type;
