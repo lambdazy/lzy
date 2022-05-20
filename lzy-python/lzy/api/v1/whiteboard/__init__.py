@@ -6,8 +6,8 @@ from typing import List, Any, Callable, Optional, Dict, Set
 from pure_protobuf.dataclasses_ import message  # type: ignore
 
 from lzy.serialization.serializer import FileSerializer
-from lzy.api.servant.channel_manager import ChannelManager
-from lzy.api.utils import is_lazy_proxy
+from lzy.api.v1.servant import ChannelManager
+from lzy.api.v1.utils import is_lazy_proxy
 from lzy.api.v1.whiteboard.model import WhiteboardApi, WhiteboardDescription
 
 ALREADY_WRAPPED = '_already_wrapped_whiteboard'

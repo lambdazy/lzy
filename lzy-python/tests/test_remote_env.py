@@ -11,7 +11,7 @@ import cloudpickle
 from lzy.api import LzyRemoteEnv
 from lzy.api import InMemWhiteboardApi, InMemSnapshotApi
 from lzy.api import BashServantClient
-from lzy.api.servant.servant_client import ServantClientMock
+from lzy.api.v1.servant import ServantClientMock
 from lzy.storage.storage_client import StorageClient
 
 

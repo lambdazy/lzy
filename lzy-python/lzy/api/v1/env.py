@@ -17,13 +17,13 @@ from lzy.api.v1.whiteboard.model import SnapshotApi, WhiteboardDescription, Whit
 from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 
-from lzy.api.servant.bash_servant_client import BashServantClient
-from lzy.api.servant.channel_manager import ServantChannelManager, ChannelManager, LocalChannelManager
-from lzy.api.servant.model import encoding
-from lzy.api.servant.model.env import PyEnv
-from lzy.api.servant.servant_client import ServantClient, CredentialsTypes, ServantClientMock
-from lzy.api.servant.whiteboard_bash_api import WhiteboardBashApi, SnapshotBashApi
-from lzy.api.utils import zipdir, fileobj_hash
+from lzy.api.v1.servant import BashServantClient
+from lzy.api.v1.servant import ServantChannelManager, ChannelManager, LocalChannelManager
+from lzy.api.v1.servant.model import encoding
+from lzy.api.v1.servant.model.env import PyEnv
+from lzy.api.v1.servant import ServantClient, CredentialsTypes, ServantClientMock
+from lzy.api.v1.servant import WhiteboardBashApi, SnapshotBashApi
+from lzy.api.v1.utils import zipdir, fileobj_hash
 from lzy.serialization.hasher import DelegatingHasher, Hasher
 from lzy.serialization.serializer import FileSerializerImpl, MemBytesSerializerImpl, MemBytesSerializer, FileSerializer
 from lzy.storage.storage_client import StorageClient, from_credentials

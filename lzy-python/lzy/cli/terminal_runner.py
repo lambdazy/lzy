@@ -3,7 +3,7 @@ import argparse
 import signal
 import sys
 
-from lzy.api.servant.terminal_server import TerminalServer, TerminalConfig
+from lzy.api.v1.servant import TerminalServer, TerminalConfig
 
 
 def create_signal_handler(terminal: TerminalServer):

@@ -2,14 +2,17 @@ import functools
 import inspect
 import logging
 import sys
-from typing import Callable
+import uuid
+from typing import Callable, TypeVar
 
-from lzy.api.v1.env import LzyWorkflowBase, LzyRemoteWorkflow, LzyLocalWorkflow
-from lzy.api.v1.lazy_op import LzyLocalOp, LzyRemoteOp
 from lzy._proxy.result import Nothing
-from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
-from lzy.api.v1.servant import Provisioning, Gpu
-from lzy.api.v1.utils import infer_return_type, lazy_proxy, infer_call_signature
+from lzy.api.v2.api.lzy_call import LzyCall
+from lzy.api.v2.api.lzy_op import LzyOp
+from lzy.api.v2.api.lzy_workflow import LzyWorkflow
+from lzy.api.v2.api.provisioning import Gpu, Provisioning
+from lzy.api.v2.utils import infer_return_type, infer_call_signature, lazy_proxy
+
+T = TypeVar("T")  # pylint: disable=invalid-name
 
 logging.root.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
@@ -45,42 +48,36 @@ def op_(provisioning: Provisioning, *, output_type=None):
         @functools.wraps(f)
         def lazy(*args, **kwargs):
             # TODO: defaults?
-            current_workflow = LzyWorkflowBase.get_active()
+            current_workflow = LzyWorkflow.get_active()
             if current_workflow is None:
                 return f(*args, **kwargs)
 
             nonlocal output_type
             signature = infer_call_signature(f, output_type, *args, **kwargs)
-            if isinstance(current_workflow, LzyLocalWorkflow):
-                lzy_op = LzyLocalOp(signature)
-            elif isinstance(current_workflow, LzyRemoteWorkflow):
-                servant = current_workflow.servant()
-                if not servant:
-                    raise RuntimeError("Cannot find servant")
-                id_generator = UUIDEntryIdGenerator(current_workflow.snapshot_id())
+            env_provider = current_workflow._env_provider
 
-                # we need specify globals() for caller site to find all
-                # required modules
-                caller_globals = inspect.stack()[1].frame.f_globals
-                pyenv = current_workflow.py_env(caller_globals)
+            # we need specify globals() for caller site to find all
+            # required modules
+            caller_globals = inspect.stack()[1].frame.f_globals
 
-                lzy_op = LzyRemoteOp(
-                    servant,
-                    signature,
-                    current_workflow.snapshot_id(),
-                    id_generator,
-                    current_workflow.mem_serializer(),
-                    current_workflow.file_serializer(),
-                    current_workflow.hasher(),
-                    provisioning,
-                    pyenv,
-                    deployed=False,
-                    channel_manager=current_workflow.channel_manager(),
-                    cache_policy=current_workflow.cache_policy
-                )
-            else:
-                raise TypeError(f"Unsupported env type: {type(current_workflow)}")
-            current_workflow.register_op(lzy_op)
+            lzy_op = LzyOp(
+                env_provider.for_op(caller_globals),
+                provisioning,
+                signature.func.callable,
+                signature.func.input_types,
+                signature.func.output_type,
+                signature.func.arg_names,
+                signature.func.kwarg_names
+            )
+
+            lzy_call = LzyCall(
+                lzy_op,
+                args,
+                kwargs,
+                str(uuid.uuid4())
+            )
+
+            current_workflow.call(lzy_call)
 
             # Special case for NoneType, just leave op registered and return
             # the real None. LzyEnv later will materialize it anyway.
@@ -96,7 +93,13 @@ def op_(provisioning: Provisioning, *, output_type=None):
             if issubclass(output_type, type(None)):
                 return None
             else:
-                return lazy_proxy(lzy_op.materialize, output_type, {"_op": lzy_op})
+                def materialize():
+                    value = current_workflow.snapshot().get(lzy_call.id)
+                    if value is not None:
+                        return value
+                    current_workflow.barrier()
+                    return current_workflow.snapshot().get(lzy_call.id)
+                return lazy_proxy(materialize, output_type, {"lzy_call": lzy_call})
 
         return lazy
 
@@ -106,6 +109,6 @@ def op_(provisioning: Provisioning, *, output_type=None):
 # register cloud injections
 # noinspection PyBroadException
 try:
-    from lzy.injections import catboost_injection
+    from lzy.api.v2 import catboost_injection
 except:
     pass

@@ -4,9 +4,9 @@ from typing import Type, TypeVar, IO, Any, Dict
 import cloudpickle
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
 
-from lzy.v2.api.lzy_dumper import LzyDumper
+from lzy.api.v2.api.lzy_dumper import LzyDumper
+from lzy.api.v2.utils import check_message_field
 from lzy.serialization.dumper import Dumper, CatboostPoolDumper
-from lzy.v2.utils import check_message_field
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
