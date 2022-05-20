@@ -42,13 +42,14 @@ resource "kubernetes_deployment" "server" {
           }
           env {
             name  = "DATABASE_URL"
-            value = "jdbc:postgresql://postgres-postgresql.server.svc.cluster.local:5432/serverDB"
+            value = var.lzy_server_db_host + ":" + var.lzy_server_db_port + ":" + var.lzy_server_db_name
           }
           env {
             name  = "DATABASE_USERNAME"
-            value = "server"
+            value = var.lzy_server_db_user
           }
           env {
+            // TODO: replace with smth like LOGS_DB instead of CLICKHOUSE
             name  = "CLICKHOUSE_ENABLED"
             value = "true"
           }
@@ -164,12 +165,7 @@ resource "kubernetes_deployment" "server" {
 
           env {
             name = "DATABASE_PASSWORD"
-            value_from {
-              secret_key_ref {
-                name = "postgres"
-                key  = "postgresql-password"
-              }
-            }
+            value = var.lzy_server_db_password
           }
 
           env {
@@ -222,9 +218,9 @@ resource "kubernetes_deployment" "server" {
       }
     }
   }
-  depends_on = [
-    helm_release.lzy_server_db
-  ]
+#  depends_on = [
+#    helm_release.lzy_server_db
+#  ]
 }
 
 resource "kubernetes_service" "lzy_server" {

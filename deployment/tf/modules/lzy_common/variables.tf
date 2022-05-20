@@ -49,6 +49,21 @@ variable "backoffice_load_balancer_necessary_annotations" {
   default = {}
 }
 
+variable "lzy_server_db_host" {
+}
+
+variable "lzy_server_db_port" {
+}
+
+variable "lzy_server_db_name" {
+}
+
+variable "lzy_server_db_user" {
+}
+
+variable "lzy_server_db_password" {
+}
+
 variable "backoffice-frontend-image" {
   type    = string
   default = "lzydock/lzy-backoffice-frontend:master"
