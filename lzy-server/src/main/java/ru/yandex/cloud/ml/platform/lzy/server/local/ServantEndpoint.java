@@ -9,24 +9,22 @@ import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc.LzyFsBlockingStub;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.UUID;
 
 public class ServantEndpoint implements Endpoint {
     private static final Logger LOG = LogManager.getLogger(ServantEndpoint.class);
 
     private final Slot slot;
     private final URI slotUri;
-    private final UUID sessionId;
+    private final String sessionId;
     private final LzyFsBlockingStub fs;
     private final String tid;
     private boolean invalid = false;
 
-    public ServantEndpoint(Slot slot, URI slotUri, UUID sessionId, LzyFsBlockingStub fs) {
+    public ServantEndpoint(Slot slot, URI slotUri, String sessionId, LzyFsBlockingStub fs) {
         this.slot = slot;
         this.slotUri = slotUri;
         this.sessionId = sessionId;
@@ -44,7 +42,7 @@ public class ServantEndpoint implements Endpoint {
     }
 
     @Override
-    public UUID sessionId() {
+    public String sessionId() {
         return sessionId;
     }
 

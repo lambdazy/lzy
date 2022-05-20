@@ -228,7 +228,7 @@ public class Run implements LzyCommand {
                         stdinChannel = prefix + ":" + devSlot + ":" + pipeConfig.get("name");
                         pipe = true;
                     } else {
-                        stdinChannel = UUID.randomUUID().toString();
+                        stdinChannel = "stdin_" + UUID.randomUUID();
                     }
                     channels.add(stdinChannel);
 
@@ -310,12 +310,13 @@ public class Run implements LzyCommand {
 
     private void createSlotByProto(long pid, String name, boolean pipe, String channelId,
                                    String slotName, Slot slotProto) {
+        LOG.info("Create {}slot `{}` ({}) for channel `{}` with taskId {}.",
+            pipe ? "pipe " : "", slotName, name, channelId, pid);
         try {
             final Operations.Slot slotDeclaration = Operations.Slot.newBuilder(GrpcConverter.to(slotProto))
                 .setName(slotName)
                 .build();
-            //noinspection ResultOfMethodCallIgnored
-            servantFs.configureSlot(LzyFsApi.SlotCommand.newBuilder()
+            var ret = servantFs.configureSlot(LzyFsApi.SlotCommand.newBuilder()
                 .setSlot(name)
                 .setTid(Long.toString(pid))
                 .setCreate(LzyFsApi.CreateSlotCommand.newBuilder()
@@ -326,8 +327,12 @@ public class Run implements LzyCommand {
                 )
                 .build()
             );
+            if (ret.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {
+                throw new RuntimeException("Can't create slot " + slotName + ": " + ret);
+            }
         } catch (Exception e) {
-            LOG.warn("Unable to create slot: " + slotName, e);
+            LOG.error("Unable to create slot: " + slotName, e);
+            throw e;
         }
     }
 
@@ -350,6 +355,7 @@ public class Run implements LzyCommand {
     }
 
     private String createChannel(Slot slot, String channelName) {
+        LOG.info("Create channel `{}` for slot `{}`.", channelName, slot.name());
         final Channels.ChannelStatus channel = server.channel(Channels.ChannelCommand.newBuilder()
             .setAuth(auth)
             .setChannelName(channelName)

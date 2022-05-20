@@ -20,7 +20,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -33,7 +32,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     private final Method servantMain;
     private final AtomicInteger servantCounter = new AtomicInteger(0);
     private final ServerConfig serverConfig;
-    private final ConcurrentHashMap<UUID, ServantDescription> servantThreads = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ServantDescription> servantThreads = new ConcurrentHashMap<>();
 
     public ThreadServantsAllocator(ServerConfig serverConfig, Authenticator authenticator) {
         super(authenticator, 1);
@@ -52,13 +51,13 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(UUID servantId, String servantToken,
+    protected void requestAllocation(String servantId, String servantToken,
                                      Provisioning provisioning, String bucket) {
         int servantNumber = servantCounter.incrementAndGet();
         LOG.info("Allocating servant {}", servantId);
 
         @SuppressWarnings("CheckStyle")
-        Thread task = new Thread("servant-" + servantId.toString()) {
+        Thread task = new Thread("servant-" + servantId) {
             @Override
             public void run() {
                 try {

@@ -3,21 +3,17 @@ package ru.yandex.cloud.ml.platform.lzy.kharon;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.UUID;
 
 public class ServerController {
     private static final Logger LOG = LogManager.getLogger(ServerController.class);
 
     private StreamObserver<Servant.ServantProgress> progress;
     private final UriResolver uriResolver;
-    private final UUID sessionId;
+    private final String sessionId;
 
     public enum State {
         CREATED,
@@ -29,7 +25,7 @@ public class ServerController {
     private State state;
 
     public ServerController(
-        UUID sessionId,
+        String sessionId,
         UriResolver uriResolver
     ) {
         this.uriResolver = uriResolver;

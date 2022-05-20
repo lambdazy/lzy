@@ -3,11 +3,6 @@ package ru.yandex.cloud.ml.platform.lzy.server.hibernate;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.io.StringReader;
-import java.security.Security;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -20,6 +15,12 @@ import ru.yandex.cloud.ml.platform.lzy.server.configs.StorageConfigs;
 import ru.yandex.cloud.ml.platform.lzy.server.hibernate.models.*;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+
+import java.io.StringReader;
+import java.security.Security;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
 
 @Singleton
@@ -40,7 +41,7 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean checkTask(UUID tid, UUID servantId, String servantToken) {
+    public boolean checkTask(String tid, String servantId, String servantToken) {
         LOG.info("checkTask tid=" + tid);
         try (Session session = storage.getSessionFactory().openSession()) {
 
@@ -96,7 +97,7 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public void registerTask(String uid, Task task, UUID servantId) {
+    public void registerTask(String uid, Task task, String servantId) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             UserModel user = session.find(UserModel.class, uid);
@@ -113,11 +114,11 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public String registerServant(UUID servantId) {
+    public String registerServant(String servantId) {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {
-                ServantModel servant = new ServantModel(servantId, UUID.randomUUID().toString());
+                ServantModel servant = new ServantModel(servantId, "servant_token_" + UUID.randomUUID());
                 session.save(servant);
                 tx.commit();
                 return servant.token();
@@ -156,7 +157,7 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean checkBackOfficeSession(UUID sessionId, String userId) {
+    public boolean checkBackOfficeSession(String sessionId, String userId) {
         try (Session session = storage.getSessionFactory().openSession()) {
             BackofficeSessionModel sessionModel = session.find(BackofficeSessionModel.class, sessionId);
             return Objects.equals(sessionModel.getOwner().getUserId(), userId);

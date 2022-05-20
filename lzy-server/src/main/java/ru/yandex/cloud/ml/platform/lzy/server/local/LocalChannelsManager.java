@@ -1,17 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.local;
 
 import jakarta.inject.Singleton;
-import java.net.URI;
-import java.text.MessageFormat;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.Lock;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
@@ -23,11 +12,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.channel.SnapshotChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.Channel;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelController;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelGraph;
-import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
+import ru.yandex.cloud.ml.platform.lzy.server.channel.*;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.DirectChannelController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.EmptyController;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.control.SnapshotChannelController;
@@ -36,6 +21,18 @@ import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
+
+import javax.annotation.Nullable;
+import java.net.URI;
+import java.text.MessageFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Singleton
 public class LocalChannelsManager implements ChannelsManager {
@@ -64,7 +61,7 @@ public class LocalChannelsManager implements ChannelsManager {
             if (channels.containsKey(spec.name())) {
                 return null;
             }
-            final String name = spec.name() == null ? UUID.randomUUID().toString() : spec.name();
+            final String name = spec.name() == null ? "unnamed_channel_" + UUID.randomUUID() : spec.name();
             if (spec instanceof DirectChannelSpec) {
                 final Channel channel = new ChannelImpl(
                     name,
@@ -187,7 +184,7 @@ public class LocalChannelsManager implements ChannelsManager {
     }
 
     @Override
-    public void unbindAll(UUID sessionId) {
+    public void unbindAll(String sessionId) {
         LOG.info("LocalChannelsRepository::unbindAll sessionId=" + sessionId);
         for (Channel channel : channels.values()) {
             final Lock lock = lockManager.getOrCreate(channel.name());

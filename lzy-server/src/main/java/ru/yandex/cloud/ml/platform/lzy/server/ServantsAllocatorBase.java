@@ -32,16 +32,16 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     private static final Logger LOG = LogManager.getLogger(ServantsAllocatorBase.class);
     @SuppressWarnings("FieldCanBeLocal")
     private final Timer ttl;
-    private final Map<UUID, CompletableFuture<ServantConnection>> requests = new HashMap<>();
+    private final Map<String, CompletableFuture<ServantConnection>> requests = new HashMap<>();
     private final Map<ServantConnection, Instant> spareServants = new HashMap<>();
     private final Map<ServantConnection, Instant> shuttingDown = new HashMap<>();
 
     private final Map<String, Set<SessionImpl>> userToSessions = new HashMap<>();
-    private final Map<UUID, SessionImpl> servant2sessions = new HashMap<>();
-    private final Map<UUID, SessionImpl> sessionsById = new HashMap<>();
+    private final Map<String, SessionImpl> servant2sessions = new HashMap<>();
+    private final Map<String, SessionImpl> sessionsById = new HashMap<>();
 
     private final Map<String, Session> userSessions = new HashMap<>();
-    private final Map<UUID, ServantConnectionImpl> uncompletedConnections = new HashMap<>();
+    private final Map<String, ServantConnectionImpl> uncompletedConnections = new HashMap<>();
 
     private final Authenticator auth;
     private final int waitBeforeShutdown;
@@ -54,7 +54,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         ttl.scheduleAtFixedRate(this, PERIOD, PERIOD);
     }
 
-    protected abstract void requestAllocation(UUID servantId, String servantToken,
+    protected abstract void requestAllocation(String servantId, String servantToken,
                                               Provisioning provisioning,
                                               String bucket);
 
@@ -69,7 +69,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
     @Override
     public synchronized CompletableFuture<ServantConnection> allocate(
-        UUID sessionId, Provisioning provisioning, Env env
+        String sessionId, Provisioning provisioning, Env env
     ) {
         final SessionImpl session = sessionsById.get(sessionId);
         if (session == null)
@@ -83,7 +83,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             spareServants.remove(spareConnection);
             requestResult.complete(spareConnection);
         } else {
-            final UUID servantId = UUID.randomUUID();
+            final String servantId = "servant_" + UUID.randomUUID();
             servant2sessions.put(servantId, session);
             requests.put(servantId, requestResult);
             ServantConnectionImpl connection = new ServantConnectionImpl(servantId, env, provisioning);
@@ -102,7 +102,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public synchronized void register(UUID servantId, URI servantUri, URI servantFsUri) {
+    public synchronized void register(String servantId, URI servantUri, URI servantFsUri) {
         final ManagedChannel servantChannel = ChannelBuilder.forAddress(servantUri.getHost(), servantUri.getPort())
             .usePlaintext()
             .enableRetry(LzyServantGrpc.SERVICE_NAME)
@@ -172,7 +172,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public synchronized void deleteSession(UUID sessionId) {
+    public synchronized void deleteSession(String sessionId) {
         final SessionImpl session = sessionsById.remove(sessionId);
         if (session != null) {
             userToSessions.getOrDefault(session.owner(), Set.of()).remove(session);
@@ -197,7 +197,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public synchronized Session registerSession(String userId, UUID sessionId, String bucket) {
+    public synchronized Session registerSession(String userId, String sessionId, String bucket) {
         final SessionImpl session = new SessionImpl(sessionId, userId, bucket);
         userToSessions.computeIfAbsent(userId, u -> new HashSet<>()).add(session);
         sessionsById.put(sessionId, session);
@@ -206,7 +206,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public synchronized Session get(UUID sessionId) {
+    public synchronized Session get(String sessionId) {
         return sessionsById.get(sessionId);
     }
 
@@ -216,7 +216,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     @Override
-    public synchronized Session byServant(UUID servantId) {
+    public synchronized Session byServant(String servantId) {
         return servant2sessions.get(servantId);
     }
 
@@ -224,7 +224,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     public synchronized Session userSession(String user) {
         Session session = userSessions.get(user);
         if (session == null) {
-            session = registerSession(user, UUID.randomUUID(), auth.bucketForUser(user));
+            session = registerSession(user, "xxx_" + UUID.randomUUID(), auth.bucketForUser(user));
         }
         return session;
     }
@@ -259,7 +259,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     private static class ServantConnectionImpl implements ServantConnection {
-        private final UUID servantId;
+        private final String servantId;
         private final List<Predicate<Servant.ServantProgress>> trackers;
         private final Env env;
         private final Provisioning provisioning;
@@ -270,7 +270,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         private LzyServantGrpc.LzyServantBlockingStub control;
         private LzyFsGrpc.LzyFsBlockingStub fs;
 
-        protected ServantConnectionImpl(UUID servantId, Env env, Provisioning provisioning) {
+        protected ServantConnectionImpl(String servantId, Env env, Provisioning provisioning) {
             this.servantId = servantId;
             trackers = Collections.synchronizedList(new ArrayList<>());
             this.env = env;
@@ -309,7 +309,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
 
         @Override
-        public UUID id() {
+        public String id() {
             return servantId;
         }
 
@@ -358,19 +358,19 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     private static class SessionImpl implements SessionManager.Session {
-        private final UUID id;
+        private final String id;
         private final String user;
         private final List<ServantConnectionImpl> servants = new ArrayList<>();
         private final String bucket;
 
-        private SessionImpl(UUID id, String user, String bucket) {
+        private SessionImpl(String id, String user, String bucket) {
             this.id = id;
             this.user = user;
             this.bucket = bucket;
         }
 
         @Override
-        public UUID id() {
+        public String id() {
             return id;
         }
 
@@ -380,8 +380,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
 
         @Override
-        public UUID[] servants() {
-            return servants.stream().map(ServantConnection::id).toArray(UUID[]::new);
+        public String[] servants() {
+            return servants.stream().map(ServantConnection::id).toArray(String[]::new);
         }
 
         @Override

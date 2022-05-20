@@ -20,7 +20,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.kuber.ServantPodProvider;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Singleton
@@ -30,7 +29,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     private static final String NAMESPACE = "default";
 
     private final ServantPodProvider provider;
-    private final ConcurrentHashMap<UUID, V1Pod> servantPods = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, V1Pod> servantPods = new ConcurrentHashMap<>();
     private final CoreV1Api api;
 
     public KuberServantsAllocator(Authenticator auth, ServantPodProvider provider) {
@@ -45,7 +44,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(UUID servantId, String servantToken, Provisioning provisioning, String bucket) {
+    protected void requestAllocation(String servantId, String servantToken, Provisioning provisioning, String bucket) {
         final V1Pod servantPodSpec;
         try {
             servantPodSpec = provider.createServantPod(

@@ -6,17 +6,16 @@ import ru.yandex.cloud.ml.platform.lzy.model.Constants;
 
 import java.net.URI;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TerminalSessionManager {
 
     private static final Logger LOG = LogManager.getLogger(TerminalSessionManager.class);
 
-    private final Map<UUID, TerminalSession> sessions = new ConcurrentHashMap<>();
+    private final Map<String, TerminalSession> sessions = new ConcurrentHashMap<>();
 
     public TerminalSession createSession(
-        UUID sessionId,
+        String sessionId,
         TerminalController terminalController,
         ServerControllerFactory serverControllerFactory
     ) {
@@ -27,16 +26,16 @@ public class TerminalSessionManager {
     }
 
     public TerminalSession getSessionFromGrpcContext() throws InvalidSessionRequestException {
-        final UUID sessionId = UUID.fromString(Constants.SESSION_ID_CTX_KEY.get());
+        final String sessionId = Constants.SESSION_ID_CTX_KEY.get();
         return safeGetSession(sessionId);
     }
 
     public TerminalSession getSessionFromSlotUri(String slotUri) throws InvalidSessionRequestException {
-        final UUID sessionIdFromUri = UriResolver.parseSessionIdFromSlotUri(URI.create(slotUri));
+        final String sessionIdFromUri = UriResolver.parseSessionIdFromSlotUri(URI.create(slotUri));
         return safeGetSession(sessionIdFromUri);
     }
 
-    private TerminalSession safeGetSession(UUID sessionId) throws InvalidSessionRequestException {
+    private TerminalSession safeGetSession(String sessionId) throws InvalidSessionRequestException {
         final TerminalSession session = sessions.get(sessionId);
         if (session == null) {
             LOG.error("Got request with unknown sessionId {}", sessionId);
@@ -53,7 +52,7 @@ public class TerminalSessionManager {
         return session;
     }
 
-    public void deleteSession(UUID sessionId) {
+    public void deleteSession(String sessionId) {
         LOG.info("Deleting session with id={}", sessionId);
         sessions.remove(sessionId);
     }

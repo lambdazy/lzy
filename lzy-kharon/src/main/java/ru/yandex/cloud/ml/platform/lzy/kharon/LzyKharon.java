@@ -1,59 +1,33 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyFs;
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyKharon;
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyServant;
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.SlotAzure;
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.SlotS3;
-
-import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
-import io.grpc.Status;
+import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Iterator;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.kharon.TerminalController.TerminalControllerResetException;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
+import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommandStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
-import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Iterator;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyKharon;
+import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.*;
 
 public class LzyKharon {
 
@@ -304,7 +278,7 @@ public class LzyKharon {
         @Override
         public StreamObserver<Kharon.ServerCommand> attachTerminal(StreamObserver<TerminalCommand> responseObserver) {
             LOG.info("Kharon::attachTerminal");
-            final UUID sessionId = UUID.randomUUID();
+            final String sessionId = "terminal_" + UUID.randomUUID();
             final TerminalSession session = sessionManager.createSession(
                 sessionId,
                 new TerminalController(responseObserver),
@@ -438,7 +412,7 @@ public class LzyKharon {
         public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
             try {
                 final TerminalSession session = sessionManager.getSessionFromGrpcContext();
-                final UUID sessionId = session.sessionId();
+                final String sessionId = session.sessionId();
                 LOG.info("KharonServantProxyService sessionId = " + sessionId
                     + "::start " + JsonUtils.printRequest(request));
                 session.setServerStream(responseObserver);
