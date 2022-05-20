@@ -49,6 +49,7 @@ public class Terminal implements LzyCommand {
             serverAddress = "http://" + serverAddress;
         }
         final int port = Integer.parseInt(parse.getOptionValue('p', "9999"));
+        final int fsPort = Integer.parseInt(parse.getOptionValue('q', "9998"));
         final Path privateKeyPath = Paths.get(parse.getOptionValue(
             'k',
             System.getenv("HOME") + "/.ssh/id_rsa"
@@ -63,6 +64,7 @@ public class Terminal implements LzyCommand {
             .user(System.getenv("USER"))
             .agentHost(host)
             .agentPort(port)
+            .fsPort(fsPort)
             .root(lzyRoot);
 
         if (Files.exists(privateKeyPath)) {
