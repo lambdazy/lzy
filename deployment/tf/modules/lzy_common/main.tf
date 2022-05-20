@@ -3,8 +3,6 @@ terraform {
     kubernetes = {
       version = ">=2.11.0"
     }
-    postgresql = {
-    }
     helm = {
       version = ">=2.5.1"
     }
