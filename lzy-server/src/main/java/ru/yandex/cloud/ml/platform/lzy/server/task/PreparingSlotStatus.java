@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 import java.net.URI;
-import java.util.UUID;
 import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
@@ -31,7 +30,7 @@ public class PreparingSlotStatus implements SlotStatus {
     }
 
     @Override
-    public UUID tid() {
+    public String tid() {
         return task.tid();
     }
 

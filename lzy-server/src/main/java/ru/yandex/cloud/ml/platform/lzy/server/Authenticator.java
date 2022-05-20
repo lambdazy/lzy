@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import java.util.UUID;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -8,7 +7,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 public interface Authenticator {
     boolean checkUser(String userId, String token);
 
-    boolean checkTask(UUID tid, UUID servantId, String servantToken);
+    boolean checkTask(String tid, String servantId, String servantToken);
 
     boolean canPublish(String userId);
 
@@ -20,15 +19,15 @@ public interface Authenticator {
 
     void registerOperation(String zygoteName, String userId, Lzy.PublishRequest.VisibilityScope scope);
 
-    void registerTask(String uid, Task task, UUID servantId);
+    void registerTask(String uid, Task task, String servantId);
 
-    String registerServant(UUID servantId);
+    String registerServant(String servantId);
 
     boolean hasPermission(String uid, Permissions permission);
 
     boolean hasPermission(String uid, String permission);
 
-    boolean checkBackOfficeSession(UUID sessionId, String userId);
+    boolean checkBackOfficeSession(String sessionId, String userId);
 
     boolean canAccessBucket(String uid, String bucket);
 

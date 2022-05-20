@@ -16,7 +16,6 @@ import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 
-import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,7 +28,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
     private static final Logger LOG = LogManager.getLogger(DockerServantsAllocator.class);
     private final ServerConfig serverConfig;
-    private final Map<UUID, ContainerDescription> containers = new ConcurrentHashMap<>();
+    private final Map<String, ContainerDescription> containers = new ConcurrentHashMap<>();
 
     public DockerServantsAllocator(Authenticator auth, ServerConfig serverConfig) {
         super(auth, 60);
@@ -37,7 +36,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(UUID servantId, String servantToken, Provisioning provisioning, String bucket) {
+    protected void requestAllocation(String servantId, String servantToken, Provisioning provisioning, String bucket) {
         final int debugPort = FreePortFinder.find(5000, 6000);
         LOG.info("Found port for servant {}", debugPort);
 
@@ -79,7 +78,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
                 "--port", Integer.toString(servantPort),
                 "start",
                 "--bucket", bucket,
-                "--sid", servantId.toString(),
+                "--sid", servantId,
                 "--token", servantToken
             )
             .exec();

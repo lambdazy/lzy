@@ -16,9 +16,9 @@ import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 @Singleton
 @Requires(property = "database.enabled", value = "false", defaultValue = "false")
 public class SimpleInMemAuthenticator implements Authenticator {
-    private final Map<UUID, String> servantTokens = new HashMap<>();
-    private final Map<UUID, UUID> task2servants = new HashMap<>();
-    private final Map<UUID, String> owners = new HashMap<>();
+    private final Map<String, String> servantTokens = new HashMap<>();
+    private final Map<String, String> task2servants = new HashMap<>();
+    private final Map<String, String> owners = new HashMap<>();
 
     @Inject
     private StorageConfigs storageConfigs;
@@ -29,7 +29,7 @@ public class SimpleInMemAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean checkTask(UUID tid, UUID servantId, String servantToken) {
+    public boolean checkTask(String tid, String servantId, String servantToken) {
         return servantToken.equals(servantTokens.get(servantId))
             && (tid == null || servantId.equals(task2servants.get(tid)));
     }
@@ -51,7 +51,7 @@ public class SimpleInMemAuthenticator implements Authenticator {
 
     @Override
     public String userForTask(Task task) {
-        return owners.get(task.tid().toString());
+        return owners.get(task.tid());
     }
 
     @Override
@@ -59,14 +59,14 @@ public class SimpleInMemAuthenticator implements Authenticator {
     }
 
     @Override
-    public void registerTask(String uid, Task task, UUID servantId) {
+    public void registerTask(String uid, Task task, String servantId) {
         owners.put(task.tid(), uid);
         task2servants.put(task.tid(), servantId);
     }
 
     @Override
-    public String registerServant(UUID servantId) {
-        final String token = UUID.randomUUID().toString();
+    public String registerServant(String servantId) {
+        final String token = "servant_token_" + UUID.randomUUID();
         servantTokens.put(servantId, token);
         return token;
     }
@@ -82,7 +82,7 @@ public class SimpleInMemAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean checkBackOfficeSession(UUID sessionId, String userId) {
+    public boolean checkBackOfficeSession(String sessionId, String userId) {
         return true;
     }
 

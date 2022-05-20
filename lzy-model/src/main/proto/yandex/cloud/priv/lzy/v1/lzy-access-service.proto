@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package yandex.cloud.priv.lzy.v1;
+
+import "yandex/cloud/lzy/v1/lzy-iam.proto";
+
+option go_package = "lzy";
+option java_outer_classname = "LAS";
+option java_package = "yandex.cloud.priv.lzy.v1";
+
+service LzyAccessService {
+  rpc Authorize (AuthorizeRequest) returns (yandex.cloud.lzy.v1.Subject);
+}
+
+message AuthorizeRequest {
+  string subject_id = 1;
+  string permission = 2;
+  yandex.cloud.lzy.v1.Resource resource = 3;
+}

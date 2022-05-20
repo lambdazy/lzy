@@ -3,31 +3,19 @@ package ru.yandex.cloud.ml.platform.lzy.server.kuber;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
-import io.kubernetes.client.openapi.models.V1Container;
-import io.kubernetes.client.openapi.models.V1EnvVar;
-import io.kubernetes.client.openapi.models.V1Pod;
-import io.kubernetes.client.openapi.models.V1PodSpec;
-import io.kubernetes.client.openapi.models.V1ResourceRequirements;
-import io.kubernetes.client.openapi.models.V1ResourceRequirementsBuilder;
-import io.kubernetes.client.openapi.models.V1Toleration;
-import io.kubernetes.client.openapi.models.V1TolerationBuilder;
+import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.ClientBuilder;
 import io.kubernetes.client.util.Yaml;
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
 
 @Singleton
 public class ServantPodProviderImpl implements ServantPodProvider {
@@ -56,7 +44,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     }
 
     @Override
-    public V1Pod createServantPod(Provisioning provisioning, String token, UUID servantId, String bucket)
+    public V1Pod createServantPod(Provisioning provisioning, String token, String servantId, String bucket)
         throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
@@ -114,9 +102,9 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     }
 
     private void addEnvVars(V1Container container, String token,
-                            UUID servantId, String bucketName) {
+                            String servantId, String bucketName) {
         container.addEnvItem(
-            new V1EnvVar().name("SERVANT_ID").value(servantId.toString())
+            new V1EnvVar().name("SERVANT_ID").value(servantId)
         ).addEnvItem(
             new V1EnvVar().name("SERVANT_TOKEN").value(token)
         ).addEnvItem(

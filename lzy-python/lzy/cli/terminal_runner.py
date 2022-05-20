@@ -25,6 +25,9 @@ def console_main():
     parser.add_argument("-p", "--port", dest="port", default="9999",
                         help="Terminal port. Optional: 9999 is used as default "
                              "value.")
+    parser.add_argument("-q", "--fs-port", dest="fsport", default="9998",
+                        help="Terminal FS port. Optional: 9998 is used as default "
+                             "value.")
     parser.add_argument("-k", "--private-key-path", dest="keypath",
                         default=None,
                         help="Path to private rsa key.\n"
@@ -47,6 +50,7 @@ def console_main():
     config = TerminalConfig(
         server_url=args.url,
         port=args.port,
+        fs_port=args.fsport,
         private_key_path=args.keypath,
         user=args.user,
         debug_port=args.debug,

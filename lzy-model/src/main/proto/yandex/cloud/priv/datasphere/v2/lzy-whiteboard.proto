@@ -14,6 +14,7 @@ service SnapshotApi {
   rpc CreateSnapshot (CreateSnapshotCommand) returns (Snapshot);
   rpc PrepareToSave (PrepareCommand) returns (OperationStatus);
   rpc Commit (CommitCommand) returns (OperationStatus);
+  rpc Abort (AbortCommand) returns (OperationStatus);
   rpc FinalizeSnapshot (FinalizeSnapshotCommand) returns (OperationStatus);
   rpc LastSnapshot (LastSnapshotCommand) returns (Snapshot);
   rpc EntryStatus (EntryStatusCommand) returns (EntryStatusResponse);
@@ -72,7 +73,12 @@ message CommitCommand {
   string snapshotId = 2;
   string entryId = 3;
   bool empty = 4;
-  bool errored = 5;
+}
+
+message AbortCommand {
+  Auth auth = 1;
+  string snapshotId = 2;
+  string entryId = 3;
 }
 
 message LinkCommand {

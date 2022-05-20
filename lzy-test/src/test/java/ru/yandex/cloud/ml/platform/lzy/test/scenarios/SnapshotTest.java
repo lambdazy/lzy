@@ -18,7 +18,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
@@ -30,30 +29,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
 
-public class SnapshotTest extends LzyBaseTest {
-    private LzyTerminalTestContext.Terminal terminal;
-
+public class SnapshotTest extends LocalScenario {
     @Before
     public void setUp() {
         super.setUp();
-        terminal = terminalContext.startTerminalAtPathAndPort(
-            LZY_MOUNT,
-            9999,
-            9998,
-            kharonContext.serverAddress()
-        );
-        terminal.waitForStatus(
-            AgentStatus.EXECUTING,
-            DEFAULT_TIMEOUT_SEC,
-            TimeUnit.SECONDS
-        );
-    }
-
-    @After
-    public void tearDown() {
-        super.tearDown();
+        startTerminalWithDefaultConfig();
     }
 
     private String createSnapshot() throws ParseException {
@@ -87,11 +68,9 @@ public class SnapshotTest extends LzyBaseTest {
         final String fileContent = "fileContent";
         final String fileName = "/tmp/lzy1/kek/some_file.txt";
         final String localFileName = "/tmp/lzy/lol/some_file.txt";
-        final String channelName = "channel1";
 
         final String fileOutName = "/tmp/lzy1/kek/some_file_out.txt";
         final String localFileOutName = "/tmp/lzy/lol/some_file_out.txt";
-        final String channelOutName = "channel2";
 
         final FileIOOperation cat_to_file = new FileIOOperation(
             "cat_to_file_lzy",
@@ -103,10 +82,12 @@ public class SnapshotTest extends LzyBaseTest {
 
         //Act
         final String spId = createSnapshot();
+        final String channelName = spId + "//" + channelEntryId;
+        final String channelOutName = spId + "//" + channelOutEntryId;
 
-        terminal.createChannel(channelName, spId, spId + "/" + channelEntryId);
+        terminal.createChannel(channelName, spId, channelName);
         terminal.createSlot(localFileName, channelName, Utils.outFileSlot());
-        terminal.createChannel(channelOutName, spId, spId + "/" + channelOutEntryId);
+        terminal.createChannel(channelOutName, spId, channelOutName);
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
@@ -169,8 +150,8 @@ public class SnapshotTest extends LzyBaseTest {
             Assert.assertEquals(fileContent + "\n", content);
         }
 
-        terminal.link(wbId, localFileName, spId + "/" + channelEntryId);
-        terminal.link(wbId, localFileOutName, spId + "/" + channelOutEntryId);
+        terminal.link(wbId, localFileName, channelName);
+        terminal.link(wbId, localFileOutName, channelOutName);
 
         terminal.finalizeSnapshot(spId);
         String whiteboard = terminal.getWhiteboard(wbId);

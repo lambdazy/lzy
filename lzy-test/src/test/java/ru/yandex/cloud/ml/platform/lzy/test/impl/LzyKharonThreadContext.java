@@ -60,6 +60,7 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
                 URI.create(whiteboardAddress),
                 URI.create(whiteboardAddress),
                 "localhost",
+                "localhost",
                 LZY_KHARON_PORT,
                 LZY_KHARON_SERVANT_PROXY_PORT,
                 LZY_KHARON_SERVANT_FS_PROXY_PORT

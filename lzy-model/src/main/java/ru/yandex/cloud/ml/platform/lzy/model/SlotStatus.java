@@ -1,8 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
-import java.net.URI;
-import java.util.UUID;
 import javax.annotation.Nullable;
+import java.net.URI;
 
 public interface SlotStatus {
     @Nullable
@@ -10,7 +9,7 @@ public interface SlotStatus {
 
     String user();
 
-    UUID tid();
+    String tid();
 
     Slot slot();
 

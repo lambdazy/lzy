@@ -27,7 +27,7 @@ public class TaskImpl implements Task {
     private static final Logger LOG = LogManager.getLogger(TaskImpl.class);
 
     protected final String owner;
-    protected final UUID tid;
+    protected final String tid;
     protected final URI serverURI;
     private final Zygote workload;
     private final Map<Slot, String> assignments;
@@ -38,7 +38,7 @@ public class TaskImpl implements Task {
     private State state = State.PREPARING;
     private final List<TasksManager.Signal> signalsQueue = new ArrayList<>();
 
-    public TaskImpl(String owner, UUID tid, Zygote workload, Map<Slot, String> assignments,
+    public TaskImpl(String owner, String tid, Zygote workload, Map<Slot, String> assignments,
                     ChannelsManager channels, URI serverURI
     ) {
         this.owner = owner;
@@ -50,7 +50,7 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public UUID tid() {
+    public String tid() {
         return tid;
     }
 
@@ -209,7 +209,7 @@ public class TaskImpl implements Task {
         this.servant = connection;
         TaskImpl.this.notifyAll();
         final Tasks.TaskSpec.Builder taskSpecBuilder = Tasks.TaskSpec.newBuilder();
-        taskSpecBuilder.setTid(tid.toString());
+        taskSpecBuilder.setTid(tid);
         taskSpecBuilder.setZygote(GrpcConverter.to(workload));
         assignments.forEach((slot, binding) -> {
             // need to filter out std* slots because they don't exist on prepare
@@ -260,7 +260,7 @@ public class TaskImpl implements Task {
         }
         final LzyFsApi.SlotCommandStatus slotStatus = fs.configureSlot(
             LzyFsApi.SlotCommand.newBuilder()
-                .setTid(tid.toString())
+                .setTid(tid)
                 .setSlot(slot.name())
                 .setStatus(LzyFsApi.StatusCommand.newBuilder().build())
                 .build()

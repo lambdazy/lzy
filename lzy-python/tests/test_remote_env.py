@@ -52,7 +52,7 @@ def worker(shared):
 class ModulesSearchTests(TestCase):
     def setUp(self):
         self._WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
-        BashServantClient.instance = lambda s, x: ServantClientMock()
+        BashServantClient.instance = classmethod(lambda s, x: ServantClientMock())
         self._env = LzyRemoteEnv()
         self._env._whiteboard_api = InMemWhiteboardApi()
         self._env._snapshot_api = InMemSnapshotApi()

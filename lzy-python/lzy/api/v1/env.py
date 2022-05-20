@@ -11,22 +11,30 @@ from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Op
 from lzy.api.v1.buses import Bus
 from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.lazy_op import LzyOp
-from lzy.api.v1.whiteboard import WhiteboardApi, check_whiteboard, wrap_whiteboard_for_read, wrap_whiteboard
-from lzy.api.v1.whiteboard.model import SnapshotApi, WhiteboardDescription, WhiteboardFieldStatus, WhiteboardList, \
-    InMemWhiteboardApi, InMemSnapshotApi
 from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 
-from lzy.api.v1.servant import BashServantClient
-from lzy.api.v1.servant import ServantChannelManager, ChannelManager, LocalChannelManager
 from lzy.api.v1.servant.model import encoding
-from lzy.api.v1.servant.model.env import PyEnv
-from lzy.api.v1.servant import ServantClient, CredentialsTypes, ServantClientMock
-from lzy.api.v1.servant import WhiteboardBashApi, SnapshotBashApi
 from lzy.api.v1.utils import zipdir, fileobj_hash
 from lzy.serialization.hasher import DelegatingHasher, Hasher
 from lzy.serialization.serializer import FileSerializerImpl, MemBytesSerializerImpl, MemBytesSerializer, FileSerializer
 from lzy.storage.storage_client import StorageClient, from_credentials
+from lzy.api.v1.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
+from lzy.api.v1.whiteboard.model import (
+    InMemSnapshotApi,
+    InMemWhiteboardApi,
+    SnapshotApi,
+    WhiteboardApi,
+    WhiteboardList,
+    WhiteboardDescription,
+    WhiteboardFieldStatus, UUIDEntryIdGenerator
+)
+from lzy.api.v1.servant.model.encoding import ENCODING as encoding
+from lzy.api.v1.servant.model.env import PyEnv
+from lzy.api.v1.servant.bash_servant_client import BashServantClient
+from lzy.api.v1.servant.channel_manager import ServantChannelManager, LocalChannelManager, ChannelManager
+from lzy.api.v1.servant.servant_client import ServantClient, CredentialsTypes, ServantClientMock
+from lzy.api.v1.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]
@@ -161,8 +169,7 @@ class LzyRemoteEnv(LzyEnvBase):
             self,
             lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
     ):
-        self._servant_client: BashServantClient = BashServantClient() \
-            .instance(lzy_mount)
+        self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._lzy_mount = lzy_mount
         self._mem_serializer = MemBytesSerializerImpl()
         self._file_serializer = FileSerializerImpl()
@@ -318,8 +325,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         self._hasher = hasher
         self._yaml = conda_yaml_path
         self._restart_policy = cache_policy
-        self._servant_client: BashServantClient = BashServantClient() \
-            .instance(lzy_mount)
+        self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._py_env: Optional[PyEnv] = None
 
         bucket = self._servant_client.get_bucket()
@@ -352,7 +358,8 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                 self._execution_context.whiteboard_api,
                 self.whiteboard_id,
                 self._channel_manager,
-                self._file_serializer
+                self._file_serializer,
+                UUIDEntryIdGenerator(self.snapshot_id())
             )
 
     def servant(self) -> Optional[ServantClient]:
@@ -445,5 +452,6 @@ class LzyLocalWorkflow(LzyWorkflowBase):
                 self._execution_context.whiteboard_api,
                 self.whiteboard_id,
                 LocalChannelManager(""),
-                file_serializer
+                file_serializer,
+                UUIDEntryIdGenerator(self.snapshot_id())
             )

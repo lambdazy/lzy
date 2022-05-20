@@ -7,20 +7,19 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import java.net.URI;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
 public interface ServantsAllocator extends SessionManager {
     CompletableFuture<ServantConnection> allocate(
-        UUID sessionId,
+        String sessionId,
         Provisioning provisioning,
         Env env
     );
 
     /** [TODO] notify task on disconnected state */
     interface ServantConnection {
-        UUID id();
+        String id();
         URI uri();
         URI fsUri();
         LzyServantGrpc.LzyServantBlockingStub control();
@@ -31,6 +30,6 @@ public interface ServantsAllocator extends SessionManager {
     }
 
     interface Ex extends ServantsAllocator {
-        void register(UUID servantId, URI servant, URI fs);
+        void register(String servantId, URI servant, URI fs);
     }
 }

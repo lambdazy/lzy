@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package yandex.cloud.lzy.v1;
+
+import "yandex/cloud/lzy/v1/lzy-iam.proto";
+
+option go_package = "lzy";
+option java_outer_classname = "LABS";
+option java_package = "yandex.cloud.lzy.v1";
+
+service LzyAccessBindingService {
+  rpc ListAccessBindings (ListAccessBindingsRequest) returns (ListAccessBindingsResponse);
+
+  rpc SetAccessBindings (SetAccessBindingsRequest) returns (SetAccessBindingsResponse);
+
+  rpc UpdateAccessBindings (UpdateAccessBindingsRequest) returns (UpdateAccessBindingsResponse);
+}
+
+message ListAccessBindingsRequest {
+  Resource resource = 1;
+}
+
+message ListAccessBindingsResponse {
+  repeated AccessBinding bindings = 1;
+}
+
+message SetAccessBindingsRequest {
+  Resource resource = 1;
+  repeated AccessBinding bindings = 2;
+}
+
+message SetAccessBindingsResponse {
+}
+
+message UpdateAccessBindingsRequest {
+  Resource resource = 1;
+  repeated AccessBindingDelta deltas = 2;
+}
+
+message UpdateAccessBindingsResponse {
+}

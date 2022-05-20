@@ -1,20 +1,14 @@
 package ru.yandex.cloud.ml.platform.lzy.server.hibernate.models;
 
-import java.util.UUID;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "tasks")
 public class TaskModel {
 
     @Id
-    @Column(name = "tid", columnDefinition = "UUID")
-    private UUID tid;
+    @Column(name = "tid")
+    private String tid;
 
     @ManyToOne()
     @JoinColumn(name = "owner_id", nullable = false)
@@ -24,7 +18,7 @@ public class TaskModel {
     @JoinColumn(name = "servant_id", nullable = false)
     private ServantModel servant;
 
-    public TaskModel(UUID tid, UserModel owner, ServantModel servant) {
+    public TaskModel(String tid, UserModel owner, ServantModel servant) {
         this.tid = tid;
         this.owner = owner;
         this.servant = servant;
@@ -33,7 +27,7 @@ public class TaskModel {
     public TaskModel() {
     }
 
-    public UUID getTid() {
+    public String getTid() {
         return tid;
     }
 

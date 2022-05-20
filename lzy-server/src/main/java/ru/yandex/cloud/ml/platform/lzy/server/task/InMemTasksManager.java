@@ -4,8 +4,6 @@ import jakarta.inject.Singleton;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ForkJoinPool;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,7 +14,6 @@ import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ChannelsManager;
-import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocator;
 import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.configs.ServerConfig;
 
@@ -28,7 +25,7 @@ public class InMemTasksManager implements TasksManager {
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     protected final URI serverURI;
     private final ChannelsManager channels;
-    private final Map<UUID, Task> tasks = new ConcurrentHashMap<>();
+    private final Map<String, Task> tasks = new ConcurrentHashMap<>();
 
     private final Map<String, List<Task>> userTasks = new ConcurrentHashMap<>();
     private final Map<Task, Task> parents = new ConcurrentHashMap<>();
@@ -65,7 +62,7 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public String owner(UUID tid) {
+    public String owner(String tid) {
         return owners.get(task(tid));
     }
 
@@ -98,7 +95,7 @@ public class InMemTasksManager implements TasksManager {
     @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth) {
         final Task task = new TaskImpl(
-            uid, UUID.randomUUID(), workload, assignments,
+            uid, "task_" + UUID.randomUUID(), workload, assignments,
             channels, serverURI
         );
         tasks.put(task.tid(), task);
@@ -129,7 +126,7 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Task task(UUID tid) {
+    public Task task(String tid) {
         LOG.info("Resolving task tid=" + tid);
         return tasks.get(tid);
     }

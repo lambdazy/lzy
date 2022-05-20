@@ -1,32 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
 import com.google.protobuf.Timestamp;
-import java.net.URI;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AuxEnv;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.BaseEnv;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.LocalModule;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionValue;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionValue;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.*;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AmazonCredentials;
@@ -39,6 +17,15 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
+
+import javax.annotation.Nullable;
+import java.net.URI;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class GrpcConverter {
 
@@ -460,10 +447,9 @@ public abstract class GrpcConverter {
         }
 
         @Override
-        public UUID tid() {
+        public String tid() {
             slotStatus.getTaskId();
-            return !slotStatus.getTaskId().isEmpty() ? UUID.fromString(slotStatus.getTaskId())
-                : null;
+            return !slotStatus.getTaskId().isEmpty() ? slotStatus.getTaskId() : null;
         }
 
         @Override

@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import java.util.UUID;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
@@ -23,7 +22,7 @@ public interface ChannelsManager {
     @Nullable
     ChannelSpec bound(Endpoint endpoint);
 
-    void unbindAll(UUID sessionId);
+    void unbindAll(String sessionId);
 
     SlotStatus[] connected(ChannelSpec channel);
 

@@ -5,7 +5,6 @@ import io.micronaut.context.ApplicationContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.junit.*;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.server.mocks.AllocatedServantMock;
@@ -55,20 +54,20 @@ public class ServantAllocatorBaseTest {
     @Test(expected = IllegalArgumentException.class)
     public void testRegisterSessionsWithSameUUID() {
         //Arrange
-        final UUID sessionUUID = UUID.randomUUID();
+        final String sid = "session_" + UUID.randomUUID();
 
         //Act
-        allocator.registerSession(DEFAULT_USER, sessionUUID, DEFAULT_BUCKET);
-        allocator.registerSession(DEFAULT_USER, sessionUUID, DEFAULT_BUCKET);
+        allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET);
+        allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET);
     }
 
     @Test
     public void testGetNonexistentSession() {
         //Arrange
-        final UUID sessionUUID = UUID.randomUUID();
+        final String sid = "session_" + UUID.randomUUID();
 
         //Act
-        final SessionManager.Session session = allocator.get(sessionUUID);
+        final SessionManager.Session session = allocator.get(sid);
 
         //Assert
         Assert.assertNull(session);
@@ -77,16 +76,16 @@ public class ServantAllocatorBaseTest {
     @Test
     public void testDeleteNonexistentSession() {
         //Arrange
-        final UUID sessionUUID = UUID.randomUUID();
+        final String sid = "session_" + UUID.randomUUID();
 
         //Act
-        allocator.deleteSession(sessionUUID);
+        allocator.deleteSession(sid);
     }
 
     @Test
     public void testGetSessionForNonexistentServant() {
         //Arrange
-        final UUID servantUUID = UUID.randomUUID();
+        final String servantUUID = "servant_" + UUID.randomUUID();
 
         //Act
         final SessionManager.Session session = allocator.byServant(servantUUID);
@@ -123,34 +122,35 @@ public class ServantAllocatorBaseTest {
     @Test
     public void testUserSessionNotOverrideExistingOne() {
         //Arrange
-        final UUID sessionUUID = UUID.randomUUID();
+        final String sid = "session_" + UUID.randomUUID();
 
         //Act
-        allocator.registerSession(DEFAULT_USER, sessionUUID, DEFAULT_BUCKET);
+        allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET);
         final SessionManager.Session session = allocator.userSession(DEFAULT_USER);
 
         //Assert
-        Assert.assertEquals(sessionUUID, session.id());
+        Assert.assertEquals(sid, session.id());
     }
 
     @Test
     public void testRegisteringMultipleSessions() {
         //Arrange
-        final Map<String, List<UUID>> userSessions = new HashMap<>();
+        final Map<String, List<String>> userSessions = new HashMap<>();
         IntStream.range(0, 100)
-                .mapToObj(value -> UUID.randomUUID().toString())
+                .mapToObj(value -> "user_" + UUID.randomUUID())
                 .forEach(s -> userSessions.put(s, IntStream.range(0, 100)
-                        .mapToObj(value -> UUID.randomUUID()).collect(Collectors.toList())));
+                        .mapToObj(value -> "session_" + UUID.randomUUID()).collect(Collectors.toList())));
 
         //Act
         userSessions.forEach((uid, sids) -> sids.forEach(sid -> allocator.registerSession(uid, sid, DEFAULT_BUCKET)));
 
         //Assert
-        userSessions.entrySet().stream().flatMap(stringListEntry -> stringListEntry.getValue().stream()).forEach(uuid -> {
-            final SessionManager.Session session = allocator.get(uuid);
-            Assert.assertNotNull(session);
-            Assert.assertEquals(uuid, session.id());
-        });
+        userSessions.entrySet().stream().flatMap(stringListEntry -> stringListEntry.getValue().stream())
+            .forEach(uuid -> {
+                final SessionManager.Session session = allocator.get(uuid);
+                Assert.assertNotNull(session);
+                Assert.assertEquals(uuid, session.id());
+            });
         userSessions.forEach((uid, sids) ->
                 Assert.assertEquals(new HashSet<>(sids),
                         allocator.sessions(uid).map(SessionManager.Session::id).collect(Collectors.toSet())));
@@ -159,7 +159,7 @@ public class ServantAllocatorBaseTest {
     @Test
     public void testRemovingSessionsInParallelWithGetting() throws ExecutionException, InterruptedException {
         //Arrange
-        final List<UUID> sids = IntStream.range(0, 10000).mapToObj(value -> UUID.randomUUID())
+        final List<String> sids = IntStream.range(0, 10000).mapToObj(value -> "session_" + UUID.randomUUID())
                 .collect(Collectors.toList());
         sids.forEach(sid -> allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET));
         final AtomicInteger added = new AtomicInteger();
@@ -184,7 +184,7 @@ public class ServantAllocatorBaseTest {
     @Test
     public void testParallelRemovingAndSessionsGettingByUser() throws ExecutionException, InterruptedException {
         //Arrange
-        final List<UUID> sids = IntStream.range(0, 1000).mapToObj(value -> UUID.randomUUID())
+        final List<String> sids = IntStream.range(0, 1000).mapToObj(value -> "session_" + UUID.randomUUID())
                 .collect(Collectors.toList());
         sids.forEach(sid -> allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET));
 
@@ -201,22 +201,22 @@ public class ServantAllocatorBaseTest {
     @Test(expected = IllegalArgumentException.class)
     public void testAllocationWithNonexistentSession() {
         //Arrange
-        final UUID sessionUUID = UUID.randomUUID();
+        final String sid = "session_" + UUID.randomUUID();
 
         //Act
-        allocator.allocate(sessionUUID, new Provisioning.Any(),
+        allocator.allocate(sid, new Provisioning.Any(),
                 GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
     }
 
     @Test
-    public void testSingleAllocation() throws URISyntaxException, ExecutionException, InterruptedException, IOException {
+    public void testSingleAllocation() throws Exception {
         //Arrange
-        final UUID sessionUUID = UUID.randomUUID();
-        allocator.registerSession(DEFAULT_USER, sessionUUID, DEFAULT_BUCKET);
+        final String sid = "session_" + UUID.randomUUID();
+        allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET);
 
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
-                sessionUUID, new Provisioning.Any(),
+                sid, new Provisioning.Any(),
                 GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
         final boolean allocated = allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
@@ -225,7 +225,8 @@ public class ServantAllocatorBaseTest {
         int port = FreePortFinder.find(10000, 20000);
 
         AllocatedServantMock servantMock = new AllocatedServantMock(false, t -> {}, port);
-        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(), new URI("dummy://foo"));
+        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(),
+            new URI("dummy://foo"));
         ServantsAllocator.ServantConnection connection = feature.get();
         final AtomicBoolean progressComplete = new AtomicBoolean(false);
         CountDownLatch latch = new CountDownLatch(1);
@@ -236,7 +237,9 @@ public class ServantAllocatorBaseTest {
             }
             return true;
         });
-        servantMock.progress(Servant.ServantProgress.newBuilder().setChanged(Servant.StateChanged.newBuilder().build()).build());
+        servantMock.progress(Servant.ServantProgress.newBuilder()
+            .setChanged(Servant.StateChanged.newBuilder().build())
+            .build());
         latch.await();
         servantMock.complete(null);
         servantMock.close();
@@ -244,22 +247,22 @@ public class ServantAllocatorBaseTest {
         //Assert
         Assert.assertTrue(allocated);
         Assert.assertNotNull(session);
-        Assert.assertEquals(sessionUUID, session.id());
+        Assert.assertEquals(sid, session.id());
         Assert.assertTrue(progressComplete.get());
     }
 
     @Test
     public void testDeleteWhileAllocating() {
         //Arrange
-        final UUID sessionUUID = UUID.randomUUID();
-        allocator.registerSession(DEFAULT_USER, sessionUUID, DEFAULT_BUCKET);
+        final String sid = "session_" + UUID.randomUUID();
+        allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET);
 
         //Act
-        CompletableFuture<?> feature = allocator.allocate(sessionUUID, new Provisioning.Any(),
+        CompletableFuture<?> feature = allocator.allocate(sid, new Provisioning.Any(),
                 GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
         final boolean allocationRequested = allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
-        allocator.deleteSession(sessionUUID);
+        allocator.deleteSession(sid);
         final SessionManager.Session session = allocator.byServant(request.servantId());
 
         //Assert
@@ -269,14 +272,14 @@ public class ServantAllocatorBaseTest {
     }
 
     @Test
-    public void testDeleteWhileExecuting() throws IOException, ExecutionException, InterruptedException, URISyntaxException {
+    public void testDeleteWhileExecuting() throws Exception {
         //Arrange
-        final UUID sessionUUID = UUID.randomUUID();
-        allocator.registerSession(DEFAULT_USER, sessionUUID, DEFAULT_BUCKET);
+        final String sid = "session_" + UUID.randomUUID();
+        allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET);
 
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
-            sessionUUID, new Provisioning.Any(),
+            sid, new Provisioning.Any(),
             GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
         allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
@@ -284,11 +287,13 @@ public class ServantAllocatorBaseTest {
         int port = FreePortFinder.find(10000, 20000);
         AtomicBoolean stopCalled = new AtomicBoolean(false);
 
+        @SuppressWarnings("CheckStyle")
         AllocatedServantMock servantMock = new AllocatedServantMock(false, t -> {
             stopCalled.set(true);
             t.complete(null);
         }, port);
-        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(), new URI("dummy://foo"));
+        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(),
+            new URI("dummy://foo"));
         ServantsAllocator.ServantConnection connection = feature.get();
 
         AtomicBoolean gotDisconnectedWhenDeleted = new AtomicBoolean(false);
@@ -302,7 +307,7 @@ public class ServantAllocatorBaseTest {
             return true;
         });
 
-        allocator.deleteSession(sessionUUID);
+        allocator.deleteSession(sid);
         called.get();
 
         //Assert
@@ -316,12 +321,12 @@ public class ServantAllocatorBaseTest {
     @Test
     public void testErrorOnProgress() throws IOException, ExecutionException, InterruptedException, URISyntaxException {
         //Arrange
-        final UUID sessionUUID = UUID.randomUUID();
-        allocator.registerSession(DEFAULT_USER, sessionUUID, DEFAULT_BUCKET);
+        final String sid = "session_" + UUID.randomUUID();
+        allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET);
 
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
-                sessionUUID, new Provisioning.Any(),
+                sid, new Provisioning.Any(),
                 GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
         allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
@@ -329,7 +334,8 @@ public class ServantAllocatorBaseTest {
         int port = FreePortFinder.find(10000, 20000);
 
         AllocatedServantMock servantMock = new AllocatedServantMock(false, t -> {}, port);
-        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(), new URI("dummy://foo"));
+        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(),
+            new URI("dummy://foo"));
         ServantsAllocator.ServantConnection connection = feature.get();
         servantMock.complete(Status.UNKNOWN.asRuntimeException());
 

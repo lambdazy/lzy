@@ -37,16 +37,14 @@ public class LzyContext implements AutoCloseable {
 
     private final SlotsManager slotsManager;
     private final String contextId;
-    private final StorageClient storage;
     private final String mountRoot;
     private String arguments = "";
     private Environment env;
 
-    public LzyContext(String contextId, SlotsManager slotsManager, SlotConnectionManager slotConnectionManager,
+    public LzyContext(String contextId, SlotsManager slotsManager,
                       String mountRoot) {
         this.contextId = contextId;
         this.slotsManager = slotsManager;
-        this.storage = slotConnectionManager.snapshooter().storage();
         this.mountRoot = mountRoot;
     }
 
@@ -74,7 +72,7 @@ public class LzyContext implements AutoCloseable {
         return slot;
     }
 
-    public synchronized void prepare(Env from) throws EnvironmentInstallationException {
+    public synchronized void prepare(Env from, StorageClient storage) throws EnvironmentInstallationException {
         env = EnvironmentFactory.create(from, storage);
     }
 
