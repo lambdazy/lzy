@@ -8,10 +8,10 @@ from unittest import TestCase
 
 import cloudpickle
 
-from lzy.api import LzyRemoteEnv
-from lzy.api import InMemWhiteboardApi, InMemSnapshotApi
-from lzy.api import BashServantClient
-from lzy.api.v1.servant import ServantClientMock
+from lzy.api.v1.env import LzyRemoteEnv
+from lzy.api.v1.servant.bash_servant_client import BashServantClient
+from lzy.api.v1.servant.servant_client import ServantClientMock
+from lzy.api.v1.whiteboard.model import InMemWhiteboardApi, InMemSnapshotApi
 from lzy.storage.storage_client import StorageClient
 
 

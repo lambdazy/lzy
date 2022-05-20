@@ -1,7 +1,7 @@
 from typing import Iterator, List, Dict, Any
 
 from lzy.api.v2.api import LzyCall
-from lzy.api.v2.utils import is_lazy_proxy, executed
+from lzy.api.v2.utils import is_lazy_proxy, materialized
 
 
 class BuildError(Exception):
@@ -55,7 +55,7 @@ class GraphBuilder:
     def _dependent_calls(self, call: LzyCall):
         dependent_calls: List[LzyCall] = []
         for name, arg in call.named_arguments():
-            if is_lazy_proxy(arg) and not executed(arg):
+            if is_lazy_proxy(arg) and not materialized(arg):
                 dependent_calls.extend(self._dependent_calls(arg.lzy_call))
                 dependent_calls.append(arg.lzy_call)
         return unique_values(dependent_calls)

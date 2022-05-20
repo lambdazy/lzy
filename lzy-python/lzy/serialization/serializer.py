@@ -3,8 +3,6 @@ from typing import Type, TypeVar, IO, Any, Dict
 
 import cloudpickle
 from pure_protobuf.dataclasses_ import loads, load  # type: ignore
-
-from lzy.api.v2.api.lzy_dumper import LzyDumper
 from lzy.api.v2.utils import check_message_field
 from lzy.serialization.dumper import Dumper, CatboostPoolDumper
 
@@ -71,7 +69,7 @@ class Serializer(FileSerializer, MemBytesSerializer):
     """serialization facility"""
 
     @abstractmethod
-    def add_dumper(self, dumper: LzyDumper):
+    def add_dumper(self, dumper: Dumper):
         pass
 
 
@@ -92,6 +90,6 @@ class DefaultSerializer(Serializer):
     def deserialize_from_string(self, data: bytes, obj_type: Type[T] = None) -> T:
         return self._mem_bytes_serializer.deserialize_from_string(data, obj_type)
 
-    def add_dumper(self, dumper: LzyDumper):
+    def add_dumper(self, dumper: Dumper):
         # TODO
         pass

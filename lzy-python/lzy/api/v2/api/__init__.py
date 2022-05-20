@@ -94,11 +94,11 @@ def op_(provisioning: Provisioning, *, output_type=None):
                 return None
             else:
                 def materialize():
-                    value = current_workflow.snapshot().get(lzy_call.id)
+                    value = current_workflow.snapshot().get(lzy_call.entry_id)
                     if value is not None:
                         return value
                     current_workflow.barrier()
-                    return current_workflow.snapshot().get(lzy_call.id)
+                    return current_workflow.snapshot().get(lzy_call.entry_id)
                 return lazy_proxy(materialize, output_type, {"lzy_call": lzy_call})
 
         return lazy

@@ -9,14 +9,14 @@ from typing import Optional, Any, TypeVar, Generic, Tuple, Iterable, Union, List
 
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 
-from lzy.api.v1.servant import ChannelManager
-from lzy.api.v1.servant import Bindings, Binding
+from lzy.api.v1.servant.channel_manager import ChannelManager
+from lzy.api.v1.servant.model.channel import Bindings, Binding
 from lzy.api.v1.servant.model.env import PyEnv, Env
 from lzy.api.v1.servant.model.execution import Execution, InputExecutionValue, ExecutionDescription, ExecutionValue
 from lzy.api.v1.servant.model.return_codes import ReturnCode
-from lzy.api.v1.servant import Provisioning, Zygote
-from lzy.api.v1.servant import ZygotePythonFunc
-from lzy.api.v1.servant import ServantClient
+from lzy.api.v1.servant.model.zygote import Provisioning, Zygote
+from lzy.api.v1.servant.model.zygote_python_func import ZygotePythonFunc
+from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.utils import is_lazy_proxy, LzyExecutionException
 from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.signatures import CallSignature, FuncSignature

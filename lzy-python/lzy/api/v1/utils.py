@@ -17,7 +17,7 @@ from zipfile import ZipFile
 
 from lzy._proxy import proxy
 from lzy._proxy.result import Result, Nothing, Just
-from lzy.api.v1.signatures import CallSignature
+from lzy.api.v1.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

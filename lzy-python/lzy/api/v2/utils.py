@@ -54,7 +54,7 @@ def is_lazy_proxy(obj: Any) -> bool:
     return hasattr(cls, "__lzy_proxied__") and cls.__lzy_proxied__
 
 
-def executed(obj: Any) -> bool:
+def materialized(obj: Any) -> bool:
     return obj.__lzy_materialized__
 
 

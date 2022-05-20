@@ -3,7 +3,7 @@ from typing import List, Optional
 from unittest import TestCase
 
 # noinspection PyProtectedMember
-from lzy.v1._proxy import proxy_optional
+from lzy._proxy import proxy_optional
 from lzy.api.v1.utils import infer_real_type
 
 

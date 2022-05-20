@@ -17,7 +17,7 @@ class LocalRuntime(Runtime):
                 name: arg if not is_lazy_proxy(arg) else arg.__lzy_origin__
                 for name, arg in call.kwargs.items()
             }
-            snapshot.put(call.id, call.op.callable(*args, **kwargs))
+            snapshot.put(call.entry_id, call.op.callable(*args, **kwargs))
 
     def destroy(self) -> None:
         pass
