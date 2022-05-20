@@ -29,7 +29,7 @@ create TABLE IF NOT EXISTS user_resource_roles
 
 create TABLE credentials (
    name varchar(255),
-   value varchar(255),
+   value varchar(10485761),
    user_id varchar(255),
    type varchar(255),
    PRIMARY KEY (name, user_id),

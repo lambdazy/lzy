@@ -10,7 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthBadReque
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.configs.ServiceConfig;
-import ru.yandex.cloud.ml.platform.lzy.iam.resources.credentials.UserCredentials;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.credentials.SubjectCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.User;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
@@ -31,7 +31,7 @@ public class DbSubjectService implements SubjectService {
     private ServiceConfig serviceConfig;
 
     @Override
-    public Subject createSubject(String id, String authProvider, String providerUserName) throws AuthException {
+    public Subject createSubject(String id, String authProvider, String providerSubjectId) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "INSERT INTO users ("
                         + "user_id, "
@@ -44,7 +44,7 @@ public class DbSubjectService implements SubjectService {
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
             st.setString(++parameterIndex, authProvider);
-            st.setString(++parameterIndex, providerUserName);
+            st.setString(++parameterIndex, providerSubjectId);
             st.setString(++parameterIndex, typeForNewUser().toString());
             st.executeUpdate();
             return new User(id);
@@ -56,7 +56,7 @@ public class DbSubjectService implements SubjectService {
     @Override
     public Subject subject(String id) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT * FROM users "
+                "SELECT user_id FROM users "
                         + "WHERE user_id = ?;"
         )) {
             int parameterIndex = 0;
@@ -108,7 +108,7 @@ public class DbSubjectService implements SubjectService {
     }
 
     @Override
-    public UserCredentials credentials(Subject subject, String name) throws AuthException {
+    public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "SELECT name, value, type FROM credentials "
                         + "WHERE user_id = ? "
@@ -119,7 +119,7 @@ public class DbSubjectService implements SubjectService {
             st.setString(++parameterIndex, name);
             ResultSet rs = st.executeQuery();
             if (rs.next()) {
-                return new UserCredentials(
+                return new SubjectCredentials(
                         rs.getString("name"),
                         rs.getString("value"),
                         rs.getString("type")

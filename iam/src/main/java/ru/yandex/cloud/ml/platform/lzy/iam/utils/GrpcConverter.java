@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.iam.utils;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBinding;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBindingDelta;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthResource;
-import ru.yandex.cloud.ml.platform.lzy.iam.resources.credentials.UserCredentials;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.credentials.SubjectCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.impl.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.impl.Workflow;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
@@ -38,8 +38,8 @@ public class GrpcConverter {
         return new User(subject.getId());
     }
 
-    public static UserCredentials to(IAM.Credentials credentials) {
-        return new UserCredentials(
+    public static SubjectCredentials to(IAM.Credentials credentials) {
+        return new SubjectCredentials(
                 credentials.getName(),
                 credentials.getCredentials(),
                 credentials.getType()
@@ -61,7 +61,7 @@ public class GrpcConverter {
                 .build();
     }
 
-    public static IAM.Credentials from(UserCredentials credentials) {
+    public static IAM.Credentials from(SubjectCredentials credentials) {
         return IAM.Credentials.newBuilder()
                 .setName(credentials.name())
                 .setCredentials(credentials.value())
