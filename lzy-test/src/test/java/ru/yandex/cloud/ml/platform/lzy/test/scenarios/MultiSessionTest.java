@@ -1,8 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -27,7 +25,7 @@ public class MultiSessionTest extends LocalScenario {
             null);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            DEFAULT_TIMEOUT_SEC,
+            DEFAULTS.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
         return terminal;
@@ -36,7 +34,8 @@ public class MultiSessionTest extends LocalScenario {
 
     @Test
     public void parallelPyGraphExecution() throws ExecutionException, InterruptedException {
-        final Path scenario = scenarios.resolve("catboost_integration_cpu");
+        final String scenarioName = "catboost_integration_cpu";
+
         final String custom_mnt1 = "/tmp/term1";
         final Terminal terminal1 = createTerminal(
             FreePortFinder.find(20000, 21000),
@@ -47,7 +46,7 @@ public class MultiSessionTest extends LocalScenario {
             );
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> result1.complete(
-            evalScenario(List.of("catboost"), scenario, LOG, terminal1, custom_mnt1)
+            evalScenario(terminal1, scenarioName, List.of("catboost"), custom_mnt1)
         ));
 
         final String custom_mnt2 = "/tmp/term2";
@@ -59,32 +58,32 @@ public class MultiSessionTest extends LocalScenario {
             custom_mnt2);
         final CompletableFuture<Terminal.ExecutionResult> result2 = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> result2.complete(
-            evalScenario(List.of("catboost"), scenario, LOG, terminal2, custom_mnt2)
+            evalScenario(terminal2, scenarioName, List.of("catboost"), custom_mnt2)
         ));
 
-        assertWithExpected(scenario, result1.get(), LOG);
-        assertWithExpected(scenario, result2.get(), LOG);
+        assertWithExpected(scenarioName, result1.get());
+        assertWithExpected(scenarioName, result2.get());
     }
 
     @Test
     public void parallelPyGraphExecutionInSingleTerminal() throws ExecutionException, InterruptedException {
+        final String scenarioName = "catboost_integration_cpu";
         final Terminal terminal = createTerminal(
             FreePortFinder.find(20000, 21000),
             FreePortFinder.find(21000, 22000),
             FreePortFinder.find(22000, 23000),
             "user1",
             "/tmp/lzy");
-        final String scenarioName = "catboost_integration_cpu";
 
         //Act
         final CompletableFuture<Terminal.ExecutionResult> result1 = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> result1.complete(evalScenario(scenarioName, LOG, terminal)));
+        ForkJoinPool.commonPool().execute(() -> result1.complete(evalScenario(terminal, scenarioName)));
 
         final CompletableFuture<Terminal.ExecutionResult> result2 = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> result2.complete(evalScenario(scenarioName, LOG, terminal)));
+        ForkJoinPool.commonPool().execute(() -> result2.complete(evalScenario(terminal, scenarioName)));
 
         //Assert
-        assertWithExpected(scenarioName, result1.get(), LOG);
-        assertWithExpected(scenarioName, result2.get(), LOG);
+        assertWithExpected(scenarioName, result1.get());
+        assertWithExpected(scenarioName, result2.get());
     }
 }

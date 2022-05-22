@@ -130,7 +130,7 @@ public class SnapshotTest extends LocalScenario {
             .standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(
-                new AwsClientBuilder.EndpointConfiguration("http://localhost:" + S3_PORT, "us-west-2"))
+                new AwsClientBuilder.EndpointConfiguration("http://localhost:" + CONFIG.S3_PORT, "us-west-2"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
 
