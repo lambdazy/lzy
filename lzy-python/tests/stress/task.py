@@ -1,5 +1,5 @@
 from time import sleep
-from lzy.api import op, LzyRemoteEnv
+from lzy.api.v1 import op, LzyRemoteEnv
 
 
 class LzyTask:
