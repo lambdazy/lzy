@@ -94,6 +94,8 @@ class BashExecution(Execution):
         # pylint: disable=consider-using-with
         self._process = subprocess.Popen(
             ["bash", "-c", " ".join(self._cmd)],
+            stdout=stdout,
+            stderr=stderr,
             stdin=subprocess.PIPE,
             env=self._env,
         )
@@ -113,7 +115,6 @@ class BashExecution(Execution):
             BashExecution._pipe_to_string(err),
             self._process.returncode,
         )
-
 
 class BashServantClient(ServantClient):
     _instance: Optional["BashServantClient"] = None
