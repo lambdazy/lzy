@@ -116,6 +116,7 @@ public class Run implements LzyCommand {
             } else {
                 binding = "channel:" + resolveChannel(slot);
             }
+            LOG.info("Slot " + slot.name() + " resolved to " + binding);
             taskSpec.addAssignmentsBuilder()
                 .setSlot(GrpcConverter.to(slot))
                 .setBinding(binding)
