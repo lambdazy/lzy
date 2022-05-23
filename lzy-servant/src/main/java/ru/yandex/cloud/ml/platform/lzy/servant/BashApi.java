@@ -26,6 +26,7 @@ public class BashApi {
     }
 
     public static int execute(String[] args) {
+        LOG.debug("Going to execute: " + String.join(" ", args));
         final CommandLineParser cliParser = new DefaultParser();
         final HelpFormatter cliHelp = new HelpFormatter();
         String commandStr = "lzy";
