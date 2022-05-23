@@ -1,3 +1,15 @@
+resource "kubernetes_secret" "whiteboard_db" {
+  metadata {
+    name = "whiteboard-db"
+  }
+
+  data = {
+    password = var.lzy_whiteboard_db_password
+  }
+
+  type = "Opaque"
+}
+
 resource "kubernetes_deployment" "whiteboard" {
   metadata {
     name = "whiteboard"
@@ -28,25 +40,15 @@ resource "kubernetes_deployment" "whiteboard" {
           image_pull_policy = "Always"
           env {
             name  = "DATABASE_URL"
-            value = "jdbc:postgresql://whiteboard-postgresql.default.svc.cluster.local:5432/${kubernetes_secret.whiteboard_db.data.database-name}"
+            value = "jdbc:postgresql://${var.lzy_whiteboard_db_host}:${var.lzy_whiteboard_db_port}/${var.lzy_whiteboard_db_name}"
           }
           env {
-            name = "DATABASE_USERNAME"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.whiteboard_db.metadata[0].name
-                key  = "username"
-              }
-            }
+            name  = "DATABASE_USERNAME"
+            value = var.lzy_whiteboard_db_user
           }
           env {
-            name = "DATABASE_PASSWORD"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.whiteboard_db.metadata[0].name
-                key  = "password"
-              }
-            }
+            name  = "DATABASE_PASSWORD"
+            value = var.lzy_whiteboard_db_password
           }
           env {
             name  = "SERVER_URI"
@@ -96,9 +98,6 @@ resource "kubernetes_deployment" "whiteboard" {
       }
     }
   }
-  depends_on = [
-    helm_release.whiteboard_db
-  ]
 }
 
 resource "kubernetes_service" "whiteboard" {

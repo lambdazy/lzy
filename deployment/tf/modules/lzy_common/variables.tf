@@ -49,6 +49,7 @@ variable "backoffice_load_balancer_necessary_annotations" {
   default = {}
 }
 
+// server db
 variable "lzy_server_db_host" {
 }
 
@@ -62,6 +63,22 @@ variable "lzy_server_db_user" {
 }
 
 variable "lzy_server_db_password" {
+}
+
+// whiteboard db
+variable "lzy_whiteboard_db_host" {
+}
+
+variable "lzy_whiteboard_db_port" {
+}
+
+variable "lzy_whiteboard_db_name" {
+}
+
+variable "lzy_whiteboard_db_user" {
+}
+
+variable "lzy_whiteboard_db_password" {
 }
 
 variable "backoffice-frontend-image" {
