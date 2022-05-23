@@ -13,7 +13,7 @@ service LzyAccessService {
 }
 
 message AuthorizeRequest {
-  string subject_id = 1;
+  yandex.cloud.lzy.v1.Subject subject = 1;
   string permission = 2;
   yandex.cloud.lzy.v1.Resource resource = 3;
 }

@@ -28,7 +28,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
             Subject subject = subjectService.createSubject(
                     request.getName(),
                     request.getAuthProvider(),
-                    request.getProviderUserId()
+                    request.getProviderSubjectId()
             );
             responseObserver.onNext(GrpcConverter.from(subject));
             responseObserver.onCompleted();

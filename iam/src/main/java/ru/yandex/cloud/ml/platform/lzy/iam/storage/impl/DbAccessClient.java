@@ -9,20 +9,22 @@ import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthExceptio
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthPermission;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.Role;
-import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
+import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Singleton
-@Requires(beans = DbStorage.class)
+@Requires(beans = Storage.class)
 public class DbAccessClient implements AccessClient {
 
     @Inject
-    private DbStorage storage;
+    private Storage storage;
 
     @Override
-    public boolean hasResourcePermission(String userId, String resourceId, AuthPermission permission)
+    public boolean hasResourcePermission(Subject subject, String resourceId, AuthPermission permission)
             throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "SELECT user_id FROM user_resource_roles "
@@ -31,7 +33,7 @@ public class DbAccessClient implements AccessClient {
                         + ";"
         )) {
             int parameterIndex = 0;
-            st.setString(++parameterIndex, userId);
+            st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, resourceId);
             final ResultSet rs = st.executeQuery();
             if (!rs.next()) {
@@ -47,7 +49,7 @@ public class DbAccessClient implements AccessClient {
                         + "AND " + queryByPermission(permission)
         )) {
             int parameterIndex = 0;
-            st.setString(++parameterIndex, userId);
+            st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, resourceId);
             final ResultSet rs = st.executeQuery();
             if (rs.next()) {
