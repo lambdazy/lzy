@@ -1,4 +1,4 @@
-from typing import Iterator, List, Dict, Any
+from typing import Iterator, List, Dict, Any, Set
 
 from lzy.api.v2.api import LzyCall
 from lzy.api.v2.utils import is_lazy_proxy, materialized
@@ -9,7 +9,7 @@ class BuildError(Exception):
 
 
 def unique_values(values: List[Any]):
-    seen = set()
+    seen: Set[Any] = set()
     seen_add = seen.add
     return [x for x in values if not (x in seen or seen_add(x))]
 
@@ -26,7 +26,7 @@ class Graph:
         return self._snapshot_id
 
     def calls(self) -> Iterator[LzyCall]:
-        return self._calls.__iter__()
+        return self._calls.__iter__()  # type: ignore
 
     def adjacent(self, call: LzyCall) -> Iterator[LzyCall]:
         for _call_id in self._adjacency_graph[call.id]:

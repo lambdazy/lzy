@@ -55,7 +55,7 @@ def is_lazy_proxy(obj: Any) -> bool:
 
 
 def materialized(obj: Any) -> bool:
-    return obj.__lzy_materialized__
+    return obj.__lzy_materialized__  # type: ignore
 
 
 def lazy_proxy(

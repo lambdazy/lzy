@@ -9,7 +9,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 class LocalSnapshot(Snapshot):
     def __init__(self):
-        self._id = str(uuid.uuid4())
+        self._id: str = str(uuid.uuid4())
         self._entry_id_to_value = {}
 
     def id(self) -> str:

@@ -109,6 +109,6 @@ def op_(provisioning: Provisioning, *, output_type=None):
 # register cloud injections
 # noinspection PyBroadException
 try:
-    from lzy.api.v2 import catboost_injection
+    from lzy.injections import catboost_injection
 except:
     pass

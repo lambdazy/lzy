@@ -15,7 +15,7 @@ class ChannelManager(abc.ABC):
         self._entry_id_to_channel: Dict[str, Channel] = {}
 
     def channel(self, snapshot_id: str, entry_id: str,
-                channel_type: Union[SnapshotChannelSpec, DirectChannelSpec] = SnapshotChannelSpec) -> Channel:
+                channel_type: Union[SnapshotChannelSpec, DirectChannelSpec]) -> Channel:
         if entry_id in self._entry_id_to_channel:
             return self._entry_id_to_channel[entry_id]
         channel = Channel(entry_id, channel_type)

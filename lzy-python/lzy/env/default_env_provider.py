@@ -39,7 +39,7 @@ class DefaultEnvProvider(EnvProvider):
         self._local_modules_paths = local_modules_paths
 
     def for_op(self, namespace: Optional[Dict[str, Any]] = None) -> Env:
-        local_module_paths_found = []
+        local_module_paths_found: List[str]  = []
         if self._conda_yaml_path is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
