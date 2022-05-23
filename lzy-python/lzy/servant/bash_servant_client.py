@@ -11,7 +11,8 @@ from typing import Any, Dict, Optional, Iterable, List
 from lzy.storage.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
 from lzy.servant.model.channel import Channel, Bindings, SnapshotChannelSpec
 from lzy.servant.model.encoding import ENCODING as encoding
-from lzy.servant.model.execution import ExecutionResult, ExecutionValue, Execution, InputExecutionValue, ExecutionDescription
+from lzy.servant.model.execution import ExecutionResult, ExecutionValue, Execution, InputExecutionValue, \
+    ExecutionDescription
 from lzy.servant.model.slot import Slot, Direction
 from lzy.servant.model.zygote import Zygote
 from lzy.servant.servant_client import ServantClient, CredentialsTypes
@@ -38,7 +39,6 @@ def exec_bash(*command):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             stdin=subprocess.PIPE
     ) as process:
-
         out, err = process.communicate()
 
         if process.returncode != 0:
@@ -115,6 +115,7 @@ class BashExecution(Execution):
             BashExecution._pipe_to_string(err),
             self._process.returncode,
         )
+
 
 class BashServantClient(ServantClient):
     _instance: Optional["BashServantClient"] = None
