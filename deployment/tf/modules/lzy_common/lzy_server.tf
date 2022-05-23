@@ -1,3 +1,16 @@
+resource "kubernetes_secret" "lzy_server_db" {
+  metadata {
+    name      = "server-db"
+    namespace = kubernetes_namespace.server_namespace.metadata[0].name
+  }
+
+  data = {
+    password = var.lzy_server_db_password
+  }
+
+  type = "Opaque"
+}
+
 resource "kubernetes_deployment" "server" {
   metadata {
     name = "lzy-server"
