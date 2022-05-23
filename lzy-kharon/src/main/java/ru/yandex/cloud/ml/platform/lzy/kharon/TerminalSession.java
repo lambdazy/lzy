@@ -9,6 +9,9 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
+import static ru.yandex.cloud.ml.platform.lzy.kharon.TerminalSessionState.COMPLETED;
+import static ru.yandex.cloud.ml.platform.lzy.kharon.TerminalSessionState.ERRORED;
+
 public class TerminalSession {
     public static final String SESSION_ID_KEY = "kharon_session_id";
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
@@ -68,7 +71,7 @@ public class TerminalSession {
                 }
             } catch (ServerControllerResetException e) {
                 LOG.error(e);
-                updateState(TerminalSessionState.ERRORED);
+                updateState(ERRORED);
                 terminalController.terminate(e);
             }
         }
@@ -76,14 +79,14 @@ public class TerminalSession {
         @Override
         public void onError(Throwable throwable) {
             LOG.error("Terminal connection with sessionId={} terminated, exception = {} ", sessionId, throwable);
-            updateState(TerminalSessionState.ERRORED);
+            updateState(ERRORED);
             serverController.terminate(throwable);
         }
 
         @Override
         public void onCompleted() {
             LOG.info("Terminal connection with sessionId={} completed", sessionId);
-            updateState(TerminalSessionState.COMPLETED);
+            updateState(COMPLETED);
             serverController.complete();
         }
     }
@@ -97,6 +100,15 @@ public class TerminalSession {
     }
 
     private synchronized void updateState(TerminalSessionState state) {
+        if (this.state == ERRORED || this.state == COMPLETED) {
+            LOG.warn(
+                "TerminalSession sessionId={} attempt to change final state {} to {}",
+                sessionId,
+                this.state,
+                state
+            );
+            return;
+        }
         this.state = state;
     }
 
@@ -116,13 +128,13 @@ public class TerminalSession {
 
     public void onServerDisconnect() {
         LOG.info("Server DISCONNECTED for sessionId = {}", sessionId);
-        updateState(TerminalSessionState.COMPLETED);
+        updateState(COMPLETED);
         terminalController.complete();
     }
 
     public void onTerminalDisconnect() {
         LOG.info("Terminal DISCONNECTED for sessionId = {}", sessionId);
-        updateState(TerminalSessionState.COMPLETED);
+        updateState(COMPLETED);
         serverController.complete();
     }
 }
