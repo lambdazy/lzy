@@ -24,7 +24,7 @@ try:
     import ipykernel.iostream
 
     # noinspection PyStatementEffect
-    get_ipython().__class__.__name__
+    get_ipython().__class__.__name__ # type: ignore
 
     stdout = ipykernel.iostream.OutStream
     stderr = ipykernel.iostream.OutStream
