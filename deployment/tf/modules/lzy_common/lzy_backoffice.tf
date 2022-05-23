@@ -46,10 +46,12 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           port {
             name           = "frontend"
             container_port = 80
+            host_port      = 80
           }
           port {
             name           = "frontendtls"
             container_port = 443
+            host_port      = 443
           }
           volume_mount {
             name       = "cert"
@@ -109,10 +111,12 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           port {
             name           = "backend"
             container_port = 8080
+            host_port      = 8080
           }
           port {
             name           = "backendtls"
             container_port = 8443
+            host_port      = 8443
           }
           args = [
             "-Dmicronaut.ssl.keyStore.password=${var.ssl-keystore-password}",

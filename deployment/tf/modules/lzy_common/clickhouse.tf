@@ -51,6 +51,7 @@ resource "kubernetes_deployment" "clickhouse" {
           }
           port {
             container_port = 8123
+            host_port      = 8123
           }
           volume_mount {
             mount_path = "/var/lib/clickhouse/"

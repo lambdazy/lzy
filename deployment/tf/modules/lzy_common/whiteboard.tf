@@ -54,6 +54,7 @@ resource "kubernetes_deployment" "whiteboard" {
           }
           port {
             container_port = 8999
+            host_port      = 8999
           }
           args = [
             "-z",

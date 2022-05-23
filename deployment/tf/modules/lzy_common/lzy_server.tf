@@ -196,6 +196,7 @@ resource "kubernetes_deployment" "server" {
           }
           port {
             container_port = 8888
+            host_port      = 8888
           }
         }
         node_selector = {

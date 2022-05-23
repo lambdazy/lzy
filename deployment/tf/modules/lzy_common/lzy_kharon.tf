@@ -40,9 +40,11 @@ resource "kubernetes_deployment" "kharon" {
           }
           port {
             container_port = 8899
+            host_port      = 8899
           }
           port {
             container_port = 8900
+            host_port      = 8900
           }
           args = [
             "--lzy-server-address",

@@ -63,6 +63,7 @@ resource "kubernetes_deployment" "grafana" {
           }
           port {
             container_port = 3000
+            host_port      = 3000
           }
         }
         node_selector = {
