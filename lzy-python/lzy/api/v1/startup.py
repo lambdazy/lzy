@@ -12,9 +12,9 @@ from typing import TypeVar, Type
 from pure_protobuf.dataclasses_ import load  # type: ignore
 from pure_protobuf.dataclasses_ import load  # type: ignore
 
-from lzy.api.v1.servant import BashServantClient
+from lzy.api.v1.servant.bash_servant_client import BashServantClient
 from lzy.api.v1.servant.model.execution import InputExecutionValue, ExecutionDescription
-from lzy.api.v1.servant import ServantClient
+from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.utils import lazy_proxy
 from lzy.api.v1 import LzyRemoteOp, UUIDEntryIdGenerator
 from lzy.api.v1.signatures import FuncSignature, CallSignature

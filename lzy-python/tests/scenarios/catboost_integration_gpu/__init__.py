@@ -1,9 +1,8 @@
 # noinspection PyPackageRequirements
 import numpy as np
+from lzy.api.v1.servant.model.zygote import Provisioning, Gpu
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier
-
-from lzy.api.v1 import Provisioning, Gpu
 
 if __name__ == '__main__':
     data = np.array([[0, 3],
