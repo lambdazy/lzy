@@ -86,10 +86,9 @@ public class TerminalSlotSender {
                 LOG.info("Completed sending bytes slot:: " + lzySlot);
                 responseObserver.onNext(createEosMessage());
                 responseObserver.onCompleted();
-            } catch (IOException iae) {
-                LOG.error(
-                    "Got exception while sending bytes slot:: " + lzySlot + " exception:" + iae);
-                responseObserver.onError(iae);
+            } catch (Exception e) {
+                LOG.error("Got exception while sending bytes slot:: " + lzySlot + " exception: " + e.getMessage(), e);
+                responseObserver.onError(e);
             }
         }
     }
