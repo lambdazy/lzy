@@ -42,7 +42,7 @@ resource "kubernetes_deployment" "server" {
           }
           env {
             name  = "DATABASE_URL"
-            value = var.lzy_server_db_host + ":" + var.lzy_server_db_port + ":" + var.lzy_server_db_name
+            value = "${var.lzy_server_db_host}:${var.lzy_server_db_port}:${var.lzy_server_db_name}"
           }
           env {
             name  = "DATABASE_USERNAME"
