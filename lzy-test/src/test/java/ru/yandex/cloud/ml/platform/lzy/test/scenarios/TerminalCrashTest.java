@@ -128,12 +128,12 @@ public class TerminalCrashTest extends LocalScenario {
             FreePortFinder.find(20000, 20100),
             FreePortFinder.find(20100, 20200),
             FreePortFinder.find(20200, 20300),
-            "");
+            "/tmp/term1");
         final LzyTerminalTestContext.Terminal terminal2 = createTerminal(
             FreePortFinder.find(20300, 20400),
             FreePortFinder.find(20400, 20500),
             FreePortFinder.find(20500, 20600),
-            "");
+            "/tmp/term2");
         final FileIOOperation echo42 = new FileIOOperation(
             "echo42",
             Collections.emptyList(),
@@ -160,5 +160,32 @@ public class TerminalCrashTest extends LocalScenario {
 
         //Assert
         Assert.assertEquals("42\n", result.get().stdout());
+    }
+
+    @Test
+    public void testLongExecution() throws InterruptedException {
+        final LzyTerminalTestContext.Terminal terminal = createTerminal(
+            FreePortFinder.find(20000, 20100),
+            FreePortFinder.find(20100, 20200),
+            FreePortFinder.find(20200, 20300),
+            "/tmp/lzy");
+
+        final FileIOOperation echo42 = new FileIOOperation(
+            "echo42",
+            Collections.emptyList(),
+            Collections.emptyList(),
+            "sleep 600; echo 42",
+            false
+        );
+
+        //Act
+        terminal.publish(echo42.getName(), echo42);
+        Thread t = new Thread(() -> terminal.run(echo42.getName(), "", Map.of()));
+        t.start();
+        Thread.sleep(30000);
+        terminal.shutdownNow();
+        terminal.waitForShutdown(10, TimeUnit.SECONDS);
+        Thread.sleep(10000);
+        Assert.assertFalse(terminal.pathExists(Path.of("/tmp/lzy1/sbin/status")));
     }
 }

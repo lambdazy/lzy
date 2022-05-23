@@ -19,18 +19,27 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class TerminalThreadContext implements LzyTerminalTestContext {
-    LzyTerminal terminal;
-    String mount;
+    final private Map<String, LzyTerminal> terminals = new HashMap<>();
 
     @Override
     public Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress, int debugPort,
                                                String user, String privateKeyPath) {
-        mount = path;
+
+        if (terminals.get(path) != null) {
+            final LzyTerminal term = terminals.remove(path);
+            term.close();
+            try {
+                term.awaitTermination();
+            } catch (InterruptedException e) {
+                LOGGER.error(e);
+            }
+        }
 
         final String pathServantLog4jFile =
                 Path.of(System.getProperty("user.dir")).getParent() +
@@ -63,8 +72,10 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             .root(Path.of(path))
             .token(token)
             .build();
+        final LzyTerminal terminal;
         try {
             terminal = new LzyTerminal(config);
+            terminals.put(path, terminal);
             terminal.start();
         } catch (URISyntaxException | IOException e) {
             throw new RuntimeException(e);
@@ -73,7 +84,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
         return new Terminal() {
             @Override
             public String mount() {
-                return mount;
+                return path;
             }
 
             @Override
@@ -139,9 +150,9 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             @Override
             public boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit) {
                 return Utils.waitFlagUp(() -> {
-                    if (pathExists(Paths.get(mount + "/sbin/status"))) {
+                    if (pathExists(Paths.get(path + "/sbin/status"))) {
                         try {
-                            final Process bash = new ProcessBuilder("bash", mount + "/sbin/status").start();
+                            final Process bash = new ProcessBuilder("bash", path + "/sbin/status").start();
                             bash.waitFor();
                             final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
                             final String parsedStatus = stdout.split("\n")[0];
@@ -173,19 +184,19 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
 
     @Override
     public void close() {
-        if (terminal == null)
-            return;
+        for (Map.Entry<String, LzyTerminal> terminalEntry : terminals.entrySet()) {
 
-        terminal.close();
-        try {
-            terminal.awaitTermination();
-            if (SystemUtils.IS_OS_MAC) {
-                Runtime.getRuntime().exec("umount -f " + mount);
-            } else {
-                Runtime.getRuntime().exec("umount " + mount);
+            terminalEntry.getValue().close();
+            try {
+                terminalEntry.getValue().awaitTermination();
+                if (SystemUtils.IS_OS_MAC) {
+                    Runtime.getRuntime().exec("umount -f " + terminalEntry.getKey());
+                } else {
+                    Runtime.getRuntime().exec("umount " + terminalEntry.getKey());
+                }
+            } catch (InterruptedException | IOException e) {
+                throw new RuntimeException(e);
             }
-        } catch (InterruptedException | IOException e) {
-            throw new RuntimeException(e);
         }
     }
 }
