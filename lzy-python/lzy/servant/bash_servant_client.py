@@ -11,25 +11,39 @@ from typing import Any, Dict, Optional, Iterable, List
 from lzy.storage.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
 from lzy.servant.model.channel import Channel, Bindings, SnapshotChannelSpec
 from lzy.servant.model.encoding import ENCODING as encoding
-from lzy.servant.model.execution import ExecutionResult, ExecutionValue, Execution, InputExecutionValue, ExecutionDescription
+from lzy.servant.model.execution import ExecutionResult, ExecutionValue, Execution, InputExecutionValue, \
+    ExecutionDescription
 from lzy.servant.model.slot import Slot, Direction
 from lzy.servant.model.zygote import Zygote
 from lzy.servant.servant_client import ServantClient, CredentialsTypes
 
+# Support ipython stdout/stderr
+# noinspection PyBroadException
+try:
+    # noinspection PyPackageRequirements
+    import ipykernel.iostream
+
+    # noinspection PyStatementEffect
+    get_ipython().__class__.__name__
+
+    stdout = ipykernel.iostream.OutStream
+    stderr = ipykernel.iostream.OutStream
+except:
+    stdout = sys.stdout
+    stderr = sys.stderr
+
 
 def exec_bash(*command):
     with subprocess.Popen(
-        ["bash", "-c", " ".join(command)],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        stdin=subprocess.PIPE
+            ["bash", "-c", " ".join(command)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE
     ) as process:
-
         out, err = process.communicate()
-
+        if err:
+            raise BashExecutionException(message=str(err, encoding=encoding))
         if process.returncode != 0:
-            raise BashExecutionException(
-                message=f"Process exited with code {process.returncode}\n STDERR: " + str(err, encoding)
-            )
+            raise BashExecutionException(message=f"Process exited with code {process.returncode}")
     return out
 
 
@@ -53,9 +67,9 @@ class Singleton(type):
 
 class BashExecution(Execution):
     def __init__(
-        self, execution_id: str,
-        bindings: Bindings, env: Dict[str, str],
-        *command
+            self, execution_id: str,
+            bindings: Bindings, env: Dict[str, str],
+            *command
     ):
         super().__init__()
         self._id = execution_id
@@ -79,6 +93,8 @@ class BashExecution(Execution):
         # pylint: disable=consider-using-with
         self._process = subprocess.Popen(
             ["bash", "-c", " ".join(self._cmd)],
+            stdout=stdout,
+            stderr=stderr,
             stdin=subprocess.PIPE,
             env=self._env,
         )
@@ -99,6 +115,7 @@ class BashExecution(Execution):
             self._process.returncode,
         )
 
+
 class BashServantClient(ServantClient):
     _instance: Optional["BashServantClient"] = None
 
@@ -110,7 +127,6 @@ class BashServantClient(ServantClient):
             else os.getenv("LZY_MOUNT", default="/tmp/lzy")
         )
         self._mount: Path = Path(mount_path)
-
         self._log = logging.getLogger(str(self.__class__))
         self._log.info(f"Creating BashServant at MOUNT_PATH={self._mount}")
 
@@ -167,7 +183,7 @@ class BashServantClient(ServantClient):
         )
 
     def get_credentials(
-        self, typ: CredentialsTypes, bucket: str
+            self, typ: CredentialsTypes, bucket: str
     ) -> StorageCredentials:
         self._log.info(f"Getting credentials for {typ}")
         out = exec_bash(f"{self._mount}/sbin/storage", typ.value, bucket)
@@ -176,10 +192,10 @@ class BashServantClient(ServantClient):
             return AzureCredentials(data["azure"]["connectionString"])
         if "amazon" in data:
             return AmazonCredentials(
-            data["amazon"]["endpoint"],
-            data["amazon"]["accessToken"],
-            data["amazon"]["secretToken"],
-        )
+                data["amazon"]["endpoint"],
+                data["amazon"]["accessToken"],
+                data["amazon"]["secretToken"],
+            )
 
         return AzureSasCredentials(**data["azureSas"])
 
@@ -280,11 +296,11 @@ class BashServantClient(ServantClient):
                     val['hash']
                 ) for val in exec_description.get('input', [])
             ], [
-                ExecutionValue(
-                    val['name'],
-                    val['entryId']
-                ) for val in exec_description.get('output', [])
-            ])
+                                     ExecutionValue(
+                                         val['name'],
+                                         val['entryId']
+                                     ) for val in exec_description.get('output', [])
+                                 ])
             for exec_description in json.loads(ret).get("execution", [])
         ]
 
