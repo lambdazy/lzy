@@ -118,9 +118,9 @@ public class DbAuthServiceTest {
         String userId = "user1";
         subjectService.createSubject(userId, "", "");
         final Subject user = subjectService.subject(userId);
-        subjectService.addCredentials(user, "testCred", PUBLIC_PEM1, "public_key");
+        subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 
-        authenticateService.authenticate(new JwtCredentials(CredentialsHelper.buildJWT(userId, PRIVATE_PEM1)));
+        authenticateService.authenticate(new JwtCredentials(CredentialsHelper.buildJWT(userId, PRIVATE_PEM2)));
     }
 
     @Test
