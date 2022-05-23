@@ -11,8 +11,7 @@ from typing import Any, Dict, Optional, Iterable, List
 from lzy.storage.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
 from lzy.servant.model.channel import Channel, Bindings, SnapshotChannelSpec
 from lzy.servant.model.encoding import ENCODING as encoding
-from lzy.servant.model.execution import ExecutionResult, ExecutionValue, Execution, InputExecutionValue, \
-    ExecutionDescription
+from lzy.servant.model.execution import ExecutionResult, ExecutionValue, Execution, InputExecutionValue, ExecutionDescription
 from lzy.servant.model.slot import Slot, Direction
 from lzy.servant.model.zygote import Zygote
 from lzy.servant.servant_client import ServantClient, CredentialsTypes
@@ -24,7 +23,7 @@ try:
     import ipykernel.iostream
 
     # noinspection PyStatementEffect
-    get_ipython().__class__.__name__ # type: ignore
+    get_ipython().__class__.__name__
 
     stdout = ipykernel.iostream.OutStream
     stderr = ipykernel.iostream.OutStream
@@ -39,11 +38,13 @@ def exec_bash(*command):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             stdin=subprocess.PIPE
     ) as process:
+
         out, err = process.communicate()
-        if err:
-            raise BashExecutionException(message=str(err, encoding=encoding))
+
         if process.returncode != 0:
-            raise BashExecutionException(message=f"Process exited with code {process.returncode}")
+            raise BashExecutionException(
+                message=f"Process exited with code {process.returncode}\n STDERR: " + str(err, encoding)
+            )
     return out
 
 
@@ -93,8 +94,6 @@ class BashExecution(Execution):
         # pylint: disable=consider-using-with
         self._process = subprocess.Popen(
             ["bash", "-c", " ".join(self._cmd)],
-            stdout=stdout,
-            stderr=stderr,
             stdin=subprocess.PIPE,
             env=self._env,
         )
@@ -127,6 +126,7 @@ class BashServantClient(ServantClient):
             else os.getenv("LZY_MOUNT", default="/tmp/lzy")
         )
         self._mount: Path = Path(mount_path)
+
         self._log = logging.getLogger(str(self.__class__))
         self._log.info(f"Creating BashServant at MOUNT_PATH={self._mount}")
 
