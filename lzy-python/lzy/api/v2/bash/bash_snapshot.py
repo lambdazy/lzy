@@ -31,14 +31,14 @@ WB_ID_GETTER_NAME = '__id_getter__'
 LZY_FIELDS_ASSIGNED = '__lzy_fields_assigned__'
 
 
-def create_instance(typ: Type[T]) -> T:
-    if not dataclasses.is_dataclass(typ):
-        raise ValueError(f"Expected a dataclass; got {typ} instead")
-    field_types = {field.name: field.type for field in dataclasses.fields(typ)}
-    field_dict: Dict[str, Any] = {}
-    for field_name, field_type in field_types:
-        field_dict[field_name] = None
-    return typ(**field_dict)
+# def create_instance(typ: Type[T]) -> T:
+#     if not dataclasses.is_dataclass(typ):
+#         raise ValueError(f"Expected a dataclass; got {typ} instead")
+#     field_types = {field.name: field.type for field in dataclasses.fields(typ)}
+#     field_dict: Dict[str, Any] = {}
+#     for field_name, field_type in field_types:
+#         field_dict[field_name] = None
+#     return typ(**field_dict)
 
 
 class BashSnapshot(Snapshot):

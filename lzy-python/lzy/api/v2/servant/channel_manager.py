@@ -52,7 +52,7 @@ class ChannelManager(abc.ABC):
 
     def _resolve(self, snapshot_id: str, entry_id: str, direction: Direction) -> Path:
         slot = create_slot(os.path.sep.join(("tasks", "snapshot", snapshot_id, entry_id)), direction)
-        self._touch(slot, self.channel(snapshot_id, entry_id))
+        # self._touch(slot, self.channel(snapshot_id, entry_id))
         path = self._resolve_slot_path(slot)
         return path
 
