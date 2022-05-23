@@ -81,8 +81,6 @@ class BashExecution(Execution):
         # pylint: disable=consider-using-with
         self._process = subprocess.Popen(
             ["bash", "-c", " ".join(self._cmd)],
-            stdout=sys.stdout,
-            stderr=sys.stderr,
             stdin=subprocess.PIPE,
             env=self._env,
         )
