@@ -23,6 +23,7 @@ from lzy.api.v2.servant.model.channel import Bindings, Binding
 from lzy.api.v2.utils import is_lazy_proxy, zipdir
 
 class BashRuntime(Runtime):
+    pass
     # TODO
     # def __init__(self, lzy_mount: str, serializer: Serializer, channel_manager: ChannelManager,
     #              servant_client: ServantClient, storage_client: StorageClient):

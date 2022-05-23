@@ -42,6 +42,7 @@ def create_instance(typ: Type[T]) -> T:
 
 
 class BashSnapshot(Snapshot):
+    pass
     # TODO
     # def __init__(self, snapshot_id: str, lzy_mount: str, snapshot_api_client: SnapshotApi,
     #              whiteboard_api_client: WhiteboardApi, channel_manager: ChannelManager, serializer: Serializer):
