@@ -9,23 +9,96 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AuthenticateService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.SubjectService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.CredentialsHelper;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-
-import static org.junit.Assert.fail;
 
 public class DbAuthServiceTest {
     public static final Logger LOG = LogManager.getLogger(DbAuthServiceTest.class);
 
+    private static final String PUBLIC_PEM1 =
+                    "-----BEGIN PUBLIC KEY-----\n" +
+                    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4/BSBCcNGUYcogQbSbHy\n" +
+                    "TZwctKRd50FBGLD7aq1nRUscp7lP6Aqymd7cb70OtbBXMEOdagq0KWczIZqWWWZy\n" +
+                    "wyCTe0lWN1Z2d5YxYk5aj1D+IipkPEqN2Y0CIP+dPCRCGgOBtcnGtBzWtVCDGl3t\n" +
+                    "a00cVl91lOVuBiz5l0d7h6vQqEB+sNI46AhKSlEG9wIsL1LnKD9XG5pMF+r5K5nM\n" +
+                    "F7IirVQMFR/zXNSBCDqgBJ0j7iEnWQWv36KxTWFxXseVDziva6Ph5IMX6krHHST/\n" +
+                    "tYzmnNUyrmjV9ClCRkYBBCouEKGncKBcsS3HWJqvX3K6Ovc+B9CKOFXbOmraAik/\n" +
+                    "+wIDAQAB\n" +
+                    "-----END PUBLIC KEY-----";
+
+    private static final String PUBLIC_PEM2 =
+                    "-----BEGIN PUBLIC KEY-----\n" +
+                    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6fysdbbtTN42hc9A+HYV\n" +
+                    "kfnWg7QtKmeJsbY1j6PL4fvydhMljLIVqEX7jxVumZaXJCX0GuJF9M9mezT8ojk3\n" +
+                    "nr6kXtcqAfQ5KKK2Sb1ijll3EsWoQxePDQAs76PvMFrgjlzdXiR0bpjp2orMY9df\n" +
+                    "NbkkLeO09LhcWEUeq7wvQKBcYV8yWJ5ZedNPSINLrLSiBItq9EASocIsX3q7PtGp\n" +
+                    "ggbEHSR65rqcK741tGlSwxyd4Pl7mkxJzrD8HmYVz5LKfmdBRa9G+9bNnIYjcehz\n" +
+                    "q6WHAcLA90AjEcVge6ygPSPs99x6DNinQEzpCQ5KusDvOcyIx3KA4eK36RdRiDBs\n" +
+                    "bwIDAQAB\n" +
+                    "-----END PUBLIC KEY-----";
+
+    private static final String PRIVATE_PEM1 =
+                    "-----BEGIN RSA PRIVATE KEY-----\n" +
+                    "MIIEpAIBAAKCAQEAwu+i1dwoKyDMOj/0CG8nyp/Se62VGh+n9kPjDcEMYlfRXiRe\n" +
+                    "lz6GJYcER69qs92IkUHKvDFKshatrvVs4FnLyd5OpttTyxaYFLwVavLx/YVi5x1P\n" +
+                    "swLPdMUTkKR0iMWp3bS5sbO0hnmTeHpz/tNZ/PbWvLZGt3Sxr+S1qwo2mLTbHq6x\n" +
+                    "Ld2/bIMyFqZtTp71T86R++kP6cNyEpYdKaNyjCazPfLiDdsuL64S0NIuylcdrgtH\n" +
+                    "F7TYZdGHKsRSmY+VkRN6DNancskpzVAvclJJQlKQFsAQHPAEiilH44unrwTcAEfU\n" +
+                    "RPClQn5IthTM6ytpLn7jF31bRK+efKtby7AGnQIDAQABAoIBAQCRqVUI7uCJEZHp\n" +
+                    "uN4V61FVhEVYq2VtxtfQGfwwy98AIVTOPuj7pPnCUvhsxHQ8AL7Ko9nk9AQ3vOB9\n" +
+                    "iuCXaCHyLw6geeVMLQ7o934dk3olkaVMw0dJoUD5pUWwYGK/zMvYYfIcCgdMMM50\n" +
+                    "STQh5zYn4x6klqOS9DzODV1+eDxBsBwmYnQIaetll+YpxHRT5sseqByY85VhXRTv\n" +
+                    "EpxGBMSCggC8z5fSEQeXBVYkmqLhqbP+u2/tU4tVae1vwAPbiVv47EvMaNtdW1Wa\n" +
+                    "JIlY/mDormG9f6vG0ezlcCl8iu21yFgvliRrVdA6/J2BN9GnwE4je+GIWpgClaR1\n" +
+                    "RY6+lTF1AoGBAO8sz5CnKECWPFNOdFASz6cYBUCqZL35ClKwaGNB7nYdnSgpOyTA\n" +
+                    "JW7tTSACZUWq+QGULMQIfTKrR11lsIVPjqQTC5iPBChesBiIJ0zmTjASxIJJ+3zr\n" +
+                    "PdvRutPEjJHdBZt7//UdlimjVF3Yt6N0TvVtMzcSJFF4PJ07UQdSTcxnAoGBANCm\n" +
+                    "JZpoc7O7dTFxO08br4bl890WhyLRtJljp7nJbGHzNJgBJi8+6VRYMEYI9w61ER6l\n" +
+                    "BR084LrpOyop4OR8eDqZPSwZ4hNmTaGLMrnWQ8qxetBvE7QWt8poXubk68ie8GE0\n" +
+                    "hZP72n+MdymyJqjrlotVIwRW9c5u6fVWO1M5WfJbAoGACU9OOQw4peLzMC7ymhdR\n" +
+                    "W+i0c6LuTvK9syBIv+xWEuTuNBz+v1x3WI0GHoPZW0/fZ29UGsFV1j4ShhEqQNYq\n" +
+                    "8DoJjoOqnsOoyRuro/OnAXoJiiTFFES34LGWOx4AdsEKsdWuzeS77pz78Lc51rP1\n" +
+                    "StpYTwF2xnEOsvQXIFjUzGsCgYEAynQc0pl9gy1mxqXPXbBIfgWMvb8JOxDuQ1P+\n" +
+                    "QHigkN5y7vdWfMt3jh7QIHS8fOnWhbyrnLYgfVynyv69uBbKdlmQkMVAp4BB3Xj6\n" +
+                    "rHWqa/gQakUNglX02hKx2yrPWmhWaIuU/YWIevDqA2xYtNl7xxDCHIjglADtRN/6\n" +
+                    "SoPAsjcCgYA48zjvjqQwr91pwzMWX2QhIvViXOYX2MWHjJd+lomkQmtTcr1Nv6rT\n" +
+                    "d75eBDrDZh1EPSP3yloQunsn1X9TIFmPBbOKFpGVxT1tW3t1ZZM14GtR0lQOef+e\n" +
+                    "fsP8dos5sZsDQU/rPAHBqburR5GTrn61hAAsDaHChwNTr1iT18pt/w==\n" +
+                    "-----END RSA PRIVATE KEY-----";
+
+    private static final String PRIVATE_PEM2 =
+                    "-----BEGIN RSA PRIVATE KEY-----\n" +
+                    "MIIEpAIBAAKCAQEA6fysdbbtTN42hc9A+HYVkfnWg7QtKmeJsbY1j6PL4fvydhMl\n" +
+                    "jLIVqEX7jxVumZaXJCX0GuJF9M9mezT8ojk3nr6kXtcqAfQ5KKK2Sb1ijll3EsWo\n" +
+                    "QxePDQAs76PvMFrgjlzdXiR0bpjp2orMY9dfNbkkLeO09LhcWEUeq7wvQKBcYV8y\n" +
+                    "WJ5ZedNPSINLrLSiBItq9EASocIsX3q7PtGpggbEHSR65rqcK741tGlSwxyd4Pl7\n" +
+                    "mkxJzrD8HmYVz5LKfmdBRa9G+9bNnIYjcehzq6WHAcLA90AjEcVge6ygPSPs99x6\n" +
+                    "DNinQEzpCQ5KusDvOcyIx3KA4eK36RdRiDBsbwIDAQABAoIBAFa4F6608jPX83sa\n" +
+                    "Oekb0pi8cJ11THv3zZd4gVdQDIMfnlfWdsczRUWNUlNQTSJNJoz2KAdCr0yxBTlK\n" +
+                    "hQsWi5+g5khkFCSPQBPoYgjoULuTOsdRTDA5bgISe5UBO+e+9pSspDp85k4LDDi7\n" +
+                    "0k56hsXhbSA40VsVbNwmGdzqLNUVJFLHV48eLRYovgCzDTtJBydmc/XtbE7bpEWq\n" +
+                    "z2JZU7YgIQK2lTexIRUTLIaFzj5IMIrVGOjYh1d7ErxXegZHrequi2c8ul8oUnwT\n" +
+                    "NbctJmCTBSe++5L7ZP06DMZKOZHI6IGLooFBVmCZlRQUj/+AV0lwreeniUTbbPWo\n" +
+                    "FppaP4ECgYEA+gPNEKqKArP6Wu+6qlhBTgF0s7YSXxVS3rJ8WixnWR9ZQSNkTZGW\n" +
+                    "jAixu+bHetpnpz2cHYojlqR7kzZdvy2Tg7x7ahFbygc6vBMyPFHrnwucedQ7AdBs\n" +
+                    "FM5NyGQK6KNxwL5MF9hVux4FrqAGCvnSbPwhDv4a1ZyVUVgIC28Nbq8CgYEA75al\n" +
+                    "qH01nFz/9dwhJ39SzvQodf9xHyVbRspAS1OmGvnMZEOw+r/aKSKSXdAYUr0D2vXl\n" +
+                    "DxQuOIDPNBu/tzYKqEHGK7F+rHAztSlwuIDpnw3zQhROo5HL7gwqKJa1oNWcA9+4\n" +
+                    "wBV2hV8647a+3tcHq1vYcfkX6jW/t3q8aFZSTkECgYEA2gremR5iZqEYQp64qT93\n" +
+                    "FNToNqMfupUaROZc1TfMmklgyhJXs9648T/T4hAPAPHhXFW7BXgoOYUR0P2lHMpe\n" +
+                    "0JFdANBKwRM1Ajmroje/ymGSAh45qAdhe3PBGndFnEaPOo28Rz+A5UP1qKofGwtt\n" +
+                    "nWb2XeD2/j0lbF/eBDrB+DkCgYEAklkTF7hj5v9n2mZ8WgQMMR4zGODP2JaZCsTA\n" +
+                    "QUL3U8MCdrxifshyGm5juapDMUcD89v/7xYEpb8I0mugz+jS2bRTuJzTI8Hl0+Nc\n" +
+                    "V1dnXSDIVrTQ1FlamC4WEnT8vSG+Cx+9WpfBrfZdonseXEA9Dw8rR3NAiHAMi6cN\n" +
+                    "Ly6LWAECgYAH2NmPcRp0SXRi2h8afLeawhdQZjHJ79ICC783CuiYz3MUVRdYy1kw\n" +
+                    "hUALqfnNx+gdNxorLJ0yikFxHBENIJSdXCoDAAoYk4locFj928+B76uqFcd/807i\n" +
+                    "yg8CTD6w6uwHXxKlLBOIgZg6Dt1iudxwuSSVY/HSmv86Bv2DmfqI8g==\n" +
+                    "-----END RSA PRIVATE KEY-----";
 
     private ApplicationContext ctx;
     private SubjectService subjectService;
@@ -41,30 +114,32 @@ public class DbAuthServiceTest {
     }
 
     @Test
-    public void validAuth() {
+    public void validAuth() throws Exception {
         String userId = "user1";
         subjectService.createSubject(userId, "", "");
-        TestCred cred = null;
-        try {
-             cred = initCreds();
-        } catch (IOException | InterruptedException e) {
-            LOG.error(e);
-            fail();
-        }
         final Subject user = subjectService.subject(userId);
-        subjectService.addCredentials(user, "testCred", cred.publicPem, "public_key");
+        subjectService.addCredentials(user, "testCred", PUBLIC_PEM1, "public_key");
+
+        authenticateService.authenticate(new JwtCredentials(CredentialsHelper.buildJWT(userId, PRIVATE_PEM1)));
+    }
+
+    @Test
+    public void invalidAuth() throws Exception {
+        String userId = "user1";
+        subjectService.createSubject(userId, "", "");
+        final Subject user = subjectService.subject(userId);
+        subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 
         try {
-            authenticateService.authenticate(new JwtCredentials(CredentialsHelper.buildJWT(userId, cred.privatePem)));
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            LOG.error(e);
-            fail();
+            authenticateService.authenticate(new JwtCredentials(CredentialsHelper.buildJWT(userId, PRIVATE_PEM1)));
+        } catch (AuthPermissionDeniedException e) {
+            LOG.info("Valid error::{}", e.getInternalDetails());
         }
     }
 
     @After
     public void tearDown() {
-        try (PreparedStatement st =storage.connect().prepareStatement("DROP ALL OBJECTS DELETE FILES;")) {
+        try (PreparedStatement st = storage.connect().prepareStatement("DROP ALL OBJECTS DELETE FILES;")) {
             st.executeUpdate();
         } catch (SQLException e) {
             LOG.error(e);
@@ -72,39 +147,4 @@ public class DbAuthServiceTest {
         ctx.stop();
     }
 
-    private TestCred initCreds() throws IOException, InterruptedException {
-        final Path tempDirectory = Files.createTempDirectory("test-rsa-keys");
-        final Path publicKeyPath = tempDirectory.resolve("public.pem");
-        final Path privateKeyPath = tempDirectory.resolve("private.pem");
-
-        final Process exec = Runtime.getRuntime()
-                .exec(String.format("openssl genrsa -out %s 2048", privateKeyPath));
-        exec.waitFor();
-        final Process exec1 = Runtime.getRuntime()
-                .exec(String.format("openssl rsa -in %s -outform PEM -pubout -out %s", privateKeyPath, publicKeyPath));
-        exec1.waitFor();
-        return new TestCred(readFileAsString(publicKeyPath), readFileAsString(privateKeyPath));
-    }
-
-    private String readFileAsString(Path filePath) throws IOException {
-        return Files.readString(filePath);
-    }
-
-    private static class TestCred {
-        private final String publicPem;
-        private final String privatePem;
-
-        private TestCred(String publicPem, String privatePem) {
-            this.publicPem = publicPem;
-            this.privatePem = privatePem;
-        }
-
-        public String publicPem() {
-            return publicPem;
-        }
-
-        public String privatePem() {
-            return privatePem;
-        }
-    }
 }

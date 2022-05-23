@@ -104,7 +104,7 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
                 return true;
         }
         return !accessClient.hasResourcePermission(
-                Objects.requireNonNull(AuthenticationContext.current()).getSubject().id(),
+                Objects.requireNonNull(AuthenticationContext.current()).getSubject(),
                 resource.resourceId(),
                 permission);
     }

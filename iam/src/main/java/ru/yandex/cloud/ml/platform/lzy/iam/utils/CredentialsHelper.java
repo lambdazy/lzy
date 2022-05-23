@@ -18,6 +18,7 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
@@ -83,7 +84,7 @@ public class CredentialsHelper {
             return Jwts.builder()
                     .setIssuedAt(Date.from(now))
                     .setNotBefore(Date.from(now))
-                    .setExpiration(Date.from(now.plusSeconds(60 * 60 * 24 * 7)))  // 7 days
+                    .setExpiration(Date.from(now.plusSeconds(Duration.ofDays(7).toSeconds())))
                     .setIssuer(uid)
                     .signWith(privateKey, SignatureAlgorithm.PS256)
                     .compact();

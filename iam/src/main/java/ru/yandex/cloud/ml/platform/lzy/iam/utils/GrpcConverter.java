@@ -24,7 +24,7 @@ public class GrpcConverter {
     }
 
     public static AccessBinding to(IAM.AccessBinding accessBinding) {
-        return new AccessBinding(accessBinding.getRole(), accessBinding.getSubject().getId());
+        return new AccessBinding(accessBinding.getRole(), to(accessBinding.getSubject()));
     }
 
     public static AccessBindingDelta to(IAM.AccessBindingDelta accessBindingDelta) {
@@ -49,9 +49,7 @@ public class GrpcConverter {
     public static IAM.AccessBinding from(AccessBinding accessBinding) {
         return IAM.AccessBinding.newBuilder()
                 .setRole(accessBinding.role())
-                .setSubject(
-                        IAM.Subject.newBuilder().setId(accessBinding.subject()).build()
-                )
+                .setSubject(from(accessBinding.subject()))
                 .build();
     }
 
