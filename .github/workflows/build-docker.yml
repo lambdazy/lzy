@@ -28,6 +28,10 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
 
+      - uses: stCarolas/setup-maven@v4.3
+        with:
+          maven-version: 3.8.2
+
       - uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKER_USERNAME }}

@@ -16,6 +16,10 @@ jobs:
         with:
           ref: private-preview-release # run acceptance-test on private-preview-release branch
 
+      - uses: stCarolas/setup-maven@v4.3
+        with:
+          maven-version: 3.8.2
+
       - uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
