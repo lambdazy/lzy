@@ -15,6 +15,7 @@ from lzy.servant.model.execution import ExecutionResult, ExecutionValue, Executi
 from lzy.servant.model.slot import Slot, Direction
 from lzy.servant.model.zygote import Zygote
 from lzy.servant.servant_client import ServantClient, CredentialsTypes
+from threading import Thread
 
 
 def exec_bash(*command):
@@ -91,12 +92,26 @@ class BashExecution(Execution):
             return ""
         return str(pipe, "utf8")
 
+    def write_to_stderr(self):
+        for c in iter(lambda: self._process.stderr.read(1), b""):
+            sys.stderr.write(BashExecution._pipe_to_string(c))
+
+    def write_to_stdin(self):
+        for c in iter(lambda: self._process.stdout.read(1), b""):
+            sys.stdout.write(BashExecution._pipe_to_string(c))
+
     def wait_for(self) -> ExecutionResult:
         if not self._process:
             raise ValueError("Execution has NOT been started")
+        t1 = Thread(target=self.write_to_stdin)
+        t2 = Thread(target=self.write_to_stderr)
+
+        t1.start()
+        t2.start()
+
+        t1.join()
+        t2.join()
         out, err = self._process.communicate()
-        sys.stdout.write(BashExecution._pipe_to_string(out))
-        sys.stdout.write(BashExecution._pipe_to_string(err))
         return ExecutionResult(
             BashExecution._pipe_to_string(out),
             BashExecution._pipe_to_string(err),
