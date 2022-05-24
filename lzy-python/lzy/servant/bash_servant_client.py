@@ -17,21 +17,6 @@ from lzy.servant.model.slot import Slot, Direction
 from lzy.servant.model.zygote import Zygote
 from lzy.servant.servant_client import ServantClient, CredentialsTypes
 
-# Support ipython stdout/stderr
-# noinspection PyBroadException
-try:
-    # noinspection PyPackageRequirements
-    import ipykernel.iostream
-
-    # noinspection PyStatementEffect
-    get_ipython().__class__.__name__ # type: ignore
-
-    stdout = ipykernel.iostream.OutStream
-    stderr = ipykernel.iostream.OutStream
-except:
-    stdout = sys.stdout
-    stderr = sys.stderr
-
 
 def exec_bash(*command):
     with subprocess.Popen(
@@ -94,8 +79,8 @@ class BashExecution(Execution):
         # pylint: disable=consider-using-with
         self._process = subprocess.Popen(
             ["bash", "-c", " ".join(self._cmd)],
-            stdout=stdout,
-            stderr=stderr,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             stdin=subprocess.PIPE,
             env=self._env,
         )
@@ -110,6 +95,8 @@ class BashExecution(Execution):
         if not self._process:
             raise ValueError("Execution has NOT been started")
         out, err = self._process.communicate()
+        sys.stdout.write(BashExecution._pipe_to_string(out))
+        sys.stdout.write(BashExecution._pipe_to_string(err))
         return ExecutionResult(
             BashExecution._pipe_to_string(out),
             BashExecution._pipe_to_string(err),
