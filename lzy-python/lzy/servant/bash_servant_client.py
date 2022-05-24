@@ -79,6 +79,8 @@ class BashExecution(Execution):
         # pylint: disable=consider-using-with
         self._process = subprocess.Popen(
             ["bash", "-c", " ".join(self._cmd)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             stdin=subprocess.PIPE,
             env=self._env,
         )
@@ -93,6 +95,8 @@ class BashExecution(Execution):
         if not self._process:
             raise ValueError("Execution has NOT been started")
         out, err = self._process.communicate()
+        sys.stdout.write(BashExecution._pipe_to_string(out))
+        sys.stdout.write(BashExecution._pipe_to_string(err))
         return ExecutionResult(
             BashExecution._pipe_to_string(out),
             BashExecution._pipe_to_string(err),
