@@ -77,8 +77,7 @@ public class SnapshotTest extends LocalScenario {
             "cat_to_file_lzy",
             List.of(fileName.substring("/tmp/lzy1".length())),
             List.of(fileOutName.substring("/tmp/lzy1".length())),
-            "/tmp/lzy1/sbin/cat " + fileName + " > " + fileOutName,
-            false
+            "/tmp/lzy1/sbin/cat " + fileName + " > " + fileOutName
         );
 
         //Act

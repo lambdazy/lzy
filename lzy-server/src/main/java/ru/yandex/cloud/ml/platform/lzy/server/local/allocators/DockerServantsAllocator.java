@@ -66,7 +66,8 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
             .withEnv(
                 "LOG_FILE=" + LOGS_DIR + "servant/servant_start_" + uuid,
                 "DEBUG_PORT=" + debugPort,
-                "SUSPEND_DOCKER=" + "n"
+                "SUSPEND_DOCKER=" + "n",
+                "BASE_ENV_DEFAULT_IMAGE=" + serverConfig.getBaseEnvDefaultImage()
             )
             .withExposedPorts(ExposedPort.tcp(debugPort), ExposedPort.tcp(servantPort))
             .withHostConfig(hostConfig)

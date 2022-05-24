@@ -53,7 +53,8 @@ public class LzyServerThreadContext implements LzyServerTestContext {
                     "storage.amazon.accessToken", "access-key",
                     "storage.amazon.secretToken", "secret-key",
                     "server.threadAllocator.enabled", "true",
-                    "server.threadAllocator.filePath", "lzy-servant/target/classes/ru/yandex/cloud/ml/platform/lzy/servant/BashApi.class"
+                    "server.threadAllocator.filePath", "lzy-servant/target/classes/ru/yandex/cloud/ml/platform/lzy/servant/BashApi.class",
+                    "servant.dockerSupport.enabled", "false"
                 )
             )
         )) {

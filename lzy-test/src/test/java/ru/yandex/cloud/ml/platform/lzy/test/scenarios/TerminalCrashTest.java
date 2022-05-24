@@ -63,8 +63,7 @@ public class TerminalCrashTest extends LocalScenario {
             "cat_lzy",
             List.of(fileName.substring("/tmp/lzy1".length())),
             Collections.emptyList(),
-            "/tmp/lzy1/sbin/cat " + fileName,
-            false
+            "/tmp/lzy1/sbin/cat " + fileName
         );
 
         //Act
@@ -176,8 +175,7 @@ public class TerminalCrashTest extends LocalScenario {
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "echo 42",
-            false
+            "echo 42"
         );
         final FileIOOperation echo43 = new FileIOOperation(
                 "echo43",
@@ -225,8 +223,7 @@ public class TerminalCrashTest extends LocalScenario {
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "sleep 600; echo 42",
-            false
+            "sleep 600; echo 42"
         );
 
         //Act
