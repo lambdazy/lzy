@@ -20,8 +20,8 @@ on:
 jobs:
 
   build-and-push-dockers:
-#    runs-on: self-hosted
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+#    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
