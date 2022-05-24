@@ -1,4 +1,4 @@
-from typing import Any, List, TYPE_CHECKING
+from typing import Any, List, TYPE_CHECKING, Optional
 
 from lzy.api.v2.api import LzyCall
 from lzy.api.v2.api.lzy_workflow_splitter import LzyWorkflowSplitter
@@ -9,12 +9,12 @@ if TYPE_CHECKING:
 
 
 class LzyWorkflow:
-    instances: List["LzyWorkflow"] = []
+    instance: Optional["LzyWorkflow"] = None
 
     @classmethod
     def get_active(cls) -> "LzyWorkflow":
-        assert len(cls.instances) > 0, "There is no active LzyWorkflow"
-        return cls.instances[-1]
+        assert cls.instance is not None, "There is no active LzyWorkflow"
+        return cls.instance
 
     def __init__(self,
                  name: str,
@@ -48,7 +48,9 @@ class LzyWorkflow:
         self._runtime.exec(graph, self._snapshot, lambda: print("progress"))
 
     def __enter__(self) -> "LzyWorkflow":
-        type(self).instances.append(self)
+        if type(self).instance is not None:
+            raise RuntimeError("Simultaneous workflows are not supported")
+        type(self).instance = self
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -60,4 +62,4 @@ class LzyWorkflow:
                 self._snapshot.error()
         finally:
             self._runtime.destroy()
-            type(self).instances.pop()
+            type(self).instance = None

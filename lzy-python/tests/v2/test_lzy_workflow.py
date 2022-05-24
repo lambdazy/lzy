@@ -79,3 +79,10 @@ class LzyWorkflowTests(TestCase):
 
             workflow.barrier()
             self.assertEqual("Foo: Bar: Foo: Baz(3): Boo", snapshot.get(entry_id(o)))
+
+    def test_simultaneous_workflows_are_not_supported(self):
+        with self.assertRaises(RuntimeError) as context:
+            with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow1:
+                with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow2:
+                    pass
+            self.assertTrue('Simultaneous workflows are not supported' in str(context.exception))

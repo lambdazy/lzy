@@ -265,7 +265,7 @@ class LzyWorkflowBase(ABC):
 
     @classmethod
     def get_active(cls) -> "LzyWorkflowBase":
-        assert len(cls.instances) > 0, "There is not active LzyEnv"
+        assert len(cls.instances) > 0, "There is not active LzyWorkflow"
         return cls.instances[-1]
 
     def __enter__(self) -> "LzyWorkflowBase":
