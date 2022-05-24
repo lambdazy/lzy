@@ -20,7 +20,7 @@ jobs:
       - run: git rev-parse --abbrev-ref HEAD
 
       #### <- TODO: replace with call or even action in future: .github/workflows/reusable/pull-request-workflow.yaml
-#      - uses: actions/setup-java@v2
+#      - uses: actions/setup-java@v3
 #        with:
 #          distribution: 'adopt'
 #          java-version: '17'
