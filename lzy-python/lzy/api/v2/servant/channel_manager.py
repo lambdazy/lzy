@@ -1,5 +1,6 @@
 import abc
 import os
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Union, Set, Optional
 
@@ -21,10 +22,8 @@ class ChannelManager(abc.ABC):
         channel = Channel(entry_id, channel_type)
         self._create_channel(channel)
         self._entry_id_to_channel[entry_id] = channel
-        if snapshot_id in self._snapshot_to_entry_id:
-            self._snapshot_to_entry_id[snapshot_id].add(entry_id)
-        else:
-            self._snapshot_to_entry_id[snapshot_id] = {entry_id}
+        self._snapshot_to_entry_id: Dict[str, Set[str]] = defaultdict(set)
+        self._snapshot_to_entry_id[snapshot_id].add(entry_id)
         return channel
 
     def destroy(self, entry_id: str):
