@@ -30,7 +30,6 @@ class Provisioning:
 
     def tags(self) -> List[Tag]:
         res = []
-        for tag in self.__dict__.values():
-            if tag:
-                res.append(tag.tag())
+        if self.gpu:
+            res.append(self.gpu.tag())
         return res
