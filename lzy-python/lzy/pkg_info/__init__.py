@@ -138,9 +138,12 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
     all_local_modules = dict.fromkeys(parents)
     all_local_modules.update(dict.fromkeys(reversed(local_modules)))
 
-    def get_path(module: ModuleType) -> Union[List[str], str]:
+    def get_path(module: ModuleType) -> Union[List[str], str, None]:
         if not hasattr(module, '__path__'):
-            return str(module.__file__)
+            if hasattr(module, '__file__'):
+                return str(module.__file__)
+            else:
+                return None
         else:
             # case for namespace package
             return [module_path for module_path in module.__path__]
@@ -157,6 +160,8 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
     module_paths: List[str] = []
     for local_module in all_local_modules:
         path = get_path(local_module)
+        if path is None:
+            continue
         if type(path) == list:
             for p in path:
                 append_to_module_paths(p, module_paths)  # type: ignore
