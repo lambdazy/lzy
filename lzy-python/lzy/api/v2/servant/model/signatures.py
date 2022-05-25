@@ -53,8 +53,7 @@ class CallSignature(Generic[T]):
         return self.func.callable(*self.args, **self.kwargs)
 
     def named_arguments(self) -> Iterator[Tuple[str, Any]]:
-        for name, arg in chain(zip(self.func.arg_names, self.args), self.kwargs.items()):
-            yield name, arg
+        return chain(zip(self.func.arg_names, self.args), self.kwargs.items())
 
     @property
     def description(self) -> str:
