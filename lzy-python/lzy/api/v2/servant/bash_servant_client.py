@@ -288,10 +288,10 @@ class BashServantClient(ServantClient):
                     val['hash']
                 ) for val in exec_description.get('input', [])
             ], [
-                                     ExecutionValue(
-                                         val['name'],
-                                         val['entryId']
-                                     ) for val in exec_description.get('output', [])
-                                 ])
+                ExecutionValue(
+                    val['name'],
+                    val['entryId']
+                ) for val in exec_description.get('output', [])
+            ])
             for exec_description in json.loads(ret).get("execution", [])
         ]
