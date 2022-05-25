@@ -59,4 +59,4 @@ class DefaultEnvProvider(EnvProvider):
         with open(self._conda_yaml_path, "r", encoding=encoding) as file:
             name, yaml_str = "default", file.read()
             data = safe_load(yaml_str)
-            return Env(aux_env=AuxEnv(name=data.get('name', 'default'), conda_yaml=yaml_str, local_modules_paths=[]))
+            return Env(aux_env=AuxEnv(name=data.get('name', name), conda_yaml=yaml_str, local_modules_paths=[]))
