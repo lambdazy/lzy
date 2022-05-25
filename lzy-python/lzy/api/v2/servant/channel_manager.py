@@ -26,11 +26,12 @@ class ChannelManager(abc.ABC):
         self._snapshot_to_entry_id[snapshot_id].add(entry_id)
         return channel
 
-    def destroy(self, entry_id: str):
+    def destroy(self, entry_id: str) -> bool:
         if entry_id not in self._entry_id_to_channel:
-            return
+            return False
         self._destroy_channel(self._entry_id_to_channel[entry_id])
         self._entry_id_to_channel.pop(entry_id)
+        return True
 
     def destroy_all(self, snapshot_id: Optional[str] = None):
         if snapshot_id is not None:
