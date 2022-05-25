@@ -8,13 +8,14 @@ from pathlib import Path
 from time import sleep
 from typing import Any, Dict, Optional, Iterable, List
 
+from lzy.api.v1.servant.model import encoding
+from lzy.api.v1.servant.model.channel import Bindings, Channel, SnapshotChannelSpec
+from lzy.api.v1.servant.model.execution import Execution, ExecutionResult, ExecutionDescription, InputExecutionValue, \
+    ExecutionValue
+from lzy.api.v1.servant.model.slot import Slot, Direction
+from lzy.api.v1.servant.model.zygote import Zygote
+from lzy.api.v1.servant.servant_client import ServantClient, CredentialsTypes
 from lzy.storage.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
-from lzy.servant.model.channel import Channel, Bindings, SnapshotChannelSpec
-from lzy.servant.model.encoding import ENCODING as encoding
-from lzy.servant.model.execution import ExecutionResult, ExecutionValue, Execution, InputExecutionValue, ExecutionDescription
-from lzy.servant.model.slot import Slot, Direction
-from lzy.servant.model.zygote import Zygote
-from lzy.servant.servant_client import ServantClient, CredentialsTypes
 from threading import Thread
 
 
