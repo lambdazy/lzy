@@ -28,7 +28,7 @@ class Gpu(Tag):
 class Provisioning:
     gpu: Optional[Gpu] = None
 
-    def tags(self) -> List[Tag]:
+    def tags(self) -> List[str]:
         res = []
         if self.gpu:
             res.append(self.gpu.tag())

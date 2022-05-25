@@ -12,7 +12,7 @@ from lzy.api.v2.servant.servant_client import ServantClient
 
 class ChannelManager(abc.ABC):
     def __init__(self):
-        self._snapshot_to_entry_id: Dict[str, Set[str]] = {}
+        self._snapshot_to_entry_id: Dict[str, Set[str]] = defaultdict(set)
         self._entry_id_to_channel: Dict[str, Channel] = {}
 
     def channel(self, snapshot_id: str, entry_id: str,
@@ -22,7 +22,6 @@ class ChannelManager(abc.ABC):
         channel = Channel(entry_id, channel_type)
         self._create_channel(channel)
         self._entry_id_to_channel[entry_id] = channel
-        self._snapshot_to_entry_id: Dict[str, Set[str]] = defaultdict(set)
         self._snapshot_to_entry_id[snapshot_id].add(entry_id)
         return channel
 
