@@ -8,7 +8,7 @@ from pathlib import Path
 from time import sleep
 from typing import Any, Dict, Optional, Iterable, List
 
-from lzy.api.v1.servant.model import encoding
+from lzy.api.v1.servant.model.encoding import ENCODING as encoding
 from lzy.api.v1.servant.model.channel import Bindings, Channel, SnapshotChannelSpec
 from lzy.api.v1.servant.model.execution import Execution, ExecutionResult, ExecutionDescription, InputExecutionValue, \
     ExecutionValue
