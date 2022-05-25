@@ -15,10 +15,19 @@ from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 
 from lzy.serialization.hasher import DelegatingHasher, Hasher
-from lzy.serialization.serializer import MemBytesSerializerImpl, FileSerializerImpl, MemBytesSerializer, FileSerializer
+from lzy.serialization.serializer import (
+    MemBytesSerializerImpl,
+    FileSerializerImpl,
+    MemBytesSerializer,
+    FileSerializer,
+)
 from lzy.utils import zipdir, fileobj_hash
 from lzy.storage.storage_client import StorageClient, from_credentials
-from lzy.api.v1.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
+from lzy.api.v1.whiteboard import (
+    wrap_whiteboard,
+    wrap_whiteboard_for_read,
+    check_whiteboard,
+)
 from lzy.api.v1.whiteboard.model import (
     InMemSnapshotApi,
     InMemWhiteboardApi,
@@ -26,13 +35,22 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardApi,
     WhiteboardList,
     WhiteboardDescription,
-    WhiteboardFieldStatus, UUIDEntryIdGenerator
+    WhiteboardFieldStatus,
+    UUIDEntryIdGenerator,
 )
 from lzy.servant.model.encoding import ENCODING as encoding
 from lzy.servant.model.env import PyEnv
 from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.channel_manager import ServantChannelManager, LocalChannelManager, ChannelManager
-from lzy.servant.servant_client import ServantClient, CredentialsTypes, ServantClientMock
+from lzy.servant.channel_manager import (
+    ServantChannelManager,
+    LocalChannelManager,
+    ChannelManager,
+)
+from lzy.servant.servant_client import (
+    ServantClient,
+    CredentialsTypes,
+    ServantClientMock,
+)
 from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -41,10 +59,11 @@ BusList = List[Tuple[Callable, Bus]]
 
 class LzyEnvBase(ABC):
     # pylint: disable=too-many-arguments
-    def __init__(self,
-                 whiteboard_api: WhiteboardApi,
-                 snapshot_api: SnapshotApi,
-                 ):
+    def __init__(
+        self,
+        whiteboard_api: WhiteboardApi,
+        snapshot_api: SnapshotApi,
+    ):
         self._whiteboard_api = whiteboard_api
         self._snapshot_api = snapshot_api
         self._log = logging.getLogger(str(self.__class__))
@@ -62,19 +81,28 @@ class LzyEnvBase(ABC):
         for field in wb_.fields:
             if field.field_name in field_types:
                 if field.status is WhiteboardFieldStatus.FINISHED:
-                    whiteboard_dict[field.field_name] = self._whiteboard_api \
-                        .resolve(field.storage_uri, field_types[field.field_name])
+                    whiteboard_dict[field.field_name] = self._whiteboard_api.resolve(
+                        field.storage_uri, field_types[field.field_name]
+                    )
         # noinspection PyArgumentList
         instance = typ(**whiteboard_dict)
         wrap_whiteboard_for_read(instance, wb_)
         return instance
 
-    def _whiteboards(self, namespace: str, tags: List[str], typ: Type[T], from_date: datetime = None,
-                     to_date: datetime = None) -> List[T]:
+    def _whiteboards(
+        self,
+        namespace: str,
+        tags: List[str],
+        typ: Type[T],
+        from_date: datetime = None,
+        to_date: datetime = None,
+    ) -> List[T]:
         check_whiteboard(typ)
         wb_list = self._whiteboard_api.list(namespace, tags, from_date, to_date)
-        self._log.info(f"Received whiteboards list in namespace {namespace} and tags {tags} "
-                       f"within dates {from_date} - {to_date}")
+        self._log.info(
+            f"Received whiteboards list in namespace {namespace} and tags {tags} "
+            f"within dates {from_date} - {to_date}"
+        )
         result = []
         for wb_ in wb_list:
             try:
@@ -84,7 +112,9 @@ class LzyEnvBase(ABC):
                 self._log.warning(f"Could not create whiteboard with type {typ}")
         return result
 
-    def whiteboards(self, typs: List[Type[T]], from_date: datetime = None, to_date: datetime = None) -> WhiteboardList:
+    def whiteboards(
+        self, typs: List[Type[T]], from_date: datetime = None, to_date: datetime = None
+    ) -> WhiteboardList:
         whiteboard_dict = {}
         for typ in typs:
             check_whiteboard(typ)
@@ -96,8 +126,12 @@ class LzyEnvBase(ABC):
 
 class WhiteboardExecutionContext:
     def __init__(
-            self, whiteboard_api: WhiteboardApi, snapshot_api: SnapshotApi,
-            whiteboard: Any, workflow_name: str, from_last_snapshot: bool = False
+        self,
+        whiteboard_api: WhiteboardApi,
+        snapshot_api: SnapshotApi,
+        whiteboard: Any,
+        workflow_name: str,
+        from_last_snapshot: bool = False,
     ):
         self._snapshot_id: Optional[str] = None
         self._whiteboard_id: Optional[str] = None
@@ -116,7 +150,9 @@ class WhiteboardExecutionContext:
         else:
             snapshot = self.snapshot_api.last(self.workflow_name)
             if not snapshot:
-                self._snapshot_id = self.snapshot_api.create(self.workflow_name).snapshot_id
+                self._snapshot_id = self.snapshot_api.create(
+                    self.workflow_name
+                ).snapshot_id
             else:
                 self._snapshot_id = snapshot.snapshot_id
         return self._snapshot_id
@@ -133,8 +169,10 @@ class WhiteboardExecutionContext:
 
         fields = dataclasses.fields(self.whiteboard)
         self._whiteboard_id = self.whiteboard_api.create(
-            [field.name for field in fields], snapshot_id,
-            self.whiteboard.LZY_WB_NAMESPACE, self.whiteboard.LZY_WB_TAGS
+            [field.name for field in fields],
+            snapshot_id,
+            self.whiteboard.LZY_WB_NAMESPACE,
+            self.whiteboard.LZY_WB_TAGS,
         ).id
         return self._whiteboard_id
 
@@ -148,25 +186,25 @@ class LzyLocalEnv(LzyEnvBase):
         self._file_serializer = FileSerializerImpl()
 
     def workflow(
-            self,
-            name: str,
-            eager: bool = False,
-            whiteboard: Any = None,
-            buses: Optional[BusList] = None
+        self,
+        name: str,
+        eager: bool = False,
+        whiteboard: Any = None,
+        buses: Optional[BusList] = None,
     ):
         return LzyLocalWorkflow(
             name=name,
             file_serializer=self._file_serializer,
             eager=eager,
             whiteboard=whiteboard,
-            buses=buses
+            buses=buses,
         )
 
 
 class LzyRemoteEnv(LzyEnvBase):
     def __init__(
-            self,
-            lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
+        self,
+        lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
     ):
         self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._lzy_mount = lzy_mount
@@ -174,19 +212,21 @@ class LzyRemoteEnv(LzyEnvBase):
         self._file_serializer = FileSerializerImpl()
         self._hasher = DelegatingHasher(self._file_serializer)
         super().__init__(
-            whiteboard_api=WhiteboardBashApi(lzy_mount, self._servant_client, self._file_serializer),
+            whiteboard_api=WhiteboardBashApi(
+                lzy_mount, self._servant_client, self._file_serializer
+            ),
             snapshot_api=SnapshotBashApi(lzy_mount),
         )
 
     def workflow(
-            self,
-            name: str,
-            cache_policy: CachePolicy = CachePolicy.IGNORE,
-            eager: bool = False,
-            whiteboard: Any = None,
-            buses: Optional[BusList] = None,
-            conda_yaml_path: Optional[Path] = None,
-            local_module_paths: Optional[List[str]] = None,
+        self,
+        name: str,
+        cache_policy: CachePolicy = CachePolicy.IGNORE,
+        eager: bool = False,
+        whiteboard: Any = None,
+        buses: Optional[BusList] = None,
+        conda_yaml_path: Optional[Path] = None,
+        local_module_paths: Optional[List[str]] = None,
     ):
         return LzyRemoteWorkflow(
             name=name,
@@ -201,7 +241,7 @@ class LzyRemoteEnv(LzyEnvBase):
             buses=buses,
             mem_serializer=self._mem_serializer,
             file_serializer=self._file_serializer,
-            hasher=self._hasher
+            hasher=self._hasher,
         )
 
 
@@ -209,18 +249,22 @@ class LzyWorkflowBase(ABC):
     instances: List["LzyWorkflowBase"] = []
 
     def __init__(
-            self,
-            whiteboard_api: WhiteboardApi,
-            snapshot_api: SnapshotApi,
-            servant_client: ServantClient,
-            name: str,
-            eager: bool = False,
-            whiteboard: Any = None,
-            buses: Optional[BusList] = None,
-            cache_policy: CachePolicy = CachePolicy.IGNORE
+        self,
+        whiteboard_api: WhiteboardApi,
+        snapshot_api: SnapshotApi,
+        servant_client: ServantClient,
+        name: str,
+        eager: bool = False,
+        whiteboard: Any = None,
+        buses: Optional[BusList] = None,
+        cache_policy: CachePolicy = CachePolicy.IGNORE,
     ):
         self._execution_context = WhiteboardExecutionContext(
-            whiteboard_api, snapshot_api, whiteboard, name, cache_policy.from_last_snapshot()
+            whiteboard_api,
+            snapshot_api,
+            whiteboard,
+            name,
+            cache_policy.from_last_snapshot(),
         )
         self._ops: List[LzyOp] = []
         self._buses = list(buses or [])
@@ -303,21 +347,20 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         self.channel_manager().destroy_all()
 
     def __init__(
-            self,
-            name: str,
-            whiteboard_api: WhiteboardApi,
-            snapshot_api: SnapshotApi,
-            mem_serializer: MemBytesSerializer,
-            file_serializer: FileSerializer,
-            hasher: Hasher,
-            lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
-            conda_yaml_path: Optional[Path] = None,
-            local_module_paths: Optional[List[str]] = None,
-            cache_policy: CachePolicy = CachePolicy.IGNORE,
-            eager: bool = False,
-            whiteboard: Any = None,
-            buses: Optional[BusList] = None,
-
+        self,
+        name: str,
+        whiteboard_api: WhiteboardApi,
+        snapshot_api: SnapshotApi,
+        mem_serializer: MemBytesSerializer,
+        file_serializer: FileSerializer,
+        hasher: Hasher,
+        lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
+        conda_yaml_path: Optional[Path] = None,
+        local_module_paths: Optional[List[str]] = None,
+        cache_policy: CachePolicy = CachePolicy.IGNORE,
+        eager: bool = False,
+        whiteboard: Any = None,
+        buses: Optional[BusList] = None,
     ):
         self._mem_serializer = mem_serializer
         self._file_serializer = file_serializer
@@ -342,13 +385,15 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
             eager=eager,
             whiteboard=whiteboard,
             buses=buses,
-            cache_policy=cache_policy
+            cache_policy=cache_policy,
         )
         snapshot_id = self.snapshot_id()
         if snapshot_id is None:
             raise ValueError("Cannot get snapshot id")
         else:
-            self._channel_manager = ServantChannelManager(snapshot_id, self._servant_client)
+            self._channel_manager = ServantChannelManager(
+                snapshot_id, self._servant_client
+            )
 
         if self._execution_context.whiteboard is not None:
             check_whiteboard(whiteboard)
@@ -358,7 +403,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                 self.whiteboard_id,
                 self._channel_manager,
                 self._file_serializer,
-                UUIDEntryIdGenerator(self.snapshot_id())
+                UUIDEntryIdGenerator(self.snapshot_id()),
             )
 
     def servant(self) -> Optional[ServantClient]:
@@ -386,6 +431,22 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
             else:
                 installed, local_module_paths = select_modules(namespace)
+
+                ### TORCH WORKAROUND
+                # TODO: generalise it somehow?
+                torch = "torch"
+                if torch in installed:
+                    version = installed["torch"]
+
+                    # for torch check if it has postfix in the end, like 1.11.0+c113
+                    # and drop it because cuda is not needed to install
+                    if version and "+" in version[-1]:
+                        last = version[-1]
+                        last_without_postfix = last[: last.find("+")]
+                        version = (*version[:-1], last_without_postfix)
+                    installed[torch] = version
+                ###
+
                 name, yaml = create_yaml(installed_packages=installed)
 
             local_modules_uploaded = []
@@ -401,8 +462,12 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                         with zipfile.ZipFile(archive.name, "w") as z:
                             zipdir(local_module, z)
                     archive.seek(0)
-                    key = "local_modules/" + os.path.basename(local_module) + "/" \
-                          + fileobj_hash(archive.file)  # type: ignore
+                    key = (
+                        "local_modules/"
+                        + os.path.basename(local_module)
+                        + "/"
+                        + fileobj_hash(archive.file)
+                    )  # type: ignore
                     archive.seek(0)
                     if not self._storage_client.blob_exists(self._bucket, key):
                         self._storage_client.write(self._bucket, key, archive)  # type: ignore
@@ -416,7 +481,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         with open(self._yaml, "r", encoding=encoding) as file:
             name, yaml_str = "default", "".join(file.readlines())
             data = safe_load(yaml_str)
-            self._py_env = PyEnv(data.get('name', 'default'), yaml_str, [])
+            self._py_env = PyEnv(data.get("name", "default"), yaml_str, [])
             return self._py_env
 
 
@@ -428,12 +493,12 @@ class LzyLocalWorkflow(LzyWorkflowBase):
         pass
 
     def __init__(
-            self,
-            name: str,
-            file_serializer: FileSerializer,
-            eager: bool = False,
-            whiteboard: Any = None,
-            buses: Optional[BusList] = None
+        self,
+        name: str,
+        file_serializer: FileSerializer,
+        eager: bool = False,
+        whiteboard: Any = None,
+        buses: Optional[BusList] = None,
     ):
         super().__init__(
             name=name,
@@ -442,7 +507,7 @@ class LzyLocalWorkflow(LzyWorkflowBase):
             servant_client=ServantClientMock(),
             eager=eager,
             whiteboard=whiteboard,
-            buses=buses
+            buses=buses,
         )
         if self._execution_context.whiteboard is not None:
             check_whiteboard(whiteboard)
@@ -452,5 +517,5 @@ class LzyLocalWorkflow(LzyWorkflowBase):
                 self.whiteboard_id,
                 LocalChannelManager(""),
                 file_serializer,
-                UUIDEntryIdGenerator(self.snapshot_id())
+                UUIDEntryIdGenerator(self.snapshot_id()),
             )
