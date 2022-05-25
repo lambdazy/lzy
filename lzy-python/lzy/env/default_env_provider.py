@@ -57,6 +57,6 @@ class DefaultEnvProvider(EnvProvider):
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option
         with open(self._conda_yaml_path, "r", encoding=encoding) as file:
-            name, yaml_str = "default", "".join(file.readlines())
+            name, yaml_str = "default", file.read()
             data = safe_load(yaml_str)
             return Env(aux_env=AuxEnv(name=data.get('name', 'default'), conda_yaml=yaml_str, local_modules_paths=[]))
