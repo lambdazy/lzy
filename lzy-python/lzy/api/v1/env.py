@@ -466,8 +466,8 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                         "local_modules/"
                         + os.path.basename(local_module)
                         + "/"
-                        + fileobj_hash(archive.file)
-                    )  # type: ignore
+                        + fileobj_hash(archive.file)  # type: ignore
+                    )
                     archive.seek(0)
                     if not self._storage_client.blob_exists(self._bucket, key):
                         self._storage_client.write(self._bucket, key, archive)  # type: ignore
