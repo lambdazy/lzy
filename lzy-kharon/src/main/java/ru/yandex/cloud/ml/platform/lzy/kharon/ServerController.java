@@ -92,6 +92,15 @@ public class ServerController {
     }
 
     private synchronized void updateState(State state) {
+        if (this.state == State.ERRORED || this.state == State.COMPLETED) {
+            LOG.warn(
+                "ServerController sessionId={} attempt to change final state {} to {}",
+                sessionId,
+                this.state,
+                state
+            );
+            return;
+        }
         LOG.info("ServerController sessionId={} change state from {} to {}", sessionId, this.state, state);
         this.state = state;
         notifyAll();
