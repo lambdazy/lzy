@@ -422,6 +422,20 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
     def hasher(self) -> Hasher:
         return self._hasher
 
+    @staticmethod
+    def _drop_version_postfix(packages, name):
+        if name not in packages:
+            return
+
+        version = packages[name]
+        # if version has postfix in the end, like 1.11.0+c113 for torch
+        # and drop it because cuda is not needed to install
+        if version and "+" in version[-1]:
+            last = version[-1]
+            last_without_postfix = last[: last.find("+")]
+            version = (*version[:-1], last_without_postfix)
+        packages[name] = version
+
     def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._py_env is not None:
             return self._py_env
@@ -434,18 +448,10 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                 installed, local_module_paths = select_modules(namespace)
 
                 ### TORCH WORKAROUND
-                # TODO: generalise it somehow?
-                torch = "torch"
-                if torch in installed:
-                    version = installed["torch"]
+                packages_to_drop_postfix = ["torch", "torchvision", "torchaudio"]
+                for p in packages_to_drop_postfix:
+                    self._drop_version_postfix(installed, p)
 
-                    # for torch check if it has postfix in the end, like 1.11.0+c113
-                    # and drop it because cuda is not needed to install
-                    if version and "+" in version[-1]:
-                        last = version[-1]
-                        last_without_postfix = last[: last.find("+")]
-                        version = (*version[:-1], last_without_postfix)
-                    installed[torch] = version
                 ###
 
                 name, yaml = create_yaml(installed_packages=installed)
