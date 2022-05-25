@@ -154,7 +154,7 @@ public class LzyServer {
                     ((AtomicZygote) task.workload()).zygote()
                 );
 
-                builder.setStatus(Tasks.TaskStatus.Status.valueOf(task.state().toString()));
+                builder.setStatus(Tasks.TaskProgress.Status.valueOf(task.state().toString()));
                 final URI uri = task.servantUri();
                 if (uri != null) {
                     builder.setServant(uri.toString());

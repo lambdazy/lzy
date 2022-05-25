@@ -67,11 +67,13 @@ public class TerminalCrashTest extends LocalScenario {
         terminal1.createSlot(localFileName, channelName, Utils.outFileSlot());
         terminal1.publish(cat.getName(), cat);
         ForkJoinPool.commonPool().execute(() -> {
-            try {
-                Thread.sleep(10_000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            Utils.waitFlagUp(() -> {
+                    final String tasksStatus = terminal1.tasksStatus();
+                    return !tasksStatus.equals("");
+                },
+                DEFAULT_TIMEOUT_SEC,
+                TimeUnit.SECONDS
+            );
             terminal1.shutdownNow();
             terminal1.waitForShutdown(30, TimeUnit.SECONDS);
         });
