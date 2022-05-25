@@ -14,7 +14,7 @@ from lzy.api.v1.lazy_op import LzyOp
 from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 
-from lzy.api.v1.servant.model import encoding
+from lzy.api.v1.servant.model.encoding import ENCODING as encoding
 from lzy.api.v1.utils import zipdir, fileobj_hash
 from lzy.serialization.hasher import DelegatingHasher, Hasher
 from lzy.serialization.serializer import FileSerializerImpl, MemBytesSerializerImpl, MemBytesSerializer, FileSerializer
