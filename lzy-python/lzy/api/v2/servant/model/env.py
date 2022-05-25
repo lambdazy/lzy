@@ -56,7 +56,7 @@ class PyEnv(AuxEnv):
     def as_dct(self):
         if self._local_modules_uploaded:
             return {"name": self._name, "yaml": self._yaml,
-                    "localModules": [{"name": tuple[0], "uri": tuple[1]} for index, tuple
+                    "localModules": [{"name": name, "uri": uri} for index, (name, uri)
                                      in enumerate(self._local_modules_uploaded)]}
         else:
             return {"name": self._name, "yaml": self._yaml}
