@@ -10,8 +10,8 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <maven-dependency-plugin.version>3.0.0</maven-dependency-plugin.version>
         <maven-help-plugin.version>3.2.0</maven-help-plugin.version>
         <build-helper-maven-plugin.version>3.1.0</build-helper-maven-plugin.version>
@@ -30,7 +30,7 @@
         <s3mock_2.12.version>0.2.4</s3mock_2.12.version>
         <cloud-java.version>20794-7b8a0e7689</cloud-java.version>
         <cloud-proto-java.version>1.0.13450-74b83868c4</cloud-proto-java.version>
-        <grpc.version>1.26.0</grpc.version>
+        <grpc.version>1.46.0</grpc.version>
         <netty-transport-native-epoll.version>4.1.42.Final</netty-transport-native-epoll.version>
         <prometheus.version>0.6.0</prometheus.version>
         <guava.version>25.0-jre</guava.version>
@@ -46,7 +46,7 @@
         <protobuf-java-util.version>3.17.2</protobuf-java-util.version>
         <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
         <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
-        <java.version>11</java.version>
+        <java.version>17</java.version>
         <common-codec.version>1.6</common-codec.version>
         <jsonwebtoken.version>0.11.2</jsonwebtoken.version>
         <jaxb-api.version>2.3.1</jaxb-api.version>
@@ -108,15 +108,12 @@
         <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
         <commons-io.version>2.4</commons-io.version>
         <s3proxy.version>1.7.1</s3proxy.version>
-        <c3po.version>5.6.3.Final</c3po.version>
         <org.json.verion>20211205</org.json.verion>
         <checkstyle-maven-plugin.version>3.1.2</checkstyle-maven-plugin.version>
         <checkstyle.version>9.3</checkstyle.version>
         <net.lingala.zip4j.version>1.3.2</net.lingala.zip4j.version>
 
         <docker.java.version>3.2.12</docker.java.version>
-        <!-- maven docker plugin -->
-        <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>
     </properties>
 
     <repositories>
@@ -616,8 +613,8 @@
                 <version>${jnr-fuse.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.hibernate</groupId>
-                <artifactId>hibernate-java8</artifactId>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-core</artifactId>
                 <version>${hibernate.version}</version>
             </dependency>
             <dependency>
@@ -768,9 +765,9 @@
                 <version>${commons-io.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.hibernate</groupId>
+                <groupId>org.hibernate.orm</groupId>
                 <artifactId>hibernate-c3p0</artifactId>
-                <version>${c3po.version}</version>
+                <version>${hibernate.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.json</groupId>

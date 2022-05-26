@@ -5,7 +5,7 @@ import subprocess
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-JAVA_VERSION_MIN = 11
+JAVA_VERSION_MIN = 17
 
 
 def is_mac() -> bool:
@@ -61,11 +61,11 @@ class JavaCheckStage(Stage):
 
             version = int(float(search.groups()[0]))
             if version < JAVA_VERSION_MIN:
-                self._error = "Java >= 11 is required"
+                self._error = "Java >= 17 is required"
                 return False
             return True
         except (subprocess.CalledProcessError, FileNotFoundError):
-            self._error = "Java is required (>= 11)"
+            self._error = "Java is required (>= 17)"
             return False
 
     def apply(self) -> StageResult:

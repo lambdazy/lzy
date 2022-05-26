@@ -1,4 +1,4 @@
-FROM findepi/graalvm:java11-all
+FROM findepi/graalvm:java17-all
 
 RUN apt-get update && apt-get install -y procps
 COPY target/lzy-server-1.0-SNAPSHOT.jar app/app.jar

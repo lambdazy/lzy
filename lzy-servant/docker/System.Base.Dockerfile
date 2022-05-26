@@ -28,9 +28,9 @@ RUN curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOS
 ### java
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -y update && \
-    apt-get install -y openjdk-11-jdk && \
+    apt-get install -y openjdk-17-jdk && \
     rm -rf /var/lib/apt/lists/*
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64/
+ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64/
 RUN export JAVA_HOME
 
 ### conda setup
