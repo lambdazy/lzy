@@ -114,8 +114,6 @@
         <net.lingala.zip4j.version>1.3.2</net.lingala.zip4j.version>
 
         <docker.java.version>3.2.12</docker.java.version>
-<!--        &lt;!&ndash; maven docker plugin &ndash;&gt;-->
-<!--        <docker-java-image>cr.yandex/crpe3boaf1v0fcu3ln70/base/java-11:latest</docker-java-image>-->
     </properties>
 
     <repositories>
