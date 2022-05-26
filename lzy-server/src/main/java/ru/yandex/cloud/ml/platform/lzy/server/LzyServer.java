@@ -272,7 +272,7 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-            LOG.info("Server::start " + JsonUtils.printRequest(request));
+            LOG.info("Server:: start request (tid={})", request.getTid());
             final Operations.Zygote zygote = request.getZygote();
             final Zygote workload = from(zygote);
             final Map<Slot, String> assignments = new HashMap<>();

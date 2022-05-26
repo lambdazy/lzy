@@ -355,7 +355,7 @@ public class LzyKharon {
 
         @Override
         public void start(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> responseObserver) {
-            LOG.info("Kharon::start " + JsonUtils.printRequest(request));
+            LOG.info("Kharon:: start request (tid={})", request.getTid());
             try {
                 final Iterator<Tasks.TaskProgress> start = server.start(request);
                 while (start.hasNext()) {
