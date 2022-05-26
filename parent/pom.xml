@@ -30,7 +30,7 @@
         <s3mock_2.12.version>0.2.4</s3mock_2.12.version>
         <cloud-java.version>20794-7b8a0e7689</cloud-java.version>
         <cloud-proto-java.version>1.0.13450-74b83868c4</cloud-proto-java.version>
-        <grpc.version>1.26.0</grpc.version>
+        <grpc.version>1.46.0</grpc.version>
         <netty-transport-native-epoll.version>4.1.42.Final</netty-transport-native-epoll.version>
         <prometheus.version>0.6.0</prometheus.version>
         <guava.version>25.0-jre</guava.version>
@@ -108,7 +108,6 @@
         <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
         <commons-io.version>2.4</commons-io.version>
         <s3proxy.version>1.7.1</s3proxy.version>
-        <c3po.version>5.6.3.Final</c3po.version>
         <org.json.verion>20211205</org.json.verion>
         <checkstyle-maven-plugin.version>3.1.2</checkstyle-maven-plugin.version>
         <checkstyle.version>9.3</checkstyle.version>
@@ -616,8 +615,8 @@
                 <version>${jnr-fuse.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.hibernate</groupId>
-                <artifactId>hibernate-java8</artifactId>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-core</artifactId>
                 <version>${hibernate.version}</version>
             </dependency>
             <dependency>
@@ -768,9 +767,9 @@
                 <version>${commons-io.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.hibernate</groupId>
+                <groupId>org.hibernate.orm</groupId>
                 <artifactId>hibernate-c3p0</artifactId>
-                <version>${c3po.version}</version>
+                <version>${hibernate.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.json</groupId>
