@@ -299,7 +299,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             try {
                 responseObserver.onCompleted();
             } catch (IllegalStateException e) {
-                LOG.warn("Terminal command handler already completed");
+                LOG.warn("Terminal command handler already completed", e);
             }
         }
     }

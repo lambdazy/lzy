@@ -187,6 +187,9 @@ public class TaskImpl implements Task {
                         }
                         return false;
                     }
+                    case EXIT: {
+                        ????
+                    }
                     case DISCONNECTED: {
                         state(DISCONNECTED, 1, "Unexpected connection close");
                         return false;

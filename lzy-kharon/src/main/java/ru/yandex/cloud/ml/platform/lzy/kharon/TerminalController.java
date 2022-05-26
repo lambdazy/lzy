@@ -48,7 +48,7 @@ public class TerminalController {
             return future.get(10, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             LOG.error("Failed while configure slot in bidirectional stream " + e);
-            commandStreamObserver.onError(Status.DEADLINE_EXCEEDED.asRuntimeException().initCause(e));
+            commandStreamObserver.onError(Status.DEADLINE_EXCEEDED.withCause(e).asRuntimeException());
         }
         return LzyFsApi.SlotCommandStatus.newBuilder().build();
     }

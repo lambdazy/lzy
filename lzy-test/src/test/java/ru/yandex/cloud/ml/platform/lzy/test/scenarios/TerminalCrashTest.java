@@ -9,6 +9,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -19,6 +23,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 public class TerminalCrashTest extends LocalScenario {
     private LzyTerminalTestContext.Terminal createTerminal(String mount) {
@@ -68,8 +73,11 @@ public class TerminalCrashTest extends LocalScenario {
         terminal1.publish(cat.getName(), cat);
         ForkJoinPool.commonPool().execute(() -> {
             Utils.waitFlagUp(() -> {
-                    final String tasksStatus = terminal1.tasksStatus();
-                    return !tasksStatus.equals("");
+                    final Tasks.TaskStatus task = getFirstTaskStatus(terminal1);
+                    if (task == null) {
+                        return false;
+                    }
+                    return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
                 },
                 DEFAULT_TIMEOUT_SEC,
                 TimeUnit.SECONDS
@@ -91,10 +99,7 @@ public class TerminalCrashTest extends LocalScenario {
 
         //Assert
         Assert.assertTrue(
-            Utils.waitFlagUp(() -> {
-                    final String tasksStatus = terminal2.tasksStatus();
-                    return tasksStatus.equals("");
-                },
+            Utils.waitFlagUp(() -> getFirstTaskStatus(terminal2) == null,
                 Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
@@ -120,6 +125,25 @@ public class TerminalCrashTest extends LocalScenario {
         //Assert
         Assert.assertTrue(Utils.waitFlagUp(() ->
             !terminal2.pathExists(Path.of(localFileName)), Defaults.TIMEOUT_SEC, TimeUnit.SECONDS));
+    }
+
+    @Nullable
+    private Tasks.TaskStatus getFirstTaskStatus(LzyTerminalTestContext.Terminal terminal) {
+        final String tasksStatus = terminal.tasksStatus();
+        System.out.println("tasksStatus");
+        System.out.println(tasksStatus);
+
+        try {
+            final Tasks.TasksList.Builder tasksBuilder = Tasks.TasksList.newBuilder();
+            JsonFormat.parser().merge(tasksStatus, tasksBuilder);
+            final Tasks.TasksList tasksList = tasksBuilder.build();
+            if (tasksList.getTasksCount() == 0) {
+                return null;
+            }
+            return tasksList.getTasks(0);
+        } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Ignore
