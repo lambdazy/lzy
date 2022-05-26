@@ -1,3 +1,4 @@
+import codecs
 import json
 import logging
 import os
@@ -93,17 +94,19 @@ class BashExecution(Execution):
         return str(pipe, "utf8")
 
     def write_to_stderr(self):
+        dec = codecs.getincrementaldecoder('utf8')()
         for c in iter(lambda: self._process.stderr.read(1), b""):
-            sys.stderr.write(BashExecution._pipe_to_string(c))
+            sys.stderr.write(dec.decode(c))
 
-    def write_to_stdin(self):
+    def write_to_stdout(self):
+        dec = codecs.getincrementaldecoder('utf8')()
         for c in iter(lambda: self._process.stdout.read(1), b""):
-            sys.stdout.write(BashExecution._pipe_to_string(c))
+            sys.stdout.write(dec.decode(c))
 
     def wait_for(self) -> ExecutionResult:
         if not self._process:
             raise ValueError("Execution has NOT been started")
-        t1 = Thread(target=self.write_to_stdin)
+        t1 = Thread(target=self.write_to_stdout)
         t2 = Thread(target=self.write_to_stderr)
 
         t1.start()
