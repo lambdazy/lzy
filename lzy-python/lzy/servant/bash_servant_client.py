@@ -96,7 +96,7 @@ class BashExecution(Execution):
     def write_to_stderr(self):
         dec = codecs.getincrementaldecoder('utf8')()
         for c in iter(lambda: self._process.stderr.read(1), b""):
-            sys.stdout.write(dec.decode(c))
+            sys.stderr.write(dec.decode(c))
 
     def write_to_stdout(self):
         dec = codecs.getincrementaldecoder('utf8')()
