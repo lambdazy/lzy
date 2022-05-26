@@ -7,7 +7,7 @@ import io.grpc.ServerBuilder;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
-import org.apache.commons.lang3.SystemUtils;
+import org.apache.logging.log4j.LogManager;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
@@ -57,6 +57,9 @@ public class LzyServerThreadContext implements LzyServerTestContext {
                 )
             )
         )) {
+            var logger = LogManager.getLogger(LzyServer.class);
+            logger.info("Starting LzyServer on port {}...", LZY_SERVER_PORT);
+
             impl = context.getBean(LzyServer.Impl.class);
             ServerBuilder<?> builder = NettyServerBuilder.forPort(LZY_SERVER_PORT)
                     .permitKeepAliveWithoutCalls(true)
@@ -65,7 +68,7 @@ public class LzyServerThreadContext implements LzyServerTestContext {
             lzyServer = builder.build();
             lzyServer.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println("gRPC server is shutting down!");
+                logger.info("gRPC server is shutting down!");
                 lzyServer.shutdown();
             }));
             channel = ChannelBuilder

@@ -7,7 +7,9 @@ import io.grpc.ServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.logging.log4j.LogManager;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
 import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.WhiteboardApi;
@@ -58,16 +60,19 @@ public class LzySnapshotThreadContext implements LzySnapshotTestContext {
                         )
                 )
         )) {
+            var logger = LogManager.getLogger(SnapshotApi.class);
+            logger.info("Starting LzySnapshot and LzyWhiteboard on port {}...", SNAPSHOT_PORT);
+
             SnapshotApi spImpl = context.getBean(SnapshotApi.class);
             WhiteboardApi wbImpl = context.getBean(WhiteboardApi.class);
             ServerBuilder<?> builder = ServerBuilder.forPort(SNAPSHOT_PORT)
-                    .addService(wbImpl);
-            builder.addService(spImpl);
+                .addService(wbImpl)
+                .addService(spImpl);
 
             server = builder.build();
             server.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println("gRPC server is shutting down!");
+                logger.info("gRPC server is shutting down!");
                 server.shutdown();
             }));
 

@@ -2,10 +2,12 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
+import org.apache.logging.log4j.LogManager;
 import ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon;
 import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
+import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 
 import java.io.IOException;
@@ -54,6 +56,9 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
 
     @Override
     public void init() {
+        var logger = LogManager.getLogger(SnapshotApi.class);
+        logger.info("Starting LzyKharon on port {}...", LZY_KHARON_PORT);
+
         try {
             kharon = new LzyKharon(
                 URI.create(serverAddress),
