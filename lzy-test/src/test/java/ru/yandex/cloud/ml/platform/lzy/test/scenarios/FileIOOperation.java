@@ -51,7 +51,8 @@ class FileIOOperation implements AtomicZygote {
         return command;
     }
 
-    public String getName() {
+    @Override
+    public String name() {
         return operationName;
     }
 

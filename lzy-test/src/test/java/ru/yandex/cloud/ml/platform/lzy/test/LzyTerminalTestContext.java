@@ -106,7 +106,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default void publish(String zygoteName, AtomicZygote zygote) {
+        default void publish(AtomicZygote zygote) {
             try {
                 execute(
                     Collections.emptyMap(),
@@ -121,14 +121,13 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     String.join(
                         " ",
                         mount() + "/sbin/publish",
-                        zygoteName,
                         "filename",
                         "-z",
                         serverAddress() // serverAddress
                     )
                 );
                 Utils.waitFlagUp(
-                    () -> pathExists(Path.of(mount() + "/bin/" + zygoteName)),
+                    () -> pathExists(Path.of(mount() + "/bin/" + zygote.name())),
                     30,
                     TimeUnit.SECONDS
                 );

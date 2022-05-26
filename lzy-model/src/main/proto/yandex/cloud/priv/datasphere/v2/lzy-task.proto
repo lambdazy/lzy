@@ -76,6 +76,7 @@ message TaskProgress {
   Status status = 2;
   string description = 3;
   int32 rc = 4;
+  string zygoteName = 5;
   enum Status {
     UNKNOWN = 0;
     QUEUE = 1;

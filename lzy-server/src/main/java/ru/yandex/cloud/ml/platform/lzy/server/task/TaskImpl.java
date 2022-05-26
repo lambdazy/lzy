@@ -55,6 +55,11 @@ public class TaskImpl implements Task {
     }
 
     @Override
+    public String name() {
+        return workload.name();
+    }
+
+    @Override
     public Zygote workload() {
         return workload;
     }
@@ -70,6 +75,8 @@ public class TaskImpl implements Task {
         if (newState != state) {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
+                .setTid(tid)
+                .setZygoteName(name())
                 .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
                 .setDescription(String.join("\n", description))
                 .setRc(rc)
@@ -82,6 +89,8 @@ public class TaskImpl implements Task {
         if (newState != state) {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
+                    .setTid(tid)
+                    .setZygoteName(name())
                     .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
                     .setDescription(String.join("\n", description))
                     .build());
@@ -186,9 +195,6 @@ public class TaskImpl implements Task {
                             return true;
                         }
                         return false;
-                    }
-                    case EXIT: {
-                        ????
                     }
                     case DISCONNECTED: {
                         state(DISCONNECTED, 1, "Unexpected connection close");

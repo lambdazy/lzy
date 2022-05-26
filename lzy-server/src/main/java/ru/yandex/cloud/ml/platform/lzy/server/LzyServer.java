@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
+import com.google.protobuf.Empty;
 import io.grpc.Context;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
@@ -183,7 +184,7 @@ public class LzyServer {
         }
 
         @Override
-        public void publish(Lzy.PublishRequest request, StreamObserver<Operations.RegisteredZygote> responseObserver) {
+        public void publish(Lzy.PublishRequest request, StreamObserver<Empty> responseObserver) {
             LOG.info("Server::Publish " + JsonUtils.printRequest(request));
             final IAM.UserCredentials auth = request.getAuth();
             if (!this.auth.checkUser(auth.getUserId(), auth.getToken())) {
@@ -195,17 +196,13 @@ public class LzyServer {
                 return;
             }
             final Operations.Zygote operation = request.getOperation();
-            if (!operations.publish(request.getName(), from(operation))) {
+            if (!operations.publish(operation.getName(), from(operation))) {
                 responseObserver.onError(Status.ALREADY_EXISTS.asException());
                 return;
             }
 
-            this.auth.registerOperation(request.getName(), auth.getUserId(), request.getScope());
-            responseObserver.onNext(Operations.RegisteredZygote.newBuilder()
-                .setWorkload(operation)
-                .setName(request.getName())
-                .build()
-            );
+            this.auth.registerOperation(operation.getName(), auth.getUserId(), request.getScope());
+            responseObserver.onNext(Empty.getDefaultInstance());
             responseObserver.onCompleted();
         }
 
@@ -220,8 +217,7 @@ public class LzyServer {
             final Operations.ZygoteList.Builder builder = Operations.ZygoteList.newBuilder();
             operations.list().filter(op -> this.auth.canAccess(op, user)).forEach(zyName ->
                 builder.addZygoteBuilder()
-                    .setName(zyName)
-                    .setWorkload(to(operations.get(zyName)))
+                    .mergeFrom(to(operations.get(zyName)))
                     .build()
             );
             responseObserver.onNext(builder.build());

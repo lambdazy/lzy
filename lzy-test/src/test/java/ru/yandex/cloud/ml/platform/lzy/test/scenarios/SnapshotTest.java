@@ -91,7 +91,7 @@ public class SnapshotTest extends LocalScenario {
 
         ForkJoinPool.commonPool()
             .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
-        terminal.publish(cat_to_file.getName(), cat_to_file);
+        terminal.publish(cat_to_file);
 
         final String firstTag = "firstTag";
         final String secondTag = "secondTag";
@@ -106,7 +106,7 @@ public class SnapshotTest extends LocalScenario {
         ForkJoinPool.commonPool()
             .execute(() -> result.complete(
                 terminal.run(
-                    cat_to_file.getName(),
+                    cat_to_file.name(),
                     "",
                     Map.of(
                         fileName.substring("/tmp/lzy1".length()), channelName,

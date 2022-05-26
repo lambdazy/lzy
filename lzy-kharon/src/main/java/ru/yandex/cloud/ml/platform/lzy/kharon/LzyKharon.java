@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
+import com.google.protobuf.Empty;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -338,7 +339,7 @@ public class LzyKharon {
 
         @Override
         public void publish(Lzy.PublishRequest request,
-                            StreamObserver<Operations.RegisteredZygote> responseObserver) {
+                            StreamObserver<Empty> responseObserver) {
             ProxyCall.exec(server::publish, request, responseObserver);
         }
 

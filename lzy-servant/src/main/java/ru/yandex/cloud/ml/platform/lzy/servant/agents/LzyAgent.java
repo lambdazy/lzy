@@ -108,9 +108,9 @@ public abstract class LzyAgent implements Closeable {
             publishTool(null, Paths.get(command.name()), command.name());
         }
         final Operations.ZygoteList zygotes = serverApi().zygotes(auth);
-        for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
+        for (Operations.Zygote zygote : zygotes.getZygoteList()) {
             publishTool(
-                zygote.getWorkload(),
+                zygote,
                 Paths.get(zygote.getName()),
                 "run"
             );
@@ -202,8 +202,8 @@ public abstract class LzyAgent implements Closeable {
 
     public void update(@SuppressWarnings("unused") IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
         final Operations.ZygoteList zygotes = serverApi().zygotes(auth);
-        for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
-            publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());
+        for (Operations.Zygote zygote : zygotes.getZygoteList()) {
+            publishTool(zygote, Paths.get(zygote.getName()), "run", zygote.getName());
         }
         responseObserver.onNext(IAM.Empty.newBuilder().build());
         responseObserver.onCompleted();

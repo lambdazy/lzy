@@ -4,6 +4,8 @@ import java.util.stream.Stream;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataEntity;
 
 public interface Zygote extends Runnable {
+    String name();
+
     Slot[] input();
 
     Slot[] output();

@@ -9,6 +9,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -20,6 +22,7 @@ public class TerminalController {
 
     private final StreamObserver<Kharon.TerminalCommand> commandStreamObserver;
     private final Map<UUID, CompletableFuture<LzyFsApi.SlotCommandStatus>> terminalCommands = new ConcurrentHashMap<>();
+    private final AtomicBoolean invalidated = new AtomicBoolean(false);
 
     public TerminalController(StreamObserver<Kharon.TerminalCommand> commandStreamObserver) {
         this.commandStreamObserver = commandStreamObserver;
@@ -64,14 +67,18 @@ public class TerminalController {
     }
 
     public void terminate(Throwable th) {
-        synchronized (commandStreamObserver) {
-            commandStreamObserver.onError(th);
+        if (invalidated.compareAndSet(false, true)) {
+            synchronized (commandStreamObserver) {
+                commandStreamObserver.onError(th);
+            }
         }
     }
 
     public void complete() {
-        synchronized (commandStreamObserver) {
-            commandStreamObserver.onCompleted();
+        if (invalidated.compareAndSet(false, true)) {
+            synchronized (commandStreamObserver) {
+                commandStreamObserver.onCompleted();
+            }
         }
     }
 

@@ -15,12 +15,16 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
     @Test
     public void testRegisteredZygotesAvailable() {
         //Arrange
-        final List<Operations.RegisteredZygote> zygotes = IntStream.range(0, 10)
-            .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-                .setOperation(Operations.Zygote.newBuilder().build())
-                .setName("test_op_" + value)
-                .build()))
+        final List<Operations.Zygote> zygotes = IntStream.range(0, 10)
+                .mapToObj(
+                    value -> Operations.Zygote.newBuilder().setName("test_op_" + value).build()
+                )
             .collect(Collectors.toList());
+
+        //noinspection ResultOfMethodCallIgnored
+        zygotes.forEach(zygote -> serverContext.client().publish(
+            Lzy.PublishRequest.newBuilder().setOperation(zygote).build())
+        );
         startTerminalWithDefaultConfig();
 
         //Assert
@@ -35,8 +39,7 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
         final String opName = "test_op";
         //noinspection ResultOfMethodCallIgnored
         serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-            .setOperation(Operations.Zygote.newBuilder().build())
-            .setName(opName)
+            .setOperation(Operations.Zygote.newBuilder().setName(opName).build())
             .build());
         startTerminalWithDefaultConfig();
 
@@ -45,8 +48,7 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
         Assert.assertThrows(
             StatusRuntimeException.class,
             () -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-                .setOperation(Operations.Zygote.newBuilder().build())
-                .setName(opName)
+                .setOperation(Operations.Zygote.newBuilder().setName(opName).build())
                 .build())
         );
     }
@@ -54,20 +56,22 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
     @Test
     public void testServantDoesNotSeeNewZygotes() {
         //Arrange
-        final List<Operations.RegisteredZygote> zygotesBeforeStart = IntStream.range(0, 10)
-            .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-                .setOperation(Operations.Zygote.newBuilder().build())
-                .setName("test_op_" + value)
-                .build()))
+        final List<Operations.Zygote> zygotesBeforeStart = IntStream.range(0, 10)
+            .mapToObj(value -> Operations.Zygote.newBuilder().setName("test_op_" + value).build())
             .collect(Collectors.toList());
+        //noinspection ResultOfMethodCallIgnored
+        zygotesBeforeStart.forEach(zygote -> serverContext.client().publish(
+            Lzy.PublishRequest.newBuilder().setOperation(zygote).build())
+        );
         startTerminalWithDefaultConfig();
 
-        final List<Operations.RegisteredZygote> zygotesAfterStart = IntStream.range(10, 20)
-            .mapToObj(value -> serverContext.client().publish(Lzy.PublishRequest.newBuilder()
-                .setOperation(Operations.Zygote.newBuilder().build())
-                .setName("test_op_" + value)
-                .build()))
+        final List<Operations.Zygote> zygotesAfterStart = IntStream.range(10, 20)
+            .mapToObj(value -> Operations.Zygote.newBuilder().setName("test_op_" + value).build())
             .collect(Collectors.toList());
+        //noinspection ResultOfMethodCallIgnored
+        zygotesAfterStart.forEach(zygote -> serverContext.client().publish(
+            Lzy.PublishRequest.newBuilder().setOperation(zygote).build())
+        );
 
         //Assert
         Assert.assertTrue(status);

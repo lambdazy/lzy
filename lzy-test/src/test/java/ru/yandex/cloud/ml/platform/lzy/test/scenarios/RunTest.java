@@ -33,8 +33,8 @@ public class RunTest extends LocalScenario {
         );
 
         //Act
-        terminal.publish(echo42.getName(), echo42);
-        final ExecutionResult result = terminal.run(echo42.getName(), "", Map.of());
+        terminal.publish(echo42);
+        final ExecutionResult result = terminal.run(echo42.name(), "", Map.of());
 
         //Assert
         Assert.assertEquals("42\n", result.stdout());
@@ -53,8 +53,8 @@ public class RunTest extends LocalScenario {
         );
 
         //Act
-        terminal.publish(echo42.getName(), echo42);
-        final ExecutionResult result = terminal.run(echo42.getName(), "", Map.of());
+        terminal.publish(echo42);
+        final ExecutionResult result = terminal.run(echo42.name(), "", Map.of());
 
         //Assert
         Assert.assertEquals("42\n", result.stdout());
@@ -73,8 +73,8 @@ public class RunTest extends LocalScenario {
         );
 
         //Act
-        terminal.publish(echo42.getName(), echo42);
-        final ExecutionResult result = terminal.run(echo42.getName(), "", Map.of());
+        terminal.publish(echo42);
+        final ExecutionResult result = terminal.run(echo42.name(), "", Map.of());
 
         //Assert
         Assert.assertEquals("42\n", result.stdout());
@@ -109,13 +109,13 @@ public class RunTest extends LocalScenario {
         ForkJoinPool.commonPool()
             .execute(() -> terminal.execute("bash", "-c",
                 "echo " + fileContent + " > " + localFileName));
-        terminal.publish(cat_to_file.getName(), cat_to_file);
+        terminal.publish(cat_to_file);
         final CompletableFuture<ExecutionResult> result = new CompletableFuture<>();
 
         ForkJoinPool.commonPool()
             .execute(() -> result.complete(
                 terminal.run(
-                    cat_to_file.getName(),
+                    cat_to_file.name(),
                     "",
                     Map.of(
                         fileName.substring("/tmp/lzy1".length()), channelName,
