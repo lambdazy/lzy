@@ -11,6 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthExceptio
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthPermission;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.impl.Root;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.GrpcConverter;
 import yandex.cloud.lzy.v1.IAM.Subject;
 import yandex.cloud.priv.lzy.v1.LAS.AuthorizeRequest;
@@ -30,8 +31,10 @@ public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase 
     public void authorize(AuthorizeRequest request, StreamObserver<Subject> responseObserver) {
         LOG.info("Authorize user::{}  to resource:: {}", request.getSubject().getId(), request.getResource().getId());
         try {
-            if (!Objects.requireNonNull(AuthenticationContext.current())
-                    .getSubject().id().equals(request.getSubject().getId())) {
+            var currentSubject = Objects.requireNonNull(AuthenticationContext.current()).getSubject();
+            if (notInternalAccess(currentSubject)) {
+                LOG.error("Not INTERNAL user::{} try authorize something::{}",
+                        currentSubject.id(), request.getSubject().getId());
                 throw new AuthPermissionDeniedException("");
             }
             if (accessClient.hasResourcePermission(
@@ -55,4 +58,11 @@ public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase 
             responseObserver.onError(Status.INTERNAL.asException());
         }
     }
+
+    private boolean notInternalAccess(ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject currentSubject) {
+        return !accessClient.hasResourcePermission(currentSubject,
+                new Root().resourceId(),
+                AuthPermission.INTERNAL_AUTHORIZE);
+    }
+
 }

@@ -34,7 +34,7 @@ public class DbSubjectServiceTest {
 
     @After
     public void tearDown() {
-        try (PreparedStatement st =storage.connect().prepareStatement("DROP ALL OBJECTS DELETE FILES;")) {
+        try (PreparedStatement st = storage.connect().prepareStatement("DROP ALL OBJECTS DELETE FILES;")) {
             st.executeUpdate();
         } catch (SQLException e) {
             LOG.error(e);
@@ -90,7 +90,7 @@ public class DbSubjectServiceTest {
 
         subjectService.removeCredentials(user, "1");
         try {
-            subjectService.credentials(user,"1");
+            subjectService.credentials(user, "1");
             fail();
         } catch (AuthBadRequestException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
@@ -103,7 +103,7 @@ public class DbSubjectServiceTest {
 
         subjectService.removeCredentials(user, "2");
         try {
-            subjectService.credentials(user,"2");
+            subjectService.credentials(user, "2");
             fail();
         } catch (AuthBadRequestException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());

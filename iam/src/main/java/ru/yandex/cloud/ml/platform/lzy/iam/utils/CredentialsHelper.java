@@ -8,6 +8,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
+
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -72,7 +73,7 @@ public class CredentialsHelper {
     }
 
     public static String buildJWT(String uid, Reader privateKeyReader)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         addProvider(new BouncyCastleProvider());
         KeyFactory factory = KeyFactory.getInstance("RSA");
         try (PemReader pemReader = new PemReader(privateKeyReader)) {

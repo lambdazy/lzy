@@ -1,17 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors;
 
 import com.google.common.collect.ImmutableSet;
-import io.grpc.Context;
-import io.grpc.Contexts;
-import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
-import io.grpc.ServerCall;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
-import io.grpc.StatusException;
-import java.util.Arrays;
-import java.util.Set;
-import java.util.function.Function;
+import io.grpc.*;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AuthenticateService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
@@ -20,6 +10,10 @@ import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthUnauthen
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.TokenParser;
+
+import java.util.Arrays;
+import java.util.Set;
+import java.util.function.Function;
 
 
 public class AuthInterceptor implements ServerInterceptor {
@@ -61,7 +55,9 @@ public class AuthInterceptor implements ServerInterceptor {
         if (this.unauthenticatedMethods.isEmpty()) {
             unauthenticatedMethodSet = ImmutableSet.copyOf(unauthenticatedMethods);
         } else {
-            unauthenticatedMethodSet = ImmutableSet.builder().addAll(this.unauthenticatedMethods).addAll(unauthenticatedMethods).build();
+            unauthenticatedMethodSet = ImmutableSet.builder()
+                    .addAll(this.unauthenticatedMethods)
+                    .addAll(unauthenticatedMethods).build();
         }
 
         return new AuthInterceptor(exceptionMapper, unauthenticatedMethodSet, cloudAuthClient);
@@ -111,7 +107,8 @@ public class AuthInterceptor implements ServerInterceptor {
 
     private <T, R> ServerCall.Listener<T> closeCall(ServerCall<T, R> call, StatusException statusException) {
         call.close(statusException.getStatus(), statusException.getTrailers());
-        return new ServerCall.Listener<>() {};
+        return new ServerCall.Listener<>() {
+        };
     }
 
 }

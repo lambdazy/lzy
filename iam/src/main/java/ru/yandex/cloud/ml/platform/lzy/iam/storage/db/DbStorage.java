@@ -3,14 +3,15 @@ package ru.yandex.cloud.ml.platform.lzy.iam.storage.db;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.flywaydb.core.Flyway;
 import ru.yandex.cloud.ml.platform.lzy.iam.configs.DbConfig;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 
 @Singleton
 @Requires(property = "database.url")
@@ -18,15 +19,15 @@ import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
 @Requires(property = "database.password")
 public class DbStorage implements Storage {
     private static final Logger LOG = LogManager.getLogger(DbStorage.class);
-    private Connection connection;
     private final DbConfig dbConfig;
+    private Connection connection;
 
     @Inject
     public DbStorage(DbConfig dbConfig) {
         Flyway flyway = Flyway.configure()
-            .dataSource(dbConfig.getUrl(), dbConfig.getUsername(), dbConfig.getPassword())
-            .locations("classpath:db/migrations")
-            .load();
+                .dataSource(dbConfig.getUrl(), dbConfig.getUsername(), dbConfig.getPassword())
+                .locations("classpath:db/migrations")
+                .load();
         flyway.migrate();
         this.dbConfig = dbConfig;
     }
