@@ -2,8 +2,7 @@ import uuid
 
 from lzy.api.v1 import op
 from base_module.base import Base
-from lzy.api.v1.env import LzyRemoteEnv
-from some_imported_file import foo
+from some_imported_file_2 import foo
 
 
 @op
