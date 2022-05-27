@@ -12,6 +12,7 @@ import jakarta.inject.Inject;
 import org.apache.commons.cli.*;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -272,7 +273,11 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-            LOG.info("Server:: start request (tid={})", request.getTid());
+            if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
+                LOG.debug("Server::start " + JsonUtils.printRequest(request));
+            } else {
+                LOG.info("Server::start request (tid={})", request.getTid());
+            }
             final Operations.Zygote zygote = request.getZygote();
             final Zygote workload = from(zygote);
             final Map<Slot, String> assignments = new HashMap<>();
