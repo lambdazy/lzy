@@ -31,10 +31,8 @@ public class DbAccessBindingClient implements AccessBindingClient {
     @Override
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         List<AccessBinding> bindings = new ArrayList<>();
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT * FROM user_resource_roles "
-                        + "WHERE resource_id = ? "
-        )) {
+        try (final PreparedStatement st = storage.connect()
+                .prepareStatement("SELECT * FROM user_resource_roles " + "WHERE resource_id = ? ")) {
             int parameterIndex = 0;
             st.setString(++parameterIndex, resource.resourceId());
             final ResultSet rs = st.executeQuery();
@@ -86,8 +84,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
             int parameterIndex = 0;
             for (AccessBindingDelta binding : accessBindingDeltas) {
                 if (binding.action() == AccessBindingAction.ADD) {
-                    st.setString(++parameterIndex, binding.binding().subject().id()
-                    );
+                    st.setString(++parameterIndex, binding.binding().subject().id());
                     st.setString(++parameterIndex, resource.resourceId());
                     st.setString(++parameterIndex, resource.type());
                     st.setString(++parameterIndex, binding.binding().role());
@@ -111,10 +108,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
     }
 
     private String deleteQuery() {
-        return "DELETE from user_resource_roles"
-                + " WHERE user_id = ?"
-                + " AND role = ?"
-                + " AND resource_id  = ?; ";
+        return "DELETE from user_resource_roles" + " WHERE user_id = ?" + " AND role = ?" + " AND resource_id  = ?; ";
     }
 
     private String insertQuery() {

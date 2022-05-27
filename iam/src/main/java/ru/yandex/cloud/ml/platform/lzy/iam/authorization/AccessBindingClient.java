@@ -1,13 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.iam.authorization;
 
-import java.util.List;
-import java.util.stream.Stream;
-
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBinding;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBindingDelta;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthResource;
 
+import java.util.List;
+import java.util.stream.Stream;
 
 public interface AccessBindingClient {
 

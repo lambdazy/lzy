@@ -14,15 +14,15 @@ import java.sql.SQLException;
 @Requires(missingProperty = "database.username")
 @Requires(missingProperty = "database.password")
 public class MockDbStorage implements Storage {
-    private Connection connection;
     private final String connectionUrl = "jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false";
     private final String dbUser = "test";
+    private Connection connection;
 
     public MockDbStorage() {
         Flyway flyway = Flyway.configure()
-            .dataSource(connectionUrl, dbUser, "")
-            .locations("classpath:db/migrations")
-            .load();
+                .dataSource(connectionUrl, dbUser, "")
+                .locations("classpath:db/migrations")
+                .load();
         flyway.migrate();
     }
 

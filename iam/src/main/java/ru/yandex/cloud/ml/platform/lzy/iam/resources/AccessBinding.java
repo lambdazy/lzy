@@ -2,23 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.iam.resources;
 
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 
-public class AccessBinding {
-
-    private final String role;
-    private final Subject subject;
-
-    public AccessBinding(String role, Subject subject) {
-        this.role = role;
-        this.subject = subject;
-    }
-
-    public String role() {
-        return role;
-    }
-
-    public Subject subject() {
-        return subject;
-    }
+public record AccessBinding(String role,
+                            Subject subject) {
 
     @Override
     public boolean equals(Object o) {

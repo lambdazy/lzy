@@ -40,8 +40,9 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());
         }
-        Stream<IAM.AccessBinding> bindings = accessBindingClient.listAccessBindings(GrpcConverter.to(request.getResource()))
-                .map(GrpcConverter::from);
+        Stream<IAM.AccessBinding> bindings = accessBindingClient.listAccessBindings(
+                GrpcConverter.to(request.getResource())
+        ).map(GrpcConverter::from);
         responseObserver.onNext(ListAccessBindingsResponse.newBuilder()
                 .addAllBindings(bindings.collect(Collectors.toList())).build());
         responseObserver.onCompleted();
@@ -77,28 +78,16 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
         AuthPermission permission;
         switch (resource.type()) {
             case Workflow.TYPE:
-                switch (accessType) {
-                    case EDIT:
-                        permission = AuthPermission.WORKFLOW_RUN;
-                        break;
-                    case VIEW:
-                        permission = AuthPermission.WORKFLOW_GET;
-                        break;
-                    default:
-                        throw new IllegalStateException("Unexpected value: " + accessType);
-                }
+                permission = switch (accessType) {
+                    case EDIT -> AuthPermission.WORKFLOW_RUN;
+                    case VIEW -> AuthPermission.WORKFLOW_GET;
+                };
                 break;
             case Whiteboard.TYPE:
-                switch (accessType) {
-                    case EDIT:
-                        permission = AuthPermission.WHITEBOARD_UPDATE;
-                        break;
-                    case VIEW:
-                        permission = AuthPermission.WHITEBOARD_GET;
-                        break;
-                    default:
-                        throw new IllegalStateException("Unexpected value: " + accessType);
-                }
+                permission = switch (accessType) {
+                    case EDIT -> AuthPermission.WHITEBOARD_UPDATE;
+                    case VIEW -> AuthPermission.WHITEBOARD_GET;
+                };
                 break;
             default:
                 return true;
