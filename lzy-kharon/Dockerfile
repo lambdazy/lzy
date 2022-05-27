@@ -1,4 +1,4 @@
-FROM findepi/graalvm:java11-all
+FROM findepi/graalvm:java17-all
 
 COPY target/lzy-kharon-1.0-SNAPSHOT-jar-with-dependencies.jar app/app.jar
 COPY src/main/resources/ app/resources

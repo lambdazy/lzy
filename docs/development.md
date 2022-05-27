@@ -28,4 +28,4 @@ pacman -Sy fuse2 inetutils
 
 ### FAQ
 
-* ```Exception in thread "main" java.lang.UnsatisfiedLinkError: dlopen(libfuse.dylib, 9): image not found```: Java > 11 is required
+* ```Exception in thread "main" java.lang.UnsatisfiedLinkError: dlopen(libfuse.dylib, 9): image not found```: Java > 17 is required

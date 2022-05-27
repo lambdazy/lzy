@@ -4,7 +4,7 @@
 * Fuse
   * Ubuntu: `apt install fuse`
   * macOS: [macFuse](https://osxfuse.github.io)
-* Java (>= 11)
+* Java (>= 17)
   * Ubuntu: `apt install default-jre`
   * macOS: `brew install java`
 

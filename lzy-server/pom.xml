@@ -163,10 +163,6 @@
       <groupId>org.apache.logging.log4j</groupId>
     </dependency>
     <dependency>
-      <artifactId>hibernate-java8</artifactId>
-      <groupId>org.hibernate</groupId>
-    </dependency>
-    <dependency>
       <artifactId>flyway-core</artifactId>
       <groupId>org.flywaydb</groupId>
     </dependency>
@@ -215,8 +211,9 @@
       <groupId>ru.yandex.clickhouse</groupId>
     </dependency>
     <dependency>
-      <artifactId>hibernate-c3p0</artifactId>
       <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-c3p0</artifactId>
+      <version>${hibernate.version}</version>
     </dependency>
     <dependency>
       <artifactId>kafka-clients</artifactId>

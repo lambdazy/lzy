@@ -1,4 +1,4 @@
-FROM findepi/graalvm:java11-all
+FROM findepi/graalvm:java17-all
 
 COPY target/lzy-backoffice-0.1.jar app/app.jar
 COPY src/main/resources/ app/resources

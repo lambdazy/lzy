@@ -3,28 +3,30 @@ package ru.yandex.cloud.ml.platform.lzy.iam.storage.impl;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBinding;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBindingDelta;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBindingDelta.AccessBindingAction;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthResource;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.User;
+import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
+import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.ResourceBinding;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
-import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.DbStorage;
-import ru.yandex.cloud.ml.platform.lzy.iam.storage.db.ResourceBinding;
-import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBinding;
-import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBindingDelta;
-import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBindingDelta.AccessBindingAction;
-import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthResource;
 
 @Singleton
-@Requires(beans = DbStorage.class)
+@Requires(beans = Storage.class)
 public class DbAccessBindingClient implements AccessBindingClient {
 
     @Inject
-    private DbStorage storage;
+    private Storage storage;
 
     @Override
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
@@ -55,7 +57,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
             final PreparedStatement st = storage.connect().prepareStatement(query.toString());
             int parameterIndex = 0;
             for (AccessBinding binding : accessBinding) {
-                st.setString(++parameterIndex, binding.subject());
+                st.setString(++parameterIndex, binding.subject().id());
                 st.setString(++parameterIndex, resource.resourceId());
                 st.setString(++parameterIndex, resource.type());
                 st.setString(++parameterIndex, binding.role());
@@ -84,12 +86,13 @@ public class DbAccessBindingClient implements AccessBindingClient {
             int parameterIndex = 0;
             for (AccessBindingDelta binding : accessBindingDeltas) {
                 if (binding.action() == AccessBindingAction.ADD) {
-                    st.setString(++parameterIndex, binding.binding().subject());
+                    st.setString(++parameterIndex, binding.binding().subject().id()
+                    );
                     st.setString(++parameterIndex, resource.resourceId());
                     st.setString(++parameterIndex, resource.type());
                     st.setString(++parameterIndex, binding.binding().role());
                 } else if (binding.action() == AccessBindingAction.REMOVE) {
-                    st.setString(++parameterIndex, binding.binding().subject());
+                    st.setString(++parameterIndex, binding.binding().subject().id());
                     st.setString(++parameterIndex, binding.binding().role());
                     st.setString(++parameterIndex, resource.resourceId());
                 } else {
@@ -104,7 +107,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
     }
 
     private AccessBinding toAccessBinding(ResourceBinding model) {
-        return new AccessBinding(model.role(), model.userId());
+        return new AccessBinding(model.role(), new User(model.userId()));
     }
 
     private String deleteQuery() {

@@ -11,6 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthExceptio
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthPermission;
+import ru.yandex.cloud.ml.platform.lzy.iam.utils.GrpcConverter;
 import yandex.cloud.lzy.v1.IAM.Subject;
 import yandex.cloud.priv.lzy.v1.LAS.AuthorizeRequest;
 import yandex.cloud.priv.lzy.v1.LzyAccessServiceGrpc;
@@ -27,24 +28,24 @@ public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase 
 
     @Override
     public void authorize(AuthorizeRequest request, StreamObserver<Subject> responseObserver) {
-        LOG.info("Authorize user::{}  to resource:: {}", request.getSubjectId(), request.getResource().getId());
+        LOG.info("Authorize user::{}  to resource:: {}", request.getSubject().getId(), request.getResource().getId());
         try {
             if (!Objects.requireNonNull(AuthenticationContext.current())
-                    .getSubject().id().equals(request.getSubjectId())) {
+                    .getSubject().id().equals(request.getSubject().getId())) {
                 throw new AuthPermissionDeniedException("");
             }
             if (accessClient.hasResourcePermission(
-                request.getSubjectId(), request.getResource().getId(),
-                AuthPermission.fromString(request.getPermission()))) {
+                    GrpcConverter.to(request.getSubject()), request.getResource().getId(),
+                    AuthPermission.fromString(request.getPermission()))) {
                 responseObserver.onNext(Subject.newBuilder()
-                        .setId(request.getSubjectId())
-                    .build());
+                        .setId(request.getSubject().getId())
+                        .build());
                 responseObserver.onCompleted();
             } else {
                 LOG.error("Access denied to resource::{}", request.getResource().getId());
                 responseObserver.onError(Status.PERMISSION_DENIED
-                    .withDescription("Access denied to resource:: " + request.getResource().getId())
-                    .asException());
+                        .withDescription("Access denied to resource:: " + request.getResource().getId())
+                        .asException());
             }
         } catch (AuthException e) {
             LOG.error("Auth exception::", e);

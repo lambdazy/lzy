@@ -22,6 +22,7 @@ import ru.yandex.cloud.ml.platform.lzy.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
@@ -29,6 +30,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ServerCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommandStatus.RC;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
@@ -163,7 +165,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                 Kharon.TerminalResponse.newBuilder()
                                 .setCommandId(commandId)
                                 .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                    .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
+                                    .setRc(RC.newBuilder()
                                         .setCodeValue(1)
                                         .setDescription("Invalid terminal command")
                                         .build())
@@ -177,6 +179,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     try {
                         // TODO: find out if we need namespaces here
                         final LzySlot slot = context.slot(slotCommand.getTid(), slotCommand.getSlot());
+
                         if (slot == null) {
                             if (slotCommand.hasDestroy() || slotCommand.hasDisconnect()) {
                                 CommandHandler.this.onNext(ServerCommand.newBuilder()
@@ -184,56 +187,64 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                         Kharon.TerminalResponse.newBuilder()
                                         .setCommandId(commandId)
                                         .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                            .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
-                                                .setCodeValue(0)
+                                            .setRc(RC.newBuilder()
+                                                .setCode(RC.Code.SUCCESS)
                                                 .build())
                                             .build())
-                                        .build()
-                                    ).build());
-                                return;
+                                        .build())
+                                    .build());
                             } else {
                                 CommandHandler.this.onNext(ServerCommand.newBuilder()
                                     .setTerminalResponse(
                                         Kharon.TerminalResponse.newBuilder()
                                         .setCommandId(commandId)
                                         .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                            .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
-                                                .setCodeValue(1)
+                                            .setRc(RC.newBuilder()
+                                                .setCode(RC.Code.ERROR)
                                                 .setDescription("Slot " + slotCommand.getSlot()
                                                     + " not found in ns: " + slotCommand.getTid())
                                                 .build())
                                             .build())
-                                        .build()
-                                    ).build());
-                                return;
+                                        .build())
+                                    .build());
                             }
+                            return;
                         }
+
                         if (slotCommand.hasConnect()) {
                             final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
+
                             ForkJoinPool.commonPool().execute(() -> {
-                                if (slot instanceof LzyOutputSlot) {
-                                    slotSender.connect((LzyOutputSlot) slot, slotUri);
-                                } else if (slot instanceof LzyInputSlot) {
-                                    if (slotUri.getScheme().equals("s3") || slotUri.getScheme().equals("azure")) {
-                                        ((LzyInputSlot) slot).connect(slotUri,
-                                            lzyFs.getSlotConnectionManager().connectToS3(slotUri, 0));
-                                    } else {
-                                        ((LzyInputSlot) slot).connect(slotUri,
-                                            lzyFs.getSlotConnectionManager().connectToSlot(slotUri, 0));
+                                try {
+                                    if (slot instanceof LzyOutputSlot) {
+                                        slotSender.connect((LzyOutputSlot) slot, slotUri);
+                                    } else if (slot instanceof LzyInputSlot) {
+                                        final var inputSlot = (LzyInputSlot) slot;
+                                        if (UriScheme.SlotS3.match(slotUri) || UriScheme.SlotAzure.match(slotUri)) {
+                                            inputSlot.connect(slotUri,
+                                                lzyFs.getSlotConnectionManager().connectToS3(slotUri, 0));
+                                        } else {
+                                            inputSlot.connect(slotUri,
+                                                lzyFs.getSlotConnectionManager().connectToSlot(slotUri, 0));
+                                        }
                                     }
+
+                                    CommandHandler.this.onNext(ServerCommand.newBuilder()
+                                        .setTerminalResponse(Kharon.TerminalResponse.newBuilder()
+                                            .setCommandId(commandId)
+                                            .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                                .setRc(RC.newBuilder()
+                                                    .setCode(RC.Code.SUCCESS)
+                                                    .build())
+                                                .build())
+                                            .build())
+                                        .build());
+                                } catch (Exception e) {
+                                    LOG.error("Can't connect to slot {}: {}", slotUri, e.getMessage(), e);
+                                    CommandHandler.this.onError(e);
                                 }
                             });
 
-                            CommandHandler.this.onNext(ServerCommand.newBuilder()
-                                .setTerminalResponse(Kharon.TerminalResponse.newBuilder()
-                                .setCommandId(commandId)
-                                .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                    .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
-                                        .setCodeValue(0)
-                                        .build())
-                                    .build())
-                                .build())
-                                .build());
                             return;
                         }
 
