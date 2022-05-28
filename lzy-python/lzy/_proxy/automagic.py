@@ -12,75 +12,15 @@ def always_materialize_args_before_call(func):
 
     @functools.wraps(func)
     def new(*args, **kwargs):
-        is_arg_lazy_set = {
-            is_proxy(arg)
-            for arg in chain(args, kwargs.values())
-        }
+        is_arg_lazy_set = {is_proxy(arg) for arg in chain(args, kwargs.values())}
 
         if any(is_arg_lazy_set):
-            args = tuple(
-                arg if not is_proxy(arg) else materialize(arg)
-                for arg in args
-            )
+            args = tuple(arg if not is_proxy(arg) else materialize(arg) for arg in args)
             kwargs = {
                 name: arg if not is_proxy(arg) else materialize(arg)
                 for name, arg in kwargs.items()
             }
         return func(*args, **kwargs)
-
-    return new
-
-
-def materialize_args_on_fall(func):
-    """
-    Decorates function f and returns new function which will materialize it's
-    arguments on every call if the first call didn't succeed and returned
-    NotImplemented.
-
-    Seems that usually it happens with some binary operations
-    of builtin types like int -- they check type somehow differently then
-    through usual isinstance call and return NotImplemented for objects of
-    proxied classes.
-
-    :param func: any function
-    :return: new function with changed behaviour
-    """
-
-    def materialize_if_proxy(arg: Any) -> Any:
-        return (
-            # pylint: disable=protected-access
-            create_and_cache(type(arg), type(arg)._constructor)
-            if isinstance(type(arg), Proxifier) else
-            arg
-        )
-
-    @functools.wraps(func)
-    def new(*args, **kwargs):
-        # noinspection PyArgumentList
-        val = func(*args, **kwargs)
-        # https://docs.python.org/3/library/constants.html#NotImplemented
-        # in short: all binary operations return NotImplemented in case
-        # if there is error related to type
-        #
-        # >>> class A:
-        # ...     pass
-        # >>> a = (10).__add__(A()) # exception is not raised here
-        # >>> a
-        # NotImplemented
-        #
-        # and `(10).__add__` is func here
-        #
-        # TODO: probably try/except is worth too but let's wait and see
-        if val is NotImplemented:
-            kwargs = {
-                name: materialize_if_proxy(arg_value)
-                for name, arg_value in kwargs.items()
-            }
-            args = tuple(materialize_if_proxy(arg) for arg in args)
-            # it's ok if exception happens here because
-            # there could be user exception
-            val = func(*args, **kwargs)
-        return val
 
     return new
 
@@ -107,8 +47,7 @@ class TrickDescriptor:
 
         # but if __get__ returned callable then we have function in here
         # so instead of this function we should return a new one,
-        # which will try to work as usual but if returned NotImplemented
-        # it will materialize its arguments before call
+        # which will **always** materialize its arguments before call
         return always_materialize_args_before_call(res)
 
 
@@ -152,7 +91,7 @@ class Proxifier(type):
     # Yeah, too many arguments in this method, but what can you do else
     # with all needed arguments of metaclass __new__?
     def __new__(
-            cls, name, bases, attrs, proto_type, constructor, cls_attrs
+        cls, name, bases, attrs, proto_type, constructor, cls_attrs
     ):  # pylint: disable=too-many-arguments
         new_attrs = {
             k: TrickDescriptor(v, constructor) if hasattr(v, "__get__") else v
@@ -172,9 +111,7 @@ class Proxifier(type):
 
 
 class ProxifierOptional(type):
-    def __new__(
-            cls, name, bases, attrs, proto_type, constructor, cls_attrs
-    ):
+    def __new__(cls, name, bases, attrs, proto_type, constructor, cls_attrs):
         new_attrs = {}
         for k in dir(proto_type):
             new_attrs[k] = TrickDescriptorOptional(constructor, k)
@@ -205,7 +142,7 @@ def is_proxy(obj: Any) -> bool:
 
 # TODO: LazyProxy type?
 def proxy(
-        constructor: Callable[[], T], proto_type: Type[T], cls_attrs=None, obj_attrs=None
+    constructor: Callable[[], T], proto_type: Type[T], cls_attrs=None, obj_attrs=None
 ) -> Any:
     """
     Function which returns proxy on object, i.e. object which looks like original,
@@ -246,12 +183,12 @@ def proxy(
             if DEBUG:
                 print(f"Called __getattribute__: {item}")
 
-            if item == '__lzy_origin__':
+            if item == "__lzy_origin__":
                 create_and_cache(type(self), constructor)
                 # noinspection PyProtectedMember
                 return type(self)._origin  # pylint: disable=protected-access
-            elif item == '__lzy_materialized__':
-                return hasattr(type(self), '_origin')
+            elif item == "__lzy_materialized__":
+                return hasattr(type(self), "_origin")
 
             if item in obj_attrs or item in cls_attrs:
                 candidate = super().__getattribute__(item)
@@ -277,7 +214,7 @@ def proxy(
 
 
 def proxy_optional(
-        constructor: Callable[[], T], proto_type: Type[T], cls_attrs=None, obj_attrs=None
+    constructor: Callable[[], T], proto_type: Type[T], cls_attrs=None, obj_attrs=None
 ) -> Any:
     cls_attrs = cls_attrs or {}
     obj_attrs = obj_attrs or {}
