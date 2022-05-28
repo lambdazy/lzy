@@ -4,6 +4,7 @@ import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.cli.*;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.kharon.TerminalController.TerminalControllerResetException;
@@ -355,7 +356,11 @@ public class LzyKharon {
 
         @Override
         public void start(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> responseObserver) {
-            LOG.info("Kharon::start " + JsonUtils.printRequest(request));
+            if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
+                LOG.debug("Kharon::start " + JsonUtils.printRequest(request));
+            } else {
+                LOG.info("Kharon::start request (tid={})", request.getTid());
+            }
             try {
                 final Iterator<Tasks.TaskProgress> start = server.start(request);
                 while (start.hasNext()) {
