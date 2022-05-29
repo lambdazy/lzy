@@ -1,9 +1,10 @@
 import functools
 import inspect
-import logging
 import sys
 import uuid
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
+
+import yaml
 
 from lzy._proxy.result import Nothing
 from lzy.api.v2.api.lzy_call import LzyCall
@@ -14,25 +15,39 @@ from lzy.api.v2.utils import infer_return_type, infer_call_signature, lazy_proxy
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
-logging.root.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logging.root.addHandler(handler)
+
+import logging
+
+
+def handlers():
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+    yield handler
+
+
+def init_logger():
+    logging.basicConfig(
+        filename="example.log",
+        handlers=handlers(),
+        encoding="utf-8",
+        level=logging.INFO,
+    )
+
+
+init_logger()
 
 
 # pylint: disable=[invalid-name]
 def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
-    provisioning = Provisioning(gpu)
-    if func is None:
-        return op_(provisioning, output_type=output_type)
-    return op_(provisioning, output_type=output_type)(func)
-
-
-# pylint: disable=unused-argument
-def op_(provisioning: Provisioning, *, output_type=None):
     def deco(f):
+        """
+        Decorator which will try to infer return type of function
+        and create lazy constructor instead of decorated function.
+        """
         nonlocal output_type
         if output_type is None:
             infer_result = infer_return_type(f)
@@ -45,65 +60,74 @@ def op_(provisioning: Provisioning, *, output_type=None):
             else:
                 output_type = infer_result.value
 
-        @functools.wraps(f)
-        def lazy(*args, **kwargs):
-            # TODO: defaults?
-            current_workflow = LzyWorkflow.get_active()
-            if current_workflow is None:
-                return f(*args, **kwargs)
+        # yep, create lazy constructor and return it
+        # instead of function
+        return create_lazy_constructor(f, output_type, provisioning)
 
-            nonlocal output_type
-            signature = infer_call_signature(f, output_type, *args, **kwargs)
-            env_provider = current_workflow._env_provider
+    provisioning = Provisioning(gpu)
 
-            # we need specify globals() for caller site to find all
-            # required modules
-            caller_globals = inspect.stack()[1].frame.f_globals
+    if func is None:
+        return deco
 
-            lzy_op = LzyOp(
-                env_provider.for_op(caller_globals),
-                provisioning,
-                signature.func.callable,
-                signature.func.input_types,
-                signature.func.output_type,
-                signature.func.arg_names,
-                signature.func.kwarg_names
-            )
+    return deco(func)
 
-            lzy_call = LzyCall(
-                lzy_op,
-                args,
-                kwargs,
-                str(uuid.uuid4())
-            )
 
-            current_workflow.call(lzy_call)
+def create_lazy_constructor(
+    f: Callable[..., Any], output_type: type, provisioning: Provisioning
+) -> Callable[..., Any]:
+    @functools.wraps(f)
+    def lazy(*args, **kwargs):
+        # TODO: defaults?
+        current_workflow = LzyWorkflow.get_active()
+        if current_workflow is None:
+            return f(*args, **kwargs)
 
-            # Special case for NoneType, just leave op registered and return
-            # the real None. LzyEnv later will materialize it anyway.
-            #
-            # Otherwise `is` checks won't work, for example:
-            # >>> @op
-            # ... def op_none_operation() -> None:
-            # ...      pass
-            #
-            # >>> obj = op_none_operation()
-            # >>> obj is None
-            # >>> False
-            if issubclass(output_type, type(None)):
-                return None
-            else:
-                def materialize():
-                    value = current_workflow.snapshot().get(lzy_call.entry_id)
-                    if value is not None:
-                        return value
-                    current_workflow.barrier()
-                    return current_workflow.snapshot().get(lzy_call.entry_id)
-                return lazy_proxy(materialize, output_type, {"lzy_call": lzy_call})
+        signature = infer_call_signature(f, output_type, *args, **kwargs)
+        env_provider = current_workflow._env_provider
 
-        return lazy
+        # we need specify globals() for caller site to find all
+        # required modules
+        caller_globals = inspect.stack()[1].frame.f_globals
 
-    return deco
+        lzy_op = LzyOp(
+            env_provider.for_op(caller_globals),
+            provisioning,
+            signature.func.callable,
+            signature.func.input_types,
+            signature.func.output_type,
+            signature.func.arg_names,
+            signature.func.kwarg_names,
+        )
+
+        lzy_call = LzyCall(lzy_op, args, kwargs, str(uuid.uuid4()))
+
+        current_workflow.call(lzy_call)
+
+        # Special case for NoneType, just leave op registered and return
+        # the real None. LzyEnv later will materialize it anyway.
+        #
+        # Otherwise `is` checks won't work, for example:
+        # >>> @op
+        # ... def op_none_operation() -> None:
+        # ...      pass
+        #
+        # >>> obj = op_none_operation()
+        # >>> obj is None
+        # >>> False
+        if issubclass(output_type, type(None)):
+            return None
+        else:
+
+            def materialize():
+                value = current_workflow.snapshot().get(lzy_call.entry_id)
+                if value is not None:
+                    return value
+                current_workflow.barrier()
+                return current_workflow.snapshot().get(lzy_call.entry_id)
+
+            return lazy_proxy(materialize, output_type, {"lzy_call": lzy_call})
+
+    return lazy
 
 
 # register cloud injections
