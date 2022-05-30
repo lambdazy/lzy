@@ -7,7 +7,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AuthenticateService;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.SubjectService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
@@ -109,7 +108,7 @@ public class DbAuthServiceTest {
                     """;
 
     private ApplicationContext ctx;
-    private SubjectService subjectService;
+    private DbSubjectService subjectService;
     private Storage storage;
     private AuthenticateService authenticateService;
 

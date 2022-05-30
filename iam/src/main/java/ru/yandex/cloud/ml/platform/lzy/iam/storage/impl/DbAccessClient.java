@@ -5,7 +5,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessClient;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthBadRequestException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
@@ -21,13 +20,12 @@ import java.sql.SQLException;
 
 @Singleton
 @Requires(beans = Storage.class)
-public class DbAccessClient implements AccessClient {
+public class DbAccessClient {
     private static final Logger LOG = LogManager.getLogger(DbAccessClient.class);
 
     @Inject
     private Storage storage;
 
-    @Override
     public boolean hasResourcePermission(Subject subject, String resourceId, AuthPermission permission)
             throws AuthException {
         if (Role.LZY_INTERNAL_USER.permissions().contains(permission)) {

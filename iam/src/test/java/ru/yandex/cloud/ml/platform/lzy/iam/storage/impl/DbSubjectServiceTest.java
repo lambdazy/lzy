@@ -6,7 +6,6 @@ import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.SubjectService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthBadRequestException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.credentials.SubjectCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
@@ -22,7 +21,7 @@ public class DbSubjectServiceTest {
     public static final Logger LOG = LogManager.getLogger(DbSubjectServiceTest.class);
 
     private ApplicationContext ctx;
-    private SubjectService subjectService;
+    private DbSubjectService subjectService;
     private Storage storage;
 
     @Before
