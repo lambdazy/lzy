@@ -19,7 +19,8 @@ public class ServerController {
         CREATED,
         CONNECTED,
         ERRORED,
-        COMPLETED
+        COMPLETED,
+        DISCONNECTED
     }
 
     private State state;
@@ -37,11 +38,15 @@ public class ServerController {
         if (state == State.CONNECTED) {
             throw new IllegalStateException("Server already connected with servant progress sessionId=" + sessionId);
         }
-        if (state == State.ERRORED || state == State.COMPLETED) {
+        if (isFinalState()) {
             throw new ServerControllerResetException();
         }
         this.progress = progress;
         updateState(State.CONNECTED);
+    }
+
+    private boolean isFinalState() {
+        return state == State.ERRORED || state == State.COMPLETED || state == State.DISCONNECTED;
     }
 
     public void attach(Servant.SlotAttach attach) throws ServerControllerResetException {
@@ -91,8 +96,12 @@ public class ServerController {
         return state;
     }
 
+    public void onDisconnect() {
+        updateState(State.DISCONNECTED);
+    }
+
     private synchronized void updateState(State state) {
-        if (this.state == State.ERRORED || this.state == State.COMPLETED) {
+        if (isFinalState()) {
             LOG.warn(
                 "ServerController sessionId={} attempt to change final state {} to {}",
                 sessionId,
@@ -107,7 +116,7 @@ public class ServerController {
     }
 
     private synchronized void sendMessage(Servant.ServantProgress message) throws ServerControllerResetException {
-        while (State.CONNECTED != state && state != State.ERRORED && state != State.COMPLETED) {
+        while (State.CONNECTED != state && !isFinalState()) {
             try {
                 wait();
             } catch (InterruptedException ignore) {

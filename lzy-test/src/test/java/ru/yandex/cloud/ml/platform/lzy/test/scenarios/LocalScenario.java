@@ -26,8 +26,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected LzySnapshotTestContext whiteboardContext;
     protected LzyKharonTestContext kharonContext;
     protected S3Mock api;
-
-    protected boolean status = false;
+    protected boolean isExecuting = false;
     protected LzyTerminalTestContext.Terminal terminal;
     @Before
     public void setUp() {
@@ -63,7 +62,7 @@ public abstract class LocalScenario extends LzyBaseTest {
                 terminalContext.TEST_USER,
                 null
         );
-        status = terminal.waitForStatus(
+        isExecuting = terminal.waitForStatus(
                 AgentStatus.EXECUTING,
                 Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
@@ -72,7 +71,7 @@ public abstract class LocalScenario extends LzyBaseTest {
 
     public void stopTerminal() {
         // terminal = null; ??
-        status = false;
+        isExecuting = false;
     }
 
     private static void createResourcesFolder() {

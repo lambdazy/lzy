@@ -34,7 +34,7 @@ public class LzyDryStartupTest extends LocalScenario {
         serverContext.close();
 
         //Assert
-        Assert.assertTrue(status);
+        Assert.assertTrue(isExecuting);
         Assert.assertTrue(terminal.waitForShutdown(10, TimeUnit.SECONDS));
     }
 }
