@@ -6,9 +6,6 @@ import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessClient;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.SubjectService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthBadRequestException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.*;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.impl.Whiteboard;
@@ -27,10 +24,10 @@ public class DbAccessClientTest {
     public static final Logger LOG = LogManager.getLogger(DbAccessClientTest.class);
 
     private ApplicationContext ctx;
-    private SubjectService subjectService;
+    private DbSubjectService subjectService;
     private Storage storage;
-    private AccessClient accessClient;
-    private AccessBindingClient accessBindingClient;
+    private DbAccessClient accessClient;
+    private DbAccessBindingClient accessBindingClient;
 
     @Before
     public void setUp() {

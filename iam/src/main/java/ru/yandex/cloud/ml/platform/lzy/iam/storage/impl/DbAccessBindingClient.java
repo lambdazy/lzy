@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.iam.storage.impl;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
+import ru.yandex.cloud.ml.platform.lzy.iam.clients.AccessBindingClient;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBinding;
@@ -23,12 +23,11 @@ import java.util.stream.Stream;
 
 @Singleton
 @Requires(beans = Storage.class)
-public class DbAccessBindingClient implements AccessBindingClient {
+public class DbAccessBindingClient {
 
     @Inject
     private Storage storage;
 
-    @Override
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         List<AccessBinding> bindings = new ArrayList<>();
         try (final PreparedStatement st = storage.connect()
@@ -45,7 +44,6 @@ public class DbAccessBindingClient implements AccessBindingClient {
         return bindings.stream();
     }
 
-    @Override
     public void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) throws AuthException {
         try {
             StringBuilder query = new StringBuilder();
@@ -66,7 +64,6 @@ public class DbAccessBindingClient implements AccessBindingClient {
         }
     }
 
-    @Override
     public void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBindingDeltas)
             throws AuthException {
         try {
