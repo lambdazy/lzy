@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Union, TypeVar
 
-from lzy.servant.model.slot import Slot
+from lzy.api.v1.servant.model.slot import Slot
 
 
 @dataclass

@@ -3,43 +3,10 @@ import json
 from dataclasses import dataclass
 from typing import Generic, List, Optional, TypeVar
 
-from lzy.servant.model.env import Env
-from lzy.servant.model.slot import Slot
-from lzy.api.v1.signatures import FuncSignature
-
-
-class Tag(ABC):
-    @abstractmethod
-    def tag(self) -> str:
-        pass
-
-
-class Gpu(Tag):
-    def __init__(self, is_any: bool = False):
-        super().__init__()
-        self._any = is_any
-
-    def tag(self) -> str:
-        if self._any:
-            return "GPU:ANY"
-        return "GPU"
-
-    @staticmethod
-    def any():
-        return Gpu(True)
-
-
-@dataclass
-class Provisioning:
-    gpu: Optional[Gpu] = None
-
-    def tags(self) -> List[Tag]:
-        res = []
-        for tag in self.__dict__.values():
-            if tag:
-                res.append(tag.tag())
-        return res
-
+from lzy.api.v2.servant.model.env import Env
+from lzy.api.v2.servant.model.provisioning import Provisioning
+from lzy.api.v2.servant.model.signatures import FuncSignature
+from lzy.api.v2.servant.model.slot import Slot
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

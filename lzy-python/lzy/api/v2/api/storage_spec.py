@@ -1,0 +1,2 @@
+class StorageSpec:
+    pass

@@ -9,14 +9,15 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
 
 from lzy.api.v1.buses import Bus
-from lzy.api.v1.lazy_op import LzyOp
 from lzy.api.v1.cache_policy import CachePolicy
+from lzy.api.v1.lazy_op import LzyOp
 from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 import zipfile
 
+from lzy.api.v1.servant.model.encoding import ENCODING as encoding
+from lzy.api.v1.utils import zipdir, fileobj_hash
 from lzy.serialization.hasher import DelegatingHasher, Hasher
-from lzy.serialization.serializer import MemBytesSerializerImpl, FileSerializerImpl, MemBytesSerializer, FileSerializer
-from lzy.utils import zipdir, fileobj_hash
+from lzy.serialization.serializer import FileSerializerImpl, MemBytesSerializerImpl, MemBytesSerializer, FileSerializer
 from lzy.storage.storage_client import StorageClient, from_credentials
 from lzy.api.v1.whiteboard import wrap_whiteboard, wrap_whiteboard_for_read, check_whiteboard
 from lzy.api.v1.whiteboard.model import (
@@ -28,12 +29,11 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardDescription,
     WhiteboardFieldStatus, UUIDEntryIdGenerator
 )
-from lzy.servant.model.encoding import ENCODING as encoding
-from lzy.servant.model.env import PyEnv
-from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.channel_manager import ServantChannelManager, LocalChannelManager, ChannelManager
-from lzy.servant.servant_client import ServantClient, CredentialsTypes, ServantClientMock
-from lzy.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
+from lzy.api.v1.servant.model.env import PyEnv
+from lzy.api.v1.servant.bash_servant_client import BashServantClient
+from lzy.api.v1.servant.channel_manager import ServantChannelManager, LocalChannelManager, ChannelManager
+from lzy.api.v1.servant.servant_client import ServantClient, CredentialsTypes, ServantClientMock
+from lzy.api.v1.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]
@@ -265,7 +265,7 @@ class LzyWorkflowBase(ABC):
 
     @classmethod
     def get_active(cls) -> "LzyWorkflowBase":
-        assert len(cls.instances) > 0, "There is not active LzyEnv"
+        assert len(cls.instances) > 0, "There is not active LzyWorkflow"
         return cls.instances[-1]
 
     def __enter__(self) -> "LzyWorkflowBase":

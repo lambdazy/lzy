@@ -1,14 +1,13 @@
 import dataclasses
 import os
-import uuid
 from typing import List, Any, Callable, Optional, Dict, Set
 
 from pure_protobuf.dataclasses_ import message  # type: ignore
 
 from lzy.serialization.serializer import FileSerializer
-from lzy.utils import is_lazy_proxy
+from lzy.api.v1.utils import is_lazy_proxy
 from lzy.api.v1.whiteboard.model import WhiteboardApi, WhiteboardDescription, EntryIdGenerator
-from lzy.servant.channel_manager import ChannelManager
+from lzy.api.v1.servant.channel_manager import ChannelManager
 
 ALREADY_WRAPPED = '_already_wrapped_whiteboard'
 ALREADY_WRAPPED_READY = '_already_wrapped_ready_whiteboard'
@@ -101,7 +100,7 @@ def wrap_whiteboard(
                 raise RuntimeError("Cannot get whiteboard id")
             path = channel_manager.out_slot(entry_id)
             with path.open("wb") as handle:
-                serializer.serialize(value, handle)
+                serializer.serialize_to_file(value, handle)
                 handle.flush()
                 os.fsync(handle.fileno())
             whiteboard_api.link(whiteboard_id, key, entry_id)
