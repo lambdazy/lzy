@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -79,7 +80,11 @@ public class ServerController {
     public synchronized void terminate(Throwable th) {
         LOG.info("Server connection sessionId={} terminated, throwable={}", sessionId, th);
         if (state == State.CONNECTED) {
-            progress.onError(th);
+            try {
+                progress.onError(th);
+            } catch (StatusRuntimeException e) {
+                updateState(State.DISCONNECTED);
+            }
         }
         updateState(State.ERRORED);
     }
@@ -87,7 +92,11 @@ public class ServerController {
     public synchronized void complete() {
         LOG.info("ServerController sessionId={} completed", sessionId);
         if (state == State.CONNECTED) {
-            progress.onCompleted();
+            try {
+                progress.onCompleted();
+            } catch (StatusRuntimeException e) {
+                updateState(State.DISCONNECTED);
+            }
         }
         updateState(State.COMPLETED);
     }
@@ -128,7 +137,11 @@ public class ServerController {
             throw new ServerControllerResetException();
         }
 
-        progress.onNext(message);
+        try {
+            progress.onNext(message);
+        } catch (StatusRuntimeException e) {
+            updateState(State.DISCONNECTED);
+        }
     }
 
     public static class ServerControllerResetException extends Exception { }

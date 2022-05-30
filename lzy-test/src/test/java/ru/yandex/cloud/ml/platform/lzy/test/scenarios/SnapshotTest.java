@@ -29,6 +29,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
+import static ru.yandex.cloud.ml.platform.lzy.test.impl.Utils.S3_PORT;
+
 public class SnapshotTest extends LocalScenario {
     @Before
     public void setUp() {
