@@ -57,7 +57,7 @@ message GraphExecutionStatus {
 message GraphExecuteRequest {
   string workflowId = 1;
   repeated TaskDesc tasks = 2;
-  optional string parentGraphId = 3;
+  string parentGraphId = 3;
 }
 message GraphExecuteResponse {
   GraphExecutionStatus status = 1;
@@ -87,7 +87,7 @@ message GraphStopResponse {
 // =========List============
 
 message GraphListRequest {
-  optional string workflowId = 1;
+  string workflowId = 1;
 }
 message GraphListResponse {
   repeated GraphExecutionStatus graphs = 1;
