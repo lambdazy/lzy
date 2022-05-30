@@ -10,10 +10,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.commons.io.IOUtils;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+
+import javax.annotation.Nullable;
 
 public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
     private final List<Process> servantProcesses = new ArrayList<>();
@@ -116,27 +119,26 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
                 }
             }
 
+            @Nullable
             @Override
-            public boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit) {
-                return Utils.waitFlagUp(() -> {
-                    if (pathExists(Paths.get(mount + "/sbin/status"))) {
-                        try {
-                            final Process bash = new ProcessBuilder("bash", mount + "/sbin/status").start();
-                            bash.waitFor();
-                            final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
-                            final String parsedStatus = stdout.split("\n")[0];
-                            return parsedStatus.equalsIgnoreCase(status.name());
-                        } catch (InterruptedException | IOException e) {
-                            return false;
-                        }
+            public AgentStatus status() {
+                if (pathExists(Paths.get(mount + "/sbin/status"))) {
+                    try {
+                        final Process bash = new ProcessBuilder("bash", mount + "/sbin/status").start();
+                        bash.waitFor();
+                        final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
+                        final String parsedStatus = stdout.split("\n")[0];
+                        return AgentStatus.valueOf(parsedStatus);
+                    } catch (InterruptedException | IOException e) {
+                        return null;
                     }
-                    return false;
-                }, timeout, unit);
+                }
+                return null;
             }
 
             @Override
-            public boolean waitForShutdown(long timeout, TimeUnit unit) {
-                return Utils.waitFlagUp(() -> !process.isAlive(), timeout, unit);
+            public boolean waitForShutdown() {
+                return Utils.waitFlagUp(() -> !process.isAlive(), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
             }
 
             @Override

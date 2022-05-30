@@ -19,6 +19,7 @@ import org.testcontainers.containers.output.ToStringConsumer;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -172,29 +173,26 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
                 }
             }
 
+            @Nullable
             @Override
-            public boolean waitForStatus(
-                AgentStatus status, long timeout, TimeUnit unit
-            ) {
-                return Utils.waitFlagUp(() -> {
-                    if (pathExists(Paths.get(mount + "/sbin/status"))) {
-                        try {
-                            final Container.ExecResult bash = servantContainer.execInContainer(
-                                "bash",
-                                mount + "/sbin/status"
-                            );
-                            final String parsedStatus = bash.getStdout().split("\n")[0];
-                            return parsedStatus.equalsIgnoreCase(status.name());
-                        } catch (InterruptedException | IOException e) {
-                            return false;
-                        }
+            public AgentStatus status() {
+                if (pathExists(Paths.get(mount + "/sbin/status"))) {
+                    try {
+                        final Container.ExecResult bash = servantContainer.execInContainer(
+                            "bash",
+                            mount + "/sbin/status"
+                        );
+                        final String parsedStatus = bash.getStdout().split("\n")[0];
+                        return AgentStatus.valueOf(parsedStatus);
+                    } catch (InterruptedException | IOException e) {
+                        return null;
                     }
-                    return false;
-                }, timeout, unit);
+                }
+                return null;
             }
 
             @Override
-            public boolean waitForShutdown(long timeout, TimeUnit unit) {
+            public boolean waitForShutdown() {
                 return Utils.waitFlagUp(() -> {
                     try {
                         servantContainer.execInContainer("bash");
@@ -206,7 +204,7 @@ public class LzyTerminalDockerContext implements LzyTerminalTestContext {
                         throw new RuntimeException(e);
                     }
                     return false;
-                }, timeout, unit);
+                }, DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
             }
 
             @Override

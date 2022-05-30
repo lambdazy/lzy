@@ -7,6 +7,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 
 public class LzyDryStartupTest extends LocalScenario {
     @Before
@@ -18,7 +19,6 @@ public class LzyDryStartupTest extends LocalScenario {
     @After
     public void tearDown() {
         super.tearDown();
-        stopTerminal();
     }
 
     @Test
@@ -30,11 +30,10 @@ public class LzyDryStartupTest extends LocalScenario {
     }
 
     @Test
-    public void testServantDiesAfterServerDied() {
+    public void testTerminalDiesAfterServerDied() {
         serverContext.close();
 
         //Assert
-        Assert.assertTrue(isExecuting);
-        Assert.assertTrue(terminal.waitForShutdown(10, TimeUnit.SECONDS));
+        Assert.assertTrue(terminal.waitForShutdown());
     }
 }

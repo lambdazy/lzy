@@ -10,6 +10,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
 
 public class Utils {
+    public static final int S3_PORT = 8001;
+
     public static boolean waitFlagUp(Supplier<Boolean> supplier, long timeout, TimeUnit unit) {
         boolean flag = false;
         final long start = System.currentTimeMillis();

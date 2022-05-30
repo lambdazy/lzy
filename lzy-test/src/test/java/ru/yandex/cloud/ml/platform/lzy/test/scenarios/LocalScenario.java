@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
 import io.findify.s3mock.S3Mock;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
@@ -25,8 +26,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected LzyServerTestContext serverContext;
     protected LzySnapshotTestContext whiteboardContext;
     protected LzyKharonTestContext kharonContext;
-    protected S3Mock api;
-    protected boolean isExecuting = false;
+    protected S3Mock s3Mock;
     protected LzyTerminalTestContext.Terminal terminal;
     @Before
     public void setUp() {
@@ -38,14 +38,14 @@ public abstract class LocalScenario extends LzyBaseTest {
         whiteboardContext.init();
         kharonContext = new LzyKharonThreadContext(serverContext.address(), whiteboardContext.address());
         kharonContext.init();
-        api = new S3Mock.Builder().withPort(Config.S3_PORT).withInMemoryBackend().build();
-        api.start();
+        s3Mock = new S3Mock.Builder().withPort(Config.S3_PORT).withInMemoryBackend().build();
+        s3Mock.start();
         super.setUp();
     }
 
     @After
     public void tearDown() {
-        api.shutdown();
+        s3Mock.shutdown();
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();
@@ -54,24 +54,19 @@ public abstract class LocalScenario extends LzyBaseTest {
 
     public void startTerminalWithDefaultConfig() {
         terminal = terminalContext.startTerminalAtPathAndPort(
-                Config.LZY_MOUNT,
-                Config.SERVANT_PORT,
-                Config.SERVANT_FS_PORT,
-                kharonContext.serverAddress(),
-                Config.DEBUG_PORT,
-                terminalContext.TEST_USER,
-                null
+            Config.LZY_MOUNT,
+            Config.SERVANT_PORT,
+            Config.SERVANT_FS_PORT,
+            kharonContext.serverAddress(),
+            Config.DEBUG_PORT,
+            terminalContext.TEST_USER,
+            null
         );
-        isExecuting = terminal.waitForStatus(
-                AgentStatus.EXECUTING,
-                Config.TIMEOUT_SEC,
-                TimeUnit.SECONDS
-        );
-    }
-
-    public void stopTerminal() {
-        // terminal = null; ??
-        isExecuting = false;
+        Assert.assertTrue(terminal.waitForStatus(
+            AgentStatus.EXECUTING,
+            Config.TIMEOUT_SEC,
+            TimeUnit.SECONDS
+        ));
     }
 
     private static void createResourcesFolder() {

@@ -4,10 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
@@ -17,6 +19,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
+
+import javax.annotation.Nullable;
 
 public interface LzyTerminalTestContext extends AutoCloseable {
 
@@ -374,9 +378,14 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             }
         }
 
-        boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit);
+        default boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit) {
+            return Utils.waitFlagUp(() -> Objects.equals(status(), status), timeout, unit);
+        }
 
-        boolean waitForShutdown(long timeout, TimeUnit unit);
+        @Nullable
+        AgentStatus status();
+
+        boolean waitForShutdown();
 
         void shutdownNow();
 

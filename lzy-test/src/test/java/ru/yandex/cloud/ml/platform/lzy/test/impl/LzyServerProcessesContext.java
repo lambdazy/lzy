@@ -14,6 +14,8 @@ import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
+import static ru.yandex.cloud.ml.platform.lzy.test.impl.Utils.S3_PORT;
+
 public class LzyServerProcessesContext implements LzyServerTestContext {
 
     private static final long SERVER_STARTUP_TIMEOUT_SEC = 60;
@@ -67,7 +69,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                 env.put("STORAGE_AMAZON_SECRET_TOKEN", "secret-key");
                 env.put("STORAGE_AMAZON_ENABLED", "true");
                 env.put("STORAGE_BUCKET", "lzy-bucket");
-                final String serviceEndpoint = "http://localhost:8001";
+                final String serviceEndpoint = "http://localhost:" + S3_PORT;
                 final String lzyWhiteboard = "http://localhost:8999";
                 env.put("STORAGE_AMAZON_ENDPOINT", serviceEndpoint);
                 env.put("SERVER_WHITEBOARD_URL", lzyWhiteboard);

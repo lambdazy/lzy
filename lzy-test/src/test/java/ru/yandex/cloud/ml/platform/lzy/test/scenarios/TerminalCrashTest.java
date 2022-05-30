@@ -82,7 +82,7 @@ public class TerminalCrashTest extends LocalScenario {
                 TimeUnit.SECONDS
             );
             terminal1.shutdownNow();
-            terminal1.waitForShutdown(30, TimeUnit.SECONDS);
+            terminal1.waitForShutdown();
         });
         terminal1.run(
             cat.name(),
@@ -229,6 +229,6 @@ public class TerminalCrashTest extends LocalScenario {
             TimeUnit.SECONDS
         );
         terminal.shutdownNow();
-        terminal.waitForShutdown(10, TimeUnit.SECONDS);
+        terminal.waitForShutdown();
     }
 }
