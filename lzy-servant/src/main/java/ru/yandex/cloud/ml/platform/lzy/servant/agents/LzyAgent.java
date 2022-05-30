@@ -10,7 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.LzyFsServer;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommands;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.ServantCommandHolder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -104,7 +104,7 @@ public abstract class LzyAgent implements Closeable {
 
         onStartUp();
 
-        for (LzyCommands command : LzyCommands.values()) {
+        for (ServantCommandHolder command : ServantCommandHolder.values()) {
             publishTool(null, Paths.get(command.name()), command.name());
         }
         final Operations.ZygoteList zygotes = serverApi().zygotes(auth);

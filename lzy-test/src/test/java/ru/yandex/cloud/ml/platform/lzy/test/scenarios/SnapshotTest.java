@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
+import static ru.yandex.cloud.ml.platform.lzy.commands.BuiltinCommandHolder.cat;
 import static ru.yandex.cloud.ml.platform.lzy.test.impl.Utils.S3_PORT;
 
 public class SnapshotTest extends LocalScenario {
@@ -92,7 +93,7 @@ public class SnapshotTest extends LocalScenario {
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
-            .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
+            .execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file);
 
         final String firstTag = "firstTag";
@@ -117,8 +118,7 @@ public class SnapshotTest extends LocalScenario {
                 )
             ));
 
-        final LzyTerminalTestContext.Terminal.ExecutionResult result1 = terminal.execute("bash", "-c",
-            "/tmp/lzy/sbin/cat " + localFileOutName);
+        final LzyTerminalTestContext.Terminal.ExecutionResult result1 = terminal.executeLzyCommand(cat, localFileOutName);
 
         //Assert
         Assert.assertEquals(0, result.get().exitCode());

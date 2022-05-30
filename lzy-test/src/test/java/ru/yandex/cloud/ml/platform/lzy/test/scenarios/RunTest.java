@@ -11,6 +11,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.commands.BuiltinCommandHolder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
@@ -107,8 +108,7 @@ public class RunTest extends LocalScenario {
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
-            .execute(() -> terminal.execute("bash", "-c",
-                "echo " + fileContent + " > " + localFileName));
+            .execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file);
         final CompletableFuture<ExecutionResult> result = new CompletableFuture<>();
 
@@ -124,8 +124,7 @@ public class RunTest extends LocalScenario {
                 )
             ));
 
-        final ExecutionResult result1 = terminal.execute("bash", "-c",
-                "/tmp/lzy/sbin/cat " + localFileOutName);
+        final ExecutionResult result1 = terminal.executeLzyCommand(BuiltinCommandHolder.cat, localFileOutName);
 
         //Assert
         Assert.assertEquals(0, result.get().exitCode());

@@ -2,8 +2,9 @@ package ru.yandex.cloud.ml.platform.lzy.servant.commands;
 
 import org.apache.commons.cli.CommandLine;
 import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ru.yandex.cloud.ml.platform.lzy.commands.CommandHolder;
 
-public enum LzyCommands {
+public enum ServantCommandHolder implements CommandHolder {
     publish(new Publish()),
     terminal(new Terminal()),
     update(new Update()),
@@ -20,10 +21,16 @@ public enum LzyCommands {
 
     private final LzyCommand command;
 
-    LzyCommands(LzyCommand command) {
+    ServantCommandHolder(LzyCommand command) {
         this.command = command;
     }
 
+    @Override
+    public LzyCommand command() {
+        return command;
+    }
+
+    @Override
     public int execute(CommandLine line) throws Exception {
         return command.execute(line);
     }
