@@ -41,7 +41,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   }
 
   network_profile {
-    load_balancer_sku = "Standard"
+    load_balancer_sku = "standard"
     network_plugin    = "kubenet"
   }
 
@@ -94,7 +94,6 @@ resource "azurerm_kubernetes_cluster_node_pool" "gpu" {
   vm_size               = "Standard_NV12s_v3"
   node_count            = var.gpu_count
   enable_auto_scaling   = false
-  availability_zones    = []
   node_labels           = {
     type = "gpu"
   }

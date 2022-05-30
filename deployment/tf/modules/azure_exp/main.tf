@@ -7,19 +7,17 @@ terraform {
   }
 }
 
-provider "azurerm" {
-  features {}
-}
-
 module "azure_common" {
   source                     = "../azure_common"
   installation_name          = "lzy-exp"
-  oauth-github-client-id     = "86be13043c9f96e17372"
-  oauth-github-client-secret = "276612ba3cad5b137ac274ccc86740f6cd9a0e76"
+  oauth-github-client-id     = ""
+  oauth-github-client-secret = ""
   s3-postfics                = "exp"
-  gpu_count                  = 1
-  servant-image              = "lzydock/lzy-servant:exp"
-  server-image               = "lzydock/lzy-server:exp"
-  kharon-image               = "lzydock/lzy-kharon:exp"
+  ssl-enabled                = false
+  backoffice-backend-image   = "lzydock/lzy-backoffice-backend:master"
+  backoffice-frontend-image  = "lzydock/lzy-backoffice-frontend:master"
+  server-image = "lzydock/lzy-server:dev-1.9"
+  servant-image = "lzydock/lzy-servant:dev-1.9"
+  kharon-image = "lzydock/lzy-kharon:dev-1.9"
+  whiteboard-image = "lzydock/lzy-whiteboard:dev-1.9"
 }
-
