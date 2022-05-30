@@ -94,7 +94,7 @@ def zipdir(path: str, zipfile: ZipFile):
         for file in files:
             zipfile.write(
                 os.path.join(root, file),
-                os.path.relpath(os.path.join(root, file), os.path.join(path, '../../..'))
+                os.path.relpath(os.path.join(root, file), os.path.join(path, '..'))
             )
 
 
