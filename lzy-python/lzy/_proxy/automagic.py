@@ -250,6 +250,8 @@ def proxy(
                 create_and_cache(type(self), constructor)
                 # noinspection PyProtectedMember
                 return type(self)._origin  # pylint: disable=protected-access
+            elif item == '__lzy_materialized__':
+                return hasattr(type(self), '_origin')
 
             if item in obj_attrs or item in cls_attrs:
                 candidate = super().__getattribute__(item)

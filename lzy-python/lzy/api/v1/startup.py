@@ -12,15 +12,14 @@ from typing import TypeVar, Type
 from pure_protobuf.dataclasses_ import load  # type: ignore
 from pure_protobuf.dataclasses_ import load  # type: ignore
 
-from lzy.api.v1.lazy_op import LzyRemoteOp
+from lzy.api.v1.servant.bash_servant_client import BashServantClient
+from lzy.api.v1.servant.model.execution import InputExecutionValue, ExecutionDescription
+from lzy.api.v1.servant.servant_client import ServantClient
+from lzy.api.v1.utils import lazy_proxy
+from lzy.api.v1 import LzyRemoteOp, UUIDEntryIdGenerator
+from lzy.api.v1.signatures import FuncSignature, CallSignature
 from lzy.serialization.hasher import DelegatingHasher
 from lzy.serialization.serializer import MemBytesSerializerImpl, FileSerializerImpl
-from lzy.utils import lazy_proxy
-from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
-from lzy.api.v1.signatures import CallSignature, FuncSignature
-from lzy.servant.bash_servant_client import BashServantClient
-from lzy.servant.servant_client import ServantClient
-from lzy.servant.model.execution import ExecutionDescription, InputExecutionValue
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -41,7 +40,7 @@ def load_arg(path: Path, inp_type: Type[T], input_value: Optional[InputExecution
         while file.read(1) is None:
             time.sleep(0)  # Thread.yield
         file.seek(0)
-        data: T = file_serializer.deserialize(file, inp_type)
+        data: T = file_serializer.deserialize_from_file(file, inp_type)
         if input_value:
             input_value.hash = hasher.hash(data)
         return data
@@ -54,8 +53,8 @@ def main():
         sys.path.append(os.environ['LOCAL_MODULES'])
 
     log("Loading function")
-    func_s: FuncSignature = mem_serializer.deserialize(base64.b64decode(argv[0].encode("ascii")))
-    exec_description: Optional[ExecutionDescription] = mem_serializer.deserialize(
+    func_s: FuncSignature = mem_serializer.deserialize_from_string(base64.b64decode(argv[0].encode("ascii")))
+    exec_description: Optional[ExecutionDescription] = mem_serializer.deserialize_from_string(
         base64.b64decode(argv[1].encode("ascii")))
     log("Function loaded: " + func_s.name)
 
@@ -97,7 +96,7 @@ def main():
     result_path = servant.mount() / func_s.name / "return"
     log(f"Writing result to file {result_path}")
     with open(result_path, "wb") as out_handle:
-        file_serializer.serialize(result, out_handle)
+        file_serializer.serialize_to_file(result, out_handle)
         out_handle.flush()
         os.fsync(out_handle.fileno())
 

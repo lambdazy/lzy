@@ -1,9 +1,9 @@
 import uuid
 
-from lzy.api.v1 import LzyRemoteEnv, op
-
-from some_imported_file import foo
+from lzy.api.v1 import op
+from lzy.api.v1.env import LzyRemoteEnv
 from base_module.base import Base
+from some_imported_file_2 import foo
 
 
 @op

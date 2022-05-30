@@ -29,7 +29,7 @@ class CatboostPoolDumper(Dumper):
     def fit(self) -> bool:
         # noinspection PyBroadException
         try:
-            import catboost
+            import catboost  # type: ignore
             return True
         except:
             return False

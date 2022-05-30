@@ -43,7 +43,7 @@ class SerializingHasher(Hasher):
 
     def hash(self, data: Any) -> str:
         handle = HashableFileLikeObj()
-        self._serializer.serialize(data, handle)  # type: ignore
+        self._serializer.serialize_to_file(data, handle)  # type: ignore
         return handle.hash()
 
     def can_hash(self, data: Any) -> bool:

@@ -2,13 +2,13 @@ import base64
 import os
 from typing import Generic, TypeVar, Optional, Dict, List
 
-from lzy.serialization.serializer import MemBytesSerializer
-from lzy.servant.model.env import Env
-from lzy.servant.model.execution import ExecutionDescription
-from lzy.servant.model.file_slots import create_slot
+from lzy.api.v1.servant.model.env import Env
+from lzy.api.v1.servant.model.execution import ExecutionDescription
+from lzy.api.v1.servant.model.file_slots import create_slot
+from lzy.api.v1.servant.model.slot import Direction, Slot
+from lzy.api.v1.servant.model.zygote import Zygote, Provisioning
 from lzy.api.v1.signatures import FuncSignature
-from lzy.servant.model.slot import Direction, Slot
-from lzy.servant.model.zygote import Zygote, Provisioning
+from lzy.serialization.serializer import MemBytesSerializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -45,9 +45,9 @@ class ZygotePythonFunc(Zygote, Generic[T]):
             "$(python -c 'import site; print(site.getsitepackages()[0])')",
             "/lzy/api/v1/startup.py "
         ])
-        serialized_func = base64.b64encode(self._serializer.serialize(self.signature)).decode('ascii')
+        serialized_func = base64.b64encode(self._serializer.serialize_to_string(self.signature)).decode('ascii')
         serialized_execution_description = base64.b64encode(
-            self._serializer.serialize(self.execution_description)).decode('ascii')
+            self._serializer.serialize_to_string(self.execution_description)).decode('ascii')
         return _com + serialized_func + " " + serialized_execution_description
 
     def slot(self, arg: str) -> Slot:

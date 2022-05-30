@@ -9,7 +9,6 @@ from typing import (
     Callable,
     Dict,
     Type,
-    Tuple,
     TypeVar,
     get_type_hints, Union
 )
@@ -17,9 +16,8 @@ from zipfile import ZipFile
 
 # noinspection PyProtectedMember
 from lzy._proxy import proxy
-# noinspection PyProtectedMember
-from lzy._proxy.result import Result, Just, Nothing
-from lzy.api.v1.signatures import CallSignature, FuncSignature
+from lzy._proxy.result import Result, Nothing, Just
+from lzy.api.v2.servant.model.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -51,19 +49,13 @@ def infer_return_type(func: Callable) -> TypeInferResult:
     return Nothing()
 
 
-def infer_arg_types(*args) -> Tuple[type, ...]:
-    # noinspection PyProtectedMember
-    # pylint: disable=protected-access
-    return tuple(
-        arg._op.return_type
-        if is_lazy_proxy(arg) else type(arg)
-        for arg in args
-    )
-
-
 def is_lazy_proxy(obj: Any) -> bool:
     cls = type(obj)
     return hasattr(cls, "__lzy_proxied__") and cls.__lzy_proxied__
+
+
+def materialized(obj: Any) -> bool:
+    return obj.__lzy_materialized__  # type: ignore
 
 
 def lazy_proxy(
@@ -120,14 +112,14 @@ def infer_call_signature(f: Callable, output_type: type, *args, **kwargs) -> Cal
     # pylint: disable=protected-access
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
-        types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+        types_mapping[name] = arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
 
     generated_names = []
     for arg in args[len(argspec.args):]:
         name = str(uuid.uuid4())
         generated_names.append(name)
         # noinspection PyProtectedMember
-        types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+        types_mapping[name] = arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
 
     arg_names = tuple(argspec.args[:len(args)] + generated_names)
     kwarg_names = tuple(kwargs.keys())

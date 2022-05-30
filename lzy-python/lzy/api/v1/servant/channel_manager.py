@@ -4,10 +4,10 @@ import tempfile
 from pathlib import Path
 from typing import TypeVar, Dict, List
 
-from lzy.servant.model.channel import Channel, SnapshotChannelSpec
-from lzy.servant.model.file_slots import create_slot
-from lzy.servant.model.slot import Slot, Direction
-from lzy.servant.servant_client import ServantClient
+from lzy.api.v1.servant.model.channel import Channel, SnapshotChannelSpec
+from lzy.api.v1.servant.model.file_slots import create_slot
+from lzy.api.v1.servant.model.slot import Slot, Direction
+from lzy.api.v1.servant.servant_client import ServantClient
 
 
 class ChannelManager(abc.ABC):

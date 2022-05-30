@@ -2,8 +2,7 @@
 import numpy as np
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier, Pool
-
-from lzy.api.v1 import Provisioning
+from lzy.api.v1.servant.model.zygote import Provisioning
 
 if __name__ == '__main__':
     train_data = Pool(data=[[1, 4, 5, 6],

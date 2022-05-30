@@ -11,7 +11,7 @@ from inspect import Signature
 from typing import Dict, List, Optional, Any, Type, TypeVar
 from urllib import parse
 
-from lzy.servant.model.slot import Slot
+from lzy.api.v1.servant.model.slot import Slot
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -163,7 +163,7 @@ class InMemWhiteboardApi(WhiteboardApi):
         wb_id = str(uuid.uuid1())
         self.__whiteboards[wb_id] = WhiteboardDescription(
             wb_id,
-            [WhiteboardFieldDescription(name, WhiteboardFieldStatus.CREATED, [], None) for name in fields],
+            [WhiteboardFieldDescription(name, WhiteboardFieldStatus.CREATED, [], None) for name in fields], # type: ignore
             SnapshotDescription(snapshot_id=snapshot_id),
             WhiteboardStatus.CREATED,
         )

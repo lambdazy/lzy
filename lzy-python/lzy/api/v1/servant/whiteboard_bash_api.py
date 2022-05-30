@@ -6,21 +6,15 @@ from typing import Any, Type, Dict, List, TypeVar, Optional
 
 # noinspection PyProtectedMember
 from lzy._proxy import proxy_optional
-from lzy.utils import infer_real_type
+from lzy.api.v1.servant.servant_client import ServantClient, CredentialsTypes
+from lzy.api.v1.utils import infer_real_type
+from lzy.api.v1.whiteboard.model import SnapshotApi, SnapshotDescription, WhiteboardApi, get_bucket_from_url, \
+    WhiteboardDescription, WhiteboardFieldDescription, WhiteboardFieldStatus, WhiteboardStatus
 from lzy.storage.credentials import StorageCredentials
 from lzy.serialization.serializer import FileSerializer
-from lzy.api.v1.whiteboard.model import (
-    SnapshotApi,
-    SnapshotDescription,
-    WhiteboardApi,
-    WhiteboardDescription,
-    WhiteboardStatus,
-    WhiteboardFieldDescription, get_bucket_from_url, WhiteboardFieldStatus
-)
-from lzy.servant.bash_servant_client import exec_bash
+from lzy.api.v1.servant.bash_servant_client import exec_bash
 from datetime import datetime
-from lzy.servant.servant_client import ServantClient, CredentialsTypes
-from lzy.servant.whiteboard_storage import WhiteboardStorage
+from lzy.api.v1.servant.whiteboard_storage import WhiteboardStorage
 
 
 class SnapshotBashApi(SnapshotApi):
@@ -83,7 +77,7 @@ class WhiteboardBashApi(WhiteboardApi):
             with tempfile.TemporaryFile() as file:
                 self._whiteboard_storage(bucket).read(field_url, file)
                 file.seek(0)
-                obj = self._serializer.deserialize(file, real_type)
+                obj = self._serializer.deserialize_from_file(file, real_type)
             return obj
 
         return proxy_optional(lambda: fetch(), real_type)  # type: ignore

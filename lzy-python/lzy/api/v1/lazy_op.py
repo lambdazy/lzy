@@ -9,20 +9,20 @@ from typing import Optional, Any, TypeVar, Generic, Tuple, Iterable, Union, List
 
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 
+from lzy.api.v1.servant.channel_manager import ChannelManager
+from lzy.api.v1.servant.model.channel import Bindings, Binding
+from lzy.api.v1.servant.model.env import PyEnv, Env
+from lzy.api.v1.servant.model.execution import Execution, InputExecutionValue, ExecutionDescription, ExecutionValue
+from lzy.api.v1.servant.model.return_codes import ReturnCode
+from lzy.api.v1.servant.model.zygote import Provisioning, Zygote
+from lzy.api.v1.servant.model.zygote_python_func import ZygotePythonFunc
+from lzy.api.v1.servant.servant_client import ServantClient
+from lzy.api.v1.utils import is_lazy_proxy, LzyExecutionException
 from lzy.api.v1.cache_policy import CachePolicy
+from lzy.api.v1.signatures import CallSignature, FuncSignature
+from lzy.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
 from lzy.serialization.hasher import Hasher
 from lzy.serialization.serializer import MemBytesSerializer, FileSerializer
-from lzy.utils import is_lazy_proxy, LzyExecutionException
-from lzy.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
-from lzy.servant.model.channel import Binding, Bindings
-from lzy.servant.model.env import PyEnv, Env
-from lzy.servant.model.execution import Execution, InputExecutionValue, ExecutionDescription, ExecutionValue
-from lzy.servant.model.return_codes import ReturnCode
-from lzy.api.v1.signatures import CallSignature, FuncSignature
-from lzy.servant.model.zygote import Zygote, Provisioning
-from lzy.servant.model.zygote_python_func import ZygotePythonFunc
-from lzy.servant.channel_manager import ChannelManager
-from lzy.servant.servant_client import ServantClient
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -142,7 +142,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         for entry_id, obj in args:
             path = self._channel_manager.out_slot(entry_id)
             with path.open('wb') as handle:
-                self._file_serializer.serialize(obj, handle)
+                self._file_serializer.serialize_to_file(obj, handle)
                 handle.flush()
                 os.fsync(handle.fileno())
 
@@ -262,8 +262,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                             if not path.exists():
                                 raise LzyExecutionException("Cannot read from slot")
                         handle.seek(0)
-                        self._materialization = self._file_serializer.deserialize(handle,
-                                                                                  self.signature.func.output_type)
+                        self._materialization = self._file_serializer.deserialize_from_file(handle,
+                                                                                            self.signature.func.output_type)
                         self._materialized = True
                         self._log.info("Materializing function %s done", name)
                 except Exception as e:

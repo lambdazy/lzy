@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from lzy.servant.model.encoding import ENCODING as encoding
+from lzy.api.v2.servant.model.encoding import ENCODING as encoding
 # noinspection PyUnresolvedReferences
 import lzy.api  # needed to instantiate logging #  pylint: disable=unused-import
 
@@ -15,7 +15,6 @@ import lzy.api  # needed to instantiate logging #  pylint: disable=unused-import
 class TerminalConfig:
     server_url: str = "api.lzy.ai:8899"
     port: int = 9999
-    fs_port: int = 9998
     lzy_mount: str = ""
     debug_port: int = 5006
     private_key_path: Optional[str] = None
@@ -76,10 +75,6 @@ class TerminalServer:
         if self._config.port is not None:
             terminal_args.extend((
                 "--port", self._config.port,
-            ))
-        if self._config.fs_port is not None:
-            terminal_args.extend((
-                "--fs-port", self._config.fs_port,
             ))
 
         if self._config.private_key_path is not None:

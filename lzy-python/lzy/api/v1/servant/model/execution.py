@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from typing import Optional, Iterable
 
-from lzy.servant.model.channel import Bindings
+from lzy.api.v1.servant.model.channel import Bindings
 
 
 @dataclass
