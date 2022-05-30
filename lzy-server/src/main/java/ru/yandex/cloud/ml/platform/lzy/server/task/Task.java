@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
 
 public interface Task {
     String tid();
-    String name();
+    String workloadName();
 
     Zygote workload();
 

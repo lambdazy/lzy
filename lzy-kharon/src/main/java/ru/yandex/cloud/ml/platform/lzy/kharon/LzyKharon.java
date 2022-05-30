@@ -339,7 +339,7 @@ public class LzyKharon {
 
         @Override
         public void publish(Lzy.PublishRequest request,
-                            StreamObserver<Empty> responseObserver) {
+                            StreamObserver<Lzy.PublishResponse> responseObserver) {
             ProxyCall.exec(server::publish, request, responseObserver);
         }
 

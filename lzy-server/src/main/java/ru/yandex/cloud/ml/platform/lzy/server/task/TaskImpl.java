@@ -55,7 +55,7 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public String name() {
+    public String workloadName() {
         return workload.name();
     }
 
@@ -76,7 +76,7 @@ public class TaskImpl implements Task {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
                 .setTid(tid)
-                .setZygoteName(name())
+                .setZygoteName(workloadName())
                 .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
                 .setDescription(String.join("\n", description))
                 .setRc(rc)
@@ -90,7 +90,7 @@ public class TaskImpl implements Task {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
                     .setTid(tid)
-                    .setZygoteName(name())
+                    .setZygoteName(workloadName())
                     .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
                     .setDescription(String.join("\n", description))
                     .build());

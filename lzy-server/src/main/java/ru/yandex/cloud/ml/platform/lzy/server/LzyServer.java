@@ -184,7 +184,7 @@ public class LzyServer {
         }
 
         @Override
-        public void publish(Lzy.PublishRequest request, StreamObserver<Empty> responseObserver) {
+        public void publish(Lzy.PublishRequest request, StreamObserver<Lzy.PublishResponse> responseObserver) {
             LOG.info("Server::Publish " + JsonUtils.printRequest(request));
             final IAM.UserCredentials auth = request.getAuth();
             if (!this.auth.checkUser(auth.getUserId(), auth.getToken())) {
@@ -202,7 +202,7 @@ public class LzyServer {
             }
 
             this.auth.registerOperation(operation.getName(), auth.getUserId(), request.getScope());
-            responseObserver.onNext(Empty.getDefaultInstance());
+            responseObserver.onNext(Lzy.PublishResponse.getDefaultInstance());
             responseObserver.onCompleted();
         }
 

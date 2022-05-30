@@ -13,7 +13,7 @@ option java_outer_classname = "Lzy";
 option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 service LzyServer {
-  rpc Publish (PublishRequest) returns (google.protobuf.Empty);
+  rpc Publish (PublishRequest) returns (PublishResponse);
   rpc Zygotes (Auth) returns (ZygoteList);
 
   rpc Task (TaskCommand) returns (TaskStatus);
@@ -41,13 +41,16 @@ message PublishRequest {
   UserCredentials auth = 1;
   VisibilityScope scope = 2;
 
-  Zygote operation = 3;
+  Zygote operation = 4;
 
   enum VisibilityScope {
     USER = 0;
     GROUP = 1;
     ALL = 2;
   }
+}
+
+message PublishResponse {
 }
 
 message AttachServant {
