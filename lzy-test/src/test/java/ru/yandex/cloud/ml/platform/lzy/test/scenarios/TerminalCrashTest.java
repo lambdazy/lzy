@@ -230,6 +230,5 @@ public class TerminalCrashTest extends LocalScenario {
         );
         terminal.shutdownNow();
         terminal.waitForShutdown(10, TimeUnit.SECONDS);
-        Assert.assertFalse(terminal.pathExists(Path.of("/tmp/lzy/sbin/status")));
     }
 }
