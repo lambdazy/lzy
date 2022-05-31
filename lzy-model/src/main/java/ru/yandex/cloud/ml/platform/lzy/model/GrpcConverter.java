@@ -125,6 +125,7 @@ public abstract class GrpcConverter {
         if (zygote instanceof AtomicZygote) {
             final AtomicZygote atomicZygote = (AtomicZygote) zygote;
             builder.setEnv(to(atomicZygote.env()));
+            builder.setName(atomicZygote.name());
             builder.setProvisioning(to(atomicZygote.provisioning()));
             builder.setFuze(atomicZygote.fuze());
             Stream.concat(Stream.of(atomicZygote.input()), Stream.of(atomicZygote.output()))
@@ -332,6 +333,11 @@ public abstract class GrpcConverter {
 
         AtomicZygoteAdapter(Operations.Zygote operation) {
             this.operation = operation;
+        }
+
+        @Override
+        public String name() {
+            return operation.getName();
         }
 
         @Override

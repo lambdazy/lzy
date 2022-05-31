@@ -8,7 +8,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
-import org.apache.commons.lang3.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
@@ -67,8 +66,8 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                 env.put("STORAGE_AMAZON_SECRET_TOKEN", "secret-key");
                 env.put("STORAGE_AMAZON_ENABLED", "true");
                 env.put("STORAGE_BUCKET", "lzy-bucket");
-                final String serviceEndpoint = "http://localhost:8001";
-                final String lzyWhiteboard = "http://localhost:8999";
+                final String serviceEndpoint = "http://localhost:" + Utils.Defaults.S3_PORT;
+                final String lzyWhiteboard = "http://localhost:8999" + Utils.Defaults.WHITEBOARD_PORT;
                 env.put("STORAGE_AMAZON_ENDPOINT", serviceEndpoint);
                 env.put("SERVER_WHITEBOARD_URL", lzyWhiteboard);
                 env.put("SERVER_BASE_ENV_DEFAULT_IMAGE", "some-image");

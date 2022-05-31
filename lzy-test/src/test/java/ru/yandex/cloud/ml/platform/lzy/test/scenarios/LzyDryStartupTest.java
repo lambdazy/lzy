@@ -1,12 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
 import java.nio.file.Paths;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public class LzyDryStartupTest extends LocalScenario {
     @Before
@@ -18,23 +18,21 @@ public class LzyDryStartupTest extends LocalScenario {
     @After
     public void tearDown() {
         super.tearDown();
-        stopTerminal();
     }
 
     @Test
     public void testFuseWorks() {
         //Assert
-        Assert.assertTrue(terminal.pathExists(Paths.get(Defaults.LZY_MOUNT + "/sbin")));
-        Assert.assertTrue(terminal.pathExists(Paths.get(Defaults.LZY_MOUNT + "/bin")));
-        Assert.assertTrue(terminal.pathExists(Paths.get(Defaults.LZY_MOUNT + "/dev")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(Utils.Defaults.LZY_MOUNT + "/sbin")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(Utils.Defaults.LZY_MOUNT + "/bin")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(Utils.Defaults.LZY_MOUNT + "/dev")));
     }
 
     @Test
-    public void testServantDiesAfterServerDied() {
+    public void testTerminalDiesAfterServerDied() {
         serverContext.close();
 
         //Assert
-        Assert.assertTrue(status);
-        Assert.assertTrue(terminal.waitForShutdown(10, TimeUnit.SECONDS));
+        Assert.assertTrue(terminal.waitForShutdown());
     }
 }

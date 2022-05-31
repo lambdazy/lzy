@@ -7,7 +7,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.FuseException;
-import ru.yandex.cloud.ml.platform.lzy.commands.BuiltinLzyCommands;
+import ru.yandex.cloud.ml.platform.lzy.commands.BuiltinCommandHolder;
 import ru.yandex.cloud.ml.platform.lzy.fs.*;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
@@ -94,7 +94,7 @@ public final class LzyFsServer {
         // >>>
 
         LOG.info("Registering lzy commands...");
-        for (BuiltinLzyCommands command : BuiltinLzyCommands.values()) {
+        for (BuiltinCommandHolder command : BuiltinCommandHolder.values()) {
             registerBuiltinCommand(Path.of(command.name()), command.name());
         }
 

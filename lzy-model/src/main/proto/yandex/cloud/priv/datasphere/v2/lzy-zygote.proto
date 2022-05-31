@@ -13,15 +13,11 @@ message Zygote {
   string fuze = 3;
   repeated Slot slots = 4;
   string description = 5;
-}
-
-message RegisteredZygote {
-  string name = 1;
-  Zygote workload = 2;
+  string name = 6;
 }
 
 message ZygoteList {
-  repeated RegisteredZygote zygote = 1;
+  repeated Zygote zygote = 1;
 }
 
 message Slot {

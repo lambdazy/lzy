@@ -57,7 +57,7 @@ message TaskStatus {
   string taskId = 1;
   string owner = 2;
 
-  Status status = 3;
+  TaskProgress.Status status = 3;
   string servant = 4;
 
   repeated SlotStatus connections = 5;
@@ -65,13 +65,6 @@ message TaskStatus {
   string explanation = 6;
 
   Zygote zygote = 7;
-
-  enum Status {
-    PREPARING = 0;
-    RUNNING = 1;
-    SUSPENDED = 2;
-    FINISHED = 3;
-  }
 }
 
 message TasksList {
@@ -83,6 +76,7 @@ message TaskProgress {
   Status status = 2;
   string description = 3;
   int32 rc = 4;
+  string zygoteName = 5;
   enum Status {
     UNKNOWN = 0;
     QUEUE = 1;

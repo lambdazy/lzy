@@ -19,9 +19,6 @@ public class Publish implements LzyCommand {
 
     public int execute(CommandLine command) throws Exception {
         if (command.getArgs().length < 2) {
-            throw new IllegalArgumentException("Please specify the name of the zygote to publish");
-        }
-        if (command.getArgs().length < 3) {
             throw new IllegalArgumentException(
                 "Please specify zygote declaration file in JSON format");
         }
@@ -34,17 +31,16 @@ public class Publish implements LzyCommand {
         final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(channel);
         final Operations.Zygote.Builder zbuilder = Operations.Zygote.newBuilder();
         JsonFormat.parser()
-            .merge(Files.newBufferedReader(Paths.get(command.getArgs()[2])), zbuilder);
-        final Operations.RegisteredZygote registered = server
-            .publish(Lzy.PublishRequest.newBuilder()
-                .setAuth(IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')))
-                    .getUser())
-                .setName(command.getArgs()[1])
-                .setOperation(zbuilder.build())
-                .build()
-            );
+            .merge(Files.newBufferedReader(Paths.get(command.getArgs()[1])), zbuilder);
+        //noinspection ResultOfMethodCallIgnored
+        server.publish(Lzy.PublishRequest.newBuilder()
+            .setAuth(IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')))
+                .getUser())
+            .setOperation(zbuilder.build())
+            .build()
+        );
         new Update().execute(command);
-        System.out.println("Registered " + registered.getName());
+        System.out.println("Registered " + zbuilder.getName());
         return 0;
     }
 }
