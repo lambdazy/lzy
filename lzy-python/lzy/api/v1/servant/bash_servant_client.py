@@ -209,6 +209,7 @@ class BashServantClient(ServantClient):
     def get_bucket(self) -> str:
         self._log.info(f"Getting bucket")
         out = exec_bash(f"{self._mount}/sbin/storage", "bucket")
+        self._log.info(f"Got bucket: %s", out)
         data: dict = json.loads(out)
         return str(data["bucket"])
 
