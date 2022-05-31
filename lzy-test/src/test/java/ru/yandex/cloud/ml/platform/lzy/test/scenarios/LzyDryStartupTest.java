@@ -24,9 +24,9 @@ public class LzyDryStartupTest extends LocalScenario {
     @Test
     public void testFuseWorks() {
         //Assert
-        Assert.assertTrue(terminal.pathExists(Paths.get(DEFAULTS.LZY_MOUNT + "/sbin")));
-        Assert.assertTrue(terminal.pathExists(Paths.get(DEFAULTS.LZY_MOUNT + "/bin")));
-        Assert.assertTrue(terminal.pathExists(Paths.get(DEFAULTS.LZY_MOUNT + "/dev")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(Defaults.LZY_MOUNT + "/sbin")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(Defaults.LZY_MOUNT + "/bin")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(Defaults.LZY_MOUNT + "/dev")));
     }
 
     @Test

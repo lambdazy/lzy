@@ -14,7 +14,6 @@ import org.apache.commons.io.IOUtils;
 import org.jose4j.json.internal.json_simple.JSONObject;
 import org.jose4j.json.internal.json_simple.parser.JSONParser;
 import org.jose4j.json.internal.json_simple.parser.ParseException;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -130,7 +129,7 @@ public class SnapshotTest extends LocalScenario {
             .standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(
-                new AwsClientBuilder.EndpointConfiguration("http://localhost:" + CONFIG.S3_PORT, "us-west-2"))
+                new AwsClientBuilder.EndpointConfiguration("http://localhost:" + Config.S3_PORT, "us-west-2"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
 

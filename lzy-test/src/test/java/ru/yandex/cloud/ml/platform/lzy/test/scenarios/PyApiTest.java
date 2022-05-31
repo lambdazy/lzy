@@ -14,7 +14,7 @@ public class PyApiTest extends LocalScenario {
     public void setUp() {
         super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
-                DEFAULTS.LZY_MOUNT,
+                Defaults.LZY_MOUNT,
                 FreePortFinder.find(20000, 21000),
                 FreePortFinder.find(21000, 22000),
                 kharonContext.serverAddress(),
@@ -23,7 +23,7 @@ public class PyApiTest extends LocalScenario {
                 null);
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,
-                DEFAULTS.TIMEOUT_SEC,
+                Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
     }

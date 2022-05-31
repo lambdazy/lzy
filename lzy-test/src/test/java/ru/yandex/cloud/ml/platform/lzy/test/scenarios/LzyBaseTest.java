@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 public abstract class LzyBaseTest {
-    static class DEFAULTS {
+    static class Defaults {
         protected static final int    TIMEOUT_SEC     = 30;
         protected static final int    SERVANT_PORT    = 9999;
         protected static final int    SERVANT_FS_PORT = 9998;

@@ -8,7 +8,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import java.util.concurrent.TimeUnit;
 
 public class KuberRunTest extends LzyBaseTest {
-    static class CONFIG extends LzyBaseTest.DEFAULTS {
+    static class Config extends Defaults {
         private static final int    SERVANT_FS_PORT = 19999;
         private static final String KHARON_DOMAIN   = "kharon-lzy-prod.northeurope.cloudapp.azure.com";
         private static final String USER            = "phil";
@@ -22,17 +22,17 @@ public class KuberRunTest extends LzyBaseTest {
     public void setUp() {
         super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
-            CONFIG.LZY_MOUNT,
-            CONFIG.SERVANT_PORT,
-            CONFIG.SERVANT_FS_PORT,
-            String.format("http://%s:8899", System.getProperty(KHARON_DOMAIN_PROPERTY, CONFIG.KHARON_DOMAIN)),
-            CONFIG.DEBUG_PORT,
-            CONFIG.USER,
-            CONFIG.USER_KEY_PATH
+            Config.LZY_MOUNT,
+            Config.SERVANT_PORT,
+            Config.SERVANT_FS_PORT,
+            String.format("http://%s:8899", System.getProperty(KHARON_DOMAIN_PROPERTY, Config.KHARON_DOMAIN)),
+            Config.DEBUG_PORT,
+            Config.USER,
+            Config.USER_KEY_PATH
         );
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            CONFIG.TIMEOUT_SEC,
+            Config.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
     }

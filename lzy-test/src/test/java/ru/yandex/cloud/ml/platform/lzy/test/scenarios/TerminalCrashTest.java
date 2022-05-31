@@ -41,7 +41,7 @@ public class TerminalCrashTest extends LocalScenario {
         );
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            DEFAULTS.TIMEOUT_SEC,
+            Defaults.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
         return terminal;
@@ -93,7 +93,7 @@ public class TerminalCrashTest extends LocalScenario {
                     final String tasksStatus = terminal2.tasksStatus();
                     return tasksStatus.equals("");
                 },
-                DEFAULTS.TIMEOUT_SEC,
+                Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
         );
@@ -103,7 +103,7 @@ public class TerminalCrashTest extends LocalScenario {
                     final String channelStatus = terminal2.channelStatus(channelName);
                     return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");
                 },
-                DEFAULTS.TIMEOUT_SEC,
+                Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
         );
@@ -117,7 +117,7 @@ public class TerminalCrashTest extends LocalScenario {
 
         //Assert
         Assert.assertTrue(Utils.waitFlagUp(() ->
-            !terminal2.pathExists(Path.of(localFileName)), DEFAULTS.TIMEOUT_SEC, TimeUnit.SECONDS));
+            !terminal2.pathExists(Path.of(localFileName)), Defaults.TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
     @Ignore

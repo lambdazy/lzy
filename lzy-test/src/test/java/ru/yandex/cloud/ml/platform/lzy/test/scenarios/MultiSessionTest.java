@@ -25,7 +25,7 @@ public class MultiSessionTest extends LocalScenario {
             null);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            DEFAULTS.TIMEOUT_SEC,
+            Defaults.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
         return terminal;
