@@ -18,12 +18,15 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 public abstract class LocalScenario extends LzyBaseTest {
-    protected static final int S3_PORT = 8001;
+    static class Config extends Defaults {
+        protected static final int S3_PORT = 8001;
+    }
 
     protected LzyServerTestContext serverContext;
-    protected LzyKharonTestContext kharonContext;
     protected LzySnapshotTestContext whiteboardContext;
+    protected LzyKharonTestContext kharonContext;
     protected S3Mock api;
+
     protected boolean status = false;
     protected LzyTerminalTestContext.Terminal terminal;
     @Before
@@ -36,7 +39,7 @@ public abstract class LocalScenario extends LzyBaseTest {
         whiteboardContext.init();
         kharonContext = new LzyKharonThreadContext(serverContext.address(), whiteboardContext.address());
         kharonContext.init();
-        api = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
+        api = new S3Mock.Builder().withPort(Config.S3_PORT).withInMemoryBackend().build();
         api.start();
         super.setUp();
     }
@@ -52,17 +55,17 @@ public abstract class LocalScenario extends LzyBaseTest {
 
     public void startTerminalWithDefaultConfig() {
         terminal = terminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
-                DEFAULT_SERVANT_PORT,
-                DEFAULT_SERVANT_FS_PORT,
+                Config.LZY_MOUNT,
+                Config.SERVANT_PORT,
+                Config.SERVANT_FS_PORT,
                 kharonContext.serverAddress(),
-                DEFAULT_DEBUG_PORT,
+                Config.DEBUG_PORT,
                 terminalContext.TEST_USER,
                 null
         );
         status = terminal.waitForStatus(
                 AgentStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
+                Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
     }
