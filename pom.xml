@@ -26,6 +26,7 @@
         <module>lzy-whiteboard</module>
         <module>lzy-fs</module>
         <module>iam</module>
+        <module>lzy-graph-executor</module>
         <module>jupyter-kernel</module>
     </modules>
 </project>

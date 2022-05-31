@@ -39,7 +39,9 @@ message GraphExecutionStatus {
     repeated TaskExecutionStatus executingTasks = 1;
   }
   message Completed {}
-  message Failed {}
+  message Failed {
+    string description = 1;
+  }
 
   string workflowId = 1;
   string graphId = 2;
