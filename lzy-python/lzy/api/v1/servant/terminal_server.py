@@ -27,7 +27,7 @@ class TerminalConfig:
 
 
 class TerminalServer:
-    jar_path = Path(os.path.dirname(__file__)) / ".." / "lzy-servant.jar"
+    jar_path = Path(os.path.dirname(__file__)) / ".." / ".." / ".." / "lzy-servant.jar"
     jar_path = jar_path.resolve().absolute()
     start_timeout_sec = 30
 
