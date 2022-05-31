@@ -26,9 +26,7 @@ public class TasksStatus implements LzyCommand {
             .build();
         final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
         final Tasks.TasksList tasksList = server.tasksStatus(auth);
-        for (final Tasks.TaskStatus status : tasksList.getTasksList()) {
-            System.out.println(JsonFormat.printer().print(status));
-        }
+        System.out.print(JsonFormat.printer().print(tasksList));
         return 0;
     }
 }

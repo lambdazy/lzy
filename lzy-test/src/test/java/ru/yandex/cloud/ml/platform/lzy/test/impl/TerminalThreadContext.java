@@ -8,6 +8,7 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
+import javax.annotation.Nullable;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -21,7 +22,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class TerminalThreadContext implements LzyTerminalTestContext {
@@ -147,26 +147,25 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
                 }
             }
 
+            @Nullable
             @Override
-            public boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit) {
-                return Utils.waitFlagUp(() -> {
-                    if (pathExists(Paths.get(path + "/sbin/status"))) {
-                        try {
-                            final Process bash = new ProcessBuilder("bash", path + "/sbin/status").start();
-                            bash.waitFor();
-                            final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
-                            final String parsedStatus = stdout.split("\n")[0];
-                            return parsedStatus.equalsIgnoreCase(status.name());
-                        } catch (InterruptedException | IOException e) {
-                            return false;
-                        }
+            public AgentStatus status() {
+                if (pathExists(Paths.get(path + "/sbin/status"))) {
+                    try {
+                        final Process bash = new ProcessBuilder("bash", path + "/sbin/status").start();
+                        bash.waitFor();
+                        final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
+                        final String parsedStatus = stdout.split("\n")[0];
+                        return AgentStatus.valueOf(parsedStatus);
+                    } catch (IllegalArgumentException | InterruptedException | IOException e) {
+                        return null;
                     }
-                    return false;
-                }, timeout, unit);
+                }
+                return null;
             }
 
             @Override
-            public boolean waitForShutdown(long timeout, TimeUnit unit) {
+            public boolean waitForShutdown() {
                 try {
                     terminal.awaitTermination();
                     return true;

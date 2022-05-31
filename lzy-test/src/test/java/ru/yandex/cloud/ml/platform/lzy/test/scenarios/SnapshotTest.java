@@ -29,6 +29,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
+import static ru.yandex.cloud.ml.platform.lzy.commands.BuiltinCommandHolder.cat;
+
 public class SnapshotTest extends LocalScenario {
     @Before
     public void setUp() {
@@ -90,8 +92,8 @@ public class SnapshotTest extends LocalScenario {
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
-            .execute(() -> terminal.execute("bash", "-c", "echo " + fileContent + " > " + localFileName));
-        terminal.publish(cat_to_file.getName(), cat_to_file);
+            .execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
+        terminal.publish(cat_to_file);
 
         final String firstTag = "firstTag";
         final String secondTag = "secondTag";
@@ -106,7 +108,7 @@ public class SnapshotTest extends LocalScenario {
         ForkJoinPool.commonPool()
             .execute(() -> result.complete(
                 terminal.run(
-                    cat_to_file.getName(),
+                    cat_to_file.name(),
                     "",
                     Map.of(
                         fileName.substring("/tmp/lzy1".length()), channelName,
@@ -115,8 +117,7 @@ public class SnapshotTest extends LocalScenario {
                 )
             ));
 
-        final LzyTerminalTestContext.Terminal.ExecutionResult result1 = terminal.execute("bash", "-c",
-            "/tmp/lzy/sbin/cat " + localFileOutName);
+        final LzyTerminalTestContext.Terminal.ExecutionResult result1 = terminal.executeLzyCommand(cat, localFileOutName);
 
         //Assert
         Assert.assertEquals(0, result.get().exitCode());

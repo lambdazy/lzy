@@ -6,9 +6,10 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
 import java.util.concurrent.TimeUnit;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public class KuberRunTest extends LzyBaseTest {
-    static class Config extends Defaults {
+    static class Config extends Utils.Defaults {
         private static final int    SERVANT_FS_PORT = 19999;
         private static final String KHARON_DOMAIN   = "kharon-lzy-prod.northeurope.cloudapp.azure.com";
         private static final String USER            = "phil";

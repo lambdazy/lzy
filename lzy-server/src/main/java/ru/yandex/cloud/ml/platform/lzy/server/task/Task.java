@@ -14,6 +14,7 @@ import javax.annotation.Nullable;
 
 public interface Task {
     String tid();
+    String workloadName();
 
     Zygote workload();
 
@@ -35,8 +36,8 @@ public interface Task {
     URI servantFsUri();
 
     enum State {
-        QUEUE(0), PREPARING(1), CONNECTED(2), EXECUTING(3),
-        COMMUNICATION_COMPLETED(4), DISCONNECTED(5), SUCCESS(6), ERROR(7);
+        UNKNOWN(0), QUEUE(1), PREPARING(2), CONNECTED(3), EXECUTING(4),
+        COMMUNICATION_COMPLETED(5), DISCONNECTED(6), SUCCESS(7), ERROR(8);
 
         private final int phaseNo;
 

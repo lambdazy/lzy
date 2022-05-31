@@ -24,10 +24,11 @@ import ru.yandex.cloud.ml.platform.lzy.storage.AmazonStorageClient;
 import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
 
 public class SlotSnapshotTest {
-    private static final String SERVICE_ENDPOINT = "http://localhost:8001";
+    private static final int S3_PORT = 8001;
+    private static final String SERVICE_ENDPOINT = "http://localhost:" + S3_PORT;
     private static final String BUCKET = "lzy-bucket";
 
-    private final S3Mock api = new S3Mock.Builder().withPort(8001).withInMemoryBackend().build();
+    private final S3Mock s3Mock = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
     private final StorageClient storage =
         new AmazonStorageClient("", "", URI.create(SERVICE_ENDPOINT), "transmitter", 10, 10);
     private final AmazonS3 client = AmazonS3ClientBuilder
@@ -40,13 +41,13 @@ public class SlotSnapshotTest {
 
     @Before
     public void setUp() {
-        api.start();
+        s3Mock.start();
         client.createBucket(BUCKET);
     }
 
     @After
     public void tearDown() {
-        api.shutdown();
+        s3Mock.shutdown();
     }
 
     private Slot slotForName(String name) {

@@ -11,6 +11,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import ru.yandex.cloud.ml.platform.lzy.commands.BuiltinCommandHolder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
@@ -33,8 +34,8 @@ public class RunTest extends LocalScenario {
         );
 
         //Act
-        terminal.publish(echo42.getName(), echo42);
-        final ExecutionResult result = terminal.run(echo42.getName(), "", Map.of());
+        terminal.publish(echo42);
+        final ExecutionResult result = terminal.run(echo42.name(), "", Map.of());
 
         //Assert
         Assert.assertEquals("42\n", result.stdout());
@@ -53,8 +54,8 @@ public class RunTest extends LocalScenario {
         );
 
         //Act
-        terminal.publish(echo42.getName(), echo42);
-        final ExecutionResult result = terminal.run(echo42.getName(), "", Map.of());
+        terminal.publish(echo42);
+        final ExecutionResult result = terminal.run(echo42.name(), "", Map.of());
 
         //Assert
         Assert.assertEquals("42\n", result.stdout());
@@ -73,8 +74,8 @@ public class RunTest extends LocalScenario {
         );
 
         //Act
-        terminal.publish(echo42.getName(), echo42);
-        final ExecutionResult result = terminal.run(echo42.getName(), "", Map.of());
+        terminal.publish(echo42);
+        final ExecutionResult result = terminal.run(echo42.name(), "", Map.of());
 
         //Assert
         Assert.assertEquals("42\n", result.stdout());
@@ -107,15 +108,14 @@ public class RunTest extends LocalScenario {
         terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
-            .execute(() -> terminal.execute("bash", "-c",
-                "echo " + fileContent + " > " + localFileName));
-        terminal.publish(cat_to_file.getName(), cat_to_file);
+            .execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
+        terminal.publish(cat_to_file);
         final CompletableFuture<ExecutionResult> result = new CompletableFuture<>();
 
         ForkJoinPool.commonPool()
             .execute(() -> result.complete(
                 terminal.run(
-                    cat_to_file.getName(),
+                    cat_to_file.name(),
                     "",
                     Map.of(
                         fileName.substring("/tmp/lzy1".length()), channelName,
@@ -124,8 +124,7 @@ public class RunTest extends LocalScenario {
                 )
             ));
 
-        final ExecutionResult result1 = terminal.execute("bash", "-c",
-                "/tmp/lzy/sbin/cat " + localFileOutName);
+        final ExecutionResult result1 = terminal.executeLzyCommand(BuiltinCommandHolder.cat, localFileOutName);
 
         //Assert
         Assert.assertEquals(0, result.get().exitCode());
