@@ -16,6 +16,8 @@ import java.net.URISyntaxException;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyInputSlot;
@@ -151,6 +153,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     private class CommandHandler {
         private final StreamObserver<ServerCommand> responseObserver;
         private final TerminalSlotSender slotSender = new TerminalSlotSender(kharon);
+        private boolean invalidated = false;
 
         CommandHandler() {
             StreamObserver<TerminalCommand> supplier = new StreamObserver<>() {
@@ -288,18 +291,23 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         }
 
         public synchronized void onNext(ServerCommand serverCommand) {
+            if (invalidated) {
+                throw new IllegalStateException("Command handler was invalidated, but got onNext command");
+            }
             responseObserver.onNext(serverCommand);
         }
 
-        public void onError(Throwable th) {
-            responseObserver.onError(th);
+        public synchronized void onError(Throwable th) {
+            if (!invalidated) {
+                responseObserver.onError(th);
+                invalidated = true;
+            }
         }
 
-        public void onCompleted() {
-            try {
+        public synchronized void onCompleted() {
+            if (!invalidated) {
                 responseObserver.onCompleted();
-            } catch (IllegalStateException e) {
-                LOG.warn("Terminal command handler already completed");
+                invalidated = true;
             }
         }
     }

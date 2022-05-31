@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,7 +20,8 @@ public class ServerController {
         CREATED,
         CONNECTED,
         ERRORED,
-        COMPLETED
+        COMPLETED,
+        DISCONNECTED
     }
 
     private State state;
@@ -37,11 +39,15 @@ public class ServerController {
         if (state == State.CONNECTED) {
             throw new IllegalStateException("Server already connected with servant progress sessionId=" + sessionId);
         }
-        if (state == State.ERRORED || state == State.COMPLETED) {
+        if (isFinalState()) {
             throw new ServerControllerResetException();
         }
         this.progress = progress;
         updateState(State.CONNECTED);
+    }
+
+    private boolean isFinalState() {
+        return state == State.ERRORED || state == State.COMPLETED || state == State.DISCONNECTED;
     }
 
     public void attach(Servant.SlotAttach attach) throws ServerControllerResetException {
@@ -74,7 +80,11 @@ public class ServerController {
     public synchronized void terminate(Throwable th) {
         LOG.info("Server connection sessionId={} terminated, throwable={}", sessionId, th);
         if (state == State.CONNECTED) {
-            progress.onError(th);
+            try {
+                progress.onError(th);
+            } catch (StatusRuntimeException e) {
+                updateState(State.DISCONNECTED);
+            }
         }
         updateState(State.ERRORED);
     }
@@ -82,7 +92,11 @@ public class ServerController {
     public synchronized void complete() {
         LOG.info("ServerController sessionId={} completed", sessionId);
         if (state == State.CONNECTED) {
-            progress.onCompleted();
+            try {
+                progress.onCompleted();
+            } catch (StatusRuntimeException e) {
+                updateState(State.DISCONNECTED);
+            }
         }
         updateState(State.COMPLETED);
     }
@@ -91,8 +105,12 @@ public class ServerController {
         return state;
     }
 
+    public void onDisconnect() {
+        updateState(State.DISCONNECTED);
+    }
+
     private synchronized void updateState(State state) {
-        if (this.state == State.ERRORED || this.state == State.COMPLETED) {
+        if (isFinalState()) {
             LOG.warn(
                 "ServerController sessionId={} attempt to change final state {} to {}",
                 sessionId,
@@ -107,7 +125,7 @@ public class ServerController {
     }
 
     private synchronized void sendMessage(Servant.ServantProgress message) throws ServerControllerResetException {
-        while (State.CONNECTED != state && state != State.ERRORED && state != State.COMPLETED) {
+        while (State.CONNECTED != state && !isFinalState()) {
             try {
                 wait();
             } catch (InterruptedException ignore) {
@@ -119,7 +137,11 @@ public class ServerController {
             throw new ServerControllerResetException();
         }
 
-        progress.onNext(message);
+        try {
+            progress.onNext(message);
+        } catch (StatusRuntimeException e) {
+            updateState(State.DISCONNECTED);
+        }
     }
 
     public static class ServerControllerResetException extends Exception { }

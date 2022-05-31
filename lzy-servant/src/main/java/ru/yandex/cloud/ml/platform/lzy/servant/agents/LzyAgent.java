@@ -10,7 +10,7 @@ import ru.yandex.cloud.ml.platform.lzy.LzyFsServer;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.LzyCommands;
+import ru.yandex.cloud.ml.platform.lzy.servant.commands.ServantCommandHolder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
@@ -104,13 +104,13 @@ public abstract class LzyAgent implements Closeable {
 
         onStartUp();
 
-        for (LzyCommands command : LzyCommands.values()) {
+        for (ServantCommandHolder command : ServantCommandHolder.values()) {
             publishTool(null, Paths.get(command.name()), command.name());
         }
         final Operations.ZygoteList zygotes = serverApi().zygotes(auth);
-        for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
+        for (Operations.Zygote zygote : zygotes.getZygoteList()) {
             publishTool(
-                zygote.getWorkload(),
+                zygote,
                 Paths.get(zygote.getName()),
                 "run"
             );
@@ -202,8 +202,8 @@ public abstract class LzyAgent implements Closeable {
 
     public void update(@SuppressWarnings("unused") IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
         final Operations.ZygoteList zygotes = serverApi().zygotes(auth);
-        for (Operations.RegisteredZygote zygote : zygotes.getZygoteList()) {
-            publishTool(zygote.getWorkload(), Paths.get(zygote.getName()), "run", zygote.getName());
+        for (Operations.Zygote zygote : zygotes.getZygoteList()) {
+            publishTool(zygote, Paths.get(zygote.getName()), "run", zygote.getName());
         }
         responseObserver.onNext(IAM.Empty.newBuilder().build());
         responseObserver.onCompleted();

@@ -1,5 +1,19 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import org.jetbrains.annotations.Nullable;
+import org.junit.Assert;
+import org.junit.Test;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.JsonNode;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
+import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
+import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -9,16 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.JsonNode;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public class TerminalCrashTest extends LocalScenario {
     private LzyTerminalTestContext.Terminal createTerminal(String mount) {
@@ -41,7 +45,7 @@ public class TerminalCrashTest extends LocalScenario {
         );
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            Defaults.TIMEOUT_SEC,
+            Utils.Defaults.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
         return terminal;
@@ -65,18 +69,23 @@ public class TerminalCrashTest extends LocalScenario {
         //Act
         terminal1.createChannel(channelName);
         terminal1.createSlot(localFileName, channelName, Utils.outFileSlot());
-        terminal1.publish(cat.getName(), cat);
+        terminal1.publish(cat);
         ForkJoinPool.commonPool().execute(() -> {
-            try {
-                Thread.sleep(10_000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            Utils.waitFlagUp(() -> {
+                    final Tasks.TaskStatus task = getTaskStatusByName(terminal1, cat.name());
+                    if (task == null) {
+                        return false;
+                    }
+                    return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
+                },
+                Config.TIMEOUT_SEC,
+                TimeUnit.SECONDS
+            );
             terminal1.shutdownNow();
-            terminal1.waitForShutdown(30, TimeUnit.SECONDS);
+            terminal1.waitForShutdown();
         });
         terminal1.run(
-            cat.getName(),
+            cat.name(),
             "",
             Map.of(fileName.substring("/tmp/lzy1".length()), channelName)
         );
@@ -89,11 +98,8 @@ public class TerminalCrashTest extends LocalScenario {
 
         //Assert
         Assert.assertTrue(
-            Utils.waitFlagUp(() -> {
-                    final String tasksStatus = terminal2.tasksStatus();
-                    return tasksStatus.equals("");
-                },
-                Defaults.TIMEOUT_SEC,
+            Utils.waitFlagUp(() -> getTaskStatusByName(terminal2, cat.name()) == null,
+                Utils.Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
         );
@@ -103,7 +109,7 @@ public class TerminalCrashTest extends LocalScenario {
                     final String channelStatus = terminal2.channelStatus(channelName);
                     return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");
                 },
-                Defaults.TIMEOUT_SEC,
+                Utils.Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
         );
@@ -117,10 +123,27 @@ public class TerminalCrashTest extends LocalScenario {
 
         //Assert
         Assert.assertTrue(Utils.waitFlagUp(() ->
-            !terminal2.pathExists(Path.of(localFileName)), Defaults.TIMEOUT_SEC, TimeUnit.SECONDS));
+            !terminal2.pathExists(Path.of(localFileName)), Utils.Defaults.TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
-    @Ignore
+    @Nullable
+    private Tasks.TaskStatus getTaskStatusByName(LzyTerminalTestContext.Terminal terminal, String operationNamePrefix) {
+        final String tasksStatus = terminal.tasksStatus();
+        System.out.println("tasksStatus");
+        System.out.println(tasksStatus);
+
+        try {
+            final Tasks.TasksList.Builder tasksBuilder = Tasks.TasksList.newBuilder();
+            JsonFormat.parser().merge(tasksStatus, tasksBuilder);
+            final Tasks.TasksList tasksList = tasksBuilder.build();
+            return tasksList.getTasksList().stream()
+                    .filter(task -> task.getZygote().getName().startsWith(operationNamePrefix))
+                    .findFirst().orElse(null);
+        } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     public void parallelExecutionOneTerminalFails() throws ExecutionException, InterruptedException {
         //Arrange
@@ -141,29 +164,42 @@ public class TerminalCrashTest extends LocalScenario {
             "echo 42",
             false
         );
-        terminal1.publish(echo42.getName(), echo42);
+        final FileIOOperation echo43 = new FileIOOperation(
+                "echo43",
+                Collections.emptyList(),
+                Collections.emptyList(),
+                "echo 43",
+                false
+        );
+        terminal1.publish(echo42);
+        terminal1.publish(echo43);
         terminal2.update();
 
         //Act
-        ForkJoinPool.commonPool().execute(() -> terminal1.run(echo42.getName(), "", Map.of()));
+        ForkJoinPool.commonPool().execute(() -> terminal1.run(echo42.name(), "", Map.of()));
         ForkJoinPool.commonPool().execute(() -> {
-            try {
-                Thread.sleep(10_000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            Utils.waitFlagUp(() -> {
+                    final Tasks.TaskStatus task = getTaskStatusByName(terminal1, echo42.name());
+                    if (task == null) {
+                        return false;
+                    }
+                    return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
+                },
+                Utils.Defaults.TIMEOUT_SEC,
+                TimeUnit.SECONDS
+            );
             terminal1.shutdownNow();
         });
 
         final CompletableFuture<ExecutionResult> result = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> result.complete(terminal2.run(echo42.getName(), "", Map.of())));
+        ForkJoinPool.commonPool().execute(() -> result.complete(terminal2.run(echo43.name(), "", Map.of())));
 
         //Assert
-        Assert.assertEquals("42\n", result.get().stdout());
+        Assert.assertEquals("43\n", result.get().stdout());
     }
 
     @Test
-    public void testLongExecution() throws InterruptedException {
+    public void testLongExecution() {
         final LzyTerminalTestContext.Terminal terminal = createTerminal(
             FreePortFinder.find(20000, 20100),
             FreePortFinder.find(20100, 20200),
@@ -179,13 +215,20 @@ public class TerminalCrashTest extends LocalScenario {
         );
 
         //Act
-        terminal.publish(echo42.getName(), echo42);
-        Thread t = new Thread(() -> terminal.run(echo42.getName(), "", Map.of()));
+        terminal.publish(echo42);
+        Thread t = new Thread(() -> terminal.run(echo42.name(), "", Map.of()));
         t.start();
-        Thread.sleep(30000);
+        Utils.waitFlagUp(() -> {
+                final Tasks.TaskStatus task = getTaskStatusByName(terminal, echo42.name());
+                if (task == null) {
+                    return false;
+                }
+                return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
+            },
+            Utils.Defaults.TIMEOUT_SEC,
+            TimeUnit.SECONDS
+        );
         terminal.shutdownNow();
-        terminal.waitForShutdown(10, TimeUnit.SECONDS);
-        Thread.sleep(10000);
-        Assert.assertFalse(terminal.pathExists(Path.of("/tmp/lzy1/sbin/status")));
+        terminal.waitForShutdown();
     }
 }

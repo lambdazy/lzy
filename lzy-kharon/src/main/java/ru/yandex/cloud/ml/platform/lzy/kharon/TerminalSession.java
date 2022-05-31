@@ -129,12 +129,14 @@ public class TerminalSession {
     public void onServerDisconnect() {
         LOG.info("Server DISCONNECTED for sessionId = {}", sessionId);
         updateState(COMPLETED);
+        serverController.onDisconnect();
         terminalController.complete();
     }
 
     public void onTerminalDisconnect() {
         LOG.info("Terminal DISCONNECTED for sessionId = {}", sessionId);
         updateState(COMPLETED);
+        terminalController.onDisconnect();
         serverController.complete();
     }
 }

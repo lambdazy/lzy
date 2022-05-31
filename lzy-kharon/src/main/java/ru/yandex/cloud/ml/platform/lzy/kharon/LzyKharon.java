@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.kharon;
 
+import com.google.protobuf.Empty;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -338,7 +339,7 @@ public class LzyKharon {
 
         @Override
         public void publish(Lzy.PublishRequest request,
-                            StreamObserver<Operations.RegisteredZygote> responseObserver) {
+                            StreamObserver<Lzy.PublishResponse> responseObserver) {
             ProxyCall.exec(server::publish, request, responseObserver);
         }
 
@@ -458,7 +459,7 @@ public class LzyKharon {
                     .build());
             } catch (InvalidSessionRequestException | TerminalControllerResetException e) {
                 LOG.warn("Exception while openOutputSlot ", e);
-                responseObserver.onError(Status.NOT_FOUND.asRuntimeException().initCause(e));
+                responseObserver.onError(Status.NOT_FOUND.withCause(e).asRuntimeException());
             }
         }
 
@@ -483,7 +484,7 @@ public class LzyKharon {
                 responseObserver.onCompleted();
             } catch (InvalidSessionRequestException | TerminalControllerResetException e) {
                 LOG.warn("Exception while configureSlot ", e);
-                responseObserver.onError(Status.NOT_FOUND.asRuntimeException().initCause(e));
+                responseObserver.onError(Status.NOT_FOUND.withCause(e).asRuntimeException());
             } catch (URISyntaxException e) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Invalid servant uri")
                     .asRuntimeException());

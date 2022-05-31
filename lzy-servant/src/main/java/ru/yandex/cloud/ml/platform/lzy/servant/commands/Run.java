@@ -101,6 +101,7 @@ public class Run implements LzyCommand {
 
         final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
         JsonFormat.parser().merge(System.getenv("ZYGOTE"), builder);
+        builder.setName(builder.getName() + "_" + pid);
         final Operations.Zygote grpcZygote = builder.build();
         final Zygote zygote = GrpcConverter.from(grpcZygote);
         final Tasks.TaskSpec.Builder taskSpec = Tasks.TaskSpec.newBuilder();

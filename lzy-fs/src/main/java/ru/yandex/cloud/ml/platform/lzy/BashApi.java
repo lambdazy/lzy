@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.commands.BuiltinLzyCommands;
+import ru.yandex.cloud.ml.platform.lzy.commands.BuiltinCommandHolder;
 
 public class BashApi {
     private static final Options options = new Options();
@@ -30,7 +30,7 @@ public class BashApi {
             final CommandLine parse = cliParser.parse(options, args, true);
             if (parse.getArgs().length > 0) {
                 commandStr = parse.getArgs()[0];
-                final BuiltinLzyCommands command = BuiltinLzyCommands.valueOf(commandStr);
+                final BuiltinCommandHolder command = BuiltinCommandHolder.valueOf(commandStr);
                 return command.execute(parse);
             } else {
                 throw new RuntimeException("Missed command");

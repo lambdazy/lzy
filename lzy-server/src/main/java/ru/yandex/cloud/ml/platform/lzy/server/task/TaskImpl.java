@@ -55,6 +55,11 @@ public class TaskImpl implements Task {
     }
 
     @Override
+    public String workloadName() {
+        return workload.name();
+    }
+
+    @Override
     public Zygote workload() {
         return workload;
     }
@@ -70,6 +75,8 @@ public class TaskImpl implements Task {
         if (newState != state) {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
+                .setTid(tid)
+                .setZygoteName(workloadName())
                 .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
                 .setDescription(String.join("\n", description))
                 .setRc(rc)
@@ -82,6 +89,8 @@ public class TaskImpl implements Task {
         if (newState != state) {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
+                    .setTid(tid)
+                    .setZygoteName(workloadName())
                     .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
                     .setDescription(String.join("\n", description))
                     .build());
