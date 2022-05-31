@@ -38,6 +38,7 @@ jobs:
         run: mvn install -Dlzy.kharon.domain=api.lzy.ai -Dtest=KuberRunTest -DfailIfNoTests=false
 
       - uses: scacap/action-surefire-report@v1
+        if: always()
 
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
 
