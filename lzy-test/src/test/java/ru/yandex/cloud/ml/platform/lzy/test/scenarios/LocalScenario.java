@@ -17,9 +17,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public abstract class LocalScenario extends LzyBaseTest {
-    static class Config extends Defaults {
+    static class Config extends Utils.Defaults {
         protected static final int S3_PORT = 8001;
     }
 

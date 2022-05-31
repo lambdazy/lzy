@@ -4,6 +4,7 @@ import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
@@ -31,7 +32,7 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
         //Assert
         Assert.assertEquals(AgentStatus.EXECUTING, terminal.status());
         zygotes.forEach(registeredZygote -> Assert.assertTrue(terminal.pathExists(Paths.get(
-            Defaults.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
+            Utils.Defaults.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
     }
 
     @Test
@@ -77,8 +78,8 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
         //Assert
         Assert.assertEquals(AgentStatus.EXECUTING, terminal.status());
         zygotesBeforeStart.forEach(registeredZygote -> Assert.assertTrue(terminal.pathExists(Paths.get(
-            Defaults.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
+            Utils.Defaults.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
         zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(terminal.pathExists(Paths.get(
-            Defaults.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
+            Utils.Defaults.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
     }
 }

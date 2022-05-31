@@ -10,7 +10,15 @@ import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
 
 public class Utils {
-    public static final int S3_PORT = 8001;
+    public static class Defaults {
+        public static final int    TIMEOUT_SEC     = 30;
+        public static final int    SERVANT_PORT    = 9999;
+        public static final int    S3_PORT         = 8001;
+        public static final int    WHITEBOARD_PORT = 8999;
+        public static final int    SERVANT_FS_PORT = 9998;
+        public static final int    DEBUG_PORT      = 5006;
+        public static final String LZY_MOUNT       = "/tmp/lzy";
+    }
 
     public static boolean waitFlagUp(Supplier<Boolean> supplier, long timeout, TimeUnit unit) {
         boolean flag = false;
@@ -75,7 +83,6 @@ public class Utils {
             }
         };
     }
-
     public static Slot inFileSlot() {
         return new Slot() {
             @Override
@@ -104,4 +111,5 @@ public class Utils {
         final String[] split = s.split("\n");
         return split[split.length - 1];
     }
+
 }

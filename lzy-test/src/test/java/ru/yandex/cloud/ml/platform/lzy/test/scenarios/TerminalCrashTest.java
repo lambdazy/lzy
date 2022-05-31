@@ -45,7 +45,7 @@ public class TerminalCrashTest extends LocalScenario {
         );
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            Defaults.TIMEOUT_SEC,
+            Utils.Defaults.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
         return terminal;
@@ -78,7 +78,7 @@ public class TerminalCrashTest extends LocalScenario {
                     }
                     return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
                 },
-                DEFAULT_TIMEOUT_SEC,
+                Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             );
             terminal1.shutdownNow();
@@ -99,7 +99,7 @@ public class TerminalCrashTest extends LocalScenario {
         //Assert
         Assert.assertTrue(
             Utils.waitFlagUp(() -> getTaskStatusByName(terminal2, cat.name()) == null,
-                Defaults.TIMEOUT_SEC,
+                Utils.Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
         );
@@ -109,7 +109,7 @@ public class TerminalCrashTest extends LocalScenario {
                     final String channelStatus = terminal2.channelStatus(channelName);
                     return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");
                 },
-                Defaults.TIMEOUT_SEC,
+                Utils.Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
         );
@@ -123,7 +123,7 @@ public class TerminalCrashTest extends LocalScenario {
 
         //Assert
         Assert.assertTrue(Utils.waitFlagUp(() ->
-            !terminal2.pathExists(Path.of(localFileName)), Defaults.TIMEOUT_SEC, TimeUnit.SECONDS));
+            !terminal2.pathExists(Path.of(localFileName)), Utils.Defaults.TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
     @Nullable
@@ -185,7 +185,7 @@ public class TerminalCrashTest extends LocalScenario {
                     }
                     return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
                 },
-                Defaults.TIMEOUT_SEC,
+                Utils.Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             );
             terminal1.shutdownNow();
@@ -225,7 +225,7 @@ public class TerminalCrashTest extends LocalScenario {
                 }
                 return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
             },
-            Defaults.TIMEOUT_SEC,
+            Utils.Defaults.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
         terminal.shutdownNow();

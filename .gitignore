@@ -180,3 +180,9 @@ tvars.json
 
 # tfplan
 **/tfplan
+
+# lzy-test/trash
+lzy-test/bindings.json
+lzy-test/filename
+lzy-test/slot.json
+
