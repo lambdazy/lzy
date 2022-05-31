@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class GraphDaoMock implements GraphExecutionDao {
     private final ConcurrentHashMap<Key, GraphExecutionState> storage = new ConcurrentHashMap<>();
+
     @Override
     public GraphExecutionState create(String workflowId, GraphDescription description) {
         var graph = new GraphExecutionState(workflowId, UUID.randomUUID().toString(), description);

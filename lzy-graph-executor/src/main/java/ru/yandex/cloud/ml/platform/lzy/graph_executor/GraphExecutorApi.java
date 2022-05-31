@@ -185,6 +185,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     }
 
     public void start() throws InterruptedException, IOException {
+        LOG.info("Starting GraphExecutor service...");
         final List<GraphExecutionState> states;
         try {
             states = graphDao.filter(GraphExecutionState.Status.EXECUTING);
@@ -211,7 +212,10 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     public static void main(String[] args) {
         try (ApplicationContext context = ApplicationContext.run()) {
             GraphExecutorApi api = context.getBean(GraphExecutorApi.class);
-            Runtime.getRuntime().addShutdownHook(new Thread(api::close));
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                LOG.info("Stopping GraphExecutor service");
+                api.close();
+            }));
             try {
                 api.start();
             } catch (InterruptedException | IOException e) {

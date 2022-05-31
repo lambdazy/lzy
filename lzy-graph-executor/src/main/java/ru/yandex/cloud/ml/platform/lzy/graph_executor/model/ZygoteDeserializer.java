@@ -15,6 +15,9 @@ public class ZygoteDeserializer extends StdDeserializer<Zygote> {
     protected ZygoteDeserializer(Class<?> vc) {
         super(vc);
     }
+    public ZygoteDeserializer() {
+        this(null);
+    }
 
     @Override
     public Zygote deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {

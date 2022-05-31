@@ -68,6 +68,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
                 if (!s.isBeforeFirst()){
                     return null;
                 }
+                s.next();
                 return fromResultSet(s);
             }
         } catch (SQLException | JsonProcessingException e) {
@@ -117,7 +118,6 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
             con.setAutoCommit(false);
             final GraphExecutionState state;
             try (final PreparedStatement st = con.prepareStatement(
-                "LOCK TABLE graph_execution_state IN ROW EXCLUSIVE MODE;" +
                     "SELECT * from graph_execution_state " +
                     "WHERE workflow_id = ? AND id = ? FOR UPDATE;")) {
                 st.setString(1, workflowId);
@@ -127,6 +127,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
                         throw new GraphDaoException("Cannot find graph execution with id <" +
                             graphExecutionId + "> in workflow <" + workflowId +">");
                     }
+                    s.next();
                     state = fromResultSet(s);
                 }
             }
@@ -164,6 +165,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
             st.setString(5, objectMapper.writeValueAsString(s.description()));
             st.setString(6, objectMapper.writeValueAsString(s.executions()));
             st.setString(7, objectMapper.writeValueAsString(s.currentExecutionGroup()));
+            st.setString(8, s.workflowId());
+            st.setString(9, s.id());
             st.executeUpdate();
         }
     }
@@ -189,7 +192,6 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
             return new ArrayList<>();
         }
         List<GraphExecutionState> list = new ArrayList<>();
-        list.add(fromResultSet(s));
         while (s.next()) {
             list.add(fromResultSet(s));
         }

@@ -75,7 +75,7 @@
         <opentracing-jaeger.version>1.4.0</opentracing-jaeger.version>
         <opentracing-web-servlet.version>0.4.1</opentracing-web-servlet.version>
         <postgresql.version>42.2.5</postgresql.version>
-        <flyway-core.version>7.5.2</flyway-core.version>
+        <flyway-core.version>8.5.11</flyway-core.version>
         <envoy.version>0.1.28</envoy.version>
         <unified-agent-client.version>8232432</unified-agent-client.version>
         <jnr-fuse.version>0.5.7</jnr-fuse.version>
@@ -86,7 +86,7 @@
         <micronaut-test.version>3.0.3</micronaut-test.version>
         <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
         <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
-        <h2database.version>1.4.200</h2database.version>
+        <h2database.version>2.1.212</h2database.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
         <maven-failsafe-plugin.version>2.22.2</maven-failsafe-plugin.version>
         <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
