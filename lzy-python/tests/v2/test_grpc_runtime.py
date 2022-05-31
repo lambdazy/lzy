@@ -58,7 +58,7 @@ class GrpcRuntimeTests(TestCase):
             f = foo("24")
             b = bar("42", f)
             graph: Graph = GraphBuilder().snapshot_id(str(uuid.uuid4())).add_call(b.lzy_call).build()
-            self._runtime.load_args(graph, DefaultSerializer())
+            self._runtime._load_args(graph, DefaultSerializer())
             self.assertTrue(len(self._storage_client.storage) == 2)
             values = list(map(lambda x: self._serializer.deserialize_from_string(x, str),
                               list(self._storage_client.storage.values())))
