@@ -23,26 +23,7 @@ public class RunTest extends LocalScenario {
     }
 
     @Test
-    public void testProcessEcho42() {
-        //Arrange
-        final FileIOOperation echo42 = new FileIOOperation(
-            "echo42",
-            Collections.emptyList(),
-            Collections.emptyList(),
-            "echo 42"
-        );
-
-        //Act
-        terminal.publish(echo42);
-        final ExecutionResult result = terminal.run(echo42.name(), "", Map.of());
-
-        //Assert
-        Assert.assertEquals("42\n", result.stdout());
-    }
-
-    @Test
-    @Ignore
-    public void testDockerEcho42() {
+    public void testEcho42() {
         //Arrange
         final FileIOOperation echo42 = new FileIOOperation(
             "echo42",
