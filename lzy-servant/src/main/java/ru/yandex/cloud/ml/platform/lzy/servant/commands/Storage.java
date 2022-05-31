@@ -4,9 +4,11 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import java.net.URI;
 import java.util.Base64;
+import java.util.Map;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -58,8 +60,7 @@ public class Storage implements LzyCommand {
                 return 0;
             }
             default: {
-                System.out.println("Wrong credentials type");
-                return -1;
+                throw new IllegalArgumentException("Wrong storage type: " + command.getArgs()[1]);
             }
         }
     }
