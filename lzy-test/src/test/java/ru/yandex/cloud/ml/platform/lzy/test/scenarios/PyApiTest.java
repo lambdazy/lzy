@@ -1,7 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
@@ -12,13 +10,11 @@ import java.util.concurrent.TimeUnit;
 
 
 public class PyApiTest extends LocalScenario {
-    private static final Logger LOG = LogManager.getLogger(PyApiTest.class);
-
     @Before
     public void setUp() {
         super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
-                LZY_MOUNT,
+                Defaults.LZY_MOUNT,
                 FreePortFinder.find(20000, 21000),
                 FreePortFinder.find(21000, 22000),
                 kharonContext.serverAddress(),
@@ -27,7 +23,7 @@ public class PyApiTest extends LocalScenario {
                 null);
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,
-                DEFAULT_TIMEOUT_SEC,
+                Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
     }
@@ -38,25 +34,25 @@ public class PyApiTest extends LocalScenario {
                 1. Importing external modules (catboost)
                 2. Functions which accept and return complex objects
          */
-        runAndCompareWithExpectedFile(List.of("catboost"), "catboost_integration_cpu", LOG, terminal);
+        evalAndAssertScenarioResult(terminal, "catboost_integration_cpu", List.of("catboost"));
     }
 
     @Test
     public void testExecFail() {
         //Arrange
-        runAndCompareWithExpectedFile("exec_fail", LOG, terminal);
+        evalAndAssertScenarioResult(terminal, "exec_fail");
     }
 
     @Test
     public void testEnvFail() {
         //Arrange
-        runAndCompareWithExpectedFile("env_fail", LOG, terminal);
+        evalAndAssertScenarioResult(terminal, "env_fail");
     }
 
     @Test
     public void testCache() {
         //Arrange
-        runAndCompareWithExpectedFile("test_cache", LOG, terminal);
+        evalAndAssertScenarioResult(terminal, "test_cache");
     }
 
     @Test
@@ -66,7 +62,7 @@ public class PyApiTest extends LocalScenario {
          */
 
         //Arrange
-        runAndCompareWithExpectedFile("import", LOG, terminal);
+        evalAndAssertScenarioResult(terminal, "import");
     }
 
     @Test
@@ -76,7 +72,7 @@ public class PyApiTest extends LocalScenario {
          */
 
         //Arrange
-        runAndCompareWithExpectedFile("none_result", LOG, terminal);
+        evalAndAssertScenarioResult(terminal, "none_result");
     }
 
     @Test
@@ -85,6 +81,6 @@ public class PyApiTest extends LocalScenario {
                 1. Whiteboards/Views machinery
          */
         //Arrange
-        runAndCompareWithExpectedFile("whiteboards", LOG, terminal);
+        evalAndAssertScenarioResult(terminal, "whiteboards");
     }
 }
