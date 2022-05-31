@@ -105,6 +105,7 @@ jobs:
           cd lzy-test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - uses: scacap/action-surefire-report@v1
+        if: always()
 
       - name: 'Clear after tests'
         if: always()
