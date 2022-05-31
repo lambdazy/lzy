@@ -28,6 +28,7 @@ jobs:
         run: mvn clean install
 
       - uses: scacap/action-surefire-report@v1
+        if: always()
 
       - name: 'install lzy-python'
         run: cd lzy-python/ && pip install -r requirements.txt && pip install .
