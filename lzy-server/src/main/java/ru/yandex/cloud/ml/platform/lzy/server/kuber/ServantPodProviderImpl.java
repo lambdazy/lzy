@@ -24,17 +24,16 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     private static final String DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE =
         "/app/resources/kubernetes/lzy-servant-pod-template.yaml";
     private static final String LZY_SERVANT_CONTAINER_NAME = "lzy-servant";
-    private static final V1Toleration GPU_SERVANT_POD_TOLERATION = new V1TolerationBuilder()
-        .withKey("sku")
-        .withOperator("Equal")
-        .withValue("gpu")
-        .withEffect("NoSchedule")
-        .build();
+    private static final V1Toleration GPU_SERVANT_POD_TOLERATION = new V1Toleration()
+        .key("sku")
+        .operator("Equal")
+        .value("gpu")
+        .effect("NoSchedule");
     private static final List<V1Toleration> GPU_SERVANT_POD_TOLERATIONS = List.of(
         GPU_SERVANT_POD_TOLERATION
     );
     private static final V1ResourceRequirements GPU_SERVANT_POD_RESOURCE =
-        new V1ResourceRequirementsBuilder().addToLimits("nvidia.com/gpu", Quantity.fromString("1")).build();
+        new V1ResourceRequirements().putLimitsItem("nvidia.com/gpu", Quantity.fromString("1"));
 
     @Inject
     private ServerConfig serverConfig;
