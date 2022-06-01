@@ -80,8 +80,8 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         final V1Container container = containerOptional.get();
         addEnvVars(container, token, servantId, bucket);
 
-        final String podName = "lzy-servant-" + servantId.toString().toLowerCase(Locale.ROOT);
-        pod.getMetadata().setName(podName);
+        final String podName = "lzy-servant-" + servantId.toLowerCase(Locale.ROOT);
+        pod.getMetadata().setName(podName.replaceAll("[ _\\\\/:*]", "-"));
 
         final V1PodSpec podSpec = pod.getSpec();
         Objects.requireNonNull(podSpec);
