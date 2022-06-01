@@ -16,7 +16,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <packaging>jar</packaging>
         <micronaut.runtime>netty</micronaut.runtime>
-        <exec.mainClass>ru.yandex.cloud.ml.platform.lzy.graph_executor.GraphExecutorApi</exec.mainClass>
+        <exec.mainClass>ru.yandex.cloud.ml.platform.lzy.graph.GraphExecutorApi</exec.mainClass>
     </properties>
 
     <dependencies>
@@ -210,6 +210,34 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <configuration>
+                    <configLocation>${project.basedir}/../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <encoding>UTF-8</encoding>
+                    <failsOnError>true</failsOnError>
+                    <linkXRef>false</linkXRef>
+                    <violationSeverity>warning</violationSeverity>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <artifactId>checkstyle</artifactId>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>install</phase>
+                    </execution>
+                </executions>
+                <groupId>org.apache.maven.plugins</groupId>
+                <version>${checkstyle-maven-plugin.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
