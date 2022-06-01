@@ -143,6 +143,11 @@ public class BfsGraphBuilderTest {
 
             @Override
             public void run() {}
+
+            @Override
+            public String name() {
+                return null;
+            }
         };
     }
 
