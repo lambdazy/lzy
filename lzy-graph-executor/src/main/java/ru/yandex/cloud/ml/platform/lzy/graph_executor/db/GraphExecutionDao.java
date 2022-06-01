@@ -27,12 +27,12 @@ public interface GraphExecutionDao {
 
     /**
      * Filter GraphExecutions by statuses, maps all elements of result by mapper and save them in one transaction
-     * @param status Status to filter GraphExecutions by
+     * @param statuses Statuses to filter GraphExecutions by
      * @param mapper Function to update execution
      * @param limit Limit of rows to execute
      * @throws GraphDaoException Error while process mapping
      */
-    void updateListAtomic(GraphExecutionState.Status status, ParallelMapper mapper, int limit) throws GraphDaoException;
+    void updateListAtomic(Set<GraphExecutionState.Status> statuses, ParallelMapper mapper, int limit) throws GraphDaoException;
 
     interface Mapper {
         GraphExecutionState update(@Nullable GraphExecutionState state) throws Exception;

@@ -26,6 +26,7 @@ public class GraphExecutorTest {
     private SchedulerApiMock scheduler;
     private GraphDaoMock dao;
     private GraphExecutor executor;
+    private final int TIMEOUT = 300;
 
     @Before
     public void setUp() {
@@ -68,7 +69,7 @@ public class GraphExecutorTest {
         GraphExecutionState state = dao.create("", graph);
         executor.start();
 
-        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE);
+        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
 
         var state2 = dao.get("", state.id());
         Assert.assertEquals(
@@ -82,7 +83,7 @@ public class GraphExecutorTest {
         scheduler.changeStatus("7", SchedulerApiMock.EXECUTING);
         scheduler.changeStatus("9", SchedulerApiMock.EXECUTING);
 
-        scheduler.waitForStatus("6", Tasks.TaskProgress.Status.QUEUE);
+        scheduler.waitForStatus("6", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
 
         var state3 = dao.get("", state.id());
         Assert.assertEquals(
@@ -94,7 +95,7 @@ public class GraphExecutorTest {
         scheduler.changeStatus("10", SchedulerApiMock.EXECUTING);
         scheduler.changeStatus("6", SchedulerApiMock.EXECUTING);
 
-        scheduler.waitForStatus("8", Tasks.TaskProgress.Status.QUEUE);
+        scheduler.waitForStatus("8", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
         var state4 = dao.get("", state.id());
         Assert.assertEquals(
                 Set.of("3", "8"),
@@ -104,7 +105,7 @@ public class GraphExecutorTest {
         scheduler.changeStatus("8", SchedulerApiMock.EXECUTING);
         scheduler.changeStatus("3", SchedulerApiMock.EXECUTING);
 
-        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.QUEUE);
+        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
         var state5 = dao.get("", state.id());
         Assert.assertEquals(
                 Set.of("2", "4"),
@@ -137,19 +138,54 @@ public class GraphExecutorTest {
         GraphExecutionState state = dao.create("", graph);
         executor.start();
 
-        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE);
+        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
         scheduler.changeStatus("1", SchedulerApiMock.EXECUTING);
 
-        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.QUEUE);
+        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
         scheduler.changeStatus("2", SchedulerApiMock.EXECUTING);
         scheduler.changeStatus("3", SchedulerApiMock.EXECUTING);
 
         scheduler.changeStatus("1", SchedulerApiMock.ERROR);
 
-        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.ERROR); // wait for kill from executor
+        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.ERROR, TIMEOUT); // wait for kill from executor
 
         Assert.assertEquals(dao.get("", state.id()).status(), GraphExecutionState.Status.FAILED);
         executor.gracefulStop();
 
+    }
+
+    @Test
+    public void testStop() throws InterruptedException {
+        final GraphDescription graph = new BfsGraphBuilderTest.GraphDescriptionBuilder()
+            .addVertexes("1", "2", "3")
+            .addEdge("1", "2")
+            .addEdge("1", "3")
+            .build();
+
+        GraphExecutionState state = dao.create("", graph);
+        executor.start();
+
+        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
+        scheduler.changeStatus("1", SchedulerApiMock.EXECUTING);
+
+        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
+        scheduler.changeStatus("2", SchedulerApiMock.EXECUTING);
+        scheduler.changeStatus("3", SchedulerApiMock.EXECUTING);
+
+        dao.updateAtomic("", state.id(), s -> new GraphExecutionState(
+            s.workflowId(),
+            s.id(),
+            s.description(),
+            s.executions(),
+            s.currentExecutionGroup(),
+            GraphExecutionState.Status.SCHEDULED_TO_FAIL,
+            "Stopped by test"
+        ));
+
+        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.ERROR, TIMEOUT);
+        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.ERROR, TIMEOUT);
+        scheduler.waitForStatus("3", Tasks.TaskProgress.Status.ERROR, TIMEOUT);
+
+        Assert.assertEquals(dao.get("", state.id()).status(), GraphExecutionState.Status.FAILED);
     }
 }

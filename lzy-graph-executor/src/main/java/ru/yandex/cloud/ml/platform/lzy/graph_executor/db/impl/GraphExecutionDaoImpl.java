@@ -5,9 +5,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.sql.Array;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import org.jetbrains.annotations.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.db.GraphExecutionDao;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.db.Storage;
@@ -150,7 +152,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     }
 
     @Override
-    public void updateListAtomic(GraphExecutionState.Status status, ParallelMapper mapper, int limit) throws GraphDaoException {
+    public void updateListAtomic(Set<GraphExecutionState.Status> statuses, ParallelMapper mapper, int limit) throws GraphDaoException {
         final Connection con;
         try {
             con = storage.connect();
@@ -162,11 +164,12 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
             final List<Future<GraphExecutionState>> futures = new ArrayList<>();
             try (final PreparedStatement st = con.prepareStatement(
                 "SELECT * from graph_execution_state TABLESAMPLE system(100) " +  // Shuffle rows to pick graphs
-                    "WHERE status = ? " +
+                    "WHERE status IN ? " +
                     "LIMIT ? " +
                     "FOR UPDATE SKIP LOCKED;"
             )) {
-                st.setString(1, status.name());
+                Array array = con.createArrayOf("varchar", statuses.stream().map(Enum::name).toArray());
+                st.setArray(1, array);
                 st.setInt(2, limit);
                 try (ResultSet s = st.executeQuery()) {
                     while (s.next()) {

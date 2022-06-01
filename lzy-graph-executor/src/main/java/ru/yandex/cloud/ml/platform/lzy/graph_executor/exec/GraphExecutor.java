@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.graph_executor.exec;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,11 +46,12 @@ public class GraphExecutor extends Thread{
                     return;
                 }
                 dao.updateListAtomic(
-                    GraphExecutionState.Status.WAITING, state -> executor.submit(() -> processor.exec(state)),
-                    batchSize
-                    );
-                dao.updateListAtomic(
-                    GraphExecutionState.Status.EXECUTING, state -> executor.submit(() -> processor.exec(state)),
+                    Set.of(
+                        GraphExecutionState.Status.WAITING,
+                        GraphExecutionState.Status.EXECUTING,
+                        GraphExecutionState.Status.SCHEDULED_TO_FAIL
+                    ),
+                    state -> executor.submit(() -> processor.exec(state)),
                     batchSize
                 );
             } catch (InterruptedException e) {

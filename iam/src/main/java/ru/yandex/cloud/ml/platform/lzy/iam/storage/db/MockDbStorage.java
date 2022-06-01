@@ -14,7 +14,7 @@ import java.sql.SQLException;
 @Requires(missingProperty = "database.username")
 @Requires(missingProperty = "database.password")
 public class MockDbStorage implements Storage {
-    private final String connectionUrl = "jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false";
+    private final String connectionUrl = "jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER;DATABASE_TO_UPPER=false";
     private final String dbUser = "test";
     private Connection connection;
 

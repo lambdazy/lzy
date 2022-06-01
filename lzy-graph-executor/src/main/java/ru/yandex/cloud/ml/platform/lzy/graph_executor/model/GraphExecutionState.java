@@ -55,8 +55,14 @@ public record GraphExecutionState(
         switch (status) {
             case WAITING -> statusBuilder.setWaiting(Waiting.newBuilder().build());
             case COMPLETED -> statusBuilder.setCompleted(Completed.newBuilder().build());
-            case FAILED -> statusBuilder.setFailed(Failed.newBuilder().build());
-            case EXECUTING, SCHEDULED_TO_FAIL -> statusBuilder.setExecuting(Executing.newBuilder().build());
+            case FAILED -> statusBuilder.setFailed(
+                Failed.newBuilder()
+                    .setDescription(errorDescription)
+                    .build()
+            );
+            case EXECUTING, SCHEDULED_TO_FAIL -> statusBuilder.setExecuting(
+                Executing.newBuilder().build() //TODO(artolord) add tasks progress here
+            );
         }
         return statusBuilder.build();
     }

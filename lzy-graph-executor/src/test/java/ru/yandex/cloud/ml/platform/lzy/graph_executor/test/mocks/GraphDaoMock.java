@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.graph_executor.test.mocks;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.db.GraphExecutionDao;
@@ -49,8 +50,9 @@ public class GraphDaoMock implements GraphExecutionDao {
     }
 
     @Override
-    public synchronized void updateListAtomic(GraphExecutionState.Status status, ParallelMapper mapper, int limit) throws GraphDaoException {
-        filter(status).stream().limit(limit).map(mapper::update).map(t -> {
+    public synchronized void updateListAtomic(Set<GraphExecutionState.Status> statuses,
+                                              ParallelMapper mapper, int limit) {
+        storage.values().stream().filter(t -> statuses.contains(t.status())).limit(limit).map(mapper::update).map(t -> {
             try {
                 return t.get();
             } catch (InterruptedException | ExecutionException e) {

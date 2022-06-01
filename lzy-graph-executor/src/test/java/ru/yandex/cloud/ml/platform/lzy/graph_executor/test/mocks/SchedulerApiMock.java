@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.graph_executor.test.mocks;
 
+import java.util.concurrent.TimeUnit;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.api.SchedulerApi;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.model.TaskDescription;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
@@ -56,9 +57,13 @@ public class SchedulerApiMock implements SchedulerApi {
         String call(String workflowId, TaskDescription tasks, SchedulerApiMock scheduler);
     }
 
-    public synchronized void waitForStatus(String taskId, Tasks.TaskProgress.Status status) throws InterruptedException {
-        while (statusByTaskId.get(taskId) == null || statusByTaskId.get(taskId).getStatus() != status) {
-            this.wait();
+    public synchronized void waitForStatus(String taskId, Tasks.TaskProgress.Status status, int timeoutMillis) throws InterruptedException {
+        long startTime = System.currentTimeMillis();
+        while ((statusByTaskId.get(taskId) == null || statusByTaskId.get(taskId).getStatus() != status) && System.currentTimeMillis() - startTime < timeoutMillis) {
+            this.wait(timeoutMillis);
+        }
+        if (statusByTaskId.get(taskId) == null || statusByTaskId.get(taskId).getStatus() != status) {
+            throw new RuntimeException("Timeout exceeded");
         }
     }
 }
