@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.graph_executor.db;
 
+import java.util.Set;
+import java.util.concurrent.Future;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.model.GraphExecutionState;
 
@@ -21,10 +23,23 @@ public interface GraphExecutionDao {
      * @param mapper function to update execution
      */
     void updateAtomic(String workflowId, String graphExecutionId,
-          Updater mapper) throws GraphDaoException;
+          Mapper mapper) throws GraphDaoException;
 
-    interface Updater {
-        GraphExecutionState update(GraphExecutionState state) throws Exception;
+    /**
+     * Filter GraphExecutions by statuses, maps all elements of result by mapper and save them in one transaction
+     * @param status Status to filter GraphExecutions by
+     * @param mapper Function to update execution
+     * @param limit Limit of rows to execute
+     * @throws GraphDaoException Error while process mapping
+     */
+    void updateListAtomic(GraphExecutionState.Status status, ParallelMapper mapper, int limit) throws GraphDaoException;
+
+    interface Mapper {
+        GraphExecutionState update(@Nullable GraphExecutionState state) throws Exception;
+    }
+
+    interface ParallelMapper {
+        Future<GraphExecutionState> update(GraphExecutionState state);
     }
 
     class GraphDaoException extends Exception {

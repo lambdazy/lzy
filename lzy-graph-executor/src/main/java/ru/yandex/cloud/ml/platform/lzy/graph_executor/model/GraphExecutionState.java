@@ -45,7 +45,7 @@ public record GraphExecutionState(
     }
 
     public enum Status {
-       WAITING, EXECUTING, COMPLETED, FAILED
+       WAITING, EXECUTING, COMPLETED, SCHEDULED_TO_FAIL, FAILED
     }
 
     public GraphExecutorApi.GraphExecutionStatus toGrpc() {
@@ -56,7 +56,7 @@ public record GraphExecutionState(
             case WAITING -> statusBuilder.setWaiting(Waiting.newBuilder().build());
             case COMPLETED -> statusBuilder.setCompleted(Completed.newBuilder().build());
             case FAILED -> statusBuilder.setFailed(Failed.newBuilder().build());
-            case EXECUTING -> statusBuilder.setExecuting(Executing.newBuilder().build());
+            case EXECUTING, SCHEDULED_TO_FAIL -> statusBuilder.setExecuting(Executing.newBuilder().build());
         }
         return statusBuilder.build();
     }

@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.graph_executor.api;
 
+import io.grpc.StatusException;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.model.TaskDescription;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 

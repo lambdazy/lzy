@@ -1,4 +1,4 @@
-CREATE TYPE graph_execution_status AS ENUM ('WAITING', 'EXECUTING', 'COMPLETED', 'FAILED');
+CREATE TYPE graph_execution_status AS ENUM ('WAITING', 'EXECUTING', 'COMPLETED', 'SCHEDULED_TO_FAIL', 'FAILED');
 
 CREATE TABLE graph_execution_state
 (

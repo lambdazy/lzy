@@ -1,10 +1,15 @@
 package ru.yandex.cloud.ml.platform.lzy.graph_executor.test;
 
+import ru.yandex.cloud.ml.platform.lzy.graph_executor.exec.BfsGraphProcessor;
+import ru.yandex.cloud.ml.platform.lzy.graph_executor.exec.GraphProcessor;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.graph_executor.GraphWatcher;
+import ru.yandex.cloud.ml.platform.lzy.graph_executor.exec.GraphExecutor;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.algo.BfsGraphBuilder;
+import ru.yandex.cloud.ml.platform.lzy.graph_executor.algo.GraphBuilder;
+import ru.yandex.cloud.ml.platform.lzy.graph_executor.config.ServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.model.GraphExecutionState;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.test.mocks.GraphDaoMock;
@@ -16,12 +21,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @MicronautTest
-public class GraphWatcherTest {
+public class GraphExecutorTest {
 
-    @Test
-    public void testSimple() throws InterruptedException {
-        GraphDaoMock dao = new GraphDaoMock();
-        SchedulerApiMock scheduler = new SchedulerApiMock((a, b, sch) -> {
+    private SchedulerApiMock scheduler;
+    private GraphDaoMock dao;
+    private GraphExecutor executor;
+
+    @Before
+    public void setUp() {
+        scheduler =  new SchedulerApiMock((a, b, sch) -> {
             sch.changeStatus(b.id(), Tasks.TaskProgress.newBuilder()
                 .setTid(b.id())
                 .setStatus(Tasks.TaskProgress.Status.QUEUE)
@@ -29,6 +37,22 @@ public class GraphWatcherTest {
             );
             return b.id();
         });
+
+        dao = new GraphDaoMock();
+
+        GraphBuilder builder = new BfsGraphBuilder(scheduler);
+
+        GraphProcessor processor = new BfsGraphProcessor(scheduler, builder);
+
+        ServiceConfig config = new ServiceConfig();
+        config.setProcessingPeriodMillis(100);
+        config.setThreadPoolSize(16);
+
+        executor = new GraphExecutor(dao, processor, config);
+    }
+
+    @Test
+    public void testSimple() throws InterruptedException {
         final GraphDescription graph = new BfsGraphBuilderTest.GraphDescriptionBuilder()
             .addVertexes("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
             .addEdge("1", "2")
@@ -42,10 +66,7 @@ public class GraphWatcherTest {
             .build();
 
         GraphExecutionState state = dao.create("", graph);
-        GraphWatcher watcher = new GraphWatcher(
-            "", state.id(), dao, scheduler, new BfsGraphBuilder(scheduler), 100
-        );
-        watcher.run();
+        executor.start();
 
         scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE);
 
@@ -101,20 +122,12 @@ public class GraphWatcherTest {
 
         Assert.assertEquals(dao.get("", state.id()).status(), GraphExecutionState.Status.COMPLETED);
 
-        watcher.cancel();
+        executor.gracefulStop();
     }
 
     @Test
     public void testErrorInTask() throws InterruptedException {
-        GraphDaoMock dao = new GraphDaoMock();
-        SchedulerApiMock scheduler = new SchedulerApiMock((a, b, sch) -> {
-            sch.changeStatus(b.id(), Tasks.TaskProgress.newBuilder()
-                .setTid(b.id())
-                .setStatus(Tasks.TaskProgress.Status.QUEUE)
-                .build()
-            );
-            return b.id();
-        });
+
         final GraphDescription graph = new BfsGraphBuilderTest.GraphDescriptionBuilder()
             .addVertexes("1", "2", "3")
             .addEdge("1", "2")
@@ -122,10 +135,7 @@ public class GraphWatcherTest {
             .build();
 
         GraphExecutionState state = dao.create("", graph);
-        GraphWatcher watcher = new GraphWatcher(
-            "", state.id(), dao, scheduler, new BfsGraphBuilder(scheduler), 100
-        );
-        watcher.run();
+        executor.start();
 
         scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE);
         scheduler.changeStatus("1", SchedulerApiMock.EXECUTING);
@@ -139,6 +149,7 @@ public class GraphWatcherTest {
         scheduler.waitForStatus("2", Tasks.TaskProgress.Status.ERROR); // wait for kill from executor
 
         Assert.assertEquals(dao.get("", state.id()).status(), GraphExecutionState.Status.FAILED);
+        executor.gracefulStop();
 
     }
 }

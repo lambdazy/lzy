@@ -1,4 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.graph_executor.test.mocks;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.db.GraphExecutionDao;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph_executor.model.GraphExecutionState;
@@ -27,7 +30,7 @@ public class GraphDaoMock implements GraphExecutionDao {
 
     @Override
     public List<GraphExecutionState> filter(GraphExecutionState.Status status) {
-        return List.of();
+        return storage.values().stream().filter(t -> t.status() == status).collect(Collectors.toList());
     }
 
     @Override
@@ -36,13 +39,25 @@ public class GraphDaoMock implements GraphExecutionDao {
     }
 
     @Override
-    public synchronized void updateAtomic(String workflowId, String graphExecutionId, Updater mapper) {
+    public synchronized void updateAtomic(String workflowId, String graphExecutionId, Mapper mapper) {
         try {
             GraphExecutionState graph = mapper.update(storage.get(new Key(workflowId, graphExecutionId)));
             storage.put(new Key(workflowId, graphExecutionId), graph);
         } catch (Exception ignored) {
         }
 
+    }
+
+    @Override
+    public synchronized void updateListAtomic(GraphExecutionState.Status status, ParallelMapper mapper, int limit) throws GraphDaoException {
+        filter(status).stream().limit(limit).map(mapper::update).map(t -> {
+            try {
+                return t.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }).filter(Objects::nonNull).forEach(t -> storage.put(new Key(t.workflowId(), t.id()), t));
     }
 
     private record Key(String workflowId, String graphId) {}
