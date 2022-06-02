@@ -199,6 +199,7 @@
     <dependency>
       <artifactId>client-java</artifactId>
       <groupId>io.kubernetes</groupId>
+      <version>${io.kubernetes.version}</version>
     </dependency>
     <dependency>
       <artifactId>util-zk</artifactId>
