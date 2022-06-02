@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.model.logs;
 
+import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
@@ -77,7 +78,7 @@ public class GrpcLogsInterceptor implements ServerInterceptor {
         }
     }
 
-    private static class GrpcForwardingServerCallListener<M, R> extends io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener<M> {
+    private static class GrpcForwardingServerCallListener<M, R> extends SimpleForwardingServerCallListener<M> {
 
         final String methodName;
 

@@ -183,7 +183,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     public void start() throws InterruptedException, IOException {
         LOG.info("Starting GraphExecutor service...");
 
-        for (int i = 0; i < config.executorsCount(); i ++) {
+        for (int i = 0; i < config.executorsCount(); i++) {
             executors.add(new GraphExecutor(dao, graphProcessor));
         }
 

@@ -38,12 +38,12 @@ public class Graph<T extends Vertex> {
 
     public record Edge<T extends Vertex>(T input, T output) {}
 
-    public static abstract class Vertex {
+    public abstract static class Vertex {
         abstract String name();
 
         @Override
         public boolean equals(Object obj) {
-            if (!(obj instanceof Vertex)){
+            if (!(obj instanceof Vertex)) {
                 return false;
             }
             return Objects.equals(name(), ((Vertex) obj).name());

@@ -70,7 +70,8 @@ public class GraphBuilderImpl implements GraphBuilder {
                     continue;
                 }
                 throw new GraphValidationException(
-                    String.format("TaskVertex <%s> does not contains slot <%s>, but it was mentioned in slots assignments",
+                    String.format(
+                        "TaskVertex <%s> does not contains slot <%s>, but it was mentioned in slots assignments",
                         task.id(), entry.getKey()
                     )
                 );

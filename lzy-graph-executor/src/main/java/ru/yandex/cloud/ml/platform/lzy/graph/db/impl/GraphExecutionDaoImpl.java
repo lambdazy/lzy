@@ -32,10 +32,10 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     private final Storage storage;
 
     private static final String GRAPH_FIELDS_LIST =
-        "(workflow_id, id, "
+        "workflow_id, id, "
         + "error_description, status, "
         + "graph_description_json, task_executions_json, "
-        + "current_execution_group_json, last_updated) ";
+        + "current_execution_group_json, last_updated ";
 
     @Inject
     public GraphExecutionDaoImpl(Storage storage) {
@@ -46,9 +46,9 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     public GraphExecutionState create(String workflowId, GraphDescription description) throws GraphDaoException {
         ObjectMapper objectMapper = new ObjectMapper();
         try (final PreparedStatement st = storage.connect().prepareStatement(
-            "INSERT INTO graph_execution_state "
+            "INSERT INTO graph_execution_state ( "
                 + GRAPH_FIELDS_LIST
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?);"
+                + " ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"
         )) {
             String id = UUID.randomUUID().toString();
             GraphExecutionState state = new GraphExecutionState(workflowId, id, description);
