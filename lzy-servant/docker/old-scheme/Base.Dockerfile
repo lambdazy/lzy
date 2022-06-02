@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.4.2-devel-ubuntu20.04
+FROM nvidia/cuda:11.2.0-devel-ubuntu20.04
 
 ### conda setup
 ENV PATH="/root/miniconda3/bin:$PATH"
