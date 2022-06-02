@@ -8,6 +8,8 @@ import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.Config;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
@@ -55,9 +57,19 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         }
         final V1Pod pod;
         try {
-            pod = api.createNamespacedPod(NAMESPACE, servantPodSpec, null, null, null);
+            pod = api.createNamespacedPod(NAMESPACE, servantPodSpec, null, null, null, null);
         } catch (ApiException e) {
-            throw new RuntimeException("Exception while creating pod in kuber", e);
+            throw new RuntimeException(String.format(
+                "Exception while creating pod in kuber "
+                    + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
+                e,
+                e.getMessage(),
+                e.getCode(),
+                e.getResponseBody(),
+                Arrays.stream(e.getStackTrace())
+                    .map(StackTraceElement::toString)
+                    .collect(Collectors.joining(","))
+            ));
         }
         LOG.info("Created servant pod in Kuber: {}", pod);
         Objects.requireNonNull(pod.getMetadata());
@@ -105,6 +117,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
                 null,
                 "app=lzy-servant",
                 Integer.MAX_VALUE,
+                null,
                 null,
                 null,
                 Boolean.FALSE
