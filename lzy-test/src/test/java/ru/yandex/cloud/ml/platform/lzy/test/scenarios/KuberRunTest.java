@@ -11,7 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 public class KuberRunTest extends LzyBaseTest {
     static class Config extends Utils.Defaults {
         private static final int    SERVANT_FS_PORT = 19999;
-        private static final String KHARON_DOMAIN   = "kharon-lzy-exp-2.northeurope.cloudapp.azure.com";
+        private static final String KHARON_DOMAIN   = "kharon-lzy-prod.northeurope.cloudapp.azure.com";
         private static final String USER            = "phil";
         private static final String USER_KEY_PATH   = "/tmp/test-private.pem";
     }
@@ -46,7 +46,7 @@ public class KuberRunTest extends LzyBaseTest {
                 3. Task that requires GPU
          */
         // TODO: do we need to pass catboost as requirement here
-        evalAndAssertScenarioResult( terminal, "catboost_integration_cpu");
+        evalAndAssertScenarioResult( terminal, "catboost_integration_gpu");
     }
 
     @Test

@@ -81,7 +81,8 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         addEnvVars(container, token, servantId, bucket);
 
         final String podName = "lzy-servant-" + servantId.toLowerCase(Locale.ROOT);
-        pod.getMetadata().setName(podName.replaceAll("[ _\\\\/:*]", "-"));
+        // k8s pod name can only contain symbols [-a-z0-9]
+        pod.getMetadata().setName(podName.replaceAll("[^-a-z0-9]", "-"));
 
         final V1PodSpec podSpec = pod.getSpec();
         Objects.requireNonNull(podSpec);
