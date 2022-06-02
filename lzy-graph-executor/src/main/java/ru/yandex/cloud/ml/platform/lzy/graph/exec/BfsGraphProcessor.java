@@ -6,7 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.Algorithms;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.Algorithms.CondensedComponent;
-import ru.yandex.cloud.ml.platform.lzy.graph.algo.Graph;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.DirectedGraph;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder.TaskVertex;
 import ru.yandex.cloud.ml.platform.lzy.graph.api.SchedulerApi;
@@ -65,8 +65,8 @@ public class BfsGraphProcessor implements GraphProcessor {
             }
         };
         LOG.debug(String.format(
-            "Graph <%s> from workflow <%s> processed. Graph before processing: %s\n"
-                + " Graph after processing: %s",
+            "DirectedGraph <%s> from workflow <%s> processed. DirectedGraph before processing: %s\n"
+                + " DirectedGraph after processing: %s",
             graph.id(), graph.workflowId(), graph, state
         ));
         return state;
@@ -138,7 +138,7 @@ public class BfsGraphProcessor implements GraphProcessor {
 
     private Set<TaskDescription> getNextExecutionGroup(GraphExecutionState graphExecution)
                                                                         throws GraphBuilder.GraphValidationException {
-        final Graph<TaskVertex> graph = graphBuilder.build(graphExecution.description());
+        final DirectedGraph<TaskVertex> graph = graphBuilder.build(graphExecution.description());
 
         final Algorithms.CondensedGraph<TaskVertex> condensedGraph = Algorithms.condenseGraph(graph);
 

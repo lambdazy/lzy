@@ -1,16 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.graph.algo;
 
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.graph.algo.Algorithms.CondensedComponent;
-import ru.yandex.cloud.ml.platform.lzy.graph.algo.Algorithms.CondensedGraph;
-import ru.yandex.cloud.ml.platform.lzy.graph.algo.Graph.Edge;
-import ru.yandex.cloud.ml.platform.lzy.graph.api.SchedulerApi;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.DirectedGraph.Edge;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphDescription;
-import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.TaskDescription;
-import ru.yandex.cloud.ml.platform.lzy.graph.model.TaskExecution;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -18,9 +12,9 @@ import java.util.stream.Collectors;
 @Singleton
 public class GraphBuilderImpl implements GraphBuilder {
 
-    public Graph<TaskVertex> build(GraphDescription graphDescription) throws GraphValidationException {
+    public DirectedGraph<TaskVertex> build(GraphDescription graphDescription) throws GraphValidationException {
         // TODO(artolord) add more validations
-        final Graph<TaskVertex> graph = new Graph<>();
+        final DirectedGraph<TaskVertex> graph = new DirectedGraph<>();
         final Map<String, ChannelDescription> channels = new HashMap<>();
 
         for (TaskDescription task : graphDescription.tasks()) {
@@ -104,7 +98,7 @@ public class GraphBuilderImpl implements GraphBuilder {
     @Override
     public void validate(GraphDescription graph) throws GraphValidationException {
         if (graph.tasks().size() > MAX_VERTEXES) {
-            throw new GraphValidationException("Graph is not valid: number of tasks is more then " + MAX_VERTEXES);
+            throw new GraphValidationException("DirectedGraph is not valid: number of tasks is more then " + MAX_VERTEXES);
         }
         build(graph);
     }

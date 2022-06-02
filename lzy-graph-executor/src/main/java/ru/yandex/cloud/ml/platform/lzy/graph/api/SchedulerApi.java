@@ -10,10 +10,10 @@ public interface SchedulerApi {
     /**
      * Executes group of tasks
      * @param workflowId id of workflow to execute tasks in
-     * @param tasks descriptions of tasks to execute
+     * @param task descriptions of tasks to execute
      * @return list of task statuses that was registered
      */
-    Tasks.TaskProgress execute(String workflowId, TaskDescription tasks);
+    Tasks.TaskProgress execute(String workflowId, TaskDescription task);
 
     /**
      * Get status of task by id

@@ -2,14 +2,14 @@ package ru.yandex.cloud.ml.platform.lzy.graph.algo;
 
 import java.util.*;
 import java.util.function.Function;
-import ru.yandex.cloud.ml.platform.lzy.graph.algo.Graph.Edge;
-import ru.yandex.cloud.ml.platform.lzy.graph.algo.Graph.Vertex;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.DirectedGraph.Edge;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.DirectedGraph.Vertex;
 
 public class Algorithms {
 
     public static <T extends Vertex> List<T> getNextBfsGroup(
-            Graph<T> graph, List<T> currentGroup,
-            Function<T, Boolean> canHaveChild
+        DirectedGraph<T> graph, List<T> currentGroup,
+        Function<T, Boolean> canHaveChild
     ) {
         final Set<T> currentExecutions = new HashSet<>();
         final Set<T> next = new HashSet<>();
@@ -40,7 +40,7 @@ public class Algorithms {
         return next.stream().toList();
     }
 
-    public static <T extends Vertex> Set<T> findRoots(Graph<T> graph) {
+    public static <T extends Vertex> Set<T> findRoots(DirectedGraph<T> graph) {
         Set<T> used = new HashSet<>();
         Set<T> roots = new HashSet<>();
         Queue<T> processingQueue = new ArrayDeque<>();
@@ -67,7 +67,7 @@ public class Algorithms {
         return roots;
     }
 
-    public static <T extends Vertex> CondensedGraph<T> condenseGraph(Graph<T> graph) {
+    public static <T extends Vertex> CondensedGraph<T> condenseGraph(DirectedGraph<T> graph) {
         final Set<T> used = new HashSet<>();
         final List<T> order = new ArrayList<>();
 
@@ -114,7 +114,7 @@ public class Algorithms {
         return condensedGraph;
     }
 
-    private static <T extends Vertex> void topSort(T vertex, List<T> order, Set<T> used, Graph<T> graph) {
+    private static <T extends Vertex> void topSort(T vertex, List<T> order, Set<T> used, DirectedGraph<T> graph) {
         used.add(vertex);
         for (T edge : graph.children(vertex.name())) {
             if (!used.contains(edge)) {
@@ -125,7 +125,7 @@ public class Algorithms {
     }
 
     private static <T extends Vertex> void findStrongConnections(T vertex, Set<T> component,
-                                                  Set<T> used, Graph<T> graph) {
+                                                  Set<T> used, DirectedGraph<T> graph) {
         used.add(vertex);
         component.add(vertex);
         for (T edge : graph.parents(vertex.name())) {
@@ -135,7 +135,7 @@ public class Algorithms {
         }
     }
 
-    public static class CondensedGraph<T extends Vertex> extends Graph<CondensedComponent<T>> {
+    public static class CondensedGraph<T extends Vertex> extends DirectedGraph<CondensedComponent<T>> {
         final Map<String, CondensedComponent<T>> vertexNameToComponentMap;
 
         public CondensedGraph(Map<String, CondensedComponent<T>> vertexNameToComponentMap) {

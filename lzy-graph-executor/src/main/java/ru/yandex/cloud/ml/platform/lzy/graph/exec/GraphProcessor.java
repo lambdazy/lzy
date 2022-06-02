@@ -10,7 +10,7 @@ public interface GraphProcessor {
 
     /**
      * Makes next step of execution on graph
-     * @param graph Graph to execute
+     * @param graph DirectedGraph to execute
      * @return new state of given graph
      */
     GraphExecutionState exec(GraphExecutionState graph);

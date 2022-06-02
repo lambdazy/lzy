@@ -1,6 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.graph.algo;
 
-import ru.yandex.cloud.ml.platform.lzy.graph.algo.Graph.Vertex;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.DirectedGraph.Vertex;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.TaskDescription;
 
@@ -8,7 +8,7 @@ public interface GraphBuilder {
     Integer MAX_VERTEXES = 100;
 
     void validate(GraphDescription graph) throws GraphValidationException;
-    Graph<TaskVertex> build(GraphDescription graph) throws GraphValidationException;
+    DirectedGraph<TaskVertex> build(GraphDescription graph) throws GraphValidationException;
 
     class GraphValidationException extends Exception {
         public GraphValidationException(String message) {

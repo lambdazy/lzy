@@ -68,7 +68,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         } catch (GraphExecutionDao.GraphDaoException e) {
             LOG.error("Cannot create graph for workflow <" + request.getWorkflowId() + ">", e);
             responseObserver.onError(Status.INTERNAL
-                .withDescription("Cannot create graph. Please try again later.").asException());
+                .withDescription("Cannot create graph.").asException());
             return;
         }
         responseObserver.onNext(GraphExecuteResponse.newBuilder().setStatus(graphExecution.toGrpc()).build());
@@ -89,13 +89,13 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 e
             );
             responseObserver.onError(Status.INTERNAL
-                .withDescription("Cannot get graph execution status. Please try again later.").asException());
+                .withDescription("Cannot get graph execution status.").asException());
             return;
         }
 
         if (state == null) {
             responseObserver.onError(Status.NOT_FOUND
-                .withDescription("Graph <" + request.getGraphId() + "> not found").asException());
+                .withDescription("DirectedGraph <" + request.getGraphId() + "> not found").asException());
             return;
         }
 
@@ -113,12 +113,13 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 .map(GraphExecutionState::toGrpc)
                 .collect(Collectors.toList());
         } catch (GraphExecutionDao.GraphDaoException e) {
+
             LOG.error(
                 String.format("Cannot get list of graphs in workflow <%s> from database", request.getWorkflowId()),
                 e
             );
             responseObserver.onError(Status.INTERNAL
-                .withDescription("Cannot get list of graph executions. Please try again later.").asException());
+                .withDescription("Cannot get list of graph executions.").asException());
             return;
         }
 
@@ -132,7 +133,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             dao.updateAtomic(request.getWorkflowId(), request.getGraphId(), state -> {
                 if (state == null) {
                     responseObserver.onError(Status.NOT_FOUND
-                        .withDescription("Graph <" + request.getGraphId() + "> not found").asException());
+                        .withDescription("DirectedGraph <" + request.getGraphId() + "> not found").asException());
                     return null;
                 }
 
@@ -158,7 +159,12 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                     "Terminated by:" + request.getIssue()
                 );
 
-                responseObserver.onNext(GraphStopResponse.newBuilder().setStatus(newState.toGrpc()).build());
+                responseObserver.onNext(
+                    GraphStopResponse
+                        .newBuilder()
+                        .setStatus(newState.toGrpc())
+                        .build()
+                );
                 responseObserver.onCompleted();
                 return newState;
             });
@@ -168,7 +174,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 request.getGraphId(), request.getWorkflowId()
             ), e);
             responseObserver.onError(Status.INTERNAL
-                .withDescription("Cannot stop graph execution. Please try again later.").asException());
+                .withDescription("Cannot stop graph execution.").asException());
         }
     }
 

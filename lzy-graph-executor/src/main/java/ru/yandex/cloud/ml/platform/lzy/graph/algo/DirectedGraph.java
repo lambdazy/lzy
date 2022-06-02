@@ -1,10 +1,10 @@
 package ru.yandex.cloud.ml.platform.lzy.graph.algo;
 
-import static ru.yandex.cloud.ml.platform.lzy.graph.algo.Graph.*;
+import static ru.yandex.cloud.ml.platform.lzy.graph.algo.DirectedGraph.*;
 
 import java.util.*;
 
-public class Graph<T extends Vertex> {
+public class DirectedGraph<T extends Vertex> {
     private final Map<String, Set<T>> graph = new HashMap<>();
     private final Map<String, Set<T>> reversedGraph = new HashMap<>();
     private final Set<T> vertexes = new HashSet<>();

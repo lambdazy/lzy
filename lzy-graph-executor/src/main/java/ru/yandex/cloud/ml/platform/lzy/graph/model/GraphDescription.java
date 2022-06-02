@@ -13,7 +13,9 @@ import java.util.stream.Collectors;
 @JsonSerialize
 @JsonDeserialize
 public record GraphDescription(List<TaskDescription> tasks) {
+
     public static GraphDescription fromGrpc(List<GraphExecutorApi.TaskDesc> tasks) {
+
         List<TaskDescription> taskDescriptions = tasks.stream()
             .map(t -> new TaskDescription(
                 t.getId(),
@@ -23,10 +25,10 @@ public record GraphDescription(List<TaskDescription> tasks) {
                 .collect(Collectors.toMap(
                     GraphExecutorApi.SlotToChannelAssignment::getSlotName,
                     GraphExecutorApi.SlotToChannelAssignment::getChannelId
-                    )
-                )
-            )
-        ).collect(Collectors.toList());
+                ))))
+            .collect(Collectors.toList());
+
         return new GraphDescription(taskDescriptions);
     }
+
 }
