@@ -29,6 +29,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
   dns_prefix          = var.installation_name
+  role_based_access_control_enabled = false
 
   default_node_pool {
     name       = "agentpool"
