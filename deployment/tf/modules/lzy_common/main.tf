@@ -74,6 +74,9 @@ resource "kubernetes_daemonset" "nvidia_plugin" {
             name       = "device-plugin"
           }
         }
+        node_selector = {
+          type = "gpu"
+        }
         volume {
           name = "device-plugin"
           host_path {
