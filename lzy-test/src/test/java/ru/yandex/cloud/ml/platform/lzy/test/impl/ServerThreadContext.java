@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-public class LzyServerThreadContext implements LzyServerTestContext {
+public class ServerThreadContext implements LzyServerTestContext {
 
     private static final long SERVER_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_SERVER_PORT = 7777;

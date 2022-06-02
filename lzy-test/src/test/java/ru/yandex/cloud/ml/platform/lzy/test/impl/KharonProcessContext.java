@@ -14,7 +14,8 @@ import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 
-public class LzyKharonProcessesContext implements LzyKharonTestContext {
+@Deprecated
+public class KharonProcessContext implements LzyKharonTestContext {
 
     private static final long KHARON_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_KHARON_PORT = 8899;
@@ -26,7 +27,7 @@ public class LzyKharonProcessesContext implements LzyKharonTestContext {
     private ManagedChannel channel;
     private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
-    public LzyKharonProcessesContext(String serverAddress, String whiteboardAddress) {
+    public KharonProcessContext(String serverAddress, String whiteboardAddress) {
         this.serverAddress = serverAddress;
         this.whiteboardAddress = whiteboardAddress;
     }

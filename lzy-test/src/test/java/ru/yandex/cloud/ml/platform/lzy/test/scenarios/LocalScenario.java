@@ -9,9 +9,9 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyKharonThreadContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerThreadContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotThreadContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.KharonThreadContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.ServerThreadContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.SnapshotThreadContext;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,11 +33,11 @@ public abstract class LocalScenario extends LzyBaseTest {
     public void setUp() {
         createResourcesFolder();
         createServantLzyFolder();
-        serverContext = new LzyServerThreadContext();
+        serverContext = new ServerThreadContext();
         serverContext.init();
-        whiteboardContext = new LzySnapshotThreadContext(serverContext.address());
+        whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
-        kharonContext = new LzyKharonThreadContext(serverContext.address(), whiteboardContext.address());
+        kharonContext = new KharonThreadContext(serverContext.address(), whiteboardContext.address());
         kharonContext.init();
         s3Mock = new S3Mock.Builder().withPort(Config.S3_PORT).withInMemoryBackend().build();
         s3Mock.start();

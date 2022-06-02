@@ -13,7 +13,8 @@ import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
-public class LzyServerProcessesContext implements LzyServerTestContext {
+@Deprecated
+public class ServerProcessContext implements LzyServerTestContext {
 
     private static final long SERVER_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_SERVER_PORT = 7777;

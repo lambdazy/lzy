@@ -18,7 +18,8 @@ import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
 import javax.annotation.Nullable;
 
-public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
+@Deprecated
+public class TerminalProcessContext implements LzyTerminalTestContext {
     private final List<Process> servantProcesses = new ArrayList<>();
 
     @Override

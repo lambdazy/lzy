@@ -2,7 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import org.testcontainers.containers.GenericContainer;
 
-public class LzyPythonTerminalDockerContext extends LzyTerminalDockerContext {
+@Deprecated
+public class LzyPythonTerminalDockerContext extends TerminalDockerContext {
     @Override
     public Terminal startTerminalAtPathAndPort(String mount, int port, int fsPort, String serverAddress, int debugPort,
                                                String user, String private_key_path) {
