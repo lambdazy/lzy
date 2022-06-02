@@ -3,6 +3,8 @@ package ru.yandex.cloud.ml.platform.lzy.graph.model;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import yandex.cloud.priv.datasphere.v2.lzy.GraphExecutorApi;
 import yandex.cloud.priv.datasphere.v2.lzy.GraphExecutorApi.GraphExecutionStatus.Completed;
 import yandex.cloud.priv.datasphere.v2.lzy.GraphExecutorApi.GraphExecutionStatus.Executing;
@@ -66,5 +68,32 @@ public record GraphExecutionState(
             default -> { } // Unreachable
         }
         return statusBuilder.build();
+    }
+
+    @Override
+    public String toString() {
+        String tasks = Arrays.toString(
+            description.tasks()
+                .stream()
+                .map(TaskDescription::id)
+                .toArray()
+        );
+        String execGroup = Arrays.toString(
+            currentExecutionGroup
+                .stream()
+                .map(TaskExecution::description)
+                .map(TaskDescription::id)
+                .toArray()
+        );
+        return String.format("""
+                GraphExecutionState{
+                    workflowId: %s,
+                    id: %s,
+                    tasks: %s,
+                    currentExecutionGroup: %s,
+                    status: %s,
+                    errorDescription: %s
+                """, workflowId, id, tasks, execGroup, status, errorDescription
+            );
     }
 }

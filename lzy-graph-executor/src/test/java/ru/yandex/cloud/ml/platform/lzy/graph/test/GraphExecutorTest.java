@@ -1,5 +1,13 @@
 package ru.yandex.cloud.ml.platform.lzy.graph.test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import ru.yandex.cloud.ml.platform.lzy.graph.exec.BfsGraphProcessor;
 import ru.yandex.cloud.ml.platform.lzy.graph.exec.GraphProcessor;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -7,16 +15,18 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.graph.exec.GraphExecutor;
-import ru.yandex.cloud.ml.platform.lzy.graph.algo.BfsGraphBuilder;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilderImpl;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder;
-import ru.yandex.cloud.ml.platform.lzy.graph.config.ServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState;
+import ru.yandex.cloud.ml.platform.lzy.graph.model.TaskDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.test.mocks.GraphDaoMock;
 import ru.yandex.cloud.ml.platform.lzy.graph.test.mocks.SchedulerApiMock;
+import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -26,7 +36,7 @@ public class GraphExecutorTest {
     private SchedulerApiMock scheduler;
     private GraphDaoMock dao;
     private GraphExecutor executor;
-    private final int TIMEOUT = 300;
+    private final int TIMEOUT = 100;
 
     @Before
     public void setUp() {
@@ -41,20 +51,16 @@ public class GraphExecutorTest {
 
         dao = new GraphDaoMock();
 
-        GraphBuilder builder = new BfsGraphBuilder(scheduler);
-
+        GraphBuilder builder = new GraphBuilderImpl();
         GraphProcessor processor = new BfsGraphProcessor(scheduler, builder);
+        executor = new GraphExecutor(dao, processor);
 
-        ServiceConfig config = new ServiceConfig();
-        config.setProcessingPeriodMillis(100);
-        config.setThreadPoolSize(16);
-
-        executor = new GraphExecutor(dao, processor, config);
+        Configurator.setAllLevels("", Level.DEBUG);
     }
 
     @Test
     public void testSimple() throws InterruptedException {
-        final GraphDescription graph = new BfsGraphBuilderTest.GraphDescriptionBuilder()
+        final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
             .addEdge("1", "2")
             .addEdge("3", "2")
@@ -66,126 +72,249 @@ public class GraphExecutorTest {
             .addEdge("10", "8")
             .build();
 
-        GraphExecutionState state = dao.create("", graph);
-        executor.start();
+        try (var tester = new GraphTester(graph)) {
 
-        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
+            // Step 1
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1", "3", "5", "7", "9");
+            tester.assertExecutingNow("1", "3", "5", "7", "9");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "1", "5", "7", "9");
 
-        var state2 = dao.get("", state.id());
-        Assert.assertEquals(
-            Set.of("1", "3", "5", "7", "9"),
-            state2.currentExecutionGroup().stream().map(t -> t.description().id()).collect(Collectors.toSet())
-        );
+            // Step 2
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "6", "10");
+            tester.assertExecutingNow("3", "6", "10");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "6", "10");
 
+            // Step 3
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "8");
+            tester.assertExecutingNow("3", "8");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "3", "8");
 
-        scheduler.changeStatus("1", SchedulerApiMock.EXECUTING);
-        scheduler.changeStatus("5", SchedulerApiMock.EXECUTING);
-        scheduler.changeStatus("7", SchedulerApiMock.EXECUTING);
-        scheduler.changeStatus("9", SchedulerApiMock.EXECUTING);
+            // Step 4
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2", "4");
+            tester.assertExecutingNow("2", "4");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "4");
 
-        scheduler.waitForStatus("6", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
+            // Step 5
+            tester.assertExecutingNow();
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+            tester.waitForStatus(GraphExecutionState.Status.COMPLETED);
 
-        var state3 = dao.get("", state.id());
-        Assert.assertEquals(
-            Set.of("3", "6", "10"),
-            state3.currentExecutionGroup().stream().map(t -> t.description().id()).collect(Collectors.toSet())
-        );
-        Assert.assertEquals(GraphExecutionState.Status.EXECUTING, state3.status());
-
-        scheduler.changeStatus("10", SchedulerApiMock.EXECUTING);
-        scheduler.changeStatus("6", SchedulerApiMock.EXECUTING);
-
-        scheduler.waitForStatus("8", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
-        var state4 = dao.get("", state.id());
-        Assert.assertEquals(
-                Set.of("3", "8"),
-                state4.currentExecutionGroup().stream().map(t -> t.description().id()).collect(Collectors.toSet())
-        );
-
-        scheduler.changeStatus("8", SchedulerApiMock.EXECUTING);
-        scheduler.changeStatus("3", SchedulerApiMock.EXECUTING);
-
-        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
-        var state5 = dao.get("", state.id());
-        Assert.assertEquals(
-                Set.of("2", "4"),
-                state5.currentExecutionGroup().stream().map(t -> t.description().id()).collect(Collectors.toSet())
-        );
-
-        scheduler.changeStatus("2", SchedulerApiMock.EXECUTING);
-        scheduler.changeStatus("4", SchedulerApiMock.EXECUTING);
-
-        for (String tid: List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")) {
-            scheduler.changeStatus(tid, SchedulerApiMock.COMPLETED);
         }
-
-        Thread.sleep(300);
-
-        Assert.assertEquals(dao.get("", state.id()).status(), GraphExecutionState.Status.COMPLETED);
-
-        executor.gracefulStop();
     }
 
     @Test
     public void testErrorInTask() throws InterruptedException {
 
-        final GraphDescription graph = new BfsGraphBuilderTest.GraphDescriptionBuilder()
+        final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3")
             .addEdge("1", "2")
             .addEdge("1", "3")
             .build();
 
-        GraphExecutionState state = dao.create("", graph);
-        executor.start();
+        try (var tester = new GraphTester(graph)) {
+            // Step 1
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1");
+            tester.assertExecutingNow("1");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "1");
 
-        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
-        scheduler.changeStatus("1", SchedulerApiMock.EXECUTING);
+            // Step 2
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2");
+            tester.assertExecutingNow("2", "3");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
 
-        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
-        scheduler.changeStatus("2", SchedulerApiMock.EXECUTING);
-        scheduler.changeStatus("3", SchedulerApiMock.EXECUTING);
-
-        scheduler.changeStatus("1", SchedulerApiMock.ERROR);
-
-        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.ERROR, TIMEOUT); // wait for kill from executor
-
-        Assert.assertEquals(dao.get("", state.id()).status(), GraphExecutionState.Status.FAILED);
-        executor.gracefulStop();
-
+            // Step 3
+            tester.changeStatus(SchedulerApiMock.ERROR, "1");
+            tester.waitForStatus(GraphExecutionState.Status.FAILED);
+            tester.waitForStatus(Tasks.TaskProgress.Status.ERROR, "1", "2", "3");
+        }
     }
 
     @Test
     public void testStop() throws InterruptedException {
-        final GraphDescription graph = new BfsGraphBuilderTest.GraphDescriptionBuilder()
+        final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3")
             .addEdge("1", "2")
             .addEdge("1", "3")
             .build();
 
-        GraphExecutionState state = dao.create("", graph);
-        executor.start();
+        try (var tester = new GraphTester(graph)) {
+            // Step 1
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1");
+            tester.assertExecutingNow("1");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "1");
 
-        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
-        scheduler.changeStatus("1", SchedulerApiMock.EXECUTING);
+            // Step 2
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2");
+            tester.assertExecutingNow("2", "3");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
+            dao.updateAtomic("", tester.state.id(), s -> new GraphExecutionState(
+                s.workflowId(),
+                s.id(),
+                s.description(),
+                s.executions(),
+                s.currentExecutionGroup(),
+                GraphExecutionState.Status.SCHEDULED_TO_FAIL,
+                "Stopped by test"
+            ));
 
-        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.QUEUE, TIMEOUT);
-        scheduler.changeStatus("2", SchedulerApiMock.EXECUTING);
-        scheduler.changeStatus("3", SchedulerApiMock.EXECUTING);
+            //Step 3
+            tester.waitForStatus(Tasks.TaskProgress.Status.ERROR, "1", "2", "3");
+            tester.waitForStatus(GraphExecutionState.Status.FAILED);
+        }
+    }
 
-        dao.updateAtomic("", state.id(), s -> new GraphExecutionState(
-            s.workflowId(),
-            s.id(),
-            s.description(),
-            s.executions(),
-            s.currentExecutionGroup(),
-            GraphExecutionState.Status.SCHEDULED_TO_FAIL,
-            "Stopped by test"
-        ));
+    @Test
+    public void testCycles() throws InterruptedException {
+        final GraphDescription graph = new GraphDescriptionBuilder()
+            .addVertexes("1", "2", "3", "4", "5")
+            .addEdge("1", "2")
+            .addEdge("2", "1")
+            .addEdge("1", "3")
+            .addEdge("3", "4")
+            .addEdge("4", "5")
+            .addEdge("5", "3")
+            .build();
 
-        scheduler.waitForStatus("1", Tasks.TaskProgress.Status.ERROR, TIMEOUT);
-        scheduler.waitForStatus("2", Tasks.TaskProgress.Status.ERROR, TIMEOUT);
-        scheduler.waitForStatus("3", Tasks.TaskProgress.Status.ERROR, TIMEOUT);
+        try (var tester = new GraphTester(graph)) {
+            // Step 1
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1", "2");
+            tester.assertExecutingNow("1", "2");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "1");
+            tester.changeStatus(SchedulerApiMock.QUEUE, "2");
 
-        Assert.assertEquals(dao.get("", state.id()).status(), GraphExecutionState.Status.FAILED);
+            // Step2
+            tester.assertExecutingNow("1", "2");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "2");
+
+            // Step 3
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "4", "5");
+            tester.assertExecutingNow("3", "4", "5");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "2", "3", "4", "5");
+
+            //Step 4
+            tester.waitForStatus(GraphExecutionState.Status.COMPLETED);
+            tester.assertExecutingNow();
+        }
+    }
+
+    private class GraphTester implements AutoCloseable {
+        private final GraphDescription graph;
+        private GraphExecutionState state;
+
+        GraphTester(GraphDescription graph) {
+            this.graph = graph;
+            state = dao.create("", graph);
+            executor.start();
+        }
+
+        public void assertExecutingNow(String... taskIds) {
+            final GraphExecutionState currentState = dao.get(state.workflowId(), state.id());
+            Assert.assertNotNull(currentState);
+            Assert.assertEquals(
+                Set.of(taskIds),
+                currentState.currentExecutionGroup().stream().map(t -> t.description().id()).collect(Collectors.toSet())
+            );
+        }
+
+        public void changeStatus(Tasks.TaskProgress s, String... taskIds) {
+            for (String task: taskIds) {
+                scheduler.changeStatus(task, s);
+            }
+        }
+
+        public void waitForStatus(Tasks.TaskProgress.Status s, String... taskIds) throws InterruptedException {
+            for (String task: taskIds) {
+                scheduler.waitForStatus(task, s, TIMEOUT);
+            }
+        }
+
+        public void waitForStatus(GraphExecutionState.Status s) throws InterruptedException {
+            dao.waitForStatus(state.workflowId(), state.id(), s, TIMEOUT);
+            Assert.assertEquals(s, dao.get(state.workflowId(), state.id()).status());
+        }
+
+        @Override
+        public void close() throws InterruptedException {
+            executor.gracefulStop();
+            executor.join();
+        }
+    }
+
+    public static Zygote buildZygote(List<String> inputs, List<String> outputs) {
+        return new Zygote() {
+            @Override
+            public Slot[] input() {
+                return inputs.stream().map(GraphExecutorTest::buildSlot).toArray(Slot[]::new);
+            }
+
+            @Override
+            public Slot[] output() {
+                return outputs.stream().map(GraphExecutorTest::buildSlot).toArray(Slot[]::new);
+            }
+
+            @Override
+            public void run() {}
+
+            @Override
+            public String name() {
+                return null;
+            }
+        };
+    }
+
+    public static Slot buildSlot(String name) {
+        return new Slot() {
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public Media media() {
+                return null;
+            }
+
+            @Override
+            public Direction direction() {
+                return null;
+            }
+
+            @Override
+            public DataSchema contentType() {
+                return null;
+            }
+        };
+    }
+
+    public static class GraphDescriptionBuilder {
+        private final List<String> vertexes = new ArrayList<>();
+        private final Map<String, List<String>> edges = new HashMap<>();
+        private final Map<String, List<String>> reversedEdges = new HashMap<>();
+
+        public GraphDescriptionBuilder addEdge(String input, String output) {
+            edges.computeIfAbsent(input, k -> new ArrayList<>()).add(output);
+            reversedEdges.computeIfAbsent(output, k -> new ArrayList<>()).add(input);
+            return this;
+        }
+
+        public GraphDescriptionBuilder addVertexes(String... vertexNames) {
+            vertexes.addAll(Arrays.stream(vertexNames).toList());
+            return this;
+        }
+
+        public GraphDescription build() {
+            List<TaskDescription> tasks = new ArrayList<>();
+            for (String v: vertexes) {
+                List<String> inputs = reversedEdges.getOrDefault(v, new ArrayList<>()).stream()
+                    .map(s -> s + "to" + v).collect(Collectors.toList());
+                List<String> outputs = edges.getOrDefault(v, new ArrayList<>()).stream()
+                    .map(s -> v + "to" + s).collect(Collectors.toList());
+                Zygote zygote = buildZygote(inputs, outputs);
+                Map<String, String> slotsMapping = Stream.concat(inputs.stream(), outputs.stream())
+                    .collect(Collectors.toMap(t -> t, t -> t));
+                tasks.add(new TaskDescription(v, zygote, slotsMapping));
+            }
+            return new GraphDescription(tasks);
+        }
     }
 }

@@ -8,8 +8,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 @JsonSerialize
 @JsonDeserialize
 public record TaskExecution(
-        String workflowId,
-        String graphExecutionId,
         String id,
         TaskDescription description
 ) {}

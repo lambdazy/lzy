@@ -6,8 +6,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.sql.Array;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import org.jetbrains.annotations.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.graph.db.GraphExecutionDao;
 import ru.yandex.cloud.ml.platform.lzy.graph.db.Storage;
@@ -27,6 +31,12 @@ import java.util.UUID;
 public class GraphExecutionDaoImpl implements GraphExecutionDao {
     private final Storage storage;
 
+    private static final String GRAPH_FIELDS_LIST =
+        "(workflow_id, id, "
+        + "error_description, status, "
+        + "graph_description_json, task_executions_json, "
+        + "current_execution_group_json, last_updated) ";
+
     @Inject
     public GraphExecutionDaoImpl(Storage storage) {
         this.storage = storage;
@@ -36,22 +46,13 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     public GraphExecutionState create(String workflowId, GraphDescription description) throws GraphDaoException {
         ObjectMapper objectMapper = new ObjectMapper();
         try (final PreparedStatement st = storage.connect().prepareStatement(
-            "INSERT INTO graph_execution_state( "
-                + "workflow_id, id, "
-                + "error_description, status, "
-                + "graph_description_json, task_executions_json, "
-                + "current_execution_group_json"
-                + ") VALUES (?, ?, ?, ?, ?, ?, ?);"
+            "INSERT INTO graph_execution_state "
+                + GRAPH_FIELDS_LIST
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?);"
         )) {
             String id = UUID.randomUUID().toString();
             GraphExecutionState state = new GraphExecutionState(workflowId, id, description);
-            st.setString(1, state.workflowId());
-            st.setString(2, state.id());
-            st.setString(3, state.errorDescription());
-            st.setString(4, state.status().name());
-            st.setString(5, objectMapper.writeValueAsString(state.description()));
-            st.setString(6, objectMapper.writeValueAsString(state.executions()));
-            st.setString(7, objectMapper.writeValueAsString(state.currentExecutionGroup()));
+            setGraphFields(st, state);
             st.execute();
             return state;
 
@@ -64,7 +65,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Override
     public GraphExecutionState get(String workflowId, String graphExecutionId) throws GraphDaoException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
-            "SELECT * FROM graph_execution_state WHERE workflow_id = ? AND id = ?"
+            "SELECT " + GRAPH_FIELDS_LIST + " FROM graph_execution_state WHERE workflow_id = ? AND id = ?"
         )) {
             st.setString(1, workflowId);
             st.setString(2, graphExecutionId);
@@ -83,7 +84,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Override
     public List<GraphExecutionState> filter(GraphExecutionState.Status status) throws GraphDaoException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
-            "SELECT * FROM graph_execution_state WHERE status = ?"
+            "SELECT " + GRAPH_FIELDS_LIST + " FROM graph_execution_state WHERE status = ?"
         )) {
             st.setString(1, status.name());
             try (ResultSet s = st.executeQuery()) {
@@ -97,7 +98,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Override
     public List<GraphExecutionState> list(String workflowId) throws GraphDaoException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
-            "SELECT * FROM graph_execution_state WHERE workflow_id = ?"
+            "SELECT " + GRAPH_FIELDS_LIST + " FROM graph_execution_state WHERE workflow_id = ?"
         )) {
             st.setString(1, workflowId);
             try (ResultSet s = st.executeQuery()) {
@@ -110,20 +111,45 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
 
     @Override
     public void updateAtomic(String workflowId, String graphExecutionId, Mapper mapper) throws GraphDaoException {
-        final Connection con;
-        try {
-            con = storage.connect();
-        } catch (SQLException e) {
-            throw new GraphDaoException(e);
-        }
-        try {
-            con.setAutoCommit(false);
+        executeInTransaction(con -> {
             final GraphExecutionState state;
             try (final PreparedStatement st = con.prepareStatement(
-                "SELECT * from graph_execution_state "
+                "SELECT " + GRAPH_FIELDS_LIST + " from graph_execution_state "
                     + "WHERE workflow_id = ? AND id = ? FOR UPDATE;")) {
                 st.setString(1, workflowId);
                 st.setString(2, graphExecutionId);
+                try (ResultSet s = st.executeQuery()) {
+                    if (!s.isBeforeFirst()) {
+                        mapper.update(null); // Notify mapper about NotFound
+                        return;
+                    }
+                    s.next();
+                    state = fromResultSet(s);
+                }
+            }
+            final GraphExecutionState graph = mapper.update(state);
+            update(con, graph);
+        });
+    }
+
+    @Override
+    public void updateAtomic(Set<GraphExecutionState.Status> statuses, Mapper mapper) throws GraphDaoException {
+        executeInTransaction(con -> {
+            final GraphExecutionState state;
+            try (final PreparedStatement st = con.prepareStatement(
+                "SELECT " + GRAPH_FIELDS_LIST + " from graph_execution_state "
+                    + "WHERE status IN ? "
+                    + "ORDER BY last_updated "
+                    + "LIMIT 1 "
+                    + "FOR UPDATE SKIP LOCKED;"
+            )) {
+                Array array = con.createArrayOf(
+                    "varchar",
+                    statuses.stream()
+                        .map(Enum::name)
+                        .toArray()
+                );
+                st.setArray(1, array);
                 try (ResultSet s = st.executeQuery()) {
                     if (!s.isBeforeFirst()) {
                         mapper.update(null);
@@ -134,67 +160,33 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
                 }
             }
             final GraphExecutionState graph = mapper.update(state);
-            update(con, List.of(graph));
-        } catch (Exception e) {
-            throw new GraphDaoException(e);
-        } finally {
-            try {
-                con.setAutoCommit(true);
-            } catch (SQLException e) {
-                //noinspection ThrowFromFinallyBlock
-                throw new GraphDaoException(e);
-            }
-        }
+            update(con, graph);
+        });
     }
 
-    @Override
-    public void updateListAtomic(Set<GraphExecutionState.Status> statuses,
-                                 ParallelMapper mapper, int limit) throws GraphDaoException {
-        final Connection con;
+    private interface Transaction {
+        void execute(Connection connection) throws Exception;
+    }
+
+    private void executeInTransaction(Transaction transaction) throws GraphDaoException {
         try {
-            con = storage.connect();
+            final Connection con = storage.connect();
+            try {
+                con.setAutoCommit(false); // To execute many queries in one transaction
+                transaction.execute(con);
+                con.commit();
+            } catch (Exception e) {
+                con.rollback();
+                throw new GraphDaoException(e);
+            } finally {
+                con.setAutoCommit(true);
+            }
         } catch (SQLException e) {
             throw new GraphDaoException(e);
         }
-        try {
-            con.setAutoCommit(false);
-            final List<Future<GraphExecutionState>> futures = new ArrayList<>();
-            try (final PreparedStatement st = con.prepareStatement(
-                "SELECT * from graph_execution_state TABLESAMPLE system(100) "  // Shuffle rows to pick graphs
-                    + "WHERE status IN ? "
-                    + "LIMIT ? "
-                    + "FOR UPDATE SKIP LOCKED;"
-            )) {
-                Array array = con.createArrayOf("varchar", statuses.stream().map(Enum::name).toArray());
-                st.setArray(1, array);
-                st.setInt(2, limit);
-                try (ResultSet s = st.executeQuery()) {
-                    while (s.next()) {
-                        GraphExecutionState state = fromResultSet(s);
-                        futures.add(mapper.update(state));
-                    }
-                }
-            }
-            final  List<GraphExecutionState> statesToSave = new ArrayList<>();
-            for (Future<GraphExecutionState> f: futures) {
-                statesToSave.add(f.get());
-            }
-            update(con, statesToSave);
-        } catch (Exception e) {
-            throw new GraphDaoException(e);
-        } finally {
-            try {
-                con.setAutoCommit(true);
-            } catch (SQLException e) {
-                //noinspection ThrowFromFinallyBlock
-                throw new GraphDaoException(e);
-            }
-        }
     }
 
-    private void update(Connection con, List<GraphExecutionState> graphExecutionStates)
-                                                                        throws SQLException, JsonProcessingException {
-        ObjectMapper objectMapper = new ObjectMapper();
+    private void update(Connection con, GraphExecutionState state) throws SQLException, JsonProcessingException {
         try (final PreparedStatement st = con.prepareStatement(
             "UPDATE graph_execution_state "
                 + "SET workflow_id = ?, "
@@ -203,21 +195,12 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
                 + "status = ?, "
                 + "graph_description_json = ?, "
                 + "task_executions_json = ?, "
-                + "current_execution_group_json = ? "
+                + "current_execution_group_json = ?, last_updated = ? "
                 + "WHERE workflow_id = ? AND id = ?;")) {
-            for (GraphExecutionState s: graphExecutionStates) {
-                st.setString(1, s.workflowId());
-                st.setString(2, s.id());
-                st.setString(3, s.errorDescription());
-                st.setString(4, s.status().name());
-                st.setString(5, objectMapper.writeValueAsString(s.description()));
-                st.setString(6, objectMapper.writeValueAsString(s.executions()));
-                st.setString(7, objectMapper.writeValueAsString(s.currentExecutionGroup()));
-                st.setString(8, s.workflowId());
-                st.setString(9, s.id());
-                st.addBatch();
-            }
-            st.executeBatch();
+            setGraphFields(st, state);
+            st.setString(9, state.workflowId());
+            st.setString(10, state.id());
+            st.executeUpdate();
         }
     }
 
@@ -249,5 +232,18 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
             list.add(fromResultSet(s));
         }
         return list;
+    }
+
+    private void setGraphFields(PreparedStatement st, GraphExecutionState state)
+        throws SQLException, JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        st.setString(1, state.workflowId());
+        st.setString(2, state.id());
+        st.setString(3, state.errorDescription());
+        st.setString(4, state.status().name());
+        st.setString(5, objectMapper.writeValueAsString(state.description()));
+        st.setString(6, objectMapper.writeValueAsString(state.executions()));
+        st.setString(7, objectMapper.writeValueAsString(state.currentExecutionGroup()));
+        st.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
     }
 }

@@ -22,25 +22,18 @@ public interface GraphExecutionDao {
      * @param graphExecutionId graph id
      * @param mapper function to update execution
      */
-    void updateAtomic(String workflowId, String graphExecutionId,
-          Mapper mapper) throws GraphDaoException;
+    void updateAtomic(String workflowId, String graphExecutionId, Mapper mapper) throws GraphDaoException;
 
     /**
-     * Filter GraphExecutions by statuses, maps all elements of result by mapper and save them in one transaction
+     * Filter GraphExecutions by statuses, select oldest and update it by mapper
      * @param statuses Statuses to filter GraphExecutions by
      * @param mapper Function to update execution
-     * @param limit Limit of rows to execute
      * @throws GraphDaoException Error while process mapping
      */
-    void updateListAtomic(Set<GraphExecutionState.Status> statuses,
-                          ParallelMapper mapper, int limit) throws GraphDaoException;
+    void updateAtomic(Set<GraphExecutionState.Status> statuses, Mapper mapper) throws GraphDaoException;
 
     interface Mapper {
         GraphExecutionState update(@Nullable GraphExecutionState state) throws Exception;
-    }
-
-    interface ParallelMapper {
-        Future<GraphExecutionState> update(GraphExecutionState state);
     }
 
     class GraphDaoException extends Exception {

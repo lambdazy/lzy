@@ -2,21 +2,20 @@ package ru.yandex.cloud.ml.platform.lzy.graph.algo;
 
 import java.util.*;
 import java.util.function.Function;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.Graph.Edge;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.Graph.Vertex;
 
 public class Algorithms {
 
-    public static List<String> getNextBfsGroup(
-            Graph graph, List<String> currentGroup,
-            Function<String, Boolean> canHaveChild
+    public static <T extends Vertex> List<T> getNextBfsGroup(
+            Graph<T> graph, List<T> currentGroup,
+            Function<T, Boolean> canHaveChild
     ) {
-        final Set<String> currentExecutions = new HashSet<>();
-        final Set<String> next = new HashSet<>();
-        final List<String> start = new ArrayList<>(currentGroup);
-        if (start.size() == 0) {
-            start.addAll(findRoots(graph));
-        }
+        final Set<T> currentExecutions = new HashSet<>();
+        final Set<T> next = new HashSet<>();
+        final List<T> start = new ArrayList<>(currentGroup);
 
-        for (String vertex: start) {
+        for (T vertex: start) {
             if (canHaveChild.apply(vertex)) {
                 currentExecutions.add(vertex);
             } else {
@@ -24,10 +23,14 @@ public class Algorithms {
             }
         }
 
-        for (String current: currentExecutions) {
-            for (String vertex: graph.children(current)) {
+        for (T current: currentExecutions) {
+            for (T vertex: graph.children(current.name())) {
                 if (!next.contains(vertex)) {
-                    if (graph.parents(vertex).stream().allMatch(canHaveChild::apply)) {
+                    if (
+                        graph.parents(vertex.name())
+                            .stream()
+                            .allMatch(canHaveChild::apply)
+                    ) {
                         next.add(vertex);
                     }
                 }
@@ -37,23 +40,23 @@ public class Algorithms {
         return next.stream().toList();
     }
 
-    public static Set<String> findRoots(Graph graph) {
-        Set<String> used = new HashSet<>();
-        Set<String> roots = new HashSet<>();
-        Queue<String> processingQueue = new ArrayDeque<>();
-        for (String root: graph.vertexes()) {
+    public static <T extends Vertex> Set<T> findRoots(Graph<T> graph) {
+        Set<T> used = new HashSet<>();
+        Set<T> roots = new HashSet<>();
+        Queue<T> processingQueue = new ArrayDeque<>();
+        for (T root: graph.vertexes()) {
             if (used.contains(root)) {
                 continue;
             }
             processingQueue.add(root);
             used.add(root);
             while (!processingQueue.isEmpty()) {
-                final String vertex = processingQueue.poll();
-                if (graph.parents(vertex).size() == 0) {
+                final T vertex = processingQueue.poll();
+                if (graph.parents(vertex.name()).size() == 0) {
                     roots.add(vertex);
                     continue;
                 }
-                for (String connected: graph.parents(vertex)) {
+                for (T connected: graph.parents(vertex.name())) {
                     if (!used.contains(connected)) {
                         used.add(connected);
                         processingQueue.add(connected);
@@ -64,11 +67,11 @@ public class Algorithms {
         return roots;
     }
 
-    public static CondensedGraph condenseGraph(Graph graph) {
-        final Set<String> used = new HashSet<>();
-        final List<String> order = new ArrayList<>();
+    public static <T extends Vertex> CondensedGraph<T> condenseGraph(Graph<T> graph) {
+        final Set<T> used = new HashSet<>();
+        final List<T> order = new ArrayList<>();
 
-        for (String vertex: graph.vertexes()) {
+        for (T vertex: graph.vertexes()) {
             if (!used.contains(vertex)) {
                 topSort(vertex, order, used, graph);
             }
@@ -76,40 +79,44 @@ public class Algorithms {
         used.clear();
         Collections.reverse(order);
 
-        final List<List<String>> components = new ArrayList<>();
+        final List<Set<T>> components = new ArrayList<>();
 
-        for (String vertex: order) {
+        for (T vertex: order) {
             if (!used.contains(vertex)) {
-                final ArrayList<String> component = new ArrayList<>();
+                final Set<T> component = new HashSet<>();
                 findStrongConnections(vertex, component, used, graph);
                 components.add(component);
             }
         }
 
-        final Graph condensedGraph = new Graph();
-        final Map<String, String> vertexToComponentMapping = new HashMap<>();
+        final Map<String, CondensedComponent<T>> vertexToComponentMapping = new HashMap<>();
         for (int i = 0; i < components.size(); i++) {
-            for (String vertex: components.get(i)) {
-                vertexToComponentMapping.put(vertex, String.valueOf(i));
+            for (Vertex vertex: components.get(i)) {
+                vertexToComponentMapping.put(
+                    vertex.name(),
+                    new CondensedComponent<>(String.valueOf(i), components.get(i))
+                );
             }
         }
-        for (String vertex: graph.vertexes()) {
-            for (String edge: graph.children(vertex)) {
-                if (!vertexToComponentMapping.get(edge).equals(vertexToComponentMapping.get(vertex))) {
-                    condensedGraph.addEdge(new Graph.Edge(
-                        vertexToComponentMapping.get(vertex),
-                        vertexToComponentMapping.get(edge)
+
+        final CondensedGraph<T> condensedGraph = new CondensedGraph<>(vertexToComponentMapping);
+
+        for (Vertex vertex: graph.vertexes()) {
+            for (Vertex edge: graph.children(vertex.name())) {
+                if (!vertexToComponentMapping.get(edge.name()).equals(vertexToComponentMapping.get(vertex.name()))) {
+                    condensedGraph.addEdge(new Edge<>(
+                        vertexToComponentMapping.get(vertex.name()),
+                        vertexToComponentMapping.get(edge.name())
                     ));
                 }
             }
         }
-
-        return new CondensedGraph(condensedGraph, vertexToComponentMapping);
+        return condensedGraph;
     }
 
-    private static void topSort(String vertex, List<String> order, Set<String> used, Graph graph) {
+    private static <T extends Vertex> void topSort(T vertex, List<T> order, Set<T> used, Graph<T> graph) {
         used.add(vertex);
-        for (String edge : graph.children(vertex)) {
+        for (T edge : graph.children(vertex.name())) {
             if (!used.contains(edge)) {
                 topSort(edge, order, used, graph);
             }
@@ -117,15 +124,45 @@ public class Algorithms {
         order.add(vertex);
     }
 
-    private static void findStrongConnections(String vertex, List<String> component, Set<String> used, Graph graph) {
+    private static <T extends Vertex> void findStrongConnections(T vertex, Set<T> component,
+                                                  Set<T> used, Graph<T> graph) {
         used.add(vertex);
         component.add(vertex);
-        for (String edge : graph.parents(vertex)) {
+        for (T edge : graph.parents(vertex.name())) {
             if (!used.contains(edge)) {
                 findStrongConnections(edge, component, used, graph);
             }
         }
     }
 
-    public record CondensedGraph(Graph graph, Map<String, String> vertexToComponentMapping) {}
+    public static class CondensedGraph<T extends Vertex> extends Graph<CondensedComponent<T>> {
+        final Map<String, CondensedComponent<T>> vertexNameToComponentMap;
+
+        public CondensedGraph(Map<String, CondensedComponent<T>> vertexNameToComponentMap) {
+            this.vertexNameToComponentMap = vertexNameToComponentMap;
+        }
+
+        public Map<String, CondensedComponent<T>> vertexNameToComponentMap() {
+            return vertexNameToComponentMap;
+        }
+    }
+
+    public static class CondensedComponent<T extends Vertex> extends Vertex {
+        private final String name;
+        private final Set<T> vertices;
+
+        public CondensedComponent(String name, Set<T> vertices) {
+            this.name = name;
+            this.vertices = vertices;
+        }
+
+        @Override
+        String name() {
+            return name;
+        }
+
+        public Set<T> vertices() {
+            return vertices;
+        }
+    }
 }

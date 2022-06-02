@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.graph.model;
+package ru.yandex.cloud.ml.platform.lzy.model.json;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;

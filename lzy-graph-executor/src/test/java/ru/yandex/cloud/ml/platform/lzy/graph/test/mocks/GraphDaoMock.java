@@ -11,6 +11,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 
 public class GraphDaoMock implements GraphExecutionDao {
@@ -44,22 +45,50 @@ public class GraphDaoMock implements GraphExecutionDao {
         try {
             GraphExecutionState graph = mapper.update(storage.get(new Key(workflowId, graphExecutionId)));
             storage.put(new Key(workflowId, graphExecutionId), graph);
+            notifyAll();
         } catch (Exception ignored) {
         }
 
     }
 
     @Override
-    public synchronized void updateListAtomic(Set<GraphExecutionState.Status> statuses,
-                                              ParallelMapper mapper, int limit) {
-        storage.values().stream().filter(t -> statuses.contains(t.status())).limit(limit).map(mapper::update).map(t -> {
-            try {
-                return t.get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-                return null;
-            }
-        }).filter(Objects::nonNull).forEach(t -> storage.put(new Key(t.workflowId(), t.id()), t));
+    public synchronized void updateAtomic(Set<GraphExecutionState.Status> statuses, Mapper mapper) {
+        storage
+            .values()
+            .stream()
+            .filter(t -> statuses.contains(t.status()))
+            .limit(1)
+            .map(t -> {
+                try {
+                    return mapper.update(t);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
+                }
+            })
+            .filter(Objects::nonNull)
+            .forEach(t -> storage.put(new Key(t.workflowId(), t.id()), t));
+    }
+
+    public synchronized void waitForStatus(String workflowId, String graphId,
+                                           GraphExecutionState.Status status,
+                                           int timeoutMillis) throws InterruptedException {
+        long startTime = System.currentTimeMillis();
+        while (
+            (
+                storage.get(new Key(workflowId, graphId)) == null
+                || storage.get(new Key(workflowId, graphId)).status() != status
+            )
+                && System.currentTimeMillis() - startTime < timeoutMillis
+        ) {
+            this.wait(timeoutMillis);
+        }
+        if (
+            storage.get(new Key(workflowId, graphId)) == null
+            || storage.get(new Key(workflowId, graphId)).status() != status
+        ) {
+            throw new RuntimeException("Timeout exceeded");
+        }
     }
 
     private record Key(String workflowId, String graphId) {}

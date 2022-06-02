@@ -1,8 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.graph.test;
 
+import static ru.yandex.cloud.ml.platform.lzy.graph.test.GraphExecutorTest.*;
+
 import io.micronaut.context.ApplicationContext;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Assert;
 import org.junit.Before;
@@ -22,7 +25,7 @@ public class DaoTest {
 
     @Test
     public void daoSimpleTest() throws GraphExecutionDao.GraphDaoException {
-        GraphDescription d = new BfsGraphBuilderTest.GraphDescriptionBuilder()
+        GraphDescription d = new GraphDescriptionBuilder()
             .addEdge("1", "2")
             .addEdge("2", "3")
             .addEdge("3", "1")
@@ -50,7 +53,7 @@ public class DaoTest {
 
     @Test
     public void daoAtomicTest() throws GraphExecutionDao.GraphDaoException, InterruptedException {
-        GraphDescription d = new BfsGraphBuilderTest.GraphDescriptionBuilder()
+        GraphDescription d = new GraphDescriptionBuilder()
             .addEdge("1", "2")
             .addEdge("2", "3")
             .addEdge("3", "1")
@@ -58,10 +61,12 @@ public class DaoTest {
         GraphExecutionState s = dao.create("1", d);
 
         AtomicBoolean firstExecuted = new AtomicBoolean(false);
+        CountDownLatch firstStarted = new CountDownLatch(1);
         Thread t1 = new Thread(() -> {
             try {
                 dao.updateAtomic("1", s.id(), state -> {
-                    Thread.sleep(100);
+                    firstStarted.countDown();
+                    Thread.sleep(100); // Sleep to emulate execution
                     firstExecuted.set(true);
                     return state;
                 });
@@ -70,7 +75,7 @@ public class DaoTest {
             }
         });
         t1.start();
-        Thread.sleep(50); // wait for first thread to start executing
+        firstStarted.await();
         dao.updateAtomic("1", s.id(), state -> {
             Assert.assertTrue(firstExecuted.get());
             return state;

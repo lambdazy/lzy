@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 
 import java.util.Map;
+import ru.yandex.cloud.ml.platform.lzy.model.json.ZygoteDeserializer;
+import ru.yandex.cloud.ml.platform.lzy.model.json.ZygoteSerializer;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize

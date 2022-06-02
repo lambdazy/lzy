@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.graph;
 
+import io.grpc.ServerInterceptors;
 import ru.yandex.cloud.ml.platform.lzy.graph.exec.GraphExecutor;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -15,6 +16,8 @@ import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder.GraphValidationException;
 import ru.yandex.cloud.ml.platform.lzy.graph.config.ServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.graph.db.GraphExecutionDao;
+import ru.yandex.cloud.ml.platform.lzy.graph.exec.GraphProcessor;
+import ru.yandex.cloud.ml.platform.lzy.model.logs.GrpcLogsInterceptor;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
@@ -28,25 +31,26 @@ import java.util.stream.Collectors;
 
 @Singleton
 public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
-    private final GraphExecutor graphExecutor;
+    private static final Logger LOG = LogManager.getLogger(GraphExecutorApi.class);
     private final GraphExecutionDao dao;
     private final GraphBuilder graphBuilder;
+    private final GraphProcessor graphProcessor;
     private final ServiceConfig config;
-    private static final Logger LOG = LogManager.getLogger(GraphExecutorApi.class);
+    private final List<GraphExecutor> executors = new ArrayList<>();
 
     private Server server;
 
     @Inject
     public GraphExecutorApi(
-            GraphExecutor graphExecutor,
             GraphExecutionDao dao,
             ServiceConfig config,
-            GraphBuilder graphBuilder
+            GraphBuilder graphBuilder,
+            GraphProcessor graphProcessor
     ) {
-        this.graphExecutor = graphExecutor;
         this.dao = dao;
         this.config = config;
         this.graphBuilder = graphBuilder;
+        this.graphProcessor = graphProcessor;
     }
 
     @Override
@@ -74,6 +78,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     @Override
     public void status(GraphStatusRequest request, StreamObserver<GraphStatusResponse> responseObserver) {
         final GraphExecutionState state;
+
         try {
             state = dao.get(request.getWorkflowId(), request.getGraphId());
         } catch (GraphExecutionDao.GraphDaoException e) {
@@ -87,6 +92,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 .withDescription("Cannot get graph execution status. Please try again later.").asException());
             return;
         }
+
         if (state == null) {
             responseObserver.onError(Status.NOT_FOUND
                 .withDescription("Graph <" + request.getGraphId() + "> not found").asException());
@@ -100,6 +106,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     @Override
     public void list(GraphListRequest request, StreamObserver<GraphListResponse> responseObserver) {
         final List<GraphExecutionStatus> graphs;
+
         try {
             graphs = dao.list(request.getWorkflowId())
                 .stream()
@@ -114,6 +121,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 .withDescription("Cannot get list of graph executions. Please try again later.").asException());
             return;
         }
+
         responseObserver.onNext(GraphListResponse.newBuilder().addAllGraphs(graphs).build());
         responseObserver.onCompleted();
     }
@@ -127,15 +135,19 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                         .withDescription("Graph <" + request.getGraphId() + "> not found").asException());
                     return null;
                 }
-                if (Set.of(
-                    GraphExecutionState.Status.COMPLETED,
-                    GraphExecutionState.Status.FAILED,
-                    GraphExecutionState.Status.SCHEDULED_TO_FAIL
-                ).contains(state.status())) {
+
+                if (
+                    Set.of(
+                        GraphExecutionState.Status.COMPLETED,
+                        GraphExecutionState.Status.FAILED,
+                        GraphExecutionState.Status.SCHEDULED_TO_FAIL
+                    ).contains(state.status())
+                ) {
                     responseObserver.onNext(GraphStopResponse.newBuilder().setStatus(state.toGrpc()).build());
                     responseObserver.onCompleted();
                     return state;
                 }
+
                 GraphExecutionState newState = new GraphExecutionState(
                     state.workflowId(),
                     state.id(),
@@ -143,8 +155,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                     state.executions(),
                     state.currentExecutionGroup(),
                     GraphExecutionState.Status.SCHEDULED_TO_FAIL,
-                    "Stopped from outside:" + request.getIssue()
+                    "Terminated by:" + request.getIssue()
                 );
+
                 responseObserver.onNext(GraphStopResponse.newBuilder().setStatus(newState.toGrpc()).build());
                 responseObserver.onCompleted();
                 return newState;
@@ -164,23 +177,32 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         if (server != null) {
             server.shutdown();
         }
-        graphExecutor.gracefulStop();
+        executors.forEach(GraphExecutor::gracefulStop);
     }
 
     public void start() throws InterruptedException, IOException {
         LOG.info("Starting GraphExecutor service...");
 
-        graphExecutor.start();
+        for (int i = 0; i < config.executorsCount(); i ++) {
+            executors.add(new GraphExecutor(dao, graphProcessor));
+        }
+
+        executors.forEach(Thread::start);
 
         ServerBuilder<?> builder = NettyServerBuilder.forPort(config.port())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
 
-        builder.addService(this);
+        builder.addService(ServerInterceptors.intercept(this, new GrpcLogsInterceptor()));
         server = builder.build();
         server.start();
+    }
+
+    public void awaitTermination() throws InterruptedException {
         server.awaitTermination();
-        graphExecutor.join();
+        for (GraphExecutor executor : executors) {
+            executor.join();
+        }
     }
 
     public static void main(String[] args) {
@@ -199,6 +221,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             }));
             try {
                 api.start();
+                api.awaitTermination();
             } catch (InterruptedException | IOException e) {
                 LOG.error("Error while starting GraphExecutor", e);
             }
