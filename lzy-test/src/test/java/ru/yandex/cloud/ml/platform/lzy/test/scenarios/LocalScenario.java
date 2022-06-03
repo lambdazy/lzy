@@ -29,11 +29,12 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected LzyKharonTestContext kharonContext;
     protected S3Mock s3Mock;
     protected LzyTerminalTestContext.Terminal terminal;
+
     @Before
     public void setUp() {
         createResourcesFolder();
         createServantLzyFolder();
-        serverContext = new ServerThreadContext();
+        serverContext = new ServerThreadContext(LzyServerTestContext.LocalServantAllocatorType.DOCKER_ALLOCATOR);
         serverContext.init();
         whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();

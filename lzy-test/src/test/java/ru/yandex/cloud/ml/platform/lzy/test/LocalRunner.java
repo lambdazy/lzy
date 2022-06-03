@@ -43,7 +43,7 @@ public class LocalRunner {
         createFolder(Path.of("/tmp/resources/"));
         createFolder(Path.of("/tmp/servant/lzy/"));
 
-        var serverContext = new ServerThreadContext();
+        var serverContext = new ServerThreadContext(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR);
         serverContext.init();
 
         var whiteboardContext = new SnapshotThreadContext(serverContext.address());
