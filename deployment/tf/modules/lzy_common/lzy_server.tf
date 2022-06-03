@@ -1,6 +1,6 @@
 resource "kubernetes_secret" "lzy_server_db_data" {
   metadata {
-    name      = "server-db"
+    name      = "server-db-data"
     namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
 

@@ -1,6 +1,6 @@
 resource "kubernetes_secret" "whiteboard_db_data" {
   metadata {
-    name = "whiteboard-db"
+    name = "whiteboard-db-data"
   }
 
   data = {
