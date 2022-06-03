@@ -381,17 +381,23 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
     private void authBackofficeCredentials(IAM.UserCredentials credentials) throws StatusException {
         if (!auth.checkUser(credentials.getUserId(), credentials.getToken())) {
-            throw Status.PERMISSION_DENIED.asException();
+            throw Status.PERMISSION_DENIED
+                .withDescription("Wrong backoffice credentials")
+                .asException();
         }
         if (!auth.hasPermission(credentials.getUserId(), Permissions.BACKOFFICE_INTERNAL)) {
-            throw Status.PERMISSION_DENIED.asException();
+            throw Status.PERMISSION_DENIED
+                .withDescription("Backoffice does not have internal permission")
+                .asException();
         }
     }
 
     private void authBackofficeUserCredentials(BackOffice.BackofficeUserCredentials credentials)
         throws StatusException {
-        if (!auth.checkBackOfficeSession(credentials.getSessionId(), credentials.getUserId())) {
-            throw Status.PERMISSION_DENIED.asException();
+        if (!auth.checkBackOfficeSession(UUID.fromString(credentials.getSessionId()), credentials.getUserId())) {
+            throw Status.PERMISSION_DENIED
+                .withDescription("Wrong user credentials")
+                .asException();
         }
     }
 

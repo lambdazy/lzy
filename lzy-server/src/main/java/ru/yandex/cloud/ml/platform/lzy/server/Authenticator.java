@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
+import java.util.UUID;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
 import ru.yandex.cloud.ml.platform.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
@@ -27,7 +28,7 @@ public interface Authenticator {
 
     boolean hasPermission(String uid, String permission);
 
-    boolean checkBackOfficeSession(String sessionId, String userId);
+    boolean checkBackOfficeSession(UUID sessionId, String userId);
 
     boolean canAccessBucket(String uid, String bucket);
 
