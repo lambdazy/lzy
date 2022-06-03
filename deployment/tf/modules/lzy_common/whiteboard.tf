@@ -1,4 +1,4 @@
-resource "kubernetes_secret" "whiteboard_db" {
+resource "kubernetes_secret" "whiteboard_db_data" {
   metadata {
     name = "whiteboard-db"
   }
