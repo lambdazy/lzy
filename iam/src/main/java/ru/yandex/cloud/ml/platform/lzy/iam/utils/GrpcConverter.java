@@ -56,6 +56,12 @@ public class GrpcConverter {
                 .setSubject(from(accessBinding.subject()))
                 .build();
     }
+    public static IAM.AccessBindingDelta from(AccessBindingDelta accessBinding) {
+        return IAM.AccessBindingDelta.newBuilder()
+                .setAction(IAM.AccessBindingAction.valueOf(accessBinding.action().name()))
+                .setBinding(from(accessBinding.binding()))
+                .build();
+    }
 
     public static IAM.Subject from(Subject subject) {
         return IAM.Subject.newBuilder()
