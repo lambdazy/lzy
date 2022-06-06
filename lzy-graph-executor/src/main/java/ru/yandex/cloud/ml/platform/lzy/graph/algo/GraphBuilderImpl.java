@@ -73,14 +73,9 @@ public class GraphBuilderImpl implements GraphBuilder {
         }
         for (Map.Entry<String, ChannelDescription> entry: channels.entrySet()) {
             final ChannelDescription channel = entry.getValue();
-            final String channelName = entry.getKey();
 
             if (channel.inputs().isEmpty() || channel.outputs().isEmpty()) {
-                throw new GraphValidationException(
-                    String.format("Channel <%s> has no input or output slots",
-                        channelName
-                    )
-                );
+                continue; // Skipping external channels
             }
 
             for (TaskDescription input: channel.inputs()) {
