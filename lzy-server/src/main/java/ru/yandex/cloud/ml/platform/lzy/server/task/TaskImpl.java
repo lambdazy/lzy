@@ -178,7 +178,7 @@ public class TaskImpl implements Task {
                     case EXECUTESTOP: {
                         final ExecutionConcluded executeStop = progress.getExecuteStop();
                         LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
-                        final boolean communicationNotCompleted = state != COMMUNICATION_COMPLETED;
+                        final boolean communicationNotCompleted = state != SUSPENDED;
                         if (executeStop.getRc() != 0) {
                             state(ERROR, executeStop.getRc(), "Exit code: " + executeStop.getRc(),
                                     executeStop.getDescription());
@@ -191,7 +191,7 @@ public class TaskImpl implements Task {
                     }
                     case COMMUNICATIONCOMPLETED: {
                         if (state.phase() <= EXECUTING.phase()) {
-                            state(COMMUNICATION_COMPLETED);
+                            state(SUSPENDED);
                             return true;
                         }
                         return false;
