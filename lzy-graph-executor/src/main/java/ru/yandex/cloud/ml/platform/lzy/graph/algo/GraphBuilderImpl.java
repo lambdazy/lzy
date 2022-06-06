@@ -98,7 +98,9 @@ public class GraphBuilderImpl implements GraphBuilder {
     @Override
     public void validate(GraphDescription graph) throws GraphValidationException {
         if (graph.tasks().size() > MAX_VERTEXES) {
-            throw new GraphValidationException("DirectedGraph is not valid: number of tasks is more then " + MAX_VERTEXES);
+            throw new GraphValidationException(
+                "DirectedGraph is not valid: number of tasks is more then " + MAX_VERTEXES
+            );
         }
         build(graph);
     }
