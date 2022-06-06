@@ -36,14 +36,14 @@ def _get_slot_path(slot: Slot) -> Path:
     return mount.joinpath(slot.name.lstrip(os.path.sep))
 
 
-def _get_or_generate_entry_ids(call) -> Dict[str, str]:
-    arg_name_to_entry_id = {}
+def _get_or_generate_call_ids(call) -> Dict[str, str]:
+    arg_name_to_call_id = {}
     for name, arg in call.named_arguments():
         if is_lazy_proxy(arg):
-            arg_name_to_entry_id[name] = arg.lzy_call.entry_id
+            arg_name_to_call_id[name] = arg.lzy_call.id
         else:
-            arg_name_to_entry_id[name] = str(uuid.uuid4())
-    return arg_name_to_entry_id
+            arg_name_to_call_id[name] = str(uuid.uuid4())
+    return arg_name_to_call_id
 
 
 class GrpcRuntime(Runtime):
@@ -102,13 +102,13 @@ class GrpcRuntime(Runtime):
         py_env = PyEnv(aux_env.name, aux_env.conda_yaml, local_modules_uploaded)
         return Env(aux_env=py_env, base_env=BaseEnv(base_env.base_docker_image))
 
-    def _dump_arguments(self, call: LzyCall, arg_name_to_entry_id: Dict[str, str], snapshot_id: str,
+    def _dump_arguments(self, call: LzyCall, arg_name_to_call_id: Dict[str, str], snapshot_id: str,
                         serializer: Serializer):
         for name, arg in call.named_arguments():
             if not is_lazy_proxy(arg):
-                entry_id = arg_name_to_entry_id[name]
-                slot = create_slot(os.path.sep.join(("tasks", "snapshot", snapshot_id, entry_id)), Direction.OUTPUT)
-                self._channel_manager.touch(slot, self._channel_manager.snapshot_channel(snapshot_id, entry_id))
+                call_id = arg_name_to_call_id[name]
+                slot = create_slot(os.path.sep.join(("tasks", "snapshot", snapshot_id, call_id)), Direction.OUTPUT)
+                self._channel_manager.touch(slot, self._channel_manager.snapshot_channel(snapshot_id, call_id))
                 path = _get_slot_path(slot)
                 with path.open('wb') as handle:
                     serializer.serialize_to_file(arg, handle)
@@ -130,24 +130,23 @@ class GrpcRuntime(Runtime):
         )
 
     def _bindings(self, call: LzyCall, zygote: ZygotePythonFunc, snapshot_id: str,
-                  arg_name_to_entry_id: Dict[str, str]):
+                  arg_name_to_call_id: Dict[str, str]):
         bindings: Bindings = []
         for name, arg in call.named_arguments():
             slot: Slot = zygote.slot(name)
             if is_lazy_proxy(arg) and not materialized(arg):
-                channel = self._channel_manager.direct_channel(_generate_channel_name(arg.id))
-                bindings.append(Bindings(slot, channel))
+                call_id = arg.id
             else:
-                entry_id = arg_name_to_entry_id[name]
-                channel = self._channel_manager.snapshot_channel(snapshot_id, entry_id)
-                bindings.append(Binding(slot, channel))
+                call_id = arg_name_to_call_id[name]
+            channel = self._channel_manager.snapshot_channel(snapshot_id, _generate_channel_name(call_id))
+            bindings.append(Binding(slot, channel))
         return bindings
 
     def _task_spec(self, call: LzyCall, snapshot_id: str, serializer: Serializer) -> TaskSpec:
         zygote = self._zygote(call, serializer)
-        arg_name_to_entry_id: Dict[str, str] = _get_or_generate_entry_ids(call)
-        bindings: Bindings = self._bindings(call, zygote, snapshot_id, arg_name_to_entry_id)
-        self._dump_arguments(call, arg_name_to_entry_id, snapshot_id, serializer)
+        arg_name_to_call_id: Dict[str, str] = _get_or_generate_call_ids(call)
+        bindings: Bindings = self._bindings(call, zygote, snapshot_id, arg_name_to_call_id)
+        self._dump_arguments(call, arg_name_to_call_id, snapshot_id, serializer)
         return TaskSpec(call.id, zygote, bindings)
 
     def exec(self, graph: Graph, snapshot: Snapshot, progress: Callable[[], None]) -> None:
