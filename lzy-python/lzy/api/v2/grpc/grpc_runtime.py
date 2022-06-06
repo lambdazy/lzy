@@ -5,7 +5,7 @@ import zipfile
 from pathlib import Path
 from typing import Callable, Any, List, Dict
 
-from lzy.api.v2.api import LzyCall, Provisioning, Gpu
+from lzy.api.v2.api import LzyCall, Gpu
 from lzy.api.v2.api.graph import Graph
 from lzy.api.v2.api.runtime.runtime import Runtime
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
@@ -16,6 +16,7 @@ from lzy.api.v2.grpc.servant.impl.channel_manager_impl import ChannelManagerImpl
 from lzy.api.v2.grpc.servant.impl.grpc_graph_executor_client import GrpcGraphExecutorClient
 from lzy.api.v2.servant.model.channel import Bindings, Binding
 from lzy.api.v2.servant.model.file_slots import create_slot
+from lzy.api.v2.servant.model.provisioning import Provisioning
 from lzy.api.v2.servant.model.signatures import FuncSignature
 from lzy.api.v2.servant.model.slot import Slot, Direction
 from lzy.api.v2.servant.model.zygote_python_func import ZygotePythonFunc
@@ -79,7 +80,10 @@ class GrpcRuntime(Runtime):
         base_env = call.op.env.base_env
         aux_env = call.op.env.aux_env
         if aux_env is None:
-            return Env(base_env=BaseEnv(base_env.base_docker_image))
+            if base_env is not None:
+                return Env(base_env=BaseEnv(base_env.base_docker_image))
+            else:
+                return Env()
 
         local_modules_uploaded = []
         for local_module in aux_env.local_modules_paths:
@@ -100,6 +104,8 @@ class GrpcRuntime(Runtime):
             local_modules_uploaded.append((os.path.basename(local_module), uri))
 
         py_env = PyEnv(aux_env.name, aux_env.conda_yaml, local_modules_uploaded)
+        if base_env is None:
+            return Env(aux_env=py_env)
         return Env(aux_env=py_env, base_env=BaseEnv(base_env.base_docker_image))
 
     def _dump_arguments(self, call: LzyCall, arg_name_to_call_id: Dict[str, str], snapshot_id: str,
