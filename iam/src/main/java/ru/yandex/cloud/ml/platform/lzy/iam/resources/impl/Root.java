@@ -19,4 +19,16 @@ public class Root implements AuthResource {
     public String type() {
         return TYPE;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final Root that = (Root) o;
+        return this.resourceId().equals(that.resourceId()) && this.type().equals(that.type());
+    }
 }
