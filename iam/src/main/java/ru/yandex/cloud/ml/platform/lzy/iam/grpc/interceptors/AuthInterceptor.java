@@ -15,11 +15,11 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.function.Function;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcHeaders.AUTHORIZATION;
+
 
 public class AuthInterceptor implements ServerInterceptor {
-    public static final Metadata.Key<String> AUTHORIZATION = Metadata.Key.of(
-            "Authorization", Metadata.ASCII_STRING_MARSHALLER
-    );
+
     private final Function<AuthException, StatusException> exceptionMapper;
     private final Set<MethodDescriptor<?, ?>> unauthenticatedMethods;
     private final AuthenticateService cloudAuthClient;

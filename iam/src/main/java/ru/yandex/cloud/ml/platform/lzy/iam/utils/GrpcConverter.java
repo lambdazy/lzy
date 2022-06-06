@@ -13,14 +13,11 @@ import yandex.cloud.lzy.v1.IAM;
 public class GrpcConverter {
 
     public static AuthResource to(IAM.Resource resource) {
-        switch (resource.getType()) {
-            case Workflow.TYPE:
-                return new Workflow(resource.getId());
-            case Whiteboard.TYPE:
-                return new Whiteboard(resource.getId());
-            default:
-                throw new RuntimeException("Unknown Resource type::" + resource.getType());
-        }
+        return switch (resource.getType()) {
+            case Workflow.TYPE -> new Workflow(resource.getId());
+            case Whiteboard.TYPE -> new Whiteboard(resource.getId());
+            default -> throw new RuntimeException("Unknown Resource type::" + resource.getType());
+        };
     }
 
     public static AccessBinding to(IAM.AccessBinding accessBinding) {
@@ -44,6 +41,13 @@ public class GrpcConverter {
                 credentials.getCredentials(),
                 credentials.getType()
         );
+    }
+
+    public static IAM.Resource from(AuthResource resource) {
+        return IAM.Resource.newBuilder()
+                .setId(resource.resourceId())
+                .setType(resource.type())
+                .build();
     }
 
     public static IAM.AccessBinding from(AccessBinding accessBinding) {

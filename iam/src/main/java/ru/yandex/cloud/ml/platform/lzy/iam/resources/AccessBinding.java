@@ -14,6 +14,6 @@ public record AccessBinding(String role,
             return false;
         }
         final AccessBinding that = (AccessBinding) o;
-        return this.role.equals(that.role) && this.subject.id().equals(that.subject().id());
+        return this.role().equals(that.role()) && this.subject().id().equals(that.subject().id());
     }
 }
