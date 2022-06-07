@@ -12,6 +12,9 @@ public interface AccessClient {
 
     AccessClient withToken(Supplier<Credentials> tokenSupplier);
 
-    boolean hasResourcePermission(Subject subject, AuthResource resourceId, AuthPermission permission) throws AuthException;
+    boolean hasResourcePermission(
+            Subject subject,
+            AuthResource resourceId,
+            AuthPermission permission) throws AuthException;
 
 }

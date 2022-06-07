@@ -21,21 +21,11 @@ public class SubjectServiceStub implements SubjectService {
     }
 
     @Override
-    public Subject subject(String id) throws AuthException {
-        return new User(id);
-    }
-
-    @Override
     public void removeSubject(Subject subject) throws AuthException {
     }
 
     @Override
     public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
-    }
-
-    @Override
-    public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
-        return null;
     }
 
     @Override

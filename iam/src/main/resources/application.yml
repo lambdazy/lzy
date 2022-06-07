@@ -1,2 +1,3 @@
 iam:
   userLimit: 60 # 0 - is infinite limit
+  serverPort: 8443

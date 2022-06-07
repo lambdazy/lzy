@@ -42,7 +42,7 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
     public AccessBindingServiceGrpcClient(Channel channel, Supplier<Credentials> tokenSupplier) {
         this.channel = channel;
         this.tokenSupplier = tokenSupplier;
-        accessBindingService = LzyAccessBindingServiceGrpc.newBlockingStub(this.channel)
+        this.accessBindingService = LzyAccessBindingServiceGrpc.newBlockingStub(this.channel)
                 .withInterceptors(new ClientHeaderInterceptor<>(
                         GrpcHeaders.AUTHORIZATION,
                         () -> this.tokenSupplier.get().token()));
@@ -52,6 +52,7 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
     public AccessBindingClient withToken(Supplier<Credentials> tokenSupplier) {
         return new AccessBindingServiceGrpcClient(this.channel, tokenSupplier);
     }
+
     @Override
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         try {
@@ -70,6 +71,7 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
             LABS.SetAccessBindingsRequest.Builder requestBuilder = LABS.SetAccessBindingsRequest.newBuilder()
                     .setResource(GrpcConverter.from(resource));
             accessBinding.forEach(b -> requestBuilder.addBindings(GrpcConverter.from(b)));
+            // Empty Response, see lzy-access-binding-service.proto
             var response = accessBindingService.setAccessBindings(requestBuilder.build());
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);

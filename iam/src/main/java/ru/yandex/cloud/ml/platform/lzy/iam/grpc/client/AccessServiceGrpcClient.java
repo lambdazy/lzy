@@ -42,7 +42,7 @@ public class AccessServiceGrpcClient implements AccessClient {
     public AccessServiceGrpcClient(Channel channel, Supplier<Credentials> tokenSupplier) {
         this.channel = channel;
         this.tokenSupplier = tokenSupplier;
-        accessService = LzyAccessServiceGrpc.newBlockingStub(this.channel)
+        this.accessService = LzyAccessServiceGrpc.newBlockingStub(this.channel)
                 .withInterceptors(new ClientHeaderInterceptor<>(
                         GrpcHeaders.AUTHORIZATION,
                         () -> this.tokenSupplier.get().token()));
@@ -54,7 +54,10 @@ public class AccessServiceGrpcClient implements AccessClient {
     }
 
     @Override
-    public boolean hasResourcePermission(Subject subject, AuthResource resource, AuthPermission permission) throws AuthException {
+    public boolean hasResourcePermission(
+            Subject subject,
+            AuthResource resource,
+            AuthPermission permission) throws AuthException {
         try {
             var subj = accessService.authorize(LAS.AuthorizeRequest.newBuilder()
                     .setPermission(permission.permission())

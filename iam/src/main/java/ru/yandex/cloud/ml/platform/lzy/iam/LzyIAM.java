@@ -9,6 +9,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
+import ru.yandex.cloud.ml.platform.lzy.iam.configs.ServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzyABSService;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzyASService;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors.AuthInterceptor;
@@ -32,7 +33,8 @@ public class LzyIAM {
     public static void main(String[] args) throws IOException, InterruptedException {
         try (ApplicationContext context = ApplicationContext.run()) {
             try {
-                ServerBuilder<?> builder = NettyServerBuilder.forPort(8443)
+                ServiceConfig config = context.getBean(ServiceConfig.class);
+                ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getServerPort())
                         .permitKeepAliveWithoutCalls(true)
                         .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
                 AuthInterceptor authInterceptor =

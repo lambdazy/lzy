@@ -28,20 +28,18 @@ public abstract class AuthException extends RuntimeException {
     public abstract Status status();
 
     public static AuthException fromStatusRuntimeException(StatusRuntimeException e) {
-        AuthException exception;
         if (Status.PERMISSION_DENIED.equals(e.getStatus())) {
-            exception = new AuthPermissionDeniedException(e.getMessage());
+            return new AuthPermissionDeniedException(e.getMessage());
         } else if (Status.INVALID_ARGUMENT.equals(e.getStatus())) {
-            exception = new AuthBadRequestException(e.getMessage());
+            return new AuthBadRequestException(e.getMessage());
         } else if (Status.INTERNAL.equals(e.getStatus())) {
-            exception = new AuthInternalException(e.getMessage());
+            return new AuthInternalException(e.getMessage());
         } else if (Status.UNAUTHENTICATED.equals(e.getStatus())) {
-            exception = new AuthUnauthenticatedException(e.getMessage());
+            return new AuthUnauthenticatedException(e.getMessage());
         } else if (Status.UNAVAILABLE.equals(e.getStatus())) {
-            exception = new AuthUnavailableException(e.getMessage());
+            return new AuthUnavailableException(e.getMessage());
         } else {
             throw new IllegalStateException("Unexpected value: " + e.getStatus());
         }
-        return exception;
     }
 }

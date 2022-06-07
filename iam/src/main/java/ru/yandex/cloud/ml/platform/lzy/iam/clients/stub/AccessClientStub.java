@@ -16,7 +16,10 @@ public class AccessClientStub implements AccessClient {
     }
 
     @Override
-    public boolean hasResourcePermission(Subject subject, AuthResource resourceId, AuthPermission permission) throws AuthException {
+    public boolean hasResourcePermission(
+            Subject subject,
+            AuthResource resourceId,
+            AuthPermission permission) throws AuthException {
         return true;
     }
 }
