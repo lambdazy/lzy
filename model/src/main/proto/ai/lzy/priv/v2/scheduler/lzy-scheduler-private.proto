@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package ai.lzy.priv.v2.scheduler;
+
+option java_outer_classname = "SchedulerPrivateApi";
+option java_package = "ai.lzy.priv.v2.lzy";
+
+service SchedulerPrivate {
+  rpc registerServant (RegisterServantRequest) returns (RegisterServantResponse);
+}
+
+// =========Register servant=========
+
+message RegisterServantRequest {
+  string servantToken = 1;
+  string servantUri = 2;
+  string fsUri = 3;
+}
+
+message RegisterServantResponse {}
