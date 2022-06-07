@@ -6,11 +6,9 @@ from typing import Optional
 
 from pure_protobuf.types import int32
 
-from lzy.api.v1 import op
-
+from lzy.api.v1 import op, LzyRemoteEnv
 
 from data import Test1, MessageClass, TestEnum
-from lzy.api.v1.env import LzyRemoteEnv
 from wbs import (
     AnotherSimpleView,
     SimpleView,
