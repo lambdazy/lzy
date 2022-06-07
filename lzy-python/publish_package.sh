@@ -8,6 +8,7 @@ clean() {
 }
 
 build() {
+    dev=$1
     echo "Building pylzy package"
     python -m pip install --upgrade build twine
     # TODO: pass jar path to script as parameter?
@@ -68,6 +69,6 @@ while getopts "hbdsc" arg; do
     esac
 done
 
-build
+build $dev
 publish
 [ ! -v skip_clean ] || [ $skip_clean -ne 1 ] && clean
