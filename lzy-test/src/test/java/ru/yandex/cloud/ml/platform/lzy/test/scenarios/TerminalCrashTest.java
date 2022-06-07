@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class TerminalCrashTest extends LocalScenario {
     private LzyTerminalTestContext.Terminal createTerminal(String mount) {
@@ -104,15 +105,29 @@ public class TerminalCrashTest extends LocalScenario {
             )
         );
 
+        var exception = new AtomicReference<Exception>(null);
         Assert.assertTrue(
             Utils.waitFlagUp(() -> {
-                    final String channelStatus = terminal2.channelStatus(channelName);
-                    return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");
+                    try {
+                        final String channelStatus = terminal2.channelStatus(channelName);
+                        return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");
+                    } catch (LzyTerminalTestContext.TerminalCommandFailedException e) {
+                        if (e.getResult().stdout().equals(
+                                "Got exception while channel status (status_code=NOT_FOUND)\n")) {
+                            return true;
+                        }
+                        exception.set(e);
+                        return true;
+                    } catch (Exception e) {
+                        exception.set(e);
+                        return true;
+                    }
                 },
                 Utils.Defaults.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
         );
+        Assert.assertNull(exception.get());
         final String sessions = terminal2.sessions();
         try {
             final JsonNode node = new ObjectMapper().readTree(sessions);
