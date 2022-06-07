@@ -1,6 +1,6 @@
 # noinspection PyPackageRequirements
 import numpy as np
-from lzy.api.v1.servant.model.zygote import Provisioning, Gpu
+from lzy.api.v1 import Provisioning, Gpu
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier
 

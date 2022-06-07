@@ -1,8 +1,6 @@
 import uuid
 
-from lzy.api.v1 import op
-from lzy.api.v1.cache_policy import CachePolicy
-from lzy.api.v1.env import LzyRemoteEnv
+from lzy.api.v1 import op, LzyRemoteEnv, CachePolicy
 from lzy.api.v1.lazy_op import LzyOp
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
