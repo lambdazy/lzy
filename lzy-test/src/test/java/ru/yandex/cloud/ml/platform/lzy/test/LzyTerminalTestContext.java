@@ -68,6 +68,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                 String.join(" ", command)
             );
             if (result.exitCode() != 0) {
+                LOGGER.error("Command execution failed: " + result.stderr());
                 throw new TerminalCommandFailedException(result);
             }
             return result;
