@@ -37,7 +37,7 @@ public interface Task {
 
     enum State {
         UNKNOWN(0), QUEUE(1), PREPARING(2), CONNECTED(3), EXECUTING(4),
-        COMMUNICATION_COMPLETED(5), DISCONNECTED(6), SUCCESS(7), ERROR(8);
+        SUSPENDED(5), DISCONNECTED(6), SUCCESS(7), ERROR(8);
 
         private final int phaseNo;
 
