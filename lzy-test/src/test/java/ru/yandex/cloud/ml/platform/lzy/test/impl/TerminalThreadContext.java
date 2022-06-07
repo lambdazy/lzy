@@ -40,16 +40,6 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
                 LOGGER.error(e);
             }
         }
-
-        final String pathServantLog4jFile =
-                Path.of(System.getProperty("user.dir")).getParent() +
-                        "/lzy-servant/src/main/resources/log4j2.yaml";
-        final String pathServantCmdLog4jFile =
-                Path.of(System.getProperty("user.dir")).getParent() +
-                        "/lzy-servant/src/main/resources/cmd_config_log4j2.yaml";
-
-        System.setProperty("log4j.configurationFile", pathServantLog4jFile);
-        System.setProperty("cmd.log4j.configurationFile", pathServantCmdLog4jFile);
         System.setProperty("custom.log.file", "/tmp/lzy_servant.log");
         final String token;
         if (privateKeyPath == null) {

@@ -310,14 +310,10 @@ public final class LzyFsServer {
     }
 
     private void registerBuiltinCommand(Path cmd, String name, String... args) {
-        final String logConfFile = System.getProperty("cmd.log4j.configurationFile");
         final List<String> commandParts = new ArrayList<>();
         commandParts.add(System.getProperty("java.home") + "/bin/java");
         commandParts.add("-Xmx1g");
         commandParts.add("-Dcustom.log.file=" + LOGS_DIR + "/" + name + "_$(($RANDOM % 10000))");
-        if (logConfFile != null) {
-            commandParts.add("-Dlog4j.configurationFile=" + logConfFile);
-        }
         commandParts.add("-classpath");
         commandParts.add('"' + System.getProperty("java.class.path") + '"');
         commandParts.add(BashApi.class.getCanonicalName());

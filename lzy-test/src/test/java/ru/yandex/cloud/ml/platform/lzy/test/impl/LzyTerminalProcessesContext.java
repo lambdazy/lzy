@@ -39,17 +39,9 @@ public class LzyTerminalProcessesContext implements LzyTerminalTestContext {
             privateKeyPath,
             "terminal"
         };
-        final String pathServantLog4jFile =
-            Path.of(System.getProperty("user.dir")).getParent() +
-                "/lzy-servant/src/main/resources/log4j2.yaml";
-        final String pathServantCmdLog4jFile =
-                Path.of(System.getProperty("user.dir")).getParent() +
-                        "/lzy-servant/src/main/resources/cmd_config_log4j2.yaml";
         final String[] systemArgs = {
             "-Djava.library.path=/usr/local/lib",
-            "-Dlog4j.configurationFile=" + pathServantLog4jFile,
-            "-Dcmd.log4j.configurationFile=" + pathServantCmdLog4jFile,
-            "-Dcustom.log.file=terminal.log",
+            "-Dcustom.log.file=/tmp/terminal.log",
             "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:" + debugPort
         };
         final Process process;

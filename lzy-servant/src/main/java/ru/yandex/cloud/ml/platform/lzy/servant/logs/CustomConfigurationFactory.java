@@ -28,7 +28,7 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
                 + "\"level\": \"%-5level\", "
                 + "\"logger\": \"%logger{36}\", "
                 + "\"message\": \"%enc{%msg}{JSON}\", "
-                + "\"servant\": \"" + System.getenv("LZYTASK") + "\", "
+                + "\"servant\": \"" + System.getenv("SERVANT_ID") + "\", "
                 + "\"exception\": \"%enc{%ex}{JSON}\""
                 + "}",
             "servant"
