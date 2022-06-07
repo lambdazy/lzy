@@ -5,27 +5,24 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.UUID;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgent;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyServant;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.*;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyFS;
 
 public class Terminal implements LzyCommand {
     private static final Options options = new Options();
 
     static {
-        options.addOption(new Option("d", "direct", false, "Use direct server connection instead of Kharon"));
+        options.addOption("d", "direct", false, "Use direct server connection instead of Kharon");
+        options.addOption("u", "user", true, "User for direct connection");
+        options.addOption("t", "user-token", true, "User token for direct connection");
     }
 
     @Override
@@ -40,7 +37,7 @@ public class Terminal implements LzyCommand {
         try {
             localCmd = new DefaultParser().parse(options, parse.getArgs(), false);
         } catch (ParseException e) {
-            cliHelp.printHelp("channel", options);
+            cliHelp.printHelp("terminal", options);
             return -1;
         }
 
@@ -50,34 +47,38 @@ public class Terminal implements LzyCommand {
         }
         final int port = Integer.parseInt(parse.getOptionValue('p', "9999"));
         final int fsPort = Integer.parseInt(parse.getOptionValue('q', "9998"));
-        final Path privateKeyPath = Paths.get(parse.getOptionValue(
-            'k',
-            System.getenv("HOME") + "/.ssh/id_rsa"
-        ));
 
         final Path lzyRoot = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
         Runtime.getRuntime().exec("umount " + lzyRoot);
         final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
         final LzyAgentConfig.LzyAgentConfigBuilder builder = LzyAgentConfig.builder()
             .serverAddress(URI.create(serverAddress))
-            .whiteboardAddress(URI.create(serverAddress))
+            .whiteboardAddress(URI.create(parse.getOptionValue("w")))
             .user(System.getenv("USER"))
             .agentHost(host)
             .agentPort(port)
             .fsPort(fsPort)
             .root(lzyRoot);
 
-        if (Files.exists(privateKeyPath)) {
-            try (FileReader keyReader = new FileReader(String.valueOf(privateKeyPath))) {
-                String token = JwtCredentials.buildJWT(System.getenv("USER"), keyReader);
-                builder.token(token);
-            }
+        final boolean direct = localCmd.hasOption('d');
+
+        if (direct) {
+            builder.user(localCmd.getOptionValue("u", System.getenv("USER")));
+            builder.token(localCmd.getOptionValue("t", ""));
         } else {
-            builder.token("");
+            final Path privateKeyPath = Paths.get(parse.getOptionValue('k', System.getenv("HOME") + "/.ssh/id_rsa"));
+            if (Files.exists(privateKeyPath)) {
+                try (FileReader keyReader = new FileReader(String.valueOf(privateKeyPath))) {
+                    String token = JwtCredentials.buildJWT(System.getenv("USER"), keyReader);
+                    builder.token(token);
+                }
+            } else {
+                builder.token("");
+            }
         }
 
         final LzyAgentConfig agentConfig = builder.build();
-        final LzyAgent terminal = localCmd.hasOption('d') ? new LzyServant(agentConfig) : new LzyTerminal(agentConfig);
+        final LzyAgent terminal = direct ? new LzyInternalTerminal(agentConfig) : new LzyTerminal(agentConfig);
 
         terminal.start();
         terminal.awaitTermination();

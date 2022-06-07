@@ -13,6 +13,13 @@ import java.nio.file.Path;
 import java.util.concurrent.locks.LockSupport;
 
 /*
+ * Start Lzy Env with following settings:
+ *   - server port:        7777
+ *   - snapshot port:      8999
+ *   - whiteboard port:    8999
+ *   - s3 port:            8001
+ *   - kharon port (opt):  8899
+ *
  * Client terminal:
  *
  *     $ lzy-terminal -s http://localhost:7777 -m /tmp/lzy -u user
@@ -42,8 +49,14 @@ public class LocalRunner {
         var whiteboardContext = new LzySnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
 
-        var kharonContext = new LzyKharonThreadContext(serverContext.address(), whiteboardContext.address());
-        kharonContext.init();
+        final LzyKharonThreadContext kharonContext;
+        if (args.length > 1 && args[1].equals("--no-kharon")) {
+            System.out.println("Run without Kharon...");
+            kharonContext = null;
+        } else {
+            kharonContext = new LzyKharonThreadContext(serverContext.address(), whiteboardContext.address());
+            kharonContext.init();
+        }
 
         var s3 = new S3Mock.Builder()
             .withPort(8001)
@@ -54,7 +67,9 @@ public class LocalRunner {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("Terminate...");
             s3.shutdown();
-            kharonContext.close();
+            if (kharonContext != null) {
+                kharonContext.close();
+            }
             serverContext.close();
             whiteboardContext.close();
         }));

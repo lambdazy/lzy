@@ -117,6 +117,7 @@ public final class Channel implements LzyCommand {
                 } catch (StatusRuntimeException e) {
                     System.out.println(
                         "Got exception while channel status (status_code=" + e.getStatus().getCode() + ")");
+                    return -1;
                 }
 
                 break;
@@ -140,6 +141,7 @@ public final class Channel implements LzyCommand {
                 } catch (StatusRuntimeException e) {
                     System.out.println(
                         "Got exception while channel destroy (status_code=" + e.getStatus().getCode() + ")");
+                    return -1;
                 }
 
                 break;

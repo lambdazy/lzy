@@ -91,7 +91,7 @@ def main():
     if exec_description is not None:
         servant.save_execution(exec_description)
 
-    log(f"Result of execution {result}")
+    log("Result of execution " + str(result))
 
     result_path = servant.mount() / func_s.name / "return"
     log(f"Writing result to file {result_path}")
@@ -99,6 +99,7 @@ def main():
         file_serializer.serialize_to_file(result, out_handle)
         out_handle.flush()
         os.fsync(out_handle.fileno())
+    log("Execution done")
 
 
 if __name__ == "__main__":
