@@ -35,6 +35,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     private final Map<String, CompletableFuture<ServantConnection>> requests = new HashMap<>();
     private final Map<ServantConnection, Instant> spareServants = new HashMap<>();
     private final Map<ServantConnection, Instant> shuttingDown = new HashMap<>();
+    private final Map<ServantConnection, Instant> waitingForAllocation = new HashMap<>();
 
     private final Map<String, Set<SessionImpl>> userToSessions = new HashMap<>();
     private final Map<String, SessionImpl> servant2sessions = new HashMap<>();
@@ -45,13 +46,19 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
     private final Authenticator auth;
     private final int waitBeforeShutdown;
+    private final int allocationTimeoutInSec;
     private final Executor executor = new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
-    public ServantsAllocatorBase(Authenticator auth, int waitBeforeShutdownInSec) {
+    public ServantsAllocatorBase(Authenticator auth, int waitBeforeShutdownInSec, int allocationTimeoutInSec) {
         this.auth = auth;
         this.waitBeforeShutdown = waitBeforeShutdownInSec;
+        this.allocationTimeoutInSec = allocationTimeoutInSec;
         ttl = new Timer("Allocator TTL", true);
         ttl.scheduleAtFixedRate(this, PERIOD, PERIOD);
+    }
+
+    public ServantsAllocatorBase(Authenticator auth, int waitBeforeShutdownInSec) {
+        this(auth, waitBeforeShutdownInSec, 100);
     }
 
     protected abstract void requestAllocation(String servantId, String servantToken,
@@ -89,6 +96,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             ServantConnectionImpl connection = new ServantConnectionImpl(servantId, env, provisioning);
             uncompletedConnections.put(servantId, connection);
             session.servants.add(connection);
+            waitingForAllocation.put(connection, Instant.now().plus(allocationTimeoutInSec, ChronoUnit.SECONDS));
             ForkJoinPool.commonPool().execute(() -> {
                 final String servantToken = auth.registerServant(servantId);
                 try {
@@ -107,6 +115,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             .usePlaintext()
             .enableRetry(LzyServantGrpc.SERVICE_NAME)
             .build();
+
         final LzyServantGrpc.LzyServantBlockingStub servantStub = LzyServantGrpc.newBlockingStub(servantChannel);
 
         final ManagedChannel fsChannel = ChannelBuilder.forAddress(servantFsUri.getHost(), servantFsUri.getPort())
@@ -126,6 +135,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
         final CompletableFuture<ServantConnection> request = requests.remove(servantId);
         ServantConnectionImpl connection = uncompletedConnections.get(servantId);
+        waitingForAllocation.remove(connection);
         if (connection == null) {
             throw new RuntimeException("Trying to register already connected servant");
         }
@@ -238,6 +248,17 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             .filter(s -> shuttingDown.get(s).isBefore(now))
             .peek(shuttingDown::remove)
             .collect(Collectors.toList());
+
+        final List<ServantConnection> notAllocatedServants = Set.copyOf(waitingForAllocation.keySet())
+            .stream()
+            .filter(s -> waitingForAllocation.get(s).isBefore(now))
+            .peek(s -> uncompletedConnections.remove(s.id()))
+            .peek(waitingForAllocation::remove)
+            .peek(s -> servant2sessions.remove(s.id()))
+            .peek(s -> requests.get(s.id()).completeExceptionally(new RuntimeException("Timeout exceeded")))
+            .peek(s -> requests.remove(s.id()))
+            .collect(Collectors.toList());
+
         executor.execute(() -> {
             tasksToShutdown.forEach(s -> {
                 final SessionImpl session = servant2sessions.remove(s.id());
@@ -255,6 +276,9 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 }
             });
             tasksToForceStop.forEach(this::terminate);
+        });
+        executor.execute(() -> {
+            notAllocatedServants.forEach(this::terminate);
         });
     }
 
@@ -348,12 +372,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             ServantConnectionImpl that = (ServantConnectionImpl) o;
-            return servantUri.equals(that.servantUri) && servantFsUri.equals(that.servantFsUri);
+            return Objects.equals(this.id(), that.id());
         }
 
         @Override
         public final int hashCode() {
-            return Objects.hash(servantUri, servantFsUri);
+            return Objects.hash(this.id());
         }
     }
 

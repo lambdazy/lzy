@@ -55,7 +55,7 @@ import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
 import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.*;
 
 public class LzyServer {
-    public static final int MAX_TASK_RETRIES = 5;
+    public static final int MAX_TASK_RETRIES = 0;
     private static final Logger LOG;
     private static final Options options = new Options();
     private static final String LZY_SERVER_HOST_ENV = "LZY_SERVER_HOST";
