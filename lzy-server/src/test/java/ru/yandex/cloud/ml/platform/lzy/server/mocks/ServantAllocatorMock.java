@@ -14,14 +14,24 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
     private static final int DEFAULT_TIMEOUT_SEC = 5;
 
     private final List<AllocationRequest> allocationRequests = new ArrayList<>();
+    private final List<ServantConnection> terminateRequests = new ArrayList<>();
     private final CountDownLatch allocationLatch;
+    private final CountDownLatch terminationLatch = new CountDownLatch(1);
 
     public ServantAllocatorMock(Authenticator auth, int waitBeforeShutdownInSec) {
-        this(auth, waitBeforeShutdownInSec, 1);
+        this(auth, waitBeforeShutdownInSec, 1, 100);
     }
 
-    public ServantAllocatorMock(Authenticator auth, int waitBeforeShutdownInSec, int expectedAllocations) {
-        super(auth, waitBeforeShutdownInSec);
+    public ServantAllocatorMock(
+        Authenticator auth, int waitBeforeShutdownInSec, int expectedAllocations
+    ) {
+        this(auth, waitBeforeShutdownInSec, expectedAllocations, 100);
+    }
+
+    public ServantAllocatorMock(
+        Authenticator auth, int waitBeforeShutdownInSec, int expectedAllocations, int allocationTimeout
+    ) {
+        super(auth, waitBeforeShutdownInSec, allocationTimeout);
         allocationLatch = new CountDownLatch(expectedAllocations);
     }
 
@@ -38,7 +48,8 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
 
     @Override
     protected void terminate(ServantConnection connection) {
-
+        terminateRequests.add(connection);
+        terminationLatch.countDown();
     }
 
     public boolean waitForAllocations() {
@@ -49,8 +60,20 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
         }
     }
 
+    public boolean waitForTermination() {
+        try {
+            return terminationLatch.await(DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public Stream<AllocationRequest> allocations() {
         return allocationRequests.stream();
+    }
+
+    public List<ServantConnection> terminations() {
+        return terminateRequests;
     }
 
     public static class AllocationRequest {

@@ -355,6 +355,27 @@ public class ServantAllocatorBaseTest {
 
         //Assert
         Assert.assertTrue(gotExit.get());
+    }
 
+    @Test
+    public void testTimeoutOnAllocation() {
+        //Arrange
+        final ServantAllocatorMock allocator = new ServantAllocatorMock(authenticator, 10, 1, 1);
+        final String sid = "session_" + UUID.randomUUID();
+        allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET);
+
+        //Act
+        CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
+            sid, new Provisioning.Any(),
+            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+        allocator.waitForAllocations();
+
+        // Assert
+        Assert.assertThrows(ExecutionException.class, () -> feature.get(5, TimeUnit.SECONDS));
+        allocator.waitForTermination();
+        Assert.assertEquals(1, allocator.terminations().size());
+
+        final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
+        Assert.assertEquals(request.servantId(), allocator.terminations().get(0).id());
     }
 }
