@@ -31,7 +31,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     private final Map<String, ContainerDescription> containers = new ConcurrentHashMap<>();
 
     public DockerServantsAllocator(Authenticator auth, ServerConfig serverConfig) {
-        super(auth, 60);
+        super(auth, 60, 100);
         this.serverConfig = serverConfig;
     }
 

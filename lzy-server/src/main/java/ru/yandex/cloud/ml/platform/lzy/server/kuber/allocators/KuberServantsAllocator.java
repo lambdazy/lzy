@@ -35,7 +35,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     private final CoreV1Api api;
 
     public KuberServantsAllocator(Authenticator auth, ServantPodProvider provider) {
-        super(auth, 10);
+        super(auth, 10, 3600);
         this.provider = provider;
         try {
             Configuration.setDefaultApiClient(Config.defaultClient());
