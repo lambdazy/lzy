@@ -31,7 +31,10 @@ hasher = DelegatingHasher(file_serializer)
 def log(msg: str, *args, **kwargs):
     now = datetime.datetime.utcnow()
     time_prefix = now.strftime("%Y-%m-%d %H:%M:%S")
-    print('[LZY]', time_prefix, msg.format(args, kwargs))
+    if args:
+        print('[LZY]', time_prefix, msg.format(args, kwargs))
+    else:
+        print('[LZY]', time_prefix, msg)
 
 
 def load_arg(path: Path, inp_type: Type[T], input_value: Optional[InputExecutionValue]) -> T:

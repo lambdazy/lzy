@@ -63,8 +63,8 @@ class IdeKernel(IPythonKernel):
                 args=[
                 '-Djava.library.path=/usr/local/lib',
                 '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32',
-                '-Dcmd.log4j.configurationFile=../../lzy-servant/src/main/resources/cmd_config_log4j2.yaml',
-                '-cp', '../../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar',
+                '-Dcmd.log4j.configurationFile=../lzy-servant/src/main/resources/cmd_config_log4j2.yaml',
+                '-cp', '../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar',
                 'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
                 '-z', 'localhost:7777',
                 '-w', 'blah-blah-blah://localhost:8999',
