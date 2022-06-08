@@ -5,7 +5,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.SubjectService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthBadRequestException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
@@ -15,13 +14,14 @@ import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.User;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.UserVerificationType;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Singleton
 @Requires(beans = Storage.class)
-public class DbSubjectService implements SubjectService {
+public class DbSubjectService {
     private static final Logger LOG = LogManager.getLogger(DbSubjectService.class);
 
     @Inject
@@ -30,7 +30,6 @@ public class DbSubjectService implements SubjectService {
     @Inject
     private ServiceConfig serviceConfig;
 
-    @Override
     public Subject createSubject(String id, String authProvider, String providerSubjectId) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "INSERT INTO users ("
@@ -53,7 +52,6 @@ public class DbSubjectService implements SubjectService {
         }
     }
 
-    @Override
     public Subject subject(String id) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "SELECT user_id FROM users "
@@ -72,7 +70,6 @@ public class DbSubjectService implements SubjectService {
         }
     }
 
-    @Override
     public void removeSubject(Subject subject) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "DELETE FROM users WHERE user_id = ?;"
@@ -85,7 +82,6 @@ public class DbSubjectService implements SubjectService {
         }
     }
 
-    @Override
     public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "INSERT INTO credentials ("
@@ -107,7 +103,6 @@ public class DbSubjectService implements SubjectService {
         }
     }
 
-    @Override
     public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "SELECT name, value, type FROM credentials "
@@ -132,7 +127,6 @@ public class DbSubjectService implements SubjectService {
         }
     }
 
-    @Override
     public void removeCredentials(Subject subject, String name) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "DELETE FROM credentials WHERE user_id = ? AND name = ?;"

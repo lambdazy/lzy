@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.iam.storage.impl;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessBindingClient;
+import ru.yandex.cloud.ml.platform.lzy.iam.clients.AccessBindingClient;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AccessBinding;
@@ -23,18 +23,15 @@ import java.util.stream.Stream;
 
 @Singleton
 @Requires(beans = Storage.class)
-public class DbAccessBindingClient implements AccessBindingClient {
+public class DbAccessBindingClient {
 
     @Inject
     private Storage storage;
 
-    @Override
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         List<AccessBinding> bindings = new ArrayList<>();
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT * FROM user_resource_roles "
-                        + "WHERE resource_id = ? "
-        )) {
+        try (final PreparedStatement st = storage.connect()
+                .prepareStatement("SELECT * FROM user_resource_roles " + "WHERE resource_id = ? ")) {
             int parameterIndex = 0;
             st.setString(++parameterIndex, resource.resourceId());
             final ResultSet rs = st.executeQuery();
@@ -47,7 +44,6 @@ public class DbAccessBindingClient implements AccessBindingClient {
         return bindings.stream();
     }
 
-    @Override
     public void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) throws AuthException {
         try {
             StringBuilder query = new StringBuilder();
@@ -68,7 +64,6 @@ public class DbAccessBindingClient implements AccessBindingClient {
         }
     }
 
-    @Override
     public void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBindingDeltas)
             throws AuthException {
         try {
@@ -86,8 +81,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
             int parameterIndex = 0;
             for (AccessBindingDelta binding : accessBindingDeltas) {
                 if (binding.action() == AccessBindingAction.ADD) {
-                    st.setString(++parameterIndex, binding.binding().subject().id()
-                    );
+                    st.setString(++parameterIndex, binding.binding().subject().id());
                     st.setString(++parameterIndex, resource.resourceId());
                     st.setString(++parameterIndex, resource.type());
                     st.setString(++parameterIndex, binding.binding().role());
@@ -111,10 +105,7 @@ public class DbAccessBindingClient implements AccessBindingClient {
     }
 
     private String deleteQuery() {
-        return "DELETE from user_resource_roles"
-                + " WHERE user_id = ?"
-                + " AND role = ?"
-                + " AND resource_id  = ?; ";
+        return "DELETE from user_resource_roles" + " WHERE user_id = ?" + " AND role = ?" + " AND resource_id  = ?; ";
     }
 
     private String insertQuery() {
