@@ -6,6 +6,7 @@ import setuptools
 from setuptools import Distribution, Command
 from setuptools.command.install import install
 from setuptools.command.sdist import sdist
+from setuptools.command.install_egg_info import install_egg_info
 from wheel.bdist_wheel import bdist_wheel  # type: ignore
 
 
@@ -21,9 +22,13 @@ class RunMixin(Command, ABC):
     def set_distr_version_and_name(self, distribution: Distribution, is_dev: bool):
         distribution.metadata.version = read_version()
         if is_dev:
-            suffix = f".dev{datetime.today().strftime('%Y%m%d')}"
-            distribution.metadata.version += suffix  # type: ignore
+            today = datetime.today().strftime("%Y%m%d")
+            distribution.metadata.version += f".dev{today}"  # type: ignore
             distribution.metadata.name = "pylzy-nightly"
+
+
+class _install_egg_info(RunMixin, install_egg_info):
+    user_options = bdist_wheel.user_options + [("dev", None, "Build nightly package")]
 
 
 class _bdist_wheel(RunMixin, bdist_wheel):
@@ -84,6 +89,7 @@ setuptools.setup(
         "install": _install,
         "bdist_wheel": _bdist_wheel,
         "sdist": _sdist,
+        "install_egg_info": _install_egg_info,
     },
     entry_points={
         "console_scripts": ["lzy-terminal=lzy.cli.terminal_runner:console_main"],
