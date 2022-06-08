@@ -5,7 +5,9 @@ create TABLE IF NOT EXISTS roles
 
 insert into roles (role)
 values ('lzy.workflow.owner'),
-       ('lzy.whiteboard.owner')
+       ('lzy.whiteboard.owner'),
+       ('lzy.whiteboard.reader'),
+       ('lzy.internal.user')
 ON CONFLICT DO NOTHING;
 
 create TABLE users (

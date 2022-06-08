@@ -17,6 +17,15 @@ public class ResourceBinding {
         this.role = role;
     }
 
+    public static ResourceBinding fromResultSet(ResultSet rs) throws SQLException {
+        return new ResourceBinding(
+                rs.getString("user_id"),
+                rs.getString("resource_id"),
+                rs.getString("resource_type"),
+                rs.getString("role")
+        );
+    }
+
     public String userId() {
         return userId;
     }
@@ -31,14 +40,5 @@ public class ResourceBinding {
 
     public String role() {
         return role;
-    }
-
-    public static ResourceBinding fromResultSet(ResultSet rs) throws SQLException {
-        return new ResourceBinding(
-                rs.getString("user_id"),
-                rs.getString("resource_id"),
-                rs.getString("resource_type"),
-                rs.getString("role")
-        );
     }
 }

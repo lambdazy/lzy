@@ -3,12 +3,14 @@ package ru.yandex.cloud.ml.platform.lzy.iam.storage.impl;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AccessClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthBadRequestException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthInternalException;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.AuthPermission;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.Role;
+import ru.yandex.cloud.ml.platform.lzy.iam.resources.impl.Root;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.Storage;
 
@@ -18,14 +20,37 @@ import java.sql.SQLException;
 
 @Singleton
 @Requires(beans = Storage.class)
-public class DbAccessClient implements AccessClient {
+public class DbAccessClient {
+    private static final Logger LOG = LogManager.getLogger(DbAccessClient.class);
 
     @Inject
     private Storage storage;
 
-    @Override
     public boolean hasResourcePermission(Subject subject, String resourceId, AuthPermission permission)
             throws AuthException {
+        if (Role.LZY_INTERNAL_USER.permissions().contains(permission)) {
+            try (final PreparedStatement st = storage.connect().prepareStatement(
+                    "SELECT count(*) FROM user_resource_roles "
+                            + "WHERE user_id = ? "
+                            + "AND resource_id = ? "
+                            + "AND role = ?"
+                            + ";"
+            )) {
+                int parameterIndex = 0;
+                st.setString(++parameterIndex, subject.id());
+                st.setString(++parameterIndex, new Root().resourceId());
+                st.setString(++parameterIndex, Role.LZY_INTERNAL_USER.role());
+                final ResultSet rs = st.executeQuery();
+                if (rs.next()) {
+                    if (rs.getInt(1) > 0) {
+                        LOG.info("Internal access to resource::{}", resourceId);
+                        return true;
+                    }
+                }
+            } catch (SQLException e) {
+                throw new AuthInternalException(e);
+            }
+        }
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "SELECT user_id FROM user_resource_roles "
                         + "WHERE user_id = ? "
