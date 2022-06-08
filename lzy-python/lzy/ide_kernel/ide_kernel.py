@@ -1,5 +1,4 @@
 import ast
-import atexit
 import os
 import signal
 import subprocess
