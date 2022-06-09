@@ -2,6 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.model.grpc;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +55,10 @@ public class ChannelBuilder {
 
     public static ChannelBuilder forAddress(String host, int port) {
         return new ChannelBuilder(host, port);
+    }
+
+    public static ChannelBuilder forAddress(InetSocketAddress address) {
+        return new ChannelBuilder(address.getHostName(), address.getPort());
     }
 
     public ChannelBuilder usePlaintext() {

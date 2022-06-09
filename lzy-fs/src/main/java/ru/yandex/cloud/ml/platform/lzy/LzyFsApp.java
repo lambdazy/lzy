@@ -28,7 +28,8 @@ public final class LzyFsApp {
 
         // user auth
         options.addOption("u", "user", true, "User name");
-        options.addOption("k", "private-key", true, "User private key file");
+        options.addOption("k", "private-key", true, "User private key file (either --private-key or --user-token)");
+        options.addOption("j", "user-token", true, "User token (either --private-key or --user-token)");
 
         // servant auth
         options.addOption("s", "servant-id", true, "Servant id");
@@ -75,19 +76,28 @@ public final class LzyFsApp {
                 return;
             }
             final String privateKeyPath = cmdLine.getOptionValue("private-key");
-            if (privateKeyPath == null) {
-                System.err.println("'private-key' not set");
+            final String userToken = cmdLine.getOptionValue("user-token");
+            if (privateKeyPath == null && userToken == null) {
+                System.err.println("Neither 'private-key' nor 'user-token' not set");
                 System.exit(-1);
                 return;
             }
-            String token = "";
-            if (Files.exists(Path.of(privateKeyPath))) {
-                try (FileReader keyReader = new FileReader(privateKeyPath)) {
-                    token = JwtCredentials.buildJWT(userId, keyReader);
-                } catch (Exception e) {
-                    System.err.println(e.getMessage());
-                    System.exit(-1);
-                    return;
+            if (privateKeyPath != null && userToken != null) {
+                System.err.println("Either 'private-key' or 'user-token' is allowed");
+                System.exit(-1);
+                return;
+            }
+            String token = userToken;
+            if (privateKeyPath != null) {
+                token = "";
+                if (Files.exists(Path.of(privateKeyPath))) {
+                    try (FileReader keyReader = new FileReader(privateKeyPath)) {
+                        token = JwtCredentials.buildJWT(userId, keyReader);
+                    } catch (Exception e) {
+                        System.err.println(e.getMessage());
+                        System.exit(-1);
+                        return;
+                    }
                 }
             }
             authBuilder.setUser(IAM.UserCredentials.newBuilder()

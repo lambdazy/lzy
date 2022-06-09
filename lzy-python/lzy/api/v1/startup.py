@@ -31,7 +31,10 @@ hasher = DelegatingHasher(file_serializer)
 def log(msg: str, *args, **kwargs):
     now = datetime.datetime.utcnow()
     time_prefix = now.strftime("%Y-%m-%d %H:%M:%S")
-    print('[LZY]', time_prefix, msg.format(args, kwargs))
+    if args:
+        print('[LZY]', time_prefix, msg.format(args, kwargs))
+    else:
+        print('[LZY]', time_prefix, msg)
 
 
 def load_arg(path: Path, inp_type: Type[T], input_value: Optional[InputExecutionValue]) -> T:
@@ -91,7 +94,7 @@ def main():
     if exec_description is not None:
         servant.save_execution(exec_description)
 
-    log(f"Result of execution {result}")
+    log("Result of execution " + str(result))
 
     result_path = servant.mount() / func_s.name / "return"
     log(f"Writing result to file {result_path}")
@@ -99,6 +102,7 @@ def main():
         file_serializer.serialize_to_file(result, out_handle)
         out_handle.flush()
         os.fsync(out_handle.fileno())
+    log("Execution done")
 
 
 if __name__ == "__main__":

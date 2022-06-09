@@ -1,0 +1,23 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="LocalRunner (no kharon)" type="MicronautRunConfigurationType" factoryName="Micronaut">
+    <module name="lzy-test" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="ru.yandex.cloud.ml.platform.lzy.test.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <option name="alternativeJrePath" />
+    <option name="alternativeJrePathEnabled" value="false" />
+    <option name="includeProvidedScope" value="true" />
+    <option name="mainClass" value="ru.yandex.cloud.ml.platform.lzy.test.LocalRunner" />
+    <option name="passParentEnvs" value="true" />
+    <option name="programParameters" value="--no-kharon" />
+    <option name="shortenCommandLine" value="NONE" />
+    <option name="vmParameters" value="" />
+    <option name="workingDirectory" value="" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

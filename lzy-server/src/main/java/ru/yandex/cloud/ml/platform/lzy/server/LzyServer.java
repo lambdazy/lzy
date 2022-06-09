@@ -609,12 +609,12 @@ public class LzyServer {
         /**
          * [TODO] support interruption
          */
-        private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub kharonServant,
-                                 LzyFsGrpc.LzyFsBlockingStub kharonFs, String sessionId) {
+        private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub terminalServant,
+                                 LzyFsGrpc.LzyFsBlockingStub terminalFs, String sessionId) {
             final String user = auth.getUser().getUserId();
             servantsAllocator.registerSession(user, sessionId, this.auth.bucketForUser(user));
 
-            final Iterator<Servant.ServantProgress> start = kharonServant.start(IAM.Empty.newBuilder().build());
+            final Iterator<Servant.ServantProgress> start = terminalServant.start(IAM.Empty.newBuilder().build());
 
             tasks.slots(user).forEach((slot, channel) -> {
                 final LzyFsApi.SlotCommand slotCommand = LzyFsApi.SlotCommand.newBuilder()
@@ -623,17 +623,17 @@ public class LzyServer {
                         .setChannelId(channel.name())
                         .build())
                     .build();
-                final LzyFsApi.SlotCommandStatus status = kharonFs.configureSlot(slotCommand);
+                final LzyFsApi.SlotCommandStatus status = terminalFs.configureSlot(slotCommand);
 
                 if (status.hasRc() && status.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {
-                    LOG.error("Unable to configure kharon slot. session: {}, slot: {}, error: {}",
+                    LOG.error("Unable to configure terminal servant slot. session: {}, slot: {}, error: {}",
                         sessionId, slot, status.getRc().toString());
                 }
             });
 
             try {
                 start.forEachRemaining(progress -> {
-                    LOG.info("LzyServer::kharonTerminalProgress " + JsonUtils.printRequest(progress));
+                    LOG.info("LzyServer::terminalProgress " + JsonUtils.printRequest(progress));
                     if (progress.hasAttach()) {
                         final Servant.SlotAttach attach = progress.getAttach();
                         final Slot slot = from(attach.getSlot());
@@ -641,13 +641,13 @@ public class LzyServer {
                         final String channelName = attach.getChannel();
                         tasks.addUserSlot(user, slot, channels.get(channelName));
                         this.channels.bind(channels.get(channelName),
-                            new ServantEndpoint(slot, slotUri, sessionId, kharonFs));
+                            new ServantEndpoint(slot, slotUri, sessionId, terminalFs));
                     } else if (progress.hasDetach()) {
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = from(detach.getSlot());
                         final URI slotUri = URI.create(detach.getUri());
                         tasks.removeUserSlot(user, slot);
-                        final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, kharonFs);
+                        final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, terminalFs);
                         final ChannelSpec bound = channels.bound(endpoint);
                         if (bound != null) {
                             channels.unbind(bound, endpoint);
@@ -662,7 +662,7 @@ public class LzyServer {
                 //Clean up slots if terminal did not send detach
                 tasks.slots(user).keySet().forEach(slot -> tasks.removeUserSlot(user, slot));
                 channels.unbindAll(sessionId);
-                tasks.destroyUserChannels(user);
+                tasks.destroyUserChannels(user); // o_O
                 servantsAllocator.deleteSession(sessionId);
             }
         }
