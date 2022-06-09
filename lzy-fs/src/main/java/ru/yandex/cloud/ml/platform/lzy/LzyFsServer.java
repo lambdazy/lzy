@@ -314,6 +314,7 @@ public final class LzyFsServer {
         commandParts.add(System.getProperty("java.home") + "/bin/java");
         commandParts.add("-Xmx1g");
         commandParts.add("-Dcustom.log.file=" + LOGS_DIR + "/" + name + "_$(($RANDOM % 10000))");
+        commandParts.add("-Dlog4j.configurationFile=servant_cmd/log4j2.yaml");
         commandParts.add("-classpath");
         commandParts.add('"' + System.getProperty("java.class.path") + '"');
         commandParts.add(BashApi.class.getCanonicalName());
