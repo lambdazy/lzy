@@ -23,6 +23,7 @@ EXCLUDED_SERVICE_VAR_NAMES = {
 
 DEBUG_OPA = True
 
+
 def clear_namespace(ns: Dict[str, Any]) -> Dict[str, Any]:
     for var in EXCLUDED_SERVICE_VAR_NAMES:
         if var in ns:
@@ -63,22 +64,22 @@ class IdeKernel(IPythonKernel):
             self._terminal = subprocess.Popen(
                 executable='java',
                 args=[
-                '-Djava.library.path=/usr/local/lib',
-                '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32',
-                '-Dcmd.log4j.configurationFile=../lzy-servant/src/main/resources/cmd_config_log4j2.yaml',
-                '-cp', '../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar',
-                'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
-                '-z', 'localhost:7777',
-                '-w', 'blah-blah-blah://localhost:8999',
-                '-m', self._mount,
-                '-h', 'localhost', '-p', '9990', '-q', '9991',
-                'terminal',
-                '-d',
-                '-u', self._user,
-                '-t', self._user_token,
-                '>/tmp/ide-kernel-' + str(os.getpid()),
-                '2>&1'
-            ])
+                    '-Djava.library.path=/usr/local/lib',
+                    '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32',
+                    '-Dcmd.log4j.configurationFile=../lzy-servant/src/main/resources/cmd_config_log4j2.yaml',
+                    '-cp', '../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar',
+                    'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
+                    '-z', 'localhost:7777',
+                    '-w', 'blah-blah-blah://localhost:8999',
+                    '-m', self._mount,
+                    '-h', 'localhost', '-p', '9990', '-q', '9991',
+                    'terminal',
+                    '-d',
+                    '-u', self._user,
+                    '-t', self._user_token,
+                    '>/tmp/ide-kernel-' + str(os.getpid()),
+                    '2>&1'
+                ])
 
             while not os.path.exists(self._mount + '/sbin/terminal'):
                 retcode = self._terminal.poll()
