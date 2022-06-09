@@ -119,30 +119,30 @@ class IdeKernel(IPythonKernel):
                 with open('/tmp/opa-in', 'a') as f:
                     f.write('\n------\nCODE: `' + _code + '`, state: ' + repr(_state) + '\n')
 
-            def _run(expr, state, mode='exec'):
-                if mode == 'exec':
-                    m = ast.Module([expr], type_ignores=[])
-                    exec(compile(m, '<>', 'exec'), state)
-                    return None
-                else:
-                    assert mode == 'eval'
-                    e = ast.Expression(expr.value)
-                    return eval(compile(e, '<>', 'eval'), state)
+            def _exec(expr, state):
+                m = ast.Module([expr], type_ignores=[])
+                exec(compile(m, '<>', 'exec'), state)
+                return None
 
             try:
                 tree = ast.parse(_code)
 
-                for expr in tree.body[:-1]:
-                    _run(expr, _state)
-
                 if isinstance(tree.body[-1], ast.Expr):
-                    ret = _run(tree.body[-1], _state, 'eval')
+                    # We try to emulate vanilla python kernel here.
+                    # So if last statement is `ast.Expr` we evaluate it and print result.
+
+                    for expr in tree.body[:-1]:
+                        _exec(expr, _state)
+
+                    last_expr = ast.Expression(tree.body[-1].value)
+                    ret = eval(compile(last_expr, '<>', 'eval'), _state)
                     print(ret)
+
                     if DEBUG_OPA:
                         with open('/tmp/opa-out-ret', 'a') as f:
                             f.write('\n------\nexpr: ' + ast.dump(tree.body[-1]) + ', ret: ' + str(ret))
                 else:
-                    _run(tree.body[-1], _state)
+                    exec(_code, _state)
 
                 clear_namespace(_state)
             except Exception as e:
@@ -218,7 +218,7 @@ if __name__ == '__main__':
     from ipykernel.kernelapp import IPKernelApp
     argv = [
         '--debug',
-        #'--user=test-user',
-        #'--help-all'
+        # '--user=test-user',
+        # '--help-all'
     ]
     IPKernelApp.launch_instance(kernel_class=IdeKernel, argv=argv)
