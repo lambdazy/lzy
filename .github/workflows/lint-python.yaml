@@ -31,4 +31,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-check
           level: error
-          workdir: ds-ide-krnel
+          workdir: ds-ide-kernel
