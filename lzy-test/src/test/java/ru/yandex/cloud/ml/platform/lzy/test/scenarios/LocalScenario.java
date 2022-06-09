@@ -32,9 +32,13 @@ public abstract class LocalScenario extends LzyBaseTest {
 
     @Before
     public void setUp() {
+        this.setUp(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR);
+    }
+
+    public void setUp(LzyServerTestContext.LocalServantAllocatorType servantAllocatorType) {
         createResourcesFolder();
         createServantLzyFolder();
-        serverContext = new ServerThreadContext(LzyServerTestContext.LocalServantAllocatorType.DOCKER_ALLOCATOR);
+        serverContext = new ServerThreadContext(servantAllocatorType);
         serverContext.init();
         whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
