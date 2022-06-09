@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'lzy-python/lzy/**'
+      - 'ds-ide-kernel/lzy/**'
 
 jobs:
   mypy:
@@ -12,7 +13,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.7
       - name: Checkout
         uses: actions/checkout@v1
       - name: Install mypy
@@ -24,3 +25,10 @@ jobs:
           reporter: github-pr-check
           level: error
           workdir: lzy-python
+      - name: Run mypy on DS
+        uses: tsuyoshicho/action-mypy@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-check
+          level: error
+          workdir: ds-ide-krnel

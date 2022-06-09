@@ -21,6 +21,7 @@ EXCLUDED_SERVICE_VAR_NAMES = {
     '_dh'
 }
 
+DEBUG_OPA = True
 
 def clear_namespace(ns: Dict[str, Any]) -> Dict[str, Any]:
     for var in EXCLUDED_SERVICE_VAR_NAMES:
@@ -56,10 +57,11 @@ class IdeKernel(IPythonKernel):
     def start(self):
         super().start()
 
+        self._check_java_version()
         self.log.error(f'Start BashApi at {self._mount}, and logs at /tmp/ide-kernel-{str(os.getpid())}, cwd={os.getcwd()}')
         try:
             self._terminal = subprocess.Popen(
-                executable='/home/imakunin/apps/jdk17/bin/java',
+                executable='java',
                 args=[
                 '-Djava.library.path=/usr/local/lib',
                 '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32',
@@ -113,8 +115,9 @@ class IdeKernel(IPythonKernel):
             _code = str(code)
             _state = dict(state)
 
-            with open('/tmp/opa-in', 'a') as f:
-                f.write('\n------\nCODE: `' + _code + '`, state: ' + repr(_state) + '\n')
+            if DEBUG_OPA:
+                with open('/tmp/opa-in', 'a') as f:
+                    f.write('\n------\nCODE: `' + _code + '`, state: ' + repr(_state) + '\n')
 
             def _run(expr, state, mode='exec'):
                 if mode == 'exec':
@@ -134,20 +137,23 @@ class IdeKernel(IPythonKernel):
 
                 if isinstance(tree.body[-1], ast.Expr):
                     ret = _run(tree.body[-1], _state, 'eval')
-                    with open('/tmp/opa-out-ret', 'a') as f:
-                        f.write('\n------\nexpr: ' + ast.dump(tree.body[-1]) + ', ret: ' + str(ret))
                     print(ret)
+                    if DEBUG_OPA:
+                        with open('/tmp/opa-out-ret', 'a') as f:
+                            f.write('\n------\nexpr: ' + ast.dump(tree.body[-1]) + ', ret: ' + str(ret))
                 else:
                     _run(tree.body[-1], _state)
 
                 clear_namespace(_state)
             except Exception as e:
-                with open('/tmp/opa-fail', 'a') as f:
-                    print(f"ERROR: code=`{_code}`, state=" + repr(_state) + "\n", e, file=f)
+                if DEBUG_OPA:
+                    with open('/tmp/opa-fail', 'a') as f:
+                        print(f"ERROR: code=`{_code}`, state=" + repr(_state) + "\n", e, file=f)
                 raise e
 
-            with open('/tmp/opa-out', 'a') as f:
-                f.write('\n------\nstate: ' + repr(_state))
+            if DEBUG_OPA:
+                with open('/tmp/opa-out', 'a') as f:
+                    f.write('\n------\nstate: ' + repr(_state))
 
             return _state
 
@@ -191,6 +197,20 @@ class IdeKernel(IPythonKernel):
             self._workflow.__exit__(*sys.exc_info())
             self._workflow = None
         return super().do_shutdown(restart)
+
+    @staticmethod
+    def _check_java_version():
+        with subprocess.Popen(
+                ["bash", "-c", "java -version 2>&1 | head -1 | cut -d' ' -f3 | tr -d '\"'"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
+        ) as process:
+            out, err = process.communicate()
+
+            if process.returncode != 0:
+                raise RuntimeError(f"Process exited with code {process.returncode}\n STDERR: " + str(err))
+
+            if not out.decode('ascii').startswith('17.'):
+                raise RuntimeError("Java 17 required")
 
 
 if __name__ == '__main__':
