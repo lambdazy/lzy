@@ -254,35 +254,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <plugin>
-                <groupId>io.fabric8</groupId>
-                <artifactId>docker-maven-plugin</artifactId>
-                <configuration>
-                    <verbose>true</verbose>
-                    <autoPull>always</autoPull>
-                    <images>
-                        <image>
-                            <name>lzy-servant</name>
-                            <alias>dockerfile</alias>
-                            <build>
-                                <contextDir>${project.basedir}/../</contextDir>
-                                <dockerFile>${project.basedir}/docker/old-scheme/Dockerfile</dockerFile>
-                                <noCache>true</noCache>
-                                <imagePullPolicy>IfNotPresent</imagePullPolicy>
-                            </build>
-                        </image>
-                    </images>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>install</phase>
-                        <goals>
-                            <goal>build</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
@@ -298,7 +269,7 @@
                         <groupId>io.fabric8</groupId>
                         <artifactId>docker-maven-plugin</artifactId>
                         <configuration>
-                            <verbose>true</verbose>
+                            <verbose>false</verbose>
                             <images>
                                 <image>
                                     <name>lzy-servant</name>
