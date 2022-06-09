@@ -116,19 +116,29 @@ class IdeKernel(IPythonKernel):
             with open('/tmp/opa-in', 'a') as f:
                 f.write('\n------\nCODE: `' + _code + '`, state: ' + repr(_state) + '\n')
 
+            def _run(expr, state, mode='exec'):
+                if mode == 'exec':
+                    m = ast.Module([expr], type_ignores=[])
+                    exec(compile(m, '<>', 'exec'), state)
+                    return None
+                else:
+                    assert mode == 'eval'
+                    e = ast.Expression(expr.value)
+                    return eval(compile(e, '<>', 'eval'), state)
+
             try:
                 tree = ast.parse(_code)
 
                 for expr in tree.body[:-1]:
-                    exec(ast.unparse(expr), _state)
+                    _run(expr, _state)
 
                 if isinstance(tree.body[-1], ast.Expr):
-                    ret = eval(ast.unparse(tree.body[-1]), _state)
+                    ret = _run(tree.body[-1], _state, 'eval')
                     with open('/tmp/opa-out-ret', 'a') as f:
-                        f.write('\n------\nret: ' + str(ret))
+                        f.write('\n------\nexpr: ' + ast.dump(tree.body[-1]) + ', ret: ' + str(ret))
                     print(ret)
                 else:
-                    exec(ast.unparse(tree.body[-1]), _state)
+                    _run(tree.body[-1], _state)
 
                 clear_namespace(_state)
             except Exception as e:
