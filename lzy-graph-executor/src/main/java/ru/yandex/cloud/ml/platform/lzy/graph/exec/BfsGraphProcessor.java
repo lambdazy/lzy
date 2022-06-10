@@ -11,6 +11,7 @@ import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder.TaskVertex;
 import ru.yandex.cloud.ml.platform.lzy.graph.api.SchedulerApi;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState;
+import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState.Status;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.TaskDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.TaskExecution;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
@@ -36,7 +37,6 @@ public class BfsGraphProcessor implements GraphProcessor {
         GraphExecutionState state = switch (graph.status()) {
             case WAITING -> nextStep(graph);
             case FAILED -> stop(graph, "Undefined state change to FAILED");
-            case SCHEDULED_TO_FAIL -> stop(graph, graph.errorDescription());
             case COMPLETED -> complete(graph);
             case EXECUTING -> {
                 int completed = 0;
@@ -72,17 +72,22 @@ public class BfsGraphProcessor implements GraphProcessor {
         return state;
     }
 
-    private GraphExecutionState stop(GraphExecutionState graph, String errorDescription) {
-        graph.executions().forEach(t -> api.kill(graph.workflowId(), t.id()));
-        return new GraphExecutionState(
-            graph.workflowId(),
-            graph.id(),
-            graph.description(),
-            graph.executions(),
-            graph.currentExecutionGroup(),
-            GraphExecutionState.Status.FAILED,
-            errorDescription
-        );
+    @Override
+    public GraphExecutionState stop(GraphExecutionState graph, String errorDescription) {
+        return switch (graph.status()) {
+            case COMPLETED, FAILED -> graph;
+            case WAITING -> graph.copyFromThis()
+                .withErrorDescription(errorDescription)
+                .withStatus(Status.FAILED)
+                .build();
+            case EXECUTING -> {
+                graph.executions().forEach(t -> api.kill(graph.workflowId(), t.id()));
+                yield graph.copyFromThis()
+                    .withErrorDescription(errorDescription)
+                    .withStatus(Status.FAILED)
+                    .build();
+            }
+        };
     }
 
     private GraphExecutionState nextStep(GraphExecutionState graph) {
@@ -105,15 +110,15 @@ public class BfsGraphProcessor implements GraphProcessor {
 
             newExecutions.addAll(graph.executions());
 
-            return new GraphExecutionState(
-                graph.workflowId(),
-                graph.id(),
-                graph.description(),
-                newExecutions,
-                newExecutions.stream()
-                    .filter(t -> newExecutionGroup.contains(t.description()))
-                    .collect(Collectors.toList()),
-                GraphExecutionState.Status.EXECUTING);
+            return graph.copyFromThis()
+                .withExecutions(newExecutions)
+                .withCurrentExecutionGroup(
+                    newExecutions.stream()
+                        .filter(t -> newExecutionGroup.contains(t.description()))
+                        .collect(Collectors.toList())
+                )
+                .withStatus(Status.EXECUTING)
+                .build();
 
         } catch (GraphBuilder.GraphValidationException e) {
             LOG.error("Error while planing next step of graph execution", e);
@@ -122,18 +127,9 @@ public class BfsGraphProcessor implements GraphProcessor {
     }
 
     private GraphExecutionState complete(GraphExecutionState graph) {
-        return changeState(graph, GraphExecutionState.Status.COMPLETED);
-    }
-
-    private GraphExecutionState changeState(GraphExecutionState graph, GraphExecutionState.Status status) {
-        return new GraphExecutionState(
-            graph.workflowId(),
-            graph.id(),
-            graph.description(),
-            graph.executions(),
-            graph.currentExecutionGroup(),
-            status
-        );
+        return graph.copyFromThis()
+            .withStatus(Status.COMPLETED)
+            .build();
     }
 
     private Set<TaskDescription> getNextExecutionGroup(GraphExecutionState graphExecution)
@@ -149,14 +145,14 @@ public class BfsGraphProcessor implements GraphProcessor {
 
         final Set<CondensedComponent<TaskVertex>> currentExecutionComponents;
 
-        if (graphExecution.status() == GraphExecutionState.Status.EXECUTING) {
+        if (graphExecution.status() == Status.EXECUTING) {
             currentExecutionComponents = new HashSet<>();
             for (TaskExecution execution : graphExecution.currentExecutionGroup()) {
                 currentExecutionComponents.add(
                     condensedGraph.vertexNameToComponentMap().get(execution.description().id())
                 );
             }
-        } else if (graphExecution.status() == GraphExecutionState.Status.WAITING) {
+        } else if (graphExecution.status() == Status.WAITING) {
             currentExecutionComponents = Algorithms.findRoots(condensedGraph);
         } else {
             throw new GraphBuilder.GraphValidationException(

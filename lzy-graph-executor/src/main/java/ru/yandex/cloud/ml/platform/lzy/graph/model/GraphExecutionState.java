@@ -27,27 +27,8 @@ public record GraphExecutionState(
         String errorDescription
 ) {
 
-    public GraphExecutionState(
-        String workflowId,
-        String id,
-        GraphDescription description
-    ) {
-        this(workflowId, id, description, new ArrayList<>(), new ArrayList<>(), Status.WAITING, null);
-    }
-
-    public GraphExecutionState(
-        String workflowId,
-        String id,
-        GraphDescription description,
-        List<TaskExecution> executions,
-        List<TaskExecution> currentExecutionGroup,
-        Status status
-    ) {
-        this(workflowId, id, description, executions, currentExecutionGroup, status, null);
-    }
-
     public enum Status {
-       WAITING, EXECUTING, COMPLETED, SCHEDULED_TO_FAIL, FAILED
+       WAITING, EXECUTING, COMPLETED, FAILED
     }
 
     public GraphExecutorApi.GraphExecutionStatus toGrpc() {
@@ -62,7 +43,7 @@ public record GraphExecutionState(
                     .setDescription(errorDescription)
                     .build()
             );
-            case EXECUTING, SCHEDULED_TO_FAIL -> statusBuilder.setExecuting(
+            case EXECUTING -> statusBuilder.setExecuting(
                 Executing.newBuilder().build() //TODO(artolord) add tasks progress here
             );
             default -> { } // Unreachable
@@ -95,5 +76,76 @@ public record GraphExecutionState(
                     errorDescription: %s
                 """, workflowId, id, tasks, execGroup, status, errorDescription
             );
+    }
+
+    public static GraphExecutionStateBuilder builder() {
+        return new GraphExecutionStateBuilder();
+    }
+
+    public GraphExecutionStateBuilder copyFromThis() {
+        return new GraphExecutionStateBuilder()
+            .withWorkflowId(workflowId)
+            .withId(id)
+            .withDescription(description)
+            .withExecutions(executions)
+            .withErrorDescription(errorDescription)
+            .withCurrentExecutionGroup(currentExecutionGroup)
+            .withStatus(status);
+    }
+
+    public static class GraphExecutionStateBuilder {
+        private String workflowId = null;
+        private String id = null;
+        private GraphDescription description = null;
+        private List<TaskExecution> executions = new ArrayList<>();
+        private List<TaskExecution> currentExecutionGroup = new ArrayList<>();
+        private Status status = Status.WAITING;
+        private String errorDescription = null;
+
+        public GraphExecutionStateBuilder withWorkflowId(String workflowId) {
+            this.workflowId = workflowId;
+            return this;
+        }
+
+        public GraphExecutionStateBuilder withId(String id) {
+            this.id = id;
+            return this;
+        }
+
+        public GraphExecutionStateBuilder withDescription(GraphDescription description) {
+            this.description = description;
+            return this;
+        }
+
+        public GraphExecutionStateBuilder withExecutions(List<TaskExecution> executions) {
+            this.executions = executions;
+            return this;
+        }
+
+        public GraphExecutionStateBuilder withStatus(Status status) {
+            this.status = status;
+            return this;
+        }
+
+        public GraphExecutionStateBuilder withCurrentExecutionGroup(List<TaskExecution> currentExecutionGroup) {
+            this.currentExecutionGroup = currentExecutionGroup;
+            return this;
+        }
+
+        public GraphExecutionStateBuilder withErrorDescription(String errorDescription) {
+            this.errorDescription = errorDescription;
+            return this;
+        }
+
+        public GraphExecutionState build() {
+            if (workflowId == null || id == null || description == null) {
+                throw new NullPointerException(
+                    "Cannot build GraphExecutionState with workflowId, id or description == null");
+            }
+            return new GraphExecutionState(
+                workflowId, id, description, executions, currentExecutionGroup,
+                status, errorDescription
+            );
+        }
     }
 }

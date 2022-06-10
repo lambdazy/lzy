@@ -1,4 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.graph.test.mocks;
+import java.time.temporal.TemporalUnit;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -11,16 +12,23 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import ru.yandex.cloud.ml.platform.lzy.graph.model.TaskExecution;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 
 public class GraphDaoMock implements GraphExecutionDao {
     private final ConcurrentHashMap<Key, GraphExecutionState> storage = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Key, Boolean> acquired = new ConcurrentHashMap<>();
 
     @Override
     public GraphExecutionState create(String workflowId, GraphDescription description) {
-        var graph = new GraphExecutionState(workflowId, UUID.randomUUID().toString(), description);
+        var graph = GraphExecutionState.builder()
+            .withWorkflowId(workflowId)
+            .withId(UUID.randomUUID().toString())
+            .withDescription(description)
+            .build();
         storage.put(new Key(workflowId, graph.id()), graph);
+        acquired.put(new Key(workflowId, graph.id()), false);
         return graph;
     }
 
@@ -40,34 +48,23 @@ public class GraphDaoMock implements GraphExecutionDao {
         return storage.values().stream().toList();
     }
 
+    @org.jetbrains.annotations.Nullable
     @Override
-    public synchronized void updateAtomic(String workflowId, String graphExecutionId, Mapper mapper) {
-        try {
-            GraphExecutionState graph = mapper.update(storage.get(new Key(workflowId, graphExecutionId)));
-            storage.put(new Key(workflowId, graphExecutionId), graph);
-            notifyAll();
-        } catch (Exception ignored) {
+    public GraphExecutionState acquire(String workflowId, String graphExecutionId, long upTo, TemporalUnit unit)
+        throws GraphDaoException {
+        if (acquired.get(new Key(workflowId, graphExecutionId))) {
+            throw new GraphDaoException(
+                String.format("Cannot acquire graph <%s> in workflow <%s>", graphExecutionId, workflowId)
+            );
         }
-
+        acquired.put(new Key(workflowId, graphExecutionId), true);
+        return storage.get(new Key(workflowId, graphExecutionId));
     }
 
     @Override
-    public synchronized void updateAtomic(Set<GraphExecutionState.Status> statuses, Mapper mapper) {
-        storage
-            .values()
-            .stream()
-            .filter(t -> statuses.contains(t.status()))
-            .limit(1)
-            .map(t -> {
-                try {
-                    return mapper.update(t);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    throw new RuntimeException(e);
-                }
-            })
-            .filter(Objects::nonNull)
-            .forEach(t -> storage.put(new Key(t.workflowId(), t.id()), t));
+    public void free(GraphExecutionState graph) throws GraphDaoException {
+        acquired.put(new Key(graph.workflowId(), graph.id()), false);
+        storage.put(new Key(graph.workflowId(), graph.id()), graph);
     }
 
     public synchronized void waitForStatus(String workflowId, String graphId,
@@ -86,6 +83,35 @@ public class GraphDaoMock implements GraphExecutionDao {
         if (
             storage.get(new Key(workflowId, graphId)) == null
             || storage.get(new Key(workflowId, graphId)).status() != status
+        ) {
+            throw new RuntimeException("Timeout exceeded");
+        }
+    }
+
+    public synchronized void waitForExecutingNow(String workflowId, String graphId,
+                                           Set<String> executions,
+                                           int timeoutMillis) throws InterruptedException {
+        long startTime = System.currentTimeMillis();
+        while (
+            (
+                storage.get(new Key(workflowId, graphId)) == null
+                    || !storage.get(new Key(workflowId, graphId))
+                    .currentExecutionGroup()
+                    .stream()
+                    .map(TaskExecution::id)
+                    .collect(Collectors.toSet()).equals(executions)
+            )
+                && System.currentTimeMillis() - startTime < timeoutMillis
+        ) {
+            this.wait(timeoutMillis);
+        }
+        if (
+            storage.get(new Key(workflowId, graphId)) == null
+                || !storage.get(new Key(workflowId, graphId))
+                .currentExecutionGroup()
+                .stream()
+                .map(TaskExecution::id)
+                .collect(Collectors.toSet()).equals(executions)
         ) {
             throw new RuntimeException("Timeout exceeded");
         }

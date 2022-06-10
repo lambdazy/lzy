@@ -1,7 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.graph.db;
 
-import java.util.Set;
-import java.util.concurrent.Future;
+import java.time.temporal.TemporalUnit;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState;
 
@@ -16,25 +17,11 @@ public interface GraphExecutionDao {
     List<GraphExecutionState> filter(GraphExecutionState.Status status) throws GraphDaoException;
     List<GraphExecutionState> list(String workflowId) throws GraphDaoException;
 
-    /**
-     * Updates GraphExecution state in transaction to prevent other selections
-     * @param workflowId workflow id
-     * @param graphExecutionId graph id
-     * @param mapper function to update execution
-     */
-    void updateAtomic(String workflowId, String graphExecutionId, Mapper mapper) throws GraphDaoException;
+    @Nullable
+    GraphExecutionState acquire(String workflowId, String graphExecutionId,
+                                long upTo, TemporalUnit unit) throws GraphDaoException;
 
-    /**
-     * Filter GraphExecutions by statuses, select oldest and update it by mapper
-     * @param statuses Statuses to filter GraphExecutions by
-     * @param mapper Function to update execution
-     * @throws GraphDaoException Error while process mapping
-     */
-    void updateAtomic(Set<GraphExecutionState.Status> statuses, Mapper mapper) throws GraphDaoException;
-
-    interface Mapper {
-        GraphExecutionState update(@Nullable GraphExecutionState state) throws Exception;
-    }
+    void free(GraphExecutionState graph) throws GraphDaoException;
 
     class GraphDaoException extends Exception {
         public GraphDaoException(Exception e) {

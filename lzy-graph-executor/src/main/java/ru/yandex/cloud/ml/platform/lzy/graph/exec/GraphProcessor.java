@@ -10,8 +10,15 @@ public interface GraphProcessor {
 
     /**
      * Makes next step of execution on graph
-     * @param graph DirectedGraph to execute
+     * @param graph Graph to execute
      * @return new state of given graph
      */
     GraphExecutionState exec(GraphExecutionState graph);
+
+    /**
+     * Stops graph execution
+     * @param graph Graph to stop
+     * @return new state of given graph
+     */
+    GraphExecutionState stop(GraphExecutionState graph, String errorDescription);
 }
