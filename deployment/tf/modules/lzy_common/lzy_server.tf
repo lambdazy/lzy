@@ -1,3 +1,16 @@
+resource "kubernetes_secret" "lzy_server_db_data" {
+  metadata {
+    name      = "server-db-data"
+    namespace = kubernetes_namespace.server_namespace.metadata[0].name
+  }
+
+  data = {
+    password = var.lzy_server_db_password
+  }
+
+  type = "Opaque"
+}
+
 resource "kubernetes_deployment" "server" {
   metadata {
     name = "lzy-server"
@@ -42,13 +55,14 @@ resource "kubernetes_deployment" "server" {
           }
           env {
             name  = "DATABASE_URL"
-            value = "jdbc:postgresql://postgres-postgresql.server.svc.cluster.local:5432/serverDB"
+            value = "jdbc:postgresql://${var.lzy_server_db_host}:${var.lzy_server_db_port}/${var.lzy_server_db_name}"
           }
           env {
             name  = "DATABASE_USERNAME"
-            value = "server"
+            value = var.lzy_server_db_user
           }
           env {
+            // TODO: replace with smth like LOGS_DB instead of CLICKHOUSE
             name  = "CLICKHOUSE_ENABLED"
             value = "true"
           }
@@ -164,12 +178,7 @@ resource "kubernetes_deployment" "server" {
 
           env {
             name = "DATABASE_PASSWORD"
-            value_from {
-              secret_key_ref {
-                name = "postgres"
-                key  = "postgresql-password"
-              }
-            }
+            value = var.lzy_server_db_password == "" ? random_password.lzy_server_db_password[0].result : var.lzy_server_db_password
           }
 
           env {
@@ -187,6 +196,7 @@ resource "kubernetes_deployment" "server" {
           }
           port {
             container_port = 8888
+            host_port      = 8888
           }
         }
         node_selector = {
@@ -222,9 +232,9 @@ resource "kubernetes_deployment" "server" {
       }
     }
   }
-  depends_on = [
-    helm_release.lzy_server_db
-  ]
+#  depends_on = [
+#    helm_release.lzy_server_db
+#  ]
 }
 
 resource "kubernetes_service" "lzy_server" {
