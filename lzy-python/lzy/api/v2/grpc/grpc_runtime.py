@@ -141,7 +141,7 @@ class GrpcRuntime(Runtime):
         for name, arg in call.named_arguments():
             slot: Slot = zygote.slot(name)
             if is_lazy_proxy(arg) and not materialized(arg):
-                call_id = arg.id
+                call_id = arg.lzy_call.id
             else:
                 call_id = arg_name_to_call_id[name]
             channel = self._channel_manager.snapshot_channel(snapshot_id, _generate_channel_name(call_id))
