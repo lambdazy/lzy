@@ -35,15 +35,15 @@ def clear_namespace(ns: Dict[str, Any]) -> Dict[str, Any]:
 # jupyter console --existing kernel-XXX.json
 #
 
-class IdeKernel(IPythonKernel):
+class JupyterKernel(IPythonKernel):
     implementation = 'IdeKernel'
     implementation_version = '1.0'
     # language_info = {'mimetype': 'text/plain'}
-    banner = 'IdeKernel - as useful as a parrot'
+    banner = 'JupyterKernel - as useful as a parrot'
 
     def __init__(self, **kwargs):
-        super(IdeKernel, self).__init__(**kwargs)
-        self.log.error(f'IdeKernel.__init__(), cwd={os.getcwd()}')
+        super(JupyterKernel, self).__init__(**kwargs)
+        self.log.error(f'JupyterKernel.__init__(), cwd={os.getcwd()}')
 
         self._user = os.getenv('LZY_USER', 'test-user')
         self._user_token = os.getenv('LZY_USER_TOKEN', 'xxx')
@@ -66,7 +66,7 @@ class IdeKernel(IPythonKernel):
                 args=[
                     '-Djava.library.path=/usr/local/lib',
                     '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32',
-                    '-Dcmd.log4j.configurationFile=../lzy-servant/src/main/resources/cmd_config_log4j2.yaml',
+                    '-Dlog4j.configurationFile=../lzy-servant/src/main/resources/servant_cmd/log4j2.yaml',
                     '-cp', '../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar',
                     'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
                     '-z', 'localhost:7777',
@@ -99,7 +99,7 @@ class IdeKernel(IPythonKernel):
             # conda_yaml_path=Path(''),  # todo: don't propagate current (kernel) python env
             eager=False)
         self._workflow.__enter__()
-        self.log.error('IdeKernel started')
+        self.log.error('JupyterKernel started')
 
     def execute_request(self, stream, ident, parent):
         return super().execute_request(stream, ident, parent)
@@ -222,4 +222,4 @@ if __name__ == '__main__':
         # '--user=test-user',
         # '--help-all'
     ]
-    IPKernelApp.launch_instance(kernel_class=IdeKernel, argv=argv)
+    IPKernelApp.launch_instance(kernel_class=JupyterKernel, argv=argv)
