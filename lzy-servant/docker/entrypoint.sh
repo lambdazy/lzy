@@ -17,8 +17,6 @@ docker ps && java \
 -Dcustom.log.server="$LOGS_SERVER" \
 -Dcustom.log.username="$LOGS_USERNAME" \
 -Dcustom.log.password="$LOGS_PASSWORD" \
--Dlog4j.configurationFile=/app/resources/log4j2.yaml \
--Dcmd.log4j.configurationFile=/app/resources/cmd_config_log4j2.yaml \
 -XX:+HeapDumpOnOutOfMemoryError \
 -agentlib:jdwp=transport=dt_socket,server=y,suspend="$SUSPEND_DOCKER",address=*:"$DEBUG_PORT" \
 -Djava.util.concurrent.ForkJoinPool.common.parallelism=32 \

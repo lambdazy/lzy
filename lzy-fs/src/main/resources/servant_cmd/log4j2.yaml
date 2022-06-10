@@ -2,6 +2,11 @@ Configuration:
   status: warn
 
   Appenders:
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
     File:
       name: LogFile
       fileName: ${sys:custom.log.file}

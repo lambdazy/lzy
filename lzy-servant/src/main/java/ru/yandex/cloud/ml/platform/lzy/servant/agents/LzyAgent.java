@@ -153,14 +153,11 @@ public abstract class LzyAgent implements Closeable {
             LOG.info("published zygote " + to);
         try {
             final String zygoteJson = z != null ? JsonFormat.printer().print(z) : null;
-            final String logConfFile = System.getProperty("cmd.log4j.configurationFile");
             final List<String> commandParts = new ArrayList<>();
             commandParts.add(System.getProperty("java.home") + "/bin/java");
             commandParts.add("-Xmx1g");
             commandParts.add("-Dcustom.log.file=" + LOGS_DIR + to.getFileName() + "_$(($RANDOM % 10000))");
-            if (logConfFile != null) {
-                commandParts.add("-Dlog4j.configurationFile=" + logConfFile);
-            }
+            commandParts.add("-Dlog4j.configurationFile=servant_cmd/log4j2.yaml");
             commandParts.add("-classpath");
             commandParts.add('"' + System.getProperty("java.class.path") + '"');
             commandParts.add(BashApi.class.getCanonicalName());

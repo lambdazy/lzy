@@ -17,6 +17,12 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
     public static final String[] SUFFIXES = new String[] {".yaml", ".yml", "*"};
 
     public Configuration getConfiguration(LoggerContext loggerContext, ConfigurationSource configurationSource) {
+
+        if (Objects.equals(System.getenv("LOGS_APPENDER"), "Kafka")
+                && System.getenv("SERVANT_ID") == null) {
+            throw new RuntimeException("SERVANT_ID env is null. Logging configuration failed.");
+        }
+
         return new KafkaLogsConfiguration(
             loggerContext,
             configurationSource,
@@ -28,7 +34,7 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
                 + "\"level\": \"%-5level\", "
                 + "\"logger\": \"%logger{36}\", "
                 + "\"message\": \"%enc{%msg}{JSON}\", "
-                + "\"servant\": \"" + System.getenv("LZYTASK") + "\", "
+                + "\"servant\": \"" + System.getenv("SERVANT_ID") + "\", "
                 + "\"exception\": \"%enc{%ex}{JSON}\""
                 + "}",
             "servant"
