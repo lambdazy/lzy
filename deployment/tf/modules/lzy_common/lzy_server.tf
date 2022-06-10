@@ -178,7 +178,7 @@ resource "kubernetes_deployment" "server" {
 
           env {
             name = "DATABASE_PASSWORD"
-            value = var.lzy_server_db_password
+            value = var.lzy_server_db_password == "" ? random_password.lzy_server_db_password[0].result : var.lzy_server_db_password
           }
 
           env {

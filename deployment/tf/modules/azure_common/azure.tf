@@ -159,6 +159,19 @@ module "lzy_common" {
   installation_name                              = var.installation_name
   oauth-github-client-id                         = var.oauth-github-client-id
   oauth-github-client-secret                     = var.oauth-github-client-secret
+
+  lzy_server_db_host     = "postgres-postgresql.server.svc.cluster.local"
+  lzy_server_db_port     = 5432
+  lzy_server_db_name     = "serverDB"
+  lzy_server_db_user     = "server"
+  lzy_server_db_password = ""
+
+  lzy_whiteboard_db_host     = "whiteboard-postgresql.default.svc.cluster.local"
+  lzy_whiteboard_db_port     = 5432
+  lzy_whiteboard_db_name     = "whiteboards"
+  lzy_whiteboard_db_user     = "whiteboard"
+  lzy_whiteboard_db_password = ""
+
   s3-bucket-name                                 = "lzy-bucket"
   storage-provider                               = "azure"
   azure-connection-string                        = azurerm_storage_account.main_s3.primary_connection_string

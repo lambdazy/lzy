@@ -48,7 +48,7 @@ resource "kubernetes_deployment" "whiteboard" {
           }
           env {
             name  = "DATABASE_PASSWORD"
-            value = var.lzy_whiteboard_db_password
+            value = var.lzy_whiteboard_db_password == "" ? random_password.whiteboard_db_password[0].result : var.lzy_whiteboard_db_password
           }
           env {
             name  = "SERVER_URI"
