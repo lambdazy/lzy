@@ -26,6 +26,6 @@
         <module>lzy-whiteboard</module>
         <module>lzy-fs</module>
         <module>iam</module>
-        <module>ds-ide-kernel</module>
+        <module>jupyter-kernel</module>
     </modules>
 </project>

@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'lzy-python/lzy/**'
-      - 'ds-ide-kernel/lzy/**'
+      - 'jupyter-kernel/lzy/**'
 
 jobs:
   mypy:
@@ -31,4 +31,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-check
           level: error
-          workdir: ds-ide-kernel
+          workdir: jupyter-kernel
