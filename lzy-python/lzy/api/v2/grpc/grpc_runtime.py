@@ -20,7 +20,7 @@ from lzy.api.v2.servant.model.provisioning import Provisioning
 from lzy.api.v2.servant.model.signatures import FuncSignature
 from lzy.api.v2.servant.model.slot import Slot, Direction
 from lzy.api.v2.servant.model.zygote_python_func import ZygotePythonFunc
-from lzy.api.v2.utils import is_lazy_proxy, zipdir, materialized
+from lzy.api.v2.utils import is_lazy_proxy, zipdir, materialized, fileobj_hash
 from lzy.serialization.serializer import Serializer
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient, from_credentials
