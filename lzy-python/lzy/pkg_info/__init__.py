@@ -4,10 +4,10 @@ from types import ModuleType
 from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import pkg_resources
-import requests
 import yaml
 from importlib_metadata import packages_distributions
 from stdlib_list import stdlib_list
+from poetry.repositories.pypi_repository import PyPiRepository
 
 
 # https://stackoverflow.com/a/1883251
@@ -43,6 +43,8 @@ _installed_versions = {
 
 pypi_existence_cache: Dict[str, bool] = dict()
 
+__pypy_repository = PyPiRepository()
+
 
 def create_yaml(installed_packages: Dict[str, Tuple[str, ...]], name: str = "default") -> Tuple[str, str]:
     # always use only first three numbers, otherwise conda won't find
@@ -71,11 +73,12 @@ def exists_in_pypi(package_name: str) -> bool:
     if package_name in pypi_existence_cache:
         return pypi_existence_cache[package_name]
 
-    response = requests.get("https://pypi.python.org/pypi/{}/json"
-                            .format(package_name))
-    result: bool = 200 <= response.status_code < 300
-    pypi_existence_cache[package_name] = result
-    return result
+    for pkg in __pypy_repository.search(package_name):
+        if pkg.name == package_name:
+            pypi_existence_cache[package_name] = True
+            return True
+    pypi_existence_cache[package_name] = False
+    return False
 
 
 version = "3.9" if sys.version_info > (3, 9) else None
