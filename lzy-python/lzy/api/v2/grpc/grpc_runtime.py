@@ -116,10 +116,10 @@ class GrpcRuntime(Runtime):
                 slot = create_slot(os.path.sep.join(("tasks", "snapshot", snapshot_id, call_id)), Direction.OUTPUT)
                 self._channel_manager.touch(slot, self._channel_manager.snapshot_channel(snapshot_id, call_id))
                 path = _get_slot_path(slot)
-                with path.open('wb') as handle:
-                    serializer.serialize_to_file(arg, handle)
-                    handle.flush()
-                    os.fsync(handle.fileno())
+                # with path.open('wb') as handle:
+                #     serializer.serialize_to_file(arg, handle)
+                #     handle.flush()
+                #     os.fsync(handle.fileno())
 
     def _zygote(self, call: LzyCall, serializer: Serializer) -> ZygotePythonFunc:
         if call.op.provisioning.gpu is not None and call.op.provisioning.gpu.is_any:
@@ -160,7 +160,7 @@ class GrpcRuntime(Runtime):
             task_specs: List[TaskSpec] = []
             for call in graph.calls():
                 task_specs.append(self._task_spec(call, snapshot.id(), snapshot.serializer()))
-            # here workflow_id == snapshot_id is assumes, but need to make it separate later
+            # here workflow_id == snapshot_id is assumed, but need to make it separate later
             self._graph_executor_client.execute(snapshot.id(), task_specs)
         finally:
             self._channel_manager.destroy()
