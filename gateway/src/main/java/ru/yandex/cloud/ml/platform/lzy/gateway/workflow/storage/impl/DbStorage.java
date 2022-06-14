@@ -1,15 +1,14 @@
 package ru.yandex.cloud.ml.platform.lzy.gateway.workflow.storage.impl;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
-import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.flywaydb.core.Flyway;
 import ru.yandex.cloud.ml.platform.lzy.gateway.workflow.configs.WorkflowDatabaseConfig;
 import ru.yandex.cloud.ml.platform.lzy.gateway.workflow.storage.Storage;
 
-import java.lang.reflect.Proxy;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.SQLException;
 
 @Singleton
 public class DbStorage implements Storage {
@@ -39,14 +38,6 @@ public class DbStorage implements Storage {
 
     @Override
     public Connection connect() throws SQLException {
-        var conn = dataSource.getConnection();
-
-        return (Connection) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{Connection.class},
-                (proxy, method, args) -> {
-                    if (method.getName().equals("close")) {
-                        System.out.println("close connection");
-                    }
-                    return method.invoke(conn, args);
-                });
+        return dataSource.getConnection();
     }
 }
