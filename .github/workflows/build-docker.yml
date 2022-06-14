@@ -48,3 +48,9 @@ jobs:
           if [[ ${{ github.event.inputs.update }} == true ]]; then FLAGS="$FLAGS --update"; fi
           if [[ ${{ github.event.inputs.servant-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
           bash deployment/push-docker.sh "${{ github.ref_name }}" "${{ github.event.inputs.tag }}" $FLAGS
+
+      - name: 'Delete docker images'
+        run: |
+          docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
+          export REUSED_BASE_IMAGES="findepi/graalvm:java17-all|nvidia/cuda:11.2.0-devel-ubuntu20.04|lzydock/lzy-servant-base:master"
+          docker image rm $(docker image ls -q | grep -v "$(docker image ls --format "{{.ID}}\t{{.Repository}}:{{.Tag}}" | grep -E "$REUSED_BASE_IMAGES" | awk '{print $1}')")
