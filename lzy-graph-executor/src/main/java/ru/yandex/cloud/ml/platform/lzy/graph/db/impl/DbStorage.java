@@ -14,7 +14,6 @@ import java.sql.SQLException;
 @Singleton
 public class DbStorage implements Storage {
     private final DataSource dataSource;
-    private final static Logger LOG = LogManager.getLogger(DbStorage.class);
 
     @Inject
     public DbStorage(DataSource dataSource) {
