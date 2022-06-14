@@ -119,7 +119,5 @@ jobs:
 
       - name: 'Clear after tests'
         if: always()
-        run: |
-          sudo umount -f /tmp/lzy* || sudo umount -f /tmp/term* || rm -rf /tmp/lzy* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
-          docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
+        run: sudo umount -f /tmp/lzy* || sudo umount -f /tmp/term* || rm -rf /tmp/lzy* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
   #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml

@@ -38,6 +38,7 @@ if [[ $REBUILD = true ]]; then
     docker build -t lzydock/default-env:from-tar -f lzy-servant/docker/DefaultEnv.Dockerfile .
     docker save -o lzy-servant/docker/default-env-image.tar lzydock/default-env:from-tar
     docker build -t lzy-servant-base -t lzydock/lzy-servant-base:master -f lzy-servant/docker/System.Base.Dockerfile .
+    rm -f lzy-servant/docker/default-env-image.tar
   fi
   mvn clean install -DskipTests
   docker build -t lzy-servant -f lzy-servant/docker/System.Dockerfile .
@@ -69,8 +70,8 @@ for SERVICE in $SERVICES; do
     TAG="$CUSTOM_TAG"
   fi
   NEW_TAG="lzydock/$SERVICE:$BRANCH-$TAG"
+  docker tag "$SERVICE" "$NEW_TAG" && docker image rm "$SERVICE"
   echo "pushing $NEW_TAG"
-  docker tag "$SERVICE" "$NEW_TAG"
   docker push "$NEW_TAG"
   echo ""
   NL=$'\n'
