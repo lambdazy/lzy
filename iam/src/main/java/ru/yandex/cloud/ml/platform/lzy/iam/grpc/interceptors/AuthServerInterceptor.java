@@ -22,23 +22,23 @@ public class AuthServerInterceptor implements ServerInterceptor {
 
     private final Function<AuthException, StatusException> exceptionMapper;
     private final Set<MethodDescriptor<?, ?>> unauthenticatedMethods;
-    private final AuthenticateService cloudAuthClient;
+    private final AuthenticateService authenticateService;
 
-    public AuthServerInterceptor(AuthenticateService cloudAuthClient) {
-        this(AuthServerInterceptor::defaultExceptionMapper, cloudAuthClient);
+    public AuthServerInterceptor(AuthenticateService authenticateService) {
+        this(AuthServerInterceptor::defaultExceptionMapper, authenticateService);
     }
 
     public AuthServerInterceptor(Function<AuthException, StatusException> exceptionMapper,
-                                 AuthenticateService cloudAuthClient) {
-        this(exceptionMapper, ImmutableSet.of(), cloudAuthClient);
+                                 AuthenticateService authenticateService) {
+        this(exceptionMapper, ImmutableSet.of(), authenticateService);
     }
 
     AuthServerInterceptor(Function<AuthException, StatusException> exceptionMapper,
                           Set<MethodDescriptor<?, ?>> unauthenticatedMethods,
-                          AuthenticateService cloudAuthClient) {
+                          AuthenticateService authenticateService) {
         this.exceptionMapper = exceptionMapper;
         this.unauthenticatedMethods = unauthenticatedMethods;
-        this.cloudAuthClient = cloudAuthClient;
+        this.authenticateService = authenticateService;
     }
 
     private static StatusException defaultExceptionMapper(AuthException e) {
@@ -60,7 +60,7 @@ public class AuthServerInterceptor implements ServerInterceptor {
                     .addAll(unauthenticatedMethods).build();
         }
 
-        return new AuthServerInterceptor(exceptionMapper, unauthenticatedMethodSet, cloudAuthClient);
+        return new AuthServerInterceptor(exceptionMapper, unauthenticatedMethodSet, authenticateService);
     }
 
     @Override
@@ -100,7 +100,7 @@ public class AuthServerInterceptor implements ServerInterceptor {
             } else {
                 throw new IllegalStateException("Unknown kind of credentials");
             }
-            Subject subject = cloudAuthClient.authenticate(credentials);
+            Subject subject = authenticateService.authenticate(credentials);
             return new AuthenticationContext(token, credentials, subject);
         }
     }

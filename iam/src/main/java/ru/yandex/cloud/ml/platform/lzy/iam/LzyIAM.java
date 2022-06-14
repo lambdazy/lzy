@@ -10,9 +10,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 import ru.yandex.cloud.ml.platform.lzy.iam.configs.ServiceConfig;
+import ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzyABSService;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzyASService;
-import ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors.InternalAuthInterceptor;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzyAuthService;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzySubjectService;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.impl.DbAuthService;
@@ -39,8 +39,8 @@ public class LzyIAM {
                 ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getServerPort())
                         .permitKeepAliveWithoutCalls(true)
                         .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
-                InternalAuthInterceptor internalAuthInterceptor =
-                        new InternalAuthInterceptor(context.getBean(DbAuthService.class));
+                AuthServerInterceptor internalAuthInterceptor =
+                        new AuthServerInterceptor(context.getBean(DbAuthService.class));
                 LzyASService accessService = context.getBean(LzyASService.class);
                 LzyABSService accessBindingService = context.getBean(LzyABSService.class);
                 LzySubjectService subjectService = context.getBean(LzySubjectService.class);

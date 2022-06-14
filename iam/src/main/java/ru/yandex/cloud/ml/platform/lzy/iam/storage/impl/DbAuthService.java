@@ -24,12 +24,13 @@ import java.sql.SQLException;
 
 @Singleton
 @Requires(beans = Storage.class)
-public class DbAuthService {
+public class DbAuthService implements AuthenticateService {
     private static final Logger LOG = LogManager.getLogger(DbAuthService.class);
 
     @Inject
     private Storage storage;
 
+    @Override
     public Subject authenticate(Credentials credentials) throws AuthException {
         Subject subject;
         if (credentials instanceof JwtCredentials) {
