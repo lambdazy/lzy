@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package yandex.cloud.lzy.v1;
+
+import "yandex/cloud/lzy/v1/lzy-iam.proto";
+
+option go_package = "lzy";
+option java_outer_classname = "LAS";
+option java_package = "yandex.cloud.lzy.v1";
+
+service LzyAuthenticateService {
+  rpc Authenticate (AuthenticateRequest) returns (yandex.cloud.lzy.v1.Subject);
+}
+
+message AuthenticateRequest {
+}

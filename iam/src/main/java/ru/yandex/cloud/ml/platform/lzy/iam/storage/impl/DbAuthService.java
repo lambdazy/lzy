@@ -5,7 +5,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AuthenticateService;
+import ru.yandex.cloud.ml.platform.lzy.iam.clients.AuthenticateService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
