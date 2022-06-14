@@ -1,8 +1,12 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
 import com.google.protobuf.Timestamp;
+import jdk.jshell.spi.ExecutionControl.NotImplementedException;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.CloudpickledPythonClassSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.ProtoSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.*;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
@@ -15,6 +19,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Builder;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations.SchemeType;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
 
@@ -116,8 +121,17 @@ public abstract class GrpcConverter {
         return execution;
     }
 
-    public static DataSchema contentTypeFrom(String contentTypeJson) {
-        return null;
+    public static DataSchema contentTypeFrom(Operations.DataScheme dataScheme) {
+        Operations.SchemeType v = dataScheme.getSchemeType();
+        if (v.equals(SchemeType.proto)) {
+            throw new RuntimeException(new NotImplementedException(""));
+        } else if (v.equals(SchemeType.cloudpickle)) {
+            return new CloudpickledPythonClassSchema(dataScheme.getType());
+        } else if (v.equals(SchemeType.plain)) {
+            return new PlainTextFileSchema();
+        } else {
+            throw new RuntimeException(new NotImplementedException(""));
+        }
     }
 
     public static Operations.Zygote to(Zygote zygote) {
@@ -186,8 +200,11 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static String to(DataSchema contentType) {
-        return "not implemented yet";
+    public static Operations.DataScheme to(DataSchema dataSchema) {
+        return Operations.DataScheme.newBuilder()
+            .setType(dataSchema.typeDescription())
+            .setSchemeType(toSchemeType(dataSchema))
+            .build();
     }
 
     private static Operations.Provisioning to(Provisioning provisioning) {
@@ -199,10 +216,10 @@ public abstract class GrpcConverter {
     }
 
     public static Channels.Channel to(ChannelSpec channel) {
-        final Channels.Channel.Builder builder = Channels.Channel.newBuilder();
-        builder.setChannelId(channel.name());
-        builder.setContentType(to(channel.contentType()));
-        return builder.build();
+        return Channels.Channel.newBuilder()
+            .setChannelId(channel.name())
+            .setContentType(to(channel.contentType()))
+            .build();
     }
 
     public static LzyWhiteboard.Snapshot to(Snapshot snapshot) {
@@ -325,6 +342,10 @@ public abstract class GrpcConverter {
                     .build()
             ).collect(Collectors.toList()))
             .build();
+    }
+
+    public static Operations.SchemeType toSchemeType(DataSchema dataSchema) {
+        return Operations.SchemeType.valueOf(dataSchema.typeOfScheme().getName());
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {
@@ -500,6 +521,7 @@ public abstract class GrpcConverter {
     }
 
     private static class EnvImpl implements Env {
+
         private final BaseEnv baseEnv;
         private final AuxEnv auxEnv;
 
@@ -553,6 +575,7 @@ public abstract class GrpcConverter {
     }
 
     private static class BaseEnvAdapter implements BaseEnv {
+
         private final Operations.BaseEnv env;
 
         public BaseEnvAdapter(Operations.BaseEnv env) {

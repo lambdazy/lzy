@@ -141,10 +141,10 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     def dump_arguments(self, args: Iterable[Tuple[str, Any]]):
         for entry_id, obj in args:
             path = self._channel_manager.out_slot(entry_id)
-            with path.open('wb') as handle:
-                self._file_serializer.serialize_to_file(obj, handle)
-                handle.flush()
-                os.fsync(handle.fileno())
+            with path.open('wb') as file:
+                self._file_serializer.serialize_to_file(obj, file)
+                file.flush()
+                os.fsync(file.fileno())
 
     @classmethod
     def _execution_exception_message(
@@ -178,38 +178,41 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 # noinspection PyProtectedMember
                 op: LzyOp = arg._op
                 op.execute()
-                yield name, self.__EntryId(op.return_entry_id())
+                yield name, op.signature.func.output_type, self.__EntryId(op.return_entry_id())
                 continue
-            yield name, arg
+            yield name, type(arg), arg
 
     def execution_logic(self):
         execution_id = str(uuid.uuid4())
         self._log.info(f"Running zygote {self._zygote.name}, execution id {execution_id}")
 
-        args = self.resolve_args()
         bindings: Bindings = []
         write_later: List[Tuple[str, Any]] = []
         inputs: List[InputExecutionValue] = []
 
-        for name, data in args:
+        for name, out_type, data in self.resolve_args():
             slot = self._zygote.slot(name)
             if isinstance(data, self.__EntryId):
-                channel = self._channel_manager.channel(entry_id=data.entry_id)
-                inputs.append(InputExecutionValue(name, data.entry_id, None))
-                bindings.append(Binding(slot, channel))
+                entry_id = data.entry_id
+                hash_ = None
             else:
                 entry_id = self._entry_id_generator.generate(slot.name)
-                channel = self._channel_manager.channel(entry_id)
-                bindings.append(Binding(slot, channel))
+                hash_ = self._hasher.hash(data)
                 write_later.append((entry_id, data))
-                inputs.append(InputExecutionValue(name, entry_id, self._hasher.hash(data)))
 
-        bindings.append(Binding(self.zygote.return_slot, self._channel_manager.channel(self.return_entry_id())))
+            channel = self._channel_manager.channel(entry_id, out_type)
+            bindings.append(Binding(slot, channel))
+            inputs.append(InputExecutionValue(name, entry_id, hash_))
+
+        bindings.append(
+            Binding(self.zygote.return_slot,
+                    self._channel_manager.channel(self.return_entry_id(), self.signature.func.output_type))
+        )
 
         if self._cache_policy.restore():
             executions = self._servant.resolve_executions(self.signature.func.name, self._snapshot_id, inputs)
             if len(executions) >= 1:
-                return_value = filter(lambda x: x.name == "return", executions[0].outputs).__next__()
+                return_value = next(filter(lambda x: x.name == "return", executions[0].outputs))
                 self._return_entry_id = return_value.entry_id
                 return
 

@@ -15,6 +15,8 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
@@ -250,7 +252,10 @@ public class SessionHelper {
         return Optional.of(
             new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(), snapshotEntryModel.getEntryState(), entry,
                 Set.copyOf(dependentEntryIds),
-                snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri())));
+                snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri()),
+                DataSchema.buildDataSchema(snapshotEntryModel.getTypeOfScheme(),
+                    snapshotEntryModel.getTypeDescription())
+            ));
     }
 
     public static List<String> resolveWhiteboardIds(String namespace, List<String> tags,

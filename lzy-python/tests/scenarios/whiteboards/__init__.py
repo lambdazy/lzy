@@ -92,8 +92,13 @@ with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
     wb_id = wb.__id__
 
 env = LzyRemoteEnv()
-wb = env.whiteboard(wb_id, SimpleWhiteboard)
+# wb = env.whiteboard(wb_id, SimpleWhiteboard)
+wb = env.whiteboard_by_id(wb_id)
 print(wb.a, wb.a)
+print("Len: " + str(len(wb.b)))
+
+wb = env.whiteboard_by_id(wb_id)
+print(wb.a, wb.b)
 print("Len: " + str(len(wb.b)))
 
 wb = AnotherSimpleWhiteboard()
@@ -188,7 +193,8 @@ with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
     wb_id = wb.__id__
 
 env = LzyRemoteEnv()
-wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
+# wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
+wb = env.whiteboard_by_id(wb_id)
 print("string_field value in WhiteboardWithLzyMessageFields is " + wb.a.string_field)
 print("int_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.int_field))
 print(
@@ -205,12 +211,14 @@ print(
 print("enum_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.enum_field))
 print("non lzy message int field in WhiteboardWithLzyMessageFields is " + str(wb.b))
 
-wb = env.whiteboard(wb_id, WhiteboardWithOneLzyMessageField)
+# wb = env.whiteboard(wb_id, WhiteboardWithOneLzyMessageField)
+wb = env.whiteboard_by_id(wb_id)
 print("string_field value in WhiteboardWithOneLzyMessageField is " + wb.a.string_field)
 print("int_field value in WhiteboardWithOneLzyMessageField is " + str(wb.a.int_field))
 
 try:
-    wb = env.whiteboard(wb_id, WhiteboardWithTwoLzyMessageFields)
+    # wb = env.whiteboard(wb_id, WhiteboardWithTwoLzyMessageFields)
+    wb = env.whiteboard_by_id(wb_id)
     print("Could create WhiteboardWithTwoLzyMessageFields")
 except TypeError:
     print(
@@ -224,7 +232,8 @@ with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
 
 env = LzyRemoteEnv()
 try:
-    wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
+    # wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
+    wb = env.whiteboard_by_id(wb_id)
     print("Could create WhiteboardWithLzyMessageFields")
 except TypeError:
     print("Could not create WhiteboardWithLzyMessageFields because of a missing field")
@@ -236,7 +245,8 @@ with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
     wb_id = wb.__id__
 
 env = LzyRemoteEnv()
-wb = env.whiteboard(wb_id, DefaultWhiteboard)
+# wb = env.whiteboard(wb_id, DefaultWhiteboard)
+wb = env.whiteboard_by_id(wb_id)
 print(
     f"Value a in DefaultWhiteboard is {wb.a}, b length is {len(wb.b)}, c is {wb.c}, d is {wb.d}"
 )

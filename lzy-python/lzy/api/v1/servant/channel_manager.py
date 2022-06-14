@@ -15,10 +15,10 @@ class ChannelManager(abc.ABC):
         self._entry_id_to_channel: Dict[str, Channel] = {}
         self._snapshot_id = snapshot_id
 
-    def channel(self, entry_id: str) -> Channel:
+    def channel(self, entry_id: str, type_: type) -> Channel:
         if entry_id in self._entry_id_to_channel:
             return self._entry_id_to_channel[entry_id]
-        channel = Channel(entry_id, SnapshotChannelSpec(self._snapshot_id, entry_id))
+        channel = Channel(entry_id, type_, SnapshotChannelSpec(self._snapshot_id, entry_id))
         self._create_channel(channel)
         self._entry_id_to_channel[entry_id] = channel
         return channel
@@ -41,7 +41,10 @@ class ChannelManager(abc.ABC):
 
     def _resolve(self, entry_id: str, direction: Direction) -> Path:
         slot = create_slot(os.path.sep.join(("tasks", "snapshot", self._snapshot_id, entry_id)), direction)
-        self._touch(slot, self.channel(entry_id))
+        channel = self._entry_id_to_channel.get(entry_id, None)
+        if channel is None:
+            raise RuntimeError("there is no channel to resolve")
+        self._touch(slot, channel)
         path = self._resolve_slot_path(slot)
         return path
 
@@ -100,7 +103,7 @@ class LocalChannelManager(ChannelManager):
     def _resolve_slot_path(self, slot: Slot) -> Path:
         pass
 
-    def channel(self, entry_id: str) -> Channel:
+    def channel(self, entry_id: str, type_: type) -> Channel:
         pass
 
     def destroy(self, entry_id: str):

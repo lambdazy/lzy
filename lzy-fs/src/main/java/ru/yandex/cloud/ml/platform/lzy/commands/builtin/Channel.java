@@ -1,12 +1,25 @@
 package ru.yandex.cloud.ml.platform.lzy.commands.builtin;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+import javax.xml.crypto.Data;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.CloudpickledPythonClassSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.ProtoSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.SchemeType;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -16,11 +29,13 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import java.net.URI;
 import java.util.Base64;
 import java.util.UUID;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations.DataScheme;
 
 public final class Channel implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Channel.class);
     private static final Options options = new Options();
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
     /*
      * ~$ channel <common-opts> channel-cmd channel-name -c content-type -t channel-type -s snapshot-id -e entry-id
      *
@@ -74,9 +89,20 @@ public final class Channel implements LzyCommand {
 
                 final Channels.ChannelCreate.Builder createCommandBuilder = Channels.ChannelCreate.newBuilder();
 
-                if (localCmd.hasOption('c')) {
-                    createCommandBuilder.setContentType(command.getOptionValue('c'));
+                if (!localCmd.hasOption('c')) {
+                    throw new IllegalArgumentException("Channel data scheme is not provided");
                 }
+
+                final String mappingFile = localCmd.getOptionValue('c');
+                // TODO(aleksZubakov): drop this ugly stuff when already fully switched to grpc api
+                final Map<String, String> bindings = new HashMap<>();
+                bindings.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
+
+                String dataSchemeType = bindings.get("schemeType");
+                String contentType = bindings.getOrDefault("type", "");
+                LOG.info("building dataschema from args {} and {}", dataSchemeType, contentType);
+                DataSchema data = DataSchema.buildDataSchema(dataSchemeType, contentType);
+                createCommandBuilder.setContentType(to(data));
 
                 if ("snapshot".equals(localCmd.getOptionValue('t'))) {
                     createCommandBuilder.setSnapshot(

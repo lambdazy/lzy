@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 import json
 from enum import Enum
+from typing import Dict
 
 
 class Media(Enum):
@@ -30,8 +31,15 @@ class Direction(Enum):
 class DataSchema:
     # noinspection PyMethodMayBeStatic
     # pylint: disable=no-self-use
+    def to_dict(self) -> Dict[str, str]:
+        return {
+           "type": "",
+           "schemeType": "cloudpickle",
+        }
+
     def to_json(self) -> str:
-        return "not implemented yet"
+        # TODO(aleksZubakov): has it be here?
+        return json.dumps(self.to_dict(), sort_keys=True)
 
 
 # actually Slot should be just marked as
@@ -64,7 +72,7 @@ class Slot(SlotDataclassMixin, ABC):
             "name": self.name,
             "media": self.media.to_json(),
             "direction": self.direction.to_json(),
-            "contentType": self.content_type.to_json(),
+            "contentType": self.content_type.to_dict(),
         }
 
     def to_json(self):
