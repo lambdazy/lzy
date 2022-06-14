@@ -6,5 +6,25 @@ create table if not exists workflows (
     execution_id varchar(255),
     execution_started_at timestamp,
 
-    PRIMARY KEY (user_id, workflow_name)
+    primary key (user_id, workflow_name)
 );
+
+--
+create table if not exists portals (
+    workflow_execution_id varchar(255) not null,
+    portal_servant_id varchar(255) not null,
+    portal_address varchar(255) not null, -- grpc endpoint in `host:port` format
+    created_at timestamp not null,
+
+    primary key (workflow_execution_id)
+);
+
+-- create table if not exists disks (
+--     workflow_name varchar(255) not null,
+--     disk_id varchar(255) not null,
+--     docker_image varchar(4096) not null default 'default',
+--     conda_yaml varchar(1048576) not null default '',
+--     created_at timestamp not null,
+--
+--     primary key (workflow_name, disk_id)
+-- );

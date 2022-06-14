@@ -2,6 +2,7 @@ gateway:
   port: 8453
 
 workflows:
+  server-address: 'localhost:7777'
   database:
     url: 'jdbc:postgresql://localhost:5432/lzy_db'
     username: 'lzy_user'

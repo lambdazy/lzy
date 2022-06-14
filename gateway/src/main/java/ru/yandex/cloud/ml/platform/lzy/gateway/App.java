@@ -12,6 +12,8 @@ import org.apache.logging.log4j.core.LoggerContext;
 import ru.yandex.cloud.ml.platform.lzy.gateway.configs.GatewayServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.gateway.workflow.WorkflowService;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import sun.misc.Signal;
+import sun.misc.SignalHandler;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -26,7 +28,7 @@ public class App {
         LOG = LogManager.getLogger(App.class);
     }
 
-    public static void main(String[] args) throws InterruptedException, IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         try (ApplicationContext context = ApplicationContext.run()) {
             try {
                 var gatewayServiceConfig = context.getBean(GatewayServiceConfig.class);
@@ -42,6 +44,14 @@ public class App {
                 final Server server = builder.build();
                 server.start();
 
+                SignalHandler signalHandler = sig -> {
+                    System.out.println("gRPC server is shutting down by signal " + sig);
+                    server.shutdown();
+                };
+
+                Signal.handle(new Signal("INT"), signalHandler);
+                Signal.handle(new Signal("TERM"), signalHandler);
+
                 Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                     System.out.println("gRPC server is shutting down!");
                     server.shutdown();
@@ -49,7 +59,7 @@ public class App {
 
                 server.awaitTermination();
             } catch (NoSuchBeanException e) {
-                LOG.info("Shutdown");
+                LOG.error(e);
             }
         }
     }

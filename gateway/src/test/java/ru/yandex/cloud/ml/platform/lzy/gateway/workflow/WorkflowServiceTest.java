@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.gateway.workflow;
 
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -15,14 +16,17 @@ import static org.junit.Assert.assertEquals;
 
 public class WorkflowServiceTest {
     private ApplicationContext ctx;
-    private Storage storage;
     private WorkflowService workflowService;
 
     @Before
     public void setUp() {
         ctx = ApplicationContext.run();
-        storage = ctx.getBean(Storage.class);
         workflowService = ctx.getBean(WorkflowService.class);
+    }
+
+    @After
+    public void tearDown() {
+        ctx.stop();
     }
 
     @Test

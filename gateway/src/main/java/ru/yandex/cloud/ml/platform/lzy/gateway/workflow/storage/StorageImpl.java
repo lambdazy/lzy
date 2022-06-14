@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.gateway.workflow.storage.impl;
+package ru.yandex.cloud.ml.platform.lzy.gateway.workflow.storage;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import jakarta.inject.Inject;
@@ -11,13 +11,13 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 @Singleton
-public class DbStorage implements Storage {
+public class StorageImpl implements Storage {
     private static final String VALIDATION_QUERY_SQL = "select 1";
 
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public DbStorage(WorkflowDatabaseConfig dbConfig) {
+    public StorageImpl(WorkflowDatabaseConfig dbConfig) {
         this.dataSource = new ComboPooledDataSource();
         dataSource.setJdbcUrl(dbConfig.getUrl());
         dataSource.setUser(dbConfig.getUsername());
@@ -38,6 +38,8 @@ public class DbStorage implements Storage {
 
     @Override
     public Connection connect() throws SQLException {
-        return dataSource.getConnection();
+        var conn = dataSource.getConnection();
+        conn.setAutoCommit(true);
+        return conn;
     }
 }
