@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,6 +25,7 @@ public class DaoTest {
     public void setUp() {
         ApplicationContext context = ApplicationContext.run();
         dao = context.getBean(GraphExecutionDao.class);
+        Configurator.setAllLevels("com.mchange.v2.c3p0", Level.ALL);
     }
 
     @Test

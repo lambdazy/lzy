@@ -47,8 +47,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
 
     @Override
     public GraphExecutionState create(String workflowId, GraphDescription description) throws GraphDaoException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        try (final PreparedStatement st = storage.connect().prepareStatement(
+        try (final Connection con = storage.connect();
+             final PreparedStatement st = con.prepareStatement(
             "INSERT INTO graph_execution_state ( "
                 + GRAPH_FIELDS_LIST
                 + " ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"
@@ -71,7 +71,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Nullable
     @Override
     public GraphExecutionState get(String workflowId, String graphExecutionId) throws GraphDaoException {
-        try (final PreparedStatement st = storage.connect().prepareStatement(
+        try (final Connection con = storage.connect();
+             final PreparedStatement st = con.prepareStatement(
             "SELECT " + GRAPH_FIELDS_LIST + " FROM graph_execution_state WHERE workflow_id = ? AND id = ?"
         )) {
             st.setString(1, workflowId);
@@ -90,7 +91,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
 
     @Override
     public List<GraphExecutionState> filter(GraphExecutionState.Status status) throws GraphDaoException {
-        try (final PreparedStatement st = storage.connect().prepareStatement(
+        try (final Connection con = storage.connect();
+             final PreparedStatement st = con.prepareStatement(
             "SELECT " + GRAPH_FIELDS_LIST + " FROM graph_execution_state"
                 + " WHERE status = ? "
                 + " ORDER BY last_updated "
@@ -106,7 +108,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
 
     @Override
     public List<GraphExecutionState> list(String workflowId) throws GraphDaoException {
-        try (final PreparedStatement st = storage.connect().prepareStatement(
+        try (final Connection con = storage.connect();
+             final PreparedStatement st = con.prepareStatement(
             "SELECT " + GRAPH_FIELDS_LIST + " FROM graph_execution_state WHERE workflow_id = ?"
         )) {
             st.setString(1, workflowId);
@@ -162,9 +165,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
 
     @Override
     public void free(GraphExecutionState graph) throws GraphDaoException {
-        try {
-            final Connection con = storage.connect();
-            try (final PreparedStatement st = con.prepareStatement(
+        try (final Connection con = storage.connect();
+            final PreparedStatement st = con.prepareStatement(
                 "UPDATE graph_execution_state "
                     + "SET workflow_id = ?, "
                     + "id = ?, "
@@ -175,11 +177,10 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
                     + "current_execution_group_json = ?, last_updated = ?, "
                     + "acquired_before = ? "
                     + "WHERE workflow_id = ? AND id = ?;")) {
-                setGraphFields(st, graph);
-                st.setString(10, graph.workflowId());
-                st.setString(11, graph.id());
-                st.executeUpdate();
-            }
+            setGraphFields(st, graph);
+            st.setString(10, graph.workflowId());
+            st.setString(11, graph.id());
+            st.executeUpdate();
         } catch (Exception e) {
             throw new GraphDaoException(e);
         }
@@ -190,8 +191,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     }
 
     private void executeInTransaction(Transaction transaction) throws GraphDaoException {
-        try {
-            final Connection con = storage.connect();
+        try (final Connection con = storage.connect()) {
             try {
                 con.setAutoCommit(false); // To execute many queries in one transaction
                 transaction.execute(con);

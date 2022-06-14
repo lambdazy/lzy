@@ -7,6 +7,8 @@ public class DbConfig {
     private String url;
     private String username;
     private String password;
+    private int minPoolSize;
+    private int maxPoolSize;
     private boolean enabled;
 
     public boolean isEnabled() {
@@ -39,5 +41,21 @@ public class DbConfig {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public int getMinPoolSize() {
+        return minPoolSize;
+    }
+
+    public void setMinPoolSize(int minPoolSize) {
+        this.minPoolSize = minPoolSize;
+    }
+
+    public int getMaxPoolSize() {
+        return maxPoolSize;
+    }
+
+    public void setMaxPoolSize(int maxPoolSize) {
+        this.maxPoolSize = maxPoolSize;
     }
 }
