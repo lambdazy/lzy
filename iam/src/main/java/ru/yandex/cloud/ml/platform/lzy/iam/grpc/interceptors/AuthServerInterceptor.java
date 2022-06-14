@@ -2,11 +2,11 @@ package ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors;
 
 import com.google.common.collect.ImmutableSet;
 import io.grpc.*;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AuthenticateService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthUnauthenticatedException;
+import ru.yandex.cloud.ml.platform.lzy.iam.clients.AuthenticateService;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.TokenParser;
@@ -18,39 +18,39 @@ import java.util.function.Function;
 import static ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcHeaders.AUTHORIZATION;
 
 
-public class AuthInterceptor implements ServerInterceptor {
+public class AuthServerInterceptor implements ServerInterceptor {
 
     private final Function<AuthException, StatusException> exceptionMapper;
     private final Set<MethodDescriptor<?, ?>> unauthenticatedMethods;
-    private final AuthenticateService cloudAuthClient;
+    private final AuthenticateService authenticateService;
 
-    public AuthInterceptor(AuthenticateService cloudAuthClient) {
-        this(AuthInterceptor::defaultExceptionMapper, cloudAuthClient);
+    public AuthServerInterceptor(AuthenticateService authenticateService) {
+        this(AuthServerInterceptor::defaultExceptionMapper, authenticateService);
     }
 
-    public AuthInterceptor(Function<AuthException, StatusException> exceptionMapper,
-                           AuthenticateService cloudAuthClient) {
-        this(exceptionMapper, ImmutableSet.of(), cloudAuthClient);
+    public AuthServerInterceptor(Function<AuthException, StatusException> exceptionMapper,
+                                 AuthenticateService authenticateService) {
+        this(exceptionMapper, ImmutableSet.of(), authenticateService);
     }
 
-    AuthInterceptor(Function<AuthException, StatusException> exceptionMapper,
-                    Set<MethodDescriptor<?, ?>> unauthenticatedMethods,
-                    AuthenticateService cloudAuthClient) {
+    AuthServerInterceptor(Function<AuthException, StatusException> exceptionMapper,
+                          Set<MethodDescriptor<?, ?>> unauthenticatedMethods,
+                          AuthenticateService authenticateService) {
         this.exceptionMapper = exceptionMapper;
         this.unauthenticatedMethods = unauthenticatedMethods;
-        this.cloudAuthClient = cloudAuthClient;
+        this.authenticateService = authenticateService;
     }
 
     private static StatusException defaultExceptionMapper(AuthException e) {
         return e.status().withDescription(e.getMessage()).asException(new Metadata());
     }
 
-    public AuthInterceptor withUnauthenticated(MethodDescriptor<?, ?>... unauthenticatedMethods) {
+    public AuthServerInterceptor withUnauthenticated(MethodDescriptor<?, ?>... unauthenticatedMethods) {
         return this.withUnauthenticated(Arrays.asList(unauthenticatedMethods));
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public AuthInterceptor withUnauthenticated(Iterable<MethodDescriptor<?, ?>> unauthenticatedMethods) {
+    public AuthServerInterceptor withUnauthenticated(Iterable<MethodDescriptor<?, ?>> unauthenticatedMethods) {
         ImmutableSet unauthenticatedMethodSet;
         if (this.unauthenticatedMethods.isEmpty()) {
             unauthenticatedMethodSet = ImmutableSet.copyOf(unauthenticatedMethods);
@@ -60,7 +60,7 @@ public class AuthInterceptor implements ServerInterceptor {
                     .addAll(unauthenticatedMethods).build();
         }
 
-        return new AuthInterceptor(exceptionMapper, unauthenticatedMethodSet, cloudAuthClient);
+        return new AuthServerInterceptor(exceptionMapper, unauthenticatedMethodSet, authenticateService);
     }
 
     @Override
@@ -100,7 +100,7 @@ public class AuthInterceptor implements ServerInterceptor {
             } else {
                 throw new IllegalStateException("Unknown kind of credentials");
             }
-            Subject subject = cloudAuthClient.authenticate(credentials);
+            Subject subject = authenticateService.authenticate(credentials);
             return new AuthenticationContext(token, credentials, subject);
         }
     }
