@@ -10,6 +10,7 @@ from lzy.api.v1.lazy_op import LzyLocalOp, LzyRemoteOp
 from lzy._proxy.result import Nothing
 from lzy.api.v1.servant.model.zygote import Gpu, Provisioning
 from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
+from lzy.api.v1.whiteboard import view, whiteboard
 from lzy.api.v1.utils import infer_return_type, lazy_proxy, infer_call_signature
 from lzy.api.v1.env import LzyRemoteEnv, LzyLocalEnv
 
