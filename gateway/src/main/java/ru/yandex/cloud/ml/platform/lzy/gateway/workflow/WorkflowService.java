@@ -197,7 +197,7 @@ public class WorkflowService extends LzyApiImplBase {
                 update workflows
                 set execution_id = null, execution_started_at = null
                 where user_id=? and workflow_name=? and execution_id=?
-                """, new String[]{"user_id"});
+                """);
             stmt.setString(1, userId);
             stmt.setString(2, request.getWorkflowName());
             stmt.setString(3, request.getExecutionId());
