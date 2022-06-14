@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import ru.yandex.cloud.ml.platform.lzy.graph.api.SchedulerApi;
 import ru.yandex.cloud.ml.platform.lzy.graph.config.ServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.graph.db.GraphExecutionDao.GraphDaoException;
 import ru.yandex.cloud.ml.platform.lzy.graph.exec.BfsGraphProcessor;
@@ -35,7 +36,6 @@ public class GraphExecutorTest {
 
     private SchedulerApiMock scheduler;
     private GraphDaoMock dao;
-    private QueueManager queue;
     private final int TIMEOUT = 100;
 
     @Before
@@ -50,13 +50,6 @@ public class GraphExecutorTest {
         });
 
         dao = new GraphDaoMock();
-
-        GraphBuilder builder = new GraphBuilderImpl();
-        GraphProcessor processor = new BfsGraphProcessor(scheduler, builder);
-        ServiceConfig config = new ServiceConfig();
-        config.setExecutorsCount(1);
-        config.setExecutionStepTimeoutSecs(10);
-        queue = new QueueManager(processor, dao, config);
     }
 
     @Test
@@ -148,7 +141,7 @@ public class GraphExecutorTest {
             tester.awaitExecutingNow("2", "3");
             tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
 
-            queue.stopGraph("", tester.state.id(), "Stopped from test");
+            tester.queue.stopGraph("", tester.state.id(), "Stopped from test");
 
             //Step 3
             tester.waitForStatus(Tasks.TaskProgress.Status.ERROR, "1", "2", "3");
@@ -189,14 +182,74 @@ public class GraphExecutorTest {
         }
     }
 
+    @Test
+    public void testRestore() throws InterruptedException, GraphDaoException {
+        final GraphDescription graph = new GraphDescriptionBuilder()
+            .addVertexes("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
+            .addEdge("1", "2")
+            .addEdge("3", "2")
+            .addEdge("3", "4")
+            .addEdge("5", "6")
+            .addEdge("7", "6")
+            .addEdge("7", "8")
+            .addEdge("9", "10")
+            .addEdge("10", "8")
+            .build();
+
+        final String workflowId, graphId;
+
+        try (var tester = new GraphTester(graph)) {
+            workflowId = tester.state.workflowId();
+            graphId = tester.state.id();
+
+            // Step 1
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1", "3", "5", "7", "9");
+            tester.awaitExecutingNow("1", "3", "5", "7", "9");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "1", "5", "7", "9");
+
+            // Step 2
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "6", "10");
+            tester.awaitExecutingNow("3", "6", "10");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "6", "10");
+
+            // Step 3
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "8");
+            tester.awaitExecutingNow("3", "8");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "3", "8");
+        }
+
+        try (var tester = new GraphTester(workflowId, graphId)) {
+
+            // Step 4
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2", "4");
+            tester.awaitExecutingNow("2", "4");
+            tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "4");
+
+            // Step 5
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+            tester.waitForStatus(GraphExecutionState.Status.COMPLETED);
+
+        }
+    }
+
     private class GraphTester implements AutoCloseable {
         private final GraphDescription graph;
         private final GraphExecutionState state;
+        private final QueueManager queue;
+
+        GraphTester(String workflowId, String graphId) throws GraphDaoException {
+            this.state = dao.get(workflowId, graphId);
+            Assert.assertNotNull(state);
+            graph = state.description();
+            this.queue = initQueue();
+            this.queue.start();
+        }
 
         GraphTester(GraphDescription graph) throws GraphDaoException {
             this.graph = graph;
-            queue.start();
-            state = queue.startGraph("", graph);
+            this.queue = initQueue();
+            this.queue.start();
+            state = this.queue.startGraph("", graph);
         }
 
         public void awaitExecutingNow(String... taskIds) throws InterruptedException {
@@ -303,5 +356,14 @@ public class GraphExecutorTest {
             }
             return new GraphDescription(tasks);
         }
+    }
+
+    private QueueManager initQueue() {
+        GraphBuilder builder = new GraphBuilderImpl();
+        GraphProcessor processor = new BfsGraphProcessor(scheduler, builder);
+        ServiceConfig config = new ServiceConfig();
+        config.setExecutorsCount(1);
+        config.setExecutionStepTimeoutSecs(10);
+        return new QueueManager(processor, dao, config);
     }
 }
