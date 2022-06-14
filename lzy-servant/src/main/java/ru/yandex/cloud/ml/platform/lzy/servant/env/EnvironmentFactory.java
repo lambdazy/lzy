@@ -13,7 +13,9 @@ public class EnvironmentFactory {
 
     public static Environment create(Env env, StorageClient storage) throws EnvironmentInstallationException {
         final String resourcesPathStr = "/tmp/resources/";
-        final boolean dockerSupported = Boolean.getBoolean(System.getProperty("servant.dockerSupport.enabled", "true"));
+        final boolean dockerSupported = Boolean.parseBoolean(
+            System.getProperty("servant.dockerSupport.enabled", "true")
+        );
 
         final BaseEnvironment baseEnv;
         if (dockerSupported && env.baseEnv() != null) {
