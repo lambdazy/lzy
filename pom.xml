@@ -27,5 +27,6 @@
         <module>lzy-fs</module>
         <module>iam</module>
         <module>jupyter-kernel</module>
+        <module>gateway</module>
     </modules>
 </project>

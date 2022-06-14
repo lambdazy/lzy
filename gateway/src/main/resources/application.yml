@@ -1,0 +1,11 @@
+gateway:
+  port: 8453
+
+workflows:
+  database:
+    url: 'jdbc:postgresql://localhost:5432/lzy_db'
+    username: 'lzy_user'
+    password: 'q'
+    min-pool-size: 1
+    max-pool-size: 5
+
