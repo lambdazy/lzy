@@ -12,7 +12,9 @@ import org.apache.logging.log4j.core.LoggerContext;
 import ru.yandex.cloud.ml.platform.lzy.iam.configs.ServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzyABSService;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzyASService;
-import ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors.AuthInterceptor;
+import ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors.InternalAuthInterceptor;
+import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzyAuthService;
+import ru.yandex.cloud.ml.platform.lzy.iam.grpc.service.LzySubjectService;
 import ru.yandex.cloud.ml.platform.lzy.iam.storage.impl.DbAuthService;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 
@@ -37,13 +39,17 @@ public class LzyIAM {
                 ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getServerPort())
                         .permitKeepAliveWithoutCalls(true)
                         .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
-                AuthInterceptor authInterceptor =
-                        new AuthInterceptor(context.getBean(DbAuthService.class));
+                InternalAuthInterceptor internalAuthInterceptor =
+                        new InternalAuthInterceptor(context.getBean(DbAuthService.class));
                 LzyASService accessService = context.getBean(LzyASService.class);
                 LzyABSService accessBindingService = context.getBean(LzyABSService.class);
-                builder.intercept(authInterceptor);
+                LzySubjectService subjectService = context.getBean(LzySubjectService.class);
+                LzyAuthService authService = context.getBean(LzyAuthService.class);
+                builder.intercept(internalAuthInterceptor);
                 builder.addService(accessService);
                 builder.addService(accessBindingService);
+                builder.addService(subjectService);
+                builder.addService(authService);
 
                 final Server server = builder.build();
                 server.start();

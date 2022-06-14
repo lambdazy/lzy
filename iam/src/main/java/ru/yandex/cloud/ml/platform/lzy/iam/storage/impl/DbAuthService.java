@@ -5,7 +5,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AuthenticateService;
+import ru.yandex.cloud.ml.platform.lzy.iam.clients.AuthenticateService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
@@ -24,13 +24,12 @@ import java.sql.SQLException;
 
 @Singleton
 @Requires(beans = Storage.class)
-public class DbAuthService implements AuthenticateService {
+public class DbAuthService {
     private static final Logger LOG = LogManager.getLogger(DbAuthService.class);
 
     @Inject
     private Storage storage;
 
-    @Override
     public Subject authenticate(Credentials credentials) throws AuthException {
         Subject subject;
         if (credentials instanceof JwtCredentials) {

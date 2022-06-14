@@ -2,13 +2,13 @@ package ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors;
 
 import com.google.common.collect.ImmutableSet;
 import io.grpc.*;
-import ru.yandex.cloud.ml.platform.lzy.iam.authorization.AuthenticateService;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthUnauthenticatedException;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.Subject;
+import ru.yandex.cloud.ml.platform.lzy.iam.storage.impl.DbAuthService;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.TokenParser;
 
 import java.util.Arrays;
@@ -18,24 +18,24 @@ import java.util.function.Function;
 import static ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcHeaders.AUTHORIZATION;
 
 
-public class AuthInterceptor implements ServerInterceptor {
+public class InternalAuthInterceptor implements ServerInterceptor {
 
     private final Function<AuthException, StatusException> exceptionMapper;
     private final Set<MethodDescriptor<?, ?>> unauthenticatedMethods;
-    private final AuthenticateService cloudAuthClient;
+    private final DbAuthService cloudAuthClient;
 
-    public AuthInterceptor(AuthenticateService cloudAuthClient) {
-        this(AuthInterceptor::defaultExceptionMapper, cloudAuthClient);
+    public InternalAuthInterceptor(DbAuthService cloudAuthClient) {
+        this(InternalAuthInterceptor::defaultExceptionMapper, cloudAuthClient);
     }
 
-    public AuthInterceptor(Function<AuthException, StatusException> exceptionMapper,
-                           AuthenticateService cloudAuthClient) {
+    public InternalAuthInterceptor(Function<AuthException, StatusException> exceptionMapper,
+                                   DbAuthService cloudAuthClient) {
         this(exceptionMapper, ImmutableSet.of(), cloudAuthClient);
     }
 
-    AuthInterceptor(Function<AuthException, StatusException> exceptionMapper,
-                    Set<MethodDescriptor<?, ?>> unauthenticatedMethods,
-                    AuthenticateService cloudAuthClient) {
+    InternalAuthInterceptor(Function<AuthException, StatusException> exceptionMapper,
+                            Set<MethodDescriptor<?, ?>> unauthenticatedMethods,
+                            DbAuthService cloudAuthClient) {
         this.exceptionMapper = exceptionMapper;
         this.unauthenticatedMethods = unauthenticatedMethods;
         this.cloudAuthClient = cloudAuthClient;
@@ -45,12 +45,12 @@ public class AuthInterceptor implements ServerInterceptor {
         return e.status().withDescription(e.getMessage()).asException(new Metadata());
     }
 
-    public AuthInterceptor withUnauthenticated(MethodDescriptor<?, ?>... unauthenticatedMethods) {
+    public InternalAuthInterceptor withUnauthenticated(MethodDescriptor<?, ?>... unauthenticatedMethods) {
         return this.withUnauthenticated(Arrays.asList(unauthenticatedMethods));
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public AuthInterceptor withUnauthenticated(Iterable<MethodDescriptor<?, ?>> unauthenticatedMethods) {
+    public InternalAuthInterceptor withUnauthenticated(Iterable<MethodDescriptor<?, ?>> unauthenticatedMethods) {
         ImmutableSet unauthenticatedMethodSet;
         if (this.unauthenticatedMethods.isEmpty()) {
             unauthenticatedMethodSet = ImmutableSet.copyOf(unauthenticatedMethods);
@@ -60,7 +60,7 @@ public class AuthInterceptor implements ServerInterceptor {
                     .addAll(unauthenticatedMethods).build();
         }
 
-        return new AuthInterceptor(exceptionMapper, unauthenticatedMethodSet, cloudAuthClient);
+        return new InternalAuthInterceptor(exceptionMapper, unauthenticatedMethodSet, cloudAuthClient);
     }
 
     @Override

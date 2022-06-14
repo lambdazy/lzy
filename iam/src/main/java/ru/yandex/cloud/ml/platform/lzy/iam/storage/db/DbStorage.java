@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.iam.storage.db;
 
+import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -19,8 +20,9 @@ import java.sql.SQLException;
 @Requires(property = "database.password")
 public class DbStorage implements Storage {
     private static final Logger LOG = LogManager.getLogger(DbStorage.class);
-    private final DbConfig dbConfig;
-    private Connection connection;
+    private static final String VALIDATION_QUERY_SQL = "select 1";
+
+    private final ComboPooledDataSource dataSource;
 
     @Inject
     public DbStorage(DbConfig dbConfig) {
@@ -29,18 +31,21 @@ public class DbStorage implements Storage {
                 .locations("classpath:db/migrations")
                 .load();
         flyway.migrate();
-        this.dbConfig = dbConfig;
+
+        this.dataSource = new ComboPooledDataSource();
+        dataSource.setJdbcUrl(dbConfig.getUrl());
+        dataSource.setUser(dbConfig.getUsername());
+        dataSource.setPassword(dbConfig.getPassword());
+
+        dataSource.setMinPoolSize(dbConfig.getMinPoolSize());
+        dataSource.setMaxPoolSize(dbConfig.getMaxPoolSize());
+
+        dataSource.setTestConnectionOnCheckout(true);
+        dataSource.setPreferredTestQuery(VALIDATION_QUERY_SQL);
     }
 
     @Override
     public synchronized Connection connect() throws SQLException {
-        if (connection == null || !connection.isValid(1)) {
-            connection = DriverManager.getConnection(
-                    dbConfig.getUrl(),
-                    dbConfig.getUsername(),
-                    dbConfig.getPassword()
-            );
-        }
-        return connection;
+        return dataSource.getConnection();
     }
 }
