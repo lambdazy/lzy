@@ -1,5 +1,6 @@
 gateway:
   port: 8453
+  iam-address: 'localhost:12345'
 
 workflows:
   server-address: 'localhost:7777'

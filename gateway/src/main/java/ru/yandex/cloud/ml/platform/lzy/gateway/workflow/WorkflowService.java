@@ -1,5 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.gateway.workflow;
 
+import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.PreDestroy;
@@ -9,6 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.gateway.workflow.configs.WorkflowServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.gateway.workflow.storage.Storage;
+import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyApiGateway.*;
@@ -46,10 +48,9 @@ public class WorkflowService extends LzyApiImplBase {
 
     @Override
     public void createWorkflow(CreateWorkflowRequest request, StreamObserver<CreateWorkflowResponse> response) {
-        LOG.info("[createWorkflow], request={}.", JsonUtils.printRequest(request));
+        var userId = AuthenticationContext.currentSubject().id();
 
-        // TODO: auth
-        String userId = "test";
+        LOG.info("[createWorkflow], uid={}, request={}.", userId, JsonUtils.printRequest(request));
 
         BiConsumer<CreateWorkflowResponse.ErrorCode, String> replyError = (rc, descr) -> {
             LOG.error("[createWorkflow], fail: rc={}, msg={}.", rc, descr);
@@ -202,10 +203,9 @@ public class WorkflowService extends LzyApiImplBase {
 
     @Override
     public void finishWorkflow(FinishWorkflowRequest request, StreamObserver<FinishWorkflowResponse> response) {
-        LOG.info("[finishWorkflow], request={}.", JsonUtils.printRequest(request));
+        var userId = AuthenticationContext.currentSubject().id();
 
-        // TODO: auth
-        String userId = "test";
+        LOG.info("[finishWorkflow], uid={}, request={}.", userId, JsonUtils.printRequest(request));
 
         BiConsumer<FinishWorkflowResponse.Status, String> replyError = (status, descr) -> {
             LOG.error("[finishWorkflow], fail: status={}, msg={}.", status, descr);

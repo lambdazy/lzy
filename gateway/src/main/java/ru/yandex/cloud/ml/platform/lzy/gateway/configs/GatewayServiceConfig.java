@@ -5,6 +5,7 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 @ConfigurationProperties("gateway")
 public class GatewayServiceConfig {
     private int port;
+    private String iamAddress;
 
     public int getPort() {
         return port;
@@ -12,5 +13,13 @@ public class GatewayServiceConfig {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public String getIamAddress() {
+        return iamAddress;
+    }
+
+    public void setIamAddress(String iamAddress) {
+        this.iamAddress = iamAddress;
     }
 }

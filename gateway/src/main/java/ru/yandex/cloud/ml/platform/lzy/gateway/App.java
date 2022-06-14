@@ -11,6 +11,9 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 import ru.yandex.cloud.ml.platform.lzy.gateway.configs.GatewayServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.gateway.workflow.WorkflowService;
+import ru.yandex.cloud.ml.platform.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ru.yandex.cloud.ml.platform.lzy.iam.utils.GrpcConfig;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
@@ -38,7 +41,8 @@ public class App {
                         .permitKeepAliveWithoutCalls(true)
                         .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
 
-                // builder.intercept(new AuthInterceptor());
+                builder.intercept(new AuthServerInterceptor(
+                        new AuthenticateServiceGrpcClient(GrpcConfig.from(gatewayServiceConfig.getIamAddress()))));
                 builder.addService(context.getBean(WorkflowService.class));
 
                 final Server server = builder.build();
