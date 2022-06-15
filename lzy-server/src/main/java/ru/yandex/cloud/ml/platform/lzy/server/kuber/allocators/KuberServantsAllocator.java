@@ -79,43 +79,43 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     @Override
     protected void cleanup(ServantConnection s) {
         V1Pod pod = servantPods.get(s.id());
-        if (pod != null) {
-            String name = Objects.requireNonNull(pod.getMetadata()).getName();
-            String namespace = pod.getMetadata().getNamespace();
-            LOG.info("Cleaning up pod {} with connection {}", name, s.id());
-            try {
-                if (!isPodExists(namespace, name)) {
-                    servantPods.remove(s.id());
-                    return;
-                }
-            } catch (ApiException e) {
-                throw new RuntimeException(e);
-            }
-            terminate(s);
-        } else {
+        if (pod == null) {
             LOG.warn("Trying to cleanup nonexistent connection {}", s.id());
+            return;
         }
+        String name = Objects.requireNonNull(pod.getMetadata()).getName();
+        String namespace = pod.getMetadata().getNamespace();
+        LOG.info("Cleaning up pod {} with connection {}", name, s.id());
+        try {
+            if (!isPodExists(namespace, name)) {
+                servantPods.remove(s.id());
+                return;
+            }
+        } catch (ApiException e) {
+            throw new RuntimeException(e);
+        }
+        terminate(s);
     }
 
     @Override
     protected void terminate(ServantConnection connection) {
         V1Pod pod = servantPods.get(connection.id());
-        if (pod != null) {
-            String name = Objects.requireNonNull(pod.getMetadata()).getName();
-            String namespace = pod.getMetadata().getNamespace();
-            LOG.info("Terminating up pod {} with connection {}", name, connection.id());
-            try {
-                if (isPodExists(namespace, name)) {
-                    api.deleteNamespacedPod(name, namespace, null, null, 0,
-                            null, null, null);
-                }
-            } catch (ApiException e) {
-                throw new RuntimeException(e);
-            }
-            servantPods.remove(connection.id());
-        } else {
+        if (pod == null) {
             LOG.warn("Trying to terminate nonexistent connection {}", connection.id());
+            return;
         }
+        String name = Objects.requireNonNull(pod.getMetadata()).getName();
+        String namespace = pod.getMetadata().getNamespace();
+        LOG.info("Terminating up pod {} with connection {}", name, connection.id());
+        try {
+            if (isPodExists(namespace, name)) {
+                api.deleteNamespacedPod(name, namespace, null, null, 0,
+                        null, null, null);
+            }
+        } catch (ApiException e) {
+            throw new RuntimeException(e);
+        }
+        servantPods.remove(connection.id());
     }
 
     private boolean isPodExists(String namespace, String name) throws ApiException {
