@@ -296,6 +296,7 @@ public class LzyServer {
                     servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
                         .whenComplete((connection, th) -> {
                             if (th != null) {
+                                LOG.warn("Exception while servant allocation, uid={}, tid={}", uid, task.tid(), th);
                                 task.state(Task.State.ERROR, ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
                                     th.getMessage(), Arrays.toString(th.getStackTrace()));
                             } else {
