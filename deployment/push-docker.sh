@@ -72,7 +72,7 @@ for SERVICE in $SERVICES; do
   NEW_TAG="lzydock/$SERVICE:$BRANCH-$TAG"
   docker tag "$SERVICE" "$NEW_TAG" && docker image rm "$SERVICE"
   echo "pushing $NEW_TAG"
-  docker push "$NEW_TAG"
+  docker push "$NEW_TAG" && docker image rm "$NEW_TAG"
   echo ""
   NL=$'\n'
   PUSHED_IMAGES="$PUSHED_IMAGES${NL}$SERVICE-image = \"lzydock/$SERVICE:$BRANCH-$TAG\""
