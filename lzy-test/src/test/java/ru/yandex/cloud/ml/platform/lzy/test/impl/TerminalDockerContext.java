@@ -36,8 +36,9 @@ import java.util.stream.Collectors;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
 
-public class LzyTerminalDockerContext implements LzyTerminalTestContext {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LzyTerminalDockerContext.class);
+@Deprecated
+public class TerminalDockerContext implements LzyTerminalTestContext {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TerminalDockerContext.class);
     private final List<GenericContainer<?>> startedContainers = new ArrayList<>();
 
     protected GenericContainer<?> createDockerWithCommandAndModifier(

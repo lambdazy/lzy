@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-public class LzySnapshotThreadContext implements LzySnapshotTestContext {
+public class SnapshotThreadContext implements LzySnapshotTestContext {
 
     private static final long SNAPSHOT_STARTUP_TIMEOUT_SEC = 60;
     private static final int SNAPSHOT_PORT = 8999;
@@ -31,7 +31,7 @@ public class LzySnapshotThreadContext implements LzySnapshotTestContext {
     private Server server;
     private ManagedChannel channel;
 
-    public LzySnapshotThreadContext(String serverAddress) {
+    public SnapshotThreadContext(String serverAddress) {
         this.serverAddress = serverAddress;
     }
 

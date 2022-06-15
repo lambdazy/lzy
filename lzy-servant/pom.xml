@@ -256,4 +256,43 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>build-servant</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <configuration>
+                            <verbose>false</verbose>
+                            <images>
+                                <image>
+                                    <name>lzy-servant</name>
+                                    <build>
+                                        <contextDir>${project.basedir}/../</contextDir>
+                                        <dockerFile>${project.basedir}/docker/System.Dockerfile</dockerFile>
+                                        <noCache>true</noCache>
+                                        <imagePullPolicy>IfNotPresent</imagePullPolicy>
+                                    </build>
+                                </image>
+                            </images>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

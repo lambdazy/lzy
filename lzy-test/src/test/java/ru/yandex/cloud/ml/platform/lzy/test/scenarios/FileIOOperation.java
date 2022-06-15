@@ -19,7 +19,11 @@ class FileIOOperation implements AtomicZygote {
     private final String command;
     private final Env env;
 
-    FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command, boolean dockerEnv) {
+    FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command) {
+        this(operationName, inputFiles, outputFiles, command, null);
+    }
+
+    FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command, String baseEnv) {
         this.operationName = operationName;
         inputs = new ArrayList<>();
         outputs = new ArrayList<>();
@@ -30,21 +34,17 @@ class FileIOOperation implements AtomicZygote {
         for (String path : outputFiles) {
             outputs.add(new TextLinesOutSlot(path));
         }
-        if (dockerEnv) {
-            env = new Env() {
-                @Override
-                public BaseEnv baseEnv() {
-                    return () -> null;
-                }
+        env = baseEnv == null ? null : new Env() {
+            @Override
+            public BaseEnv baseEnv() {
+                return () -> baseEnv;
+            }
 
-                @Override
-                public AuxEnv auxEnv() {
-                    return null;
-                }
-            };
-        } else {
-            env = null;
-        }
+            @Override
+            public AuxEnv auxEnv() {
+                return null;
+            }
+        };
     }
 
     public String getCommand() {

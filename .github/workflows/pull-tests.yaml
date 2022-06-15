@@ -62,6 +62,16 @@ jobs:
         timeout-minutes: 5
         run: mvn clean install
 
+      - name: 'build servant image'
+        timeout-minutes: 15
+        run: mvn package -P build-servant -f lzy-servant/pom.xml -DskipTests
+
+      - name: 'DockerServantTest'
+        timeout-minutes: 15
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          cd lzy-test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
       - name: 'LzyDryStartupTest'
         timeout-minutes: 5
         run: |
@@ -109,5 +119,5 @@ jobs:
 
       - name: 'Clear after tests'
         if: always()
-        run: sudo umount -f /tmp/lzy* || sudo umount -f /tmp/term* || rm -rf /tmp/lzy* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
+        run: sudo umount -f /tmp/lzy* || sudo umount -f /tmp/term* || sudo rm -rf /tmp/lzy* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
   #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml

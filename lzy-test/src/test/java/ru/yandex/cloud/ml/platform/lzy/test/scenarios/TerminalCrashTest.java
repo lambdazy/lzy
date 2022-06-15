@@ -63,8 +63,7 @@ public class TerminalCrashTest extends LocalScenario {
             "cat_lzy",
             List.of(fileName.substring("/tmp/lzy1".length())),
             Collections.emptyList(),
-            "/tmp/lzy1/sbin/cat " + fileName,
-            false
+            "/tmp/lzy1/sbin/cat " + fileName
         );
 
         //Act
@@ -152,8 +151,8 @@ public class TerminalCrashTest extends LocalScenario {
             JsonFormat.parser().merge(tasksStatus, tasksBuilder);
             final Tasks.TasksList tasksList = tasksBuilder.build();
             return tasksList.getTasksList().stream()
-                    .filter(task -> task.getZygote().getName().startsWith(operationNamePrefix))
-                    .findFirst().orElse(null);
+                .filter(task -> task.getZygote().getName().startsWith(operationNamePrefix))
+                .findFirst().orElse(null);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -176,15 +175,13 @@ public class TerminalCrashTest extends LocalScenario {
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "echo 42",
-            false
+            "echo 42"
         );
         final FileIOOperation echo43 = new FileIOOperation(
-                "echo43",
-                Collections.emptyList(),
-                Collections.emptyList(),
-                "echo 43",
-                false
+            "echo43",
+            Collections.emptyList(),
+            Collections.emptyList(),
+            "echo 43"
         );
         terminal1.publish(echo42);
         terminal1.publish(echo43);
@@ -225,8 +222,7 @@ public class TerminalCrashTest extends LocalScenario {
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "sleep 600; echo 42",
-            false
+            "sleep 600; echo 42"
         );
 
         //Act

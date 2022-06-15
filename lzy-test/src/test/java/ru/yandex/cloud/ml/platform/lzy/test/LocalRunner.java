@@ -3,9 +3,9 @@ package ru.yandex.cloud.ml.platform.lzy.test;
 import io.findify.s3mock.S3Mock;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyKharonThreadContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzyServerThreadContext;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.LzySnapshotThreadContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.KharonThreadContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.ServerThreadContext;
+import ru.yandex.cloud.ml.platform.lzy.test.impl.SnapshotThreadContext;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,18 +43,18 @@ public class LocalRunner {
         createFolder(Path.of("/tmp/resources/"));
         createFolder(Path.of("/tmp/servant/lzy/"));
 
-        var serverContext = new LzyServerThreadContext();
+        var serverContext = new ServerThreadContext(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR);
         serverContext.init();
 
-        var whiteboardContext = new LzySnapshotThreadContext(serverContext.address());
+        var whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
 
-        final LzyKharonThreadContext kharonContext;
+        final KharonThreadContext kharonContext;
         if (args.length > 1 && args[1].equals("--no-kharon")) {
             System.out.println("Run without Kharon...");
             kharonContext = null;
         } else {
-            kharonContext = new LzyKharonThreadContext(serverContext.address(), whiteboardContext.address());
+            kharonContext = new KharonThreadContext(serverContext.address(), whiteboardContext.address());
             kharonContext.init();
         }
 

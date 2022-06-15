@@ -13,7 +13,8 @@ import ru.yandex.cloud.ml.platform.lzy.server.LzyServer;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
-public class LzyServerProcessesContext implements LzyServerTestContext {
+@Deprecated
+public class ServerProcessContext implements LzyServerTestContext {
 
     private static final long SERVER_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_SERVER_PORT = 7777;
@@ -70,7 +71,7 @@ public class LzyServerProcessesContext implements LzyServerTestContext {
                 final String lzyWhiteboard = "http://localhost:8999" + Utils.Defaults.WHITEBOARD_PORT;
                 env.put("STORAGE_AMAZON_ENDPOINT", serviceEndpoint);
                 env.put("SERVER_WHITEBOARD_URL", lzyWhiteboard);
-                env.put("SERVER_BASE_ENV_DEFAULT_IMAGE", "some-image");
+                env.put("BASE_ENV_DEFAULT_IMAGE", "fixed-image");
                 lzyServer = builder.inheritIO().start();
             } catch (IOException e) {
                 throw new RuntimeException(e);

@@ -11,12 +11,14 @@ public class EnvironmentFactory {
 
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
 
-    public static Environment create(Env env, StorageClient storage)
-        throws EnvironmentInstallationException {
+    public static Environment create(Env env, StorageClient storage) throws EnvironmentInstallationException {
         final String resourcesPathStr = "/tmp/resources/";
+        final boolean dockerSupported = Boolean.parseBoolean(
+            System.getProperty("servant.dockerSupport.enabled", "true")
+        );
 
         final BaseEnvironment baseEnv;
-        if (env.baseEnv() != null) {
+        if (dockerSupported && env.baseEnv() != null) {
             LOG.info("Docker baseEnv provided, using DockerEnvironment");
             BaseEnvConfig config = BaseEnvConfig.newBuilder()
                 .image(env.baseEnv().name())
@@ -24,7 +26,11 @@ public class EnvironmentFactory {
                 .build();
             baseEnv = new DockerEnvironment(config);
         } else {
-            LOG.info("No baseEnv provided, using ProcessEnvironment");
+            if (env.baseEnv() == null) {
+                LOG.info("No baseEnv provided, using ProcessEnvironment");
+            } else if (!dockerSupported) {
+                LOG.info("Docker support disabled, using ProcessEnvironment");
+            }
             baseEnv = new ProcessEnvironment();
         }
 

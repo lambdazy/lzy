@@ -16,7 +16,7 @@ import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-public class LzyKharonThreadContext implements LzyKharonTestContext {
+public class KharonThreadContext implements LzyKharonTestContext {
 
     private static final long KHARON_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_KHARON_PORT = 8899;
@@ -29,7 +29,7 @@ public class LzyKharonThreadContext implements LzyKharonTestContext {
     private ManagedChannel channel;
     private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
-    public LzyKharonThreadContext(String serverAddress, String whiteboardAddress) {
+    public KharonThreadContext(String serverAddress, String whiteboardAddress) {
         this.serverAddress = serverAddress;
         this.whiteboardAddress = whiteboardAddress;
     }

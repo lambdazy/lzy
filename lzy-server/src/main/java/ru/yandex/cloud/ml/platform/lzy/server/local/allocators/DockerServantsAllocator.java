@@ -31,7 +31,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     private final Map<String, ContainerDescription> containers = new ConcurrentHashMap<>();
 
     public DockerServantsAllocator(Authenticator auth, ServerConfig serverConfig) {
-        super(auth, 60, 100);
+        super(auth, 60, 900);
         this.serverConfig = serverConfig;
     }
 
@@ -41,7 +41,8 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
         LOG.info("Found port for servant {}", debugPort);
 
         final HostConfig hostConfig = new HostConfig();
-        final int servantPort = FreePortFinder.find(10000, 20000);
+        final int servantPort = FreePortFinder.find(10000, 11000);
+        final int fsPort = FreePortFinder.find(11000, 12000);
         hostConfig
             .withPrivileged(true)
             .withBinds(
@@ -50,8 +51,9 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
             )
             .withPortBindings(
                 new PortBinding(Ports.Binding.bindPort(debugPort), ExposedPort.tcp(debugPort)),
-                new PortBinding(Ports.Binding.bindPort(servantPort),
-                        ExposedPort.tcp(servantPort)))
+                new PortBinding(Ports.Binding.bindPort(servantPort), ExposedPort.tcp(servantPort)),
+                new PortBinding(Ports.Binding.bindPort(fsPort), ExposedPort.tcp(fsPort))
+            )
             .withPublishAllPorts(true);
 
         if (SystemUtils.IS_OS_LINUX) {
@@ -66,9 +68,10 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
             .withEnv(
                 "LOG_FILE=" + LOGS_DIR + "servant/servant_start_" + uuid,
                 "DEBUG_PORT=" + debugPort,
-                "SUSPEND_DOCKER=" + "n"
+                "SUSPEND_DOCKER=" + "n",
+                "BASE_ENV_DEFAULT_IMAGE=" + serverConfig.getBaseEnvDefaultImage()
             )
-            .withExposedPorts(ExposedPort.tcp(debugPort), ExposedPort.tcp(servantPort))
+            .withExposedPorts(ExposedPort.tcp(debugPort), ExposedPort.tcp(servantPort), ExposedPort.tcp(fsPort))
             .withHostConfig(hostConfig)
             .withCmd(
                 "--lzy-address", serverConfig.getServerUri().toString(),
@@ -76,6 +79,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
                 "--lzy-mount", "/tmp/lzy",
                 "--host", serverConfig.getServerUri().getHost(),
                 "--port", Integer.toString(servantPort),
+                "--fs-port", Integer.toString(fsPort),
                 "start",
                 "--bucket", bucket,
                 "--sid", servantId,
