@@ -52,6 +52,4 @@ jobs:
       - name: 'Delete docker images'
         run: |
           docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
-          export REUSED_BASE_IMAGES="findepi/graalvm:java17-all|nvidia/cuda:11.2.0-devel-ubuntu20.04|lzydock/lzy-servant-base:master"
-          docker image rm $(docker image ls -q | grep -v "$(docker image ls --format "{{.ID}}\t{{.Repository}}:{{.Tag}}" | grep -E "$REUSED_BASE_IMAGES" | awk '{print $1}')")
-      #### remove all images by their id, except for ids for which repository:tag is in REUSED_BASE_IMAGES
+          docker image prune
