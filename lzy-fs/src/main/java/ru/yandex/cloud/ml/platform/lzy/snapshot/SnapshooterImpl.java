@@ -2,6 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.snapshot;
 
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
@@ -43,7 +44,8 @@ public class SnapshooterImpl implements Snapshooter {
 
         final LzyWhiteboard.SnapshotEntry.Builder entryBuilder = LzyWhiteboard.SnapshotEntry.newBuilder()
             .setEntryId(entryId)
-            .setStorageUri(uri.toString());
+            .setStorageUri(uri.toString())
+            .setType(GrpcConverter.to(slot.definition().contentType()));
 
         final LzyWhiteboard.PrepareCommand command = LzyWhiteboard.PrepareCommand
             .newBuilder()
