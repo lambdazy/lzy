@@ -52,4 +52,4 @@ jobs:
       - name: 'Delete docker images'
         run: |
           docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
-          docker image prune
+          docker image prune -f
