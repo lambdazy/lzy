@@ -42,10 +42,13 @@ public class SnapshotEntryModel {
     private SnapshotEntryStatus.State entryState;
 
     public SnapshotEntryModel(String snapshotId, String entryId, String storageUri,
+        String typeDescription, String typeOfScheme,
         boolean emptyContent, SnapshotEntryStatus.State entryStatus) {
         this.snapshotId = snapshotId;
         this.entryId = entryId;
         this.storageUri = storageUri;
+        this.typeDescription = typeDescription;
+        this.typeOfScheme = typeOfScheme;
         this.empty = emptyContent;
         this.entryState = entryStatus;
     }

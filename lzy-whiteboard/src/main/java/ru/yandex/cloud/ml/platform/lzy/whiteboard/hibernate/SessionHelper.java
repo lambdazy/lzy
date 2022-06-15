@@ -249,12 +249,16 @@ public class SessionHelper {
 
         List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
         SnapshotEntry entry = new SnapshotEntry.Impl(id, snapshot);
+        DataSchema schema = null;
+        if (snapshotEntryModel.getTypeOfScheme() != null) {
+            schema = DataSchema.buildDataSchema(snapshotEntryModel.getTypeOfScheme(),
+                snapshotEntryModel.getTypeDescription());
+        }
         return Optional.of(
             new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(), snapshotEntryModel.getEntryState(), entry,
                 Set.copyOf(dependentEntryIds),
                 snapshotEntryModel.getStorageUri() == null ? null : URI.create(snapshotEntryModel.getStorageUri()),
-                DataSchema.buildDataSchema(snapshotEntryModel.getTypeOfScheme(),
-                    snapshotEntryModel.getTypeDescription())
+                schema
             ));
     }
 

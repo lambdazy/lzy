@@ -122,7 +122,9 @@ public class DbSnapshotRepository implements SnapshotRepository {
             List<SnapshotEntryModel> snapshotEntries = fromSnapshotEntries.stream()
                 .filter(fromSnapshotEntry -> Objects.equals(fromSnapshotEntry.getEntryState(), State.FINISHED))
                 .map(fromSnapshotEntry -> new SnapshotEntryModel(snapshotId, fromSnapshotEntry.getEntryId(),
-                    fromSnapshotEntry.getStorageUri(), fromSnapshotEntry.isEmpty(), fromSnapshotEntry.getEntryState()))
+                    fromSnapshotEntry.getStorageUri(), fromSnapshotEntry.getTypeDescription(),
+                    fromSnapshotEntry.getTypeOfScheme(), fromSnapshotEntry.isEmpty(),
+                    fromSnapshotEntry.getEntryState()))
                 .collect(Collectors.toList());
 
             // TODO: manage entry dependencies
@@ -390,7 +392,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
                             .asException()
                     );
                 }
-                model = new SnapshotEntryModel(snapshot.id().toString(), id, null, true,
+                model = new SnapshotEntryModel(snapshot.id().toString(), id, null, null, null, true,
                     SnapshotEntryStatus.State.CREATED);
                 session.save(model);
                 tx.commit();

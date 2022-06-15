@@ -117,7 +117,7 @@ public final class Channel implements LzyCommand {
                 final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
                     .setAuth(auth)
                     .setChannelName(channelName)
-                    .setCreate(createCommandBuilder)
+                    .setCreate(createCommandBuilder.build())
                     .build();
 
                 final Channels.ChannelStatus channel = server.channel(channelReq);

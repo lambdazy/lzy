@@ -76,9 +76,11 @@ class LzyEnvBase(ABC):
 
     def whiteboard_by_id(self, wid: str) -> Any:
         wb_description: WhiteboardDescription = self._whiteboard_api.get(wid)
+        wb_api = self._whiteboard_api
         fields_: Dict[str, WhiteboardFieldDescription] = {
             f.name: f for f in wb_description.fields
         }
+        self._log.info(f"Gonna build wb with fields: {fields_}")
 
         def __getattribute__(self, item):
             if item not in fields_:
@@ -88,7 +90,7 @@ class LzyEnvBase(ABC):
                 return super(type(self), self).__getattribute__(item)
             except AttributeError:
                 field_: WhiteboardFieldDescription = fields_[item]
-                type_, value = self._whiteboard_api.resolve_by_url(field_.uri)
+                type_, value = wb_api.resolve_by_url(field_.uri)
                 setattr(self, item, value)
                 return value
 
@@ -103,13 +105,13 @@ class LzyEnvBase(ABC):
     def _build_whiteboard(self, wb_: WhiteboardDescription, typ: Type[Any]) -> Any:
         check_whiteboard(typ)
         # noinspection PyDataclass
-        field_types = {field.name: field.type for field in dataclasses.fields(typ)}
+        field_types = {field.name: field.type_ for field in dataclasses.fields(typ)}
         whiteboard_dict: Dict[str, Any] = {}
         for field in wb_.fields:
             if field.name in field_types:
                 if field.status is WhiteboardFieldStatus.FINISHED:
                     whiteboard_dict[field.name] = self._whiteboard_api.resolve(
-                        field.storage_uri, field_types[field.name]
+                        field.uri, field_types[field.name]
                     )
         # noinspection PyArgumentList
         instance = typ(**whiteboard_dict)

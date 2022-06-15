@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import tempfile
@@ -5,6 +6,8 @@ from json.decoder import JSONDecodeError
 from typing import Any, Type, Dict, List, TypeVar, Optional, Tuple
 
 # noinspection PyProtectedMember
+import cloudpickle
+
 from lzy._proxy import proxy_optional
 from lzy.api.v1.servant.servant_client import ServantClient, CredentialsTypes
 from lzy.api.v1.utils import infer_real_type
@@ -154,20 +157,28 @@ class WhiteboardBashApi(WhiteboardApi):
 
     @staticmethod
     def _parse_wb_json(res: Dict[str, Any], log) -> WhiteboardDescription:
-        log.info(res.get("fields", []))
-        fields = [
-            WhiteboardFieldDescription(
-                field["fieldName"],
-                WhiteboardFieldStatus(field["status"]),
-                field.get("dependentFieldNames"),
-                field.get("storageUri"),
-                field.get("da", "")
+        fields = []
+        for field in res.get("fields", []):
+            type_ = None
+            uri = None
+            if "scheme" in field:
+                type_ = cloudpickle.loads(base64.b64decode(field["scheme"]["type"]))
+                uri = field["storageUri"]
+
+            fields.append(
+                WhiteboardFieldDescription(
+                    field["fieldName"],
+                    WhiteboardFieldStatus(field["status"]),
+                    field.get("dependentFieldNames"),
+                    type_,
+                    uri
+                )
             )
-            for field in res.get("fields", [])
-        ]
         snapshot = SnapshotDescription(res["snapshot"]["snapshotId"])
         status = WhiteboardStatus(res["status"])
-        return WhiteboardDescription(res["id"], fields, snapshot, status)
+        wb_desc = WhiteboardDescription(res["id"], fields, snapshot, status)
+        log.info(f"Built wb: {wb_desc}")
+        return wb_desc
 
     @staticmethod
     def _parse_wb_json_list(res: Dict[str, Any], log) -> List[WhiteboardDescription]:

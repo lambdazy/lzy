@@ -36,8 +36,8 @@ class WhiteboardFieldDescription:
     dependent_field_names: Optional[
         List[str]
     ]  # protobuf makes no distinction between empty list and null list
-    uri: str
-    type: type
+    uri: Optional[str]
+    type_: Optional[type]
 
 
 class WhiteboardStatus(Enum):

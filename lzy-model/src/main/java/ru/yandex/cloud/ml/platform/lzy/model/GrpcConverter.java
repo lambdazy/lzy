@@ -122,16 +122,7 @@ public abstract class GrpcConverter {
     }
 
     public static DataSchema contentTypeFrom(Operations.DataScheme dataScheme) {
-        Operations.SchemeType v = dataScheme.getSchemeType();
-        if (v.equals(SchemeType.proto)) {
-            throw new RuntimeException(new NotImplementedException(""));
-        } else if (v.equals(SchemeType.cloudpickle)) {
-            return new CloudpickledPythonClassSchema(dataScheme.getType());
-        } else if (v.equals(SchemeType.plain)) {
-            return new PlainTextFileSchema();
-        } else {
-            throw new RuntimeException(new NotImplementedException(""));
-        }
+        return DataSchema.buildDataSchema(dataScheme.getSchemeType().name(), dataScheme.getType());
     }
 
     public static Operations.Zygote to(Zygote zygote) {
@@ -307,6 +298,11 @@ public abstract class GrpcConverter {
                     builder.setStatus(Status.UNKNOWN);
                     break;
             }
+
+            DataSchema schema = entryStatus.schema();
+            if (schema != null) {
+                builder.setScheme(GrpcConverter.to(schema));
+            }
         }
         return builder.build();
     }
@@ -345,7 +341,7 @@ public abstract class GrpcConverter {
     }
 
     public static Operations.SchemeType toSchemeType(DataSchema dataSchema) {
-        return Operations.SchemeType.valueOf(dataSchema.typeOfScheme().getName());
+        return Operations.SchemeType.valueOf(dataSchema.typeOfScheme().name());
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {

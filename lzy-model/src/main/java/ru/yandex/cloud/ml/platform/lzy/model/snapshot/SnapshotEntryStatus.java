@@ -21,6 +21,7 @@ public interface SnapshotEntryStatus {
 
     Set<String> dependentEntryIds();
 
+    @Nullable
     DataSchema schema();
 
     // CREATED --> created but not assigned to storage and slots
@@ -74,6 +75,7 @@ public interface SnapshotEntryStatus {
             return deps;
         }
 
+        @Nullable
         @Override
         public DataSchema schema() {
             return schema;
