@@ -123,6 +123,12 @@ public final class LzyFsServer {
         localServer.shutdown();
     }
 
+    public void forceStop() {
+        LOG.info("LzyFs force shutdown request at {}.", selfUri);
+        lzyServerChannel.shutdownNow();
+        localServer.shutdownNow();
+    }
+
     public void awaitTermination() throws InterruptedException, IOException {
         LOG.info("LzyFs awaiting termination at {}.", selfUri);
         lzyServerChannel.awaitTermination(30, TimeUnit.SECONDS);

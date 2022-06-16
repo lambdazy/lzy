@@ -138,14 +138,12 @@ public class TaskImpl implements Task {
                             try {
                                 channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, connection.fs()));
                             } catch (ChannelException ce) {
-                                LOG.error(
-                                    "Unable to connect channel " + channelName + " to the slot " + slotUri,
-                                    ce
-                                );
+                                LOG.error("Unable to connect channel " + channelName + " to the slot " + slotUri, ce);
+                                // TODO: ????
+                                //state(ERROR, 1, ce.getMessage());
                             }
                         } else {
-                            LOG.error("Unable to attach channel to " + tid + ":" + slot.name()
-                                + ". Channel not found.");
+                            LOG.error("Unable to attach channel to " + tid + ":" + slot.name() + ". Channel not found.");
                         }
                         return true;
                     }

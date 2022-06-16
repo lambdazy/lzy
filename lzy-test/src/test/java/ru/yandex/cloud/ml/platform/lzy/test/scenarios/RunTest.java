@@ -12,6 +12,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.commands.BuiltinCommandHolder;
+import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyServant;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
@@ -88,6 +89,8 @@ public class RunTest extends LocalScenario {
             .execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file);
         final CompletableFuture<ExecutionResult> result = new CompletableFuture<>();
+
+        LzyServant.failSlotsConfigurationForTests.set(true);
 
         ForkJoinPool.commonPool()
             .execute(() -> result.complete(

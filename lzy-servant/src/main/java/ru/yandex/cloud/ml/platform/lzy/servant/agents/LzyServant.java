@@ -33,12 +33,14 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyServant;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
+    public static final AtomicBoolean failSlotsConfigurationForTests = new AtomicBoolean(false);
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final URI agentAddress;
@@ -63,7 +65,9 @@ public class LzyServant extends LzyAgent {
         agentServer = NettyServerBuilder
             .forAddress(new InetSocketAddress(agentAddress.getHost(), agentAddress.getPort()))
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.SECONDS)
+            .keepAliveTimeout(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.SECONDS)
+            .keepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
             .addService(new Impl())
             .build();
 
@@ -149,6 +153,12 @@ public class LzyServant extends LzyAgent {
         return server;
     }
 
+    private void forceStop(String reason, Throwable th) {
+        LOG.error("Force terminate servant {}: {}", config.getServantId(), reason, th);
+        agentServer.shutdownNow();
+        lzyFs.forceStop();
+    }
+
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
         private LzyExecution currentExecution;
 
@@ -217,28 +227,38 @@ public class LzyServant extends LzyAgent {
             responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
             responseObserver.onCompleted();
 
-            assignments.map(
-                entry -> {
-                    LzySlot slot = context.configureSlot(tid, entry.slot(), entry.binding());
-                    // TODO: It will be removed after creating Portal
-                    final String channelName;
-                    if (entry.binding().startsWith("channel:")) {
-                        channelName = entry.binding().substring("channel:".length());
-                    } else {
-                        channelName = entry.binding();
+            try {
+                assignments.map(
+                    entry -> {
+                        LzySlot slot = context.configureSlot(tid, entry.slot(), entry.binding());
+                        // TODO: It will be removed after creating Portal
+                        final String channelName;
+                        if (entry.binding().startsWith("channel:")) {
+                            channelName = entry.binding().substring("channel:".length());
+                        } else {
+                            channelName = entry.binding();
+                        }
+                        final URI channelUri = URI.create(channelName);
+                        if (Objects.equals(channelUri.getScheme(), "snapshot") && slot instanceof LzyOutputSlot) {
+                            String snapshotId = "snapshot://" + channelUri.getHost();
+                            lzyFs.getSlotConnectionManager().snapshooter().registerSlot(slot, snapshotId, channelName);
+                        }
+
+                        if (failSlotsConfigurationForTests.getAcquire()) {
+                            throw new RuntimeException("fail slots configuration for tests");
+                        }
+
+                        return slot;
                     }
-                    final URI channelUri = URI.create(channelName);
-                    if (Objects.equals(channelUri.getScheme(), "snapshot") && slot instanceof LzyOutputSlot) {
-                        String snapshotId = "snapshot://" + channelUri.getHost();
-                        lzyFs.getSlotConnectionManager().snapshooter().registerSlot(slot, snapshotId, channelName);
+                ).forEach(slot -> {
+                    if (slot instanceof LzyFileSlot) {
+                        lzyFs.addSlot((LzyFileSlot) slot);
                     }
-                    return slot;
-                }
-            ).forEach(slot -> {
-                if (slot instanceof LzyFileSlot) {
-                    lzyFs.addSlot((LzyFileSlot) slot);
-                }
-            });
+                });
+            } catch (Exception e) {
+                forceStop("Error while configuring slots: " + e.getMessage(), e);
+                return;
+            }
 
             try {
                 currentExecution = context.execute(tid, zygote, progress -> {
@@ -268,10 +288,11 @@ public class LzyServant extends LzyAgent {
                 });
 
             } catch (LzyExecutionException | InterruptedException e) {
-                responseObserver.onError(
-                    Status.INTERNAL
-                        .withDescription(e.getMessage()).withCause(e.getCause()).asException()
-                );
+//                responseObserver.onError(
+//                    Status.INTERNAL
+//                        .withDescription(e.getMessage()).withCause(e.getCause()).asException()
+//                );
+                forceStop("", e);
                 return;
             }
             status.set(AgentStatus.EXECUTING);
