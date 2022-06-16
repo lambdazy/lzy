@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.gateway.workflow.storage;
+package ru.yandex.cloud.ml.platform.lzy.kharon.workflow.storage;
 
 import java.sql.Connection;
 import java.sql.SQLException;

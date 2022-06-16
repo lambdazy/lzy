@@ -1,20 +1,20 @@
-package ru.yandex.cloud.ml.platform.lzy.gateway.workflow;
+package ru.yandex.cloud.ml.platform.lzy.kharon.workflow;
 
-import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.gateway.workflow.configs.WorkflowServiceConfig;
-import ru.yandex.cloud.ml.platform.lzy.gateway.workflow.storage.Storage;
+import ru.yandex.cloud.ml.platform.lzy.kharon.workflow.configs.WorkflowServiceConfig;
+import ru.yandex.cloud.ml.platform.lzy.kharon.workflow.storage.Storage;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyApiGateway.*;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyApiGrpc.LzyApiImplBase;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.*;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowGrpc.LzyWorkflowImplBase;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 
 import java.sql.ResultSet;
@@ -25,7 +25,8 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 @Singleton
-public class WorkflowService extends LzyApiImplBase {
+@Requires(beans = WorkflowServiceConfig.class)
+public class WorkflowService extends LzyWorkflowImplBase {
     public static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
     private final WorkflowServiceConfig config;
@@ -39,7 +40,7 @@ public class WorkflowService extends LzyApiImplBase {
         this.storage = storage;
 
         this.serverChannel = ChannelBuilder
-            .forAddress(this.config.getServerAddress())
+            .forAddress(this.config.serverAddress())
             .usePlaintext()
             .enableRetry(LzyServerGrpc.SERVICE_NAME)
             .build();

@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.gateway.workflow;
+package ru.yandex.cloud.ml.platform.lzy.kharon.workflow;
 
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
@@ -11,10 +11,10 @@ import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredenti
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
 import ru.yandex.cloud.ml.platform.lzy.iam.resources.subjects.User;
 import ru.yandex.cloud.ml.platform.lzy.iam.utils.TokenParser;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyApiGateway.CreateWorkflowRequest;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyApiGateway.CreateWorkflowResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyApiGateway.FinishWorkflowRequest;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyApiGateway.FinishWorkflowResponse;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.CreateWorkflowRequest;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.CreateWorkflowResponse;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.FinishWorkflowRequest;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.FinishWorkflowResponse;
 
 import static org.junit.Assert.assertEquals;
 
