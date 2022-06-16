@@ -14,7 +14,8 @@ import ru.yandex.cloud.ml.platform.lzy.whiteboard.LzySnapshot;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
-public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
+@Deprecated
+public class SnapshotProcessesContext implements LzySnapshotTestContext {
 
     private static final long SNAPSHOT_STARTUP_TIMEOUT_SEC = 60;
     private static final int SNAPSHOT_PORT = 8999;
@@ -24,7 +25,7 @@ public class LzySnapshotProcessesContext implements LzySnapshotTestContext {
     private Process lzySnapshot;
     private ManagedChannel channel;
 
-    public LzySnapshotProcessesContext(String serverAddress) {
+    public SnapshotProcessesContext(String serverAddress) {
         this.serverAddress = serverAddress;
     }
 

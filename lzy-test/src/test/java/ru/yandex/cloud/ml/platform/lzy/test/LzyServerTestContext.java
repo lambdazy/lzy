@@ -10,4 +10,10 @@ public interface LzyServerTestContext extends AutoCloseable {
     void init();
 
     void close();
+
+    enum LocalServantAllocatorType {
+        THREAD_ALLOCATOR,
+        DOCKER_ALLOCATOR,
+        ;
+    }
 }

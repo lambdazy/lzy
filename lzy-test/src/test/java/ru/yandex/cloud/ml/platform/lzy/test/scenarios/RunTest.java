@@ -23,34 +23,13 @@ public class RunTest extends LocalScenario {
     }
 
     @Test
-    public void testProcessEcho42() {
+    public void testEcho42() {
         //Arrange
         final FileIOOperation echo42 = new FileIOOperation(
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "echo 42",
-            false
-        );
-
-        //Act
-        terminal.publish(echo42);
-        final ExecutionResult result = terminal.run(echo42.name(), "", Map.of());
-
-        //Assert
-        Assert.assertEquals("42\n", result.stdout());
-    }
-
-    @Test
-    @Ignore
-    public void testDockerEcho42() {
-        //Arrange
-        final FileIOOperation echo42 = new FileIOOperation(
-            "echo42",
-            Collections.emptyList(),
-            Collections.emptyList(),
-            "echo 42",
-            true
+            "echo 42"
         );
 
         //Act
@@ -69,8 +48,7 @@ public class RunTest extends LocalScenario {
             "echo42",
             Collections.emptyList(),
             Collections.emptyList(),
-            "sleep 20m; echo 42",
-            false
+            "sleep 20m; echo 42"
         );
 
         //Act
@@ -97,8 +75,7 @@ public class RunTest extends LocalScenario {
             "cat_to_file_lzy",
             List.of(fileName.substring("/tmp/lzy1".length())),
             List.of(fileOutName.substring("/tmp/lzy1".length())),
-            "/tmp/lzy1/sbin/cat " + fileName + " > " + fileOutName,
-            false
+            "/tmp/lzy1/sbin/cat " + fileName + " > " + fileOutName
         );
 
         //Act

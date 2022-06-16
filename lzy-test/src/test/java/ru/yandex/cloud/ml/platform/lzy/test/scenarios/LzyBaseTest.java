@@ -29,6 +29,7 @@ public abstract class LzyBaseTest {
             "conda activate py39 && ";
 
     protected LzyTerminalTestContext terminalContext;
+
     @Before
     public void setUp() {
         terminalContext = new TerminalThreadContext();
