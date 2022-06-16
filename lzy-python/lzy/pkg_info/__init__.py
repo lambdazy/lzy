@@ -72,8 +72,8 @@ def exists_in_pypi(package_name: str) -> bool:
         return pypi_existence_cache[package_name]
 
     response = requests.get("https://pypi.python.org/pypi/{}/json"
-                            .format(package_name))
-    result: bool = 200 <= response.status_code < 300
+                            .format(package_name), allow_redirects=False)
+    result: bool = 200 <= response.status_code < 300 or response.status_code == 301
     pypi_existence_cache[package_name] = result
     return result
 

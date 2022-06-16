@@ -39,7 +39,9 @@ message GraphExecutionStatus {
     repeated TaskExecutionStatus executingTasks = 1;
   }
   message Completed {}
-  message Failed {}
+  message Failed {
+    string description = 1;
+  }
 
   string workflowId = 1;
   string graphId = 2;
@@ -52,12 +54,24 @@ message GraphExecutionStatus {
   }
 }
 
+message ChannelDesc {
+  string id = 1;
+
+  // Channel types
+  message DirectChannel {}
+
+  oneof type {
+    DirectChannel direct = 2;
+  }
+}
+
 // =========Execute=========
 
 message GraphExecuteRequest {
   string workflowId = 1;
   repeated TaskDesc tasks = 2;
   string parentGraphId = 3;
+  repeated ChannelDesc channels = 4;
 }
 message GraphExecuteResponse {
   GraphExecutionStatus status = 1;

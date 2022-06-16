@@ -20,7 +20,7 @@ public class ExecutionModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "execution_id")
+    @Column(name = "execution_id", nullable = false)
     private int executionId;
 
     @ManyToOne
