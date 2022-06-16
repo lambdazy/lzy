@@ -7,6 +7,7 @@ from typing import List, Any, Callable, Optional, Dict, Set
 
 from pure_protobuf.dataclasses_ import message  # type: ignore
 
+from lzy.api.v1.servant.model.slot import DataSchema, pickle_type
 from lzy.serialization.serializer import FileSerializer
 from lzy.api.v1.utils import is_lazy_proxy
 from lzy.api.v1.whiteboard.model import (
@@ -141,7 +142,8 @@ def wrap_whiteboard(
                 raise RuntimeError("Cannot get entry_id from op")
         else:
             entry_id = entry_id_generator.generate("/wb/field/" + key)
-            dump(channel_manager.out_slot(entry_id), value)
+            data_scheme = DataSchema(pickle_type(type(value)))
+            dump(channel_manager.out_slot(entry_id, data_scheme), value)
 
         whiteboard_api.link(whiteboard_id, key, entry_id)
         fields_assigned.add(key)

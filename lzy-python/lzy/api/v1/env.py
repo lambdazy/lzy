@@ -90,7 +90,7 @@ class LzyEnvBase(ABC):
                 return super(type(self), self).__getattribute__(item)
             except AttributeError:
                 field_: WhiteboardFieldDescription = fields_[item]
-                type_, value = wb_api.resolve_by_url(field_.uri)
+                value = wb_api.resolve(field_.uri, field_.type_)
                 setattr(self, item, value)
                 return value
 
@@ -105,7 +105,7 @@ class LzyEnvBase(ABC):
     def _build_whiteboard(self, wb_: WhiteboardDescription, typ: Type[Any]) -> Any:
         check_whiteboard(typ)
         # noinspection PyDataclass
-        field_types = {field.name: field.type_ for field in dataclasses.fields(typ)}
+        field_types = {field.name: field.type for field in dataclasses.fields(typ)}
         whiteboard_dict: Dict[str, Any] = {}
         for field in wb_.fields:
             if field.name in field_types:

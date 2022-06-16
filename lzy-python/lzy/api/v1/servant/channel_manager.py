@@ -6,7 +6,7 @@ from typing import TypeVar, Dict, List
 
 from lzy.api.v1.servant.model.channel import Channel, SnapshotChannelSpec
 from lzy.api.v1.servant.model.file_slots import create_slot
-from lzy.api.v1.servant.model.slot import Slot, Direction
+from lzy.api.v1.servant.model.slot import Slot, Direction, DataSchema
 from lzy.api.v1.servant.servant_client import ServantClient
 
 
@@ -33,18 +33,19 @@ class ChannelManager(abc.ABC):
         for entry in list(self._entry_id_to_channel):
             self.destroy(entry)
 
-    def in_slot(self, entry_id: str) -> Path:
-        return self._resolve(entry_id, Direction.INPUT)
+    def in_slot(self, entry_id: str, data_scheme: DataSchema) -> Path:
+        return self._resolve(entry_id, Direction.INPUT, data_scheme)
 
-    def out_slot(self, entry_id) -> Path:
-        return self._resolve(entry_id, Direction.OUTPUT)
+    def out_slot(self, entry_id: str, data_scheme: DataSchema) -> Path:
+        return self._resolve(entry_id, Direction.OUTPUT, data_scheme)
 
-    def _resolve(self, entry_id: str, direction: Direction) -> Path:
-        slot = create_slot(os.path.sep.join(("tasks", "snapshot", self._snapshot_id, entry_id)), direction)
-        channel = self._entry_id_to_channel.get(entry_id, None)
-        if channel is None:
-            raise RuntimeError("there is no channel to resolve")
-        self._touch(slot, channel)
+    def _resolve(self, entry_id: str, direction: Direction, data_scheme: DataSchema) -> Path:
+        slot = create_slot(
+            os.path.sep.join(("tasks", "snapshot", self._snapshot_id, entry_id)),
+            direction,
+            data_scheme
+        )
+        self._touch(slot, self.channel(entry_id, data_scheme.real_type))
         path = self._resolve_slot_path(slot)
         return path
 

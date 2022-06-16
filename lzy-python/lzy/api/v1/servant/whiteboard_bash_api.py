@@ -170,8 +170,8 @@ class WhiteboardBashApi(WhiteboardApi):
                     field["fieldName"],
                     WhiteboardFieldStatus(field["status"]),
                     field.get("dependentFieldNames"),
-                    type_,
-                    uri
+                    uri,
+                    type_
                 )
             )
         snapshot = SnapshotDescription(res["snapshot"]["snapshotId"])

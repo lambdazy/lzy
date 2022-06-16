@@ -1,8 +1,19 @@
+import base64
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 import json
 from enum import Enum
 from typing import Dict
+
+import cloudpickle
+
+
+def pickle_type(type_: type) -> str:
+    return base64.b64encode(cloudpickle.dumps(type_)).decode('ascii')
+
+
+def unpickle_type(base64_str: str) -> type:
+    return cloudpickle.loads(base64.b64decode(base64_str))
 
 
 class Media(Enum):
@@ -28,13 +39,20 @@ class Direction(Enum):
         ]
 
 
+@dataclass(frozen=True)
 class DataSchema:
-    # noinspection PyMethodMayBeStatic
-    # pylint: disable=no-self-use
+    # TODO(aleksZubakov): probably we should expand this for case when type defined as proto
+    type_: str  # base64 encoded
+    schemeType: str = "cloudpickle"
+
+    @property
+    def real_type(self) -> type:
+        return unpickle_type(self.type_)
+
     def to_dict(self) -> Dict[str, str]:
         return {
-           "type": "",
-           "schemeType": "cloudpickle",
+           "type": self.type_,
+           "schemeType": self.schemeType,
         }
 
     def to_json(self) -> str:
@@ -50,6 +68,7 @@ class DataSchema:
 @dataclass(frozen=True)
 class SlotDataclassMixin:
     name: str
+    content_type: DataSchema
 
 
 class Slot(SlotDataclassMixin, ABC):
@@ -62,10 +81,6 @@ class Slot(SlotDataclassMixin, ABC):
     @abstractmethod
     def media(self) -> Media:
         pass
-
-    @property
-    def content_type(self) -> DataSchema:
-        return DataSchema()
 
     def to_dict(self):
         return {
@@ -81,7 +96,7 @@ class Slot(SlotDataclassMixin, ABC):
                 # "name": "",  # FIXME: this is for touch
                 "media": self.media.to_json(),
                 "direction": self.direction.to_json(),
-                "contentType": self.content_type.to_json(),
+                "contentType": self.content_type.to_dict(),
             },
             sort_keys=True,
             indent=3,

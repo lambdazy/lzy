@@ -9,6 +9,7 @@ from typing import Optional, Any, TypeVar, Generic, Tuple, Iterable, Union, List
 
 from pure_protobuf.dataclasses_ import load, Message  # type: ignore
 
+from lzy.api.v1.servant.model.slot import DataSchema, pickle_type
 from lzy.api.v1.servant.channel_manager import ChannelManager
 from lzy.api.v1.servant.model.channel import Bindings, Binding
 from lzy.api.v1.servant.model.env import PyEnv, Env
@@ -140,7 +141,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
     def dump_arguments(self, args: Iterable[Tuple[str, Any]]):
         for entry_id, obj in args:
-            path = self._channel_manager.out_slot(entry_id)
+            data_schema = DataSchema(pickle_type(type(obj)))
+            path = self._channel_manager.out_slot(entry_id, data_schema)
             with path.open('wb') as file:
                 self._file_serializer.serialize_to_file(obj, file)
                 file.flush()
@@ -256,7 +258,8 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 self._materialization = self.signature.exec()
             else:
                 self.execute()
-                path = self._channel_manager.in_slot(self.return_entry_id())
+                output_data_scheme = DataSchema(pickle_type(self.signature.func.output_type))
+                path = self._channel_manager.in_slot(self.return_entry_id(), output_data_scheme)
                 try:
                     with path.open("rb") as handle:
                         # Wait for slot to become open
