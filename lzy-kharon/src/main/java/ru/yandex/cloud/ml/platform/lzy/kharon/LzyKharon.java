@@ -72,9 +72,6 @@ public class LzyKharon {
 
         var selfAddress = HostAndPort.fromString(config.address());
         var serverAddress = HostAndPort.fromString(config.serverAddress());
-        var whiteboardAddress = HostAndPort.fromString(config.whiteboardAddress());
-        var snapshotAddress = HostAndPort.fromString(config.snapshotAddress());
-
         final URI externalAddress = new URI(LzyKharon.scheme(), null, config.externalHost(), selfAddress.getPort(),
             null, null, null);
         serverChannel = ChannelBuilder.forAddress(serverAddress.getHost(), serverAddress.getPort())
@@ -82,11 +79,13 @@ public class LzyKharon {
             .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
 
+        var whiteboardAddress = HostAndPort.fromString(config.whiteboardAddress());
         whiteboardChannel = ChannelBuilder.forAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort())
             .usePlaintext()
             .build();
         whiteboard = WbApiGrpc.newBlockingStub(whiteboardChannel);
 
+        var snapshotAddress = HostAndPort.fromString(config.snapshotAddress());
         snapshotChannel = ChannelBuilder.forAddress(snapshotAddress.getHost(), snapshotAddress.getPort())
             .usePlaintext()
             .build();
@@ -99,7 +98,8 @@ public class LzyKharon {
 
         sessionManager = new TerminalSessionManager();
         uriResolver = new UriResolver(externalAddress, servantProxyFsAddress);
-        serverControllerFactory = new ServerControllerFactory(server, uriResolver, servantProxyAddress, servantProxyFsAddress);
+        serverControllerFactory = new ServerControllerFactory(server, uriResolver, servantProxyAddress,
+                servantProxyFsAddress);
 
         var sessionIdInterceptor = new SessionIdInterceptor();
 
