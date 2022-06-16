@@ -4,39 +4,56 @@ import static ru.yandex.cloud.ml.platform.lzy.graph.algo.DirectedGraph.*;
 
 import java.util.*;
 
-public class DirectedGraph<T extends Vertex> {
-    private final Map<String, Set<T>> graph = new HashMap<>();
-    private final Map<String, Set<T>> reversedGraph = new HashMap<>();
+public class DirectedGraph<T extends Vertex, E extends Edge<T>> {
+    private final Map<String, Set<E>> graph = new HashMap<>();  // Map from vertexId to set of edges
+    private final Map<String, Set<E>> reversedGraph = new HashMap<>();  // Map from vertexId to set of reversed edges
     private final Set<T> vertexes = new HashSet<>();
 
-    public Set<T> children(String parent) {
+    public Set<E> children(String parent) {
         return graph.getOrDefault(parent, new HashSet<>());
     }
 
-    public Set<T> parents(String child) {
+    public Set<E> parents(String child) {
         return reversedGraph.getOrDefault(child, new HashSet<>());
     }
 
-    public void addEdges(Collection<Edge<T>> edges) {
+    public void addEdges(Collection<E> edges) {
         edges.forEach(this::addEdge);
     }
 
-    public void addEdge(Edge<T> edge) {
+    public void addEdge(E edge) {
         vertexes.add(edge.input());
         vertexes.add(edge.output());
         graph
             .computeIfAbsent(edge.input().name(), k -> new HashSet<>())
-            .add(edge.output());
+            .add(edge);
         reversedGraph
             .computeIfAbsent(edge.output().name(), k -> new HashSet<>())
-            .add(edge.input());
+            .add(edge);
     }
 
     public Set<T> vertexes() {
         return vertexes;
     }
 
-    public record Edge<T extends Vertex>(T input, T output) {}
+    public static abstract class Edge<T extends Vertex> {
+        abstract T input();
+        abstract T output();
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof Edge)) {
+                return false;
+            }
+            return Objects.equals(input(), ((Edge<?>) obj).input())
+                && Objects.equals(output(), ((Edge<?>) obj).output());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(input(), output());
+        }
+    }
 
     public abstract static class Vertex {
         abstract String name();

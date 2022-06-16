@@ -4,6 +4,7 @@ import io.grpc.ServerInterceptors;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
@@ -14,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder.GraphValidationException;
 import ru.yandex.cloud.ml.platform.lzy.graph.config.ServiceConfig;
+import ru.yandex.cloud.ml.platform.lzy.graph.db.DaoException;
 import ru.yandex.cloud.ml.platform.lzy.graph.db.GraphExecutionDao;
 import ru.yandex.cloud.ml.platform.lzy.graph.queue.QueueManager;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.GrpcLogsInterceptor;
@@ -53,7 +55,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Override
     public void execute(GraphExecuteRequest request, StreamObserver<GraphExecuteResponse> responseObserver) {
-        final GraphDescription graph = GraphDescription.fromGrpc(request.getTasksList());
+        final GraphDescription graph = GraphDescription.fromGrpc(request.getTasksList(), request.getChannelsList());
         try {
             graphBuilder.validate(graph);
         } catch (GraphValidationException e) {
@@ -63,10 +65,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         final GraphExecutionState graphExecution;
         try {
             graphExecution = queueManager.startGraph(request.getWorkflowId(), graph);
-        } catch (GraphExecutionDao.GraphDaoException e) {
+        } catch (StatusException e) {
             LOG.error("Cannot create graph for workflow <" + request.getWorkflowId() + ">", e);
-            responseObserver.onError(Status.INTERNAL
-                .withDescription("Cannot create graph.").asException());
+            responseObserver.onError(e);
             return;
         }
         responseObserver.onNext(GraphExecuteResponse.newBuilder().setStatus(graphExecution.toGrpc()).build());
@@ -79,12 +80,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
         try {
             state = dao.get(request.getWorkflowId(), request.getGraphId());
-        } catch (GraphExecutionDao.GraphDaoException e) {
-            LOG.error(
-                String.format("Cannot get status of graph <%s> in workflow <%s> from database",
-                    request.getGraphId(), request.getWorkflowId()
-                ),
-                e
+        } catch (DaoException e) {
+            LOG.error("Cannot get status of graph {} in workflow {} from database",
+                request.getGraphId(), request.getWorkflowId(), e
             );
             responseObserver.onError(Status.INTERNAL
                 .withDescription("Cannot get graph execution status.").asException());
@@ -110,12 +108,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 .stream()
                 .map(GraphExecutionState::toGrpc)
                 .collect(Collectors.toList());
-        } catch (GraphExecutionDao.GraphDaoException e) {
+        } catch (DaoException e) {
 
-            LOG.error(
-                String.format("Cannot get list of graphs in workflow <%s> from database", request.getWorkflowId()),
-                e
-            );
+            LOG.error("Cannot get list of graphs in workflow {} from database", request.getWorkflowId(), e);
             responseObserver.onError(Status.INTERNAL
                 .withDescription("Cannot get list of graph executions.").asException());
             return;
@@ -131,9 +126,8 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         try {
             state = queueManager.stopGraph(request.getWorkflowId(),
                 request.getGraphId(), request.getIssue());
-        } catch (GraphExecutionDao.GraphDaoException e) {
-            responseObserver.onError(Status.INTERNAL
-                .withDescription("Cannot get graph execution status.").asException());
+        } catch (StatusException e) {
+            responseObserver.onError(e);
             return;
         }
         if (state == null) {

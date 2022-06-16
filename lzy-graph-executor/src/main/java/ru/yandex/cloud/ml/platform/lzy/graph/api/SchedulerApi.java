@@ -8,10 +8,10 @@ import javax.annotation.Nullable;
 public interface SchedulerApi {
 
     /**
-     * Executes group of tasks
-     * @param workflowId id of workflow to execute tasks in
-     * @param task descriptions of tasks to execute
-     * @return list of task statuses that was registered
+     * Schedule task
+     * @param workflowId id of workflow to execute task in
+     * @param task descriptions of task to execute
+     * @return status of task that was registered
      */
     Tasks.TaskProgress execute(String workflowId, TaskDescription task);
 

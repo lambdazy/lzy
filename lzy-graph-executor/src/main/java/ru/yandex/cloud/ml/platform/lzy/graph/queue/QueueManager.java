@@ -2,8 +2,10 @@ package ru.yandex.cloud.ml.platform.lzy.graph.queue;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import io.grpc.StatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -21,16 +23,17 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.graph.config.ServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.graph.db.GraphExecutionDao;
-import ru.yandex.cloud.ml.platform.lzy.graph.db.GraphExecutionDao.GraphDaoException;
+import ru.yandex.cloud.ml.platform.lzy.graph.db.DaoException;
+import ru.yandex.cloud.ml.platform.lzy.graph.db.QueueEventDao;
 import ru.yandex.cloud.ml.platform.lzy.graph.exec.GraphProcessor;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState.Status;
+import ru.yandex.cloud.ml.platform.lzy.graph.model.QueueEvent;
 
 @Singleton
 public class QueueManager extends Thread {
     private static final ThreadGroup EXECUTORS_TG = new ThreadGroup("graph-executors");
-    private static final long PERIOD_SECONDS = 1;
     private static final long TERMINATION_TIMEOUT_SECONDS = 10;
     private static final Logger LOG = LogManager.getLogger(QueueManager.class);
 
@@ -40,13 +43,14 @@ public class QueueManager extends Thread {
     private final GraphExecutionDao dao;
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     private final Map<GraphExecutionKey, String> stoppingGraphs = new ConcurrentHashMap<>();
-    private final ServiceConfig config;
+    private final QueueEventDao eventDao;
 
     @Inject
-    public QueueManager(GraphProcessor processor, GraphExecutionDao dao, ServiceConfig config) {
+    public QueueManager(GraphProcessor processor, GraphExecutionDao dao, ServiceConfig config, QueueEventDao eventDao) {
         super("queue-manager-thread");
         this.processor = processor;
         this.dao = dao;
+        this.eventDao = eventDao;
         this.executor = Executors.newFixedThreadPool(config.executorsCount(), new ThreadFactory() {
             private int count = 0;
 
@@ -55,10 +59,9 @@ public class QueueManager extends Thread {
                 return new Thread(EXECUTORS_TG, r, "graph-executor-" + (++count));
             }
         });
-        this.config = config;
         try {
             restore();
-        } catch (GraphDaoException e) {
+        } catch (DaoException e) {
             LOG.error("Error while restoring graph executor", e);
         }
     }
@@ -66,64 +69,103 @@ public class QueueManager extends Thread {
     @Override
     public void run() {
         while (true) {
+            if (stopping.get()) {
+                shutdown();
+                return;
+            }
             try {
-                if (stopping.get()) {
-                    shutdown();
-                    return;
-                }
-                GraphExecutionKey key = queue.poll(PERIOD_SECONDS, SECONDS);
-                if (key == null) {
-                    continue;
-                }
-
+                eventDao.acquireWithLimit(128)
+                    .forEach(this::processEventFromQueue);
+            } catch (DaoException e) {
+                LOG.error("Error while processing queue events", e);
+            }
+            try {
+                GraphExecutionKey key = queue.take();
                 executor.submit(() -> process(key));
-
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                LOG.debug("Thread is interrupted", e);
             }
         }
     }
 
     public void gracefulShutdown() {
         stopping.set(true);
+        this.interrupt();
     }
 
-    public GraphExecutionState startGraph(String workflowId, GraphDescription graph) throws GraphDaoException {
-        try {
-            final GraphExecutionState state = dao.create(workflowId, graph);
-            queue.put(new GraphExecutionKey(state.workflowId(), state.id()));
-            return state;
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+    public GraphExecutionState startGraph(String workflowId, GraphDescription graph) throws StatusException {
+        if (stopping.get()) {
+            throw io.grpc.Status.UNAVAILABLE.withDescription("Service stopping, please try later").asException();
         }
+
+        final GraphExecutionState state;
+        try {
+            state = dao.create(workflowId, graph);
+        } catch (DaoException e) {
+            LOG.error("Error while creating graph from workflow <{}>", workflowId, e);
+            throw io.grpc.Status.INTERNAL.withDescription("Error while creating graph").asException();
+        }
+        try {
+            eventDao.add(QueueEvent.Type.START, state.workflowId(), state.id(), "Starting graph");
+        } catch (DaoException e) {
+            LOG.error("Error while adding start graph event from workflow <{}>", workflowId, e);
+            throw io.grpc.Status.INTERNAL.withDescription("Error while starting graph").asException();
+        }
+        this.interrupt();
+        return state;
     }
 
-    @Nullable
     public GraphExecutionState stopGraph(String workflowId, String graphId,
-                                         String description) throws GraphDaoException {
-        final GraphExecutionState state = dao.get(workflowId, graphId);
+                                         String description) throws StatusException {
+        if (stopping.get()) {
+            throw io.grpc.Status.UNAVAILABLE.withDescription("Service stopping, please try later").asException();
+        }
+        final GraphExecutionState state;
+        try {
+            state = dao.get(workflowId, graphId);
+        } catch (DaoException e) {
+            LOG.error("Error while getting graph {} from workflow {}", graphId, workflowId, e);
+            throw io.grpc.Status.INTERNAL.withDescription("Error while getting graph").asException();
+        }
         if (state == null) {
-            return null;
+            throw io.grpc.Status.NOT_FOUND.withDescription("Graph not found").asException();
         }
         if (Set.of(Status.FAILED, Status.COMPLETED).contains(state.status())) {
             return state;
         }
-        stoppingGraphs.put(new GraphExecutionKey(workflowId, graphId), description);
+        try {
+            eventDao.add(QueueEvent.Type.STOP, state.workflowId(), state.id(), description);
+        } catch (DaoException e) {
+            LOG.error("Error while adding graph {} stop event from workflow {}", graphId, workflowId, e);
+            throw io.grpc.Status.INTERNAL.withDescription("Error while stopping graph").asException();
+        }
+        this.interrupt();
         return state;
     }
 
-    private void shutdown() throws InterruptedException {
+    private void shutdown() {
         executor.shutdown();
-        if (!executor.awaitTermination(TERMINATION_TIMEOUT_SECONDS, SECONDS)) {
-            executor.shutdownNow();
+        LocalDateTime start = LocalDateTime.now();
+        while (true) {
+            try {
+                if (!executor.awaitTermination(TERMINATION_TIMEOUT_SECONDS, SECONDS)) {
+                    executor.shutdownNow();
+                }
+                return;
+            } catch (InterruptedException e) {
+                if (start.plus(TERMINATION_TIMEOUT_SECONDS, ChronoUnit.SECONDS).isAfter(LocalDateTime.now())) {
+                    executor.shutdownNow();
+                    return;
+                }
+            }
         }
+
     }
 
     private void process(@NotNull GraphExecutionKey stateKey) {
         final GraphExecutionState state;
         try {
-            state = dao.acquire(stateKey.workflowId(), stateKey.graphId(),
-                config.executionStepTimeoutSecs(), ChronoUnit.SECONDS);
+            state = dao.acquire(stateKey.workflowId(), stateKey.graphId());
             if (state == null) {
                 return;
             }
@@ -135,9 +177,9 @@ public class QueueManager extends Thread {
             }
             dao.free(newState);
             if (!Set.of(Status.FAILED, Status.COMPLETED).contains(newState.status())) {
-                queue.put(stateKey);
+                putIntoQueue(stateKey);
             }
-        } catch (GraphDaoException | InterruptedException e) {
+        } catch (DaoException e) {
             throw new RuntimeException(
                 String.format(
                     "Cannot update graph <%s> with workflow <%s>",
@@ -147,27 +189,49 @@ public class QueueManager extends Thread {
         }
     }
 
-    private void restore() throws GraphDaoException {
+    private void restore() throws DaoException {
         final List<GraphExecutionState> states = dao.filter(Status.EXECUTING);
         states.addAll(dao.filter(Status.WAITING));
         states.forEach(t -> {
             try {
-                final GraphExecutionState s = dao.acquire(t.workflowId(), t.id(), 1, ChronoUnit.SECONDS);
+                final GraphExecutionState s = dao.acquire(t.workflowId(), t.id());
                 if (s == null) {
                     return;
                 }
-                queue.put(new GraphExecutionKey(s.workflowId(), s.id()));
+                putIntoQueue(new GraphExecutionKey(s.workflowId(), s.id()));
                 dao.free(s);
-            } catch (GraphDaoException | InterruptedException e) {
+            } catch (DaoException e) {
                 final GraphExecutionKey key = new GraphExecutionKey(t.workflowId(), t.id());
                 stoppingGraphs.put(key, "Error while restoring graphExecution");
-                try {
-                    queue.put(key);
-                } catch (InterruptedException ex) {
-                    throw new RuntimeException(ex);
-                }
+                putIntoQueue(key);
             }
         });
+        eventDao.removeAllAcquired();
+    }
+
+
+    private void putIntoQueue(GraphExecutionKey key) {
+        boolean res = queue.offer(key);
+        if (!res) {
+            throw new RuntimeException("Cannot put graph into queue"); // Unreachable
+        }
+    }
+
+    private void processEventFromQueue(QueueEvent event) {
+        final GraphExecutionKey key = new GraphExecutionKey(event.workflowId(), event.graphId());
+        switch (event.type()) {
+            case START -> {
+                putIntoQueue(key);
+            }
+            case STOP -> {
+                stoppingGraphs.put(key, event.description());
+            }
+        }
+        try {
+            eventDao.remove(event);
+        } catch (DaoException e) {
+            LOG.error("Error while removing event {} from queue", event, e);
+        }
     }
 
     private record GraphExecutionKey(String workflowId, String graphId) {}

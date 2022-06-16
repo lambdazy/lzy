@@ -6,8 +6,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.Algorithms;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.Algorithms.CondensedComponent;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.Algorithms.CondensedGraph;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.DirectedGraph;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder;
+import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder.ChannelEdge;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder.TaskVertex;
 import ru.yandex.cloud.ml.platform.lzy.graph.api.SchedulerApi;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState;
@@ -25,11 +27,13 @@ public class BfsGraphProcessor implements GraphProcessor {
 
     private final SchedulerApi api;
     private final GraphBuilder graphBuilder;
+    private final ChannelCheckerFactory checkerFactory;
 
     @Inject
-    public BfsGraphProcessor(SchedulerApi api, GraphBuilder graphBuilder) {
+    public BfsGraphProcessor(SchedulerApi api, GraphBuilder graphBuilder, ChannelCheckerFactory checkerFactory) {
         this.api = api;
         this.graphBuilder = graphBuilder;
+        this.checkerFactory = checkerFactory;
     }
 
     @Override
@@ -134,9 +138,9 @@ public class BfsGraphProcessor implements GraphProcessor {
 
     private Set<TaskDescription> getNextExecutionGroup(GraphExecutionState graphExecution)
                                                                         throws GraphBuilder.GraphValidationException {
-        final DirectedGraph<TaskVertex> graph = graphBuilder.build(graphExecution.description());
+        final DirectedGraph<TaskVertex, ChannelEdge> graph = graphBuilder.build(graphExecution.description());
 
-        final Algorithms.CondensedGraph<TaskVertex> condensedGraph = Algorithms.condenseGraph(graph);
+        final CondensedGraph<TaskVertex, ChannelEdge> condensedGraph = Algorithms.condenseGraph(graph);
 
         final Map<String, TaskExecution> taskDescIdToTaskExec = graphExecution
             .executions()
@@ -160,32 +164,25 @@ public class BfsGraphProcessor implements GraphProcessor {
             );
         }
 
+        final Set<CondensedComponent<TaskVertex>> alreadyProcessed = new HashSet<>();
+
+        graphExecution
+            .executions()
+            .forEach(t -> alreadyProcessed.add(condensedGraph.vertexNameToComponentMap().get(t.description().id())));
+
         final var nextBfsGroup = Algorithms
             .getNextBfsGroup(
                 condensedGraph,
                 currentExecutionComponents.stream().toList(),
-                t -> {
-                    final Set<TaskVertex> tasks = t.vertices();
-
-                    boolean canHasChildren = true;
-                    for (TaskVertex task: tasks) {
-                        if (!taskDescIdToTaskExec.containsKey(task.description().id())) {
-                            canHasChildren = false;
-                            break;
-                        }
-                        final TaskExecution exec = taskDescIdToTaskExec.get(task.description().id());
-                        Tasks.TaskProgress progress = api.status(graphExecution.workflowId(), exec.id());
-                        if (
-                            progress == null
-                                || progress.getStatus().getNumber() < Tasks.TaskProgress.Status.EXECUTING.getNumber()
-                                || progress.getStatus() == Tasks.TaskProgress.Status.ERROR
-                        ) {
-                            canHasChildren = false;
-                            break;
-                        }
-                    }
-                    return canHasChildren;
-                });
+                alreadyProcessed,
+                t -> t.condensedEdges()
+                        .stream()
+                        .allMatch(edge -> {
+                            ChannelChecker checker = checkerFactory.checker(taskDescIdToTaskExec,
+                                graphExecution.workflowId(), edge.channelDesc());
+                            return checker.ready(edge);
+                        })
+            );
 
         return nextBfsGroup.stream()
             .map(CondensedComponent::vertices)

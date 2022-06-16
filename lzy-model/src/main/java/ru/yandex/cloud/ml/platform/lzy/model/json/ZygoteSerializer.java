@@ -22,6 +22,6 @@ public class ZygoteSerializer extends StdSerializer<Zygote> {
     public void serialize(Zygote message, JsonGenerator jsonGenerator,
                           SerializerProvider serializerProvider) throws IOException {
         String s = JsonFormat.printer().print(GrpcConverter.to(message));
-        jsonGenerator.writeRaw(s);
+        jsonGenerator.writeRawValue(s);
     }
 }

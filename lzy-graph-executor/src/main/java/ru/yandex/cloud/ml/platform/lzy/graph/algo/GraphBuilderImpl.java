@@ -1,21 +1,21 @@
 package ru.yandex.cloud.ml.platform.lzy.graph.algo;
 
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.graph.algo.DirectedGraph.Edge;
+import ru.yandex.cloud.ml.platform.lzy.graph.model.ChannelDescription;
+import ru.yandex.cloud.ml.platform.lzy.graph.model.ChannelDescription.Type;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.TaskDescription;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Singleton
 public class GraphBuilderImpl implements GraphBuilder {
 
-    public DirectedGraph<TaskVertex> build(GraphDescription graphDescription) throws GraphValidationException {
+    public DirectedGraph<TaskVertex, ChannelEdge> build(GraphDescription graphDescription) throws GraphValidationException {
         // TODO(artolord) add more validations
-        final DirectedGraph<TaskVertex> graph = new DirectedGraph<>();
-        final Map<String, ChannelDescription> channels = new HashMap<>();
+        final DirectedGraph<TaskVertex, ChannelEdge> graph = new DirectedGraph<>();
+        final Map<String, ChannelHolder> channels = new HashMap<>();
 
         for (TaskDescription task : graphDescription.tasks()) {
 
@@ -50,9 +50,11 @@ public class GraphBuilderImpl implements GraphBuilder {
 
             for (Map.Entry<String, String> entry : task.slotsToChannelsAssignments().entrySet()) {
 
-                ChannelDescription channel = channels.get(entry.getValue());
+                ChannelHolder channel = channels.get(entry.getValue());
                 if (channel == null) {
-                    channel = new ChannelDescription();
+                    ChannelDescription desc = graphDescription.channels().get(entry.getValue());
+                    channel = new ChannelHolder(
+                        Objects.requireNonNullElseGet(desc, () -> new ChannelDescription(entry.getValue())));
                     channels.put(entry.getValue(), channel);
                 }
                 if (outputs.contains(entry.getKey())) {
@@ -71,21 +73,14 @@ public class GraphBuilderImpl implements GraphBuilder {
                 );
             }
         }
-        for (Map.Entry<String, ChannelDescription> entry: channels.entrySet()) {
-            final ChannelDescription channel = entry.getValue();
+        for (Map.Entry<String, ChannelHolder> entry: channels.entrySet()) {
+            final ChannelHolder channel = entry.getValue();
 
             if (channel.inputs().isEmpty() || channel.outputs().isEmpty()) {
                 continue; // Skipping external channels
             }
 
-            for (TaskDescription input: channel.inputs()) {
-                graph.addEdges(
-                    channel.outputs()
-                        .stream()
-                        .map(s -> new Edge<>(new TaskVertex(input.id(), input), new TaskVertex(s.id(), s)))
-                        .collect(Collectors.toList())
-                );
-            }
+            graph.addEdges(entry.getValue().edges());
         }
         return graph;
     }
@@ -100,10 +95,27 @@ public class GraphBuilderImpl implements GraphBuilder {
         build(graph);
     }
 
-    private record ChannelDescription(List<TaskDescription> inputs, List<TaskDescription> outputs) {
-        ChannelDescription() {
-            this(new ArrayList<>(), new ArrayList<>());
+    private record ChannelHolder(
+        List<TaskDescription> inputs,
+        List<TaskDescription> outputs,
+        ChannelDescription channelDescription
+    ) {
+        ChannelHolder(ChannelDescription channelDescription) {
+            this(new ArrayList<>(), new ArrayList<>(), channelDescription);
         }
-    }
 
+        public List<ChannelEdge> edges() {
+            final List<ChannelEdge> edges = new ArrayList<>();
+            for (TaskDescription input: inputs) {
+                for (TaskDescription output: outputs) {
+                    edges.add(new ChannelEdge(
+                        new TaskVertex(input.id(), input),
+                        new TaskVertex(output.id(), output),
+                        channelDescription));
+                }
+            }
+            return edges;
+        }
+
+    }
 }

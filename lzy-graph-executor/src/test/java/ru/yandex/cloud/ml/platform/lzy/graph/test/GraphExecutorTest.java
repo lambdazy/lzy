@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.graph.test;
 
+import io.grpc.StatusException;
+import io.micronaut.context.ApplicationContext;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -7,10 +9,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import ru.yandex.cloud.ml.platform.lzy.graph.api.SchedulerApi;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import ru.yandex.cloud.ml.platform.lzy.graph.config.ServiceConfig;
-import ru.yandex.cloud.ml.platform.lzy.graph.db.GraphExecutionDao.GraphDaoException;
+import ru.yandex.cloud.ml.platform.lzy.graph.db.DaoException;
+import ru.yandex.cloud.ml.platform.lzy.graph.db.QueueEventDao;
 import ru.yandex.cloud.ml.platform.lzy.graph.exec.BfsGraphProcessor;
+import ru.yandex.cloud.ml.platform.lzy.graph.exec.ChannelCheckerFactory;
 import ru.yandex.cloud.ml.platform.lzy.graph.exec.GraphProcessor;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.junit.Assert;
@@ -18,6 +23,7 @@ import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilderImpl;
 import ru.yandex.cloud.ml.platform.lzy.graph.algo.GraphBuilder;
+import ru.yandex.cloud.ml.platform.lzy.graph.model.ChannelDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphDescription;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.GraphExecutionState;
 import ru.yandex.cloud.ml.platform.lzy.graph.model.TaskDescription;
@@ -27,6 +33,10 @@ import ru.yandex.cloud.ml.platform.lzy.graph.test.mocks.SchedulerApiMock;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
+import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.util.stream.Collectors;
@@ -36,7 +46,8 @@ public class GraphExecutorTest {
 
     private SchedulerApiMock scheduler;
     private GraphDaoMock dao;
-    private final int TIMEOUT = 100;
+    private QueueEventDao queueEventDao;
+    private final int TIMEOUT = 1000;
 
     @Before
     public void setUp() {
@@ -48,12 +59,13 @@ public class GraphExecutorTest {
             );
             return b.id();
         });
-
-        dao = new GraphDaoMock();
+        var context = ApplicationContext.run();
+        dao = context.getBean(GraphDaoMock.class);
+        queueEventDao = context.getBean(QueueEventDao.class);
     }
 
     @Test
-    public void testSimple() throws InterruptedException, GraphDaoException {
+    public void testSimple() throws InterruptedException, StatusException, DaoException {
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
             .addEdge("1", "2")
@@ -71,32 +83,31 @@ public class GraphExecutorTest {
             // Step 1
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1", "3", "5", "7", "9");
             tester.awaitExecutingNow("1", "3", "5", "7", "9");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "1", "5", "7", "9");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "5", "7", "9");
 
             // Step 2
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "6", "10");
-            tester.awaitExecutingNow("3", "6", "10");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "6", "10");
+            tester.awaitExecutingNow("3", "10");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "6", "10");
 
             // Step 3
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "8");
-            tester.awaitExecutingNow("3", "8");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "3", "8");
+            tester.awaitExecutingNow("3");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "8");
 
             // Step 4
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2", "4");
-            tester.awaitExecutingNow("2", "4");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "4");
+            tester.awaitExecutingNow();
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "2", "4");
 
             // Step 5
-            tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
             tester.waitForStatus(GraphExecutionState.Status.COMPLETED);
 
         }
     }
 
     @Test
-    public void testErrorInTask() throws InterruptedException, GraphDaoException {
+    public void testErrorInTask() throws InterruptedException, StatusException, DaoException {
 
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3")
@@ -108,11 +119,10 @@ public class GraphExecutorTest {
             // Step 1
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1");
             tester.awaitExecutingNow("1");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "1");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 2
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2");
-            tester.awaitExecutingNow("2", "3");
             tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
 
             // Step 3
@@ -123,7 +133,7 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testStop() throws InterruptedException, GraphDaoException {
+    public void testStop() throws InterruptedException, StatusException, DaoException {
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3")
             .addEdge("1", "2")
@@ -134,11 +144,10 @@ public class GraphExecutorTest {
             // Step 1
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1");
             tester.awaitExecutingNow("1");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "1");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 2
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2");
-            tester.awaitExecutingNow("2", "3");
+            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2", "3");
             tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
 
             tester.queue.stopGraph("", tester.state.id(), "Stopped from test");
@@ -150,7 +159,7 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testCycles() throws InterruptedException, GraphDaoException {
+    public void testCycles() throws InterruptedException, StatusException, DaoException {
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3", "4", "5")
             .addEdge("1", "2")
@@ -165,17 +174,16 @@ public class GraphExecutorTest {
             // Step 1
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1", "2");
             tester.awaitExecutingNow("1", "2");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "1");
-            tester.changeStatus(SchedulerApiMock.QUEUE, "2");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step2
             tester.awaitExecutingNow("1", "2");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "2");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "2");
 
             // Step 3
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "4", "5");
-            tester.awaitExecutingNow("3", "4", "5");
-            tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "2", "3", "4", "5");
+            tester.awaitExecutingNow();
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "4", "5");
 
             //Step 4
             tester.waitForStatus(GraphExecutionState.Status.COMPLETED);
@@ -183,7 +191,7 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testRestore() throws InterruptedException, GraphDaoException {
+    public void testRestore() throws InterruptedException, DaoException, StatusException {
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
             .addEdge("1", "2")
@@ -202,31 +210,29 @@ public class GraphExecutorTest {
             workflowId = tester.state.workflowId();
             graphId = tester.state.id();
 
-            // Step 1
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1", "3", "5", "7", "9");
             tester.awaitExecutingNow("1", "3", "5", "7", "9");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "1", "5", "7", "9");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "5", "7", "9");
 
             // Step 2
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "6", "10");
-            tester.awaitExecutingNow("3", "6", "10");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "6", "10");
+            tester.awaitExecutingNow("3", "10");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "6", "10");
 
             // Step 3
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "8");
-            tester.awaitExecutingNow("3", "8");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "3", "8");
+            tester.awaitExecutingNow("3");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "8");
         }
 
         try (var tester = new GraphTester(workflowId, graphId)) {
 
             // Step 4
             tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2", "4");
-            tester.awaitExecutingNow("2", "4");
-            tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "4");
+            tester.awaitExecutingNow();
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "2", "4");
 
             // Step 5
-            tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
             tester.waitForStatus(GraphExecutionState.Status.COMPLETED);
 
         }
@@ -237,7 +243,7 @@ public class GraphExecutorTest {
         private final GraphExecutionState state;
         private final QueueManager queue;
 
-        GraphTester(String workflowId, String graphId) throws GraphDaoException {
+        GraphTester(String workflowId, String graphId) throws DaoException {
             this.state = dao.get(workflowId, graphId);
             Assert.assertNotNull(state);
             graph = state.description();
@@ -245,14 +251,14 @@ public class GraphExecutorTest {
             this.queue.start();
         }
 
-        GraphTester(GraphDescription graph) throws GraphDaoException {
+        GraphTester(GraphDescription graph) throws StatusException {
             this.graph = graph;
             this.queue = initQueue();
             this.queue.start();
             state = this.queue.startGraph("", graph);
         }
 
-        public void awaitExecutingNow(String... taskIds) throws InterruptedException {
+        public void awaitExecutingNow(String... taskIds) throws InterruptedException, DaoException {
             dao.waitForExecutingNow("", state.id(), new HashSet<>(Arrays.stream(taskIds).toList()), TIMEOUT);
         }
 
@@ -268,7 +274,7 @@ public class GraphExecutorTest {
             }
         }
 
-        public void waitForStatus(GraphExecutionState.Status s) throws InterruptedException {
+        public void waitForStatus(GraphExecutionState.Status s) throws InterruptedException, DaoException {
             dao.waitForStatus(state.workflowId(), state.id(), s, TIMEOUT);
             Assert.assertEquals(s, dao.get(state.workflowId(), state.id()).status());
         }
@@ -284,12 +290,12 @@ public class GraphExecutorTest {
         return new Zygote() {
             @Override
             public Slot[] input() {
-                return inputs.stream().map(GraphExecutorTest::buildSlot).toArray(Slot[]::new);
+                return inputs.stream().map(t -> buildSlot(t, Slot.Direction.INPUT)).toArray(Slot[]::new);
             }
 
             @Override
             public Slot[] output() {
-                return outputs.stream().map(GraphExecutorTest::buildSlot).toArray(Slot[]::new);
+                return outputs.stream().map(t -> buildSlot(t, Slot.Direction.OUTPUT)).toArray(Slot[]::new);
             }
 
             @Override
@@ -302,7 +308,7 @@ public class GraphExecutorTest {
         };
     }
 
-    public static Slot buildSlot(String name) {
+    public static Slot buildSlot(String name, Slot.Direction direction) {
         return new Slot() {
             @Override
             public String name() {
@@ -311,12 +317,12 @@ public class GraphExecutorTest {
 
             @Override
             public Media media() {
-                return null;
+                return Media.FILE;
             }
 
             @Override
             public Direction direction() {
-                return null;
+                return direction;
             }
 
             @Override
@@ -344,6 +350,7 @@ public class GraphExecutorTest {
 
         public GraphDescription build() {
             List<TaskDescription> tasks = new ArrayList<>();
+            Map<String, ChannelDescription> channelDescriptions = new HashMap<>();
             for (String v: vertexes) {
                 List<String> inputs = reversedEdges.getOrDefault(v, new ArrayList<>()).stream()
                     .map(s -> s + "to" + v).collect(Collectors.toList());
@@ -352,18 +359,25 @@ public class GraphExecutorTest {
                 Zygote zygote = buildZygote(inputs, outputs);
                 Map<String, String> slotsMapping = Stream.concat(inputs.stream(), outputs.stream())
                     .collect(Collectors.toMap(t -> t, t -> t));
+                channelDescriptions.putAll(
+                    slotsMapping.values()
+                        .stream()
+                        .map(t -> new ChannelDescription(ChannelDescription.Type.DIRECT, t))
+                        .collect(Collectors.toMap(ChannelDescription::id, t -> t))
+                );
                 tasks.add(new TaskDescription(v, zygote, slotsMapping));
             }
-            return new GraphDescription(tasks);
+            return new GraphDescription(tasks, channelDescriptions);
         }
     }
 
     private QueueManager initQueue() {
         GraphBuilder builder = new GraphBuilderImpl();
-        GraphProcessor processor = new BfsGraphProcessor(scheduler, builder);
+        ChannelCheckerFactory factory = new ChannelCheckerFactory(scheduler);
+        GraphProcessor processor = new BfsGraphProcessor(scheduler, builder, factory);
         ServiceConfig config = new ServiceConfig();
         config.setExecutorsCount(1);
         config.setExecutionStepTimeoutSecs(10);
-        return new QueueManager(processor, dao, config);
+        return new QueueManager(processor, dao, config, queueEventDao);
     }
 }
