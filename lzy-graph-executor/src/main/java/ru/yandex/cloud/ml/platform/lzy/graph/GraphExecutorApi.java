@@ -27,6 +27,7 @@ import ru.yandex.cloud.ml.platform.lzy.graph.db.GraphExecutionDao;
 import ru.yandex.cloud.ml.platform.lzy.graph.queue.QueueManager;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
+import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
 import ru.yandex.cloud.ml.platform.lzy.iam.clients.AccessClient;
 import ru.yandex.cloud.ml.platform.lzy.iam.clients.AuthenticateService;
 import ru.yandex.cloud.ml.platform.lzy.iam.grpc.client.AccessServiceGrpcClient;
@@ -237,21 +238,23 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     private void assertAuthorized(String workflowId, AuthPermission permission) {
         AuthenticationContext context = AuthenticationContext.current();
+
         if (context == null) {
             throw Status.UNAUTHENTICATED.asRuntimeException();
         }
-        boolean hasPermission = accessClient.hasResourcePermission(
-            context.getSubject(),
-            new Workflow(workflowId),
-            permission
-        );
-        if (!hasPermission) {
-            LOG.error("<{}> trying to access workflow <{}> with permission <{}>, but unauthorized",
-                context.getSubject().id(), workflowId, permission
+
+        try {
+            accessClient
+                .withToken(context::getCredentials)
+                .hasResourcePermission(context.getSubject(), new Workflow(workflowId), permission);
+
+        } catch (AuthException e) {
+            LOG.error("""
+                <{}> trying to access workflow <{}> with permission <{}>, but unauthorized.
+                Details: {}""",
+                context.getSubject().id(), workflowId, permission, e.getInternalDetails()
             );
-            throw Status.NOT_FOUND.withDescription(
-                "Workflow " + workflowId + "not found or you cannot access it"
-            ).asRuntimeException();
+            throw e.toStatusRuntimeException();
         }
     }
 }
