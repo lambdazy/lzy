@@ -375,9 +375,7 @@ public class GraphExecutorTest {
         GraphBuilder builder = new GraphBuilderImpl();
         ChannelCheckerFactory factory = new ChannelCheckerFactory(scheduler);
         GraphProcessor processor = new BfsGraphProcessor(scheduler, builder, factory);
-        ServiceConfig config = new ServiceConfig();
-        config.setExecutorsCount(1);
-        config.setExecutionStepTimeoutSecs(10);
+        ServiceConfig config = new ServiceConfig(1234, 1);
         return new QueueManager(processor, dao, config, queueEventDao);
     }
 }
