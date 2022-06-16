@@ -288,10 +288,6 @@ public class LzyServant extends LzyAgent {
                 });
 
             } catch (LzyExecutionException | InterruptedException e) {
-//                responseObserver.onError(
-//                    Status.INTERNAL
-//                        .withDescription(e.getMessage()).withCause(e.getCause()).asException()
-//                );
                 forceStop("", e);
                 return;
             }

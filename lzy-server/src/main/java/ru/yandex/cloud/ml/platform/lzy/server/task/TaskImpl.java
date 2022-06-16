@@ -143,7 +143,7 @@ public class TaskImpl implements Task {
                                 //state(ERROR, 1, ce.getMessage());
                             }
                         } else {
-                            LOG.error("Unable to attach channel to " + tid + ":" + slot.name() + ". Channel not found.");
+                            LOG.error("Unable to attach channel to " + tid + ":" + slot.name() + ". Channel not found");
                         }
                         return true;
                     }
