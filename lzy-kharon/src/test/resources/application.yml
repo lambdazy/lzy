@@ -1,0 +1,18 @@
+kharon:
+  address: 'localhost:8899'
+  # external-host: ''
+  iam-address: 'localhost:7778'
+  server-address: 'localhost:7777'
+  whiteboard-address: 'localhost:8999'
+  snapshot-address: 'localhost:8999'
+  servant-proxy-port: 8900
+  servant-proxy-fs-port: 8901
+
+  workflow:
+    server-address: 'localhost:7777'
+    database:
+      url: 'jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
+      username: 'test'
+      password: ''
+      min-pool-size: 1
+      max-pool-size: 5

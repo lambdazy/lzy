@@ -2,6 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.iam.grpc.interceptors;
 
 import com.google.common.collect.ImmutableSet;
 import io.grpc.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.Credentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.credentials.JwtCredentials;
 import ru.yandex.cloud.ml.platform.lzy.iam.authorization.exceptions.AuthException;
@@ -19,6 +21,7 @@ import static ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcHeaders.AUTHORIZATI
 
 
 public class AuthServerInterceptor implements ServerInterceptor {
+    public static final Logger LOG = LogManager.getLogger(AuthServerInterceptor.class);
 
     private final Function<AuthException, StatusException> exceptionMapper;
     private final Set<MethodDescriptor<?, ?>> unauthenticatedMethods;
@@ -64,11 +67,8 @@ public class AuthServerInterceptor implements ServerInterceptor {
     }
 
     @Override
-    public <T, R> ServerCall.Listener<T> interceptCall(
-            ServerCall<T, R> call,
-            Metadata headers,
-            ServerCallHandler<T, R> next
-    ) {
+    public <T, R> ServerCall.Listener<T> interceptCall(ServerCall<T, R> call, Metadata headers,
+                                                       ServerCallHandler<T, R> next) {
         try {
             if (unauthenticatedMethods.contains(call.getMethodDescriptor())) {
                 return next.startCall(call, headers);
@@ -84,6 +84,8 @@ public class AuthServerInterceptor implements ServerInterceptor {
         } catch (IllegalArgumentException iaException) {
             return this.closeCall(call, exceptionMapper.apply(new AuthUnauthenticatedException(iaException, "")));
         } catch (AuthException authException) {
+            LOG.error("Auth error, status: {}, internal: {}",
+                authException.status(), authException.getInternalDetails());
             return this.closeCall(call, exceptionMapper.apply(authException));
         }
     }

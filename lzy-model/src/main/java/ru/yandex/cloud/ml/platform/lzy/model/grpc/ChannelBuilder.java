@@ -61,6 +61,13 @@ public class ChannelBuilder {
         return new ChannelBuilder(address.getHostName(), address.getPort());
     }
 
+    public static ChannelBuilder forAddress(String hostPort) {
+        int delimPos = hostPort.indexOf(':');
+        var host = hostPort.substring(0, delimPos);
+        var port = Integer.parseInt(hostPort.substring(delimPos + 1));
+        return forAddress(host, port);
+    }
+
     public ChannelBuilder usePlaintext() {
         this.tls = false;
         return this;
