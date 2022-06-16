@@ -12,7 +12,8 @@ import java.util.*;
 @Singleton
 public class GraphBuilderImpl implements GraphBuilder {
 
-    public DirectedGraph<TaskVertex, ChannelEdge> build(GraphDescription graphDescription) throws GraphValidationException {
+    public DirectedGraph<TaskVertex, ChannelEdge> build(GraphDescription graphDescription)
+        throws GraphValidationException {
         // TODO(artolord) add more validations
         final DirectedGraph<TaskVertex, ChannelEdge> graph = new DirectedGraph<>();
         final Map<String, ChannelHolder> channels = new HashMap<>();

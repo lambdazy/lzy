@@ -36,7 +36,7 @@ public class DirectedGraph<T extends Vertex, E extends Edge<T>> {
         return vertexes;
     }
 
-    public static abstract class Edge<T extends Vertex> {
+    public abstract static class Edge<T extends Vertex> {
         abstract T input();
         abstract T output();
 
