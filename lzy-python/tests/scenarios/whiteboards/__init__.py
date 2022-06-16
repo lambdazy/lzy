@@ -217,8 +217,7 @@ print("string_field value in WhiteboardWithOneLzyMessageField is " + wb.a.string
 print("int_field value in WhiteboardWithOneLzyMessageField is " + str(wb.a.int_field))
 
 try:
-    # wb = env.whiteboard(wb_id, WhiteboardWithTwoLzyMessageFields)
-    wb = env.whiteboard_by_id(wb_id)
+    wb = env.whiteboard(wb_id, WhiteboardWithTwoLzyMessageFields)
     print("Could create WhiteboardWithTwoLzyMessageFields")
 except TypeError:
     print(
@@ -232,8 +231,7 @@ with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
 
 env = LzyRemoteEnv()
 try:
-    # wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
-    wb = env.whiteboard_by_id(wb_id)
+    wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
     print("Could create WhiteboardWithLzyMessageFields")
 except TypeError:
     print("Could not create WhiteboardWithLzyMessageFields because of a missing field")
