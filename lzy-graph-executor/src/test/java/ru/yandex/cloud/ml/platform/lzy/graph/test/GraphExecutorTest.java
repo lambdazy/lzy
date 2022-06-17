@@ -9,8 +9,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.config.Configurator;
 import ru.yandex.cloud.ml.platform.lzy.graph.config.ServiceConfig;
 import ru.yandex.cloud.ml.platform.lzy.graph.db.DaoException;
 import ru.yandex.cloud.ml.platform.lzy.graph.db.QueueEventDao;
@@ -33,10 +31,6 @@ import ru.yandex.cloud.ml.platform.lzy.graph.test.mocks.SchedulerApiMock;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.util.stream.Collectors;
@@ -51,7 +45,7 @@ public class GraphExecutorTest {
 
     @Before
     public void setUp() {
-        scheduler =  new SchedulerApiMock((a, b, sch) -> {
+        scheduler = new SchedulerApiMock((a, b, sch) -> {
             sch.changeStatus(b.id(), Tasks.TaskProgress.newBuilder()
                 .setTid(b.id())
                 .setStatus(Tasks.TaskProgress.Status.QUEUE)
@@ -239,6 +233,7 @@ public class GraphExecutorTest {
     }
 
     private class GraphTester implements AutoCloseable {
+
         private final GraphDescription graph;
         private final GraphExecutionState state;
         private final QueueManager queue;
@@ -263,13 +258,13 @@ public class GraphExecutorTest {
         }
 
         public void changeStatus(Tasks.TaskProgress s, String... taskIds) {
-            for (String task: taskIds) {
+            for (String task : taskIds) {
                 scheduler.changeStatus(task, s);
             }
         }
 
         public void waitForStatus(Tasks.TaskProgress.Status s, String... taskIds) throws InterruptedException {
-            for (String task: taskIds) {
+            for (String task : taskIds) {
                 scheduler.waitForStatus(task, s, TIMEOUT);
             }
         }
@@ -299,7 +294,8 @@ public class GraphExecutorTest {
             }
 
             @Override
-            public void run() {}
+            public void run() {
+            }
 
             @Override
             public String name() {
@@ -327,12 +323,13 @@ public class GraphExecutorTest {
 
             @Override
             public DataSchema contentType() {
-                return null;
+                return DataSchema.plain;
             }
         };
     }
 
     public static class GraphDescriptionBuilder {
+
         private final List<String> vertexes = new ArrayList<>();
         private final Map<String, List<String>> edges = new HashMap<>();
         private final Map<String, List<String>> reversedEdges = new HashMap<>();
@@ -351,7 +348,7 @@ public class GraphExecutorTest {
         public GraphDescription build() {
             List<TaskDescription> tasks = new ArrayList<>();
             Map<String, ChannelDescription> channelDescriptions = new HashMap<>();
-            for (String v: vertexes) {
+            for (String v : vertexes) {
                 List<String> inputs = reversedEdges.getOrDefault(v, new ArrayList<>()).stream()
                     .map(s -> s + "to" + v).collect(Collectors.toList());
                 List<String> outputs = edges.getOrDefault(v, new ArrayList<>()).stream()
