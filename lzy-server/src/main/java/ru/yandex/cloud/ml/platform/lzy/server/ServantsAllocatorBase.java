@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.server;
 
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
-import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
@@ -22,7 +21,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -143,10 +141,9 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
             final Iterator<Servant.ServantProgress> progressIterator = servantStub.start(emptyRequest);
             Context.current().addListener(l -> connection.progress(Servant.ServantProgress.newBuilder()
-                .setDisconnected(Servant.Disconnected.newBuilder().build()).build()), Runnable::run);
-            Throwable ex = null;
+                .setFailed(Servant.Failed.newBuilder().build()).build()), Runnable::run);
             try {
-                Consumer<Servant.ServantProgress> action = progress -> {
+                progressIterator.forEachRemaining(progress -> {
                     if (progress.hasStart()) {
                         Servant.EnvResult result = servantStub.env(GrpcConverter.to(connection.env()));
                         uncompletedConnections.remove(servantId);
@@ -163,33 +160,18 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                         }
                     }
                     connection.progress(progress);
-                };
-                while (true) {
-                    if (progressIterator.hasNext()) {
-                        var v = progressIterator.next();
-                        action.accept(v);
-                    }
-                }
+                });
             } catch (Exception e) {
-                ex = e;
+                LOG.error("Error while servant interconnection, servantId={}", servantId, e);
+                if (!request.isDone()) {
+                    request.completeExceptionally(new RuntimeException("Servant disconnected"));
+                }
+                connection.progress(Servant.ServantProgress.newBuilder()
+                        .setFailed(Servant.Failed.newBuilder().build()).build());
             } finally {
                 synchronized (ServantsAllocatorBase.this) {
-                    // request.isDone() -- means that the allocation is done, we have a pure server without env
-                    // ex != null -- problem during env initialization
-                    if (!request.isDone() || ex != null) {
-                        if (!request.isDone()) {
-                            request.completeExceptionally(new RuntimeException("Servant disconnected"));
-                        }
-                        connection.progress(Servant.ServantProgress.newBuilder()
-                            .setExecuteStop(Servant.ExecutionConcluded.newBuilder()
-                                .setRc(1)
-                                .setDescription(ex != null ? ex.getMessage() : "aaa")
-                                .build())
-                            .build());
-                    } else {
-                        connection.progress(Servant.ServantProgress.newBuilder()
-                            .setDisconnected(Servant.Disconnected.newBuilder().build()).build());
-                    }
+                    connection.progress(Servant.ServantProgress.newBuilder()
+                            .setExit(Servant.Disconnected.newBuilder().build()).build());
                     shuttingDown.remove(connection);
                     cleanup(connection);
                 }

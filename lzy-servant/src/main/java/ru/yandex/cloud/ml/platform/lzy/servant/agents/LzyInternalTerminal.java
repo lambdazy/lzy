@@ -133,11 +133,7 @@ public class LzyInternalTerminal extends LzyAgent implements Closeable {
             waitForStart();
             LzyInternalTerminal.this.context.onProgress(progress -> {
                 LOG.info("LzyInternalTerminal::progress {} {}", agentUri, JsonUtils.printRequest(progress));
-
                 responseObserver.onNext(progress);
-                if (progress.getStatusCase() == Servant.ServantProgress.StatusCase.EXIT) {
-                    responseObserver.onCompleted();
-                }
             });
 
             status.set(AgentStatus.PREPARING_EXECUTION);

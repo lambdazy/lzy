@@ -1,15 +1,8 @@
 package ru.yandex.cloud.ml.platform.lzy.servant.agents;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
 import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
@@ -17,6 +10,11 @@ import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
 @SuppressWarnings("WeakerAccess")
 public class LzyExecution {
@@ -37,7 +35,7 @@ public class LzyExecution {
         this.lzyMount = lzyMount;
     }
 
-    public void start(Environment environment) throws LzyExecutionException {
+    public void start(Environment environment) {
         final long startMillis = System.currentTimeMillis();
         if (zygote == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
@@ -52,8 +50,6 @@ public class LzyExecution {
 
         final String command = zygote.fuze() + " " + arguments;
         LOG.info("Going to exec command " + command);
-        int rc;
-        String resultDescription;
         final long envExecStartMillis = System.currentTimeMillis();
         try {
             MetricEventLogger.log(
@@ -74,18 +70,6 @@ public class LzyExecution {
             ));
 
 
-        } catch (LzyExecutionException e) {
-            resultDescription = "Error during task execution:\n" + e;
-            rc = ReturnCodes.EXECUTION_ERROR.getRc();
-            LOG.info("Result description: " + resultDescription);
-            progress(Servant.ServantProgress.newBuilder()
-                .setExecuteStop(Servant.ExecutionConcluded.newBuilder()
-                    .setRc(rc)
-                    .setDescription(resultDescription)
-                    .build())
-                .build()
-            );
-            throw e;
         } finally {
             envExecFinishMillis = System.currentTimeMillis();
             MetricEventLogger.log(
@@ -106,31 +90,17 @@ public class LzyExecution {
         listeners.add(listener);
     }
 
-    public int waitFor() {
-        try {
-            int rc = process.waitFor();
-            String resultDescription = (rc == 0) ? "Success" : "Failure";
-            LOG.info("Result description: " + resultDescription);
-            progress(Servant.ServantProgress.newBuilder()
-                .setExecuteStop(Servant.ExecutionConcluded.newBuilder()
-                    .setRc(rc)
-                    .setDescription(resultDescription)
-                    .build())
-                .build()
-            );
-            return rc;
-        } catch (Exception e) {
-            final String exceptionDescription = "Exception during task execution" + e;
-            LOG.warn(exceptionDescription);
-            progress(Servant.ServantProgress.newBuilder()
-                .setExecuteStop(Servant.ExecutionConcluded.newBuilder()
-                    .setRc(-1)
-                    .setDescription(exceptionDescription)
-                    .build())
-                .build()
-            );
-            return -1;
-        }
+    public void waitFor() {
+        int rc = process.waitFor();
+        String resultDescription = (rc == 0) ? "Success" : "Failure";
+        LOG.info("Result description: " + resultDescription);
+        progress(Servant.ServantProgress.newBuilder()
+            .setExecuteStop(Servant.ExecutionConcluded.newBuilder()
+                .setRc(rc)
+                .setDescription(resultDescription)
+                .build())
+            .build()
+        );
     }
 
     public void signal(int sigValue) {

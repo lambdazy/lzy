@@ -13,8 +13,8 @@ import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.Context;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
@@ -182,7 +182,7 @@ public class LzyServant extends LzyAgent {
                         context().prepare(GrpcConverter.from(request), StorageClient.create(credentials));
                     } catch (EnvironmentInstallationException e) {
                         LOG.error("Unable to install environment", e);
-                        result.setRc(-1);
+                        result.setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc());
                         result.setDescription(e.getMessage());
                     }
                     responseObserver.onNext(result.build());
@@ -193,12 +193,7 @@ public class LzyServant extends LzyAgent {
         @Override
         public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
             waitForStart();
-            LzyServant.this.context.onProgress(progress -> {
-                responseObserver.onNext(progress);
-                if (progress.getStatusCase() == Servant.ServantProgress.StatusCase.EXIT) {
-                    responseObserver.onCompleted();
-                }
-            });
+            LzyServant.this.context.onProgress(responseObserver::onNext);
             LzyServant.this.context.start();
         }
 
@@ -286,9 +281,8 @@ public class LzyServant extends LzyAgent {
                         status.set(AgentStatus.REGISTERED);
                     }
                 });
-
-            } catch (LzyExecutionException | InterruptedException e) {
-                forceStop("", e);
+            } catch (Exception e) {
+                forceStop("Error while execution", e);
                 return;
             }
             status.set(AgentStatus.EXECUTING);

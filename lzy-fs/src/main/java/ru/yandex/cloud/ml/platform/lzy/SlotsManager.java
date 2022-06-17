@@ -52,9 +52,6 @@ public class SlotsManager implements AutoCloseable {
             LOG.info("Waiting for slots: {}...", Arrays.toString(slots().map(LzySlot::name).toArray()));
             this.wait();
         }
-        progress(Servant.ServantProgress.newBuilder()
-            .setExit(Servant.Concluded.newBuilder().build())
-            .build());
         closed = true;
     }
 

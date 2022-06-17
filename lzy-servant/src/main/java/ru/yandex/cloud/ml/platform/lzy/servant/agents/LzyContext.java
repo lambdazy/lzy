@@ -6,7 +6,6 @@ import ru.yandex.cloud.ml.platform.lzy.SlotsManager;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
@@ -15,7 +14,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.env.Environment;
 import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvironmentFactory;
 import ru.yandex.cloud.ml.platform.lzy.slots.ArgumentsSlot;
 import ru.yandex.cloud.ml.platform.lzy.slots.LineReaderSlot;
-import ru.yandex.cloud.ml.platform.lzy.SlotConnectionManager;
 import ru.yandex.cloud.ml.platform.lzy.slots.WriterSlot;
 import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
@@ -76,11 +74,11 @@ public class LzyContext implements AutoCloseable {
         env = EnvironmentFactory.create(from, storage);
     }
 
-    public LzyExecution execute(String taskId, AtomicZygote zygote, Consumer<ServantProgress> onProgress)
-        throws LzyExecutionException, InterruptedException {
+    public LzyExecution execute(String taskId, AtomicZygote zygote, Consumer<ServantProgress> onProgress) {
         final long start = System.currentTimeMillis();
         if (env == null) {
-            throw new LzyExecutionException(new RuntimeException("Cannot execute before prepare"));
+            LOG.error("env is null before execution");
+            throw new IllegalStateException("Cannot execute before prepare");
         }
 
         final LzyExecution execution = new LzyExecution(contextId, zygote, arguments, mountRoot);

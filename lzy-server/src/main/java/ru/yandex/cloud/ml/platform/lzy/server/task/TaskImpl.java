@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 
-import io.grpc.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -13,8 +12,11 @@ import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.net.URI;
 import java.util.*;
@@ -117,7 +119,7 @@ public class TaskImpl implements Task {
         connection.onProgress(progress -> {
             synchronized (TaskImpl.this) {
                 switch (progress.getStatusCase()) {
-                    case ATTACH: {
+                    case ATTACH -> {
                         LOG.info("Attach " + JsonUtils.printRequest(progress));
                         final Servant.SlotAttach attach = progress.getAttach();
                         final Slot slot = GrpcConverter.from(attach.getSlot());
@@ -126,8 +128,8 @@ public class TaskImpl implements Task {
                         if (attach.getChannel().isEmpty()) {
                             final String binding = assignments.getOrDefault(slot, "");
                             channelName = binding.startsWith("channel:")
-                                ? binding.substring("channel:".length())
-                                : null;
+                                    ? binding.substring("channel:".length())
+                                    : null;
                         } else {
                             channelName = attach.getChannel();
                         }
@@ -147,7 +149,7 @@ public class TaskImpl implements Task {
                         }
                         return true;
                     }
-                    case DETACH: {
+                    case DETACH -> {
                         LOG.info("Detach " + JsonUtils.printRequest(progress));
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = GrpcConverter.from(detach.getSlot());
@@ -164,7 +166,7 @@ public class TaskImpl implements Task {
                         }
                         return true;
                     }
-                    case EXECUTESTART: {
+                    case EXECUTESTART -> {
                         LOG.info("Task " + tid + " started");
                         state(State.EXECUTING);
                         signalsQueue.forEach(s -> {
@@ -173,7 +175,7 @@ public class TaskImpl implements Task {
                         });
                         return true;
                     }
-                    case EXECUTESTOP: {
+                    case EXECUTESTOP -> {
                         final ExecutionConcluded executeStop = progress.getExecuteStop();
                         LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
                         final boolean communicationNotCompleted = state != SUSPENDED;
@@ -187,32 +189,29 @@ public class TaskImpl implements Task {
                         TaskImpl.this.notifyAll();
                         return communicationNotCompleted;
                     }
-                    case COMMUNICATIONCOMPLETED: {
+                    case COMMUNICATIONCOMPLETED -> {
                         if (state.phase() <= EXECUTING.phase()) {
                             state(SUSPENDED);
                             return true;
                         }
                         return false;
                     }
-                    case DISCONNECTED: {
-                        state(DISCONNECTED, 1, "Unexpected connection close");
+                    case FAILED -> {
+                        state(ERROR, ReturnCodes.INTERNAL_ERROR.getRc(), "Internal error");
                         return false;
                     }
-                    default: {
+                    case EXIT -> {
+                        if (!EnumSet.of(ERROR, State.SUCCESS).contains(state)) {
+                            state(ERROR, ReturnCodes.INTERNAL_ERROR.getRc(), "Connection error");
+                        }
+                        return false;
+                    }
+                    default -> {
                         return true;
                     }
                 }
             }
         });
-        Context.current().addListener((ctx) -> {
-            synchronized (TaskImpl.this) {
-                if (!EnumSet.of(ERROR, State.SUCCESS).contains(state)) {
-                    state(State.DISCONNECTED);
-                }
-                servant = null;
-                TaskImpl.this.notifyAll();
-            }
-        }, Runnable::run);
         this.servant = connection;
         TaskImpl.this.notifyAll();
         final Tasks.TaskSpec.Builder taskSpecBuilder = Tasks.TaskSpec.newBuilder();

@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.server;
 
-import com.google.protobuf.Empty;
 import io.grpc.Context;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
@@ -21,6 +20,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.*;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.DirectChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.SnapshotChannelSpec;
+import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
@@ -55,7 +55,6 @@ import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
 import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.*;
 
 public class LzyServer {
-    public static final int MAX_TASK_RETRIES = 0;
     private static final Logger LOG;
     private static final Options options = new Options();
     private static final String LZY_SERVER_HOST_ENV = "LZY_SERVER_HOST";
@@ -286,7 +285,6 @@ public class LzyServer {
             final AtomicBoolean concluded = new AtomicBoolean(false);
             // [TODO] session per user is too simple
             final Task task = tasks.start(uid, parent, workload, assignments, auth);
-            final int[] retries = new int[] {0};
             task.onProgress(progress -> {
                 if (concluded.get())
                     return;
@@ -296,19 +294,19 @@ public class LzyServer {
                     servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
                         .whenComplete((connection, th) -> {
                             if (th != null) {
-                                LOG.warn("Exception while servant allocation, uid={}, tid={}", uid, task.tid(), th);
-                                task.state(Task.State.ERROR, ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
-                                    th.getMessage(), Arrays.toString(th.getStackTrace()));
+                                if (th instanceof EnvironmentInstallationException) {
+                                    LOG.info("Env installation failed, uid={}, tid={}", uid, task.tid(), th);
+                                    task.state(Task.State.ERROR, ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
+                                            th.getMessage(), Arrays.toString(th.getStackTrace()));
+                                } else {
+                                    LOG.error("Servant allocation error, uid={}, tid={}", uid, task.tid(), th);
+                                    task.state(Task.State.ERROR, ReturnCodes.INTERNAL_ERROR.getRc(), "Internal error");
+                                }
                             } else {
                                 task.attachServant(connection);
                                 auth.registerTask(uid, task, connection.id());
                             }
                         });
-                } else if (progress.getStatus() == DISCONNECTED) {
-                    if (retries[0]++ < MAX_TASK_RETRIES)
-                        task.state(Task.State.QUEUE, "Disconnected from servant. Retry: " + retries[0]);
-                    else
-                        task.state(Task.State.ERROR, 1, "Disconnected from servant. Maximum retries reached.");
                 } else if (EnumSet.of(ERROR, SUCCESS).contains(progress.getStatus())) {
                     concluded.set(true);
                     responseObserver.onCompleted();

@@ -2,14 +2,13 @@ package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
 public interface Environment extends AutoCloseable {
-    LzyProcess runProcess(String... command) throws LzyExecutionException;
+    LzyProcess runProcess(String... command);
 
-    LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException;
+    LzyProcess runProcess(String[] command, String[] envp);
 
-    default LzyProcess runProcess(String command, String[] envp) throws LzyExecutionException {
+    default LzyProcess runProcess(String command, String[] envp) {
         return runProcess(new String[]{command}, envp);
     }
 

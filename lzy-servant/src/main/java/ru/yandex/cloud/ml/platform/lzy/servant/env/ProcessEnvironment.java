@@ -3,17 +3,16 @@ package ru.yandex.cloud.ml.platform.lzy.servant.env;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
 public class ProcessEnvironment implements BaseEnvironment {
 
     @Override
-    public LzyProcess runProcess(String... command) throws LzyExecutionException {
+    public LzyProcess runProcess(String... command) {
         return runProcess(String.join(" ", command), null);
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
+    public LzyProcess runProcess(String[] command, String[] envp) {
         try {
             final Process exec = Runtime.getRuntime().exec(command, envp);
             return new LzyProcess() {
@@ -51,7 +50,7 @@ public class ProcessEnvironment implements BaseEnvironment {
                 }
             };
         } catch (IOException e) {
-            throw new LzyExecutionException(e);
+            throw new RuntimeException(e);
         }
     }
 
