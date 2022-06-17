@@ -115,6 +115,7 @@ class LzyEnvBase(ABC):
                     )
         # noinspection PyArgumentList
         instance = typ(**whiteboard_dict)
+        # TODO(aleksZubakov): sync with whiteboard_by_id
         wrap_whiteboard_for_read(instance, wb_)
         return instance
 
@@ -139,6 +140,10 @@ class LzyEnvBase(ABC):
                 result.append(wb)
             except TypeError:
                 self._log.warning(f"Could not create whiteboard with type {typ}")
+
+        self._log.info(
+            f"_whiteboards built: {result}"
+        )
         return result
 
     def whiteboards(

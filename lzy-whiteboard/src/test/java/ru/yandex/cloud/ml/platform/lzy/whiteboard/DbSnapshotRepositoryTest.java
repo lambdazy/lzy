@@ -22,7 +22,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionValue;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.InputExecutionValue;
@@ -100,11 +100,11 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.create(parentSnapshot);
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, parentSnapshot);
         implSnapshotRepository.createEntry(parentSnapshot, entryIdFirst);
-        implSnapshotRepository.prepare(firstEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(firstEntry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(firstEntry, false);
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, parentSnapshot);
         implSnapshotRepository.createEntry(parentSnapshot, entryIdSecond);
-        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), DataSchema.plain);
 
         String childSnapshotId = UUID.randomUUID().toString();
         Date childCreationDateUTC = Date.from(Instant.now());
@@ -156,11 +156,11 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.create(snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdFirst);
         implSnapshotRepository.prepare(new SnapshotEntry.Impl(entryIdFirst, snapshot), storageUri,
-            Collections.emptyList(), new PlainTextFileSchema());
+            Collections.emptyList(), DataSchema.plain);
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdSecond);
-        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(secondEntry, false);
         implSnapshotRepository.abort(firstEntry);
         implSnapshotRepository.finalize(snapshot);
@@ -178,10 +178,10 @@ public class DbSnapshotRepositoryTest {
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdFirst);
-        implSnapshotRepository.prepare(firstEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(firstEntry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(firstEntry, false);
         implSnapshotRepository.createEntry(snapshot, entryIdSecond);
-        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(secondEntry, false);
         implSnapshotRepository.finalize(snapshot);
         Optional<SnapshotStatus> statusOptional = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
@@ -198,10 +198,10 @@ public class DbSnapshotRepositoryTest {
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdFirst);
-        implSnapshotRepository.prepare(firstEntry, null, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(firstEntry, null, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(firstEntry, false);
         implSnapshotRepository.createEntry(snapshot, entryIdSecond);
-        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(secondEntry, false);
         implSnapshotRepository.finalize(snapshot);
         Optional<SnapshotStatus> statusOptional = implSnapshotRepository.resolveSnapshot(URI.create(snapshotId));
@@ -253,11 +253,11 @@ public class DbSnapshotRepositoryTest {
         implSnapshotRepository.create(snapshot);
         SnapshotEntry entry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdFirst);
-        implSnapshotRepository.prepare(entry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(entry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(entry, false);
         Assert.assertThrows(RuntimeException.class,
             () -> implSnapshotRepository.prepare(entry, storageUri, Collections.emptyList(),
-                new PlainTextFileSchema()));
+                DataSchema.plain));
     }
 
     @Test
@@ -276,17 +276,17 @@ public class DbSnapshotRepositoryTest {
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdFirst);
         implSnapshotRepository.prepare(firstEntry, storageUri, List.of(entryIdSecond, entryIdThird),
-            new PlainTextFileSchema());
+            DataSchema.plain);
         implSnapshotRepository.commit(firstEntry, false);
 
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdSecond);
-        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(secondEntry, false);
 
         SnapshotEntry thirdEntry = new SnapshotEntry.Impl(entryIdThird, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdThird);
-        implSnapshotRepository.prepare(thirdEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(thirdEntry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(thirdEntry, false);
 
         Optional<SnapshotEntryStatus> snapshotEntryStatusOptional = implSnapshotRepository.resolveEntryStatus(
@@ -361,17 +361,17 @@ public class DbSnapshotRepositoryTest {
         SnapshotEntry firstEntry = new SnapshotEntry.Impl(entryIdFirst, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdFirst);
         implSnapshotRepository.prepare(firstEntry, storageUri, List.of(entryIdSecond, entryIdThird),
-            new PlainTextFileSchema());
+            DataSchema.plain);
         implSnapshotRepository.commit(firstEntry, false);
 
         SnapshotEntry secondEntry = new SnapshotEntry.Impl(entryIdSecond, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdSecond);
-        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(secondEntry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(secondEntry, false);
 
         SnapshotEntry thirdEntry = new SnapshotEntry.Impl(entryIdThird, snapshot);
         implSnapshotRepository.createEntry(snapshot, entryIdThird);
-        implSnapshotRepository.prepare(thirdEntry, storageUri, Collections.emptyList(), new PlainTextFileSchema());
+        implSnapshotRepository.prepare(thirdEntry, storageUri, Collections.emptyList(), DataSchema.plain);
         implSnapshotRepository.commit(thirdEntry, false);
 
         List<InputExecutionValue> inputs1 = new ArrayList<>();

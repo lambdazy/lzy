@@ -9,17 +9,11 @@ import io.grpc.StatusRuntimeException;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-import javax.xml.crypto.Data;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.CloudpickledPythonClassSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.ProtoSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.SchemeType;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -29,7 +23,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import java.net.URI;
 import java.util.Base64;
 import java.util.UUID;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations.DataScheme;
 
 public final class Channel implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Channel.class);

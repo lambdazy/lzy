@@ -60,29 +60,6 @@ def is_whiteboard(obj: Any) -> bool:
     )
 
 
-# def create_read_only_wb(
-#     field_types: Dict[str, type], field_urls: Dict[str, str], name: str
-# ):
-#     def __getattribute__(self, item):
-#         if item not in field_types:
-#             return super(type(self), self).__getattribute__(item)
-#
-#         try:
-#             return super(type(self), self).__getattribute__(item)
-#         except AttributeError:
-#             value = resolve(field_urls[item])
-#             setattr(self, item, value)
-#             return value
-#
-#     dcls = dataclasses.make_dataclass(
-#         name,
-#         field_types.items(),
-#         init=False,
-#         namespace={"__getattribute__": __getattribute__},
-#     )
-#     return dcls()
-
-
 def check_whiteboard(obj: Any) -> None:
     if not is_whiteboard(obj):
         raise ValueError(
@@ -91,8 +68,7 @@ def check_whiteboard(obj: Any) -> None:
 
 
 def view(func):
-    # it's useless actually
-    # func.LZY_WB_VIEW_DECORATOR = "view_deco"
+    func.LZY_WB_VIEW_DECORATOR = "view_deco"
     return func
 
 

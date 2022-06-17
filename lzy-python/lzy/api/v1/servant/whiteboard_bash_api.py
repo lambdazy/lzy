@@ -3,7 +3,7 @@ import json
 import logging
 import tempfile
 from json.decoder import JSONDecodeError
-from typing import Any, Type, Dict, List, TypeVar, Optional, Tuple
+from typing import Any, Type, Dict, List, TypeVar, Optional, Tuple, cast
 
 # noinspection PyProtectedMember
 import cloudpickle
@@ -79,33 +79,17 @@ class WhiteboardBashApi(WhiteboardApi):
             )
         return self._whiteboard_storage_by_bucket[bucket]
 
-    def resolve_by_url(self, field_url: str) -> Tuple[type, Any]:
-        self._log.info(f"Resolving field by url {field_url}")
-        bucket = get_bucket_from_url(field_url)
-
-        def fetch() -> Any:
-            with tempfile.TemporaryFile() as file:
-                self._whiteboard_storage(bucket).read(field_url, file)
-                file.seek(0)
-                type, obj = self._serializer.deserialize_from_file(file)
-            return type, obj
-
-        return fetch()  # type: ignore[no-any-return]
-
-    def resolve(self, field_url: str, field_type: Type[Any]) -> Tuple[type, Any]:
+    def resolve(self, field_url: str, field_type: Type[T]) -> T:
         self._log.info(f"Resolving field by url {field_url} to type {field_type}")
 
+        real_type: Type[T] = infer_real_type(field_type)
         bucket = get_bucket_from_url(field_url)
-        real_type = infer_real_type(field_type)
-
-        def fetch() -> Any:
-            with tempfile.TemporaryFile() as file:
-                self._whiteboard_storage(bucket).read(field_url, file)
-                file.seek(0)
-                obj = self._serializer.deserialize_from_file(file, real_type)
-            return obj
-
-        return fetch()  # type: ignore[no-any-return]
+        with tempfile.TemporaryFile() as file:
+            # TODO(aleksZubakov): do we need retry here?
+            self._whiteboard_storage(bucket).read(field_url, file)
+            file.seek(0)
+            obj = self._serializer.deserialize_from_file(file, real_type)
+        return obj
 
     def create(
         self, fields: List[Tuple[str, type]], snapshot_id: str, namespace: str, tags: List[str]

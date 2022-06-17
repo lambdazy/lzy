@@ -6,9 +6,9 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public class LzyDryStartupTest extends LocalScenario {
+
     @Before
     public void setUp() {
         super.setUp();
@@ -23,9 +23,9 @@ public class LzyDryStartupTest extends LocalScenario {
     @Test
     public void testFuseWorks() {
         //Assert
-        Assert.assertTrue(terminal.pathExists(Paths.get(Utils.Defaults.LZY_MOUNT + "/sbin")));
-        Assert.assertTrue(terminal.pathExists(Paths.get(Utils.Defaults.LZY_MOUNT + "/bin")));
-        Assert.assertTrue(terminal.pathExists(Paths.get(Utils.Defaults.LZY_MOUNT + "/dev")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(Config.LZY_MOUNT + "/sbin")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(Config.LZY_MOUNT + "/bin")));
+        Assert.assertTrue(terminal.pathExists(Paths.get(Config.LZY_MOUNT + "/dev")));
     }
 
     @Test

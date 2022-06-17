@@ -5,7 +5,7 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.SchemeType;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
 
 import java.util.concurrent.CountDownLatch;
@@ -145,7 +145,7 @@ public class LzySlotBaseTest {
 
         @Override
         public DataSchema contentType() {
-            return new PlainTextFileSchema();
+            return DataSchema.plain;
         }
     }
 }

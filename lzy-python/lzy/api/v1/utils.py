@@ -11,7 +11,7 @@ from typing import (
     Type,
     Tuple,
     TypeVar,
-    get_type_hints, Union
+    get_type_hints, Union, cast
 )
 from zipfile import ZipFile
 
@@ -24,7 +24,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 TypeInferResult = Result[type]
 
 
-def infer_real_type(type_: Type) -> Type:
+def infer_real_type(type_: Type[T]) -> Type[T]:
     if hasattr(type_, "__origin__"):
         origin: Type = type_.__origin__
         if origin == Union:  # type: ignore
@@ -32,7 +32,7 @@ def infer_real_type(type_: Type) -> Type:
             args = type_.__args__  # TODO: what should we do with real Union?
             if len(args) == 2 and args[1] is type(None):  # check typ is Optional
                 return infer_real_type(args[0])
-        return origin
+        return cast(Type[T], origin)
     return type_
 
 

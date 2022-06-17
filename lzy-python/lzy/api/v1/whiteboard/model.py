@@ -60,13 +60,14 @@ class WhiteboardList:
         self.wb_list = wb_list
         self._log = logging.getLogger(str(self.__class__))
 
-    @staticmethod
-    def _methods_with_view_decorator_names(obj) -> List:
+    # @staticmethod
+    def _methods_with_view_decorator_names(self, obj) -> List:
         res = []
         for name in dir(obj):
             attribute = getattr(obj, name)
             if hasattr(attribute, "LZY_WB_VIEW_DECORATOR"):
                 res.append(name)
+        self._log.info(f"_methods_with_view_decorator_names generated: {res}")
         return res
 
     def _views_from_single_whiteboard(self, wb, view_type: Type[T]):
@@ -91,6 +92,7 @@ class WhiteboardList:
                 self._log.warning(
                     f"Whiteboard with id={elem.__id__} is not completed and is not used for building view"
                 )
+        self._log.info(f"Generated views: {res}")
         return res
 
     def __iter__(self):
@@ -147,11 +149,7 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def resolve_by_url(self, field_url: str) -> Tuple[type, Any]:
-        pass
-
-    @abstractmethod
-    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
+    def resolve(self, field_url: str, field_type: Type[T]) -> T:
         pass
 
 
@@ -170,10 +168,7 @@ class UUIDEntryIdGenerator(EntryIdGenerator):
 
 
 class InMemWhiteboardApi(WhiteboardApi):
-    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
-        return None
-
-    def resolve_by_url(self, field_url: str) -> Any:
+    def resolve(self, field_url: str, field_type: Type[T]) -> T:
         return None
 
     def __init__(self) -> None:

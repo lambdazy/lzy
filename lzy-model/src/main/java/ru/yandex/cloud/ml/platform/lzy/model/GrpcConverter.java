@@ -1,12 +1,9 @@
 package ru.yandex.cloud.ml.platform.lzy.model;
 
 import com.google.protobuf.Timestamp;
-import jdk.jshell.spi.ExecutionControl.NotImplementedException;
 import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.CloudpickledPythonClassSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.ProtoSchema;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.SchemeType;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.*;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
@@ -19,7 +16,6 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Builder;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations.SchemeType;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
 
@@ -193,8 +189,8 @@ public abstract class GrpcConverter {
 
     public static Operations.DataScheme to(DataSchema dataSchema) {
         return Operations.DataScheme.newBuilder()
-            .setType(dataSchema.typeDescription())
-            .setSchemeType(toSchemeType(dataSchema))
+            .setType(dataSchema.typeContent())
+            .setSchemeType(to(dataSchema.schemeType()))
             .build();
     }
 
@@ -340,8 +336,8 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static Operations.SchemeType toSchemeType(DataSchema dataSchema) {
-        return Operations.SchemeType.valueOf(dataSchema.typeOfScheme().name());
+    public static Operations.SchemeType to(SchemeType dataSchema) {
+        return Operations.SchemeType.valueOf(dataSchema.name());
     }
 
     private static class AtomicZygoteAdapter implements AtomicZygote {
