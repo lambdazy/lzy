@@ -120,7 +120,11 @@ class SnapshotApi(ABC):
 class WhiteboardApi(ABC):
     @abstractmethod
     def create(
-        self, fields: List[Tuple[str, type]], snapshot_id: str, namespace: str, tags: List[str]
+        self,
+        fields: List[Tuple[str, type]],
+        snapshot_id: str,
+        namespace: str,
+        tags: List[str],
     ) -> WhiteboardDescription:
         pass
 
@@ -169,6 +173,9 @@ class InMemWhiteboardApi(WhiteboardApi):
     def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
         return None
 
+    def resolve_by_url(self, field_url: str) -> Any:
+        return None
+
     def __init__(self) -> None:
         self.__whiteboards: Dict[str, WhiteboardDescription] = {}
         self.__namespaces: Dict[str, str] = {}
@@ -176,7 +183,11 @@ class InMemWhiteboardApi(WhiteboardApi):
         self.__creation_date: Dict[str, datetime] = {}
 
     def create(
-        self, fields: List[Tuple[str, type]], snapshot_id: str, namespace: str, tags: List[str]
+        self,
+        fields: List[Tuple[str, type]],
+        snapshot_id: str,
+        namespace: str,
+        tags: List[str],
     ) -> WhiteboardDescription:
         wb_id = str(uuid.uuid1())
         self.__whiteboards[wb_id] = WhiteboardDescription(

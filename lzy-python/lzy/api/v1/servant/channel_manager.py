@@ -18,7 +18,9 @@ class ChannelManager(abc.ABC):
     def channel(self, entry_id: str, type_: type) -> Channel:
         if entry_id in self._entry_id_to_channel:
             return self._entry_id_to_channel[entry_id]
-        channel = Channel(entry_id, type_, SnapshotChannelSpec(self._snapshot_id, entry_id))
+        channel = Channel(
+            entry_id, type_, SnapshotChannelSpec(self._snapshot_id, entry_id)
+        )
         self._create_channel(channel)
         self._entry_id_to_channel[entry_id] = channel
         return channel
@@ -39,11 +41,13 @@ class ChannelManager(abc.ABC):
     def out_slot(self, entry_id: str, data_scheme: DataSchema) -> Path:
         return self._resolve(entry_id, Direction.OUTPUT, data_scheme)
 
-    def _resolve(self, entry_id: str, direction: Direction, data_scheme: DataSchema) -> Path:
+    def _resolve(
+        self, entry_id: str, direction: Direction, data_scheme: DataSchema
+    ) -> Path:
         slot = create_slot(
             os.path.sep.join(("tasks", "snapshot", self._snapshot_id, entry_id)),
             direction,
-            data_scheme
+            data_scheme,
         )
         self._touch(slot, self.channel(entry_id, data_scheme.real_type))
         path = self._resolve_slot_path(slot)
@@ -114,7 +118,7 @@ class LocalChannelManager(ChannelManager):
         for path in self._tmp_files:
             os.remove(path)
 
-    def _resolve(self, entry_id: str, direction: Direction) -> Path:
+    def _resolve(self, entry_id: str, direction: Direction, data_schema: DataSchema) -> Path:
         file = tempfile.NamedTemporaryFile()
         self._tmp_files.append(file.name)
         return Path(file.name)
