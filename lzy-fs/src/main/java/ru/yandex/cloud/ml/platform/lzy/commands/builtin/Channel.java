@@ -82,19 +82,21 @@ public final class Channel implements LzyCommand {
 
                 final Channels.ChannelCreate.Builder createCommandBuilder = Channels.ChannelCreate.newBuilder();
 
-                if (!localCmd.hasOption('c')) {
-                    throw new IllegalArgumentException("Channel data scheme is not provided");
+                DataSchema data = null;
+                if (localCmd.hasOption('c')) {
+                    final String mappingFile = localCmd.getOptionValue('c');
+                    // TODO(aleksZubakov): drop this ugly stuff when already fully switched to grpc api
+                    final Map<String, String> bindings = new HashMap<>();
+                    bindings.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
+
+                    String dataSchemeType = bindings.get("schemeType");
+                    String contentType = bindings.getOrDefault("type", "");
+                    LOG.info("building dataschema from args {} and {}", dataSchemeType, contentType);
+                    data = DataSchema.buildDataSchema(dataSchemeType, contentType);
+                } else {
+                    data = DataSchema.plain;
                 }
 
-                final String mappingFile = localCmd.getOptionValue('c');
-                // TODO(aleksZubakov): drop this ugly stuff when already fully switched to grpc api
-                final Map<String, String> bindings = new HashMap<>();
-                bindings.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
-
-                String dataSchemeType = bindings.get("schemeType");
-                String contentType = bindings.getOrDefault("type", "");
-                LOG.info("building dataschema from args {} and {}", dataSchemeType, contentType);
-                DataSchema data = DataSchema.buildDataSchema(dataSchemeType, contentType);
                 createCommandBuilder.setContentType(to(data));
 
                 if ("snapshot".equals(localCmd.getOptionValue('t'))) {
