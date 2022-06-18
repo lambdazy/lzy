@@ -192,9 +192,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 c -> {
                     servant2sessions.remove(c.servantId);
                     if (uncompletedConnections.containsKey(c.servantId)) {
-                        requests.remove(c.servantId).completeExceptionally(
-                            new RuntimeException("Session deleted before start")
-                        );
+                        final CompletableFuture<ServantConnection> remove = requests.remove(c.servantId);
+                        if (remove != null) {
+                            remove.completeExceptionally(
+                                    new RuntimeException("Session deleted before start")
+                            );
+                        }
                         uncompletedConnections.remove(c.servantId);
                         if (c.connectionThread != null) {
                             c.connectionThread.interrupt();

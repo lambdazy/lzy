@@ -162,11 +162,12 @@ public class ServantEndpoint implements Endpoint {
                         .setDestroy(LzyFsApi.DestroyCommand.newBuilder().build())
                         .build()
                 );
-            invalidate();
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
             LOG.warn("Unable to close " + this);
             return 0;
+        } finally {
+            invalidate();
         }
     }
 }

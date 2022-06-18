@@ -125,8 +125,12 @@ public final class LzyFsServer {
 
     public void forceStop() {
         LOG.info("LzyFs force shutdown request at {}.", selfUri);
-        lzyServerChannel.shutdownNow();
-        localServer.shutdownNow();
+        try {
+            lzyServerChannel.shutdownNow();
+            localServer.shutdownNow();
+        } finally {
+            fs.umount();
+        }
     }
 
     public void awaitTermination() throws InterruptedException, IOException {
