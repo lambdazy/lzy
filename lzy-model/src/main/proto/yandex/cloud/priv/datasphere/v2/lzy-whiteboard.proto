@@ -35,7 +35,6 @@ message CreateSnapshotCommand {
   Auth auth = 1;
   google.protobuf.Timestamp creationDateUTC = 2;
   string workflowName = 3;
-  // TODO: а нужно ли это? это parent?
   string fromSnapshot = 4;
 }
 
@@ -112,7 +111,7 @@ message WhiteboardField {
   repeated string dependentFieldNames = 3;
   bool empty = 4;
   Status status = 5;
-  optional DataScheme scheme = 6;
+  DataScheme scheme = 6;
 
   enum Status {
     UNKNOWN = 0;
