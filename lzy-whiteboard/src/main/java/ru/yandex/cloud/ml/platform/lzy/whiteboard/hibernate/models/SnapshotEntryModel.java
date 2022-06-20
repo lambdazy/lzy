@@ -28,6 +28,12 @@ public class SnapshotEntryModel {
     @Column(name = "storage_uri")
     private String storageUri;
 
+    @Column(name = "type_description")
+    private String typeDescription;
+
+    @Column(name = "type_of_scheme")
+    private String typeOfScheme;
+
     @Column(name = "empty", nullable = false)
     private boolean empty;
 
@@ -36,10 +42,13 @@ public class SnapshotEntryModel {
     private SnapshotEntryStatus.State entryState;
 
     public SnapshotEntryModel(String snapshotId, String entryId, String storageUri,
+        String typeDescription, String typeOfScheme,
         boolean emptyContent, SnapshotEntryStatus.State entryStatus) {
         this.snapshotId = snapshotId;
         this.entryId = entryId;
         this.storageUri = storageUri;
+        this.typeDescription = typeDescription;
+        this.typeOfScheme = typeOfScheme;
         this.empty = emptyContent;
         this.entryState = entryStatus;
     }
@@ -78,6 +87,22 @@ public class SnapshotEntryModel {
 
     public void setEntryId(String entryId) {
         this.entryId = entryId;
+    }
+
+    public String getTypeDescription() {
+        return typeDescription;
+    }
+
+    public void setTypeDescription(String typeDescription) {
+        this.typeDescription = typeDescription;
+    }
+
+    public String getTypeOfScheme() {
+        return typeOfScheme;
+    }
+
+    public void setTypeOfScheme(String typeOfScheme) {
+        this.typeOfScheme = typeOfScheme;
     }
 
     public boolean isEmpty() {

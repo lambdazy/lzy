@@ -24,11 +24,11 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
+import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
@@ -123,30 +123,34 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         }
         final Optional<WhiteboardStatus> whiteboardStatus = whiteboardRepository
             .resolveWhiteboard(URI.create(request.getWhiteboardId()));
+
         if (whiteboardStatus.isEmpty()
             || !Objects.equals(whiteboardStatus.get().whiteboard().snapshot().uid().toString(),
             request.getAuth().getUser().getUserId())) {
             responseObserver.onError(
-                Status.NOT_FOUND.withDescription("Could not find whiteboard with id " + request.getWhiteboardId())
-                    .asException());
+                Status.NOT_FOUND
+                    .withDescription("Could not find whiteboard with id " + request.getWhiteboardId())
+                    .asException()
+            );
             return;
         }
-        Optional<SnapshotEntry> snapshotEntry = snapshotRepository
-            .resolveEntry(whiteboardStatus.get().whiteboard().snapshot(), request.getEntryId());
-        if (snapshotEntry.isEmpty()) {
-            LOG.info("WhiteboardApi::link: Could not resolve snapshot entry with id {} ", request.getEntryId());
-            snapshotEntry = Optional.of(
-                new SnapshotEntry.Impl(request.getEntryId(), whiteboardStatus.get().whiteboard().snapshot()));
-        }
+
+        final Whiteboard wb = whiteboardStatus.get().whiteboard();
+        SnapshotEntry snapshotEntry = snapshotRepository
+            .resolveEntry(wb.snapshot(), request.getEntryId())
+            .orElseGet(() -> {
+                LOG.info("WhiteboardApi::link: Could not resolve snapshot entry with id {} ", request.getEntryId());
+                return new SnapshotEntry.Impl(request.getEntryId(), wb.snapshot());
+            });
+
         try {
-            whiteboardRepository.update(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry.get(),
-                whiteboardStatus.get().whiteboard()));
+            whiteboardRepository.update(new WhiteboardField.Impl(request.getFieldName(), snapshotEntry, wb));
         } catch (WhiteboardRepositoryException e) {
             LOG.error("WhiteboardApi::link: Got exception while linking {}", e.getMessage());
-            responseObserver.onError(
-                Status.NOT_FOUND.withDescription(e.getMessage()).asException());
+            responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             return;
         }
+
         LOG.info("WhiteboardApi::link: Successfully linked whiteboard field");
         final LzyWhiteboard.OperationStatus status = LzyWhiteboard.OperationStatus
             .newBuilder()
@@ -166,10 +170,10 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 Status.PERMISSION_DENIED.withDescription("Permission denied for getWhiteboard command").asException());
             return;
         }
-        final Optional<WhiteboardStatus> whiteboardStatus = whiteboardRepository
+        final Optional<WhiteboardStatus> resolved = whiteboardRepository
             .resolveWhiteboard(URI.create(request.getWhiteboardId()));
-        if (whiteboardStatus.isEmpty()
-            || !Objects.equals(whiteboardStatus.get().whiteboard().snapshot().uid().toString(),
+        if (resolved.isEmpty()
+            || !Objects.equals(resolved.get().whiteboard().snapshot().uid().toString(),
             request.getAuth().getUser().getUserId())) {
             LOG.error("WhiteboardApi::getWhiteboard: Could not resolve whiteboard with id {} ",
                 request.getWhiteboardId());
@@ -178,20 +182,21 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                     .asException());
             return;
         }
-        if (whiteboardStatus.get().state().equals(State.ERRORED)) {
+        final WhiteboardStatus whiteboardStatus = resolved.get();
+        if (whiteboardStatus.state().equals(State.ERRORED)) {
             LOG.error("WhiteboardApi::getWhiteboard: Whiteboard {} is in errored condition", request.getWhiteboardId());
             responseObserver.onError(
                 Status.UNKNOWN.withDescription("Whiteboard is in errored condition").asException());
             return;
         }
-        if (!whiteboardStatus.get().state().equals(State.COMPLETED)) {
+        if (!whiteboardStatus.state().equals(State.COMPLETED)) {
             LOG.error("WhiteboardApi::getWhiteboard: Whiteboard {} is not completed", request.getWhiteboardId());
             responseObserver.onError(
                 Status.FAILED_PRECONDITION.withDescription("Whiteboard is not completed").asException());
             return;
         }
         try {
-            final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus.get());
+            final LzyWhiteboard.Whiteboard result = buildWhiteboard(whiteboardStatus);
             LOG.info("WhiteboardApi::getWhiteboard: Successfully executed get whiteboard command for whiteboard {}",
                 request.getWhiteboardId());
             responseObserver.onNext(result);
@@ -208,9 +213,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     private LzyWhiteboard.Whiteboard buildWhiteboard(WhiteboardStatus wb) throws WhiteboardRepositoryException {
         List<LzyWhiteboard.WhiteboardField> fields = whiteboardRepository.fields(wb.whiteboard())
             .map(field -> {
-                final List<WhiteboardField> dependent = whiteboardRepository.dependent(field)
+                    final List<WhiteboardField> dependent = whiteboardRepository.dependent(field)
                         .collect(Collectors.toList());
-                final SnapshotEntry entry = field.entry();
+                    final SnapshotEntry entry = field.entry();
                     if (entry == null) {
                         return GrpcConverter.to(field, dependent, null);
                     }

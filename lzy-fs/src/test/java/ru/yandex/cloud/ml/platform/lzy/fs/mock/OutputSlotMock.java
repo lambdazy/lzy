@@ -3,6 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.fs.mock;
 import com.google.protobuf.ByteString;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.IOException;
@@ -41,7 +42,27 @@ public class OutputSlotMock implements LzyOutputSlot {
 
     @Override
     public Slot definition() {
-        return null;
+        return new Slot() {
+            @Override
+            public String name() {
+                return "mock";
+            }
+
+            @Override
+            public Media media() {
+                return null;
+            }
+
+            @Override
+            public Direction direction() {
+                return null;
+            }
+
+            @Override
+            public DataSchema contentType() {
+                return DataSchema.plain;
+            }
+        };
     }
 
     @Override

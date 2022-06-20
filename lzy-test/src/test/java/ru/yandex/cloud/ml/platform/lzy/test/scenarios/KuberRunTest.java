@@ -46,7 +46,7 @@ public class KuberRunTest extends LzyBaseTest {
                 3. Task that requires GPU
          */
         // TODO: do we need to pass catboost as requirement here
-        evalAndAssertScenarioResult( terminal, "catboost_integration_gpu");
+        evalAndAssertScenarioResult(terminal, "catboost_integration_gpu");
     }
 
     @Test

@@ -46,7 +46,7 @@ public class TerminalCrashTest extends LocalScenario {
         );
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            Utils.Defaults.TIMEOUT_SEC,
+            Config.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
         return terminal;
@@ -99,7 +99,7 @@ public class TerminalCrashTest extends LocalScenario {
         //Assert
         Assert.assertTrue(
             Utils.waitFlagUp(() -> getTaskStatusByName(terminal2, cat.name()) == null,
-                Utils.Defaults.TIMEOUT_SEC,
+                Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
         );
@@ -122,7 +122,7 @@ public class TerminalCrashTest extends LocalScenario {
                         return true;
                     }
                 },
-                Utils.Defaults.TIMEOUT_SEC,
+                Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
         );
@@ -137,7 +137,7 @@ public class TerminalCrashTest extends LocalScenario {
 
         //Assert
         Assert.assertTrue(Utils.waitFlagUp(() ->
-            !terminal2.pathExists(Path.of(localFileName)), Utils.Defaults.TIMEOUT_SEC, TimeUnit.SECONDS));
+            !terminal2.pathExists(Path.of(localFileName)), Config.TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
     @Nullable
@@ -197,7 +197,7 @@ public class TerminalCrashTest extends LocalScenario {
                     }
                     return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
                 },
-                Utils.Defaults.TIMEOUT_SEC,
+                Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             );
             terminal1.shutdownNow();
@@ -236,7 +236,7 @@ public class TerminalCrashTest extends LocalScenario {
                 }
                 return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
             },
-            Utils.Defaults.TIMEOUT_SEC,
+            Config.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
         terminal.shutdownNow();

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.validation.constraints.NotNull;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
@@ -31,8 +32,8 @@ public interface SnapshotRepository {
     @NotNull
     SnapshotEntry createEntry(@NotNull Snapshot snapshot, @NotNull String id) throws SnapshotRepositoryException;
 
-    void prepare(@NotNull SnapshotEntry entry, @NotNull String storage, @NotNull List<String> dependentEntryIds)
-        throws SnapshotRepositoryException;
+    void prepare(@NotNull SnapshotEntry entry, @NotNull String storage, @NotNull List<String> dependentEntryIds,
+        @NotNull DataSchema schema) throws SnapshotRepositoryException;
 
     void commit(@NotNull SnapshotEntry entry, boolean empty) throws SnapshotRepositoryException;
 

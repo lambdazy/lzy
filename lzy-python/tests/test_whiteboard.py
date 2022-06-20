@@ -71,7 +71,7 @@ class WhiteboardTests(TestCase):
         self.assertEqual(5, wb.b)
 
     def test_multiple_assigns(self):
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(AttributeError) as context:
             wb = WB(1, 1)
             with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
                 wb.a = 3
@@ -79,7 +79,7 @@ class WhiteboardTests(TestCase):
             self.assertTrue('Whiteboard field can be assigned only once' in str(context.exception))
 
     def test_default_assigns(self):
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(AttributeError) as context:
             wb = WB(1, 1)
             with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
                 wb.a = self.num()

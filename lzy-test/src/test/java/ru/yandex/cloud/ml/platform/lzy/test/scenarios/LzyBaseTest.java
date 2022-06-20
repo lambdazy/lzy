@@ -70,7 +70,7 @@ public abstract class LzyBaseTest {
 
     public static ExecutionResult evalScenario(Terminal term, Map<String, String> env,
                                                String scenario, List<String> extraPyLibs) {
-        Path scenarioPath = scenarios.resolve(scenario);
+        final Path scenarioPath = scenarios.resolve(scenario);
         if (!scenarioPath.toFile().exists()) {
             LOG.error("THERE IS NO SUCH SCENARIO: {}", scenario);
             Assert.fail();
@@ -96,13 +96,13 @@ public abstract class LzyBaseTest {
     public static void assertWithExpected(String scenarioName, ExecutionResult result) {
         try {
             final Path scenario = scenarios.resolve(scenarioName);
-            File stdout_file = scenario.resolve("expected_stdout").toFile();
+            final File stdout_file = scenario.resolve("expected_stdout").toFile();
             forEachLineInFile(stdout_file, line -> {
                 LOG.info("assert check if stdout contains: {}", line);
                 Assert.assertTrue(result.stdout().contains(line));
             });
 
-            File stderr_file = scenario.resolve("expected_stderr").toFile();
+            final File stderr_file = scenario.resolve("expected_stderr").toFile();
             forEachLineInFile(stderr_file, line -> {
                 LOG.info("assert check if stderr contains: {}", line);
                 Assert.assertTrue(result.stderr().contains(line));

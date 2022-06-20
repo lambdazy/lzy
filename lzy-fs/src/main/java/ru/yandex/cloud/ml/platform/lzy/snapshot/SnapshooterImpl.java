@@ -2,7 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.snapshot;
 
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyInputSlot;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
+import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
@@ -35,16 +35,17 @@ public class SnapshooterImpl implements Snapshooter {
             throw new RuntimeException("Snapshooter is already closed");
         }
 
-        final SlotSnapshot snapshot = snapshotProvider.slotSnapshot(slot.definition());
+        final SlotSnapshot slotSnapshot = snapshotProvider.slotSnapshot(slot.definition());
 
-        final URI uri = snapshot.uri();
+        final URI uri = slotSnapshot.uri();
         if (slot instanceof LzyInputSlot) {
             throw new RuntimeException("Input slot snapshooting is not supported yet");
         }
 
         final LzyWhiteboard.SnapshotEntry.Builder entryBuilder = LzyWhiteboard.SnapshotEntry.newBuilder()
             .setEntryId(entryId)
-            .setStorageUri(uri.toString());
+            .setStorageUri(uri.toString())
+            .setType(GrpcConverter.to(slot.definition().contentType()));
 
         final LzyWhiteboard.PrepareCommand command = LzyWhiteboard.PrepareCommand
             .newBuilder()
@@ -57,12 +58,12 @@ public class SnapshooterImpl implements Snapshooter {
         }
 
         trackedSlots.add(slot.name());
-        slot.onChunk(snapshot::onChunk);
+        slot.onChunk(slotSnapshot::onChunk);
 
         slot.onState(OPEN, () -> {
             synchronized (SnapshooterImpl.this) {
                 try {
-                    commit(snapshotId, entryId, snapshot);
+                    commit(snapshotId, entryId, slotSnapshot);
                 } finally {
                     slot.suspend();
                     trackedSlots.remove(slot.name());

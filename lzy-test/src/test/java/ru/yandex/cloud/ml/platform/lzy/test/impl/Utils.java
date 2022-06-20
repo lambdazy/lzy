@@ -7,7 +7,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
 
 public class Utils {
     public static class Defaults {
@@ -79,7 +78,7 @@ public class Utils {
 
             @Override
             public DataSchema contentType() {
-                return new PlainTextFileSchema();
+                return DataSchema.plain;
             }
         };
     }
@@ -102,7 +101,7 @@ public class Utils {
 
             @Override
             public DataSchema contentType() {
-                return new PlainTextFileSchema();
+                return DataSchema.plain;
             }
         };
     }

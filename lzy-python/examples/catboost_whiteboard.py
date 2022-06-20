@@ -47,7 +47,8 @@ with env.workflow("training", whiteboard=wb):
     wb.score = search.best_score_
     print(wb.__id__)
 
-loaded_wb = env.whiteboard(wb.__id__, BestModel)
+# loaded_wb = env.whiteboard(wb.__id__, BestModel)
+loaded_wb = env.whiteboard_by_id(wb.__id__)
 print(loaded_wb.params['max_depth'])
 
 wbs = env.whiteboards([BestModel])

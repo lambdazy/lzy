@@ -8,7 +8,7 @@ from enum import Enum
 from datetime import datetime
 from datetime import timezone
 from inspect import Signature
-from typing import Dict, List, Optional, Any, Type, TypeVar
+from typing import Dict, List, Optional, Any, Type, TypeVar, Tuple
 from urllib import parse
 
 from lzy.api.v1.servant.model.slot import Slot
@@ -31,10 +31,13 @@ class WhiteboardFieldStatus(Enum):
 
 @dataclass
 class WhiteboardFieldDescription:
-    field_name: str
+    name: str
     status: WhiteboardFieldStatus
-    dependent_field_names: Optional[List[str]]  # protobuf makes no distinction between empty list and null list
-    storage_uri: str
+    dependent_field_names: Optional[
+        List[str]
+    ]  # protobuf makes no distinction between empty list and null list
+    uri: Optional[str]
+    type_: Optional[type]
 
 
 class WhiteboardStatus(Enum):
@@ -57,13 +60,14 @@ class WhiteboardList:
         self.wb_list = wb_list
         self._log = logging.getLogger(str(self.__class__))
 
-    @staticmethod
-    def _methods_with_view_decorator_names(obj) -> List:
+    # @staticmethod
+    def _methods_with_view_decorator_names(self, obj) -> List:
         res = []
         for name in dir(obj):
             attribute = getattr(obj, name)
-            if hasattr(attribute, 'LZY_WB_VIEW_DECORATOR'):
+            if hasattr(attribute, "LZY_WB_VIEW_DECORATOR"):
                 res.append(name)
+        self._log.info(f"_methods_with_view_decorator_names generated: {res}")
         return res
 
     def _views_from_single_whiteboard(self, wb, view_type: Type[T]):
@@ -86,7 +90,9 @@ class WhiteboardList:
                 res.extend(self._views_from_single_whiteboard(elem, view_type))
             else:
                 self._log.warning(
-                    f"Whiteboard with id={elem.__id__} is not completed and is not used for building view")
+                    f"Whiteboard with id={elem.__id__} is not completed and is not used for building view"
+                )
+        self._log.info(f"Generated views: {res}")
         return res
 
     def __iter__(self):
@@ -115,7 +121,13 @@ class SnapshotApi(ABC):
 
 class WhiteboardApi(ABC):
     @abstractmethod
-    def create(self, fields: List[str], snapshot_id: str, namespace: str, tags: List[str]) -> WhiteboardDescription:
+    def create(
+        self,
+        fields: List[Tuple[str, type]],
+        snapshot_id: str,
+        namespace: str,
+        tags: List[str],
+    ) -> WhiteboardDescription:
         pass
 
     @abstractmethod
@@ -127,11 +139,17 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None) -> List[WhiteboardDescription]:
+    def list(
+        self,
+        namespace: str,
+        tags: List[str],
+        from_date: datetime = None,
+        to_date: datetime = None,
+    ) -> List[WhiteboardDescription]:
         pass
 
     @abstractmethod
-    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
+    def resolve(self, field_url: str, field_type: Type[T]) -> T:
         pass
 
 
@@ -150,7 +168,7 @@ class UUIDEntryIdGenerator(EntryIdGenerator):
 
 
 class InMemWhiteboardApi(WhiteboardApi):
-    def resolve(self, field_url: str, field_type: Type[Any]) -> Any:
+    def resolve(self, field_url: str, field_type: Type[T]) -> T:
         return None
 
     def __init__(self) -> None:
@@ -159,11 +177,17 @@ class InMemWhiteboardApi(WhiteboardApi):
         self.__tags: Dict[str, List[str]] = {}
         self.__creation_date: Dict[str, datetime] = {}
 
-    def create(self, fields: List[str], snapshot_id: str, namespace: str, tags: List[str]) -> WhiteboardDescription:
+    def create(
+        self,
+        fields: List[Tuple[str, type]],
+        snapshot_id: str,
+        namespace: str,
+        tags: List[str],
+    ) -> WhiteboardDescription:
         wb_id = str(uuid.uuid1())
         self.__whiteboards[wb_id] = WhiteboardDescription(
             wb_id,
-            [WhiteboardFieldDescription(name, WhiteboardFieldStatus.CREATED, [], None) for name in fields], # type: ignore
+            [WhiteboardFieldDescription(name, WhiteboardFieldStatus.CREATED, [], None, t_) for name, t_ in fields],  # type: ignore
             SnapshotDescription(snapshot_id=snapshot_id),
             WhiteboardStatus.CREATED,
         )
@@ -178,8 +202,13 @@ class InMemWhiteboardApi(WhiteboardApi):
     def get(self, wb_id: str) -> WhiteboardDescription:
         return self.__whiteboards[wb_id]
 
-    def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None) \
-            -> List[WhiteboardDescription]:
+    def list(
+        self,
+        namespace: str,
+        tags: List[str],
+        from_date: datetime = None,
+        to_date: datetime = None,
+    ) -> List[WhiteboardDescription]:
         if not from_date:
             from_date = datetime(1, 1, 1, tzinfo=timezone.utc)
         if not to_date:
@@ -187,9 +216,13 @@ class InMemWhiteboardApi(WhiteboardApi):
         from_utc = datetime.fromtimestamp(from_date.timestamp(), tz=timezone.utc)
         to_utc = datetime.fromtimestamp(to_date.timestamp(), tz=timezone.utc)
         namespace_ids = [k for k, v in self.__namespaces.items() if v == namespace]
-        tags_ids = [k for k, v in self.__tags.items() if all(item in v for item in tags)]
+        tags_ids = [
+            k for k, v in self.__tags.items() if all(item in v for item in tags)
+        ]
         wb_ids = set.intersection(set(namespace_ids), set(tags_ids))
-        wb_ids_filtered_by_date = [id for id in wb_ids if from_utc <= self.__creation_date[id] < to_utc]
+        wb_ids_filtered_by_date = [
+            id for id in wb_ids if from_utc <= self.__creation_date[id] < to_utc
+        ]
         return [self.__whiteboards[id_] for id_ in wb_ids_filtered_by_date]
 
 

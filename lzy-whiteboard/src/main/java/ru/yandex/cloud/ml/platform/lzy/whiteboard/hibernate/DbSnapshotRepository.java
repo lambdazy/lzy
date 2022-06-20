@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -19,6 +21,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
 import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
@@ -46,9 +49,29 @@ public class DbSnapshotRepository implements SnapshotRepository {
     @Inject
     DbStorage storage;
 
+    public <U> U runUnderSession(Function<Session, U> action) throws SnapshotRepositoryException {
+        try (Session session = storage.getSessionFactory().openSession()) {
+            return action.apply(session);
+        }
+    }
+
+    public <U> U runUnderTransaction(BiFunction<Transaction, Session, U> action) throws SnapshotRepositoryException {
+        return runUnderSession(session -> {
+            Transaction tx = session.beginTransaction();
+            try {
+                U res = action.apply(tx, session);
+                tx.commit();
+                return res;
+            } catch (Exception exc) {
+                tx.rollback();
+                throw new SnapshotRepositoryException(exc);
+            }
+        });
+    }
+
     @Override
     public @NotNull SnapshotStatus create(@NotNull Snapshot snapshot) throws SnapshotRepositoryException {
-        try (Session session = storage.getSessionFactory().openSession()) {
+        return runUnderTransaction((tx, session) -> {
             String snapshotId = snapshot.id().toString();
             SnapshotModel snapshotStatus = session.find(SnapshotModel.class, snapshotId);
             if (snapshotStatus != null) {
@@ -59,32 +82,25 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 );
             }
 
-            Transaction tx = session.beginTransaction();
             snapshotStatus = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED,
                 snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName(),
                 snapshot.parentSnapshotId());
-            try {
-                session.save(snapshotStatus);
-                tx.commit();
-                return new SnapshotStatus.Impl(snapshot, snapshotStatus.getSnapshotState());
-            } catch (Exception e) {
-                tx.rollback();
-                throw new RuntimeException(e);
-            }
-        }
+
+            session.save(snapshotStatus);
+            return new SnapshotStatus.Impl(snapshot, snapshotStatus.getSnapshotState());
+        });
     }
 
     @Override
     public @NotNull SnapshotStatus createFromSnapshot(@NotNull String fromSnapshotId, @NotNull Snapshot snapshot)
         throws SnapshotRepositoryException {
-        try (Session session = storage.getSessionFactory().openSession()) {
+        return runUnderTransaction((tx, session) -> {
             SnapshotModel fromSnapshotModel = session.find(SnapshotModel.class, fromSnapshotId);
             if (fromSnapshotModel == null) {
                 throw new SnapshotRepositoryException(
-                    Status.NOT_FOUND.withDescription("Snapshot with id "
-                            + fromSnapshotId + " does not exists; snapshot with id "
-                            + snapshot.id().toString() + " could not be created"
-                        )
+                    Status.NOT_FOUND
+                        .withDescription("Snapshot with id " + fromSnapshotId + " does not exists;"
+                            + " snapshot with id " + snapshot.id().toString() + " could not be created")
                         .asException()
                 );
             }
@@ -93,40 +109,36 @@ public class DbSnapshotRepository implements SnapshotRepository {
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, snapshotId);
             if (snapshotModel != null) {
                 throw new SnapshotRepositoryException(Status.ALREADY_EXISTS
-                    .withDescription(
-                        "Snapshot with id " + snapshotId + " already exists"
-                    )
+                    .withDescription("Snapshot with id " + snapshotId + " already exists")
                     .asException()
                 );
             }
 
-            Transaction tx = session.beginTransaction();
             snapshotModel = new SnapshotModel(snapshotId, SnapshotStatus.State.CREATED,
                 snapshot.uid().toString(), snapshot.creationDateUTC(), snapshot.workflowName(), fromSnapshotId);
+
             List<SnapshotEntryModel> fromSnapshotEntries = SessionHelper.getSnapshotEntries(fromSnapshotId, session);
+
             List<SnapshotEntryModel> snapshotEntries = fromSnapshotEntries.stream()
                 .filter(fromSnapshotEntry -> Objects.equals(fromSnapshotEntry.getEntryState(), State.FINISHED))
                 .map(fromSnapshotEntry -> new SnapshotEntryModel(snapshotId, fromSnapshotEntry.getEntryId(),
-                    fromSnapshotEntry.getStorageUri(), fromSnapshotEntry.isEmpty(), fromSnapshotEntry.getEntryState()))
+                    fromSnapshotEntry.getStorageUri(), fromSnapshotEntry.getTypeDescription(),
+                    fromSnapshotEntry.getTypeOfScheme(), fromSnapshotEntry.isEmpty(),
+                    fromSnapshotEntry.getEntryState()))
                 .collect(Collectors.toList());
+
             // TODO: manage entry dependencies
-            try {
-                session.save(snapshotModel);
-                for (var entryModel : snapshotEntries) {
-                    session.save(entryModel);
-                }
-                tx.commit();
-                return new SnapshotStatus.Impl(snapshot, snapshotModel.getSnapshotState());
-            } catch (Exception e) {
-                tx.rollback();
-                throw new RuntimeException(e);
+            session.save(snapshotModel);
+            for (var entryModel : snapshotEntries) {
+                session.save(entryModel);
             }
-        }
+            return new SnapshotStatus.Impl(snapshot, snapshotModel.getSnapshotState());
+        });
     }
 
     @Override
     public Optional<SnapshotStatus> resolveSnapshot(@NotNull URI id) {
-        try (Session session = storage.getSessionFactory().openSession()) {
+        return runUnderSession(session -> {
             SnapshotModel snapshotModel = session.find(SnapshotModel.class, id.toString());
             if (snapshotModel == null) {
                 LOG.info("Snapshot with id {} not found", id);
@@ -142,7 +154,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
                     snapshotModel.parentSnapshotId()
                 ),
                 snapshotModel.getSnapshotState()));
-        }
+        });
     }
 
     @Override
@@ -173,7 +185,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
             for (SnapshotEntryModel spEntry : snapshotEntries) {
                 if (spEntry.getEntryState() != State.FINISHED || spEntry.getStorageUri() == null) {
                     LOG.warn("Error in entry {}: status {}", spEntry.getEntryId(),
-                            spEntry.getEntryState());
+                        spEntry.getEntryState());
                     spEntry.setEntryState(State.ERRORED);
                     snapshotModel.setSnapshotState(SnapshotStatus.State.ERRORED);
                 }
@@ -252,7 +264,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
     @Override
     public void prepare(@NotNull SnapshotEntry entry, @NotNull String storageUri,
-        @NotNull List<String> dependentEntryIds)
+        @NotNull List<String> dependentEntryIds, @NotNull DataSchema schema)
         throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
@@ -280,6 +292,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 snapshotEntryModel.setStorageUri(storageUri);
                 snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.IN_PROGRESS);
                 snapshotEntryModel.setEmpty(true);
+                snapshotEntryModel.setTypeOfScheme(schema.schemeType().name());
+                snapshotEntryModel.setTypeDescription(schema.typeContent());
             }
 
             List<EntryDependenciesModel> depModelList = new ArrayList<>();
@@ -326,53 +340,39 @@ public class DbSnapshotRepository implements SnapshotRepository {
         }
     }
 
+    private SnapshotEntryModel findEntryModel(SnapshotEntry entry, Transaction tx, Session session) {
+        String snapshotId = entry.snapshot().id().toString();
+        String entryId = entry.id();
+        SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
+            new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
+        if (snapshotEntryModel == null) {
+            throw new SnapshotRepositoryException(Status.NOT_FOUND.withDescription(
+                "Snapshot entry " + entry + " not found").asException());
+        }
+        return snapshotEntryModel;
+    }
+
     @Override
     public void commit(@NotNull SnapshotEntry entry,
-                       boolean empty) throws SnapshotRepositoryException {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            Transaction tx = session.beginTransaction();
-            String snapshotId = entry.snapshot().id().toString();
-            String entryId = entry.id();
-            SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
-                new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
-            if (snapshotEntryModel == null) {
-                throw new SnapshotRepositoryException(Status.NOT_FOUND.withDescription(
-                    "Snapshot entry " + entry + " not found").asException());
-            }
+        boolean empty) throws SnapshotRepositoryException {
+        runUnderTransaction((tx, session) -> {
+            SnapshotEntryModel snapshotEntryModel = findEntryModel(entry, tx, session);
             snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.FINISHED);
             snapshotEntryModel.setEmpty(empty);
-            try {
-                session.update(snapshotEntryModel);
-                tx.commit();
-            } catch (Exception e) {
-                tx.rollback();
-                throw new RuntimeException(e);
-            }
-        }
+            session.update(snapshotEntryModel);
+            return null;
+        });
     }
 
     @Override
     public void abort(SnapshotEntry entry) throws SnapshotRepositoryException {
-        try (Session session = storage.getSessionFactory().openSession()) {
-            Transaction tx = session.beginTransaction();
-            String snapshotId = entry.snapshot().id().toString();
-            String entryId = entry.id();
-            SnapshotEntryModel snapshotEntryModel = session.find(SnapshotEntryModel.class,
-                new SnapshotEntryModel.SnapshotEntryPk(snapshotId, entryId));
-            if (snapshotEntryModel == null) {
-                throw new SnapshotRepositoryException(Status.NOT_FOUND.withDescription(
-                    "Snapshot entry " + entry + " not found").asException());
-            }
+        runUnderTransaction((tx, session) -> {
+            SnapshotEntryModel snapshotEntryModel = findEntryModel(entry, tx, session);
             snapshotEntryModel.setEntryState(State.ERRORED);
             snapshotEntryModel.setEmpty(true);
-            try {
-                session.update(snapshotEntryModel);
-                tx.commit();
-            } catch (Exception e) {
-                tx.rollback();
-                throw new RuntimeException(e);
-            }
-        }
+            session.update(snapshotEntryModel);
+            return null;
+        });
     }
 
     @Override
@@ -392,7 +392,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
                             .asException()
                     );
                 }
-                model = new SnapshotEntryModel(snapshot.id().toString(), id, null, true,
+                model = new SnapshotEntryModel(snapshot.id().toString(), id, null, null, null, true,
                     SnapshotEntryStatus.State.CREATED);
                 session.save(model);
                 tx.commit();

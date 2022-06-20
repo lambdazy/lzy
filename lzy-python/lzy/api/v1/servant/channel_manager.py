@@ -6,7 +6,7 @@ from typing import TypeVar, Dict, List
 
 from lzy.api.v1.servant.model.channel import Channel, SnapshotChannelSpec
 from lzy.api.v1.servant.model.file_slots import create_slot
-from lzy.api.v1.servant.model.slot import Slot, Direction
+from lzy.api.v1.servant.model.slot import Slot, Direction, DataSchema
 from lzy.api.v1.servant.servant_client import ServantClient
 
 
@@ -15,10 +15,12 @@ class ChannelManager(abc.ABC):
         self._entry_id_to_channel: Dict[str, Channel] = {}
         self._snapshot_id = snapshot_id
 
-    def channel(self, entry_id: str) -> Channel:
+    def channel(self, entry_id: str, type_: type) -> Channel:
         if entry_id in self._entry_id_to_channel:
             return self._entry_id_to_channel[entry_id]
-        channel = Channel(entry_id, SnapshotChannelSpec(self._snapshot_id, entry_id))
+        channel = Channel(
+            entry_id, type_, SnapshotChannelSpec(self._snapshot_id, entry_id)
+        )
         self._create_channel(channel)
         self._entry_id_to_channel[entry_id] = channel
         return channel
@@ -33,15 +35,21 @@ class ChannelManager(abc.ABC):
         for entry in list(self._entry_id_to_channel):
             self.destroy(entry)
 
-    def in_slot(self, entry_id: str) -> Path:
-        return self._resolve(entry_id, Direction.INPUT)
+    def in_slot(self, entry_id: str, data_scheme: DataSchema) -> Path:
+        return self._resolve(entry_id, Direction.INPUT, data_scheme)
 
-    def out_slot(self, entry_id) -> Path:
-        return self._resolve(entry_id, Direction.OUTPUT)
+    def out_slot(self, entry_id: str, data_scheme: DataSchema) -> Path:
+        return self._resolve(entry_id, Direction.OUTPUT, data_scheme)
 
-    def _resolve(self, entry_id: str, direction: Direction) -> Path:
-        slot = create_slot(os.path.sep.join(("tasks", "snapshot", self._snapshot_id, entry_id)), direction)
-        self._touch(slot, self.channel(entry_id))
+    def _resolve(
+        self, entry_id: str, direction: Direction, data_scheme: DataSchema
+    ) -> Path:
+        slot = create_slot(
+            os.path.sep.join(("tasks", "snapshot", self._snapshot_id, entry_id)),
+            direction,
+            data_scheme,
+        )
+        self._touch(slot, self.channel(entry_id, data_scheme.real_type))
         path = self._resolve_slot_path(slot)
         return path
 
@@ -100,7 +108,7 @@ class LocalChannelManager(ChannelManager):
     def _resolve_slot_path(self, slot: Slot) -> Path:
         pass
 
-    def channel(self, entry_id: str) -> Channel:
+    def channel(self, entry_id: str, type_: type) -> Channel:
         pass
 
     def destroy(self, entry_id: str):
@@ -110,7 +118,7 @@ class LocalChannelManager(ChannelManager):
         for path in self._tmp_files:
             os.remove(path)
 
-    def _resolve(self, entry_id: str, direction: Direction) -> Path:
+    def _resolve(self, entry_id: str, direction: Direction, data_schema: DataSchema) -> Path:
         file = tempfile.NamedTemporaryFile()
         self._tmp_files.append(file.name)
         return Path(file.name)
