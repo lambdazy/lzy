@@ -120,10 +120,11 @@ jobs:
           export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd lzy-test && mvn test -Dtest=ServantCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
-      - name: 'Delete docker images'
+      - name: 'Clean docker files'
         run: |
           docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
           docker image prune -f
+          docker volume prune -f
 
       - uses: scacap/action-surefire-report@v1
         if: always()

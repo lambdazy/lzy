@@ -128,9 +128,9 @@ public abstract class GrpcConverter {
             builder.setName(atomicZygote.name());
             builder.setProvisioning(to(atomicZygote.provisioning()));
             builder.setFuze(atomicZygote.fuze());
-            Stream.concat(Stream.of(atomicZygote.input()), Stream.of(atomicZygote.output()))
-                .forEach(slot -> builder.addSlots(to(slot)));
         }
+        Stream.concat(Stream.of(zygote.input()), Stream.of(zygote.output()))
+            .forEach(slot -> builder.addSlots(to(slot)));
         return builder.build();
     }
 

@@ -42,4 +42,8 @@ public abstract class AuthException extends RuntimeException {
             throw new IllegalStateException("Unexpected value: " + e.getStatus());
         }
     }
+
+    public StatusRuntimeException toStatusRuntimeException() {
+        return status().withDescription(getMessage()).asRuntimeException();
+    }
 }
