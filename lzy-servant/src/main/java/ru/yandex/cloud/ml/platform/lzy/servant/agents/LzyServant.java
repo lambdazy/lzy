@@ -294,9 +294,10 @@ public class LzyServant extends LzyAgent {
             ));
             try {
                 agentServer.shutdown();
-                lzyFs.stop();
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.error("Error during agent server shutdown", e);
+            } finally {
+                lzyFs.stop();
             }
         }
 
