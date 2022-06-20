@@ -30,8 +30,21 @@ let
         sha256 = "QwBrT1LXu2VTGdPaD2Fc2+53YoU6zB68sdSfli5rSAY=";
       };
 
-      propagatedBuildInputs = [ super.jmespath super.urllib3 super.python-dateutil ];
+      propagatedBuildInputs = [
+        super.urllib3
+        super.python-dateutil
+        jmespath
+      ];
       doCheck = false;
+    });
+
+    jmespath = super.jmespath.overridePythonAttrs(old: rec {
+      version = "0.7.1";
+      src = super.fetchPypi {
+        pname = "jmespath";
+        inherit version;
+        sha256 = "zVoS7j36RwKDoCCjXmnoOwcA1E/kEwFP01rVWExfX9E=";
+      };
     });
 
     boto3 = super.boto3.overridePythonAttrs(old: rec {
