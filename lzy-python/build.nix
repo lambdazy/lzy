@@ -5,7 +5,8 @@ let
   python-lzy = python.withPackages(ps: with ps; [
       (lzy ps)
   ]);
+  mkEnv = custom-python: pkgs.callPackage ./mk-python-env.nix { custom-python = custom-python; };
 in {
-  shell = pkgs.callPackage ./mk-python-env.nix { custom-python = python; };
-  shell-lzy = pkgs.callPackage ./mk-python-env.nix { custom-python = python-lzy; };
+  shell = mkEnv python;
+  shell-lzy = mkEnv python-lzy;
 }
