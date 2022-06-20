@@ -114,6 +114,12 @@ jobs:
           export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd lzy-test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
+      - name: 'ServantCrashTest'
+        timeout-minutes: 5
+        run: |
+          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
+          cd lzy-test && mvn test -Dtest=ServantCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
       - name: 'Delete docker images'
         run: |
           docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
