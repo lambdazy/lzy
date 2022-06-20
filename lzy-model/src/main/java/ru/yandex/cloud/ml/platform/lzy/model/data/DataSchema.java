@@ -1,18 +1,11 @@
 package ru.yandex.cloud.ml.platform.lzy.model.data;
 
-import java.util.List;
-import java.util.Map;
+import ru.yandex.cloud.ml.platform.lzy.model.data.types.SchemeType;
 
-public interface DataSchema {
-    DataSchema[] parents();
+public record DataSchema(SchemeType schemeType, String typeContent) {
+    public static final DataSchema plain = new DataSchema(SchemeType.plain, "");
 
-    Map<String, Class> properties();
-
-    List<String> canonicalOrder();
-
-    boolean check(DataPage page);
-
-    boolean check(DataPage.Item item);
-
-    boolean isAssignableFrom(DataSchema contentType);
+    public static DataSchema buildDataSchema(String dataSchemeType, String typeContent) {
+        return new DataSchema(SchemeType.valueOf(dataSchemeType), typeContent);
+    }
 }

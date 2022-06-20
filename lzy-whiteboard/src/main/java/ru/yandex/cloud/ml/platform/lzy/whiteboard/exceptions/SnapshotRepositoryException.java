@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.whiteboard.exceptions;
 import io.grpc.Status;
 import io.grpc.StatusException;
 
-public class SnapshotRepositoryException extends Exception {
+public class SnapshotRepositoryException extends RuntimeException {
     private final StatusException exception;
 
     public SnapshotRepositoryException(String errorMessage) {

@@ -5,7 +5,7 @@ from typing import Generic, TypeVar, Optional, Dict, List
 from lzy.api.v1.servant.model.env import Env
 from lzy.api.v1.servant.model.execution import ExecutionDescription
 from lzy.api.v1.servant.model.file_slots import create_slot
-from lzy.api.v1.servant.model.slot import Direction, Slot
+from lzy.api.v1.servant.model.slot import Direction, Slot, DataSchema, pickle_type
 from lzy.api.v1.servant.model.zygote import Zygote, Provisioning
 from lzy.api.v1.signatures import FuncSignature
 from lzy.serialization.serializer import MemBytesSerializer
@@ -27,13 +27,17 @@ class ZygotePythonFunc(Zygote, Generic[T]):
         self._name_to_slot: Dict[str, Slot] = {}
         self.execution_description = execution
 
-        for name in sign.param_names:
-            slot = create_slot(os.path.join(os.sep, sign.name, name), Direction.INPUT)
+        for name, type_ in sign.input_types.items():
+            slot = create_slot(
+                os.path.join(os.sep, sign.name, name),
+                Direction.INPUT,
+                DataSchema(pickle_type(type_))
+            )
             self._name_to_slot[name] = slot
             arg_slots.append(slot)
 
         return_slot = create_slot(
-            os.path.join("/", sign.name, "return"), Direction.OUTPUT
+            os.path.join("/", sign.name, "return"), Direction.OUTPUT, DataSchema(pickle_type(sign.output_type))
         )
         super().__init__(sign, arg_slots, return_slot, env, provisioning)
 

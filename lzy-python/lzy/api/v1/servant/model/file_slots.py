@@ -1,4 +1,4 @@
-from lzy.api.v1.servant.model.slot import Media, Slot, Direction
+from lzy.api.v1.servant.model.slot import Media, Slot, Direction, DataSchema
 
 
 class FileSlot(Slot):
@@ -19,11 +19,11 @@ class OutFileSlot(FileSlot):
         return Direction.OUTPUT
 
 
-def create_slot(name: str, direction: Direction) -> Slot:
+def create_slot(name: str, direction: Direction, content_type: DataSchema) -> Slot:
     if direction == Direction.INPUT:
-        return InFileSlot(name)
+        return InFileSlot(name, content_type)
 
     if direction == Direction.OUTPUT:
-        return OutFileSlot(name)
+        return OutFileSlot(name, content_type)
 
     raise ValueError(f"Cannot create fileslot for direction: {direction}")

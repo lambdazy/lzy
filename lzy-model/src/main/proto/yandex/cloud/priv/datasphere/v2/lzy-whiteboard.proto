@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
 import "yandex/cloud/priv/datasphere/v2/lzy-backoffice.proto";
+import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
 import "google/protobuf/timestamp.proto";
 
 package yandex.cloud.priv.datasphere.v2;
@@ -60,6 +61,7 @@ message SnapshotEntry {
   string entryId = 1;
   string storageUri = 2;
   repeated string dependentEntryIds = 3;
+  DataScheme type = 4;
 }
 
 message PrepareCommand {
@@ -109,6 +111,7 @@ message WhiteboardField {
   repeated string dependentFieldNames = 3;
   bool empty = 4;
   Status status = 5;
+  DataScheme scheme = 6;
 
   enum Status {
     UNKNOWN = 0;

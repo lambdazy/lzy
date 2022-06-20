@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.model.slots;
 
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.data.types.PlainTextFileSchema;
 
 public class TextLinesInSlot implements Slot {
     private final String name;
@@ -28,6 +27,6 @@ public class TextLinesInSlot implements Slot {
 
     @Override
     public DataSchema contentType() {
-        return new PlainTextFileSchema();
+        return DataSchema.plain;
     }
 }

@@ -11,7 +11,7 @@ option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
 
 message Channel {
   string channelId = 1;
-  string contentType = 2;
+  DataScheme contentType = 2;
 }
 
 message ChannelCommand {
@@ -32,7 +32,7 @@ message SnapshotChannelSpec {
 }
 
 message ChannelCreate {
-  string contentType = 1;
+  DataScheme contentType = 1;
   oneof type {
     DirectChannelSpec direct = 2;
     SnapshotChannelSpec snapshot = 3;

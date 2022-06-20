@@ -1,12 +1,19 @@
 package ru.yandex.cloud.ml.platform.lzy.commands.builtin;
 
+import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -21,6 +28,7 @@ public final class Channel implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Channel.class);
     private static final Options options = new Options();
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
     /*
      * ~$ channel <common-opts> channel-cmd channel-name -c content-type -t channel-type -s snapshot-id -e entry-id
      *
@@ -74,9 +82,22 @@ public final class Channel implements LzyCommand {
 
                 final Channels.ChannelCreate.Builder createCommandBuilder = Channels.ChannelCreate.newBuilder();
 
+                DataSchema data = null;
                 if (localCmd.hasOption('c')) {
-                    createCommandBuilder.setContentType(command.getOptionValue('c'));
+                    final String mappingFile = localCmd.getOptionValue('c');
+                    // TODO(aleksZubakov): drop this ugly stuff when already fully switched to grpc api
+                    final Map<String, String> bindings = new HashMap<>();
+                    bindings.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
+
+                    String dataSchemeType = bindings.get("schemeType");
+                    String contentType = bindings.getOrDefault("type", "");
+                    LOG.info("building dataschema from args {} and {}", dataSchemeType, contentType);
+                    data = DataSchema.buildDataSchema(dataSchemeType, contentType);
+                } else {
+                    data = DataSchema.plain;
                 }
+
+                createCommandBuilder.setContentType(to(data));
 
                 if ("snapshot".equals(localCmd.getOptionValue('t'))) {
                     createCommandBuilder.setSnapshot(
@@ -91,7 +112,7 @@ public final class Channel implements LzyCommand {
                 final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
                     .setAuth(auth)
                     .setChannelName(channelName)
-                    .setCreate(createCommandBuilder)
+                    .setCreate(createCommandBuilder.build())
                     .build();
 
                 final Channels.ChannelStatus channel = server.channel(channelReq);

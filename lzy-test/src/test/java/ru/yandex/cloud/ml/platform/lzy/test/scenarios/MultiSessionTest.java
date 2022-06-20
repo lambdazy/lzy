@@ -12,7 +12,6 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
 import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public class MultiSessionTest extends LocalScenario {
     private Terminal createTerminal(int port, int fsPort, int debugPort, String user, String mount) {
@@ -26,7 +25,7 @@ public class MultiSessionTest extends LocalScenario {
             null);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
-            Utils.Defaults.TIMEOUT_SEC,
+            Config.TIMEOUT_SEC,
             TimeUnit.SECONDS
         );
         return terminal;

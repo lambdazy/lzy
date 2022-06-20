@@ -32,7 +32,7 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
         //Assert
         Assert.assertEquals(AgentStatus.EXECUTING, terminal.status());
         zygotes.forEach(registeredZygote -> Assert.assertTrue(terminal.pathExists(Paths.get(
-            Utils.Defaults.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
+            Config.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
     }
 
     @Test
@@ -78,8 +78,8 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
         //Assert
         Assert.assertEquals(AgentStatus.EXECUTING, terminal.status());
         zygotesBeforeStart.forEach(registeredZygote -> Assert.assertTrue(terminal.pathExists(Paths.get(
-            Utils.Defaults.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
+            Config.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
         zygotesAfterStart.forEach(registeredZygote -> Assert.assertFalse(terminal.pathExists(Paths.get(
-            Utils.Defaults.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
+            Config.LZY_MOUNT + "/bin/" + registeredZygote.getName()))));
     }
 }

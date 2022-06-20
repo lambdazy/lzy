@@ -7,7 +7,6 @@ import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 
 public class PyApiTest extends LocalScenario {
@@ -15,7 +14,7 @@ public class PyApiTest extends LocalScenario {
     public void setUp() {
         super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
-                Utils.Defaults.LZY_MOUNT,
+                Config.LZY_MOUNT,
                 FreePortFinder.find(20000, 21000),
                 FreePortFinder.find(21000, 22000),
                 kharonContext.serverAddress(),
@@ -24,7 +23,7 @@ public class PyApiTest extends LocalScenario {
                 null);
         terminal.waitForStatus(
                 AgentStatus.EXECUTING,
-                Utils.Defaults.TIMEOUT_SEC,
+                Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
         );
     }
