@@ -118,7 +118,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     .printRequest(progress));
             }
 
-            if (progress.hasExit()) {
+            if (progress.hasConcluded()) {
                 LOG.info("LzyTerminal::exit {}", agentUri);
                 commandHandler.onCompleted();
             }

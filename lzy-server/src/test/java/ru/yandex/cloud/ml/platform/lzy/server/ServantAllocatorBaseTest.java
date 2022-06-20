@@ -297,7 +297,7 @@ public class ServantAllocatorBaseTest {
         AtomicBoolean gotDisconnectedWhenDeleted = new AtomicBoolean(false);
         CompletableFuture<?> called = new CompletableFuture<>();
         connection.onProgress(p -> {
-            if (p.hasExit()) {
+            if (p.hasConcluded()) {
                 gotDisconnectedWhenDeleted.set(true);
                 called.complete(null);
                 return false;

@@ -178,7 +178,6 @@ public class TaskImpl implements Task {
                     case EXECUTESTOP -> {
                         final ExecutionConcluded executeStop = progress.getExecuteStop();
                         LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
-                        final boolean communicationNotCompleted = state != SUSPENDED;
                         if (executeStop.getRc() != 0) {
                             state(ERROR, executeStop.getRc(), "Exit code: " + executeStop.getRc(),
                                     executeStop.getDescription());
@@ -187,20 +186,16 @@ public class TaskImpl implements Task {
                         }
                         servant = null;
                         TaskImpl.this.notifyAll();
-                        return communicationNotCompleted;
+                        return false;
                     }
                     case COMMUNICATIONCOMPLETED -> {
-                        if (state.phase() <= EXECUTING.phase()) {
-                            state(SUSPENDED);
-                            return true;
-                        }
-                        return false;
+                        return state.phase() <= EXECUTING.phase();
                     }
                     case FAILED -> {
                         state(ERROR, ReturnCodes.INTERNAL_ERROR.getRc(), "Internal error");
                         return false;
                     }
-                    case EXIT -> {
+                    case CONCLUDED -> {
                         if (!EnumSet.of(ERROR, State.SUCCESS).contains(state)) {
                             state(ERROR, ReturnCodes.INTERNAL_ERROR.getRc(), "Connection error");
                         }

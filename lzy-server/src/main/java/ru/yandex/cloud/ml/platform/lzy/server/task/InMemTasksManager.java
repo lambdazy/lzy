@@ -121,9 +121,6 @@ public class InMemTasksManager implements TasksManager {
             taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
             taskChannels.remove(task);
             userTasks.getOrDefault(owners.remove(task), List.of()).remove(task);
-
-            // ahm... ERROR ???!!!
-            // the same reaction on ERROR and SUCCESS...
         });
         return task;
     }

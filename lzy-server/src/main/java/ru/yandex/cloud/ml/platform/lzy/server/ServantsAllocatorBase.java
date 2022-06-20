@@ -171,7 +171,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             } finally {
                 synchronized (ServantsAllocatorBase.this) {
                     connection.progress(Servant.ServantProgress.newBuilder()
-                            .setExit(Servant.Disconnected.newBuilder().build()).build());
+                            .setConcluded(Servant.Concluded.newBuilder().build()).build());
                     shuttingDown.remove(connection);
                     cleanup(connection);
                 }
