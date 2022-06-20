@@ -49,7 +49,8 @@ jobs:
           if [[ ${{ github.event.inputs.servant-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
           bash deployment/push-docker.sh "${{ github.ref_name }}" "${{ github.event.inputs.tag }}" $FLAGS
 
-      - name: 'Delete docker images'
+      - name: 'Clean docker files'
         run: |
           docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
           docker image prune -f
+          docker volume prune -f
