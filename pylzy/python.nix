@@ -1,25 +1,22 @@
 {pkgs}:
 let
   packageOverrides = self: super: rec {
-    pure-protobuf = super.botocore.overridePythonAttrs(old: rec {
-      version = "0.2";
+    boto3 = super.boto3.overridePythonAttrs(old: rec {
+      version = "1.20.24";
       src = super.fetchPypi {
-        pname = "hidden-pure-protobuf";
+        pname = "boto3";
         inherit version;
-        sha256 = "ccee3efb201a2d10a856567911dccc8767eb73241c16f44817a7c10660a0d23c";
+        sha256 = "c5cFso5rIynqO0gbqAHUOcKWqvF294UHKRR7qZu/ipo=";
       };
-      propagatedBuildInputs = [
-        super.flake8
-        super.isort
-        super.mypy
-        super.pytest
-        super.coveralls
-        super.build
-        super.twine
-        super.pytest-benchmark
-        botocore
-        boto3
-      ];
+    });
+
+    jmespath = super.jmespath.overridePythonAttrs(old: rec {
+      version = "0.7.1";
+      src = super.fetchPypi {
+        pname = "jmespath";
+        inherit version;
+        sha256 = "zVoS7j36RwKDoCCjXmnoOwcA1E/kEwFP01rVWExfX9E=";
+      };
     });
 
     botocore = super.botocore.overridePythonAttrs(old: rec {
@@ -38,23 +35,10 @@ let
       doCheck = false;
     });
 
-    jmespath = super.jmespath.overridePythonAttrs(old: rec {
-      version = "0.7.1";
-      src = super.fetchPypi {
-        pname = "jmespath";
-        inherit version;
-        sha256 = "zVoS7j36RwKDoCCjXmnoOwcA1E/kEwFP01rVWExfX9E=";
-      };
-    });
-
-    boto3 = super.boto3.overridePythonAttrs(old: rec {
-      version = "1.20.24";
-      src = super.fetchPypi {
-        pname = "boto3";
-        inherit version;
-        sha256 = "c5cFso5rIynqO0gbqAHUOcKWqvF294UHKRR7qZu/ipo=";
-      };
-    });
+    pure-protobuf = self.callPackage ./pure-protobuf.nix {
+      inherit boto3;
+      inherit botocore;
+    };
     
     cloudpickle = super.cloudpickle.overridePythonAttrs(old: rec {
       pname = "cloudpickle";
