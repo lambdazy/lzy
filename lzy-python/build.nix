@@ -2,11 +2,22 @@
 let
   lzy = ps: ps.callPackage ./lzy.nix {};
   python = pkgs.callPackage ./python.nix {};
+  python-default = python.withPackages(ps: with ps; [
+    boto3
+    cloudpickle
+    pyyaml
+    importlib-metadata
+    wheel
+    azure-storage-blob
+    requests
+    stdlib-list
+    pure-protobuf
+  ]);
   python-lzy = python.withPackages(ps: with ps; [
       (lzy ps)
   ]);
   mkEnv = custom-python: pkgs.callPackage ./mk-python-env.nix { custom-python = custom-python; };
 in {
-  shell = mkEnv python;
+  shell = mkEnv python-default;
   shell-lzy = mkEnv python-lzy;
 }
