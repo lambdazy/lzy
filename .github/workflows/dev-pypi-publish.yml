@@ -42,6 +42,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
       - run: git checkout dev
 
       - uses: cachix/install-nix-action@v15
