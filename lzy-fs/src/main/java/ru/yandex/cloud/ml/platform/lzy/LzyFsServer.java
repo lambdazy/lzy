@@ -140,12 +140,12 @@ public final class LzyFsServer {
     public void awaitTermination() throws InterruptedException, IOException {
         LOG.info("LzyFs awaiting termination at {}.", selfUri);
         try {
-            lzyServerChannel.awaitTermination(30, TimeUnit.SECONDS);
-            localServer.awaitTermination();
             slotsManager.close();
             if (slotConnectionManager.snapshooter() != null) {
                 slotConnectionManager.snapshooter().close();
             }
+            lzyServerChannel.awaitTermination(30, TimeUnit.SECONDS);
+            localServer.awaitTermination();
         } finally {
             fs.umount();
         }

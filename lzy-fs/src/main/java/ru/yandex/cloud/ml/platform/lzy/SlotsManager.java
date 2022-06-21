@@ -6,7 +6,6 @@ import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
 import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
 import ru.yandex.cloud.ml.platform.lzy.slots.*;
@@ -52,6 +51,8 @@ public class SlotsManager implements AutoCloseable {
             LOG.info("Waiting for slots: {}...", Arrays.toString(slots().map(LzySlot::name).toArray()));
             this.wait();
         }
+        // TODO (tomato): it is better to move progress updates from SlotsManager
+        progress(Servant.ServantProgress.newBuilder().setConcluded(Servant.Concluded.newBuilder().build()).build());
         closed = true;
     }
 
@@ -161,8 +162,7 @@ public class SlotsManager implements AutoCloseable {
         }
 
         switch (spec.media()) {
-            case PIPE:
-            case FILE: {
+            case PIPE, FILE -> {
                 switch (spec.direction()) {
                     case INPUT:
                         return new InFileSlot(contextId, spec);
@@ -175,13 +175,10 @@ public class SlotsManager implements AutoCloseable {
                         throw new IllegalStateException("Unexpected value: " + spec.direction());
                 }
             }
-
-            case ARG: {
+            case ARG -> {
                 return new ArgumentsSlot(spec, binding);
             }
-
-            default:
-                throw new IllegalStateException("Unexpected value: " + spec.media());
+            default -> throw new IllegalStateException("Unexpected value: " + spec.media());
         }
     }
 
