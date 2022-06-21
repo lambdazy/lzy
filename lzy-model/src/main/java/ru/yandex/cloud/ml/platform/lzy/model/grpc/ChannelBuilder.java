@@ -35,7 +35,7 @@ public class ChannelBuilder {
 
         this.tls = true;
         this.retryServiceName = null;
-        this.maxRetry = 10;
+        this.maxRetry = 3;
         this.initialBackoff = "0.5s";
         this.maxBackoff = "2s";
         this.backoffMultiplier = 2;
