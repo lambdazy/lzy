@@ -41,7 +41,7 @@
 
 ## (New) Development with nix
 
-Fristly [install nix](https://nixos.org/download.html) via:
+Firstly [install nix](https://nixos.org/download.html) via:
 
 ``` sh
 sh <(curl -L https://nixos.org/nix/install) --daemon
@@ -63,13 +63,13 @@ Call one of scripts in `lzy-python` for action:
 ### Python env
 
 Currently there are several environments: `shell`, `shell-default` and
-`shell-l zy` (see `lzy-python/build.nix` for details).
+`shell-lzy` (see `lzy-python/build.nix` for details).
 
 If you want to open one of them:
 
 ``` sh
 cd lzy-python/
 
-# use default shell it if you don't know which to open
+# use default shell if you don't know which to open
 nix-shell build.nix -A shell 
 ```
