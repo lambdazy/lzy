@@ -26,6 +26,11 @@ jobs:
           distribution: 'adopt'
           java-version: '17'
 
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
       - uses: cachix/install-nix-action@v15
         with:
           extra_nix_config: |
