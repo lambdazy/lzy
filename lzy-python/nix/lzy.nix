@@ -2,7 +2,7 @@
 buildPythonPackage rec {
     name = "lzy";
     version = "2.1.0";
-    src = ./.;
+    src = ../.;
 
     propagatedBuildInputs = [
       botocore
