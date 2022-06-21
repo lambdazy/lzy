@@ -55,11 +55,6 @@ jobs:
         with:
           python-version: '3.x'
 
-      - uses: cachix/install-nix-action@v15
-        with:
-          extra_nix_config: |
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-
       - run: cd lzy-python
       - name: Build package
         run: ./clean.sh && ./build.sh

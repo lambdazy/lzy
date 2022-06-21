@@ -54,11 +54,6 @@ jobs:
 
       - run: git checkout dev
 
-      - uses: cachix/install-nix-action@v15
-        with:
-          extra_nix_config: |
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-
       - run: cd lzy-python
 
       - name: Build package
