@@ -12,5 +12,8 @@ pkgs.mkShell {
       export PYTHONPATH=${custom-python}/${custom-python.sitePackages}
       export PATH="$PIP_PREFIX/bin:$PATH"
       unset SOURCE_DATE_EPOCH
+
+      # call to list available executables
+      alias exs="find . -maxdepth 1 -executable -type f"
     '';
 }

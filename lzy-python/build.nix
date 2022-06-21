@@ -16,8 +16,16 @@ let
   python-lzy = python.withPackages(ps: with ps; [
     (lzy ps)
   ]);
-  mkEnv = custom-python: pkgs.callPackage ./mk-python-env.nix { custom-python = custom-python; };
+  python-publish = python.withPackages(ps: with ps; [
+    wheel
+    build
+    twine
+  ]);
+  mkEnv = custom-python: pkgs.callPackage ./mk-python-env.nix {
+    inherit custom-python;
+  };
 in {
   shell = mkEnv python-default;
   shell-lzy = mkEnv python-lzy;
+  shell-publish = mkEnv python-publish;
 }
