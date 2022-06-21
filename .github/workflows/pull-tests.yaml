@@ -26,6 +26,16 @@ jobs:
           distribution: 'adopt'
           java-version: '17'
 
+      - uses: cachix/install-nix-action@v15
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'python-test'
+        timeout-minutes: 5
+        run: |
+          cd lzy-python/ && ./run_tests.sh && ./clean.sh && cd ..
+
       - name: "Download conda"
         run: |
           echo "4ee9c3aa53329cd7a63b49877c0babb49b19b7e5af29807b793a76bdb1d362b4  miniconda.sh" > sha256.hash
@@ -51,12 +61,6 @@ jobs:
         run: |
           export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python/ && pip install . && cd ..
-
-      - name: 'python-test'
-        timeout-minutes: 5
-        run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
-          eval "$(conda shell.bash hook)" && conda activate py39 && cd lzy-python/ && python -m unittest discover tests/ && cd ..
 
       - name: 'java unit tests and install'
         timeout-minutes: 5
