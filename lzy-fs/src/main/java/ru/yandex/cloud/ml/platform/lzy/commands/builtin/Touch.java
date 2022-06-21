@@ -112,7 +112,7 @@ public final class Touch implements LzyCommand {
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         final LzyFsApi.SlotCommand slotCommand = LzyFsApi.SlotCommand.newBuilder()
             .setTid(auth.hasTask() ? auth.getTask().getTaskId() : "user-" + auth.getUser().getUserId())
-            .setSlot(slotPath)
+            .setSlot(slotBuilder.getName())
             .setCreate(createSlotCommandBuilder.build())
             .build();
 
