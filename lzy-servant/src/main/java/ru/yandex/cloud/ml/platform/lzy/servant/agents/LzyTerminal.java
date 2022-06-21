@@ -39,6 +39,7 @@ import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 public class LzyTerminal extends LzyAgent implements Closeable {
+
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
 
     private final URI agentUri;
@@ -151,6 +152,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     }
 
     private class CommandHandler {
+
         private final StreamObserver<ServerCommand> responseObserver;
         private final TerminalSlotSender slotSender = new TerminalSlotSender(kharon);
         private boolean invalidated = false;
@@ -166,14 +168,14 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                         CommandHandler.this.onNext(ServerCommand.newBuilder()
                             .setTerminalResponse(
                                 Kharon.TerminalResponse.newBuilder()
-                                .setCommandId(commandId)
-                                .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                    .setRc(RC.newBuilder()
-                                        .setCodeValue(1)
-                                        .setDescription("Invalid terminal command")
+                                    .setCommandId(commandId)
+                                    .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                        .setRc(RC.newBuilder()
+                                            .setCodeValue(1)
+                                            .setDescription("Invalid terminal command")
+                                            .build())
                                         .build())
-                                    .build())
-                                .build()
+                                    .build()
                             ).build());
                         return;
                     }
@@ -181,6 +183,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     final LzyFsApi.SlotCommand slotCommand = terminalCommand.getSlotCommand();
                     try {
                         // TODO: find out if we need namespaces here
+                        LOG.info("Slot command received: {}", slotCommand);
                         final LzySlot slot = context.slot(slotCommand.getTid(), slotCommand.getSlot());
 
                         if (slot == null) {
@@ -188,27 +191,27 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                 CommandHandler.this.onNext(ServerCommand.newBuilder()
                                     .setTerminalResponse(
                                         Kharon.TerminalResponse.newBuilder()
-                                        .setCommandId(commandId)
-                                        .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                            .setRc(RC.newBuilder()
-                                                .setCode(RC.Code.SUCCESS)
+                                            .setCommandId(commandId)
+                                            .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                                .setRc(RC.newBuilder()
+                                                    .setCode(RC.Code.SUCCESS)
+                                                    .build())
                                                 .build())
                                             .build())
-                                        .build())
                                     .build());
                             } else {
                                 CommandHandler.this.onNext(ServerCommand.newBuilder()
                                     .setTerminalResponse(
                                         Kharon.TerminalResponse.newBuilder()
-                                        .setCommandId(commandId)
-                                        .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                            .setRc(RC.newBuilder()
-                                                .setCode(RC.Code.ERROR)
-                                                .setDescription("Slot " + slotCommand.getSlot()
-                                                    + " not found in ns: " + slotCommand.getTid())
+                                            .setCommandId(commandId)
+                                            .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
+                                                .setRc(RC.newBuilder()
+                                                    .setCode(RC.Code.ERROR)
+                                                    .setDescription("Slot " + slotCommand.getSlot()
+                                                        + " not found in ns: " + slotCommand.getTid())
+                                                    .build())
                                                 .build())
                                             .build())
-                                        .build())
                                     .build());
                             }
                             return;

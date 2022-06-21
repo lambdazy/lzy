@@ -55,6 +55,7 @@ import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
 import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.*;
 
 public class LzyServer {
+
     private static final Logger LOG;
     private static final Options options = new Options();
     private static final String LZY_SERVER_HOST_ENV = "LZY_SERVER_HOST";
@@ -123,6 +124,7 @@ public class LzyServer {
     }
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
+
         public static final ThreadGroup TERMINAL_THREADS = new ThreadGroup("Terminal threads");
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
         private final Set<Thread> terminalThreads = new HashSet<>();
@@ -286,8 +288,9 @@ public class LzyServer {
             // [TODO] session per user is too simple
             final Task task = tasks.start(uid, parent, workload, assignments, auth);
             task.onProgress(progress -> {
-                if (concluded.get())
+                if (concluded.get()) {
                     return;
+                }
                 responseObserver.onNext(progress);
                 if (progress.getStatus() == QUEUE) {
                     final String sessionId = session.id();
@@ -297,10 +300,11 @@ public class LzyServer {
                                 if (th instanceof EnvironmentInstallationException) {
                                     LOG.info("Env installation failed, uid={}, tid={}", uid, task.tid(), th);
                                     task.state(Task.State.ERROR, ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
-                                            th.getMessage(), Arrays.toString(th.getStackTrace()));
+                                        th.getMessage(), Arrays.toString(th.getStackTrace()));
                                 } else {
                                     LOG.error("Servant allocation error, uid={}, tid={}", uid, task.tid(), th);
-                                    task.state(Task.State.ERROR, ReturnCodes.INTERNAL_ERROR.getRc(), "Internal error");
+                                    task.state(Task.State.ERROR, ReturnCodes.INTERNAL_ERROR.getRc(),
+                                        "Internal error");
                                 }
                             } else {
                                 task.attachServant(connection);
@@ -328,8 +332,9 @@ public class LzyServer {
             Context.current().addListener(ctxt -> {
                 concluded.set(true);
                 try {
-                    if (task.state().phase() < Task.State.SUCCESS.phase()) // task is not complete yet
+                    if (task.state().phase() < Task.State.SUCCESS.phase()) { // task is not complete yet
                         task.signal(TasksManager.Signal.HUB);
+                    }
                 } catch (TaskException e) {
                     LOG.warn("Exception during HUB signal, task id={}", task.tid(), e);
                 }
@@ -438,7 +443,7 @@ public class LzyServer {
 
         @Override
         public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request,
-                                         StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
+            StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
             LOG.info("Server::checkPermissions " + JsonUtils.printRequest(request));
             IAM.Auth requestAuth = request.getAuth();
             if (!checkAuth(requestAuth, responseObserver)) {
@@ -520,7 +525,7 @@ public class LzyServer {
 
         @Override
         public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
-                                     StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+            StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
             LOG.info("Server::getS3Credentials " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
@@ -557,7 +562,7 @@ public class LzyServer {
 
         @Override
         public void getSessions(GetSessionsRequest request,
-                                StreamObserver<GetSessionsResponse> responseObserver) {
+            StreamObserver<GetSessionsResponse> responseObserver) {
             final String userId = request.getAuth().getUserId();
             if (!auth.checkUser(userId, request.getAuth().getToken())) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -589,7 +594,7 @@ public class LzyServer {
 
         @Override
         public void getUser(Lzy.GetUserRequest request,
-                            StreamObserver<Lzy.GetUserResponse> responseObserver) {
+            StreamObserver<Lzy.GetUserResponse> responseObserver) {
             final Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -609,7 +614,7 @@ public class LzyServer {
          * [TODO] support interruption
          */
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub terminalServant,
-                                 LzyFsGrpc.LzyFsBlockingStub terminalFs, String sessionId) {
+            LzyFsGrpc.LzyFsBlockingStub terminalFs, String sessionId) {
             final String user = auth.getUser().getUserId();
             servantsAllocator.registerSession(user, sessionId, this.auth.bucketForUser(user));
 
@@ -621,6 +626,8 @@ public class LzyServer {
                         .setSlot(GrpcConverter.to(slot))
                         .setChannelId(channel.name())
                         .build())
+                    .setSlot(slot.name())
+                    .setTid(auth.hasTask() ? auth.getTask().getTaskId() : "terminal-" + auth.getUser().getUserId())
                     .build();
                 final LzyFsApi.SlotCommandStatus status = terminalFs.configureSlot(slotCommand);
 
