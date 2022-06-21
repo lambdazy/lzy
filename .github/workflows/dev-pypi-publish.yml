@@ -52,7 +52,7 @@ jobs:
       - run: cd pylzy
 
       - name: Build package
-        run: ./clean.sh && ./build.sh
+        run: ./clean.sh && ./build.sh --dev
 
       - name: Publish package
         run: ./publish.sh
