@@ -64,6 +64,7 @@ let
 
     types-pyyaml = self.callPackage ./types-pyyaml.nix { };
 
+    grpclib = self.callPackage ./grpclib.nix { };
   };
 in pkgs.python39.override {
   inherit packageOverrides;
