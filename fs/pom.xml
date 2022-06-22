@@ -20,7 +20,7 @@
   <dependencies>
     <dependency>
       <groupId>ru.yandex</groupId>
-      <artifactId>lzy-model</artifactId>
+      <artifactId>model</artifactId>
       <version>1.0-SNAPSHOT</version>
     </dependency>
     <dependency>

@@ -21,7 +21,7 @@
         <module>servant</module>
         <module>kharon</module>
         <module>test</module>
-        <module>python</module>
+        <module>pylzy</module>
         <module>parent</module>
         <module>whiteboard</module>
         <module>fs</module>

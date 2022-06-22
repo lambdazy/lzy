@@ -1,5 +1,5 @@
 #!/bin/bash
-# ! this script should be ran from lzy-servant directory
+# ! this script should be ran from servant directory
 
 clean() {
     echo "Clean up"
@@ -12,7 +12,7 @@ build() {
     echo "Building pylzy package"
     python -m pip install --upgrade build twine
     # TODO: pass jar path to script as parameter?
-    cp ../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar lzy/lzy-servant.jar
+    cp ../servant/target/servant-1.0-SNAPSHOT.jar lzy/lzy-servant.jar
 
     # instead of
     # python -m build # which builds both wheel dist and source dist

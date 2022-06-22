@@ -2,7 +2,7 @@
 
 ### Application configuration
 
-module: `lzy-servant`
+module: `servant`
 
 [Main class](src/main/java/ru/yandex/cloud/ml/platform/lzy/servant/BashApi.java):
 `ru.yandex.cloud.ml.platform.lzy.servant.BashApi`

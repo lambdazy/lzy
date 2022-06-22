@@ -1,7 +1,7 @@
 FROM findepi/graalvm:java17-all
 
 RUN apt-get update && apt-get install -y procps
-COPY target/lzy-server-1.0-SNAPSHOT.jar app/app.jar
+COPY target/server-1.0-SNAPSHOT.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 

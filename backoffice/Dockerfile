@@ -1,6 +1,6 @@
 FROM findepi/graalvm:java17-all
 
-COPY target/lzy-backoffice-0.1.jar app/app.jar
+COPY target/backoffice-0.1.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 EXPOSE 8080

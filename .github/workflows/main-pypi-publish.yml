@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths:
-      - lzy-python/version # TODO: replace with tag change?
+      - pylzy/version # TODO: replace with tag change?
   workflow_dispatch:
 
 jobs:
@@ -62,7 +62,7 @@ jobs:
 
       - name: Build package
         run: |
-          cd lzy-python/
+          cd pylzy/
           pip install -r requirements.txt
           python setup.py sdist bdist_wheel
           cd ..
@@ -71,7 +71,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           verbose: true
-          packages_dir: ./lzy-python/dist
+          packages_dir: ./pylzy/dist
           user: __token__
           password: ${{ secrets.PYPI_API_RELEASE_TOKEN }}
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml

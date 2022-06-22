@@ -2,7 +2,7 @@
 
 ### Application configuration
 
-module: `lzy-kharon`
+module: `kharon`
 
 [Main class](src/main/java/ru/yandex/cloud/ml/platform/lzy/kharon/LzyKharon.java):
 `ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon`

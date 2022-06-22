@@ -12,11 +12,11 @@ ENV DOCKER_CHANNEL=stable \
 	DOCKER_COMPOSE_VERSION=1.29.2 \
 	DEBUG=false
 
-COPY lzy-servant/docker/dind/docker_installer.sh /
+COPY servant/docker/dind/docker_installer.sh /
 RUN chmod a+rx /docker_installer.sh
 RUN ./docker_installer.sh
 
-COPY lzy-servant/docker/dind/modprobe /usr/local/bin/modprobe
+COPY servant/docker/dind/modprobe /usr/local/bin/modprobe
 RUN chmod +x /usr/local/bin/modprobe
 
 VOLUME /var/lib/docker
@@ -49,11 +49,11 @@ SHELL ["/bin/bash", "-c"]
 # for future interactive shell sessions
 RUN conda init bash
 
-COPY lzy-servant/docker/requirements.txt /
-COPY lzy-servant/docker/conda_prepare.sh /
+COPY servant/docker/requirements.txt /
+COPY servant/docker/conda_prepare.sh /
 RUN chmod a+rx /conda_prepare.sh
 RUN ./conda_prepare.sh init
 
 ### cached default-env
-# docker save -o lzy-servant/docker/default-env-image.tar lzydock/default-env:from-tar
-COPY --chmod=444 lzy-servant/docker/default-env-image.tar /
+# docker save -o servant/docker/default-env-image.tar lzydock/default-env:from-tar
+COPY --chmod=444 servant/docker/default-env-image.tar /

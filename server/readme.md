@@ -2,7 +2,7 @@
 
 ### Application configuration
 
-module: `lzy-server`
+module: `server`
 
 [Main class](src/main/java/ru/yandex/cloud/ml/platform/lzy/server/LzyServer.java):
 `ru.yandex.cloud.ml.platform.lzy.server.LzyServer`

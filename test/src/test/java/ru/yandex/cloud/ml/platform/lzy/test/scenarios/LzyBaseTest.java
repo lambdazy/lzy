@@ -24,7 +24,7 @@ public abstract class LzyBaseTest {
 
     private static final Logger LOG = LogManager.getLogger(LzyBaseTest.class);
 
-    protected static Path scenarios = Paths.get("../lzy-python/tests/scenarios/");
+    protected static Path scenarios = Paths.get("../pylzy/tests/scenarios/");
     protected static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
             "conda activate py39 && ";
 

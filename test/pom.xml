@@ -20,29 +20,13 @@
   <dependencies>
     <dependency>
       <groupId>ru.yandex</groupId>
-      <artifactId>lzy-model</artifactId>
+      <artifactId>model</artifactId>
       <version>1.0-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>ru.yandex</groupId>
-      <artifactId>lzy-servant</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>ru.yandex</groupId>
-      <artifactId>lzy-server</artifactId>
+      <artifactId>servant</artifactId>
       <version>1.0-SNAPSHOT</version>
       <scope>test</scope>
       <exclusions>
@@ -58,7 +42,7 @@
     </dependency>
     <dependency>
       <groupId>ru.yandex</groupId>
-      <artifactId>lzy-whiteboard</artifactId>
+      <artifactId>server</artifactId>
       <version>1.0-SNAPSHOT</version>
       <scope>test</scope>
       <exclusions>
@@ -74,7 +58,23 @@
     </dependency>
     <dependency>
       <groupId>ru.yandex</groupId>
-      <artifactId>lzy-kharon</artifactId>
+      <artifactId>whiteboard</artifactId>
+      <version>1.0-SNAPSHOT</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>ru.yandex</groupId>
+      <artifactId>kharon</artifactId>
       <version>1.0-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>

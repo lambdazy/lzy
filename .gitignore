@@ -156,13 +156,12 @@ build/cert/*pem
 .DS_Store
 __pycache__
 
-# lzy-python install artifacts
-lzy-python/build
-lzy-python/dist
-lzy-python/*.egg-info
+# pylzy install artifacts
+pylzy/build
+pylzy/dist
+pylzy/*.egg-info
 
 **/*.env
-lzy-python/*.egg-info
 **/.vscode
 
 # Local .terraform directories
@@ -181,8 +180,8 @@ tvars.json
 # tfplan
 **/tfplan
 
-# lzy-test/trash
-lzy-test/bindings.json
-lzy-test/filename
-lzy-test/slot.json
+# test trash
+test/bindings.json
+test/filename
+test/slot.json
 
