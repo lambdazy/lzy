@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.*;
 
 public class TaskImpl implements Task {
+
     private static final Logger LOG = LogManager.getLogger(TaskImpl.class);
 
     protected final String owner;
@@ -41,7 +42,7 @@ public class TaskImpl implements Task {
     private final List<TasksManager.Signal> signalsQueue = new ArrayList<>();
 
     public TaskImpl(String owner, String tid, Zygote workload, Map<Slot, String> assignments,
-                    ChannelsManager channels, URI serverURI
+        ChannelsManager channels, URI serverURI
     ) {
         this.owner = owner;
         this.tid = tid;
@@ -91,11 +92,11 @@ public class TaskImpl implements Task {
         if (newState != state) {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
-                    .setTid(tid)
-                    .setZygoteName(workloadName())
-                    .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
-                    .setDescription(String.join("\n", description))
-                    .build());
+                .setTid(tid)
+                .setZygoteName(workloadName())
+                .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
+                .setDescription(String.join("\n", description))
+                .build());
         }
     }
 
@@ -128,8 +129,8 @@ public class TaskImpl implements Task {
                         if (attach.getChannel().isEmpty()) {
                             final String binding = assignments.getOrDefault(slot, "");
                             channelName = binding.startsWith("channel:")
-                                    ? binding.substring("channel:".length())
-                                    : null;
+                                ? binding.substring("channel:".length())
+                                : null;
                         } else {
                             channelName = attach.getChannel();
                         }
@@ -180,13 +181,13 @@ public class TaskImpl implements Task {
                         LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
                         if (executeStop.getRc() != 0) {
                             state(ERROR, executeStop.getRc(), "Exit code: " + executeStop.getRc(),
-                                    executeStop.getDescription());
+                                executeStop.getDescription());
                         } else {
                             state(State.SUCCESS, 0, "Success");
                         }
                         servant = null;
                         TaskImpl.this.notifyAll();
-                        return false;
+                        return true; //clean up listener on CONCLUDED state
                     }
                     case COMMUNICATIONCOMPLETED -> {
                         return state.phase() <= EXECUTING.phase();
@@ -271,8 +272,9 @@ public class TaskImpl implements Task {
 
     @Override
     public synchronized void signal(TasksManager.Signal signal) throws TaskException {
-        if (EnumSet.of(ERROR, SUCCESS).contains(state()))
+        if (EnumSet.of(ERROR, SUCCESS).contains(state())) {
             throw new TaskException("Task is already concluded");
+        }
         signalsQueue.add(signal);
         if (servant != null) {
             LOG.info("Sending signal {} to servant {} for task {}", signal.name(), servant.uri(), tid);
