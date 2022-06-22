@@ -52,6 +52,16 @@ let
       ];
       doCheck = false;
     });
+
+    # type stubs:
+    botocore-stubs = self.callPackage ./botocore-stubs.nix { };
+
+    boto3-stubs = self.callPackage ./boto3-stubs.nix {
+      inherit botocore-stubs;
+    };
+
+    types-pyyaml = self.callPackage ./types-pyyaml.nix { };
+
   };
 in pkgs.python39.override {
   inherit packageOverrides;
