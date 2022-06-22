@@ -53,6 +53,8 @@ let
       doCheck = false;
     });
 
+    pyright = self.callPackage ./pyright.nix { };
+
     # type stubs:
     botocore-stubs = self.callPackage ./botocore-stubs.nix { };
 
