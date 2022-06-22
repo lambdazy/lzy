@@ -160,6 +160,7 @@ __pycache__
 lzy-python/build
 lzy-python/dist
 lzy-python/*.egg-info
+lzy-python/lzy/proto
 
 **/*.env
 lzy-python/*.egg-info
