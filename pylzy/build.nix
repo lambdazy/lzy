@@ -23,6 +23,7 @@ let
   ]);
   python-lint = python.withPackages(ps: with ps; [
     mypy
+    pyright
 
     types-setuptools
     types-requests
