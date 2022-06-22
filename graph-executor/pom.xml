@@ -3,21 +3,21 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <groupId>ru.yandex</groupId>
     <artifactId>lzy</artifactId>
+    <groupId>ru.yandex</groupId>
     <version>1.0-SNAPSHOT</version>
     <relativePath>../../lzy</relativePath>
   </parent>
+
   <modelVersion>4.0.0</modelVersion>
-  <version>0.1</version>
-  <packaging>${packaging}</packaging>
-  <groupId>ru.yandex.cloud.ml.platform.lzy.iam</groupId>
-  <artifactId>iam</artifactId>
+  <artifactId>graph-executor</artifactId>
 
   <properties>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
     <packaging>jar</packaging>
     <micronaut.runtime>netty</micronaut.runtime>
-    <exec.mainClass>ru.yandex.cloud.ml.platform.lzy.iam</exec.mainClass>
+    <exec.mainClass>ru.yandex.cloud.ml.platform.lzy.graph.GraphExecutorApi</exec.mainClass>
   </properties>
 
   <dependencies>
@@ -25,6 +25,11 @@
       <groupId>ru.yandex</groupId>
       <artifactId>model</artifactId>
       <version>1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>ru.yandex.cloud.ml.platform.lzy.iam</groupId>
+      <artifactId>iam</artifactId>
+      <version>0.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -107,7 +112,6 @@
     <dependency>
       <groupId>io.kubernetes</groupId>
       <artifactId>client-java</artifactId>
-      <version>${io.kubernetes.version}</version>
     </dependency>
     <dependency>
       <groupId>ru.yandex</groupId>
@@ -120,16 +124,13 @@
       <artifactId>clickhouse-jdbc</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.hibernate</groupId>
-      <artifactId>hibernate-c3p0</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
     </dependency>
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.amazonaws</groupId>
@@ -159,39 +160,19 @@
       <groupId>org.json</groupId>
       <artifactId>json</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.mchange</groupId>
+      <artifactId>c3p0</artifactId>
+      <version>0.9.5.5</version>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
-
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>${checkstyle-maven-plugin.version}</version>
-        <dependencies>
-          <dependency>
-            <groupId>com.puppycrawl.tools</groupId>
-            <artifactId>checkstyle</artifactId>
-            <version>${checkstyle.version}</version>
-          </dependency>
-        </dependencies>
-        <configuration>
-          <configLocation>${project.basedir}/../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
-          <sourceDirectories>${project.basedir}/src</sourceDirectories>
-          <encoding>UTF-8</encoding>
-          <consoleOutput>true</consoleOutput>
-          <failsOnError>true</failsOnError>
-          <violationSeverity>warning</violationSeverity>
-          <linkXRef>false</linkXRef>
-        </configuration>
-        <executions>
-          <execution>
-            <phase>install</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>io.micronaut.build</groupId>
         <artifactId>micronaut-maven-plugin</artifactId>
@@ -237,6 +218,34 @@
         </configuration>
       </plugin>
       <plugin>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <configuration>
+          <configLocation>${project.basedir}/../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
+          <consoleOutput>true</consoleOutput>
+          <encoding>UTF-8</encoding>
+          <failsOnError>true</failsOnError>
+          <linkXRef>false</linkXRef>
+          <violationSeverity>warning</violationSeverity>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <artifactId>checkstyle</artifactId>
+            <groupId>com.puppycrawl.tools</groupId>
+            <version>${checkstyle.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>install</phase>
+          </execution>
+        </executions>
+        <groupId>org.apache.maven.plugins</groupId>
+        <version>${checkstyle-maven-plugin.version}</version>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <version>${maven-shade-plugin.version}</version>
@@ -277,4 +286,5 @@
       </resource>
     </resources>
   </build>
+
 </project>

@@ -28,8 +28,8 @@ jobs:
 
       - name: Build package
         run: |
-          cp .git/HEAD lzy-python/
-          cd lzy-python/
+          cp .git/HEAD pylzy/
+          cd pylzy/
           pip install -r requirements.txt
           python setup.py sdist ${{ inputs.dev && '--dev' }} bdist_wheel ${{ inputs.dev && '--dev' }}
 
@@ -37,7 +37,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           verbose: true
-          packages_dir: lzy-python/dists
+          packages_dir: pylzy/dists
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
           repository_url: https://test.pypi.org/legacy/

@@ -33,12 +33,12 @@ jobs:
 #        timeout-minutes: 45
 #        run: mvn clean install
 #
-#      - name: 'install lzy-python'
-#        run: cd lzy-python/ && pip install -r requirements.txt && pip install .
+#      - name: 'install pylzy'
+#        run: cd pylzy/ && pip install -r requirements.txt && pip install .
 #
 #      - name: 'python-test'
 #        timeout-minutes: 5
-#        run: cd lzy-python/ && python -m unittest discover tests/
+#        run: cd pylzy/ && python -m unittest discover tests/
       #### <- TODO: replace with call or even action in future: .github/workflows/reusable/pull-request-workflow.yaml
 
       - name: Merge

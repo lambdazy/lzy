@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="LocalRunner (no kharon)" type="MicronautRunConfigurationType" factoryName="Micronaut">
-    <module name="lzy-test" />
+    <module name="test" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="ru.yandex.cloud.ml.platform.lzy.test.*" />

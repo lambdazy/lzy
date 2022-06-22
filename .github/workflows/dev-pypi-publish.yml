@@ -61,8 +61,8 @@ jobs:
 
       - name: Build package
         run: |
-          cp .git/HEAD lzy-python/
-          cd lzy-python/
+          cp .git/HEAD pylzy/
+          cd pylzy/
           pip install -r requirements.txt
           python setup.py sdist --dev bdist_wheel --dev
           cd ..
@@ -71,7 +71,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           verbose: true
-          packages_dir: ./lzy-python/dist
+          packages_dir: ./pylzy/dist
           user: __token__
           password: ${{ secrets.PYPI_API_NIGHTLY_TOKEN }}
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml

@@ -66,8 +66,8 @@ class JupyterKernel(IPythonKernel):
                 args=[
                     '-Djava.library.path=/usr/local/lib',
                     '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32',
-                    '-Dlog4j.configurationFile=../lzy-servant/src/main/resources/servant_cmd/log4j2.yaml',
-                    '-cp', '../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar',
+                    '-Dlog4j.configurationFile=../servant/src/main/resources/servant_cmd/log4j2.yaml',
+                    '-cp', '../servant/target/servant-1.0-SNAPSHOT.jar',
                     'ru.yandex.cloud.ml.platform.lzy.servant.BashApi',
                     '-z', 'localhost:7777',
                     '-w', 'blah-blah-blah://localhost:8999',

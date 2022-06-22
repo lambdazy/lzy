@@ -30,9 +30,9 @@ jobs:
       - uses: scacap/action-surefire-report@v1
         if: always()
 
-      - name: 'install lzy-python'
-        run: cd lzy-python/ && pip install -r requirements.txt && pip install .
+      - name: 'install pylzy'
+        run: cd pylzy/ && pip install -r requirements.txt && pip install .
 
       - name: 'python-test'
         timeout-minutes: 5
-        run: cd lzy-python/ && python -m unittest discover tests/
+        run: cd pylzy/ && python -m unittest discover tests/
