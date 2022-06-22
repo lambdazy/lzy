@@ -21,6 +21,16 @@ let
     build
     twine
   ]);
+  python-lint = python.withPackages(ps: with ps; [
+    mypy
+
+    types-setuptools
+    types-requests
+
+    # custom
+    boto3-stubs
+    types-pyyaml
+  ]);
   mkEnv = custom-python: pkgs.callPackage ./nix/mk-python-env.nix {
     inherit custom-python;
   };
@@ -28,4 +38,5 @@ in {
   shell = mkEnv python-default;
   shell-lzy = mkEnv python-lzy;
   shell-publish = mkEnv python-publish;
+  shell-lint = mkEnv python-lint;
 }
