@@ -41,7 +41,7 @@ public class GraphExecutorTest {
     private SchedulerApiMock scheduler;
     private GraphDaoMock dao;
     private QueueEventDao queueEventDao;
-    private final int TIMEOUT = 1000;
+    private final int TIMEOUT = 10000;
 
     @Before
     public void setUp() {
