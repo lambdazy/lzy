@@ -2,7 +2,7 @@
 let
   lzy = ps: ps.callPackage ./nix/lzy.nix {};
   python = pkgs.callPackage ./nix/python.nix {};
-  python-default = python.withPackages(ps: with ps; [
+  python-dev = python.withPackages(ps: with ps; [
     boto3
     cloudpickle
     pyyaml
@@ -12,6 +12,11 @@ let
     requests
     stdlib-list
     pure-protobuf
+
+    grpclib
+    protobuf
+    # it's here just to get protoc
+    grpcio-tools
   ]);
   python-lzy = python.withPackages(ps: with ps; [
     (lzy ps)
@@ -36,7 +41,7 @@ let
     inherit custom-python;
   };
 in {
-  shell = mkEnv python-default;
+  shell = mkEnv python-dev;
   shell-lzy = mkEnv python-lzy;
   shell-publish = mkEnv python-publish;
   shell-lint = mkEnv python-lint;
