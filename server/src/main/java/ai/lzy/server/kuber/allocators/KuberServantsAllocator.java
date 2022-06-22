@@ -116,6 +116,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
             throw new RuntimeException(e);
         }
         servantPods.remove(connection.id());
+
     }
 
     private boolean isPodExists(String namespace, String name) throws ApiException {
