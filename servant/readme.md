@@ -1,4 +1,4 @@
-## Local run [Terminal](../lzy-servant)
+## Local run [Terminal](../servant)
 
 ### Application configuration
 

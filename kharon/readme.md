@@ -1,4 +1,4 @@
-## Local run [Kharon](../lzy-kharon)
+## Local run [Kharon](../kharon)
 
 ### Application configuration
 

@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <groupId>ru.yandex</groupId>
-        <artifactId>platform-parent</artifactId>
+        <artifactId>parent</artifactId>
         <version>1.0-SNAPSHOT</version>
         <relativePath>./parent</relativePath>
     </parent>
@@ -14,19 +14,19 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>lzy-util</module>
-        <module>lzy-model</module>
-        <module>lzy-backoffice</module>
-        <module>lzy-server</module>
-        <module>lzy-servant</module>
-        <module>lzy-kharon</module>
-        <module>lzy-test</module>
-        <module>lzy-python</module>
+        <module>util</module>
+        <module>model</module>
+        <module>backoffice</module>
+        <module>server</module>
+        <module>servant</module>
+        <module>kharon</module>
+        <module>test</module>
+        <module>python</module>
         <module>parent</module>
-        <module>lzy-whiteboard</module>
-        <module>lzy-fs</module>
+        <module>whiteboard</module>
+        <module>fs</module>
         <module>iam</module>
-        <module>lzy-graph-executor</module>
+        <module>graph-executor</module>
         <module>jupyter-kernel</module>
     </modules>
 </project>

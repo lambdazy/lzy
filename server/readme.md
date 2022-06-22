@@ -1,4 +1,4 @@
-## Local run [Server](../lzy-server)
+## Local run [Server](../server)
 
 ### Application configuration
 
