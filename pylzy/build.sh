@@ -1,9 +1,12 @@
 #!/usr/bin/env nix-shell
 #! nix-shell build.nix -A shell -i bash
 
+./gen_proto.sh
+
 echo "Building pylzy package"
 # TODO: pass jar path to script as parameter?
 cp ../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar lzy/lzy-servant.jar
+[ $? -ne 0 ] && echo "Failed to copy lzy-servant jar" && exit -1
 
 # instead of
 # python -m build
