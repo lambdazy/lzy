@@ -6,9 +6,9 @@
 
 -   For arch linux:
 
-<!-- -->
-
+``` sh
     pacman -Sy fuse2 inetutils
+```
 
 ### Prepare env for python integration tests
 
