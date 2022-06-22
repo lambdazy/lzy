@@ -2,7 +2,6 @@ package ru.yandex.cloud.ml.platform.lzy.servant.env;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
 public class SimpleBashEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(SimpleBashEnvironment.class);
@@ -17,7 +16,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
         return baseEnv;
     }
 
-    private LzyProcess execInEnv(String command, String[] envp) throws LzyExecutionException {
+    private LzyProcess execInEnv(String command, String[] envp) {
         LOG.info("Executing command " + command);
         String[] bashCmd = new String[]{"bash", "-c", command};
         return baseEnv.runProcess(bashCmd, envp);
@@ -25,16 +24,12 @@ public class SimpleBashEnvironment implements AuxEnvironment {
 
 
     @Override
-    public LzyProcess runProcess(String... command) throws LzyExecutionException {
+    public LzyProcess runProcess(String... command) {
         return runProcess(command, null);
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
-        try {
-            return execInEnv(String.join(" ", command), envp);
-        } catch (Exception e) {
-            throw new LzyExecutionException(e);
-        }
+    public LzyProcess runProcess(String[] command, String[] envp) {
+        return execInEnv(String.join(" ", command), envp);
     }
 }

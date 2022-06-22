@@ -18,7 +18,6 @@ import net.lingala.zip4j.exception.ZipException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
@@ -90,7 +89,6 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private void installPyenv() throws EnvironmentInstallationException {
         try {
-
             LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
             final String yamlPath = resourcesPath + "conda.yaml";
             final String yamlBindPath = resourcesPath + "conda.yaml";
@@ -166,19 +164,19 @@ public class CondaEnvironment implements AuxEnvironment {
                 }
                 tempFile.deleteOnExit();
             }
-        } catch (IOException | LzyExecutionException | ExecutionException | InterruptedException e) {
-            throw new EnvironmentInstallationException(e.getMessage());
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    private LzyProcess execInEnv(String command, String[] envp) throws LzyExecutionException {
+    private LzyProcess execInEnv(String command, String[] envp) {
         LOG.info("Executing command " + command);
         String[] bashCmd = new String[] {"bash", "-c", "eval \"$(conda shell.bash hook)\" && conda activate "
                 + pythonEnv.name() + " && " + command};
         return baseEnv.runProcess(bashCmd, envp);
     }
 
-    private LzyProcess execInEnv(String command) throws LzyExecutionException {
+    private LzyProcess execInEnv(String command) {
         return execInEnv(command, null);
     }
 
@@ -190,22 +188,18 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String... command) throws LzyExecutionException {
+    public LzyProcess runProcess(String... command) {
         return runProcess(command, null);
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
-        try {
-            List<String> envList = getEnvironmentVariables();
-            envList.add("LOCAL_MODULES=" + localModulesDirectoryAbsolutePath());
-            if (envp != null) {
-                envList.addAll(Arrays.asList(envp));
-            }
-            return execInEnv(String.join(" ", command), envList.toArray(String[]::new));
-        } catch (Exception e) {
-            throw new LzyExecutionException(e);
+    public LzyProcess runProcess(String[] command, String[] envp) {
+        List<String> envList = getEnvironmentVariables();
+        envList.add("LOCAL_MODULES=" + localModulesDirectoryAbsolutePath());
+        if (envp != null) {
+            envList.addAll(Arrays.asList(envp));
         }
+        return execInEnv(String.join(" ", command), envList.toArray(String[]::new));
     }
 
 }

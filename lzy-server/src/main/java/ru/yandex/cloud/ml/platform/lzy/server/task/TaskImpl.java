@@ -1,7 +1,6 @@
 package ru.yandex.cloud.ml.platform.lzy.server.task;
 
 
-import io.grpc.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -13,8 +12,11 @@ import ru.yandex.cloud.ml.platform.lzy.server.TasksManager;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.ChannelException;
 import ru.yandex.cloud.ml.platform.lzy.server.channel.Endpoint;
 import ru.yandex.cloud.ml.platform.lzy.server.local.ServantEndpoint;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.net.URI;
 import java.util.*;
@@ -24,6 +26,7 @@ import java.util.stream.Stream;
 import static ru.yandex.cloud.ml.platform.lzy.server.task.Task.State.*;
 
 public class TaskImpl implements Task {
+
     private static final Logger LOG = LogManager.getLogger(TaskImpl.class);
 
     protected final String owner;
@@ -39,7 +42,7 @@ public class TaskImpl implements Task {
     private final List<TasksManager.Signal> signalsQueue = new ArrayList<>();
 
     public TaskImpl(String owner, String tid, Zygote workload, Map<Slot, String> assignments,
-                    ChannelsManager channels, URI serverURI
+        ChannelsManager channels, URI serverURI
     ) {
         this.owner = owner;
         this.tid = tid;
@@ -89,11 +92,11 @@ public class TaskImpl implements Task {
         if (newState != state) {
             state = newState;
             progress(Tasks.TaskProgress.newBuilder()
-                    .setTid(tid)
-                    .setZygoteName(workloadName())
-                    .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
-                    .setDescription(String.join("\n", description))
-                    .build());
+                .setTid(tid)
+                .setZygoteName(workloadName())
+                .setStatus(Tasks.TaskProgress.Status.valueOf(newState.name()))
+                .setDescription(String.join("\n", description))
+                .build());
         }
     }
 
@@ -117,7 +120,7 @@ public class TaskImpl implements Task {
         connection.onProgress(progress -> {
             synchronized (TaskImpl.this) {
                 switch (progress.getStatusCase()) {
-                    case ATTACH: {
+                    case ATTACH -> {
                         LOG.info("Attach " + JsonUtils.printRequest(progress));
                         final Servant.SlotAttach attach = progress.getAttach();
                         final Slot slot = GrpcConverter.from(attach.getSlot());
@@ -138,18 +141,16 @@ public class TaskImpl implements Task {
                             try {
                                 channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, connection.fs()));
                             } catch (ChannelException ce) {
-                                LOG.error(
-                                    "Unable to connect channel " + channelName + " to the slot " + slotUri,
-                                    ce
-                                );
+                                LOG.error("Unable to connect channel " + channelName + " to the slot " + slotUri, ce);
+                                // TODO: ????
+                                //state(ERROR, 1, ce.getMessage());
                             }
                         } else {
-                            LOG.error("Unable to attach channel to " + tid + ":" + slot.name()
-                                + ". Channel not found.");
+                            LOG.error("Unable to attach channel to " + tid + ":" + slot.name() + ". Channel not found");
                         }
                         return true;
                     }
-                    case DETACH: {
+                    case DETACH -> {
                         LOG.info("Detach " + JsonUtils.printRequest(progress));
                         final Servant.SlotDetach detach = progress.getDetach();
                         final Slot slot = GrpcConverter.from(detach.getSlot());
@@ -166,7 +167,7 @@ public class TaskImpl implements Task {
                         }
                         return true;
                     }
-                    case EXECUTESTART: {
+                    case EXECUTESTART -> {
                         LOG.info("Task " + tid + " started");
                         state(State.EXECUTING);
                         signalsQueue.forEach(s -> {
@@ -175,46 +176,38 @@ public class TaskImpl implements Task {
                         });
                         return true;
                     }
-                    case EXECUTESTOP: {
+                    case EXECUTESTOP -> {
                         final ExecutionConcluded executeStop = progress.getExecuteStop();
                         LOG.info("Task " + tid + " exited rc: " + executeStop.getRc());
-                        final boolean communicationNotCompleted = state != SUSPENDED;
                         if (executeStop.getRc() != 0) {
                             state(ERROR, executeStop.getRc(), "Exit code: " + executeStop.getRc(),
-                                    executeStop.getDescription());
+                                executeStop.getDescription());
                         } else {
                             state(State.SUCCESS, 0, "Success");
                         }
                         servant = null;
                         TaskImpl.this.notifyAll();
-                        return communicationNotCompleted;
+                        return true; //clean up listener on CONCLUDED state
                     }
-                    case COMMUNICATIONCOMPLETED: {
-                        if (state.phase() <= EXECUTING.phase()) {
-                            state(SUSPENDED);
-                            return true;
+                    case COMMUNICATIONCOMPLETED -> {
+                        return state.phase() <= EXECUTING.phase();
+                    }
+                    case FAILED -> {
+                        state(ERROR, ReturnCodes.INTERNAL_ERROR.getRc(), "Internal error");
+                        return false;
+                    }
+                    case CONCLUDED -> {
+                        if (!EnumSet.of(ERROR, State.SUCCESS).contains(state)) {
+                            state(ERROR, ReturnCodes.INTERNAL_ERROR.getRc(), "Connection error");
                         }
                         return false;
                     }
-                    case DISCONNECTED: {
-                        state(DISCONNECTED, 1, "Unexpected connection close");
-                        return false;
-                    }
-                    default: {
+                    default -> {
                         return true;
                     }
                 }
             }
         });
-        Context.current().addListener((ctx) -> {
-            synchronized (TaskImpl.this) {
-                if (!EnumSet.of(ERROR, State.SUCCESS).contains(state)) {
-                    state(State.DISCONNECTED);
-                }
-                servant = null;
-                TaskImpl.this.notifyAll();
-            }
-        }, Runnable::run);
         this.servant = connection;
         TaskImpl.this.notifyAll();
         final Tasks.TaskSpec.Builder taskSpecBuilder = Tasks.TaskSpec.newBuilder();
@@ -279,8 +272,9 @@ public class TaskImpl implements Task {
 
     @Override
     public synchronized void signal(TasksManager.Signal signal) throws TaskException {
-        if (EnumSet.of(ERROR, SUCCESS).contains(state()))
+        if (EnumSet.of(ERROR, SUCCESS).contains(state())) {
             throw new TaskException("Task is already concluded");
+        }
         signalsQueue.add(signal);
         if (servant != null) {
             LOG.info("Sending signal {} to servant {} for task {}", signal.name(), servant.uri(), tid);

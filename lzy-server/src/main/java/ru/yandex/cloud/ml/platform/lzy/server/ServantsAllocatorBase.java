@@ -22,7 +22,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class ServantsAllocatorBase extends TimerTask implements ServantsAllocator.Ex {
@@ -142,7 +141,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         final Thread connectionThread = new Thread(SERVANT_CONNECTIONS_TG, () -> {
             final Iterator<Servant.ServantProgress> progressIterator = servantStub.start(emptyRequest);
             Context.current().addListener(l -> connection.progress(Servant.ServantProgress.newBuilder()
-                .setDisconnected(Servant.Disconnected.newBuilder().build()).build()), Runnable::run);
+                .setFailed(Servant.Failed.newBuilder().build()).build()), Runnable::run);
             try {
                 progressIterator.forEachRemaining(progress -> {
                     if (progress.hasStart()) {
@@ -162,14 +161,17 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                     }
                     connection.progress(progress);
                 });
+            } catch (Exception e) {
+                LOG.error("Error while servant interconnection, servantId={}", servantId, e);
+                if (!request.isDone()) {
+                    request.completeExceptionally(new RuntimeException("Servant disconnected"));
+                }
+                connection.progress(Servant.ServantProgress.newBuilder()
+                        .setFailed(Servant.Failed.newBuilder().build()).build());
             } finally {
                 synchronized (ServantsAllocatorBase.this) {
-                    if (!request.isDone()) {
-                        request.completeExceptionally(new RuntimeException("Servant disconnected"));
-                    } else {
-                        connection.progress(Servant.ServantProgress.newBuilder()
-                            .setDisconnected(Servant.Disconnected.newBuilder().build()).build());
-                    }
+                    connection.progress(Servant.ServantProgress.newBuilder()
+                            .setConcluded(Servant.Concluded.newBuilder().build()).build());
                     shuttingDown.remove(connection);
                     cleanup(connection);
                 }
@@ -190,9 +192,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 c -> {
                     servant2sessions.remove(c.servantId);
                     if (uncompletedConnections.containsKey(c.servantId)) {
-                        requests.remove(c.servantId).completeExceptionally(
-                            new RuntimeException("Session deleted before start")
-                        );
+                        final CompletableFuture<ServantConnection> remove = requests.remove(c.servantId);
+                        if (remove != null) {
+                            remove.completeExceptionally(
+                                    new RuntimeException("Session deleted before start")
+                            );
+                        }
                         uncompletedConnections.remove(c.servantId);
                         if (c.connectionThread != null) {
                             c.connectionThread.interrupt();
@@ -243,11 +248,10 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         final Instant now = Instant.now();
         final List<ServantConnection> tasksToShutdown = Set.copyOf(spareServants.keySet()).stream()
             .filter(s -> spareServants.get(s).isBefore(now))
-            .peek(spareServants::remove).collect(Collectors.toList());
+            .peek(spareServants::remove).toList();
         final List<ServantConnection> tasksToForceStop = Set.copyOf(shuttingDown.keySet()).stream()
             .filter(s -> shuttingDown.get(s).isBefore(now))
-            .peek(shuttingDown::remove)
-            .collect(Collectors.toList());
+            .peek(shuttingDown::remove).toList();
 
         final List<ServantConnection> notAllocatedServants = Set.copyOf(waitingForAllocation.keySet())
             .stream()
@@ -256,8 +260,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             .peek(waitingForAllocation::remove)
             .peek(s -> servant2sessions.remove(s.id()))
             .peek(s -> requests.get(s.id()).completeExceptionally(new RuntimeException("Timeout exceeded")))
-            .peek(s -> requests.remove(s.id()))
-            .collect(Collectors.toList());
+            .peek(s -> requests.remove(s.id())).toList();
 
         executor.execute(() -> {
             tasksToShutdown.forEach(s -> {

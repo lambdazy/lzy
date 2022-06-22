@@ -4,9 +4,6 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.fs.LzyFSManager;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
@@ -20,7 +17,7 @@ import java.util.Arrays;
 import java.util.Base64;
 
 public final class Touch implements LzyCommand {
-    private static final Logger LOG = LogManager.getLogger(Touch.class);
+
     private static final Options options = new Options();
 
     /*
@@ -89,38 +86,33 @@ public final class Touch implements LzyCommand {
 
             slotBuilder.setContentType(channelStatus.getChannel().getContentType());
             switch (slotDescr) {
-                case "input":
-                case "inpipe": {
+                case "input", "inpipe" -> {
                     slotBuilder.setMedia(Operations.Slot.Media.PIPE);
                     slotBuilder.setDirection(Operations.Slot.Direction.INPUT);
-                    break;
                 }
-                case "infile": {
+                case "infile" -> {
                     slotBuilder.setMedia(Operations.Slot.Media.FILE);
                     slotBuilder.setDirection(Operations.Slot.Direction.INPUT);
-                    break;
                 }
-                case "output":
-                case "outpipe": {
+                case "output", "outpipe" -> {
                     slotBuilder.setMedia(Operations.Slot.Media.PIPE);
                     slotBuilder.setDirection(Operations.Slot.Direction.OUTPUT);
-                    break;
                 }
-                case "outfile": {
+                case "outfile" -> {
                     slotBuilder.setMedia(Operations.Slot.Media.FILE);
                     slotBuilder.setDirection(Operations.Slot.Direction.OUTPUT);
-                    break;
                 }
-                default:
-                    throw new IllegalStateException("Unexpected slot description value: " + slotDescr);
+                default -> throw new IllegalStateException("Unexpected slot description value: " + slotDescr);
             }
         }
 
         createSlotCommandBuilder.setSlot(slotBuilder.build());
         createSlotCommandBuilder.setChannelId(channelName);
 
+        final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         final LzyFsApi.SlotCommand slotCommand = LzyFsApi.SlotCommand.newBuilder()
-            .setTid("init")
+            .setTid(auth.hasTask() ? auth.getTask().getTaskId() : "user-" + auth.getUser().getUserId())
+            .setSlot(slotBuilder.getName())
             .setCreate(createSlotCommandBuilder.build())
             .build();
 

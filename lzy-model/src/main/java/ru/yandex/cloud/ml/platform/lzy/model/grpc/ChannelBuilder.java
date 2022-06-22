@@ -35,21 +35,12 @@ public class ChannelBuilder {
 
         this.tls = true;
         this.retryServiceName = null;
-        this.maxRetry = 10;
+        this.maxRetry = 3;
         this.initialBackoff = "0.5s";
-        this.maxBackoff = "30s";
+        this.maxBackoff = "2s";
         this.backoffMultiplier = 2;
         this.retryableStatusCodes = List.of(
-            "CANCELLED",
-            "UNKNOWN",
-            "DEADLINE_EXCEEDED",
-            "RESOURCE_EXHAUSTED",
-            "FAILED_PRECONDITION",
-            "ABORTED",
-            "OUT_OF_RANGE",
-            "INTERNAL",
-            "UNAVAILABLE",
-            "DATA_LOSS"
+            "UNAVAILABLE"
         );
     }
 

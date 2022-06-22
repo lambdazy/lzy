@@ -119,19 +119,36 @@ public final class LzyFsServer {
 
     public void stop() {
         LOG.info("LzyFs shutdown request at {}.", selfUri);
-        lzyServerChannel.shutdown();
-        localServer.shutdown();
+        try {
+            lzyServerChannel.shutdown();
+            localServer.shutdown();
+        } finally {
+            fs.umount();
+        }
+    }
+
+    public void forceStop() {
+        LOG.info("LzyFs force shutdown request at {}.", selfUri);
+        try {
+            lzyServerChannel.shutdownNow();
+            localServer.shutdownNow();
+        } finally {
+            fs.umount();
+        }
     }
 
     public void awaitTermination() throws InterruptedException, IOException {
         LOG.info("LzyFs awaiting termination at {}.", selfUri);
-        lzyServerChannel.awaitTermination(30, TimeUnit.SECONDS);
-        localServer.awaitTermination();
-        slotsManager.close();
-        if (slotConnectionManager.snapshooter() != null) {
-            slotConnectionManager.snapshooter().close();
+        try {
+            if (slotConnectionManager.snapshooter() != null) {
+                slotConnectionManager.snapshooter().close();
+            }
+            slotsManager.close();
+            lzyServerChannel.awaitTermination(30, TimeUnit.SECONDS);
+            localServer.awaitTermination();
+        } finally {
+            fs.umount();
         }
-        fs.umount();
         LOG.info("LzyFs at {} terminated.", selfUri);
     }
 

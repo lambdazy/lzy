@@ -62,12 +62,13 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                 }
             });
             dataProvider.close();
-        } catch (StatusRuntimeException e) {
+        } catch (Exception e) {
             LOG.error("InputSlotBase:: Failed openOutputSlot connection to servant " + connected, e);
-        } finally {
-            LOG.info("Opening slot {}", name());
-            state(Operations.SlotStatus.State.OPEN);
+            close();
+            return;
         }
+        LOG.info("Opening slot {}", name());
+        state(Operations.SlotStatus.State.OPEN);
     }
 
     @Override

@@ -34,7 +34,6 @@ import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 
 public class DockerEnvironment implements BaseEnvironment {
 
@@ -84,12 +83,12 @@ public class DockerEnvironment implements BaseEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String... command) throws LzyExecutionException {
+    public LzyProcess runProcess(String... command) {
         return runProcess(command, null);
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) throws LzyExecutionException {
+    public LzyProcess runProcess(String[] command, String[] envp) {
         final int bufferSize = 4096;
         final PipedInputStream stdoutPipe = new PipedInputStream(bufferSize);
         final PipedInputStream stderrPipe = new PipedInputStream(bufferSize);
@@ -99,7 +98,7 @@ public class DockerEnvironment implements BaseEnvironment {
             stdout = new PipedOutputStream(stdoutPipe);
             stderr = new PipedOutputStream(stderrPipe);
         } catch (IOException e) {
-            throw new LzyExecutionException(e);
+            throw new RuntimeException(e);
         }
 
         final CompletableFuture<Long> exitCode = new CompletableFuture<>();

@@ -13,6 +13,7 @@ import static ru.yandex.cloud.ml.platform.lzy.kharon.TerminalSessionState.COMPLE
 import static ru.yandex.cloud.ml.platform.lzy.kharon.TerminalSessionState.ERRORED;
 
 public class TerminalSession {
+
     public static final String SESSION_ID_KEY = "kharon_session_id";
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
 
@@ -37,37 +38,34 @@ public class TerminalSession {
     }
 
     public class ServerCommandHandler implements StreamObserver<Kharon.ServerCommand> {
+
         @Override
         public void onNext(Kharon.ServerCommand terminalState) {
             LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:"
-                    + JsonUtils.printRequest(terminalState));
+                + JsonUtils.printRequest(terminalState));
 
             try {
                 switch (terminalState.getProgressCase()) {
-                    case ATTACHTERMINAL: {
-                        final AttachTerminal attachTerminal = terminalState.getAttachTerminal();
-                        if (state != TerminalSessionState.UNBOUND) {
-                            throw new IllegalStateException("Double attach to terminal from user "
-                                + attachTerminal.getAuth().getUserId());
+                    case ATTACHTERMINAL -> {
+                        //synchronize this block to avoid race between serverController instance building
+                        // and setServerStream call (because server can call start before serverController
+                        // instance is built)
+                        synchronized (ServerCommandHandler.this) {
+                            final AttachTerminal attachTerminal = terminalState.getAttachTerminal();
+                            if (state != TerminalSessionState.UNBOUND) {
+                                throw new IllegalStateException("Double attach to terminal from user "
+                                    + attachTerminal.getAuth().getUserId());
+                            }
+                            updateState(TerminalSessionState.TERMINAL_ATTACHED);
+                            serverController = serverControllerFactory.createInstance(attachTerminal.getAuth(),
+                                sessionId);
                         }
-                        updateState(TerminalSessionState.TERMINAL_ATTACHED);
-                        serverController = serverControllerFactory.createInstance(attachTerminal.getAuth(), sessionId);
-                        break;
                     }
-                    case ATTACH: {
-                        serverController.attach(terminalState.getAttach());
-                        break;
-                    }
-                    case DETACH: {
-                        serverController.detach(terminalState.getDetach());
-                        break;
-                    }
-                    case TERMINALRESPONSE: {
-                        terminalController.handleTerminalResponse(terminalState.getTerminalResponse());
-                        break;
-                    }
-                    default:
-                        throw new IllegalStateException("Unexpected value: " + terminalState.getProgressCase());
+                    case ATTACH -> serverController.attach(terminalState.getAttach());
+                    case DETACH -> serverController.detach(terminalState.getDetach());
+                    case TERMINALRESPONSE -> terminalController.handleTerminalResponse(
+                        terminalState.getTerminalResponse());
+                    default -> throw new IllegalStateException("Unexpected value: " + terminalState.getProgressCase());
                 }
             } catch (ServerControllerResetException e) {
                 LOG.error(e);
@@ -95,7 +93,7 @@ public class TerminalSession {
         return sessionId;
     }
 
-    public TerminalSessionState state() {
+    public synchronized TerminalSessionState state() {
         return state;
     }
 
@@ -120,20 +118,20 @@ public class TerminalSession {
         return terminalController;
     }
 
-    public void setServerStream(StreamObserver<Servant.ServantProgress> responseObserver)
+    public synchronized void setServerStream(StreamObserver<Servant.ServantProgress> responseObserver)
         throws ServerControllerResetException {
         serverController.setProgress(responseObserver);
         updateState(TerminalSessionState.CONNECTION_ESTABLISHED);
     }
 
-    public void onServerDisconnect() {
+    public synchronized void onServerDisconnect() {
         LOG.info("Server DISCONNECTED for sessionId = {}", sessionId);
         updateState(COMPLETED);
         serverController.onDisconnect();
         terminalController.complete();
     }
 
-    public void onTerminalDisconnect() {
+    public synchronized void onTerminalDisconnect() {
         LOG.info("Terminal DISCONNECTED for sessionId = {}", sessionId);
         updateState(COMPLETED);
         terminalController.onDisconnect();

@@ -44,6 +44,7 @@ public class ServantConnectionManager {
         try {
             if (!connectionMap.containsKey(uri)) {
                 LOG.warn("Attempt to shutdown non-existing connection to URI " + uri);
+                return;
             }
             final Connection connection = connectionMap.get(uri);
             connection.decreaseCounter();

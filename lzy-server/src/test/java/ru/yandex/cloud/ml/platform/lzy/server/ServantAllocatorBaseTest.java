@@ -113,7 +113,7 @@ public class ServantAllocatorBaseTest {
         final String userId = UUID.randomUUID().toString();
 
         //Act
-        final List<SessionManager.Session> sessions = allocator.sessions(userId).collect(Collectors.toList());
+        final List<SessionManager.Session> sessions = allocator.sessions(userId).toList();
 
         //Assert
         Assert.assertEquals(0, sessions.size());
@@ -159,8 +159,7 @@ public class ServantAllocatorBaseTest {
     @Test
     public void testRemovingSessionsInParallelWithGetting() throws ExecutionException, InterruptedException {
         //Arrange
-        final List<String> sids = IntStream.range(0, 10000).mapToObj(value -> "session_" + UUID.randomUUID())
-                .collect(Collectors.toList());
+        final List<String> sids = IntStream.range(0, 10000).mapToObj(value -> "session_" + UUID.randomUUID()).toList();
         sids.forEach(sid -> allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET));
         final AtomicInteger added = new AtomicInteger();
 
@@ -177,15 +176,14 @@ public class ServantAllocatorBaseTest {
         getting.get();
 
         //Assert
-        final List<SessionManager.Session> collect = allocator.sessions(DEFAULT_USER).collect(Collectors.toList());
+        final List<SessionManager.Session> collect = allocator.sessions(DEFAULT_USER).toList();
         Assert.assertEquals(added.get(), collect.size());
     }
 
     @Test
     public void testParallelRemovingAndSessionsGettingByUser() throws ExecutionException, InterruptedException {
         //Arrange
-        final List<String> sids = IntStream.range(0, 1000).mapToObj(value -> "session_" + UUID.randomUUID())
-                .collect(Collectors.toList());
+        final List<String> sids = IntStream.range(0, 1000).mapToObj(value -> "session_" + UUID.randomUUID()).toList();
         sids.forEach(sid -> allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET));
 
         //Act
@@ -299,7 +297,7 @@ public class ServantAllocatorBaseTest {
         AtomicBoolean gotDisconnectedWhenDeleted = new AtomicBoolean(false);
         CompletableFuture<?> called = new CompletableFuture<>();
         connection.onProgress(p -> {
-            if (p.hasDisconnected()) {
+            if (p.hasConcluded()) {
                 gotDisconnectedWhenDeleted.set(true);
                 called.complete(null);
                 return false;
@@ -342,7 +340,7 @@ public class ServantAllocatorBaseTest {
         AtomicBoolean gotExit = new AtomicBoolean(false);
         CompletableFuture<?> called = new CompletableFuture<>();
         connection.onProgress(p -> {
-            if (p.hasDisconnected()) {
+            if (p.hasFailed()) {
                 gotExit.set(true);
                 called.complete(null);
                 return false;

@@ -35,18 +35,18 @@ message ServantProgress {
     ExecutionStarted executeStart = 5;
     ExecutionConcluded executeStop = 6;
     CommunicationCompleted communicationCompleted = 7;
-    Concluded exit = 8;
-    Disconnected disconnected = 9;
+    Failed failed = 8;
+    Concluded concluded = 9;
   }
-}
-
-message Disconnected {
 }
 
 message ExecutionStarted {
 }
 
 message Started {
+}
+
+message Failed {
 }
 
 message Concluded {

@@ -41,7 +41,7 @@ public class ServerControllerFactory {
                 .build())
             .setServantURI(kharonServantProxyUri.toString())
             .setFsURI(kharonServantFsProxyUri.toString())
-            .setServantId(sessionId.toString())
+            .setServantId(sessionId)
             .build());
 
         return new ServerController(sessionId, uriResolver);

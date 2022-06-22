@@ -13,8 +13,8 @@ import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.Context;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
+import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
 import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.LzyExecutionException;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
@@ -63,7 +63,9 @@ public class LzyServant extends LzyAgent {
         agentServer = NettyServerBuilder
             .forAddress(new InetSocketAddress(agentAddress.getHost(), agentAddress.getPort()))
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.SECONDS)
+            .keepAliveTimeout(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.SECONDS)
+            .keepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
             .addService(new Impl())
             .build();
 
@@ -149,6 +151,12 @@ public class LzyServant extends LzyAgent {
         return server;
     }
 
+    private void forceStop(String reason, Throwable th) {
+        LOG.error("Force terminate servant {}: {}", config.getServantId(), reason, th);
+        agentServer.shutdownNow();
+        lzyFs.forceStop();
+    }
+
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
         private LzyExecution currentExecution;
 
@@ -172,7 +180,7 @@ public class LzyServant extends LzyAgent {
                         context().prepare(GrpcConverter.from(request), StorageClient.create(credentials));
                     } catch (EnvironmentInstallationException e) {
                         LOG.error("Unable to install environment", e);
-                        result.setRc(-1);
+                        result.setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc());
                         result.setDescription(e.getMessage());
                     }
                     responseObserver.onNext(result.build());
@@ -185,7 +193,7 @@ public class LzyServant extends LzyAgent {
             waitForStart();
             LzyServant.this.context.onProgress(progress -> {
                 responseObserver.onNext(progress);
-                if (progress.getStatusCase() == Servant.ServantProgress.StatusCase.EXIT) {
+                if (progress.getStatusCase() == Servant.ServantProgress.StatusCase.CONCLUDED) {
                     responseObserver.onCompleted();
                 }
             });
@@ -217,30 +225,30 @@ public class LzyServant extends LzyAgent {
             responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
             responseObserver.onCompleted();
 
-            assignments.map(
-                entry -> {
-                    LzySlot slot = context.configureSlot(tid, entry.slot(), entry.binding());
-                    // TODO: It will be removed after creating Portal
-                    final String channelName;
-                    if (entry.binding().startsWith("channel:")) {
-                        channelName = entry.binding().substring("channel:".length());
-                    } else {
-                        channelName = entry.binding();
-                    }
-                    final URI channelUri = URI.create(channelName);
-                    if (Objects.equals(channelUri.getScheme(), "snapshot") && slot instanceof LzyOutputSlot) {
-                        String snapshotId = "snapshot://" + channelUri.getHost();
-                        lzyFs.getSlotConnectionManager().snapshooter().registerSlot(slot, snapshotId, channelName);
-                    }
-                    return slot;
-                }
-            ).forEach(slot -> {
-                if (slot instanceof LzyFileSlot) {
-                    lzyFs.addSlot((LzyFileSlot) slot);
-                }
-            });
-
             try {
+                assignments.map(
+                        entry -> {
+                            LzySlot slot = context.configureSlot(tid, entry.slot(), entry.binding());
+                            // TODO: It will be removed after creating Portal
+                            final String channelName;
+                            if (entry.binding().startsWith("channel:")) {
+                                channelName = entry.binding().substring("channel:".length());
+                            } else {
+                                channelName = entry.binding();
+                            }
+                            final URI channelUri = URI.create(channelName);
+                            if (Objects.equals(channelUri.getScheme(), "snapshot") && slot instanceof LzyOutputSlot) {
+                                String snapshotId = "snapshot://" + channelUri.getHost();
+                                lzyFs.getSlotConnectionManager().snapshooter()
+                                        .registerSlot(slot, snapshotId, channelName);
+                            }
+                            return slot;
+                        }
+                ).forEach(slot -> {
+                    if (slot instanceof LzyFileSlot) {
+                        lzyFs.addSlot((LzyFileSlot) slot);
+                    }
+                });
                 currentExecution = context.execute(tid, zygote, progress -> {
                     LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
@@ -266,12 +274,8 @@ public class LzyServant extends LzyAgent {
                         status.set(AgentStatus.REGISTERED);
                     }
                 });
-
-            } catch (LzyExecutionException | InterruptedException e) {
-                responseObserver.onError(
-                    Status.INTERNAL
-                        .withDescription(e.getMessage()).withCause(e.getCause()).asException()
-                );
+            } catch (Exception e) {
+                forceStop("Error while execution", e);
                 return;
             }
             status.set(AgentStatus.EXECUTING);
@@ -295,9 +299,10 @@ public class LzyServant extends LzyAgent {
             ));
             try {
                 agentServer.shutdown();
-                lzyFs.stop();
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.error("Error during agent server shutdown", e);
+            } finally {
+                lzyFs.stop();
             }
         }
 

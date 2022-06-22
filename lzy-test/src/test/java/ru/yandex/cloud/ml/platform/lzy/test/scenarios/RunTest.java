@@ -1,12 +1,5 @@
 package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
-
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -14,6 +7,13 @@ import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.commands.BuiltinCommandHolder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 
 public class RunTest extends LocalScenario {
     @Before
