@@ -4,7 +4,7 @@ import io.findify.s3mock.S3Mock;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ai.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyServerTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;

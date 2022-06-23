@@ -18,8 +18,8 @@ import ru.yandex.cloud.ml.platform.lzy.commands.CommandHolder;
 import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.servant.commands.ServantCommandHolder;
+import ai.lzy.servant.agents.AgentStatus;
+import ai.lzy.servant.commands.ServantCommandHolder;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
 public interface LzyTerminalTestContext extends AutoCloseable {

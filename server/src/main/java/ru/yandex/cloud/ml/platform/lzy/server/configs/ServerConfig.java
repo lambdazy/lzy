@@ -140,7 +140,7 @@ public class ServerConfig {
     public static class ThreadAllocator {
         private boolean enabled = false;
         private String filePath;
-        private String servantClassName = "ru.yandex.cloud.ml.platform.lzy.servant.BashApi";
+        private String servantClassName = "ai.lzy.servant.BashApi";
 
         public boolean isEnabled() {
             return enabled;

@@ -8,7 +8,7 @@ import org.junit.Test;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.JsonNode;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ai.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext.Terminal.ExecutionResult;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;

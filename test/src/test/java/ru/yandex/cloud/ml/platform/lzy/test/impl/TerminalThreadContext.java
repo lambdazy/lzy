@@ -3,9 +3,9 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyAgentConfig;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.LzyTerminal;
+import ai.lzy.servant.agents.AgentStatus;
+import ai.lzy.servant.agents.LzyAgentConfig;
+import ai.lzy.servant.agents.LzyTerminal;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
 import javax.annotation.Nullable;

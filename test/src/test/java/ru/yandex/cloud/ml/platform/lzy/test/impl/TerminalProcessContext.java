@@ -12,8 +12,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
-import ru.yandex.cloud.ml.platform.lzy.servant.BashApi;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ai.lzy.servant.BashApi;
+import ai.lzy.servant.agents.AgentStatus;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 
 import javax.annotation.Nullable;

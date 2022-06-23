@@ -45,7 +45,7 @@ public class ServerThreadContext implements LzyServerTestContext {
         switch (allocatorType) {
             case THREAD_ALLOCATOR -> appProperties.putAll(Map.of(
                 "server.threadAllocator.enabled", "true",
-                "server.threadAllocator.filePath", "servant/target/classes/ru/yandex/cloud/ml/platform/lzy/servant/BashApi.class",
+                "server.threadAllocator.filePath", "servant/target/classes/ai/lzy/servant/BashApi.class",
                 "servant.dockerSupport.enabled", "false"
             ));
             case DOCKER_ALLOCATOR -> appProperties.putAll(Map.of(

@@ -3,8 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
-import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
+import ai.lzy.servant.agents.AgentStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 

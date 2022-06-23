@@ -3,7 +3,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
-import ru.yandex.cloud.ml.platform.lzy.servant.agents.AgentStatus;
+import ai.lzy.servant.agents.AgentStatus;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;

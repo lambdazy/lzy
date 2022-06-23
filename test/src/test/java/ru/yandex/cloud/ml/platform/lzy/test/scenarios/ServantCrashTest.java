@@ -4,7 +4,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
-import ru.yandex.cloud.ml.platform.lzy.servant.env.EnvironmentFactory;
+import ai.lzy.servant.env.EnvironmentFactory;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyTerminalTestContext;
 import ru.yandex.cloud.ml.platform.lzy.test.impl.Utils;
 
