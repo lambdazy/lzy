@@ -290,7 +290,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             LOG.info("Waiting for servants {}", allocatedServantIds());
             try {
                 this.wait();
-            } catch (InterruptedException ignored) {
+            } catch (InterruptedException e) {
+                e.printStackTrace(); //ignored
             }
         }
     }
