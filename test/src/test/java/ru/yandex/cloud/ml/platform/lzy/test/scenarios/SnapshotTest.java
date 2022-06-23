@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
-import static ru.yandex.cloud.ml.platform.lzy.commands.BuiltinCommandHolder.cat;
+import static ai.lzy.fs.commands.BuiltinCommandHolder.cat;
 
 public class SnapshotTest extends LocalScenario {
     @Before

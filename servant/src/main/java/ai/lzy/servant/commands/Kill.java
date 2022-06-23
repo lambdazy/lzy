@@ -2,7 +2,7 @@ package ai.lzy.servant.commands;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.lang3.NotImplementedException;
-import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ai.lzy.fs.commands.LzyCommand;
 
 public class Kill implements LzyCommand {
 

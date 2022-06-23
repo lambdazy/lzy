@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
-import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ai.lzy.fs.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;

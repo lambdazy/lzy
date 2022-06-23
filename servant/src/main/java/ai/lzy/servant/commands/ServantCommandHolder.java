@@ -1,8 +1,8 @@
 package ai.lzy.servant.commands;
 
 import org.apache.commons.cli.CommandLine;
-import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.commands.CommandHolder;
+import ai.lzy.fs.commands.LzyCommand;
+import ai.lzy.fs.commands.CommandHolder;
 
 public enum ServantCommandHolder implements CommandHolder {
     publish(new Publish()),

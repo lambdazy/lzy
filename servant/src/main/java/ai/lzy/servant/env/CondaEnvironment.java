@@ -21,7 +21,7 @@ import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationE
 import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
 import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
+import ai.lzy.fs.storage.StorageClient;
 import ru.yandex.qe.s3.transfer.TransferStatus;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;

@@ -15,9 +15,9 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ai.lzy.fs.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
-import ru.yandex.cloud.ml.platform.lzy.fs.LzyFS;
+import ai.lzy.fs.fs.LzyFS;
 
 public class Terminal implements LzyCommand {
     private static final Options options = new Options();

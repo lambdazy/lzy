@@ -19,9 +19,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.fs.LzyInputSlot;
-import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.fs.LzySlot;
+import ai.lzy.fs.fs.LzyInputSlot;
+import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.fs.fs.LzySlot;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;

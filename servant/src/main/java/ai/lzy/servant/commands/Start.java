@@ -9,9 +9,9 @@ import java.nio.file.Path;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.commands.LzyCommand;
+import ai.lzy.fs.commands.LzyCommand;
 import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
-import ru.yandex.cloud.ml.platform.lzy.fs.LzyFS;
+import ai.lzy.fs.fs.LzyFS;
 
 public class Start implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Start.class);

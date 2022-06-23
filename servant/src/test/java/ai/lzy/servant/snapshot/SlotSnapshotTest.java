@@ -18,10 +18,10 @@ import org.apache.commons.io.IOUtils;
 import org.junit.*;
 import ru.yandex.cloud.ml.platform.lzy.model.Slot;
 import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.snapshot.SlotSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.snapshot.SlotSnapshotImpl;
-import ru.yandex.cloud.ml.platform.lzy.storage.AmazonStorageClient;
-import ru.yandex.cloud.ml.platform.lzy.storage.StorageClient;
+import ai.lzy.fs.snapshot.SlotSnapshot;
+import ai.lzy.fs.snapshot.SlotSnapshotImpl;
+import ai.lzy.fs.storage.AmazonStorageClient;
+import ai.lzy.fs.storage.StorageClient;
 
 public class SlotSnapshotTest {
     private static final int S3_PORT = 8001;

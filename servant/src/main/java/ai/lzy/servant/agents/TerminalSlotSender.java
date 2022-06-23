@@ -6,7 +6,7 @@ import java.net.URI;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.fs.LzyOutputSlot;
+import ai.lzy.fs.fs.LzyOutputSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
