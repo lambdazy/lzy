@@ -10,7 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.kharon.workflow.configs.WorkflowServiceConfig;
 import ai.lzy.kharon.workflow.storage.Storage;
-import ru.yandex.cloud.ml.platform.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.*;

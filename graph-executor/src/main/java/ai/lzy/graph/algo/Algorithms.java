@@ -6,15 +6,17 @@ import java.util.function.Function;
 public class Algorithms {
 
     public static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> Set<T> getNextBfsGroup(
-        DirectedGraph<T, E> graph, List<T> currentGroup, Set<T> alreadyProcessed,
+        DirectedGraph<T, E> graph,
+        List<T> currentGroup,
+        Set<T> alreadyProcessed,
         Function<E, Boolean> canProcessEdge
     ) {
         final Set<T> next = new HashSet<>();
 
         final Set<T> currentExecutions = new HashSet<>(currentGroup);
 
-        for (T current: currentExecutions) {
-            for (E edge: graph.children(current.name())) {
+        for (T current : currentExecutions) {
+            for (E edge : graph.children(current.name())) {
                 final T vertex = edge.output();
                 if (!next.contains(vertex) && !alreadyProcessed.contains(vertex)) {
                     if (
@@ -38,11 +40,13 @@ public class Algorithms {
         return next;
     }
 
-    public static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> Set<T> findRoots(DirectedGraph<T, E> graph) {
+    public static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> Set<T> findRoots(
+        DirectedGraph<T, E> graph
+    ) {
         Set<T> used = new HashSet<>();
         Set<T> roots = new HashSet<>();
         Queue<T> processingQueue = new ArrayDeque<>();
-        for (T root: graph.vertexes()) {
+        for (T root : graph.vertexes()) {
             if (used.contains(root)) {
                 continue;
             }
@@ -54,7 +58,7 @@ public class Algorithms {
                     roots.add(vertex);
                     continue;
                 }
-                for (E connected: graph.parents(vertex.name())) {
+                for (E connected : graph.parents(vertex.name())) {
                     if (!used.contains(connected.input())) {
                         used.add(connected.input());
                         processingQueue.add(connected.input());
@@ -65,11 +69,13 @@ public class Algorithms {
         return roots;
     }
 
-    public static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> CondensedGraph<T, E> condenseGraph(DirectedGraph<T, E> graph) {
+    public static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> CondensedGraph<T, E> condenseGraph(
+        DirectedGraph<T, E> graph
+    ) {
         final Set<T> used = new HashSet<>();
         final List<T> order = new ArrayList<>();
 
-        for (T vertex: graph.vertexes()) {
+        for (T vertex : graph.vertexes()) {
             if (!used.contains(vertex)) {
                 topSort(vertex, order, used, graph);
             }
@@ -79,7 +85,7 @@ public class Algorithms {
 
         final List<Set<T>> components = new ArrayList<>();
 
-        for (T vertex: order) {
+        for (T vertex : order) {
             if (!used.contains(vertex)) {
                 final Set<T> component = new HashSet<>();
                 findStrongConnections(vertex, component, used, graph);
@@ -89,7 +95,7 @@ public class Algorithms {
 
         final Map<String, CondensedComponent<T>> vertexToComponentMapping = new HashMap<>();
         for (int i = 0; i < components.size(); i++) {
-            for (DirectedGraph.Vertex vertex: components.get(i)) {
+            for (DirectedGraph.Vertex vertex : components.get(i)) {
                 vertexToComponentMapping.put(
                     vertex.name(),
                     new CondensedComponent<>(String.valueOf(i), components.get(i))
@@ -100,8 +106,8 @@ public class Algorithms {
         final CondensedGraph<T, E> condensedGraph = new CondensedGraph<>(vertexToComponentMapping);
         final Map<EdgeKey, CondensedEdge<T, E>> edges = new HashMap<>();
 
-        for (T input: graph.vertexes()) {
-            for (E edge: graph.children(input.name())) {
+        for (T input : graph.vertexes()) {
+            for (E edge : graph.children(input.name())) {
                 final T output = edge.output();
                 final CondensedComponent<T> inputComponent = vertexToComponentMapping.get(input.name());
                 final CondensedComponent<T> outputComponent = vertexToComponentMapping.get(output.name());
@@ -119,8 +125,12 @@ public class Algorithms {
         return condensedGraph;
     }
 
-    private static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> void topSort(T vertex, List<T> order, Set<T> used,
-                                                                                                  DirectedGraph<T, E> graph) {
+    private static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> void topSort(
+        T vertex,
+        List<T> order,
+        Set<T> used,
+        DirectedGraph<T, E> graph
+    ) {
         used.add(vertex);
         for (E edge : graph.children(vertex.name())) {
             T v = edge.output();
@@ -131,8 +141,12 @@ public class Algorithms {
         order.add(vertex);
     }
 
-    private static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> void findStrongConnections(T vertex, Set<T> component,
-                                                                                                                Set<T> used, DirectedGraph<T, E> graph) {
+    private static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> void findStrongConnections(
+        T vertex,
+        Set<T> component,
+        Set<T> used,
+        DirectedGraph<T, E> graph
+    ) {
         used.add(vertex);
         component.add(vertex);
         for (E edge : graph.parents(vertex.name())) {
@@ -207,5 +221,6 @@ public class Algorithms {
         }
     }
 
-    private static record EdgeKey(String input, String output) {}
+    private static record EdgeKey(String input, String output) {
+    }
 }
