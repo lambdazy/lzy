@@ -7,10 +7,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
-import org.apache.commons.lang3.SystemUtils;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.LzySnapshot;
+import ai.lzy.whiteboard.LzySnapshot;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 

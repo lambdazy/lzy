@@ -9,13 +9,12 @@ import ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon;
 import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
+import ai.lzy.whiteboard.api.SnapshotApi;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;

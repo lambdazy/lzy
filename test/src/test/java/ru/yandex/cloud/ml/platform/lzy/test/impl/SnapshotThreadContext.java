@@ -9,8 +9,8 @@ import io.micronaut.context.env.PropertySource;
 import org.apache.logging.log4j.LogManager;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.SnapshotApi;
-import ru.yandex.cloud.ml.platform.lzy.whiteboard.api.WhiteboardApi;
+import ai.lzy.whiteboard.api.SnapshotApi;
+import ai.lzy.whiteboard.api.WhiteboardApi;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
 
