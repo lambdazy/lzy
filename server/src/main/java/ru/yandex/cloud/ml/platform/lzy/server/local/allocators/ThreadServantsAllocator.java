@@ -2,6 +2,8 @@ package ru.yandex.cloud.ml.platform.lzy.server.local.allocators;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
@@ -104,6 +106,11 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
         }
         servantThreads.get(connection.id()).stop();
         servantThreads.remove(connection.id());
+    }
+
+    @Override
+    protected List<String> allocatedServantIds() {
+        return new ArrayList<>(servantThreads.keySet());
     }
 
     private static class ServantDescription {

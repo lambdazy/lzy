@@ -26,7 +26,7 @@ public class ServerThreadContext implements LzyServerTestContext {
     }
 
     protected LzyServerGrpc.LzyServerBlockingStub lzyServerClient;
-    private Map<String, Object> appProperties = new HashMap<>();
+    private final Map<String, Object> appProperties = new HashMap<>();
     private Server lzyServer;
     private ManagedChannel channel;
     private LzyServer.Impl impl;
@@ -103,9 +103,9 @@ public class ServerThreadContext implements LzyServerTestContext {
     public void close() {
         if (lzyServer != null) {
             try {
-                channel.shutdownNow();
+                channel.shutdown();
                 channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-                lzyServer.shutdownNow();
+                lzyServer.shutdown();
                 lzyServer.awaitTermination();
                 impl.close();
             } catch (InterruptedException e) {

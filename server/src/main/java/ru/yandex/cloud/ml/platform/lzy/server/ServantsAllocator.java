@@ -10,12 +10,15 @@ import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
-public interface ServantsAllocator extends SessionManager {
+public interface ServantsAllocator extends SessionManager, AutoCloseable {
     CompletableFuture<ServantConnection> allocate(
         String sessionId,
         Provisioning provisioning,
         Env env
     );
+
+    @Override
+    default void close() {}
 
     /** [TODO] notify task on disconnected state */
     interface ServantConnection {

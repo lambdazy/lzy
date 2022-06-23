@@ -1,5 +1,7 @@
 package ru.yandex.cloud.ml.platform.lzy.server.mocks;
 
+import java.util.HashSet;
+import java.util.Set;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 import ru.yandex.cloud.ml.platform.lzy.server.Authenticator;
 import ru.yandex.cloud.ml.platform.lzy.server.ServantsAllocatorBase;
@@ -11,21 +13,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class ServantAllocatorMock extends ServantsAllocatorBase {
+
     private static final int DEFAULT_TIMEOUT_SEC = 5;
 
     private final List<AllocationRequest> allocationRequests = new ArrayList<>();
     private final List<ServantConnection> terminateRequests = new ArrayList<>();
     private final CountDownLatch allocationLatch;
     private final CountDownLatch terminationLatch = new CountDownLatch(1);
+    private final Set<String> allocated = new HashSet<>();
 
     public ServantAllocatorMock(Authenticator auth, int waitBeforeShutdownInSec) {
         this(auth, waitBeforeShutdownInSec, 1, 100);
-    }
-
-    public ServantAllocatorMock(
-        Authenticator auth, int waitBeforeShutdownInSec, int expectedAllocations
-    ) {
-        this(auth, waitBeforeShutdownInSec, expectedAllocations, 100);
     }
 
     public ServantAllocatorMock(
@@ -39,6 +37,7 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
     protected void requestAllocation(String servantId, String servantToken, Provisioning provisioning, String bucket) {
         allocationRequests.add(new AllocationRequest(servantId, servantToken, provisioning, bucket));
         allocationLatch.countDown();
+        allocated.add(servantId);
     }
 
     @Override
@@ -50,6 +49,12 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
     protected void terminate(ServantConnection connection) {
         terminateRequests.add(connection);
         terminationLatch.countDown();
+        allocated.remove(connection.id());
+    }
+
+    @Override
+    protected List<String> allocatedServantIds() {
+        return new ArrayList<>(allocated);
     }
 
     public boolean waitForAllocations() {
@@ -77,6 +82,7 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
     }
 
     public static class AllocationRequest {
+
         private final String servantId;
         private final String token;
         private final Provisioning provisioning;
