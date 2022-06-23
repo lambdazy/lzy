@@ -1,0 +1,47 @@
+package ai.lzy.graph.model;
+
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.priv.v2.graph.GraphExecutorApi;
+import ai.lzy.priv.v2.graph.GraphExecutorApi.ChannelDesc;
+import ai.lzy.priv.v2.graph.GraphExecutorApi.TaskDesc;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
+@JsonSerialize
+@JsonDeserialize
+public record GraphDescription(
+    List<TaskDescription> tasks,
+    Map<String, ChannelDescription> channels // Map from channel id to its description
+) {
+
+    public static GraphDescription fromGrpc(List<TaskDesc> tasks, List<ChannelDesc> channels) {
+
+        final List<TaskDescription> taskDescriptions = tasks.stream()
+            .map(t -> new TaskDescription(
+                t.getId(),
+                GrpcConverter.from(t.getZygote()),
+                t.getSlotAssignmentsList()
+                .stream()
+                .collect(Collectors.toMap(
+                    GraphExecutorApi.SlotToChannelAssignment::getSlotName,
+                    GraphExecutorApi.SlotToChannelAssignment::getChannelId
+                ))))
+            .collect(Collectors.toList());
+
+        final Map<String, ChannelDescription> channelDescriptions = channels
+            .stream()
+            .map(t -> new ChannelDescription(
+                ChannelDescription.Type.valueOf(t.getTypeCase().name()),
+                t.getId()
+            ))
+            .collect(Collectors.toMap(ChannelDescription::id, t -> t));
+
+        return new GraphDescription(taskDescriptions, channelDescriptions);
+    }
+
+}

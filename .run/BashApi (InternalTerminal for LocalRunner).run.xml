@@ -3,14 +3,14 @@
     <module name="servant" />
     <extension name="coverage">
       <pattern>
-        <option name="PATTERN" value="ru.yandex.cloud.ml.platform.lzy.servant.*" />
+        <option name="PATTERN" value="ai.lzy.servant.*" />
         <option name="ENABLED" value="true" />
       </pattern>
     </extension>
     <option name="alternativeJrePath" />
     <option name="alternativeJrePathEnabled" value="false" />
     <option name="includeProvidedScope" value="true" />
-    <option name="mainClass" value="ru.yandex.cloud.ml.platform.lzy.servant.BashApi" />
+    <option name="mainClass" value="ai.lzy.servant.BashApi" />
     <option name="passParentEnvs" value="true" />
     <option name="programParameters" value="-z localhost:7777 -w http://localhost:8999 -m /tmp/lzy -h localhost -p 9990 -q 9991 terminal -d -u test-user -t xxx" />
     <option name="shortenCommandLine" value="NONE" />

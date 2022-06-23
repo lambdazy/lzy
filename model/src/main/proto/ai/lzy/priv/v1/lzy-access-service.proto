@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package ai.lzy.priv.v1;
+
+import "ai/lzy/v1/lzy-iam.proto";
+
+option java_outer_classname = "LAS";
+option java_package = "ai.lzy.priv.v1";
+
+service LzyAccessService {
+  rpc Authorize (AuthorizeRequest) returns (ai.lzy.v1.Subject);
+}
+
+message AuthorizeRequest {
+  ai.lzy.v1.Subject subject = 1;
+  string permission = 2;
+  ai.lzy.v1.Resource resource = 3;
+}

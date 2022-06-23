@@ -4,8 +4,8 @@
 
 module: `kharon`
 
-[Main class](src/main/java/ru/yandex/cloud/ml/platform/lzy/kharon/LzyKharon.java):
-`ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon`
+[Main class](src/main/java/ai/lzy/kharon/LzyKharon.java):
+`LzyKharon`
 
 VM options: 
 ```
