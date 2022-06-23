@@ -5,9 +5,9 @@ import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import ai.lzy.priv.v2.Channels;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.LzyServerGrpc;
 
 import java.net.URI;
 import java.util.Base64;

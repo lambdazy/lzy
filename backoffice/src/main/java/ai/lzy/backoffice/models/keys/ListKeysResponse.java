@@ -2,7 +2,7 @@ package ai.lzy.backoffice.models.keys;
 
 import io.micronaut.core.annotation.Introspected;
 import java.util.List;
-import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
+import ai.lzy.priv.v2.BackOffice;
 
 
 @Introspected

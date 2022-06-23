@@ -16,7 +16,7 @@ import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.GraphExecutionState.Status;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.model.TaskExecution;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import ai.lzy.priv.v2.Tasks;
 
 import java.util.*;
 import java.util.stream.Collectors;

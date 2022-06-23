@@ -14,7 +14,7 @@ import ai.lzy.model.JsonUtils;
 import ai.lzy.model.Slot;
 import ai.lzy.model.slots.TextLinesInSlot;
 import ai.lzy.model.slots.TextLinesOutSlot;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import ai.lzy.priv.v2.Servant;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -26,8 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.DESTROYED;
-import static yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State.SUSPENDED;
+import static ai.lzy.priv.v2.Operations.SlotStatus.State.DESTROYED;
+import static ai.lzy.priv.v2.Operations.SlotStatus.State.SUSPENDED;
 
 public class SlotsManager implements AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(SlotsManager.class);

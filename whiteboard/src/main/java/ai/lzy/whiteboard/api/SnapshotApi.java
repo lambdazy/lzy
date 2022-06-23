@@ -31,28 +31,28 @@ import ai.lzy.model.utils.Permissions;
 import ai.lzy.whiteboard.auth.SimpleAuthenticator;
 import ai.lzy.whiteboard.config.ServerConfig;
 import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM.Auth;
+import ai.lzy.priv.v2.IAM.Auth;
 
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import ai.lzy.priv.v2.Lzy;
+import ai.lzy.priv.v2.LzyServerGrpc;
 
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.AbortCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.CommitCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.CreateEntryCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.CreateSnapshotCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.EntryStatusCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.EntryStatusResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.ExecutionDescription;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.FinalizeSnapshotCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.LastSnapshotCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.OperationStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.PrepareCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.ResolveExecutionCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.ResolveExecutionResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.SaveExecutionCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.SaveExecutionResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
+import ai.lzy.priv.v2.LzyWhiteboard;
+import ai.lzy.priv.v2.LzyWhiteboard.AbortCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.CommitCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.CreateEntryCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.CreateSnapshotCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.EntryStatusCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.EntryStatusResponse;
+import ai.lzy.priv.v2.LzyWhiteboard.ExecutionDescription;
+import ai.lzy.priv.v2.LzyWhiteboard.FinalizeSnapshotCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.LastSnapshotCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.OperationStatus;
+import ai.lzy.priv.v2.LzyWhiteboard.PrepareCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.ResolveExecutionCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.ResolveExecutionResponse;
+import ai.lzy.priv.v2.LzyWhiteboard.SaveExecutionCommand;
+import ai.lzy.priv.v2.LzyWhiteboard.SaveExecutionResponse;
+import ai.lzy.priv.v2.SnapshotApiGrpc;
 
 @Singleton
 @Requires(property = "server.uri")

@@ -1,15 +1,14 @@
 syntax = "proto3";
 
-import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
-import "yandex/cloud/priv/datasphere/v2/lzy-backoffice.proto";
-import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
+import "ai/lzy/priv/v2/lzy-auth.proto";
+import "ai/lzy/priv/v2/lzy-backoffice.proto";
+import "ai/lzy/priv/v2/lzy-zygote.proto";
 import "google/protobuf/timestamp.proto";
 
-package yandex.cloud.priv.datasphere.v2;
+package ai.lzy.priv.v2;
 
-option go_package = "datasphere";
 option java_outer_classname = "LzyWhiteboard";
-option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+option java_package = "ai.lzy.priv.v2";
 
 service SnapshotApi {
   rpc CreateSnapshot (CreateSnapshotCommand) returns (Snapshot);

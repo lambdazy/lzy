@@ -27,7 +27,7 @@ import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.model.Slot;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.fs.slots.InFileSlot;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
+import ai.lzy.priv.v2.Operations.SlotStatus.State;
 
 public class LzyFSTest {
     private static final String LZY_MOUNT = "/tmp/lzy-" + UUID.randomUUID();

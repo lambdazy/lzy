@@ -10,7 +10,7 @@ import ai.lzy.kharon.LzyKharon;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.whiteboard.api.SnapshotApi;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import ai.lzy.priv.v2.LzyKharonGrpc;
 
 import java.io.IOException;
 import java.net.URI;

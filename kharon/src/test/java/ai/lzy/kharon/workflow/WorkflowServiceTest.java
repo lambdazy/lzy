@@ -11,10 +11,10 @@ import ai.lzy.iam.authorization.credentials.JwtCredentials;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.utils.TokenParser;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.CreateWorkflowRequest;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.CreateWorkflowResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.FinishWorkflowRequest;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.FinishWorkflowResponse;
+import ai.lzy.priv.v2.LzyWorkflowApi.CreateWorkflowRequest;
+import ai.lzy.priv.v2.LzyWorkflowApi.CreateWorkflowResponse;
+import ai.lzy.priv.v2.LzyWorkflowApi.FinishWorkflowRequest;
+import ai.lzy.priv.v2.LzyWorkflowApi.FinishWorkflowResponse;
 
 import static org.junit.Assert.assertEquals;
 

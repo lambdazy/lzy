@@ -1,6 +1,6 @@
 package ai.lzy.test;
 
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
+import ai.lzy.priv.v2.LzyKharonGrpc;
 
 public interface LzyKharonTestContext {
     String serverAddress();

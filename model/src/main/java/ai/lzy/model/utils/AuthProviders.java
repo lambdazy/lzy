@@ -1,6 +1,6 @@
 package ai.lzy.model.utils;
 
-import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
+import ai.lzy.priv.v2.BackOffice;
 
 public enum AuthProviders {
     GITHUB("github");

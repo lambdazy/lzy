@@ -14,8 +14,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.JsonUtils;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
+import ai.lzy.priv.v2.Kharon;
+import ai.lzy.priv.v2.LzyFsApi;
 
 public class TerminalController {
     private static final Logger LOG = LogManager.getLogger(TerminalController.class);

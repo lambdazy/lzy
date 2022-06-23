@@ -1,7 +1,7 @@
 package ai.lzy.graph.api;
 
 import ai.lzy.graph.model.TaskDescription;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import ai.lzy.priv.v2.Tasks;
 
 import javax.annotation.Nullable;
 

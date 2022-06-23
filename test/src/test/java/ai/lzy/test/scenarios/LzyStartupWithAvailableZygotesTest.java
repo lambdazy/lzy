@@ -4,8 +4,8 @@ import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
 import ai.lzy.servant.agents.AgentStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import ai.lzy.priv.v2.Lzy;
+import ai.lzy.priv.v2.Operations;
 
 import java.nio.file.Paths;
 import java.util.List;

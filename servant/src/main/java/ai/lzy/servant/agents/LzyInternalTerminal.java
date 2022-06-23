@@ -9,7 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
+import ai.lzy.priv.v2.*;
 
 import java.io.Closeable;
 import java.io.IOException;

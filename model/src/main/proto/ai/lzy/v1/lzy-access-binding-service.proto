@@ -1,12 +1,11 @@
 syntax = "proto3";
 
-package yandex.cloud.lzy.v1;
+package ai.lzy.v1;
 
-import "yandex/cloud/lzy/v1/lzy-iam.proto";
+import "ai/lzy/v1/lzy-iam.proto";
 
-option go_package = "lzy";
 option java_outer_classname = "LABS";
-option java_package = "yandex.cloud.lzy.v1";
+option java_package = "ai.lzy.v1";
 
 service LzyAccessBindingService {
   rpc ListAccessBindings (ListAccessBindingsRequest) returns (ListAccessBindingsResponse);

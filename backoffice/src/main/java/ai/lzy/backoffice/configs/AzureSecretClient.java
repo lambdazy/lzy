@@ -13,7 +13,7 @@ import java.io.StringReader;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import ai.lzy.model.utils.JwtCredentials;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import ai.lzy.priv.v2.IAM;
 
 
 @Requires(property = "azure-providers", value = "true")

@@ -9,7 +9,7 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.LzyInputSlot;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import ai.lzy.priv.v2.Operations;
 
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {
     private static final Logger LOG = LogManager.getLogger(LzyInputSlotBase.class);

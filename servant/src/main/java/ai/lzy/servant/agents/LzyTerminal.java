@@ -25,17 +25,17 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ServerCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.TerminalCommand;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi.SlotCommandStatus.RC;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.Kharon;
+import ai.lzy.priv.v2.Kharon.AttachTerminal;
+import ai.lzy.priv.v2.Kharon.ServerCommand;
+import ai.lzy.priv.v2.Kharon.TerminalCommand;
+import ai.lzy.priv.v2.LzyFsApi;
+import ai.lzy.priv.v2.LzyFsApi.SlotCommandStatus.RC;
+import ai.lzy.priv.v2.LzyKharonGrpc;
+import ai.lzy.priv.v2.LzyServantGrpc;
+import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.priv.v2.Servant;
 
 public class LzyTerminal extends LzyAgent implements Closeable {
 

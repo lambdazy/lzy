@@ -5,7 +5,7 @@ import org.junit.Test;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.Slot;
 import ai.lzy.model.data.DataSchema;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
+import ai.lzy.priv.v2.Operations.SlotStatus.State;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

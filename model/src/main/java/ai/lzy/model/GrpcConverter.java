@@ -27,18 +27,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AmazonCredentials;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AzureCredentials;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.AzureSASCredentials;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetS3CredentialsResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Builder;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard.WhiteboardField.Status;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks.ContextSpec;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks.SlotAssignment;
+import ai.lzy.priv.v2.Channels;
+import ai.lzy.priv.v2.Lzy;
+import ai.lzy.priv.v2.Lzy.AmazonCredentials;
+import ai.lzy.priv.v2.Lzy.AzureCredentials;
+import ai.lzy.priv.v2.Lzy.AzureSASCredentials;
+import ai.lzy.priv.v2.Lzy.GetS3CredentialsResponse;
+import ai.lzy.priv.v2.LzyWhiteboard;
+import ai.lzy.priv.v2.LzyWhiteboard.WhiteboardField.Builder;
+import ai.lzy.priv.v2.LzyWhiteboard.WhiteboardField.Status;
+import ai.lzy.priv.v2.Operations;
+import ai.lzy.priv.v2.Tasks.ContextSpec;
+import ai.lzy.priv.v2.Tasks.SlotAssignment;
 
 public abstract class GrpcConverter {
 

@@ -16,8 +16,8 @@ import ai.lzy.iam.utils.GrpcConverter;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import yandex.cloud.priv.lzy.v1.LAS;
-import yandex.cloud.priv.lzy.v1.LzyAccessServiceGrpc;
+import ai.lzy.priv.v1.LAS;
+import ai.lzy.priv.v1.LzyAccessServiceGrpc;
 
 import java.util.function.Supplier;
 

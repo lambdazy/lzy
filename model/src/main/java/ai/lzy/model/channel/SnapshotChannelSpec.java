@@ -1,7 +1,7 @@
 package ai.lzy.model.channel;
 
 import ai.lzy.model.data.DataSchema;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import ai.lzy.priv.v2.IAM;
 
 public class SnapshotChannelSpec implements ChannelSpec {
     private final String name;

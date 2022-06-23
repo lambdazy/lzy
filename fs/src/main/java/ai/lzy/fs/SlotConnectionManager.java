@@ -11,7 +11,7 @@ import ai.lzy.fs.snapshot.SnapshooterImpl;
 import ai.lzy.fs.storage.StorageClient;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
+import ai.lzy.priv.v2.*;
 
 import java.io.InputStream;
 import java.net.URI;

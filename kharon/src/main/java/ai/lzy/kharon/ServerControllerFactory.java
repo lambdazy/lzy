@@ -1,8 +1,8 @@
 package ai.lzy.kharon;
 
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.Lzy;
+import ai.lzy.priv.v2.LzyServerGrpc;
 
 import java.net.URI;
 

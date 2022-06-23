@@ -11,10 +11,10 @@ import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.servant.BashApi;
 import ai.lzy.servant.commands.ServantCommandHolder;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.priv.v2.Operations;
+import ai.lzy.priv.v2.Servant;
 
 import java.io.Closeable;
 import java.io.IOException;

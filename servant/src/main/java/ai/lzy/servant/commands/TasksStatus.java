@@ -7,10 +7,10 @@ import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.LzyKharonGrpc;
+import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.priv.v2.Tasks;
 
 public class TasksStatus implements LzyCommand {
 

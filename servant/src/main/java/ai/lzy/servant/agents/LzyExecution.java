@@ -9,7 +9,7 @@ import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEventLogger;
 import ai.lzy.servant.env.Environment;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import ai.lzy.priv.v2.Servant;
 
 import java.util.ArrayList;
 import java.util.List;

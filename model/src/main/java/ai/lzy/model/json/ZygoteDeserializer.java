@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.google.protobuf.util.JsonFormat;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Zygote;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import ai.lzy.priv.v2.Operations;
 
 import java.io.IOException;
 

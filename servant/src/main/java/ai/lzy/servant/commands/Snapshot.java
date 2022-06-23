@@ -9,9 +9,9 @@ import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.LzyWhiteboard;
+import ai.lzy.priv.v2.SnapshotApiGrpc;
 
 public class Snapshot implements LzyCommand {
 

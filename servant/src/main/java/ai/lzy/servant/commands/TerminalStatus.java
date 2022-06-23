@@ -5,10 +5,10 @@ import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.LzyServantGrpc;
+import ai.lzy.priv.v2.Operations;
+import ai.lzy.priv.v2.Servant;
 
 public class TerminalStatus implements LzyCommand {
 

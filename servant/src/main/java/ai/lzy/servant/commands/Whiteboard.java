@@ -16,9 +16,9 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.LzyWhiteboard;
+import ai.lzy.priv.v2.WbApiGrpc;
 
 public class Whiteboard implements LzyCommand {
 

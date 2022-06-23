@@ -10,7 +10,7 @@ import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.slots.TextLinesInSlot;
 import ai.lzy.model.slots.TextLinesOutSlot;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import ai.lzy.priv.v2.Operations;
 
 class FileIOOperation implements AtomicZygote {
     private final String operationName;

@@ -1,7 +1,7 @@
 package ai.lzy.whiteboard.auth;
 
 import ai.lzy.model.utils.Permissions;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import ai.lzy.priv.v2.IAM;
 
 public interface Authenticator {
     boolean checkPermissions(IAM.Auth auth, Permissions permissions);

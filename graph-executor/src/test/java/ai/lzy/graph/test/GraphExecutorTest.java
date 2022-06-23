@@ -31,7 +31,7 @@ import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.model.Slot;
 import ai.lzy.model.Zygote;
 import ai.lzy.model.data.DataSchema;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import ai.lzy.priv.v2.Tasks;
 
 import java.util.stream.Collectors;
 

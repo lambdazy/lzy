@@ -1,12 +1,11 @@
 syntax = "proto3";
 
-package yandex.cloud.priv.datasphere.v2.graph;
+package ai.lzy.priv.v2.graph;
 
-option go_package = "datasphere";
 option java_outer_classname = "GraphExecutorApi";
-option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+option java_package = "ai.lzy.priv.v2.graph";
 
-import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
+import "ai/lzy/priv/v2/lzy-zygote.proto";
 
 service GraphExecutor {
   rpc Execute (GraphExecuteRequest) returns (GraphExecuteResponse);

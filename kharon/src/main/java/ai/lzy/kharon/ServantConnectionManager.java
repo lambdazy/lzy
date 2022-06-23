@@ -6,7 +6,7 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
+import ai.lzy.priv.v2.LzyFsGrpc;
 
 import java.net.URI;
 import java.util.HashMap;

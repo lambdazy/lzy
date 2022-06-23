@@ -11,9 +11,9 @@ import java.net.URI;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.LzyWhiteboard;
+import ai.lzy.priv.v2.SnapshotApiGrpc;
 
 public class SnapshotChannelController implements ChannelController {
 

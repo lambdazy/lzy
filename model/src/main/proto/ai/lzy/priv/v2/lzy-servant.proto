@@ -1,14 +1,13 @@
 syntax = "proto3";
 
-package yandex.cloud.priv.datasphere.v2;
+package ai.lzy.priv.v2;
 
-import "yandex/cloud/priv/datasphere/v2/lzy-auth.proto";
-import "yandex/cloud/priv/datasphere/v2/lzy-zygote.proto";
-import "yandex/cloud/priv/datasphere/v2/lzy-task.proto";
+import "ai/lzy/priv/v2/lzy-auth.proto";
+import "ai/lzy/priv/v2/lzy-zygote.proto";
+import "ai/lzy/priv/v2/lzy-task.proto";
 
-option go_package = "datasphere";
 option java_outer_classname = "Servant";
-option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+option java_package = "ai.lzy.priv.v2";
 
 service LzyServant {
   /** Only one execution at a time */

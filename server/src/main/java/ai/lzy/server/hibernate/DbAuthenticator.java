@@ -19,7 +19,7 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ai.lzy.model.utils.JwtCredentials;
 import ai.lzy.model.utils.Permissions;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import ai.lzy.priv.v2.Lzy;
 
 import java.io.StringReader;
 import java.security.Security;

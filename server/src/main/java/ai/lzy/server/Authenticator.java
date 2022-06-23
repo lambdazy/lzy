@@ -3,7 +3,7 @@ package ai.lzy.server;
 import ai.lzy.server.task.Task;
 import java.util.UUID;
 import ai.lzy.model.utils.Permissions;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import ai.lzy.priv.v2.Lzy;
 
 public interface Authenticator {
     boolean checkUser(String userId, String token);

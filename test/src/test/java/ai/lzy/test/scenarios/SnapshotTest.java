@@ -19,7 +19,7 @@ import org.jose4j.json.internal.json_simple.parser.ParseException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
+import ai.lzy.priv.v2.LzyWhiteboard;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

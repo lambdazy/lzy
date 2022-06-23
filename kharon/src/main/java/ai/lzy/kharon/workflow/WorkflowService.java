@@ -13,9 +13,9 @@ import ai.lzy.kharon.workflow.storage.Storage;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowApi.*;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWorkflowGrpc.LzyWorkflowImplBase;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import ai.lzy.priv.v2.LzyWorkflowApi.*;
+import ai.lzy.priv.v2.LzyWorkflowGrpc.LzyWorkflowImplBase;
+import ai.lzy.priv.v2.LzyServerGrpc;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

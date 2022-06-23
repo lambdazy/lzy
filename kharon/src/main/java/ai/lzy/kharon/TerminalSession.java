@@ -4,9 +4,9 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.JsonUtils;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
-import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import ai.lzy.priv.v2.Kharon;
+import ai.lzy.priv.v2.Kharon.AttachTerminal;
+import ai.lzy.priv.v2.Servant;
 
 public class TerminalSession {
 

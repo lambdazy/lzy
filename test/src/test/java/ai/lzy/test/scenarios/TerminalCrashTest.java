@@ -11,7 +11,7 @@ import org.testcontainers.shaded.com.fasterxml.jackson.databind.JsonNode;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.servant.agents.AgentStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import ai.lzy.priv.v2.Tasks;
 
 import java.io.IOException;
 import java.nio.file.Path;

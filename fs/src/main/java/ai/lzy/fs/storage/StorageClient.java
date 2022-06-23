@@ -2,7 +2,7 @@ package ai.lzy.fs.storage;
 
 import java.net.URI;
 import ru.yandex.qe.s3.transfer.Transmitter;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import ai.lzy.priv.v2.Lzy;
 
 public interface StorageClient {
     String DEFAULT_TRANSMITTER_NAME = "transmitter";

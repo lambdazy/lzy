@@ -11,8 +11,8 @@ import org.apache.logging.log4j.LogManager;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.whiteboard.api.SnapshotApi;
 import ai.lzy.whiteboard.api.WhiteboardApi;
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
+import ai.lzy.priv.v2.SnapshotApiGrpc;
+import ai.lzy.priv.v2.WbApiGrpc;
 
 import java.io.IOException;
 import java.util.Map;

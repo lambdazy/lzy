@@ -40,9 +40,9 @@ import ai.lzy.model.utils.Permissions;
 import ai.lzy.whiteboard.auth.SimpleAuthenticator;
 import ai.lzy.whiteboard.config.ServerConfig;
 import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
-import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
+import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.priv.v2.LzyWhiteboard;
+import ai.lzy.priv.v2.WbApiGrpc;
 
 @Singleton
 @Requires(property = "server.uri")

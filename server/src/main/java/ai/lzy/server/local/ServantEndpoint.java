@@ -7,8 +7,8 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotStatus;
 import ai.lzy.server.channel.Endpoint;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc.LzyFsBlockingStub;
+import ai.lzy.priv.v2.LzyFsApi;
+import ai.lzy.priv.v2.LzyFsGrpc.LzyFsBlockingStub;
 
 import java.net.URI;
 import java.nio.file.Path;

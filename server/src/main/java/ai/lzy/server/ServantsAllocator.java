@@ -2,9 +2,9 @@ package ai.lzy.server;
 
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import ai.lzy.priv.v2.LzyFsGrpc;
+import ai.lzy.priv.v2.LzyServantGrpc;
+import ai.lzy.priv.v2.Servant;
 
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;

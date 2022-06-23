@@ -2,8 +2,8 @@ package ai.lzy.backoffice.models.keys;
 
 import io.micronaut.core.annotation.Introspected;
 import ai.lzy.backoffice.models.UserCredentials;
-import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import ai.lzy.priv.v2.BackOffice;
+import ai.lzy.priv.v2.IAM;
 
 @Introspected
 public class AddPublicKeyRequest {

@@ -2,9 +2,9 @@ package ai.lzy.server;
 
 import static ai.lzy.model.GrpcConverter.from;
 import static ai.lzy.model.GrpcConverter.to;
-import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.ERROR;
-import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.QUEUE;
-import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.SUCCESS;
+import static ai.lzy.priv.v2.Tasks.TaskProgress.Status.ERROR;
+import static ai.lzy.priv.v2.Tasks.TaskProgress.Status.QUEUE;
+import static ai.lzy.priv.v2.Tasks.TaskProgress.Status.SUCCESS;
 
 import ai.lzy.model.Constants;
 import ai.lzy.model.GrpcConverter;
@@ -69,24 +69,24 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelCreate;
-import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelStatus;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM.Auth;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse.Builder;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy.SessionDescription;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskSignal;
+import ai.lzy.priv.v2.Channels;
+import ai.lzy.priv.v2.Channels.ChannelCreate;
+import ai.lzy.priv.v2.Channels.ChannelStatus;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.IAM.Auth;
+import ai.lzy.priv.v2.Lzy;
+import ai.lzy.priv.v2.Lzy.GetSessionsRequest;
+import ai.lzy.priv.v2.Lzy.GetSessionsResponse;
+import ai.lzy.priv.v2.Lzy.GetSessionsResponse.Builder;
+import ai.lzy.priv.v2.Lzy.SessionDescription;
+import ai.lzy.priv.v2.LzyFsApi;
+import ai.lzy.priv.v2.LzyFsGrpc;
+import ai.lzy.priv.v2.LzyServantGrpc;
+import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.priv.v2.Operations;
+import ai.lzy.priv.v2.Servant;
+import ai.lzy.priv.v2.Tasks;
+import ai.lzy.priv.v2.Tasks.TaskSignal;
 
 public class LzyServer {
 

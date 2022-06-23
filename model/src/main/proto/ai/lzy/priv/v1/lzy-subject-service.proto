@@ -1,15 +1,14 @@
 syntax = "proto3";
 
-package yandex.cloud.priv.lzy.v1;
+package ai.lzy.priv.v1;
 
-import "yandex/cloud/lzy/v1/lzy-iam.proto";
+import "ai/lzy/v1/lzy-iam.proto";
 
-option go_package = "lzy";
 option java_outer_classname = "LSS";
-option java_package = "yandex.cloud.priv.lzy.v1";
+option java_package = "ai.lzy.priv.v1";
 
 service LzySubjectService {
-  rpc CreateSubject (CreateSubjectRequest) returns (yandex.cloud.lzy.v1.Subject);
+  rpc CreateSubject (CreateSubjectRequest) returns (ai.lzy.v1.Subject);
 
   rpc RemoveSubject (RemoveSubjectRequest) returns (RemoveSubjectResponse);
 
@@ -25,22 +24,22 @@ message CreateSubjectRequest {
 }
 
 message RemoveSubjectRequest {
-  yandex.cloud.lzy.v1.Subject subject = 1;
+  ai.lzy.v1.Subject subject = 1;
 }
 
 message RemoveSubjectResponse {
 }
 
 message AddCredentialsRequest {
-  yandex.cloud.lzy.v1.Subject subject = 1;
-  yandex.cloud.lzy.v1.Credentials credentials = 2;
+  ai.lzy.v1.Subject subject = 1;
+  ai.lzy.v1.Credentials credentials = 2;
 }
 
 message AddCredentialsResponse {
 }
 
 message RemoveCredentialsRequest {
-  yandex.cloud.lzy.v1.Subject subject = 1;
+  ai.lzy.v1.Subject subject = 1;
   string credentials_name = 2;
 }
 

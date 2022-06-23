@@ -11,7 +11,7 @@ import java.util.UUID;
 import ai.lzy.model.utils.Permissions;
 import ai.lzy.server.Authenticator;
 import ai.lzy.server.task.Task;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
+import ai.lzy.priv.v2.Lzy;
 
 @Singleton
 @Requires(property = "database.enabled", value = "false", defaultValue = "false")

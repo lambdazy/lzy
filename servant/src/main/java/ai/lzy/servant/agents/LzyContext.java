@@ -16,8 +16,8 @@ import ai.lzy.fs.slots.ArgumentsSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.fs.slots.WriterSlot;
 import ai.lzy.fs.storage.StorageClient;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.ServantProgress;
+import ai.lzy.priv.v2.Servant;
+import ai.lzy.priv.v2.Servant.ServantProgress;
 
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;

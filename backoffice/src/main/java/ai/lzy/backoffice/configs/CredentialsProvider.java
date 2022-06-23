@@ -1,6 +1,6 @@
 package ai.lzy.backoffice.configs;
 
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import ai.lzy.priv.v2.IAM;
 
 public interface CredentialsProvider {
 

@@ -3,7 +3,7 @@ package ai.lzy.fs;
 import org.apache.commons.cli.*;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.utils.JwtCredentials;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
+import ai.lzy.priv.v2.IAM;
 
 import java.io.FileReader;
 import java.io.IOException;

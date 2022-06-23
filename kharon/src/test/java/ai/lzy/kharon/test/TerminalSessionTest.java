@@ -5,8 +5,8 @@ import ai.lzy.kharon.UriResolver;
 import io.grpc.stub.StreamObserver;
 import org.junit.Assert;
 import org.junit.Test;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import ai.lzy.priv.v2.Operations;
+import ai.lzy.priv.v2.Servant;
 
 import java.net.URI;
 import java.net.URISyntaxException;

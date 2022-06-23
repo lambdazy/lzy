@@ -1,10 +1,9 @@
 syntax = "proto3";
 
-package yandex.cloud.priv.datasphere.v2;
+package ai.lzy.priv.v2;
 
-option go_package = "datasphere";
 option java_outer_classname = "Operations";
-option java_package = "yandex.cloud.priv.datasphere.v2.lzy";
+option java_package = "ai.lzy.priv.v2";
 
 message Zygote {
   // TODO: return uri back

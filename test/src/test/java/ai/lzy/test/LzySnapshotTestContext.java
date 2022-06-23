@@ -1,7 +1,7 @@
 package ai.lzy.test;
 
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
+import ai.lzy.priv.v2.SnapshotApiGrpc;
+import ai.lzy.priv.v2.WbApiGrpc;
 
 public interface LzySnapshotTestContext {
     String address();

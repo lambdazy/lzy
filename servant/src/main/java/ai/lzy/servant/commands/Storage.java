@@ -8,10 +8,10 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.Lzy;
+import ai.lzy.priv.v2.LzyKharonGrpc;
+import ai.lzy.priv.v2.LzyServerGrpc;
 
 public class Storage implements LzyCommand {
 

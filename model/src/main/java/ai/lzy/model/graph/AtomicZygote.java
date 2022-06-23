@@ -2,7 +2,7 @@ package ai.lzy.model.graph;
 
 
 import ai.lzy.model.Zygote;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import ai.lzy.priv.v2.Operations;
 
 public interface AtomicZygote extends Zygote {
     Env env();

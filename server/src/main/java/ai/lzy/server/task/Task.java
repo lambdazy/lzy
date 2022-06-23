@@ -8,7 +8,7 @@ import ai.lzy.model.SlotStatus;
 import ai.lzy.model.Zygote;
 import ai.lzy.server.ServantsAllocator;
 import ai.lzy.server.TasksManager;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import ai.lzy.priv.v2.Tasks;
 
 import javax.annotation.Nullable;
 

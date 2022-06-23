@@ -3,7 +3,7 @@ package ai.lzy.model.snapshot;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import ai.lzy.priv.v2.Tasks;
 
 public class SnapshotMeta {
     private final Set<SlotMapping> slotMappings;

@@ -10,8 +10,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.whiteboard.LzySnapshot;
-import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;
+import ai.lzy.priv.v2.SnapshotApiGrpc;
+import ai.lzy.priv.v2.WbApiGrpc;
 
 @Deprecated
 public class SnapshotProcessesContext implements LzySnapshotTestContext {

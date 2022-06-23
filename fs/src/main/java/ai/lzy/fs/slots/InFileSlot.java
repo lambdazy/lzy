@@ -20,8 +20,8 @@ import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.FileContents;
 import ai.lzy.fs.fs.FileContentsBase;
 import ai.lzy.fs.fs.LzyFileSlot;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations;
-import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
+import ai.lzy.priv.v2.Operations;
+import ai.lzy.priv.v2.Operations.SlotStatus.State;
 
 public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private static final Logger LOG = LogManager.getLogger(InFileSlot.class);

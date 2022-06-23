@@ -1,6 +1,6 @@
 package ai.lzy.test;
 
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import ai.lzy.priv.v2.LzyServerGrpc;
 
 public interface LzyServerTestContext extends AutoCloseable {
     String address();

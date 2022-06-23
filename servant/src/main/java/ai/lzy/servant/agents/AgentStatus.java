@@ -1,6 +1,6 @@
 package ai.lzy.servant.agents;
 
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import ai.lzy.priv.v2.Servant;
 
 public enum AgentStatus {
     STARTED(0),

@@ -30,11 +30,11 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant;
-import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
+import ai.lzy.priv.v2.LzyFsApi;
+import ai.lzy.priv.v2.LzyFsGrpc;
+import ai.lzy.priv.v2.Servant;
+import ai.lzy.priv.v2.Servant.ExecutionConcluded;
+import ai.lzy.priv.v2.Tasks;
 
 public class TaskImpl implements Task {
 

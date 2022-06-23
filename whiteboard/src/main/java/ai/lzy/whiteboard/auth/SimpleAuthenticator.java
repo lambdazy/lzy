@@ -1,9 +1,9 @@
 package ai.lzy.whiteboard.auth;
 
 import ai.lzy.model.utils.Permissions;
-import yandex.cloud.priv.datasphere.v2.lzy.IAM;
-import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
-import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.Lzy;
+import ai.lzy.priv.v2.LzyServerGrpc;
 
 public class SimpleAuthenticator implements Authenticator {
 

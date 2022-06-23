@@ -22,7 +22,7 @@ import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEventLogger;
 import ai.lzy.fs.storage.StorageClient;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
+import ai.lzy.priv.v2.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

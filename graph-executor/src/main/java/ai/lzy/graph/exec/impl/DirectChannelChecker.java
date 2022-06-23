@@ -5,8 +5,8 @@ import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.graph.api.SchedulerApi;
 import ai.lzy.graph.exec.ChannelChecker;
 import ai.lzy.graph.model.TaskExecution;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status;
+import ai.lzy.priv.v2.Tasks;
+import ai.lzy.priv.v2.Tasks.TaskProgress.Status;
 
 public class DirectChannelChecker implements ChannelChecker {
     private final SchedulerApi api;

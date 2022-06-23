@@ -24,7 +24,7 @@ import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.utils.SessionIdInterceptor;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
+import ai.lzy.priv.v2.*;
 
 import javax.annotation.Nullable;
 import java.io.IOException;

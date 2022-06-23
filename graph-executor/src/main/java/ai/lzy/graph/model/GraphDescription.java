@@ -1,16 +1,15 @@
 package ai.lzy.graph.model;
 
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.priv.v2.graph.GraphExecutorApi;
+import ai.lzy.priv.v2.graph.GraphExecutorApi.ChannelDesc;
+import ai.lzy.priv.v2.graph.GraphExecutorApi.TaskDesc;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import java.util.Map;
-import ai.lzy.model.GrpcConverter;
-import yandex.cloud.priv.datasphere.v2.lzy.GraphExecutorApi;
-
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-import yandex.cloud.priv.datasphere.v2.lzy.GraphExecutorApi.ChannelDesc;
-import yandex.cloud.priv.datasphere.v2.lzy.GraphExecutorApi.TaskDesc;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize
