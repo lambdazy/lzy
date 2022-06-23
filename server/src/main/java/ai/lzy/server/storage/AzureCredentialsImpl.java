@@ -1,6 +1,6 @@
 package ai.lzy.server.storage;
 
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AzureCredentials;
+import ai.lzy.model.StorageCredentials.AzureCredentials;
 
 public class AzureCredentialsImpl extends AzureCredentials {
 

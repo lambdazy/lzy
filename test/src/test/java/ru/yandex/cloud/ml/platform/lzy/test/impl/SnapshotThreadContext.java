@@ -7,7 +7,7 @@ import io.grpc.ServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import org.apache.logging.log4j.LogManager;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzySnapshotTestContext;
 import ai.lzy.whiteboard.api.SnapshotApi;
 import ai.lzy.whiteboard.api.WhiteboardApi;

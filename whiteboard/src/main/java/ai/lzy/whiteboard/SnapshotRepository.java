@@ -5,12 +5,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.validation.constraints.NotNull;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.ExecutionSnapshot;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Snapshot;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
+import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.snapshot.ExecutionSnapshot;
+import ai.lzy.model.snapshot.Snapshot;
+import ai.lzy.model.snapshot.SnapshotEntry;
+import ai.lzy.model.snapshot.SnapshotEntryStatus;
+import ai.lzy.model.snapshot.SnapshotStatus;
 import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 
 

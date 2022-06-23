@@ -2,7 +2,7 @@ package ai.lzy.server.mocks;
 
 import ai.lzy.server.Authenticator;
 import ai.lzy.server.ServantsAllocatorBase;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ai.lzy.model.graph.Provisioning;
 
 import java.util.ArrayList;
 import java.util.List;

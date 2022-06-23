@@ -16,7 +16,7 @@ import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.ErrorCodes;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.FileContents;
 import ai.lzy.fs.fs.FileContentsBase;
 import ai.lzy.fs.fs.LzyFileSlot;

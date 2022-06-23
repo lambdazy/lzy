@@ -1,8 +1,8 @@
 package ai.lzy.fs;
 
 import org.apache.commons.cli.*;
-import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
+import ai.lzy.model.UriScheme;
+import ai.lzy.model.utils.JwtCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 import java.io.FileReader;

@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.validation.constraints.NotNull;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
+import ai.lzy.model.snapshot.Whiteboard;
+import ai.lzy.model.snapshot.WhiteboardField;
+import ai.lzy.model.snapshot.WhiteboardStatus;
 import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
 
 public interface WhiteboardRepository {

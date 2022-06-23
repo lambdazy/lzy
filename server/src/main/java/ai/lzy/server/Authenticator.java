@@ -2,7 +2,7 @@ package ai.lzy.server;
 
 import ai.lzy.server.task.Task;
 import java.util.UUID;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
+import ai.lzy.model.utils.Permissions;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 public interface Authenticator {

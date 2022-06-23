@@ -1,6 +1,6 @@
 package ai.lzy.fs.fs;
 
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ai.lzy.model.Zygote;
 
 import java.nio.file.Path;
 

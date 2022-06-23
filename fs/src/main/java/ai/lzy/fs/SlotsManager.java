@@ -9,11 +9,11 @@ import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.fs.slots.LocalOutFileSlot;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.fs.slots.WriterSlot;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
-import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.Slot;
+import ai.lzy.model.slots.TextLinesInSlot;
+import ai.lzy.model.slots.TextLinesOutSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 
 import javax.annotation.Nullable;

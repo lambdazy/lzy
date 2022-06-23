@@ -2,8 +2,8 @@ package ai.lzy.fs.mock;
 
 import com.google.protobuf.ByteString;
 import ai.lzy.fs.fs.LzyOutputSlot;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ai.lzy.model.Slot;
+import ai.lzy.model.data.DataSchema;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.io.IOException;

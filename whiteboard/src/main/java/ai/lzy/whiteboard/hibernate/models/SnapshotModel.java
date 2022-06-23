@@ -8,7 +8,7 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
+import ai.lzy.model.snapshot.SnapshotStatus;
 
 @Entity
 @Table(name = "snapshot")

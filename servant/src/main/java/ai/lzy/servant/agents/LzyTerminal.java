@@ -1,6 +1,6 @@
 package ai.lzy.servant.agents;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyTerminal;
+import static ai.lzy.model.UriScheme.LzyTerminal;
 
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
@@ -22,9 +22,9 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.UriScheme;
+import ai.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.AttachTerminal;

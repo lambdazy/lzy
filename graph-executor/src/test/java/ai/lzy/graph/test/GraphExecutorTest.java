@@ -28,9 +28,9 @@ import org.junit.Before;
 import org.junit.Test;
 import ai.lzy.graph.algo.GraphBuilderImpl;
 import ai.lzy.graph.algo.GraphBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ai.lzy.model.Slot;
+import ai.lzy.model.Zygote;
+import ai.lzy.model.data.DataSchema;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
 import java.util.stream.Collectors;

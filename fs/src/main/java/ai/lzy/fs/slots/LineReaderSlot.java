@@ -14,8 +14,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesOutSlot;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.slots.TextLinesOutSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 

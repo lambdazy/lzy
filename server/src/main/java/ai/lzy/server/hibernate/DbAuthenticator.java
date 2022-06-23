@@ -17,8 +17,8 @@ import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
+import ai.lzy.model.utils.JwtCredentials;
+import ai.lzy.model.utils.Permissions;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 
 import java.io.StringReader;

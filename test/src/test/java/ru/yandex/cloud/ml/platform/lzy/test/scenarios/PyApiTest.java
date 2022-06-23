@@ -2,7 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.scenarios;
 
 import org.junit.Before;
 import org.junit.Test;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
+import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.servant.agents.AgentStatus;
 
 import java.util.List;

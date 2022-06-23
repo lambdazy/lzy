@@ -8,7 +8,7 @@ import org.apache.logging.log4j.core.config.ConfigurationFactory;
 import org.apache.logging.log4j.core.config.ConfigurationSource;
 import org.apache.logging.log4j.core.config.Order;
 import org.apache.logging.log4j.core.config.plugins.Plugin;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.KafkaLogsConfiguration;
+import ai.lzy.model.utils.KafkaLogsConfiguration;
 
 @Plugin(name = "CustomConfigurationFactory", category = "ConfigurationFactory")
 @Order(10)

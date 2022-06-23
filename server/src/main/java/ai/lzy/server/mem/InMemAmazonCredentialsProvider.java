@@ -5,7 +5,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.commons.lang3.NotImplementedException;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
+import ai.lzy.model.StorageCredentials;
 import ai.lzy.server.storage.StorageCredentialsProvider;
 import ai.lzy.server.utils.azure.StorageUtils;
 

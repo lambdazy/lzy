@@ -2,7 +2,7 @@ package ai.lzy.fs.slots;
 
 import java.net.URI;
 import java.nio.file.Path;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ai.lzy.model.Slot;
 
 public class LocalOutFileSlot extends OutFileSlot {
     private final Path location;

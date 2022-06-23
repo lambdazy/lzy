@@ -7,8 +7,8 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.Closeable;
@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyTerminal;
+import static ai.lzy.model.UriScheme.LzyTerminal;
 
 public class LzyInternalTerminal extends LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyInternalTerminal.class);

@@ -3,7 +3,7 @@ package ai.lzy.fs.snapshot;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ai.lzy.model.Slot;
 
 public interface SlotSnapshotProvider {
     SlotSnapshot slotSnapshot(Slot slot);

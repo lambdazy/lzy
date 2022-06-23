@@ -2,8 +2,8 @@ package ai.lzy.server.storage;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.EmptyCredentials;
+import ai.lzy.model.StorageCredentials;
+import ai.lzy.model.StorageCredentials.EmptyCredentials;
 
 @Singleton
 @Requires(property = "storage.amazon.enabled", value = "false", defaultValue = "false")

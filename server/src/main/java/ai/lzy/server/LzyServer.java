@@ -1,12 +1,42 @@
 package ai.lzy.server;
 
+import static ai.lzy.model.GrpcConverter.from;
+import static ai.lzy.model.GrpcConverter.to;
+import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.ERROR;
+import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.QUEUE;
+import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.SUCCESS;
+
+import ai.lzy.model.Constants;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.Slot;
+import ai.lzy.model.SlotStatus;
+import ai.lzy.model.StorageCredentials;
+import ai.lzy.model.Zygote;
+import ai.lzy.model.channel.ChannelSpec;
+import ai.lzy.model.channel.DirectChannelSpec;
+import ai.lzy.model.channel.SnapshotChannelSpec;
+import ai.lzy.model.exceptions.EnvironmentInstallationException;
+import ai.lzy.model.graph.AtomicZygote;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.logs.UserEvent;
+import ai.lzy.model.logs.UserEventLogger;
+import ai.lzy.model.utils.SessionIdInterceptor;
 import ai.lzy.server.configs.StorageConfigs;
 import ai.lzy.server.local.ServantEndpoint;
 import ai.lzy.server.mem.ZygoteRepositoryImpl;
+import ai.lzy.server.storage.StorageCredentialsProvider;
 import ai.lzy.server.task.Task;
 import ai.lzy.server.task.TaskException;
 import io.grpc.Context;
-import io.grpc.*;
+import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.ServerInterceptors;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
@@ -14,44 +44,49 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.exceptions.NoSuchBeanException;
 import jakarta.inject.Inject;
-import org.apache.commons.cli.*;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import ru.yandex.cloud.ml.platform.lzy.model.*;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.DirectChannelSpec;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.SnapshotChannelSpec;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
-import ai.lzy.server.storage.StorageCredentialsProvider;
-import yandex.cloud.priv.datasphere.v2.lzy.*;
+import yandex.cloud.priv.datasphere.v2.lzy.Channels;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelCreate;
 import yandex.cloud.priv.datasphere.v2.lzy.Channels.ChannelStatus;
+import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM.Auth;
+import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsRequest;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.GetSessionsResponse.Builder;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy.SessionDescription;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;
+import yandex.cloud.priv.datasphere.v2.lzy.Operations;
+import yandex.cloud.priv.datasphere.v2.lzy.Servant;
+import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskSignal;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
-
-import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.from;
-import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
-import static yandex.cloud.priv.datasphere.v2.lzy.Tasks.TaskProgress.Status.*;
 
 public class LzyServer {
 
@@ -442,7 +477,7 @@ public class LzyServer {
 
         @Override
         public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request,
-            StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
+                                         StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
             LOG.info("Server::checkPermissions " + JsonUtils.printRequest(request));
             IAM.Auth requestAuth = request.getAuth();
             if (!checkAuth(requestAuth, responseObserver)) {
@@ -524,7 +559,7 @@ public class LzyServer {
 
         @Override
         public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
-            StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+                                     StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
             LOG.info("Server::getS3Credentials " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
@@ -561,7 +596,7 @@ public class LzyServer {
 
         @Override
         public void getSessions(GetSessionsRequest request,
-            StreamObserver<GetSessionsResponse> responseObserver) {
+                                StreamObserver<GetSessionsResponse> responseObserver) {
             final String userId = request.getAuth().getUserId();
             if (!auth.checkUser(userId, request.getAuth().getToken())) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -593,7 +628,7 @@ public class LzyServer {
 
         @Override
         public void getUser(Lzy.GetUserRequest request,
-            StreamObserver<Lzy.GetUserResponse> responseObserver) {
+                            StreamObserver<Lzy.GetUserResponse> responseObserver) {
             final Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -613,7 +648,7 @@ public class LzyServer {
          * [TODO] support interruption
          */
         private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub terminalServant,
-            LzyFsGrpc.LzyFsBlockingStub terminalFs, String sessionId) {
+                                 LzyFsGrpc.LzyFsBlockingStub terminalFs, String sessionId) {
             final String user = auth.getUser().getUserId();
             servantsAllocator.registerSession(user, sessionId, this.auth.bucketForUser(user));
 

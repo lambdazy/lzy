@@ -1,6 +1,6 @@
 package ai.lzy.whiteboard.api;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter.to;
+import static ai.lzy.model.GrpcConverter.to;
 
 import ai.lzy.whiteboard.SnapshotRepository;
 import ai.lzy.whiteboard.WhiteboardRepository;
@@ -26,17 +26,17 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntry;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotEntryStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.SnapshotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.Whiteboard.Impl;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardField;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.snapshot.WhiteboardStatus.State;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.snapshot.SnapshotEntry;
+import ai.lzy.model.snapshot.SnapshotEntryStatus;
+import ai.lzy.model.snapshot.SnapshotStatus;
+import ai.lzy.model.snapshot.Whiteboard;
+import ai.lzy.model.snapshot.Whiteboard.Impl;
+import ai.lzy.model.snapshot.WhiteboardField;
+import ai.lzy.model.snapshot.WhiteboardStatus;
+import ai.lzy.model.snapshot.WhiteboardStatus.State;
+import ai.lzy.model.utils.Permissions;
 import ai.lzy.whiteboard.auth.SimpleAuthenticator;
 import ai.lzy.whiteboard.config.ServerConfig;
 import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;

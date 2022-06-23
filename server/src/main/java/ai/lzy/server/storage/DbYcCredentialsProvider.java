@@ -23,7 +23,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
+import ai.lzy.model.StorageCredentials;
 import ai.lzy.server.hibernate.DbStorage;
 
 @Singleton

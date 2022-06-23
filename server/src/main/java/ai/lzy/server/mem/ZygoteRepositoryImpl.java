@@ -3,7 +3,7 @@ package ai.lzy.server.mem;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
+import ai.lzy.model.Zygote;
 import ai.lzy.server.ZygoteRepository;
 
 public class ZygoteRepositoryImpl implements ZygoteRepository {

@@ -1,7 +1,7 @@
 package ai.lzy.server.channel;
 
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
+import ai.lzy.model.Slot;
+import ai.lzy.model.SlotStatus;
 
 import java.net.URI;
 

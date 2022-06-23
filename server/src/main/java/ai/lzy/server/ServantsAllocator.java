@@ -1,7 +1,7 @@
 package ai.lzy.server;
 
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ai.lzy.model.graph.Env;
+import ai.lzy.model.graph.Provisioning;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServantGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;

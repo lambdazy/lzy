@@ -16,8 +16,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.*;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ai.lzy.model.Slot;
+import ai.lzy.model.data.DataSchema;
 import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.SlotSnapshotImpl;
 import ai.lzy.fs.storage.AmazonStorageClient;

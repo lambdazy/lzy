@@ -3,7 +3,7 @@ package ai.lzy.kharon;
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;

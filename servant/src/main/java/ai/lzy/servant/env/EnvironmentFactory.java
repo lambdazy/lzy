@@ -3,9 +3,9 @@ package ai.lzy.servant.env;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.PythonEnv;
+import ai.lzy.model.exceptions.EnvironmentInstallationException;
+import ai.lzy.model.graph.Env;
+import ai.lzy.model.graph.PythonEnv;
 import ai.lzy.fs.storage.StorageClient;
 
 import java.util.function.Supplier;

@@ -35,7 +35,7 @@ import java.net.URISyntaxException;
 import javax.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
+import ai.lzy.model.utils.AuthProviders;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 
 @ExecuteOn(TaskExecutors.IO)

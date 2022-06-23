@@ -11,7 +11,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ai.lzy.model.graph.Provisioning;
 
 import java.io.File;
 import java.io.IOException;

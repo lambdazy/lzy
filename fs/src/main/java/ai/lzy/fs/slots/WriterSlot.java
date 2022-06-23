@@ -3,7 +3,7 @@ package ai.lzy.fs.slots;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Writer;
-import ru.yandex.cloud.ml.platform.lzy.model.slots.TextLinesInSlot;
+import ai.lzy.model.slots.TextLinesInSlot;
 
 public class WriterSlot extends LzyInputSlotBase {
     private Writer writer;

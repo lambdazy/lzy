@@ -2,7 +2,7 @@ package ai.lzy.kharon;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.Constants;
+import ai.lzy.model.Constants;
 
 import java.net.URI;
 import java.util.Map;

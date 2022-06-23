@@ -15,10 +15,10 @@ import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AmazonCredentials;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AzureCredentials;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AzureSASCredentials;
+import ai.lzy.model.StorageCredentials;
+import ai.lzy.model.StorageCredentials.AmazonCredentials;
+import ai.lzy.model.StorageCredentials.AzureCredentials;
+import ai.lzy.model.StorageCredentials.AzureSASCredentials;
 import ai.lzy.server.storage.AzureSASCredentialsImpl;
 
 public class StorageUtils {

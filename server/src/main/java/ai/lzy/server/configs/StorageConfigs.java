@@ -1,8 +1,8 @@
 package ai.lzy.server.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.EmptyCredentials;
+import ai.lzy.model.StorageCredentials;
+import ai.lzy.model.StorageCredentials.EmptyCredentials;
 import ai.lzy.server.storage.AmazonCredentialsImpl;
 import ai.lzy.server.storage.AzureCredentialsImpl;
 

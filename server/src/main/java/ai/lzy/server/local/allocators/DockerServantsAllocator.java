@@ -13,14 +13,14 @@ import jakarta.inject.Singleton;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.FreePortFinder;
+import ai.lzy.model.graph.Provisioning;
+import ai.lzy.model.utils.FreePortFinder;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+import static ai.lzy.model.Constants.LOGS_DIR;
 
 @Singleton
 @Requires(property = "server.dockerAllocator.enabled", value = "true")

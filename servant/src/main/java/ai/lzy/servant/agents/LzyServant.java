@@ -10,17 +10,17 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.model.Context;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
-import ru.yandex.cloud.ml.platform.lzy.model.exceptions.EnvironmentInstallationException;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.AtomicZygote;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.UserEventLogger;
+import ai.lzy.model.Context;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.exceptions.EnvironmentInstallationException;
+import ai.lzy.model.graph.AtomicZygote;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.logs.MetricEvent;
+import ai.lzy.model.logs.MetricEventLogger;
+import ai.lzy.model.logs.UserEvent;
+import ai.lzy.model.logs.UserEventLogger;
 import ai.lzy.fs.storage.StorageClient;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
@@ -35,7 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyServant;
+import static ai.lzy.model.UriScheme.LzyServant;
 
 public class LzyServant extends LzyAgent {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);

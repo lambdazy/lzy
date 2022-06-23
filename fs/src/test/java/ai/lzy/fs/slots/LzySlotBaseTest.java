@@ -3,8 +3,8 @@ package ai.lzy.fs.slots;
 import org.junit.Ignore;
 import org.junit.Test;
 import ai.lzy.fs.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ai.lzy.model.Slot;
+import ai.lzy.model.data.DataSchema;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
 
 import java.util.concurrent.CountDownLatch;

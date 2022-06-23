@@ -2,7 +2,7 @@ package ru.yandex.cloud.ml.platform.lzy.test.impl;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.SystemUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
+import ai.lzy.model.utils.JwtCredentials;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyTerminal;

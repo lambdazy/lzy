@@ -1,6 +1,6 @@
 package ai.lzy.fs.slots;
 
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ai.lzy.model.Slot;
 
 public class ArgumentsSlot extends LzySlotBase {
     private final String arguments;

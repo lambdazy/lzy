@@ -9,8 +9,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.kharon.LzyKharon;
-import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.UriScheme;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyKharonGrpc;
 

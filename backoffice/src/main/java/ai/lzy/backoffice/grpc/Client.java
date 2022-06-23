@@ -17,7 +17,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import ai.lzy.backoffice.configs.CredentialsProvider;
 import ai.lzy.backoffice.configs.GrpcConfig;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.BackOffice;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyBackofficeGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.WbApiGrpc;

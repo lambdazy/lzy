@@ -34,7 +34,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
+import static ai.lzy.model.Constants.LOGS_DIR;
 
 @Deprecated
 public class TerminalDockerContext implements LzyTerminalTestContext {

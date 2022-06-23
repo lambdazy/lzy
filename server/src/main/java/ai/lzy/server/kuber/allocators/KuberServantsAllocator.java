@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
+import ai.lzy.model.graph.Provisioning;
 
 import java.io.IOException;
 import java.util.Objects;

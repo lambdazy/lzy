@@ -1,29 +1,40 @@
 package ai.lzy.server.task;
 
 
-import ai.lzy.server.channel.ChannelException;
-import ai.lzy.server.channel.Endpoint;
-import ai.lzy.server.local.ServantEndpoint;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.model.*;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
+import static ai.lzy.server.task.Task.State.ERROR;
+import static ai.lzy.server.task.Task.State.EXECUTING;
+import static ai.lzy.server.task.Task.State.SUCCESS;
+
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.Slot;
+import ai.lzy.model.SlotStatus;
+import ai.lzy.model.Zygote;
+import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.server.ChannelsManager;
 import ai.lzy.server.ServantsAllocator;
 import ai.lzy.server.TasksManager;
+import ai.lzy.server.channel.ChannelException;
+import ai.lzy.server.channel.Endpoint;
+import ai.lzy.server.local.ServantEndpoint;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsApi;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyFsGrpc;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant;
 import yandex.cloud.priv.datasphere.v2.lzy.Servant.ExecutionConcluded;
 import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
-
-import java.net.URI;
-import java.util.*;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
-
-import static ai.lzy.server.task.Task.State.*;
 
 public class TaskImpl implements Task {
 

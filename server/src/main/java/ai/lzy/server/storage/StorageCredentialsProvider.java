@@ -1,6 +1,6 @@
 package ai.lzy.server.storage;
 
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
+import ai.lzy.model.StorageCredentials;
 
 public interface StorageCredentialsProvider {
     StorageCredentials storageCredentials();

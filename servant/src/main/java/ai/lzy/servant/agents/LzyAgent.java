@@ -7,8 +7,8 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.LzyFsServer;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
+import ai.lzy.model.logs.MetricEvent;
+import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.servant.BashApi;
 import ai.lzy.servant.commands.ServantCommandHolder;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
@@ -26,8 +26,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.model.Constants.LOGS_DIR;
+import static ai.lzy.model.UriScheme.LzyFs;
 
 public abstract class LzyAgent implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyAgent.class);

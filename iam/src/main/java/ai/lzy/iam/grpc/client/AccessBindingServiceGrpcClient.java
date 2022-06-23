@@ -12,9 +12,9 @@ import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.utils.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ClientHeaderInterceptor;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcHeaders;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.grpc.ClientHeaderInterceptor;
+import ai.lzy.model.grpc.GrpcHeaders;
 import yandex.cloud.lzy.v1.LABS;
 import yandex.cloud.lzy.v1.LzyAccessBindingServiceGrpc;
 

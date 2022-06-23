@@ -1,10 +1,10 @@
 package ai.lzy.server;
 
 import ai.lzy.server.task.Task;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
+import ai.lzy.model.Slot;
+import ai.lzy.model.SlotStatus;
+import ai.lzy.model.Zygote;
+import ai.lzy.model.channel.ChannelSpec;
 
 import java.util.Map;
 import java.util.stream.Stream;

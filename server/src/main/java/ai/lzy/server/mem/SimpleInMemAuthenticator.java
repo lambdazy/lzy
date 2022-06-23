@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
+import ai.lzy.model.utils.Permissions;
 import ai.lzy.server.Authenticator;
 import ai.lzy.server.task.Task;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;

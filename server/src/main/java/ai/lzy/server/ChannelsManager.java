@@ -5,8 +5,8 @@ import ai.lzy.server.channel.ChannelException;
 import ai.lzy.server.channel.Endpoint;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.model.SlotStatus;
-import ru.yandex.cloud.ml.platform.lzy.model.channel.ChannelSpec;
+import ai.lzy.model.SlotStatus;
+import ai.lzy.model.channel.ChannelSpec;
 
 public interface ChannelsManager {
     ChannelSpec get(String cid);

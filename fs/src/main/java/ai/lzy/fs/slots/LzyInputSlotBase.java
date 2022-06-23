@@ -6,8 +6,8 @@ import java.net.URI;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.LzyInputSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 

@@ -1,6 +1,6 @@
 package ai.lzy.server.storage;
 
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials.AmazonCredentials;
+import ai.lzy.model.StorageCredentials.AmazonCredentials;
 
 public class AmazonCredentialsImpl extends AmazonCredentials {
 

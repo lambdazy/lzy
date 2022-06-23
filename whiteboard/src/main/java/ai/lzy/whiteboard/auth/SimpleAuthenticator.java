@@ -1,6 +1,6 @@
 package ai.lzy.whiteboard.auth;
 
-import ru.yandex.cloud.ml.platform.lzy.model.utils.Permissions;
+import ai.lzy.model.utils.Permissions;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyServerGrpc;

@@ -16,14 +16,14 @@ import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.fs.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.Slot;
+import ai.lzy.model.Zygote;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.logs.MetricEvent;
+import ai.lzy.model.logs.MetricEventLogger;
+import ai.lzy.model.utils.SessionIdInterceptor;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import javax.annotation.Nullable;
@@ -36,8 +36,8 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.Constants.LOGS_DIR;
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.*;
+import static ai.lzy.model.Constants.LOGS_DIR;
+import static ai.lzy.model.UriScheme.*;
 
 public final class LzyFsServer {
     private static final Logger LOG = LogManager.getLogger(LzyFsServer.class);

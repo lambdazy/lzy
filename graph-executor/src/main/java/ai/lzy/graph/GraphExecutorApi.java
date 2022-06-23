@@ -1,6 +1,6 @@
 package ai.lzy.graph;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials.buildJWT;
+import static ai.lzy.model.utils.JwtCredentials.buildJWT;
 
 import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.graph.config.AuthConfig;
@@ -37,8 +37,8 @@ import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.utils.GrpcConfig;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.GrpcLogsInterceptor;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.logs.GrpcLogsInterceptor;
+import ai.lzy.model.grpc.ChannelBuilder;
 import yandex.cloud.priv.datasphere.v2.lzy.GraphExecutorApi.*;
 import yandex.cloud.priv.datasphere.v2.lzy.GraphExecutorGrpc;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;

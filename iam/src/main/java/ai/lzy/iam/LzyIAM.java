@@ -16,7 +16,7 @@ import ai.lzy.iam.grpc.service.LzyASService;
 import ai.lzy.iam.grpc.service.LzyAuthService;
 import ai.lzy.iam.grpc.service.LzySubjectService;
 import ai.lzy.iam.storage.impl.DbAuthService;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;

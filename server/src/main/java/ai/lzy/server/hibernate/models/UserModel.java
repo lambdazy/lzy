@@ -10,7 +10,7 @@ import javax.persistence.Id;
 import javax.persistence.ManyToMany;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.AuthProviders;
+import ai.lzy.model.utils.AuthProviders;
 import ai.lzy.server.hibernate.UserVerificationType;
 
 @Entity

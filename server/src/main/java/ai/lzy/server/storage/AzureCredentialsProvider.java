@@ -5,7 +5,7 @@ import ai.lzy.server.utils.azure.StorageUtils;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import ru.yandex.cloud.ml.platform.lzy.model.StorageCredentials;
+import ai.lzy.model.StorageCredentials;
 
 @Singleton
 @Requires(property = "storage.azure.enabled", value = "true")

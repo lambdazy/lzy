@@ -2,8 +2,8 @@ package ai.lzy.fs;
 
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
-import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.UriScheme;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.fs.snapshot.SlotSnapshotImpl;
 import ai.lzy.fs.snapshot.SlotSnapshotProvider;
 import ai.lzy.fs.snapshot.Snapshooter;

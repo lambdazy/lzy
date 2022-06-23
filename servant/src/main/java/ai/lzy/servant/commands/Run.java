@@ -10,12 +10,12 @@ import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.commands.LzyCommand;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.Zygote;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEvent;
-import ru.yandex.cloud.ml.platform.lzy.model.logs.MetricEventLogger;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.Slot;
+import ai.lzy.model.Zygote;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.logs.MetricEvent;
+import ai.lzy.model.logs.MetricEventLogger;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 
 import java.io.*;

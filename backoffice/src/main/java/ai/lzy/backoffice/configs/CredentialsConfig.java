@@ -8,7 +8,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.JwtCredentials;
+import ai.lzy.model.utils.JwtCredentials;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 
 @Requires(property = "azure-providers", value = "false", defaultValue = "false")

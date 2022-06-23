@@ -24,8 +24,8 @@ import org.junit.Test;
 import ai.lzy.fs.fs.LzyFSManager;
 import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
 import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.data.DataSchema;
+import ai.lzy.model.Slot;
+import ai.lzy.model.data.DataSchema;
 import ai.lzy.fs.slots.InFileSlot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations.SlotStatus.State;
 

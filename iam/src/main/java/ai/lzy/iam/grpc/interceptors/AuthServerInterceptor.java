@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.function.Function;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.grpc.GrpcHeaders.AUTHORIZATION;
+import static ai.lzy.model.grpc.GrpcHeaders.AUTHORIZATION;
 
 
 public class AuthServerInterceptor implements ServerInterceptor {

@@ -2,7 +2,7 @@ package ai.lzy.fs.snapshot;
 
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
+import ai.lzy.model.GrpcConverter;
 import yandex.cloud.priv.datasphere.v2.lzy.IAM;
 import yandex.cloud.priv.datasphere.v2.lzy.LzyWhiteboard;
 import yandex.cloud.priv.datasphere.v2.lzy.SnapshotApiGrpc;

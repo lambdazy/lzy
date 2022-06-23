@@ -1,7 +1,7 @@
 package ai.lzy.fs.fs;
 
 import com.google.protobuf.ByteString;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
+import ai.lzy.model.Slot;
 import yandex.cloud.priv.datasphere.v2.lzy.Operations;
 
 import java.util.Set;

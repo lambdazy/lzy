@@ -13,9 +13,9 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.kharon.workflow.WorkflowService;
-import ru.yandex.cloud.ml.platform.lzy.model.JsonUtils;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.lzy.model.utils.SessionIdInterceptor;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.utils.SessionIdInterceptor;
 import yandex.cloud.priv.datasphere.v2.lzy.*;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.ReceivedDataStatus;
 import yandex.cloud.priv.datasphere.v2.lzy.Kharon.SendSlotDataMessage;
@@ -31,8 +31,8 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.LzyKharon;
-import static ru.yandex.cloud.ml.platform.lzy.model.UriScheme.*;
+import static ai.lzy.model.UriScheme.LzyKharon;
+import static ai.lzy.model.UriScheme.*;
 
 @SuppressWarnings("UnstableApiUsage")
 public class LzyKharon {
