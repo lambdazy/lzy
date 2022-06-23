@@ -5,7 +5,7 @@ import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import org.apache.logging.log4j.LogManager;
-import ru.yandex.cloud.ml.platform.lzy.kharon.LzyKharon;
+import ai.lzy.kharon.LzyKharon;
 import ru.yandex.cloud.ml.platform.lzy.model.UriScheme;
 import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
 import ru.yandex.cloud.ml.platform.lzy.test.LzyKharonTestContext;
