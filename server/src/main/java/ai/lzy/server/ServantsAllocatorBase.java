@@ -275,7 +275,9 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                     terminate(s);
                     shuttingDown.remove(s);
                 } finally {
-                    ServantsAllocatorBase.this.notifyAll();
+                    synchronized (ServantsAllocatorBase.this) {
+                        ServantsAllocatorBase.this.notifyAll();
+                    }
                 }
             });
             tasksToForceStop.forEach(this::terminate);
