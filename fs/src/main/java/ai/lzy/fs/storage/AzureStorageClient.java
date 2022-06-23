@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.azure.blobstorage.AzureTransmitterFactory;
+import ai.lzy.util.azure.blobstorage.AzureTransmitterFactory;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import yandex.cloud.priv.datasphere.v2.lzy.Lzy;
 

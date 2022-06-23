@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.azure.blobstorage.transfer;
+package ai.lzy.util.azure.blobstorage.transfer;
 
 import static java.lang.String.format;
 
@@ -11,8 +11,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;

@@ -1,4 +1,4 @@
-package ru.yandex.cloud.ml.platform.lzy.azure.blobstorage.transfer;
+package ai.lzy.util.azure.blobstorage.transfer;
 
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.models.Block;

@@ -1,5 +1,7 @@
-package ru.yandex.cloud.ml.platform.lzy.azure.blobstorage;
+package ai.lzy.util.azure.blobstorage;
 
+import ai.lzy.util.azure.blobstorage.transfer.AzureDownloadProcessingLoop;
+import ai.lzy.util.azure.blobstorage.transfer.AzureUploadProcessingLoop;
 import com.amazonaws.retry.PredefinedRetryPolicies;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.models.DownloadRetryOptions;
@@ -9,8 +11,6 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.azure.blobstorage.transfer.AzureDownloadProcessingLoop;
-import ru.yandex.cloud.ml.platform.lzy.azure.blobstorage.transfer.AzureUploadProcessingLoop;
 import ru.yandex.qe.s3.transfer.DownloadTransmitter;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
