@@ -122,6 +122,7 @@ public class LzyServer {
         final int port = Integer.parseInt(parse.getOptionValue('p', "8888"));
         final String lzyServerHost;
         if (System.getenv().containsKey(LZY_SERVER_HOST_ENV)) {
+            //noinspection HttpUrlsUsage
             lzyServerHost = "http://" + System.getenv(LZY_SERVER_HOST_ENV);
         } else {
             lzyServerHost = DEFAULT_LZY_SERVER_LOCALHOST;
@@ -403,28 +404,20 @@ public class LzyServer {
 
             ChannelSpec channel;
             switch (request.getCommandCase()) {
-                case CREATE: {
+                case CREATE -> {
                     final ChannelCreate create = request.getCreate();
                     final ChannelSpec spec;
                     switch (create.getTypeCase()) {
-                        case SNAPSHOT: {
-                            spec = new SnapshotChannelSpec(
-                                request.getChannelName(),
-                                GrpcConverter.contentTypeFrom(create.getContentType()),
-                                create.getSnapshot().getSnapshotId(),
-                                create.getSnapshot().getEntryId(),
-                                request.getAuth()
-                            );
-                            break;
-
-                        }
-                        case DIRECT: {
-                            spec = new DirectChannelSpec(request.getChannelName(),
-                                GrpcConverter.contentTypeFrom(create.getContentType()));
-                            break;
-                        }
-                        default:
-                            throw new NotImplementedException();
+                        case SNAPSHOT -> spec = new SnapshotChannelSpec(
+                            request.getChannelName(),
+                            GrpcConverter.contentTypeFrom(create.getContentType()),
+                            create.getSnapshot().getSnapshotId(),
+                            create.getSnapshot().getEntryId(),
+                            request.getAuth()
+                        );
+                        case DIRECT -> spec = new DirectChannelSpec(request.getChannelName(),
+                            GrpcConverter.contentTypeFrom(create.getContentType()));
+                        default -> throw new NotImplementedException();
                     }
                     channel = tasks.createChannel(
                         resolveUser(auth),
@@ -434,9 +427,8 @@ public class LzyServer {
                     if (channel == null) {
                         channel = channels.get(request.getChannelName());
                     }
-                    break;
                 }
-                case DESTROY: {
+                case DESTROY -> {
                     channel = channels.get(request.getChannelName());
                     if (channel != null) {
                         channels.destroy(channel);
@@ -445,14 +437,9 @@ public class LzyServer {
                         responseObserver.onCompleted();
                         return;
                     }
-                    break;
                 }
-                case STATE: {
-                    channel = channels.get(request.getChannelName());
-                    break;
-                }
-                default:
-                    throw new IllegalStateException("Unexpected value: " + request.getCommandCase());
+                case STATE -> channel = channels.get(request.getChannelName());
+                default -> throw new IllegalStateException("Unexpected value: " + request.getCommandCase());
             }
             if (channel != null) {
                 responseObserver.onNext(channelStatus(channel));
@@ -534,8 +521,10 @@ public class LzyServer {
                         final Metadata metadata = new Metadata();
                         metadata.put(Constants.SESSION_ID_METADATA_KEY, sessionId);
 
+                        //noinspection deprecation
                         final LzyServantGrpc.LzyServantBlockingStub servant = MetadataUtils
                             .attachHeaders(LzyServantGrpc.newBlockingStub(servantChannel), metadata);
+                        //noinspection deprecation
                         final LzyFsGrpc.LzyFsBlockingStub fs = MetadataUtils
                             .attachHeaders(LzyFsGrpc.newBlockingStub(fsChannel), metadata);
 
@@ -765,6 +754,7 @@ public class LzyServer {
         }
 
         public void close() {
+            servantsAllocator.close();
             terminalThreads.forEach(Thread::interrupt);
         }
     }

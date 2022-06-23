@@ -10,6 +10,8 @@ import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DockerClientBuilder;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -111,6 +113,11 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     @Override
     protected void terminate(ServantConnection connection) {
         containers.remove(connection.id()).close();
+    }
+
+    @Override
+    protected List<String> allocatedServantIds() {
+        return new ArrayList<>(containers.keySet());
     }
 
     private static class ContainerDescription {

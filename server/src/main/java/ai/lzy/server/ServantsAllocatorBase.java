@@ -25,6 +25,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public abstract class ServantsAllocatorBase extends TimerTask implements ServantsAllocator.Ex {
+
     public static final int PERIOD = 1000;
     public static final int GRACEFUL_SHUTDOWN_PERIOD_SEC = 10;
     public static final ThreadGroup SERVANT_CONNECTIONS_TG = new ThreadGroup("Servant connections");
@@ -56,13 +57,9 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         ttl.scheduleAtFixedRate(this, PERIOD, PERIOD);
     }
 
-    public ServantsAllocatorBase(Authenticator auth, int waitBeforeShutdownInSec) {
-        this(auth, waitBeforeShutdownInSec, 100);
-    }
-
     protected abstract void requestAllocation(String servantId, String servantToken,
-                                              Provisioning provisioning,
-                                              String bucket);
+        Provisioning provisioning,
+        String bucket);
 
     @SuppressWarnings("unused")
     protected boolean mutate(ServantConnection connection, Provisioning provisioning, Env env) {
@@ -73,13 +70,16 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
     protected abstract void terminate(ServantConnection connection);
 
+    protected abstract List<String> allocatedServantIds();
+
     @Override
     public synchronized CompletableFuture<ServantConnection> allocate(
         String sessionId, Provisioning provisioning, Env env
     ) {
         final SessionImpl session = sessionsById.get(sessionId);
-        if (session == null)
+        if (session == null) {
             throw new IllegalArgumentException("Session " + sessionId + " not found");
+        }
         final CompletableFuture<ServantConnection> requestResult = new CompletableFuture<>();
         final ServantConnection spareConnection = session.servants.stream()
             .filter(spareServants::containsKey)
@@ -167,14 +167,10 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                     request.completeExceptionally(new RuntimeException("Servant disconnected"));
                 }
                 connection.progress(Servant.ServantProgress.newBuilder()
-                        .setFailed(Servant.Failed.newBuilder().build()).build());
+                    .setFailed(Servant.Failed.newBuilder().build()).build());
             } finally {
-                synchronized (ServantsAllocatorBase.this) {
-                    connection.progress(Servant.ServantProgress.newBuilder()
-                            .setConcluded(Servant.Concluded.newBuilder().build()).build());
-                    shuttingDown.remove(connection);
-                    cleanup(connection);
-                }
+                connection.progress(Servant.ServantProgress.newBuilder()
+                    .setConcluded(Servant.Concluded.newBuilder().build()).build());
             }
         }, "connection-to-" + servantId);
         connection.complete(connectionThread, servantUri, servantStub, servantFsUri, servantFsStub);
@@ -195,7 +191,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                         final CompletableFuture<ServantConnection> remove = requests.remove(c.servantId);
                         if (remove != null) {
                             remove.completeExceptionally(
-                                    new RuntimeException("Session deleted before start")
+                                new RuntimeException("Session deleted before start")
                             );
                         }
                         uncompletedConnections.remove(c.servantId);
@@ -266,26 +262,41 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             tasksToShutdown.forEach(s -> {
                 final SessionImpl session = servant2sessions.remove(s.id());
                 if (session != null) {
+                    //noinspection SuspiciousMethodCalls
                     session.servants.remove(s);
                 }
                 shuttingDown.put(s, Instant.now().plus(GRACEFUL_SHUTDOWN_PERIOD_SEC, ChronoUnit.SECONDS));
                 try {
                     //noinspection ResultOfMethodCallIgnored
                     s.control().stop(IAM.Empty.newBuilder().build());
+                    cleanup(s);
                 } catch (Exception e) {
                     LOG.error("Failed to shutdown servant: ", e);
                     terminate(s);
                     shuttingDown.remove(s);
+                } finally {
+                    ServantsAllocatorBase.this.notifyAll();
                 }
             });
             tasksToForceStop.forEach(this::terminate);
         });
-        executor.execute(() -> {
-            notAllocatedServants.forEach(this::terminate);
-        });
+        executor.execute(() -> notAllocatedServants.forEach(this::terminate));
+    }
+
+    @Override
+    public synchronized void close() {
+        LOG.info("Close ServantAllocatorBase...");
+        while (!allocatedServantIds().isEmpty()) {
+            LOG.info("Waiting for servants {}", allocatedServantIds());
+            try {
+                this.wait();
+            } catch (InterruptedException ignored) {
+            }
+        }
     }
 
     private static class ServantConnectionImpl implements ServantConnection {
+
         private final String servantId;
         private final List<Predicate<Servant.ServantProgress>> trackers;
         private final Env env;
@@ -305,8 +316,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         }
 
         public void complete(Thread connectionThread,
-                             URI servantUri, LzyServantGrpc.LzyServantBlockingStub control,
-                             URI servantFsUri, LzyFsGrpc.LzyFsBlockingStub fs) {
+            URI servantUri, LzyServantGrpc.LzyServantBlockingStub control,
+            URI servantFsUri, LzyFsGrpc.LzyFsBlockingStub fs) {
             if (completed.get()) {
                 throw new RuntimeException("Servant connection already completed");
             }
@@ -372,8 +383,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
         @Override
         public final boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             ServantConnectionImpl that = (ServantConnectionImpl) o;
             return Objects.equals(this.id(), that.id());
         }
@@ -385,6 +400,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     private static class SessionImpl implements SessionManager.Session {
+
         private final String id;
         private final String user;
         private final List<ServantConnectionImpl> servants = new ArrayList<>();
@@ -418,8 +434,12 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             SessionImpl session = (SessionImpl) o;
             return id.equals(session.id);
         }

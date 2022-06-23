@@ -13,7 +13,9 @@ import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.Config;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -116,6 +118,11 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
             throw new RuntimeException(e);
         }
         servantPods.remove(connection.id());
+    }
+
+    @Override
+    protected List<String> allocatedServantIds() {
+        return new ArrayList<>(servantPods.keySet());
     }
 
     private boolean isPodExists(String namespace, String name) throws ApiException {
