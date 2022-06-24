@@ -1,25 +1,22 @@
 import uuid
-from datetime import datetime
-from datetime import timedelta
-from typing import List
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import List, Optional
 
+from data import MessageClass, Test1, TestEnum
 from pure_protobuf.types import int32
-
-from lzy.api.v1 import op, LzyRemoteEnv
-
-from data import Test1, MessageClass, TestEnum
 from wbs import (
     AnotherSimpleView,
-    SimpleView,
     AnotherSimpleWhiteboard,
     DefaultWhiteboard,
     OneMoreSimpleWhiteboard,
+    SimpleView,
     SimpleWhiteboard,
+    WhiteboardWithLzyMessageFields,
     WhiteboardWithOneLzyMessageField,
     WhiteboardWithTwoLzyMessageFields,
-    WhiteboardWithLzyMessageFields,
 )
+
+from lzy.api.v1 import LzyRemoteEnv, op
 
 """
 This scenario contains:

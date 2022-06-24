@@ -1,7 +1,7 @@
 from typing import List
 
 from lzy.api.v2.api import LzyCall
-from lzy.api.v2.api.graph import GraphBuilder, Graph
+from lzy.api.v2.api.graph import Graph, GraphBuilder
 
 
 class LzyWorkflowSplitter:
@@ -17,4 +17,3 @@ class LzyWorkflowSplitter:
             graph_builder.add_call(call)
         self._calls = []
         return graph_builder.build()
-

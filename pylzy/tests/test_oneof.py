@@ -1,6 +1,4 @@
 from dataclasses import dataclass
-
-
 from unittest import TestCase
 
 from pure_protobuf.dataclasses_ import message, one_of, part

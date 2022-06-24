@@ -1,9 +1,5 @@
 from dataclasses import dataclass
-from typing import (
-    Generic,
-    TypeVar,
-    Union,
-)
+from typing import Generic, TypeVar, Union
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

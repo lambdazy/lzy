@@ -1,22 +1,19 @@
 import dataclasses
 import os
-
-
 from pathlib import Path
-from typing import List, Any, Callable, Optional, Dict, Set
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from pure_protobuf.dataclasses_ import message  # type: ignore
 
+from lzy.api.v1.servant.channel_manager import ChannelManager
 from lzy.api.v1.servant.model.slot import DataSchema, pickle_type
-from lzy.serialization.serializer import FileSerializer
 from lzy.api.v1.utils import is_lazy_proxy
 from lzy.api.v1.whiteboard.model import (
+    EntryIdGenerator,
     WhiteboardApi,
     WhiteboardDescription,
-    EntryIdGenerator,
 )
-from lzy.api.v1.servant.channel_manager import ChannelManager
-
+from lzy.serialization.serializer import FileSerializer
 
 ALREADY_WRAPPED = "_already_wrapped_whiteboard"
 ALREADY_WRAPPED_READY = "_already_wrapped_ready_whiteboard"

@@ -1,7 +1,7 @@
 import base64
-from dataclasses import dataclass
-from abc import ABC, abstractmethod
 import json
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict
 
@@ -9,7 +9,7 @@ import cloudpickle
 
 
 def pickle_type(type_: type) -> str:
-    return base64.b64encode(cloudpickle.dumps(type_)).decode('ascii')
+    return base64.b64encode(cloudpickle.dumps(type_)).decode("ascii")
 
 
 def unpickle_type(base64_str: str) -> type:
@@ -51,8 +51,8 @@ class DataSchema:
 
     def to_dict(self) -> Dict[str, str]:
         return {
-           "type": self.type_,
-           "schemeType": self.schemeType,
+            "type": self.type_,
+            "schemeType": self.schemeType,
         }
 
     def to_json(self) -> str:

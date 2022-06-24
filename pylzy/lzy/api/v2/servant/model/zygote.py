@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import json
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Generic, List, Optional, TypeVar
 

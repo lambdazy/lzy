@@ -1,7 +1,7 @@
 from typing import Tuple
 
 
-def extend(classes: Tuple[type, ...], original_prefix: str = 'original_'):
+def extend(classes: Tuple[type, ...], original_prefix: str = "original_"):
     def decorator(func):
         for cls in classes:
             original = getattr(cls, func.__name__)

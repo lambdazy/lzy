@@ -1,17 +1,40 @@
 #!/usr/bin/env nix-shell
 #! nix-shell build.nix -A shell-lint -i bash
 
+source ./util.sh
 
-echo "Calling mypy typechecking"
-mypy .
-mypy_exit=$?
-echo "Mypy exited with code $mypy_exit"
+print_cmd_exit() {
+    _ex=$1
+    msg="$2 exited with code: $_ex"
+    [ $_ex -eq 0 ] && print_green "$msg" || print_red "$msg"
+}
 
-echo "Calling pyright typechecking"
-pyright .
-pyright_exit=$?
-echo "Calling pyright exited with code $pyright_exit"
+run() {
+    cmd_name=$1
+    type=$2
 
-[ $mypy_exit -ne 0 ] && exit $mypy_exit
-[ $pyright_exit -ne 0 ] && exit $pyright_exit
+    println "Calling $type: $cmd_name"
+
+    $cmd_name .
+    _ex=$?
+    print_cmd_exit $_ex $cmd_name
+
+    [ $rc -eq 0 ] && [ $_ex -eq 0 ]
+    rc=$?
+}
+
+
+_f="formatter"
+_t="typechecker"
+
+rc=0
+
+run black   $_f
+run isort   $_f
+run mypy    $_t
+run pyright $_t
+
+print_cmd_exit $rc "Whole pipeline"
+[ $rc -ne 0 ] && exit 1
+
 exit 0
