@@ -179,7 +179,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             return;
         }
 
-        UUID sessionId = UUID.randomUUID();
+        String sessionId = "session-" + UUID.randomUUID();
 
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
@@ -187,7 +187,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                 session.save(new BackofficeSessionModel(sessionId, null));
                 responseObserver.onNext(
                     BackOffice.GenerateSessionIdResponse.newBuilder()
-                        .setSessionId(sessionId.toString())
+                        .setSessionId(sessionId)
                         .build()
                 );
                 responseObserver.onCompleted();
@@ -239,7 +239,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                     BackOffice.AuthUserSessionResponse
                         .newBuilder()
                         .setCredentials(BackOffice.BackofficeUserCredentials.newBuilder()
-                            .setSessionId(sessionModel.getId().toString())
+                            .setSessionId(sessionModel.getId())
                             .setUserId(user.getUserId())
                             .build())
                         .build()
