@@ -5,8 +5,8 @@ package ai.lzy.priv.v2.graph;
 option java_outer_classname = "GraphExecutorApi";
 option java_package = "ai.lzy.priv.v2.graph";
 
+import "ai/lzy/priv/v2/scheduler/lzy-scheduler.proto";
 import "ai/lzy/priv/v2/lzy-zygote.proto";
-import "ai/lzy/priv/v2/graph/lzy-scheduler.proto";
 
 service GraphExecutor {
   rpc Execute (GraphExecuteRequest) returns (GraphExecuteResponse);
@@ -28,7 +28,7 @@ message SlotToChannelAssignment {
 
 message TaskExecutionStatus {
   string taskDescriptionId = 1;
-  TaskStatus progress = 2;
+  scheduler.TaskStatus progress = 2;
 }
 
 message GraphExecutionStatus {

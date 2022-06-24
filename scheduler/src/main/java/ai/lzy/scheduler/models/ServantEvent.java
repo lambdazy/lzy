@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.models;
 
+import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.Delayed;
@@ -17,7 +18,8 @@ public record ServantEvent(
     @Nullable String description,
     @Nullable Integer rc,
     @Nullable String taskId,
-    @Nullable Integer signalNumber
+    @Nullable Integer signalNumber,
+    @Nullable URL servantUrl
 ) implements Delayed {
 
     public static EventBuilder fromState(ServantState state, Type type) {
@@ -60,6 +62,7 @@ public record ServantEvent(
         private String description = null;
         private String taskId = null;
         private Integer signalNumber = null;
+        private URL servantUrl = null;
 
         private EventBuilder(ServantState state, Type type) {
             this.state = state;
@@ -91,6 +94,11 @@ public record ServantEvent(
             return this;
         }
 
+        public EventBuilder setServantUrl(URL servantUrl) {
+            this.servantUrl = servantUrl;
+            return this;
+        }
+
         public ServantEvent build() {
             return new ServantEvent(
                 UUID.randomUUID().toString(),
@@ -101,7 +109,8 @@ public record ServantEvent(
                 description,
                 rc,
                 taskId,
-                signalNumber
+                signalNumber,
+                servantUrl
             );
         }
     }

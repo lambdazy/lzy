@@ -11,22 +11,23 @@ import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 public interface ServantDao {
 
     @Nullable
-    ServantState acquire(String resourceId) throws AcquireException;
-    void updateAndFree(ServantState resource);
+    ServantState acquire(String servantId) throws AcquireException, DaoException;
+    void updateAndFree(ServantState resource) throws DaoException;
 
-    List<Servant> getAllFree();
-    List<Servant> getAllAcquired();
+    List<Servant> getAllFree() throws DaoException;
+    List<Servant> getAllAcquired() throws DaoException;
 
-    Servant create(String workflowId, Provisioning provisioning, Env env) throws DaoException;
-
-    @Nullable
-    Servant get(String workflowId, String servantId);
+    Servant create(String workflowId, Provisioning provisioning) throws DaoException;
+    int countAlive(String workflowId, Provisioning provisioning) throws DaoException;
 
     @Nullable
-    Servant acquireForTask(String workflowId, String taskId,
-                           Provisioning provisioning, Status... statuses) throws DaoException;
-    void acquireForTask(Servant servant, String taskId) throws DaoException;
-    void freeFromTask(String servantId) throws DaoException;
+    Servant get(String workflowId, String servantId) throws DaoException;
+
+    @Nullable
+    Servant acquireForTask(String workflowId, Provisioning provisioning, Status... statuses) throws DaoException;
+    void freeFromTask(String workflowId, String servantId) throws DaoException;
+
+    void invalidate(Servant servant, String description) throws DaoException;
 
     class AcquireException extends Exception {}
 }

@@ -1,8 +1,11 @@
-package ai.lzy.scheduler.servant;
+package ai.lzy.scheduler.servant.impl;
 
 import ai.lzy.scheduler.models.ServantEvent;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.models.TaskState;
+import ai.lzy.scheduler.servant.Servant;
+import ai.lzy.scheduler.task.Task;
+import java.net.URL;
 import org.jetbrains.annotations.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
@@ -24,8 +27,9 @@ public class ServantImpl implements Servant {
     }
 
     @Override
-    public void notifyConnected() {
+    public void notifyConnected(URL servantUrl) {
         events.put(ServantEvent.fromState(state, ServantEvent.Type.CONNECTED)
+            .setServantUrl(servantUrl)
             .setDescription("Servant connected to scheduler")
             .build());
     }
@@ -46,10 +50,10 @@ public class ServantImpl implements Servant {
     }
 
     @Override
-    public void startExecution(TaskState task) {
+    public void setTask(Task task) {
         events.put(ServantEvent.fromState(state, ServantEvent.Type.EXECUTION_REQUESTED)
-            .setTaskId(task.id())
-            .setDescription("Execution of task <" + task.id() + "> requested")
+            .setTaskId(task.taskId())
+            .setDescription("Execution of task <" + task.taskId() + "> requested")
             .build());
     }
 

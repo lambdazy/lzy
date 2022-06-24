@@ -1,4 +1,4 @@
-package ai.lzy.scheduler.servant;
+package ai.lzy.scheduler.servant.impl;
 
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.models.ServantEvent;

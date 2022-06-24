@@ -9,23 +9,13 @@ public class DaoException extends Exception {
         super(e);
     }
 
-    public static class AcquireException extends DaoException {
+    public static class AcquireException extends Exception {
 
         public AcquireException(Exception e) {
             super(e);
         }
 
         public AcquireException(String e) {
-            super(e);
-        }
-    }
-
-    public static class ConstraintException extends DaoException {
-        public ConstraintException(Exception e) {
-            super(e);
-        }
-
-        public ConstraintException(String e) {
             super(e);
         }
     }

@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.models;
 
+import java.net.URL;
 import javax.annotation.Nullable;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
 import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
@@ -12,7 +13,8 @@ public record ServantState(
     Env env,
 
     @Nullable String errorDescription,
-    @Nullable String taskId
+    @Nullable String taskId,
+    @Nullable URL servantUrl
 ) {
 
     public enum Status {
@@ -41,11 +43,12 @@ public record ServantState(
         private String id;
         private String workflowId;
         private Provisioning provisioning;
+        private Env env;
         private Status status;
 
         private String taskId;
-        private Env env;
         private String errorDescription;
+        private URL servantUrl;
 
         public ServantStateBuilder setId(String id) {
             this.id = id;
@@ -82,8 +85,13 @@ public record ServantState(
             return this;
         }
 
+        public ServantStateBuilder setServantUrl(URL servantUrl) {
+            this.servantUrl = servantUrl;
+            return this;
+        }
+
         public ServantState build() {
-            return new ServantState(id, workflowId, provisioning, status, env, errorDescription, taskId);
+            return new ServantState(id, workflowId, provisioning, status, env, errorDescription, taskId, servantUrl);
         }
     }
 }

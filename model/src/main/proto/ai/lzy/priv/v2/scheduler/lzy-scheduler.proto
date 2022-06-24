@@ -8,10 +8,10 @@ option java_package = "ai.lzy.priv.v2";
 import "ai/lzy/priv/v2/lzy-zygote.proto";
 
 service Scheduler {
-  rpc schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
-  rpc status (TaskStatusRequest) returns (TaskStatusResponse);
-  rpc list (TaskListRequest) returns (TaskListResponse);
-  rpc signal (TaskSignalRequest) returns (TaskSignalResponse);
+  rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
+  rpc Status (TaskStatusRequest) returns (TaskStatusResponse);
+  rpc List (TaskListRequest) returns (TaskListResponse);
+  rpc Signal (TaskSignalRequest) returns (TaskSignalResponse);
 }
 
 message TaskStatus {
