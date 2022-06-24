@@ -1,7 +1,7 @@
 #!/usr/bin/env nix-shell
 #! nix-shell build.nix -A shell -i bash
 
-# this hast to be declarared as env variable in mk-python-env.nix
+# this has to be declarared as env variable in mk-python-env.nix
 # proto_out="lzy/proto"
 
 [ ! -d "$proto_out" ] && mkdir -p "$proto_out"

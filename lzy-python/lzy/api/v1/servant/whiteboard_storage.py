@@ -1,12 +1,17 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import TypeVar, IO
+from typing import IO, TypeVar
 
 from azure.storage.blob import BlobServiceClient
-from pure_protobuf.dataclasses_ import loads, load  # type: ignore
+from pure_protobuf.dataclasses_ import load, loads  # type: ignore
 
-from lzy.storage.credentials import AzureCredentials, AmazonCredentials, StorageCredentials, AzureSasCredentials
-from lzy.storage.storage_client import AzureClient, AmazonClient
+from lzy.storage.credentials import (
+    AmazonCredentials,
+    AzureCredentials,
+    AzureSasCredentials,
+    StorageCredentials,
+)
+from lzy.storage.storage_client import AmazonClient, AzureClient
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -42,11 +47,15 @@ class AzureWhiteboardStorage(WhiteboardStorage):
         self.client.read(url, dest)
 
     @staticmethod
-    def from_connection_string(credentials: AzureCredentials) -> 'AzureWhiteboardStorage':
-        return AzureWhiteboardStorage(BlobServiceClient.from_connection_string(credentials.connection_string))
+    def from_connection_string(
+        credentials: AzureCredentials,
+    ) -> "AzureWhiteboardStorage":
+        return AzureWhiteboardStorage(
+            BlobServiceClient.from_connection_string(credentials.connection_string)
+        )
 
     @staticmethod
-    def from_sas(credentials: AzureSasCredentials) -> 'AzureWhiteboardStorage':
+    def from_sas(credentials: AzureSasCredentials) -> "AzureWhiteboardStorage":
         return AzureWhiteboardStorage(BlobServiceClient(credentials.endpoint))
 
 

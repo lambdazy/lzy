@@ -2,57 +2,57 @@ import dataclasses
 import logging
 import os
 import tempfile
-from yaml import safe_load
-from abc import abstractmethod, ABC
-from pathlib import Path
+import zipfile
+from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Dict, List, Tuple, Callable, Type, Any, TypeVar, Iterable, Optional
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar
+
+from yaml import safe_load
 
 from lzy.api.v1.buses import Bus
 from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.lazy_op import LzyOp
-from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
-import zipfile
-
-from lzy.api.v1.servant.model.encoding import ENCODING as encoding
-from lzy.api.v1.utils import zipdir, fileobj_hash
-from lzy.serialization.hasher import DelegatingHasher, Hasher
-from lzy.serialization.serializer import (
-    FileSerializerImpl,
-    MemBytesSerializerImpl,
-    MemBytesSerializer,
-    FileSerializer,
+from lzy.api.v1.servant.bash_servant_client import BashServantClient
+from lzy.api.v1.servant.channel_manager import (
+    ChannelManager,
+    LocalChannelManager,
+    ServantChannelManager,
 )
-from lzy.storage.storage_client import StorageClient, from_credentials
+from lzy.api.v1.servant.model.encoding import ENCODING as encoding
+from lzy.api.v1.servant.model.env import PyEnv
+from lzy.api.v1.servant.servant_client import (
+    CredentialsTypes,
+    ServantClient,
+    ServantClientMock,
+)
+from lzy.api.v1.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
+from lzy.api.v1.utils import fileobj_hash, zipdir
 from lzy.api.v1.whiteboard import (
+    check_whiteboard,
     wrap_whiteboard,
     wrap_whiteboard_for_read,
-    check_whiteboard,
 )
 from lzy.api.v1.whiteboard.model import (
     InMemSnapshotApi,
     InMemWhiteboardApi,
     SnapshotApi,
+    UUIDEntryIdGenerator,
     WhiteboardApi,
-    WhiteboardList,
     WhiteboardDescription,
     WhiteboardFieldDescription,
     WhiteboardFieldStatus,
-    UUIDEntryIdGenerator,
+    WhiteboardList,
 )
-from lzy.api.v1.servant.model.env import PyEnv
-from lzy.api.v1.servant.bash_servant_client import BashServantClient
-from lzy.api.v1.servant.channel_manager import (
-    ServantChannelManager,
-    LocalChannelManager,
-    ChannelManager,
+from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
+from lzy.serialization.hasher import DelegatingHasher, Hasher
+from lzy.serialization.serializer import (
+    FileSerializer,
+    FileSerializerImpl,
+    MemBytesSerializer,
+    MemBytesSerializerImpl,
 )
-from lzy.api.v1.servant.servant_client import (
-    ServantClient,
-    CredentialsTypes,
-    ServantClientMock,
-)
-from lzy.api.v1.servant.whiteboard_bash_api import SnapshotBashApi, WhiteboardBashApi
+from lzy.storage.storage_client import StorageClient, from_credentials
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]
@@ -141,9 +141,7 @@ class LzyEnvBase(ABC):
             except TypeError:
                 self._log.warning(f"Could not create whiteboard with type {typ}")
 
-        self._log.info(
-            f"_whiteboards built: {result}"
-        )
+        self._log.info(f"_whiteboards built: {result}")
         return result
 
     def whiteboards(

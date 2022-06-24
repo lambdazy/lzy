@@ -32,9 +32,17 @@ let
   ]);
 
   python-lint = python.withPackages(ps: with ps; [
+    # formatter
+    black
+
+    # import sort
+    isort
+
+    # typing
     mypy
     pyright
 
+    # type stubs:
     types-setuptools
     types-requests
 

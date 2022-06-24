@@ -1,7 +1,11 @@
 from typing import Dict, Optional
 
 from lzy.api.v2.grpc.servant.api.channel_manager import ChannelManager
-from lzy.api.v2.servant.model.channel import Channel, SnapshotChannelSpec, DirectChannelSpec
+from lzy.api.v2.servant.model.channel import (
+    Channel,
+    DirectChannelSpec,
+    SnapshotChannelSpec,
+)
 from lzy.api.v2.servant.model.slot import Slot
 
 

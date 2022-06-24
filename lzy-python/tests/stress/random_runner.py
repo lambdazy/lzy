@@ -1,6 +1,6 @@
 from multiprocessing import Pool, Process
-from time import sleep
 from random import randint
+from time import sleep
 
 from task_generator import TaskGenerator
 
@@ -11,7 +11,7 @@ class RandomRunner(Process):
         task_supplier: TaskGenerator,
         max_task_in_parallel,
         max_rand_sleep_period_sec,
-        num_task_to_execute
+        num_task_to_execute,
     ):
         super().__init__(target=self.cycle, name="main_random_runner")
         self.task_supplier = task_supplier
