@@ -15,10 +15,10 @@ public class BackofficeSessionModel {
     @JoinColumn(name = "uid")
     UserModel owner;
     @Id
-    @Column(name = "id", columnDefinition = "UUID")
-    private UUID id;
+    @Column(name = "id")
+    private String id;
 
-    public BackofficeSessionModel(UUID id, UserModel owner) {
+    public BackofficeSessionModel(String id, UserModel owner) {
         this.id = id;
         this.owner = owner;
     }
@@ -26,11 +26,11 @@ public class BackofficeSessionModel {
     public BackofficeSessionModel() {
     }
 
-    public UUID getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(String id) {
         this.id = id;
     }
 
