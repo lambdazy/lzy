@@ -11,13 +11,13 @@
   <modelVersion>4.0.0</modelVersion>
   <version>0.1</version>
   <packaging>${packaging}</packaging>
-  <groupId>ru.yandex.cloud.ml.platform.lzy.iam</groupId>
+  <groupId>ai.lzy.iam</groupId>
   <artifactId>iam</artifactId>
 
   <properties>
     <packaging>jar</packaging>
     <micronaut.runtime>netty</micronaut.runtime>
-    <exec.mainClass>ru.yandex.cloud.ml.platform.lzy.iam</exec.mainClass>
+    <exec.mainClass>ai.lzy.iam</exec.mainClass>
   </properties>
 
   <dependencies>

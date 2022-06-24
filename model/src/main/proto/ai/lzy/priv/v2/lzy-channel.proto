@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package ai.lzy.priv.v2;
+
+import "ai/lzy/priv/v2/lzy-zygote.proto";
+import "ai/lzy/priv/v2/lzy-auth.proto";
+
+option java_outer_classname = "Channels";
+option java_package = "ai.lzy.priv.v2";
+
+message Channel {
+  string channelId = 1;
+  DataScheme contentType = 2;
+}
+
+message ChannelCommand {
+  Auth auth = 1;
+  string channelName = 2;
+  oneof command {
+    ChannelCreate create = 3;
+    ChannelDestroy destroy = 4;
+    ChannelState state = 5;
+  }
+}
+
+message DirectChannelSpec {}
+
+message SnapshotChannelSpec {
+  string snapshotId = 1;
+  string entryId = 2;
+}
+
+message ChannelCreate {
+  DataScheme contentType = 1;
+  oneof type {
+    DirectChannelSpec direct = 2;
+    SnapshotChannelSpec snapshot = 3;
+  }
+}
+
+message ChannelDestroy {
+}
+
+message ChannelState {
+}
+
+message BindRequest {
+  TaskCredentials auth = 1;
+
+  string channelId = 2;
+  string slotName = 3;
+
+  string offset = 4;
+}
+
+message Binding {
+  Status status = 1;
+
+  enum Status {
+    OK = 0;
+    FAILED = 1;
+  }
+}
+
+message ChannelStatus {
+  Channel channel = 1;
+  repeated SlotStatus connected = 2;
+}
+
+message ChannelStatusList {
+  repeated ChannelStatus statuses = 1;
+}
+
+message OpenChannelRequest {
+  Auth auth = 1;
+  string channelId = 2;
+}

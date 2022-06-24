@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package ai.lzy.v1;
+
+option java_outer_classname = "IAM";
+option java_package = "ai.lzy.v1";
+
+message Resource {
+  string id = 1;
+  string type = 2;
+}
+
+message Subject {
+  string id = 1;
+}
+
+message Credentials {
+  string name = 1;
+  string credentials = 2;
+  string type = 3;
+}
+
+message AccessBinding {
+  string role = 1;
+  Subject subject = 2;
+}
+
+enum AccessBindingAction {
+  UNSPECIFIED = 0;
+  ADD = 1;
+  REMOVE = 2;
+}
+
+message AccessBindingDelta {
+  AccessBinding binding = 1;
+  AccessBindingAction action = 2;
+}

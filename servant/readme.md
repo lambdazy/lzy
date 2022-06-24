@@ -4,8 +4,8 @@
 
 module: `servant`
 
-[Main class](src/main/java/ru/yandex/cloud/ml/platform/lzy/servant/BashApi.java):
-`ru.yandex.cloud.ml.platform.lzy.servant.BashApi`
+[Main class](src/main/java/ai/lzy/servant/BashApi.java):
+`ai.lzy.servant.BashApi`
 
 VM options:
 ```

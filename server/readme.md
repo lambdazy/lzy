@@ -4,8 +4,8 @@
 
 module: `server`
 
-[Main class](src/main/java/ru/yandex/cloud/ml/platform/lzy/server/LzyServer.java):
-`ru.yandex.cloud.ml.platform.lzy.server.LzyServer`
+[Main class](src/main/java/ai/lzy/server/LzyServer.java):
+`LzyServer`
 
 VM options:
 

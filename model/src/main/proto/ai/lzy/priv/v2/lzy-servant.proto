@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package ai.lzy.priv.v2;
+
+import "ai/lzy/priv/v2/lzy-auth.proto";
+import "ai/lzy/priv/v2/lzy-zygote.proto";
+import "ai/lzy/priv/v2/lzy-task.proto";
+
+option java_outer_classname = "Servant";
+option java_package = "ai.lzy.priv.v2";
+
+service LzyServant {
+  /** Only one execution at a time */
+  rpc Start (Empty) returns (stream ServantProgress);
+  rpc Env (EnvSpec) returns (EnvResult);
+  rpc Execute (TaskSpec) returns (ExecutionStarted);
+  rpc Signal (TaskSignal) returns (Empty);
+  rpc Update (Auth) returns (Empty);
+  rpc Status(Empty) returns (ServantStatus);
+  rpc Stop (Empty) returns (Empty);
+}
+
+message SlotSpec {
+  Slot slot = 1;
+  string channelId = 2;
+}
+
+message ServantProgress {
+  oneof status {
+    Started start = 1;
+    StateChanged changed = 2;
+    SlotAttach attach = 3;
+    SlotDetach detach = 4;
+    ExecutionStarted executeStart = 5;
+    ExecutionConcluded executeStop = 6;
+    CommunicationCompleted communicationCompleted = 7;
+    Failed failed = 8;
+    Concluded concluded = 9;
+  }
+}
+
+message ExecutionStarted {
+}
+
+message Started {
+}
+
+message Failed {
+}
+
+message Concluded {
+}
+
+message CommunicationCompleted {}
+
+message EnvResult {
+  string description = 1;
+  int32  rc = 2;
+}
+
+message StateChanged {
+  State newState = 1;
+  string tid = 2;
+  enum State {
+    PREPARING = 0;
+    CONNECTED = 1;
+    RUNNING = 2;
+    SUSPENDED = 3;
+    FINISHED = 4;
+    DESTROYED = 5;
+  }
+}
+message SlotAttach {
+  Slot slot = 1;
+  string uri = 2;
+  string channel = 3;
+}
+
+message SlotDetach {
+  Slot slot = 1;
+  string uri = 2;
+}
+
+message ExecutionConcluded {
+  int32 rc = 1;
+  string description = 2;
+}
+
+message ServantStatus {
+  Status status = 1;
+  repeated SlotStatus connections = 2;
+
+  enum Status {
+    STARTED = 0;
+    REGISTERING = 1;
+    REGISTERED = 2;
+    PREPARING_EXECUTION = 3;
+    EXECUTING = 4;
+  }
+}
