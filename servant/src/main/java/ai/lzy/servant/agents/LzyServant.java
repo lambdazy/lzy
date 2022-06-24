@@ -5,6 +5,7 @@ import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.fs.LzyFileSlot;
@@ -162,7 +163,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
-            LOG.info("LzyServant::prepare " + JsonUtils.printRequest(request));
+            LOG.info("Servant::prepare " + JsonUtils.printRequest(request));
             MetricEventLogger.timeIt(
                 "time of context preparing",
                 Map.of("metric_type", "system_metric"),
@@ -202,7 +203,11 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
-            LOG.info("LzyServant::execute " + JsonUtils.printRequest(request));
+            if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
+                LOG.debug("Servant::execute " + JsonUtils.printRequest(request));
+            } else {
+                LOG.info("Servant::execute request (tid={})", request.getTid());
+            }
             if (status.get() == AgentStatus.EXECUTING) {
                 responseObserver.onError(Status.RESOURCE_EXHAUSTED.withDescription("Already executing").asException());
                 return;
@@ -250,7 +255,7 @@ public class LzyServant extends LzyAgent {
                     }
                 });
                 currentExecution = context.execute(tid, zygote, progress -> {
-                    LOG.info("LzyServant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
+                    LOG.info("Servant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
                         "Servant execution progress",
                         Map.of(
@@ -270,7 +275,7 @@ public class LzyServant extends LzyAgent {
                             ),
                             UserEvent.UserEventType.ExecutionComplete
                         ));
-                        LOG.info("LzyServant::exit {}", agentAddress);
+                        LOG.info("Servant::exit {}", agentAddress);
                         status.set(AgentStatus.REGISTERED);
                     }
                 });
