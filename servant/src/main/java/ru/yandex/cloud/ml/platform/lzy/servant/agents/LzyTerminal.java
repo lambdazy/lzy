@@ -16,7 +16,6 @@ import java.net.URISyntaxException;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -228,7 +227,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                         final var inputSlot = (LzyInputSlot) slot;
                                         if (UriScheme.SlotS3.match(slotUri) || UriScheme.SlotAzure.match(slotUri)) {
                                             inputSlot.connect(slotUri,
-                                                lzyFs.getSlotConnectionManager().connectToS3(slotUri, 0));
+                                                lzyFs.getSlotConnectionManager().connectToS3(slotUri));
                                         } else {
                                             inputSlot.connect(slotUri,
                                                 lzyFs.getSlotConnectionManager().connectToSlot(slotUri, 0));

@@ -203,7 +203,7 @@ public final class LzyFsServer {
                 final URI slotUri = URI.create(connect.getSlotUri());
                 if (slot instanceof LzyInputSlot) {
                     if (SlotS3.match(slotUri) || SlotAzure.match(slotUri)) {
-                        ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToS3(slotUri, 0));
+                        ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToS3(slotUri));
                     } else {
                         ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToSlot(slotUri, 0));
                     }
