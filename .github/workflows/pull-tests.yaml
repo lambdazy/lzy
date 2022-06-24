@@ -17,31 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: stCarolas/setup-maven@v4.3
-        with:
-          maven-version: 3.8.2
-
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'adopt'
-          java-version: '17'
-
-      - name: "Download conda"
-        run: |
-          echo "4ee9c3aa53329cd7a63b49877c0babb49b19b7e5af29807b793a76bdb1d362b4  miniconda.sh" > sha256.hash
-          wget https://repo.anaconda.com/miniconda/Miniconda3-py39_4.11.0-Linux-x86_64.sh -O miniconda.sh
-
-      - name: "Verify conda"
-        run: sha256sum -c sha256.hash
-
-      - name: "Install conda"
-        run: bash miniconda.sh -b -p $RUNNER_TEMP/miniconda
-
-      - name: "Create conda env"
-        run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
-          conda create --name "py39" "python=3.9.7"
-
       - name: 'install python requirements'
         run: |
           export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
