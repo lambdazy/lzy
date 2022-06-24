@@ -11,7 +11,7 @@ from lzy.api.v2.api.lzy_call import LzyCall
 from lzy.api.v2.api.lzy_op import LzyOp
 from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 from lzy.api.v2.api.provisioning import Gpu, Provisioning
-from lzy.api.v2.utils import infer_return_type, infer_call_signature, lazy_proxy
+from lzy.api.v2.utils import infer_call_signature, infer_return_type, lazy_proxy
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -31,7 +31,6 @@ def handlers():
 
 def init_logger():
     logging.basicConfig(
-        filename="example.log",
         handlers=handlers(),
         encoding="utf-8",
         level=logging.INFO,

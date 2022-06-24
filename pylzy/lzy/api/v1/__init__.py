@@ -4,15 +4,20 @@ import logging
 import sys
 from typing import Callable
 
-from lzy.api.v1.env import LzyWorkflowBase, LzyRemoteWorkflow, LzyLocalWorkflow
-from lzy.api.v1.cache_policy import CachePolicy
-from lzy.api.v1.lazy_op import LzyLocalOp, LzyRemoteOp
 from lzy._proxy.result import Nothing
+from lzy.api.v1.cache_policy import CachePolicy
+from lzy.api.v1.env import (
+    LzyLocalEnv,
+    LzyLocalWorkflow,
+    LzyRemoteEnv,
+    LzyRemoteWorkflow,
+    LzyWorkflowBase,
+)
+from lzy.api.v1.lazy_op import LzyLocalOp, LzyRemoteOp
 from lzy.api.v1.servant.model.zygote import Gpu, Provisioning
-from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
+from lzy.api.v1.utils import infer_call_signature, infer_return_type, lazy_proxy
 from lzy.api.v1.whiteboard import view, whiteboard
-from lzy.api.v1.utils import infer_return_type, lazy_proxy, infer_call_signature
-from lzy.api.v1.env import LzyRemoteEnv, LzyLocalEnv
+from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
 
 logging.root.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
@@ -79,7 +84,7 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     pyenv,
                     deployed=False,
                     channel_manager=current_workflow.channel_manager(),
-                    cache_policy=current_workflow.cache_policy
+                    cache_policy=current_workflow.cache_policy,
                 )
             else:
                 raise TypeError(f"Unsupported env type: {type(current_workflow)}")

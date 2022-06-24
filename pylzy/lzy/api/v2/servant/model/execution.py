@@ -1,6 +1,6 @@
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Iterable
+from typing import Iterable, Optional
 
 from lzy.api.v2.servant.model.channel import Bindings
 

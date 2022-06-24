@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import List, Optional, Union
 
 
 @dataclass
@@ -16,5 +16,5 @@ class AuxEnv:
 
 @dataclass
 class Env:
-    base_env: Optional[BaseEnv] = None
+    base_env: BaseEnv = BaseEnv("default")
     aux_env: Optional[AuxEnv] = None

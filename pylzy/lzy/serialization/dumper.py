@@ -1,7 +1,7 @@
 import os
 import tempfile
 from abc import ABC, abstractmethod
-from typing import TypeVar, IO, Type
+from typing import IO, Type, TypeVar
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -30,6 +30,7 @@ class CatboostPoolDumper(Dumper):
         # noinspection PyBroadException
         try:
             import catboost  # type: ignore
+
             return True
         except:
             return False
@@ -55,8 +56,10 @@ class CatboostPoolDumper(Dumper):
             handle.flush()
             os.fsync(handle.fileno())
             import catboost
+
             return catboost.Pool("quantized://" + handle.name)  # type: ignore
 
     def typ(self) -> Type[T]:
         import catboost
+
         return catboost.Pool  # type: ignore

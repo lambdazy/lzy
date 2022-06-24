@@ -1,17 +1,16 @@
 # noinspection PyPackageRequirements
 import numpy as np
-from lzy.api.v1 import Provisioning, Gpu
+
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier
 
-if __name__ == '__main__':
-    data = np.array([[0, 3],
-                     [4, 1],
-                     [8, 1],
-                     [9, 1]])
+from lzy.api.v1 import Gpu, Provisioning
+
+if __name__ == "__main__":
+    data = np.array([[0, 3], [4, 1], [8, 1], [9, 1]])
     labels = np.array([0, 0, 1, 1])
 
-    model = CatBoostClassifier(iterations=1000, train_dir='/tmp/catboost')
+    model = CatBoostClassifier(iterations=1000, train_dir="/tmp/catboost")
     # noinspection PyArgumentList
     model.fit(data, labels, provisioning=Provisioning(gpu=Gpu.any()))
 

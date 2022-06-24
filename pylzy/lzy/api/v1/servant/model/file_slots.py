@@ -1,4 +1,4 @@
-from lzy.api.v1.servant.model.slot import Media, Slot, Direction, DataSchema
+from lzy.api.v1.servant.model.slot import DataSchema, Direction, Media, Slot
 
 
 class FileSlot(Slot):

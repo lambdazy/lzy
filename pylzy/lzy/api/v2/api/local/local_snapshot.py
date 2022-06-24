@@ -1,5 +1,5 @@
 import uuid
-from typing import Type, Any, TypeVar, Optional
+from typing import Any, Optional, Type, TypeVar
 
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
 from lzy.serialization.serializer import Serializer

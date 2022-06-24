@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Type, Any
+from typing import Any, List, Optional, Type
 
 from lzy.api.v2.servant.snapshot_api import SnapshotDescription
 
@@ -19,7 +19,9 @@ class WhiteboardFieldStatus(Enum):
 class WhiteboardFieldDescription:
     field_name: str
     status: WhiteboardFieldStatus
-    dependent_field_names: Optional[List[str]]  # protobuf makes no distinction between empty list and null list
+    dependent_field_names: Optional[
+        List[str]
+    ]  # protobuf makes no distinction between empty list and null list
     storage_uri: str
 
 
@@ -40,7 +42,9 @@ class WhiteboardDescription:
 
 class WhiteboardApi(ABC):
     @abstractmethod
-    def create(self, fields: List[str], snapshot_id: str, namespace: str, tags: List[str]) -> WhiteboardDescription:
+    def create(
+        self, fields: List[str], snapshot_id: str, namespace: str, tags: List[str]
+    ) -> WhiteboardDescription:
         pass
 
     @abstractmethod
@@ -52,8 +56,13 @@ class WhiteboardApi(ABC):
         pass
 
     @abstractmethod
-    def list(self, namespace: str, tags: List[str], from_date: datetime = None, to_date: datetime = None) -> \
-            List[WhiteboardDescription]:
+    def list(
+        self,
+        namespace: str,
+        tags: List[str],
+        from_date: datetime = None,
+        to_date: datetime = None,
+    ) -> List[WhiteboardDescription]:
         pass
 
     @abstractmethod

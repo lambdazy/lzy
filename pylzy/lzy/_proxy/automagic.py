@@ -1,6 +1,6 @@
 import functools
-from typing import Any, Type, Callable, TypeVar
 from itertools import chain
+from typing import Any, Callable, Dict, Tuple, Type, TypeVar
 
 DEBUG = False
 
@@ -72,6 +72,9 @@ class TrickDescriptorOptional:
             return res
 
         return always_materialize_args_before_call(res)
+
+
+_cache: Dict[Tuple[type, Callable[..., type]], type] = {}
 
 
 def create_and_cache(proxy_cls, callback):

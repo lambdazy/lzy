@@ -7,7 +7,7 @@ from unittest import TestCase
 from lzy._proxy import proxy
 from lzy.api.v1.lazy_op import LzyOp
 from lzy.api.v1.signatures import CallSignature, FuncSignature
-from lzy.api.v1.utils import lazy_proxy, is_lazy_proxy, infer_real_type
+from lzy.api.v1.utils import infer_real_type, is_lazy_proxy, lazy_proxy
 
 
 class ProxyTests(TestCase):
@@ -92,7 +92,7 @@ class ProxyTests(TestCase):
 
     def test_slots(self):
         class B:
-            __slots__ = ('_fields',)
+            __slots__ = ("_fields",)
 
             def __init__(self, _fields=None):
                 if not _fields:
@@ -109,8 +109,12 @@ class ProxyTests(TestCase):
 
         class LazyOpMock(LzyOp, ABC):
             def __init__(self):
-                super().__init__(CallSignature(FuncSignature(lambda: None, (), None, (), ()), (), {}),
-                                 "return_entry_id")
+                super().__init__(
+                    CallSignature(
+                        FuncSignature(lambda: None, (), None, (), ()), (), {}
+                    ),
+                    "return_entry_id",
+                )
 
             def materialize(self) -> Any:
                 self.execute()
@@ -123,7 +127,7 @@ class ProxyTests(TestCase):
                 a.append("Materialized without any fcking reason")
 
         mock = LazyOpMock()
-        prxy = lazy_proxy(lambda: mock.materialize(), str, {'_op': mock})
+        prxy = lazy_proxy(lambda: mock.materialize(), str, {"_op": mock})
         op = prxy._op
         is_lazy_proxy(prxy)
         self.assertEqual(len(a), 0)

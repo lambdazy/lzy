@@ -1,10 +1,11 @@
-from abc import abstractmethod, ABC
-from typing import Type, TypeVar, IO, Any, Dict
+from abc import ABC, abstractmethod
+from typing import IO, Any, Dict, Type, TypeVar
 
-import cloudpickle # type: ignore
-from pure_protobuf.dataclasses_ import loads, load  # type: ignore
+import cloudpickle  # type: ignore
+from pure_protobuf.dataclasses_ import load, loads  # type: ignore
+
 from lzy.api.v2.utils import check_message_field
-from lzy.serialization.dumper import Dumper, CatboostPoolDumper
+from lzy.serialization.dumper import CatboostPoolDumper, Dumper
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

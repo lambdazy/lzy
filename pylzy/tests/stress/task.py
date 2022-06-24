@@ -1,4 +1,5 @@
 from time import sleep
+
 from lzy.api.v1 import op
 from lzy.api.v1.env import LzyRemoteEnv
 
@@ -23,6 +24,6 @@ def durable_task(total_minutes, step_minutes):
     for i in range(total_minutes):
         sleep(60)
         if (i + 1) % step_minutes == 0:
-            print(f'slept {(i + 1) // 60} hours {(i + 1) % 60} minutes')
+            print(f"slept {(i + 1) // 60} hours {(i + 1) % 60} minutes")
     if total_minutes % step_minutes != 0:
-        print(f'slept {total_minutes // 60} hours {total_minutes % 60} minutes')
+        print(f"slept {total_minutes // 60} hours {total_minutes % 60} minutes")

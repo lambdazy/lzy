@@ -7,30 +7,30 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from threading import Thread
 from time import sleep
-from typing import Any, Dict, Optional, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional
 
 import cloudpickle
 
-from lzy.api.v1.servant.model.encoding import ENCODING as encoding
 from lzy.api.v1.servant.model.channel import Bindings, Channel, SnapshotChannelSpec
+from lzy.api.v1.servant.model.encoding import ENCODING as encoding
 from lzy.api.v1.servant.model.execution import (
     Execution,
-    ExecutionResult,
     ExecutionDescription,
-    InputExecutionValue,
+    ExecutionResult,
     ExecutionValue,
+    InputExecutionValue,
 )
-from lzy.api.v1.servant.model.slot import Slot, Direction
+from lzy.api.v1.servant.model.slot import Direction, Slot
 from lzy.api.v1.servant.model.zygote import Zygote
-from lzy.api.v1.servant.servant_client import ServantClient, CredentialsTypes
+from lzy.api.v1.servant.servant_client import CredentialsTypes, ServantClient
 from lzy.storage.credentials import (
-    AzureCredentials,
     AmazonCredentials,
-    StorageCredentials,
+    AzureCredentials,
     AzureSasCredentials,
+    StorageCredentials,
 )
-from threading import Thread
 
 
 def exec_bash(*command):
@@ -180,7 +180,9 @@ class BashServantClient(ServantClient):
             prefix="channel_datascheme_", suffix=".json", dir="/tmp/"
         )
         with open(datascheme_file, "w", encoding=encoding) as file:
-            serialized_type_ = base64.b64encode(cloudpickle.dumps(channel.type_)).decode('ascii')
+            serialized_type_ = base64.b64encode(
+                cloudpickle.dumps(channel.type_)
+            ).decode("ascii")
             json_scheme = {"schemeType": "cloudpickle", "type": serialized_type_}
             json.dump(json_scheme, file, indent=3)
         command.extend(["-c", datascheme_file])
