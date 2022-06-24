@@ -227,7 +227,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                         final var inputSlot = (LzyInputSlot) slot;
                                         if (UriScheme.SlotS3.match(slotUri) || UriScheme.SlotAzure.match(slotUri)) {
                                             inputSlot.connect(slotUri,
-                                                lzyFs.getSlotConnectionManager().connectToS3(slotUri, 0));
+                                                lzyFs.getSlotConnectionManager().connectToS3(slotUri));
                                         } else {
                                             inputSlot.connect(slotUri,
                                                 lzyFs.getSlotConnectionManager().connectToSlot(slotUri, 0));

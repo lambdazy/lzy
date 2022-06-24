@@ -80,28 +80,12 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     protected void cleanup(ServantConnection s) {
-        V1Pod pod = servantPods.get(s.id());
-        if (pod == null) {
-            LOG.warn("Trying to cleanup nonexistent connection {}", s.id());
-            return;
-        }
-        String name = Objects.requireNonNull(pod.getMetadata()).getName();
-        String namespace = pod.getMetadata().getNamespace();
-        LOG.info("Cleaning up pod {} with connection {}", name, s.id());
-        try {
-            if (!isPodExists(namespace, name)) {
-                servantPods.remove(s.id());
-                return;
-            }
-        } catch (ApiException e) {
-            throw new RuntimeException(e);
-        }
         terminate(s);
     }
 
     @Override
     protected void terminate(ServantConnection connection) {
-        V1Pod pod = servantPods.get(connection.id());
+        V1Pod pod = servantPods.remove(connection.id());
         if (pod == null) {
             LOG.warn("Trying to terminate nonexistent connection {}", connection.id());
             return;
@@ -117,7 +101,6 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         } catch (ApiException e) {
             throw new RuntimeException(e);
         }
-        servantPods.remove(connection.id());
     }
 
     @Override

@@ -98,21 +98,21 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     protected void cleanup(ServantConnection s) {
-        if (!containers.containsKey(s.id())) {
-            return;
-        }
-        ContainerDescription container = containers.get(s.id());
-        InspectContainerResponse containerInfo = DOCKER.inspectContainerCmd(container.container.getId()).exec();
-        if (Boolean.TRUE.equals(containerInfo.getState().getDead())) {
-            containers.remove(s.id());
-            return;
-        }
         terminate(s);
     }
 
     @Override
     protected void terminate(ServantConnection connection) {
-        containers.remove(connection.id()).close();
+        ContainerDescription container = containers.remove(connection.id());
+        if (container == null) {
+            LOG.warn("Trying to terminate nonexistent connection {}", connection.id());
+            return;
+        }
+        InspectContainerResponse containerInfo = DOCKER.inspectContainerCmd(container.container.getId()).exec();
+        if (Boolean.TRUE.equals(containerInfo.getState().getDead())) {
+            return;
+        }
+        container.close();
     }
 
     @Override

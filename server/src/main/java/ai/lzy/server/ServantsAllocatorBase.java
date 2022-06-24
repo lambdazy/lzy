@@ -33,8 +33,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     @SuppressWarnings("FieldCanBeLocal")
     private final Timer ttl;
     private final Map<String, CompletableFuture<ServantConnection>> requests = new HashMap<>();
-    private final Map<ServantConnection, Instant> spareServants = new HashMap<>();
-    private final Map<ServantConnection, Instant> shuttingDown = new HashMap<>();
+    private final Map<ServantConnection, Instant> spareServants = new ConcurrentHashMap<>();
+    private final Map<ServantConnection, Instant> shuttingDown = new ConcurrentHashMap<>();
     private final Map<ServantConnection, Instant> waitingForAllocation = new HashMap<>();
 
     private final Map<String, Set<SessionImpl>> userToSessions = new HashMap<>();
@@ -168,9 +168,13 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 }
                 connection.progress(Servant.ServantProgress.newBuilder()
                     .setFailed(Servant.Failed.newBuilder().build()).build());
+                spareServants.remove(connection);
+                shuttingDown.remove(connection);
+                terminate(connection);
             } finally {
                 connection.progress(Servant.ServantProgress.newBuilder()
                     .setConcluded(Servant.Concluded.newBuilder().build()).build());
+                shuttingDown.remove(connection);
             }
         }, "connection-to-" + servantId);
         connection.complete(connectionThread, servantUri, servantStub, servantFsUri, servantFsStub);
@@ -201,7 +205,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                         terminate(c);
                         return;
                     }
-                    spareServants.put(c, Instant.now());
+                    cleanup(c);
                 }
             );
         }
@@ -272,8 +276,8 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                     cleanup(s);
                 } catch (Exception e) {
                     LOG.error("Failed to shutdown servant: ", e);
-                    terminate(s);
                     shuttingDown.remove(s);
+                    terminate(s);
                 } finally {
                     synchronized (ServantsAllocatorBase.this) {
                         ServantsAllocatorBase.this.notifyAll();
@@ -296,6 +300,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 e.printStackTrace(); //ignored
             }
         }
+        LOG.info("ServantAllocatorBase closed");
     }
 
     private static class ServantConnectionImpl implements ServantConnection {

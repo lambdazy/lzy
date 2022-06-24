@@ -25,11 +25,12 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class SlotConnectionManager {
+
     private final Map<String, Transmitter> transmitters = new HashMap<>();
     private final Snapshooter snapshooter;
 
     public SlotConnectionManager(Lzy.GetS3CredentialsResponse credentials, IAM.Auth auth, URI wb, String bucket,
-                                 String sessionId) {
+        String sessionId) {
         final StorageClient client = StorageClient.create(credentials);
         final String endpoint;
         if (credentials.hasAmazon()) {
@@ -100,7 +101,7 @@ public class SlotConnectionManager {
         return transmitters.get(uri.getHost());
     }
 
-    public Stream<ByteString> connectToS3(URI s3Uri, long offset) {
+    public Stream<ByteString> connectToS3(URI s3Uri) {
         assert UriScheme.SlotS3.match(s3Uri) || UriScheme.SlotAzure.match(s3Uri) : s3Uri.toString();
 
         String storagePath = s3Uri.getPath();
@@ -127,11 +128,13 @@ public class SlotConnectionManager {
                     while (len != -1) {
                         final ByteString chunk = ByteString.copyFrom(buffer, 0, len);
                         //noinspection StatementWithEmptyBody,CheckStyle
-                        while (!queue.offer(chunk, 1, TimeUnit.SECONDS)) {}
+                        while (!queue.offer(chunk, 1, TimeUnit.SECONDS)) {
+                        }
                         len = stream.read(buffer);
                     }
                     //noinspection StatementWithEmptyBody,CheckStyle
-                    while (!queue.offer(ByteString.EMPTY, 1, TimeUnit.SECONDS)) {}
+                    while (!queue.offer(ByteString.EMPTY, 1, TimeUnit.SECONDS)) {
+                    }
                 }
             }
         );
@@ -172,6 +175,7 @@ public class SlotConnectionManager {
     }
 
     private static class LazyIterator<T> implements Iterator<T> {
+
         private final Supplier<Iterator<T>> supplier;
         private Iterator<T> createdIterator;
 

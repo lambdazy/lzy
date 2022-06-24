@@ -92,20 +92,17 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     protected void cleanup(ServantConnection s) {
-        if (!servantThreads.containsKey(s.id())) {
-            return;
-        }
-        servantThreads.get(s.id()).stop();
-        servantThreads.remove(s.id());
+        terminate(s);
     }
 
     @Override
     protected void terminate(ServantConnection connection) {
-        if (!servantThreads.containsKey(connection.id())) {
+        final ServantDescription remove = servantThreads.remove(connection.id());
+        if (remove == null) {
+            LOG.warn("Trying to terminate nonexistent connection {}", connection.id());
             return;
         }
-        servantThreads.get(connection.id()).stop();
-        servantThreads.remove(connection.id());
+        remove.stop();
     }
 
     @Override
@@ -126,13 +123,16 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
 
         private void stop() {
             try {
+                //noinspection removal
                 thread.stop();
             } finally {
                 try {
                     final Process run;
                     if (SystemUtils.IS_OS_MAC) {
+                        //noinspection deprecation
                         run = Runtime.getRuntime().exec("umount -f " + mountPoint);
                     } else {
+                        //noinspection deprecation
                         run = Runtime.getRuntime().exec("umount " + mountPoint);
                     }
                     String out = IOUtils.toString(run.getInputStream(), StandardCharsets.UTF_8);
