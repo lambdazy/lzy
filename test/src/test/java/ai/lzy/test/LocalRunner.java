@@ -1,5 +1,6 @@
 package ai.lzy.test;
 
+import ai.lzy.test.impl.IAMThreadContext;
 import io.findify.s3mock.S3Mock;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -15,6 +16,7 @@ import java.util.concurrent.locks.LockSupport;
 /*
  * Start Lzy Env with following settings:
  *   - server port:        7777
+ *   - iam port:           8443
  *   - snapshot port:      8999
  *   - whiteboard port:    8999
  *   - s3 port:            8001
@@ -46,6 +48,9 @@ public class LocalRunner {
         var serverContext = new ServerThreadContext(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR);
         serverContext.init();
 
+        var iamContext = new IAMThreadContext();
+        iamContext.init();
+
         var whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
 
@@ -71,6 +76,7 @@ public class LocalRunner {
                 kharonContext.close();
             }
             serverContext.close();
+            iamContext.close();
             whiteboardContext.close();
         }));
 
