@@ -4,7 +4,7 @@
 
 ʎzy is a system for the distributed execution of an arbitrary code and storage of the obtained results.
 
-We believe that the goals of this system are:
+The goals of this system are:
 - Transparent scaling of code that is not generally intended for distributed execution
 - Run ML training and inference tasks in one computing environment, effectively balancing the load between these circuits.
 - Provide an ability to combine local and distributed components in one task.
