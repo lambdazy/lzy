@@ -26,6 +26,16 @@ jobs:
           distribution: 'adopt'
           java-version: '17'
 
+      - uses: cachix/install-nix-action@v15
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'python-test'
+        timeout-minutes: 5
+        run: |
+          cd lzy-python/ && ./run_tests.sh && ./clean.sh && cd ..
+
       - name: "Download conda"
         run: |
           echo "4ee9c3aa53329cd7a63b49877c0babb49b19b7e5af29807b793a76bdb1d362b4  miniconda.sh" > sha256.hash
