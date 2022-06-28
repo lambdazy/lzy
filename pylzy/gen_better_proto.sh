@@ -13,8 +13,6 @@ proto_path="../lzy-model/src/main/proto/"
 cd "$proto_path"
 python -m grpc_tools.protoc \
     -I . \
-    --python_out="$OLDPWD/$proto_out" \
-    --grpclib_python_out="$OLDPWD/$proto_out" \
     --python_betterproto_out="$OLDPWD/$proto_out" \
     --proto_path=. \
     $(find yandex/cloud/priv/datasphere -iname "*.proto" -type f)
