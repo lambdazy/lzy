@@ -34,7 +34,7 @@ jobs:
       - name: 'python-test'
         timeout-minutes: 5
         run: |
-          cd lzy-python/ && ./run_tests.sh && ./clean.sh && cd ..
+          cd pylzy/ && ./run_tests.sh && ./clean.sh && cd ..
 
       - name: "Download conda"
         run: |

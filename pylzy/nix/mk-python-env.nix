@@ -16,7 +16,8 @@ pkgs.mkShell {
       # call to list available executables
       alias exs="find . -maxdepth 1 -executable -type f"
 
-      # proto output
+      # proto paths
       export proto_out="lzy/proto"
+      export proto_path="../model/src/main/proto/"
     '';
 }
