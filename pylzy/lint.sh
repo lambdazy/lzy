@@ -35,6 +35,5 @@ run mypy    $_t
 run pyright $_t
 
 print_cmd_exit $rc "Whole pipeline"
-[ $rc -ne 0 ] && exit 1
-
-exit 0
+[ $rc -eq 0 ]
+exit $?

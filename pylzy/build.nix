@@ -17,8 +17,10 @@ let
 
     grpclib
     protobuf
+
     # it's here just to get protoc
     grpcio-tools
+    betterproto
   ]);
 
   python-lzy = python.withPackages(ps: with ps; [
