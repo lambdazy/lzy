@@ -487,12 +487,10 @@ public class LzyKharon {
                 final String tid = UriResolver.parseTidFromSlotUri(slotUri);
                 final String slotName = UriResolver.parseSlotNameFromSlotUri(slotUri);
 
-                session.terminalController().configureSlot(LzyFsApi.SlotCommand.newBuilder()
-                    .setSlot(slotName)
-                    .setTid(tid)
-                    .setConnect(LzyFsApi.ConnectSlotCommand.newBuilder()
-                        .setSlotUri(request.getSlotUri())
-                        .build())
+                session.terminalController().connectSlot(LzyFsApi.ConnectSlotRequest.newBuilder()
+                    .setTaskId(tid)
+                    .setSlotName(slotName)
+                    .setSlotUri(request.getSlotUri())
                     .build());
             } catch (InvalidSessionRequestException | TerminalController.TerminalControllerResetException e) {
                 LOG.warn("Exception while openOutputSlot ", e);
@@ -501,30 +499,58 @@ public class LzyKharon {
         }
 
         @Override
-        public void configureSlot(LzyFsApi.SlotCommand request,
-                                  StreamObserver<LzyFsApi.SlotCommandStatus> responseObserver) {
+        public void createSlot(LzyFsApi.CreateSlotRequest request, StreamObserver<SlotCommandStatus> response) {
+            call(request, response, (req, controller) -> controller.createSlot(req));
+        }
+
+        @Override
+        public void connectSlot(LzyFsApi.ConnectSlotRequest request, StreamObserver<SlotCommandStatus> response) {
+            try {
+                final URI uri = URI.create(request.getSlotUri());
+                if (!SlotS3.match(uri) && !SlotAzure.match(uri)) {
+                    final URI convertedToKharonUri = uriResolver.convertToKharonWithSlotUri(uri);
+                    request = LzyFsApi.ConnectSlotRequest.newBuilder()
+                            .mergeFrom(request)
+                            .setSlotUri(convertedToKharonUri.toString())
+                            .build();
+                }
+
+                call(request, response, (req, controller) -> controller.connectSlot(req));
+            } catch (URISyntaxException e) {
+                response.onError(Status.INVALID_ARGUMENT.withDescription("Invalid servant uri")
+                        .asRuntimeException());
+            }
+        }
+
+        @Override
+        public void disconnectSlot(LzyFsApi.DisconnectSlotRequest request, StreamObserver<SlotCommandStatus> response) {
+            call(request, response, (req, controller) -> controller.disconnectSlot(req));
+        }
+
+        @Override
+        public void statusSlot(LzyFsApi.StatusSlotRequest request, StreamObserver<SlotCommandStatus> response) {
+            call(request, response, (req, controller) -> controller.statusSlot(req));
+        }
+
+        @Override
+        public void destroySlot(LzyFsApi.DestroySlotRequest request, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
+            call(request, resp, (req, controller) -> controller.destroySlot(req));
+        }
+
+        interface SlotFn<R> {
+            SlotCommandStatus call(R request, TerminalController controller)
+                    throws TerminalController.TerminalControllerResetException;
+        }
+
+        private <R> void call(R request, StreamObserver<SlotCommandStatus> responseObserver, SlotFn<R> fn) {
             try {
                 final TerminalSession session = sessionManager.getSessionFromGrpcContext();
-                if (request.hasConnect()) {
-                    final URI uri = URI.create(request.getConnect().getSlotUri());
-                    if (!SlotS3.match(uri) && !SlotAzure.match(uri)) {
-                        final URI convertedToKharonUri = uriResolver.convertToKharonWithSlotUri(uri);
-                        request = LzyFsApi.SlotCommand.newBuilder()
-                            .mergeFrom(request)
-                            .setConnect(LzyFsApi.ConnectSlotCommand.newBuilder()
-                                .setSlotUri(convertedToKharonUri.toString()).build())
-                            .build();
-                    }
-                }
-                final SlotCommandStatus slotCommandStatus = session.terminalController().configureSlot(request);
+                final SlotCommandStatus slotCommandStatus = fn.call(request, session.terminalController());
                 responseObserver.onNext(slotCommandStatus);
                 responseObserver.onCompleted();
             } catch (InvalidSessionRequestException | TerminalController.TerminalControllerResetException e) {
                 LOG.warn("Exception while configureSlot ", e);
                 responseObserver.onError(Status.NOT_FOUND.withCause(e).asRuntimeException());
-            } catch (URISyntaxException e) {
-                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Invalid servant uri")
-                    .asRuntimeException());
             }
         }
     }

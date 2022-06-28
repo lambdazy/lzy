@@ -85,13 +85,11 @@ public class ServantEndpoint implements Endpoint {
             return 1;
         }
         try {
-            final LzyFsApi.SlotCommandStatus rc = fs.configureSlot(
-                LzyFsApi.SlotCommand.newBuilder()
-                    .setSlot(slot().name())
-                    .setTid(tid)
-                    .setConnect(LzyFsApi.ConnectSlotCommand.newBuilder()
-                        .setSlotUri(endpoint.toString())
-                        .build())
+            final LzyFsApi.SlotCommandStatus rc = fs.connectSlot(
+                LzyFsApi.ConnectSlotRequest.newBuilder()
+                    .setSlotName(slot().name())
+                    .setTaskId(tid)
+                    .setSlotUri(endpoint.toString())
                     .build()
             );
             if (rc.hasRc() && rc.getRc().getCodeValue() != 0) {
@@ -111,14 +109,11 @@ public class ServantEndpoint implements Endpoint {
             return null;
         }
         try {
-            final LzyFsApi.SlotCommandStatus slotCommandStatus = fs
-                .configureSlot(
-                    LzyFsApi.SlotCommand.newBuilder()
-                        .setTid(tid)
-                        .setSlot(slot().name())
-                        .setStatus(LzyFsApi.StatusCommand.newBuilder().build())
-                        .build()
-                );
+            final LzyFsApi.SlotCommandStatus slotCommandStatus = fs.statusSlot(
+                LzyFsApi.StatusSlotRequest.newBuilder()
+                    .setTaskId(tid)
+                    .setSlotName(slot().name())
+                    .build());
             return GrpcConverter.from(slotCommandStatus.getStatus());
         } catch (StatusRuntimeException e) {
             LOG.warn("Exception during slotStatus " + e);
@@ -132,14 +127,11 @@ public class ServantEndpoint implements Endpoint {
             return 0;
         }
         try {
-            final LzyFsApi.SlotCommandStatus rc = fs
-                .configureSlot(
-                    LzyFsApi.SlotCommand.newBuilder()
-                        .setTid(tid)
-                        .setSlot(slot().name())
-                        .setDisconnect(LzyFsApi.DisconnectCommand.newBuilder().build())
-                        .build()
-                );
+            final LzyFsApi.SlotCommandStatus rc = fs.disconnectSlot(
+                 LzyFsApi.DisconnectSlotRequest.newBuilder()
+                    .setTaskId(tid)
+                    .setSlotName(slot().name())
+                    .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
             LOG.warn("Unable to disconnect " + this + "\n Cause:\n" + sre);
@@ -154,14 +146,11 @@ public class ServantEndpoint implements Endpoint {
             return 0;
         }
         try {
-            final LzyFsApi.SlotCommandStatus rc = fs
-                .configureSlot(
-                    LzyFsApi.SlotCommand.newBuilder()
-                        .setTid(tid)
-                        .setSlot(slot().name())
-                        .setDestroy(LzyFsApi.DestroyCommand.newBuilder().build())
-                        .build()
-                );
+            final LzyFsApi.SlotCommandStatus rc = fs.destroySlot(
+                LzyFsApi.DestroySlotRequest.newBuilder()
+                    .setTaskId(tid)
+                    .setSlotName(slot().name())
+                    .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
             LOG.warn("Unable to close " + this);

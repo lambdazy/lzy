@@ -61,7 +61,7 @@ public class LzyContext implements AutoCloseable {
     }
 
     public LzySlot configureSlot(String task, Slot spec, String binding) {
-        final LzySlot slot = slotsManager.configureSlot(task, spec, binding);
+        final LzySlot slot = slotsManager.getOrCreateSlot(task, spec, binding);
 
         if (slot instanceof ArgumentsSlot) {
             arguments = ((ArgumentsSlot) slot).getArguments();

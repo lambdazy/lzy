@@ -8,39 +8,41 @@ option java_outer_classname = "LzyFsApi";
 option java_package = "ai.lzy.priv.v2";
 
 service LzyFs {
-  rpc ConfigureSlot (SlotCommand) returns (SlotCommandStatus);
+  rpc CreateSlot (CreateSlotRequest) returns (SlotCommandStatus);
+  rpc ConnectSlot (ConnectSlotRequest) returns (SlotCommandStatus);
+  rpc DisconnectSlot (DisconnectSlotRequest) returns (SlotCommandStatus);
+  rpc StatusSlot (StatusSlotRequest) returns (SlotCommandStatus);
+  rpc DestroySlot (DestroySlotRequest) returns (SlotCommandStatus);
+
   rpc OpenOutputSlot (SlotRequest) returns (stream Message);
 }
 
-message SlotCommand {
-  string tid = 1;
-  string slot = 2;
-  oneof command {
-    CreateSlotCommand create = 3;
-    ConnectSlotCommand connect = 4;
-    DisconnectCommand disconnect = 5;
-    StatusCommand status = 6;
-    DestroyCommand destroy = 7;
-  }
+message CreateSlotRequest {
+  string taskId = 1;
+  Slot slot = 2;
+  string channelId = 3;
+  bool isPipe = 4;
 }
 
-message CreateSlotCommand {
-  Slot slot = 1;
-  string channelId = 2;
-  bool isPipe = 3;
+message ConnectSlotRequest {
+  string taskId = 1;
+  string slotName = 2;
+  string slotUri = 3;
 }
 
-message ConnectSlotCommand {
-  string slotUri = 1;
+message DisconnectSlotRequest {
+  string taskId = 1;
+  string slotName = 2;
 }
 
-message DisconnectCommand {
+message StatusSlotRequest {
+  string taskId = 1;
+  string slotName = 2;
 }
 
-message DestroyCommand {
-}
-
-message StatusCommand {
+message DestroySlotRequest {
+  string taskId = 1;
+  string slotName = 2;
 }
 
 message SnapshotCommand {

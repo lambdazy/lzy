@@ -2,6 +2,7 @@ package ai.lzy.kharon;
 
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -10,6 +11,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,17 +30,18 @@ public class TerminalController {
         this.commandStreamObserver = commandStreamObserver;
     }
 
-    public LzyFsApi.SlotCommandStatus configureSlot(LzyFsApi.SlotCommand request)
-        throws TerminalControllerResetException {
+    private <R> LzyFsApi.SlotCommandStatus call(R request,
+            BiFunction<R, Kharon.TerminalCommand.Builder, Kharon.TerminalCommand.Builder> fn)
+            throws TerminalControllerResetException {
         final CompletableFuture<LzyFsApi.SlotCommandStatus> future = new CompletableFuture<>();
 
         final UUID commandId = UUID.randomUUID();
         terminalCommands.put(commandId, future);
 
-        final Kharon.TerminalCommand sendingRequest = Kharon.TerminalCommand.newBuilder()
-                .setCommandId(commandId.toString())
-                .setSlotCommand(request)
-                .build();
+        var sendingRequestBuilder = Kharon.TerminalCommand.newBuilder()
+                .setCommandId(commandId.toString());
+        var sendingRequest = fn.apply(request, sendingRequestBuilder).build();
+
         LOG.info("terminalController send request " + JsonUtils.printRequest(sendingRequest));
         synchronized (commandStreamObserver) {
             try {
@@ -54,6 +57,31 @@ public class TerminalController {
             terminate(Status.DEADLINE_EXCEEDED.withCause(e).asRuntimeException());
         }
         return LzyFsApi.SlotCommandStatus.newBuilder().build();
+    }
+
+    public LzyFsApi.SlotCommandStatus createSlot(LzyFsApi.CreateSlotRequest request)
+            throws TerminalControllerResetException {
+        return call(request, (req, builder) -> builder.setCreateSlot(req));
+    }
+
+    public LzyFsApi.SlotCommandStatus connectSlot(LzyFsApi.ConnectSlotRequest request)
+            throws TerminalControllerResetException {
+        return call(request, (req, builder) -> builder.setConnectSlot(req));
+    }
+
+    public LzyFsApi.SlotCommandStatus disconnectSlot(LzyFsApi.DisconnectSlotRequest request)
+            throws TerminalControllerResetException {
+        return call(request, (req, builder) -> builder.setDisconnectSlot(req));
+    }
+
+    public LzyFsApi.SlotCommandStatus statusSlot(LzyFsApi.StatusSlotRequest request)
+            throws TerminalControllerResetException {
+        return call(request, (req, builder) -> builder.setStatusSlot(req));
+    }
+
+    public LzyFsApi.SlotCommandStatus destroySlot(LzyFsApi.DestroySlotRequest request)
+            throws TerminalControllerResetException {
+        return call(request, (req, builder) -> builder.setDestroySlot(req));
     }
 
     public void handleTerminalResponse(Kharon.TerminalResponse response) {
