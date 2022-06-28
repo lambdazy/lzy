@@ -7,7 +7,7 @@ source ./util.sh
 
 echo "Building pylzy package"
 # TODO: pass jar path to script as parameter?
-cp ../lzy-servant/target/lzy-servant-1.0-SNAPSHOT.jar lzy/lzy-servant.jar
+cp ../servant/target/servant-1.0-SNAPSHOT.jar lzy/lzy-servant.jar
 [ $? -ne 0 ] && print_red "Failed to copy lzy-servant jar" && exit 1
 
 # instead of
