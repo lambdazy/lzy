@@ -94,7 +94,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
     }
 
     @Override
-    public void gracefulStop() {
+    public void terminate() {
         stopping.set(true);
         this.interrupt();
         pool.shutdown();

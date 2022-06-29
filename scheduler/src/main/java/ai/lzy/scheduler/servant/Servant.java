@@ -1,11 +1,11 @@
 package ai.lzy.scheduler.servant;
 
+import ai.lzy.model.graph.Env;
+import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.models.ServantState.Status;
 import ai.lzy.scheduler.task.Task;
 import java.net.URL;
 import javax.annotation.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 
 public interface Servant {
 
@@ -30,4 +30,7 @@ public interface Servant {
 
     @Nullable String taskId();
     @Nullable String errorDescription();
+    @Nullable String allocationToken();
+    @Nullable URL servantURL();
+    @Nullable String allocatorMetadata();
 }

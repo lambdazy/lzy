@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.task;
 
+import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.models.TaskDesc;
 import ai.lzy.scheduler.models.TaskState;
 import javax.annotation.Nullable;
@@ -16,6 +17,6 @@ public interface Task {
     @Nullable String errorDescription();
 
     // ========= Servant events ==========
-    void notifyExecuting(String servantId);
-    void notifyExecutionCompleted(Integer rc, String description);
+    void notifyExecuting(String servantId) throws DaoException;
+    void notifyExecutionCompleted(Integer rc, String description) throws DaoException;
 }

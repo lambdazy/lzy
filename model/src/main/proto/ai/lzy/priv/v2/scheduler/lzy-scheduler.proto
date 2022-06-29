@@ -6,7 +6,7 @@ option java_outer_classname = "SchedulerApi";
 option java_package = "ai.lzy.priv.v2";
 
 import "ai/lzy/priv/v2/lzy-zygote.proto";
-
+// TODO killAll
 service Scheduler {
   rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
   rpc Status (TaskStatusRequest) returns (TaskStatusResponse);

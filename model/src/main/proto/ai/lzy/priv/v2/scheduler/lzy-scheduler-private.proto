@@ -8,14 +8,15 @@ option java_package = "ai.lzy.priv.v2.lzy";
 service SchedulerPrivate {
   rpc RegisterServant (RegisterServantRequest) returns (RegisterServantResponse);
   rpc ServantProgress (ServantProgressRequest) returns (ServantProgressResponse);
-  rpc HeartBit (ServantHeartBitRequest) returns (ServantHeartBitResponse);
 }
 
 // =========Register servant=========
 
 message RegisterServantRequest {
-  string servantToken = 1;
-  string servantUri = 2;
+  string workflowId = 1;
+  string servantId = 2;
+  string servantToken = 3;
+  string servantUri = 4;
 }
 message RegisterServantResponse {}
 
@@ -32,6 +33,10 @@ message ExecutionConcluded {
   string description = 2;
 }
 
+message Executing {}
+message Idle {}
+
+
 message ServantProgress {
   oneof status {
     Started start = 1;
@@ -39,16 +44,16 @@ message ServantProgress {
     ExecutionConcluded executeStop = 3;
     CommunicationCompleted communicationCompleted = 4;
     Concluded exit = 5;
+
+    Executing executing = 6;
+    Idle idle = 7;
   }
 }
 
 message ServantProgressRequest {
-  string servantToken = 1;
-  ServantProgress progress = 2;
+  string workflowId = 1;
+  string servantId = 2;
+  string servantToken = 3;
+  ServantProgress progress = 4;
 }
 message ServantProgressResponse {}
-
-// ========= Heart bit ==========
-
-message ServantHeartBitRequest {}
-message ServantHeartBitResponse {}

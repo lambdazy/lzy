@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.servant.impl;
 
+import ai.lzy.model.ReturnCodes;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.db.DaoException;
@@ -18,11 +19,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
 
 // TODO(artolord) Add more logs
 
@@ -102,6 +101,8 @@ public class ServantEventProcessor extends Thread {
             newState = destroy(currentState, event);
         }
         try {
+            LOG.debug("Servant state processed.\n old: {}\n new: {}\n event: {}",
+                currentState, newState, event);
             dao.updateAndFree(newState);
         } catch (DaoException e) {
             LOG.error("Cannot write new servant state to dao", e);
@@ -115,11 +116,12 @@ public class ServantEventProcessor extends Thread {
         return switch (event.type()) {
             case ALLOCATION_TIMEOUT, CONFIGURATION_TIMEOUT,
                 EXECUTION_TIMEOUT, IDLE_TIMEOUT, STOPPING_TIMEOUT,
-                DISCONNECTED, STOPPED -> destroy(currentState, event);
+                DISCONNECTED, STOPPED,
+                IDLE_HEARTBEAT_TIMEOUT, EXECUTING_HEARTBEAT_TIMEOUT -> destroy(currentState, event);
 
             case ALLOCATION_REQUESTED -> {
                 assertStatus(currentState, event, Status.CREATED);
-                allocator.allocate(
+                var meta = allocator.allocate(
                     currentState.workflowId(), currentState.id(),
                     currentState.provisioning(), currentState.env()
                 );
@@ -129,7 +131,11 @@ public class ServantEventProcessor extends Thread {
                     .setDescription("Allocation timeout reached")
                     .build();
                 queue.put(timeout);
-                yield changeStatus(currentState, Status.CONNECTING);
+                yield currentState.copy()
+                    .setStatus(Status.CONNECTING)
+                    .setAllocatorMeta(meta.allocationMeta())
+                    .setAllocationToken(meta.allocationToken())
+                    .build();
             }
 
             case CONNECTED -> {
@@ -138,23 +144,13 @@ public class ServantEventProcessor extends Thread {
                 if (event.servantUrl() == null) {
                     throw new AssertionException();
                 }
-                this.connection = new ServantConnectionImpl(event.servantUrl());
+                Servant servant = dao.get(workflowId, servantId);
+                if (servant == null) {
+                    throw new AssertionException();
+                }
+                this.connection = new ServantConnectionImpl(event.servantUrl(), servant);
                 notifyReady.accept(workflowId, servantId);
                 yield idle(currentState);
-            }
-
-            case CONFIGURED -> {
-                assertStatus(currentState, event, Status.CONFIGURING);
-                eventDao.removeAll(currentState.id(), Type.CONFIGURATION_TIMEOUT);
-                final Task task = getTask(currentState.workflowId(), currentState.taskId());
-                final ServantConnection connection = getConnection(currentState);
-
-                connection.api().startExecution(currentState.taskId(), task.description());
-                task.notifyExecuting(currentState.id());
-                yield currentState.copy()
-                    .setStatus(Status.EXECUTING)
-                    .setTaskId(event.taskId())
-                    .build();
             }
 
             case EXECUTION_REQUESTED -> {
@@ -175,16 +171,74 @@ public class ServantEventProcessor extends Thread {
                 yield configuring(currentState);
             }
 
+            case CONFIGURED -> {
+                assertStatus(currentState, event, Status.CONFIGURING);
+                eventDao.removeAll(currentState.id(), Type.CONFIGURATION_TIMEOUT);
+                final Task task = getTask(currentState.workflowId(), currentState.taskId());
+                final ServantConnection connection = getConnection(currentState);
+
+                connection.api().startExecution(currentState.taskId(), task.description());
+                task.notifyExecuting(currentState.id());
+
+                queue.put(ServantEvent
+                    .fromState(currentState, Type.EXECUTING_HEARTBEAT_TIMEOUT)
+                    .setRc(ReturnCodes.INTERNAL.getRc())
+                    .setDescription("Servant is dead")
+                    .setTimestamp(
+                        LocalDateTime.now().plus(config.executingHeartbeatPeriodSeconds(), ChronoUnit.SECONDS))
+                    .build()
+                );
+                yield currentState.copy()
+                    .setStatus(Status.EXECUTING)
+                    .setTaskId(event.taskId())
+                    .build();
+            }
+
+            case EXECUTING_HEARTBEAT -> {
+                assertStatus(currentState, event, Status.EXECUTING);
+                eventDao.removeAll(currentState.id(), Type.EXECUTING_HEARTBEAT_TIMEOUT);
+                queue.put(ServantEvent
+                    .fromState(currentState, Type.EXECUTING_HEARTBEAT_TIMEOUT)
+                    .setRc(ReturnCodes.INTERNAL.getRc())
+                    .setDescription("Servant is dead")
+                    .setTimestamp(
+                        LocalDateTime.now().plus(config.executingHeartbeatPeriodSeconds(), ChronoUnit.SECONDS))
+                    .build()
+                );
+                yield currentState;
+            }
+
             case EXECUTION_COMPLETED -> {
                 assertStatus(currentState, event, Status.EXECUTING);
                 final Task task = getTask(currentState.workflowId(), currentState.taskId());
                 task.notifyExecutionCompleted(event.rc(), event.description());
                 dao.freeFromTask(currentState.workflowId(), currentState.id());
                 notifyReady.accept(workflowId, servantId);
+                queue.put(ServantEvent
+                    .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)
+                    .setTimestamp(LocalDateTime.now().plus(config.idleHeartbeatPeriodSeconds(), ChronoUnit.SECONDS))
+                    .build());
+                queue.put(ServantEvent
+                    .fromState(currentState, Type.IDLE_TIMEOUT)
+                    .setTimestamp(LocalDateTime.now().plus(config.idleTimeoutSeconds(), ChronoUnit.SECONDS))
+                    .build());
                 yield currentState.copy()
                     .setStatus(Status.RUNNING)
                     .setTaskId(null)
                     .build();
+            }
+
+            case IDLE_HEARTBEAT -> {
+                assertStatus(currentState, event, Status.IDLE, Status.RUNNING);
+                eventDao.removeAll(currentState.id(), Type.IDLE_HEARTBEAT_TIMEOUT);
+                queue.put(ServantEvent
+                    .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)
+                    .setTimestamp(LocalDateTime.now().plus(config.idleHeartbeatPeriodSeconds(), ChronoUnit.SECONDS))
+                    .setRc(ReturnCodes.INTERNAL.getRc())
+                    .setDescription("Servant is dead")
+                    .build()
+                );
+                yield currentState;
             }
 
             case COMMUNICATION_COMPLETED -> {
@@ -215,7 +269,14 @@ public class ServantEventProcessor extends Thread {
             if (currentState.servantUrl() == null) {
                 throw new AssertionException();
             }
-            connection = new ServantConnectionImpl(currentState.servantUrl());
+            Servant servant = null;
+            try {
+                servant = dao.get(workflowId, servantId);
+            } catch (DaoException ignored) {}
+            if (servant == null) {
+                throw new AssertionException();
+            }
+            connection = new ServantConnectionImpl(currentState.servantUrl(), servant);
         }
         return connection;
     }
@@ -235,7 +296,11 @@ public class ServantEventProcessor extends Thread {
     }
 
     private ServantState destroy(ServantState currentState, ServantEvent currentEvent) {
-        allocator.destroy(currentState.workflowId(), currentState.id());
+        try {
+            allocator.destroy(currentState.workflowId(), currentState.id());
+        } catch (Exception e) {
+            throw new RuntimeException("Exception while destroying servant", e);
+        }
         eventDao.removeAll(currentState.id());
         final int rc = currentEvent.rc() == null ? ReturnCodes.INTERNAL.getRc() : currentEvent.rc();
         final String description = currentEvent.description() == null ? "Internal error" : currentEvent.description();

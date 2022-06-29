@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 public record ServantEvent(
     String id,
-    LocalDateTime timestamp,
+    LocalDateTime timestamp,  // TODO convert to utc
     String servantId,
     String workflowId,
     Type type,
@@ -43,10 +43,14 @@ public record ServantEvent(
         CONFIGURED,  // Servant env configuration completed
         CONFIGURATION_TIMEOUT,  // Servant configuration timed out
         EXECUTION_REQUESTED,  // Task requests execution
+        EXECUTING_HEARTBEAT,  // Heartbeat of servant while its executing task
+        EXECUTING_HEARTBEAT_TIMEOUT,  // Timeout of heartbeat waiting of servant
         EXECUTION_COMPLETED,  // Servant says that execution was completed
         EXECUTION_TIMEOUT,  // Executing longer than execution timeout
         DISCONNECTED,  // Scheduler lost connection to servant
         COMMUNICATION_COMPLETED,  // All data from servant was uploaded
+        IDLE_HEARTBEAT,  // Heartbeat of servant while its idle
+        IDLE_HEARTBEAT_TIMEOUT,  // Timeout of heartbeat waiting of servant
         IDLE_TIMEOUT,  // Servant is too long unused
         SIGNAL,  // Process signal to servant
         STOP,  // Stop requested

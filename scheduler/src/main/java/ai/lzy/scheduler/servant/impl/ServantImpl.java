@@ -1,14 +1,13 @@
 package ai.lzy.scheduler.servant.impl;
 
+import ai.lzy.model.graph.Env;
+import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.models.ServantEvent;
 import ai.lzy.scheduler.models.ServantState;
-import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.task.Task;
 import java.net.URL;
 import org.jetbrains.annotations.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 
 public class ServantImpl implements Servant {
     private final ServantState state;
@@ -120,6 +119,11 @@ public class ServantImpl implements Servant {
         return state.env();
     }
 
+    @Override
+    public String allocatorMetadata() {
+        return state.allocatorMeta();
+    }
+
     @Nullable
     @Override
     public String taskId() {
@@ -130,5 +134,17 @@ public class ServantImpl implements Servant {
     @Override
     public String errorDescription() {
         return state.errorDescription();
+    }
+
+    @Nullable
+    @Override
+    public String allocationToken() {
+        return state.allocationToken();
+    }
+
+    @Nullable
+    @Override
+    public URL servantURL() {
+        return state.servantUrl();
     }
 }

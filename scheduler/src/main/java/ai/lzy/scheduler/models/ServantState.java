@@ -1,9 +1,10 @@
 package ai.lzy.scheduler.models;
 
+import ai.lzy.model.graph.Env;
+import ai.lzy.model.graph.Provisioning;
+
 import java.net.URL;
 import javax.annotation.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 
 public record ServantState(
     String id,
@@ -14,7 +15,9 @@ public record ServantState(
 
     @Nullable String errorDescription,
     @Nullable String taskId,
-    @Nullable URL servantUrl
+    @Nullable URL servantUrl,
+    @Nullable String allocatorMeta,
+    @Nullable String allocationToken
 ) {
 
     public enum Status {
@@ -29,40 +32,33 @@ public record ServantState(
     }
 
     public ServantStateBuilder copy() {
-        return new ServantStateBuilder()
-            .setId(id)
-            .setWorkflowId(workflowId)
-            .setStatus(status)
-            .setEnv(env)
+        return new ServantStateBuilder(id, workflowId, provisioning, env, status)
             .setTaskId(taskId)
             .setErrorDescription(errorDescription)
-            .setProvisioning(provisioning);
+            .setAllocatorMeta(allocatorMeta)
+            .setAllocationToken(allocationToken)
+            .setServantUrl(servantUrl);
     }
 
     public static class ServantStateBuilder {
-        private String id;
-        private String workflowId;
-        private Provisioning provisioning;
-        private Env env;
+        private final String id;
+        private final String workflowId;
+        private final Provisioning provisioning;
+        private final Env env;
         private Status status;
 
-        private String taskId;
-        private String errorDescription;
-        private URL servantUrl;
+        @Nullable private String taskId = null;
+        @Nullable private String errorDescription = null;
+        @Nullable private URL servantUrl = null;
+        @Nullable private String allocatorMeta = null;
+        @Nullable private String allocationToken = null;
 
-        public ServantStateBuilder setId(String id) {
+        public ServantStateBuilder(String id, String workflowId, Provisioning provisioning, Env env, Status status) {
             this.id = id;
-            return this;
-        }
-
-        public ServantStateBuilder setWorkflowId(String workflowId) {
             this.workflowId = workflowId;
-            return this;
-        }
-
-        public ServantStateBuilder setProvisioning(Provisioning provisioning) {
             this.provisioning = provisioning;
-            return this;
+            this.env = env;
+            this.status = status;
         }
 
         public ServantStateBuilder setStatus(Status status) {
@@ -72,11 +68,6 @@ public record ServantState(
 
         public ServantStateBuilder setTaskId(String taskId) {
             this.taskId = taskId;
-            return this;
-        }
-
-        public ServantStateBuilder setEnv(Env env) {
-            this.env = env;
             return this;
         }
 
@@ -90,8 +81,19 @@ public record ServantState(
             return this;
         }
 
+        public ServantStateBuilder setAllocatorMeta(String allocatorMeta) {
+            this.allocatorMeta = allocatorMeta;
+            return this;
+        }
+
+        public ServantStateBuilder setAllocationToken(@Nullable String allocationToken) {
+            this.allocationToken = allocationToken;
+            return this;
+        }
+
         public ServantState build() {
-            return new ServantState(id, workflowId, provisioning, status, env, errorDescription, taskId, servantUrl);
+            return new ServantState(id, workflowId, provisioning, status, env, errorDescription,
+                    taskId, servantUrl, allocatorMeta, allocationToken);
         }
     }
 }

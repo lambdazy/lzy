@@ -1,8 +1,9 @@
 package ai.lzy.scheduler.servant;
 
 
+import ai.lzy.model.graph.Provisioning;
+
 import javax.annotation.Nullable;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 
 public interface ServantsPool {
     /**

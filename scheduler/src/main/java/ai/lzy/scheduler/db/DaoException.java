@@ -9,14 +9,4 @@ public class DaoException extends Exception {
         super(e);
     }
 
-    public static class AcquireException extends Exception {
-
-        public AcquireException(Exception e) {
-            super(e);
-        }
-
-        public AcquireException(String e) {
-            super(e);
-        }
-    }
 }

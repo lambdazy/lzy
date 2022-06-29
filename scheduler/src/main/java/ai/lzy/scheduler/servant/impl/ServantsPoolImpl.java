@@ -1,5 +1,7 @@
 package ai.lzy.scheduler.servant.impl;
 
+import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
@@ -20,8 +22,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.lzy.model.ReturnCodes;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 
 @Singleton
 public class ServantsPoolImpl extends Thread implements ServantsPool {
@@ -77,9 +77,9 @@ public class ServantsPoolImpl extends Thread implements ServantsPool {
             var processor = new ServantEventProcessor(workflowId, servant.id(), servantConfig,
                 allocator, tasks, events, dao,
                 (workflow, servantId) -> {
-                synchronized (this) {
-                    this.notifyAll();
-                }
+                    synchronized (this) {
+                        this.notifyAll();
+                    }
             });
             processor.start();
             processors.add(processor);
@@ -154,7 +154,14 @@ public class ServantsPoolImpl extends Thread implements ServantsPool {
                     LOG.error("Error while invalidating servant", e);
                 }
             }
-            allocator.destroy(servant.workflowId(), servant.id());
+            try {
+                allocator.destroy(servant.workflowId(), servant.id());
+            } catch (Exception e) {
+                LOG.error("""
+                    Cannot destroy servant <{}> from workflow <{}> with url <{}>, going to next servant.
+                    PLEASE DESTROY THIS SERVANT FOR YOURSELF""", servant.id(), servant.workflowId(),
+                    servant.servantURL(), e);
+            }
         }
         for (Servant servant: free) {
             var processor = new ServantEventProcessor(servant.workflowId(), servant.id(),

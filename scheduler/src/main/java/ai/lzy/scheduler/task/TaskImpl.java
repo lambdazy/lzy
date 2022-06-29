@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.task;
 
+import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.TaskDesc;
 import ai.lzy.scheduler.models.TaskState;
@@ -55,14 +56,14 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public void notifyExecuting(String servantId) {
+    public void notifyExecuting(String servantId) throws DaoException {
         state = new TaskState(taskId(), workflowId(), description(),
             Status.EXECUTING, rc(), errorDescription(), servantId);
         dao.update(this);
     }
 
     @Override
-    public void notifyExecutionCompleted(Integer rc, String description) {
+    public void notifyExecutionCompleted(Integer rc, String description) throws DaoException {
         final Status status = rc == 0 ? Status.SUCCESS : Status.ERROR;
         state = new TaskState(taskId(), workflowId(), description(),
             status, rc, description, servantId());

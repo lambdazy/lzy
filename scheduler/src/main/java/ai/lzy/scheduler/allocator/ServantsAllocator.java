@@ -1,17 +1,21 @@
 package ai.lzy.scheduler.allocator;
 
+import ai.lzy.model.graph.Env;
+import ai.lzy.model.graph.Provisioning;
+import io.grpc.StatusException;
+
 import java.net.URI;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Provisioning;
 
 public interface ServantsAllocator {
-    void allocate(
-        String workflowId,
-        String servantId,
-        Provisioning provisioning,
-        Env env
-    );
 
-    void destroy(String workflowId, String servantId);
-    void register(String servantId, URI servantUri);
+    /**
+     * Request servant allocation
+     * @return Metadata to be saved in servant state
+     */
+    AllocateResult allocate(String workflowId, String servantId, Provisioning provisioning, Env env);
+
+    void destroy(String workflowId, String servantId) throws Exception;
+    void register(String workflowId, String servantId, URI servantUri, String servantToken) throws StatusException;
+
+    record AllocateResult(String allocationToken, String allocationMeta) {}
 }

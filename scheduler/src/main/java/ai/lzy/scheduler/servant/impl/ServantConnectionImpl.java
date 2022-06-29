@@ -1,33 +1,38 @@
 package ai.lzy.scheduler.servant.impl;
 
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.Slot;
+import ai.lzy.model.graph.Env;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.priv.v2.IAM;
+import ai.lzy.priv.v2.LzyServantGrpc;
+import ai.lzy.priv.v2.Servant.EnvResult;
+import ai.lzy.priv.v2.Tasks;
 import ai.lzy.scheduler.models.TaskDesc;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.ServantApi;
 import ai.lzy.scheduler.servant.ServantConnection;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
+import org.apache.commons.lang3.NotImplementedException;
+
 import java.net.URL;
 import java.util.Arrays;
 import java.util.stream.Stream;
-import ru.yandex.cloud.ml.platform.lzy.model.GrpcConverter;
-import ru.yandex.cloud.ml.platform.lzy.model.Slot;
-import ru.yandex.cloud.ml.platform.lzy.model.graph.Env;
-import ru.yandex.cloud.ml.platform.lzy.model.grpc.ChannelBuilder;
-import yandex.cloud.priv.datasphere.v2.lzy.ServantApiGrpc;
-import yandex.cloud.priv.datasphere.v2.lzy.ServantApiV2Grpc;
-import yandex.cloud.priv.datasphere.v2.lzy.ServantV2;
-import yandex.cloud.priv.datasphere.v2.lzy.Tasks;
 
-public class ServantConnectionImpl implements ServantConnection {
+public class ServantConnectionImpl extends Thread implements ServantConnection {
     private final ManagedChannel channel;
-    private final ServantApiV2Grpc.ServantApiV2BlockingStub servantBlockingStub;
+    private final LzyServantGrpc.LzyServantBlockingStub servantBlockingStub;
+    private final Servant servant;
 
-    public ServantConnectionImpl(URL servantUrl) {
+    public ServantConnectionImpl(URL servantUrl, Servant servant) {
+        super(new ThreadGroup("connections"), "connection-" + servantUrl);
+        this.servant = servant;
         this.channel = ChannelBuilder.forAddress(servantUrl.getHost(), servantUrl.getPort())
             .usePlaintext()
-            .enableRetry(ServantApiGrpc.SERVICE_NAME)
+            .enableRetry(LzyServantGrpc.SERVICE_NAME)
             .build();
-        this.servantBlockingStub = ServantApiV2Grpc.newBlockingStub(channel);
+        this.servantBlockingStub = LzyServantGrpc.newBlockingStub(channel);
     }
 
     @Override
@@ -35,10 +40,8 @@ public class ServantConnectionImpl implements ServantConnection {
         return new ServantApi() {
             @Override
             public void configure(Env env) throws StatusRuntimeException {
-                //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.configure(ServantV2.ConfigureRequest.newBuilder()
-                    .setSpec(GrpcConverter.to(env))
-                    .build());
+                EnvResult res = servantBlockingStub.env(GrpcConverter.to(env));
+                servant.notifyConfigured(res.getRc(), res.getDescription());  // TODO(artolord) make this call async
             }
 
             @Override
@@ -57,22 +60,20 @@ public class ServantConnectionImpl implements ServantConnection {
                     }
                 });
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.execute(ServantV2.ExecuteRequest.newBuilder()
-                    .setSpec(builder.build())
-                    .build());
+                servantBlockingStub.execute(builder.build());
             }
 
             @Override
             public void gracefulStop() throws StatusRuntimeException {
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.stop(ServantV2.StopRequest.newBuilder().build());
+                servantBlockingStub.stop(IAM.Empty.newBuilder().build());
             }
 
             @Override
             public void signal(int signalNumber) throws StatusRuntimeException {
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.signal(ServantV2.SignalRequest.newBuilder()
-                    .setSignal(signalNumber)
+                servantBlockingStub.signal(Tasks.TaskSignal.newBuilder()
+                    .setSigValue(signalNumber)
                     .build());
             }
         };
@@ -80,6 +81,30 @@ public class ServantConnectionImpl implements ServantConnection {
 
     @Override
     public void close() {
+        this.interrupt();
         channel.shutdown();
+    }
+
+    @Override
+    public void run() {
+        try {
+            servantBlockingStub.start(IAM.Empty.newBuilder().build()).forEachRemaining(
+                progress -> {
+                    switch (progress.getStatusCase()) {
+                        case START, EXECUTESTART -> {}
+                        case COMMUNICATIONCOMPLETED -> servant.notifyCommunicationCompleted();
+                        case CONCLUDED -> servant.notifyStopped(0, "Servant concluded");
+                        case FAILED -> servant.notifyStopped(1, "Servant stopped");
+                        case EXECUTESTOP -> servant.notifyExecutionCompleted(
+                                progress.getExecuteStop().getRc(),
+                                progress.getExecuteStop().getDescription()
+                        );
+                        default -> throw new NotImplementedException("Not implemented for");
+                    }
+                }
+            );
+        } finally {
+            servant.notifyDisconnected();
+        }
     }
 }
