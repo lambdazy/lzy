@@ -418,7 +418,7 @@ public final class LzyFsServer {
     private final class Impl extends LzyFsGrpc.LzyFsImplBase {
 
         private interface SlotFn<R> {
-            LzyFsApi.SlotCommandStatus call(R req) throws StatusException;
+            LzyFsApi.SlotCommandStatus call(R req);
         }
 
         private static <R> void slotCall(R req, StreamObserver<LzyFsApi.SlotCommandStatus> resp, SlotFn<R> fn) {
@@ -426,7 +426,7 @@ public final class LzyFsServer {
                 var status = fn.call(req);
                 resp.onNext(status);
                 resp.onCompleted();
-            } catch (StatusException e) {
+            } catch (Exception e) {
                 resp.onError(e);
             }
         }
