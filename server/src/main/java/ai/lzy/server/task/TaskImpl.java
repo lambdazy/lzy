@@ -271,13 +271,11 @@ public class TaskImpl implements Task {
             }
             fs = servant.fs();
         }
-        final LzyFsApi.SlotCommandStatus slotStatus = fs.configureSlot(
-            LzyFsApi.SlotCommand.newBuilder()
-                .setTid(tid)
-                .setSlot(slot.name())
-                .setStatus(LzyFsApi.StatusCommand.newBuilder().build())
-                .build()
-        );
+        final LzyFsApi.SlotCommandStatus slotStatus = fs.statusSlot(
+            LzyFsApi.StatusSlotRequest.newBuilder()
+                .setTaskId(tid)
+                .setSlotName(slot.name())
+                .build());
         return GrpcConverter.from(slotStatus.getStatus());
     }
 

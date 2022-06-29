@@ -54,7 +54,6 @@ public final class Touch implements LzyCommand {
             .build();
 
         final LzyFsGrpc.LzyFsBlockingStub lzyFs = LzyFsGrpc.newBlockingStub(lzyFsChannel);
-        final LzyFsApi.CreateSlotCommand.Builder createSlotCommandBuilder = LzyFsApi.CreateSlotCommand.newBuilder();
 
         final Operations.Slot.Builder slotBuilder = Operations.Slot.newBuilder();
         slotBuilder.setName("/" + getSlotRelPath(slotPath, lzyFsRoot));
@@ -106,17 +105,15 @@ public final class Touch implements LzyCommand {
             }
         }
 
-        createSlotCommandBuilder.setSlot(slotBuilder.build());
-        createSlotCommandBuilder.setChannelId(channelName);
-
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
-        final LzyFsApi.SlotCommand slotCommand = LzyFsApi.SlotCommand.newBuilder()
-            .setTid(auth.hasTask() ? auth.getTask().getTaskId() : "user-" + auth.getUser().getUserId())
-            .setSlot(slotBuilder.getName())
-            .setCreate(createSlotCommandBuilder.build())
+
+        var request = LzyFsApi.CreateSlotRequest.newBuilder()
+            .setTaskId(auth.hasTask() ? auth.getTask().getTaskId() : "user-" + auth.getUser().getUserId())
+            .setSlot(slotBuilder.build())
+            .setChannelId(channelName)
             .build();
 
-        final LzyFsApi.SlotCommandStatus status = lzyFs.configureSlot(slotCommand);
+        final LzyFsApi.SlotCommandStatus status = lzyFs.createSlot(request);
         System.out.println(JsonFormat.printer().print(status));
 
         return 0;

@@ -110,7 +110,10 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     protected void terminate(ServantConnection connection) {
-        containers.remove(connection.id()).close();
+        var container = containers.remove(connection.id());
+        if (container != null) {
+            container.close();
+        }
     }
 
     private static class ContainerDescription {

@@ -80,7 +80,7 @@ public class SlotsManager implements AutoCloseable {
         progress(progress);
     }
 
-    public synchronized LzySlot configureSlot(String task, Slot spec, @Nullable String binding) {
+    public synchronized LzySlot getOrCreateSlot(String task, Slot spec, @Nullable String binding) {
         LOG.info("Configure slot, task: {}, spec: {}, binding: {}", task, spec.name(), binding);
 
         final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(task, t -> new HashMap<>());
@@ -154,37 +154,30 @@ public class SlotsManager implements AutoCloseable {
     }
 
     private LzySlot createSlot(Slot spec, @Nullable String binding) throws IOException {
-        if (spec.equals(Slot.STDIN)) {
+        if (Slot.STDIN.equals(spec)) {
             return new WriterSlot(contextId, new TextLinesInSlot(spec.name()));
         }
 
-        if (spec.equals(Slot.STDOUT)) {
+        if (Slot.STDOUT.equals(spec)) {
             return new LineReaderSlot(contextId, new TextLinesOutSlot(spec.name()));
         }
 
-        if (spec.equals(Slot.STDERR)) {
+        if (Slot.STDERR.equals(spec)) {
             return new LineReaderSlot(contextId, new TextLinesOutSlot(spec.name()));
         }
 
-        switch (spec.media()) {
+        return switch (spec.media()) {
             case PIPE, FILE -> {
-                switch (spec.direction()) {
-                    case INPUT:
-                        return new InFileSlot(contextId, spec);
-                    case OUTPUT:
-                        if (spec.name().startsWith("local://")) {
-                            return new LocalOutFileSlot(contextId, spec, URI.create(spec.name()));
-                        }
-                        return new OutFileSlot(contextId, spec);
-                    default:
-                        throw new IllegalStateException("Unexpected value: " + spec.direction());
-                }
+                var slot = switch (spec.direction()) {
+                    case INPUT -> new InFileSlot(contextId, spec);
+                    case OUTPUT -> (spec.name().startsWith("local://")
+                            ? new LocalOutFileSlot(contextId, spec, URI.create(spec.name()))
+                            : new OutFileSlot(contextId, spec));
+                };
+                yield slot;
             }
-            case ARG -> {
-                return new ArgumentsSlot(spec, binding);
-            }
-            default -> throw new IllegalStateException("Unexpected value: " + spec.media());
-        }
+            case ARG -> new ArgumentsSlot(spec, binding);
+        };
     }
 
     // call with global sync only

@@ -45,7 +45,11 @@ message TerminalResponse {
 message TerminalCommand {
   string commandId = 1;
   oneof command {
-    SlotCommand slotCommand = 2;
+    CreateSlotRequest createSlot = 3;
+    ConnectSlotRequest connectSlot = 4;
+    DisconnectSlotRequest disconnectSlot = 5;
+    StatusSlotRequest statusSlot = 6;
+    DestroySlotRequest destroySlot = 7;
   }
 }
 

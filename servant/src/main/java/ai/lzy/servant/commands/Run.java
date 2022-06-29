@@ -130,7 +130,7 @@ public class Run implements LzyCommand {
         final String[] descriptionArr = new String[] {"Got no exit code"};
         executionProgress.forEachRemaining(progress -> {
             try {
-                LOG.info(JsonFormat.printer().print(progress));
+                LOG.info("[progress] " + JsonFormat.printer().print(progress));
                 if (progress.getStatus() == Tasks.TaskProgress.Status.ERROR
                     || progress.getStatus() == Tasks.TaskProgress.Status.SUCCESS) {
                     exit[0] = progress.getRc();
@@ -159,7 +159,14 @@ public class Run implements LzyCommand {
         } else {
             communicationLatch.await(); // waiting for slots to finish communication
         }
-        channels.forEach(this::destroyChannel);
+        channels.forEach(channel -> {
+            try {
+                destroyChannel(channel);
+            } catch (Exception e) {
+                System.err.println("Can't destroy channel " + channel + ": " + e.getMessage());
+                e.printStackTrace(System.err);
+            }
+        });
         return rc;
     }
 
@@ -237,8 +244,7 @@ public class Run implements LzyCommand {
                     final String slotName = String.join("/", "/tasks", prefix, devSlot);
                     createChannel(slot, stdinChannel);
 
-                    createSlotByProto(pid, prefix + ":" + devSlot, pipe, "channel:" + stdinChannel,
-                        slotName, Slot.STDOUT);
+                    createSlotByProto(pid, pipe, "channel:" + stdinChannel, slotName, Slot.STDOUT);
                     final Path inputSlotFile = Path.of(lzyRoot, slotName);
                     ForkJoinPool.commonPool().execute(() -> {
                         byte[] buffer = new byte[BUFFER_SIZE];
@@ -276,7 +282,7 @@ public class Run implements LzyCommand {
                     final String slotName = String.join("/", "/tasks", prefix, devSlot);
                     final String channelId = createChannel(slot, channelName);
 
-                    createSlotByProto(pid, prefix + ":" + devSlot, pipe, channelId, slotName, Slot.STDIN);
+                    createSlotByProto(pid, pipe, channelId, slotName, Slot.STDIN);
 
                     final Path outputSlotFile = Path.of(lzyRoot, slotName);
                     ForkJoinPool.commonPool().execute(() -> {
@@ -310,23 +316,17 @@ public class Run implements LzyCommand {
         }
     }
 
-    private void createSlotByProto(long pid, String name, boolean pipe, String channelId,
-                                   String slotName, Slot slotProto) {
-        LOG.info("Create {}slot `{}` ({}) for channel `{}` with taskId {}.",
-            pipe ? "pipe " : "", slotName, name, channelId, pid);
+    private void createSlotByProto(long pid, boolean pipe, String channelId, String slotName, Slot slotProto) {
+        LOG.info("Create {}slot `{}` for channel `{}` with taskId {}.", pipe ? "pipe " : "", slotName, channelId, pid);
         try {
             final Operations.Slot slotDeclaration = Operations.Slot.newBuilder(GrpcConverter.to(slotProto))
                 .setName(slotName)
                 .build();
-            var ret = servantFs.configureSlot(LzyFsApi.SlotCommand.newBuilder()
-                .setSlot(name)
-                .setTid(Long.toString(pid))
-                .setCreate(LzyFsApi.CreateSlotCommand.newBuilder()
-                    .setSlot(slotDeclaration)
-                    .setIsPipe(pipe)
-                    .setChannelId(channelId)
-                    .build()
-                )
+            var ret = servantFs.createSlot(LzyFsApi.CreateSlotRequest.newBuilder()
+                .setTaskId(Long.toString(pid))
+                .setSlot(slotDeclaration)
+                .setIsPipe(pipe)
+                .setChannelId(channelId)
                 .build()
             );
             if (ret.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {

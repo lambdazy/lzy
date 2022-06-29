@@ -655,15 +655,12 @@ public class LzyServer {
             final Iterator<Servant.ServantProgress> start = terminalServant.start(IAM.Empty.newBuilder().build());
 
             tasks.slots(user).forEach((slot, channel) -> {
-                final LzyFsApi.SlotCommand slotCommand = LzyFsApi.SlotCommand.newBuilder()
-                    .setCreate(LzyFsApi.CreateSlotCommand.newBuilder()
-                        .setSlot(GrpcConverter.to(slot))
-                        .setChannelId(channel.name())
-                        .build())
-                    .setSlot(slot.name())
-                    .setTid(auth.hasTask() ? auth.getTask().getTaskId() : "terminal-" + auth.getUser().getUserId())
+                var createSlotRequest = LzyFsApi.CreateSlotRequest.newBuilder()
+                    .setTaskId(auth.hasTask() ? auth.getTask().getTaskId() : "terminal-" + auth.getUser().getUserId())
+                    .setSlot(GrpcConverter.to(slot))
+                    .setChannelId(channel.name())
                     .build();
-                final LzyFsApi.SlotCommandStatus status = terminalFs.configureSlot(slotCommand);
+                final LzyFsApi.SlotCommandStatus status = terminalFs.createSlot(createSlotRequest);
 
                 if (status.hasRc() && status.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {
                     LOG.error("Unable to configure terminal servant slot. session: {}, slot: {}, error: {}",

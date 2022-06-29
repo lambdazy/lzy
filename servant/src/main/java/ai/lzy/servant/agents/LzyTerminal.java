@@ -5,7 +5,6 @@ import static ai.lzy.model.UriScheme.LzyTerminal;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.StatusException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
@@ -163,68 +162,26 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     LOG.info("TerminalCommand::onNext " + JsonUtils.printRequest(terminalCommand));
 
                     final String commandId = terminalCommand.getCommandId();
-                    if (terminalCommand.getCommandCase() != TerminalCommand.CommandCase.SLOTCOMMAND) {
-                        CommandHandler.this.onNext(ServerCommand.newBuilder()
-                            .setTerminalResponse(
-                                Kharon.TerminalResponse.newBuilder()
-                                    .setCommandId(commandId)
-                                    .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                        .setRc(RC.newBuilder()
-                                            .setCodeValue(1)
-                                            .setDescription("Invalid terminal command")
-                                            .build())
-                                        .build())
-                                    .build()
-                            ).build());
-                        return;
-                    }
 
-                    final LzyFsApi.SlotCommand slotCommand = terminalCommand.getSlotCommand();
-                    try {
-                        // TODO: find out if we need namespaces here
-                        LOG.info("Slot command received: {}", slotCommand);
-                        final LzySlot slot = context.slot(slotCommand.getTid(), slotCommand.getSlot());
+                    switch (terminalCommand.getCommandCase()) {
+                        case CONNECTSLOT -> {
+                            var cmd = terminalCommand.getConnectSlot();
+                            LOG.info("ConnectSlot command received: {}", cmd);
 
-                        if (slot == null) {
-                            if (slotCommand.hasDestroy() || slotCommand.hasDisconnect()) {
-                                CommandHandler.this.onNext(ServerCommand.newBuilder()
-                                    .setTerminalResponse(
-                                        Kharon.TerminalResponse.newBuilder()
-                                            .setCommandId(commandId)
-                                            .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                                .setRc(RC.newBuilder()
-                                                    .setCode(RC.Code.SUCCESS)
-                                                    .build())
-                                                .build())
-                                            .build())
-                                    .build());
-                            } else {
-                                CommandHandler.this.onNext(ServerCommand.newBuilder()
-                                    .setTerminalResponse(
-                                        Kharon.TerminalResponse.newBuilder()
-                                            .setCommandId(commandId)
-                                            .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                                .setRc(RC.newBuilder()
-                                                    .setCode(RC.Code.ERROR)
-                                                    .setDescription("Slot " + slotCommand.getSlot()
-                                                        + " not found in ns: " + slotCommand.getTid())
-                                                    .build())
-                                                .build())
-                                            .build())
-                                    .build());
+                            final LzySlot slot = context.slot(cmd.getTaskId(), cmd.getSlotName());
+                            if (slot == null) {
+                                reply(commandId, RC.Code.ERROR,
+                                        "Slot " + cmd.getSlotName() + " not found in ns: " + cmd.getTaskId());
+                                return;
                             }
-                            return;
-                        }
 
-                        if (slotCommand.hasConnect()) {
-                            final URI slotUri = URI.create(slotCommand.getConnect().getSlotUri());
+                            final URI slotUri = URI.create(cmd.getSlotUri());
 
                             ForkJoinPool.commonPool().execute(() -> {
                                 try {
                                     if (slot instanceof LzyOutputSlot) {
                                         slotSender.connect((LzyOutputSlot) slot, slotUri);
-                                    } else if (slot instanceof LzyInputSlot) {
-                                        final var inputSlot = (LzyInputSlot) slot;
+                                    } else if (slot instanceof LzyInputSlot inputSlot) {
                                         if (UriScheme.SlotS3.match(slotUri) || UriScheme.SlotAzure.match(slotUri)) {
                                             inputSlot.connect(slotUri,
                                                 lzyFs.getSlotConnectionManager().connectToS3(slotUri, 0));
@@ -234,37 +191,56 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                                         }
                                     }
 
-                                    CommandHandler.this.onNext(ServerCommand.newBuilder()
-                                        .setTerminalResponse(Kharon.TerminalResponse.newBuilder()
-                                            .setCommandId(commandId)
-                                            .setSlotStatus(LzyFsApi.SlotCommandStatus.newBuilder()
-                                                .setRc(RC.newBuilder()
-                                                    .setCode(RC.Code.SUCCESS)
-                                                    .build())
-                                                .build())
-                                            .build())
-                                        .build());
+                                    reply(commandId, RC.Code.SUCCESS, "");
                                 } catch (Exception e) {
                                     LOG.error("Can't connect to slot {}: {}", slotUri, e.getMessage(), e);
                                     CommandHandler.this.onError(e);
                                 }
                             });
-
-                            return;
                         }
 
-                        final LzyFsApi.SlotCommandStatus slotCommandStatus = lzyFs.configureSlot(slotCommand);
-                        final ServerCommand terminalState = ServerCommand.newBuilder()
-                            .setTerminalResponse(Kharon.TerminalResponse.newBuilder()
-                                .setCommandId(commandId)
-                                .setSlotStatus(slotCommandStatus)
-                                .build()
-                            ).build();
-                        LOG.info("CommandHandler::onNext " + JsonUtils.printRequest(terminalState));
-                        CommandHandler.this.onNext(terminalState);
-                    } catch (StatusException e) {
-                        LOG.info("CommandHandler::onError " + e);
-                        CommandHandler.this.onError(e);
+                        case DISCONNECTSLOT -> {
+                            var cmd = terminalCommand.getDisconnectSlot();
+                            LOG.info("DisconnectSlot command received: {}", cmd);
+
+                            final LzySlot slot = context.slot(cmd.getTaskId(), cmd.getSlotName());
+                            if (slot == null) {
+                                reply(commandId, RC.Code.SUCCESS, "");
+                                return;
+                            }
+
+                            reply(commandId, lzyFs.disconnectSlot(cmd));
+                        }
+
+                        case STATUSSLOT -> {
+                            var cmd = terminalCommand.getStatusSlot();
+                            LOG.info("StatusSlot command received: {}", cmd);
+
+                            final LzySlot slot = context.slot(cmd.getTaskId(), cmd.getSlotName());
+                            if (slot == null) {
+                                reply(commandId, RC.Code.ERROR,
+                                        "Slot " + cmd.getSlotName() + " not found in ns: " + cmd.getTaskId());
+                                return;
+                            }
+
+                            reply(commandId, lzyFs.statusSlot(cmd));
+                        }
+
+                        case DESTROYSLOT -> {
+                            var cmd = terminalCommand.getDestroySlot();
+                            LOG.info("DestroySlot command received: {}", cmd);
+
+                            final LzySlot slot = context.slot(cmd.getTaskId(), cmd.getSlotName());
+                            if (slot == null) {
+                                reply(commandId, RC.Code.SUCCESS, "");
+                                return;
+                            }
+
+                            reply(commandId, lzyFs.destroySlot(cmd));
+                        }
+
+                        default -> reply(commandId, RC.Code.ERROR,
+                                         "Invalid terminal command: " + terminalCommand.getCommandCase());
                     }
                 }
 
@@ -278,6 +254,26 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                 public void onCompleted() {
                     LOG.warn("Terminal was detached from server");
                     close();
+                }
+
+                private void reply(String commandId, RC.Code rc, String message) {
+                    reply(commandId, LzyFsApi.SlotCommandStatus.newBuilder()
+                        .setRc(RC.newBuilder()
+                            .setCode(rc)
+                            .setDescription(message)
+                            .build())
+                        .build());
+                }
+
+                private void reply(String commandId, LzyFsApi.SlotCommandStatus status) {
+                    var terminalState = ServerCommand.newBuilder()
+                        .setTerminalResponse(Kharon.TerminalResponse.newBuilder()
+                            .setCommandId(commandId)
+                            .setSlotStatus(status)
+                            .build())
+                        .build();
+                    LOG.info("CommandHandler::onNext " + JsonUtils.printRequest(terminalState));
+                    CommandHandler.this.onNext(terminalState);
                 }
             };
 
