@@ -35,7 +35,7 @@ public class IAMThreadContext implements LzyIAMTestContext {
 
     @Override
     public HostAndPort address() {
-        return HostAndPort.fromString("http://localhost:" + IAM_PORT);
+        return HostAndPort.fromParts("localhost", IAM_PORT);
     }
 
     @Override
