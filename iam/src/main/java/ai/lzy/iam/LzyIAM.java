@@ -21,18 +21,11 @@ import ai.lzy.model.grpc.ChannelBuilder;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 public class LzyIAM {
 
     public static final Logger LOG;
-    private static final Options options = new Options();
-
-    static {
-        options.addOption("p", "port", true, "gRPC port setting");
-        options.addOption("l", "limit", true, "user limit setting");
-    }
 
     static {
         ProducerConfig.configNames();
@@ -64,25 +57,7 @@ public class LzyIAM {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        final CommandLineParser cliParser = new DefaultParser();
-        final HelpFormatter cliHelp = new HelpFormatter();
-        CommandLine parse = null;
-        try {
-            parse = cliParser.parse(options, args);
-        } catch (ParseException e) {
-            System.out.println(e.getMessage());
-            cliHelp.printHelp("lzy-snapshot", options);
-            System.exit(-1);
-        }
-        final int port = Integer.parseInt(parse.getOptionValue('p', "8443"));
-        final int userLimit = Integer.parseInt(parse.getOptionValue('l', "60"));
-        final ServiceConfig serviceConfig = new ServiceConfig();
-        serviceConfig.setServerPort(port);
-        serviceConfig.setUserLimit(userLimit);
-        Map<String, Object> properties = Map.of(
-                "serviceConfig", serviceConfig
-        );
-        try (ApplicationContext context = ApplicationContext.run(properties)) {
+        try (ApplicationContext context = ApplicationContext.run()) {
             try {
                 final LzyIAM lzyIAM = new LzyIAM(context);
 
