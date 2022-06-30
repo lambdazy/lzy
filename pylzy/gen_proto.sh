@@ -12,11 +12,11 @@ set -ux
 
 cd "$proto_path"
 python -m grpc_tools.protoc \
-    -I . \
-    --python_out="$OLDPWD/$proto_out" \
-    --grpclib_python_out="$OLDPWD/$proto_out" \
-    --proto_path=. \
-    $(find ai/lzy/priv -iname "*.proto" -type f)
+       -I . \
+       --python_out="$OLDPWD/$proto_out" \
+       --grpclib_python_out="$OLDPWD/$proto_out" \
+       --proto_path=. \
+       $(find ai/lzy/priv -iname "*.proto" -type f)
 cd "$OLDPWD"
 
 

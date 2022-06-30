@@ -14,13 +14,13 @@ proto_out="$proto_out/bet"
 echo "Generating proto stubs"
 cd "$proto_path"
 python -m grpc_tools.protoc \
-    -I . \
-    --python_betterproto_out="$OLDPWD/$proto_out" \
-    $(find . \
-        -iname "*.proto" -type f \
-        ! -name "lzy-graph-executor.proto" \
-        ! -name "lzy-server.proto" \
-        ! -name "lzy-kharon.proto" )
+       -I . \
+       --python_betterproto_out="$OLDPWD/$proto_out" \
+       $(find . \
+              -iname "*.proto" -type f \
+              ! -name "lzy-graph-executor.proto" \
+              ! -name "lzy-server.proto" \
+              ! -name "lzy-kharon.proto" )
 cd "$OLDPWD"
 
 
