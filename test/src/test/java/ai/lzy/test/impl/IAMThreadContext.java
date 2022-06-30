@@ -6,11 +6,14 @@ import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.priv.v1.LzyAccessServiceGrpc;
 import ai.lzy.priv.v1.LzySubjectServiceGrpc;
 import ai.lzy.test.LzyIAMTestContext;
+import ai.lzy.v1.LzyAccessBindingServiceGrpc;
+import ai.lzy.v1.LzyAuthenticateServiceGrpc;
 import ai.lzy.whiteboard.api.SnapshotApi;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
+import org.testcontainers.shaded.com.google.common.net.HostAndPort;
 
 import java.io.IOException;
 import java.util.Map;
@@ -25,12 +28,14 @@ public class IAMThreadContext implements LzyIAMTestContext {
 
     private LzyAccessServiceGrpc.LzyAccessServiceBlockingStub lzyAccessServiceClient;
     private LzySubjectServiceGrpc.LzySubjectServiceBlockingStub lzySubjectServiceClient;
+    private LzyAccessBindingServiceGrpc.LzyAccessBindingServiceBlockingStub lzyAccessBindingServiceBlockingStub;
+    private LzyAuthenticateServiceGrpc.LzyAuthenticateServiceBlockingStub lzyAuthenticateServiceBlockingStub;
     private LzyIAM lzyIAM;
     private ManagedChannel channel;
 
     @Override
-    public String address() {
-        return "http://localhost:" + IAM_PORT;
+    public HostAndPort address() {
+        return HostAndPort.fromString("http://localhost:" + IAM_PORT);
     }
 
     @Override
@@ -41,6 +46,16 @@ public class IAMThreadContext implements LzyIAMTestContext {
     @Override
     public LzySubjectServiceGrpc.LzySubjectServiceBlockingStub subjectServiceClient() {
         return lzySubjectServiceClient;
+    }
+
+    @Override
+    public LzyAccessBindingServiceGrpc.LzyAccessBindingServiceBlockingStub accessBindingServiceClient() {
+        return lzyAccessBindingServiceBlockingStub;
+    }
+
+    @Override
+    public LzyAuthenticateServiceGrpc.LzyAuthenticateServiceBlockingStub authenticateServiceClient() {
+        return lzyAuthenticateServiceBlockingStub;
     }
 
     @Override
@@ -72,6 +87,12 @@ public class IAMThreadContext implements LzyIAMTestContext {
                 .withWaitForReady()
                 .withDeadlineAfter(IAM_STARTUP_SECONDS, TimeUnit.SECONDS);
         lzyAccessServiceClient = LzyAccessServiceGrpc.newBlockingStub(channel)
+                .withWaitForReady()
+                .withDeadlineAfter(IAM_STARTUP_SECONDS, TimeUnit.SECONDS);
+        lzyAccessBindingServiceBlockingStub = LzyAccessBindingServiceGrpc.newBlockingStub(channel)
+                .withWaitForReady()
+                .withDeadlineAfter(IAM_STARTUP_SECONDS, TimeUnit.SECONDS);
+        lzyAuthenticateServiceBlockingStub = LzyAuthenticateServiceGrpc.newBlockingStub(channel)
                 .withWaitForReady()
                 .withDeadlineAfter(IAM_STARTUP_SECONDS, TimeUnit.SECONDS);
         while (channel.getState(true) != ConnectivityState.READY) {
