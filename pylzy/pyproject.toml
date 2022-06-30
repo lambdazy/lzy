@@ -3,7 +3,8 @@ profile = "black"
 skip = ["lzy/proto/"]
 [tool.pyright]
 include = ["lzy"]
-exclude = ["lzy/proto",
+exclude = [
+    "lzy/proto/**",
     "**/__pycache__",
 ]
 [tool.black]
@@ -12,10 +13,10 @@ target-version = ['py36', 'py37', 'py38', 'py39']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
-  | lzy/proto/
+  | lzy/proto/.*
 )/
 '''
 [tool.mypy]
-exclude = '''(?x)(
-    lzy/proto/.*
-)'''
+exclude = [
+    'lzy/proto/'  # TOML literal string (single-quotes, no escaping necessary)
+]
