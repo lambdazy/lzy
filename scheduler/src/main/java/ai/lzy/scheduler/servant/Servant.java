@@ -13,13 +13,15 @@ public interface Servant {
     void allocate();
     void notifyConnected(URL servantUrl);
     void notifyConfigured(int rc, String description);
-    void notifyDisconnected();
     void setTask(Task task);
     void notifyExecutionCompleted(int rc, String description);
     void notifyCommunicationCompleted();
     void stop(String issue);
     void notifyStopped(int rc, String description);
     void signal(int signalNum);
+
+    void executingHeartbeat();
+    void idleHeartbeat();
 
     // ========= Fields ===========
     String id();

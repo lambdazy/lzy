@@ -15,13 +15,13 @@ public class EventQueue {
         this.servantId = servantId;
     }
 
-    public List<ServantEvent> waitForNextEvents() throws InterruptedException {
-        List<ServantEvent> events = dao.takeBeforeNow(servantId);
-        while (events.isEmpty()) {
+    public ServantEvent waitForNext() throws InterruptedException {
+        ServantEvent event = dao.take(servantId);
+        while (event == null) {
             queue.take();
-            events = dao.takeBeforeNow(servantId);  // Event can be removed from dao
+            event = dao.take(servantId);  // Event can be removed from dao
         }
-        return events;
+        return event;
     }
 
     public void put(ServantEvent event) {

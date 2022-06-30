@@ -6,6 +6,7 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 public record ServantEventProcessorConfig(
         int allocationTimeoutSeconds,
         int idleTimeoutSeconds,
+        int configuringTimeoutSeconds,
         int servantStopTimeoutSeconds,
         int executingHeartbeatPeriodSeconds,
         int idleHeartbeatPeriodSeconds) { }

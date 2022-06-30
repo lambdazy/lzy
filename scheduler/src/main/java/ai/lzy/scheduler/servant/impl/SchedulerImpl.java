@@ -1,5 +1,7 @@
 package ai.lzy.scheduler.servant.impl;
 
+import ai.lzy.model.Slot;
+import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
@@ -14,13 +16,16 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.util.LinkedList;
+
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,18 +38,20 @@ public class SchedulerImpl extends Thread implements Scheduler {
     private static final Logger LOG = LogManager.getLogger(SchedulerImpl.class);
     private final BlockingQueue<Task> tasks = new LinkedBlockingQueue<>();
     private final AtomicBoolean stopping = new AtomicBoolean(false);
+    private final ServiceConfig config;
 
     @Inject
-    public SchedulerImpl(ServantDao dao, TaskDao taskDao, ServantsPool pool) {
+    public SchedulerImpl(ServantDao dao, TaskDao taskDao, ServantsPool pool, ServiceConfig config) {
         this.dao = dao;
         this.taskDao = taskDao;
         this.pool = pool;
+        this.config = config;
         restore();
     }
 
     @Override
     public Task execute(String workflowId, TaskDesc taskDesc) throws StatusException {
-        // TODO(artolord) add task validation
+        validateTask(taskDesc);
         if (stopping.get()) {
             throw io.grpc.Status.UNAVAILABLE.withDescription("Service is stopping. Please try again").asException();
         }
@@ -91,6 +98,17 @@ public class SchedulerImpl extends Thread implements Scheduler {
         }
 
         return getTask(workflowId, taskId);
+    }
+
+    @Override
+    public void killAll(String workflowId, String issue) throws StatusException {
+        try {
+            List<Servant> servants = dao.get(workflowId);
+            servants.forEach(s -> s.stop(issue));
+        } catch (DaoException e) {
+            LOG.error("Error while getting servant from db", e);
+            throw Status.INTERNAL.asException();
+        }
     }
 
     @Override
@@ -154,5 +172,49 @@ public class SchedulerImpl extends Thread implements Scheduler {
             throw Status.INTERNAL.withDescription("Something wrong with service").asException();
         }
         return task;
+    }
+
+    private void validateTask(TaskDesc taskDesc) throws StatusException {
+        boolean validProvisioning = config.provisioningLimits().keySet().containsAll(
+            taskDesc.zygote()
+                .provisioning()
+                .tags()
+                .map(Provisioning.Tag::tag)
+                .toList());
+        if (!validProvisioning) {
+            throw Status.INVALID_ARGUMENT.withDescription("Wrong provisioning tags").asException();
+        }
+
+        Set<String> inputSlots = Arrays.stream(taskDesc.zygote().input())
+            .map(Slot::name)
+            .collect(Collectors.toSet());
+
+        Set<String> outputSlots = Arrays.stream(taskDesc.zygote().output())
+            .map(Slot::name)
+            .collect(Collectors.toSet());
+
+        Set<String> intersection = new HashSet<>(inputSlots); // use the copy constructor
+        intersection.retainAll(outputSlots);
+
+        if (intersection.size() > 0) {
+            throw Status.INVALID_ARGUMENT.withDescription("Some of slots are inputs and outputs at the same time")
+                .asException();
+        }
+
+        if (!taskDesc.slotsToChannelsAssignments().keySet().containsAll(inputSlots)) {
+            throw Status.INVALID_ARGUMENT.withDescription("Some of input slots are not mapped")
+                .asException();
+        }
+        if (!taskDesc.slotsToChannelsAssignments().keySet().containsAll(outputSlots)) {
+            throw Status.INVALID_ARGUMENT.withDescription("Some of output slots are not mapped")
+                .asException();
+        }
+
+        Set<String> slots = new HashSet<>(inputSlots);
+        slots.addAll(outputSlots);
+        if (!slots.containsAll(taskDesc.slotsToChannelsAssignments().keySet())) {
+            throw Status.INVALID_ARGUMENT.withDescription("Some of mappings are not presented in slots")
+                .asException();
+        }
     }
 }

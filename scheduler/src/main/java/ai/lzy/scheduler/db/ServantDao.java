@@ -10,7 +10,7 @@ import javax.annotation.Nullable;
 public interface ServantDao {
 
     @Nullable
-    ServantState acquire(String servantId) throws AcquireException, DaoException;
+    ServantState acquire(String workflowId, String servantId) throws AcquireException, DaoException;
     void updateAndFree(ServantState resource) throws DaoException;
 
     List<Servant> getAllFree() throws DaoException;
@@ -27,6 +27,7 @@ public interface ServantDao {
     void freeFromTask(String workflowId, String servantId) throws DaoException;
 
     void invalidate(Servant servant, String description) throws DaoException;
+    List<Servant> get(String workflowId) throws DaoException;
 
     class AcquireException extends Exception {}
 }

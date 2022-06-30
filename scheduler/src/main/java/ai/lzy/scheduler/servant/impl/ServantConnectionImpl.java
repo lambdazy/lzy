@@ -20,13 +20,12 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
-public class ServantConnectionImpl extends Thread implements ServantConnection {
+public class ServantConnectionImpl implements ServantConnection {
     private final ManagedChannel channel;
     private final LzyServantGrpc.LzyServantBlockingStub servantBlockingStub;
     private final Servant servant;
 
     public ServantConnectionImpl(URL servantUrl, Servant servant) {
-        super(new ThreadGroup("connections"), "connection-" + servantUrl);
         this.servant = servant;
         this.channel = ChannelBuilder.forAddress(servantUrl.getHost(), servantUrl.getPort())
             .usePlaintext()
@@ -40,8 +39,7 @@ public class ServantConnectionImpl extends Thread implements ServantConnection {
         return new ServantApi() {
             @Override
             public void configure(Env env) throws StatusRuntimeException {
-                EnvResult res = servantBlockingStub.env(GrpcConverter.to(env));
-                servant.notifyConfigured(res.getRc(), res.getDescription());  // TODO(artolord) make this call async
+                servantBlockingStub.env(GrpcConverter.to(env));
             }
 
             @Override
@@ -81,30 +79,6 @@ public class ServantConnectionImpl extends Thread implements ServantConnection {
 
     @Override
     public void close() {
-        this.interrupt();
         channel.shutdown();
-    }
-
-    @Override
-    public void run() {
-        try {
-            servantBlockingStub.start(IAM.Empty.newBuilder().build()).forEachRemaining(
-                progress -> {
-                    switch (progress.getStatusCase()) {
-                        case START, EXECUTESTART -> {}
-                        case COMMUNICATIONCOMPLETED -> servant.notifyCommunicationCompleted();
-                        case CONCLUDED -> servant.notifyStopped(0, "Servant concluded");
-                        case FAILED -> servant.notifyStopped(1, "Servant stopped");
-                        case EXECUTESTOP -> servant.notifyExecutionCompleted(
-                                progress.getExecuteStop().getRc(),
-                                progress.getExecuteStop().getDescription()
-                        );
-                        default -> throw new NotImplementedException("Not implemented for");
-                    }
-                }
-            );
-        } finally {
-            servant.notifyDisconnected();
-        }
     }
 }

@@ -33,17 +33,19 @@ public class ServantsPoolImpl extends Thread implements ServantsPool {
     private final TaskDao tasks;
     private final Queue<ServantEventProcessor> processors = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean stopping = new AtomicBoolean(false);
+    private final EventQueueManager queueManager;
     private static final Logger LOG = LogManager.getLogger(ServantsPoolImpl.class);
 
     public ServantsPoolImpl(ServiceConfig config, ServantEventProcessorConfig servantConfig,
                             ServantDao dao, ServantsAllocator allocator, ServantEventDao events,
-                            TaskDao tasks) {
+                            TaskDao tasks, EventQueueManager queueManager) {
         this.config = config;
         this.servantConfig = servantConfig;
         this.dao = dao;
         this.allocator = allocator;
         this.events = events;
         this.tasks = tasks;
+        this.queueManager = queueManager;
         restore();
     }
 
@@ -75,7 +77,7 @@ public class ServantsPoolImpl extends Thread implements ServantsPool {
         }
         if (servant != null) {
             var processor = new ServantEventProcessor(workflowId, servant.id(), servantConfig,
-                allocator, tasks, events, dao,
+                allocator, tasks, events, dao, queueManager,
                 (workflow, servantId) -> {
                     synchronized (this) {
                         this.notifyAll();
@@ -165,7 +167,7 @@ public class ServantsPoolImpl extends Thread implements ServantsPool {
         }
         for (Servant servant: free) {
             var processor = new ServantEventProcessor(servant.workflowId(), servant.id(),
-                servantConfig, allocator, tasks, events, dao,
+                servantConfig, allocator, tasks, events, dao, queueManager,
                 (workflow, servantId) -> {
                     synchronized (this) {
                         this.notifyAll();

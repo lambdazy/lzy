@@ -42,13 +42,6 @@ public class ServantImpl implements Servant {
     }
 
     @Override
-    public void notifyDisconnected() {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.DISCONNECTED)
-            .setDescription("Servant disconnected")
-            .build());
-    }
-
-    @Override
     public void setTask(Task task) {
         events.put(ServantEvent.fromState(state, ServantEvent.Type.EXECUTION_REQUESTED)
             .setTaskId(task.taskId())
@@ -91,6 +84,20 @@ public class ServantImpl implements Servant {
         events.put(ServantEvent.fromState(state, ServantEvent.Type.SIGNAL)
             .setDescription("Signal sent")
             .setSignalNumber(signalNum)
+            .build());
+    }
+
+    @Override
+    public void executingHeartbeat() {
+        events.put(ServantEvent.fromState(state, ServantEvent.Type.EXECUTING_HEARTBEAT)
+            .setDescription("Executing heartbeat")
+            .build());
+    }
+
+    @Override
+    public void idleHeartbeat() {
+        events.put(ServantEvent.fromState(state, ServantEvent.Type.IDLE_HEARTBEAT)
+            .setDescription("Idle heartbeat")
             .build());
     }
 

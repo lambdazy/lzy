@@ -1,7 +1,9 @@
 package ai.lzy.scheduler.models;
 
 import java.net.URL;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
@@ -10,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 
 public record ServantEvent(
     String id,
-    LocalDateTime timestamp,  // TODO convert to utc
+    Instant timestamp,
     String servantId,
     String workflowId,
     Type type,
@@ -33,7 +35,7 @@ public record ServantEvent(
 
     @Override
     public long getDelay(@NotNull TimeUnit unit) {
-        return unit.toChronoUnit().between(LocalDateTime.now(), timestamp);
+        return unit.toChronoUnit().between(Instant.now(), timestamp);
     }
 
     public enum Type {
@@ -47,7 +49,6 @@ public record ServantEvent(
         EXECUTING_HEARTBEAT_TIMEOUT,  // Timeout of heartbeat waiting of servant
         EXECUTION_COMPLETED,  // Servant says that execution was completed
         EXECUTION_TIMEOUT,  // Executing longer than execution timeout
-        DISCONNECTED,  // Scheduler lost connection to servant
         COMMUNICATION_COMPLETED,  // All data from servant was uploaded
         IDLE_HEARTBEAT,  // Heartbeat of servant while its idle
         IDLE_HEARTBEAT_TIMEOUT,  // Timeout of heartbeat waiting of servant
@@ -61,7 +62,7 @@ public record ServantEvent(
     public static class EventBuilder {
         private final ServantState state;
         private final Type type;
-        private LocalDateTime timestamp = LocalDateTime.now();
+        private Instant timestamp = Instant.now();
         private Integer rc = null;
         private String description = null;
         private String taskId = null;
@@ -83,8 +84,8 @@ public record ServantEvent(
             return this;
         }
 
-        public EventBuilder setTimestamp(LocalDateTime timestamp) {
-            this.timestamp = timestamp;
+        public EventBuilder setTimeout(long timeoutSecs) {
+            this.timestamp = Instant.now().plus(timeoutSecs, ChronoUnit.SECONDS);
             return this;
         }
 

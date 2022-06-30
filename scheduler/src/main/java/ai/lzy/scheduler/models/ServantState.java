@@ -11,8 +11,8 @@ public record ServantState(
     String workflowId,
     Provisioning provisioning,
     Status status,
-    Env env,
 
+    @Nullable Env env,
     @Nullable String errorDescription,
     @Nullable String taskId,
     @Nullable URL servantUrl,
@@ -32,7 +32,8 @@ public record ServantState(
     }
 
     public ServantStateBuilder copy() {
-        return new ServantStateBuilder(id, workflowId, provisioning, env, status)
+        return new ServantStateBuilder(id, workflowId, provisioning, status)
+            .setEnv(env)
             .setTaskId(taskId)
             .setErrorDescription(errorDescription)
             .setAllocatorMeta(allocatorMeta)
@@ -44,20 +45,19 @@ public record ServantState(
         private final String id;
         private final String workflowId;
         private final Provisioning provisioning;
-        private final Env env;
         private Status status;
 
+        @Nullable private Env env = null;
         @Nullable private String taskId = null;
         @Nullable private String errorDescription = null;
         @Nullable private URL servantUrl = null;
         @Nullable private String allocatorMeta = null;
         @Nullable private String allocationToken = null;
 
-        public ServantStateBuilder(String id, String workflowId, Provisioning provisioning, Env env, Status status) {
+        public ServantStateBuilder(String id, String workflowId, Provisioning provisioning, Status status) {
             this.id = id;
             this.workflowId = workflowId;
             this.provisioning = provisioning;
-            this.env = env;
             this.status = status;
         }
 
@@ -91,9 +91,14 @@ public record ServantState(
             return this;
         }
 
+        public ServantStateBuilder setEnv(@Nullable Env env) {
+            this.env = env;
+            return this;
+        }
+
         public ServantState build() {
             return new ServantState(id, workflowId, provisioning, status, env, errorDescription,
-                    taskId, servantUrl, allocatorMeta, allocationToken);
+                taskId, servantUrl, allocatorMeta, allocationToken);
         }
     }
 }
