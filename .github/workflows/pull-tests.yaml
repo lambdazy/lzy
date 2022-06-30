@@ -17,45 +17,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: stCarolas/setup-maven@v4.3
-        with:
-          maven-version: 3.8.2
-
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'adopt'
-          java-version: '17'
-
-      - name: "Download conda"
-        run: |
-          echo "4ee9c3aa53329cd7a63b49877c0babb49b19b7e5af29807b793a76bdb1d362b4  miniconda.sh" > sha256.hash
-          wget https://repo.anaconda.com/miniconda/Miniconda3-py39_4.11.0-Linux-x86_64.sh -O miniconda.sh
-
-      - name: "Verify conda"
-        run: sha256sum -c sha256.hash
-
-      - name: "Install conda"
-        run: bash miniconda.sh -b -p $RUNNER_TEMP/miniconda
-
-      - name: "Create conda env"
-        run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
-          conda create --name "py39" "python=3.9.7"
-
       - name: 'install python requirements'
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r servant/docker/requirements.txt
 
       - name: 'install pylzy'
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           eval "$(conda shell.bash hook)" && conda activate py39 && cd pylzy/ && pip install . && cd ..
 
       - name: 'python-test'
         timeout-minutes: 5
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           eval "$(conda shell.bash hook)" && conda activate py39 && cd pylzy/ && python -m unittest discover tests/ && cd ..
 
       - name: 'java unit tests and install'
@@ -69,55 +41,46 @@ jobs:
       - name: 'DockerServantTest'
         timeout-minutes: 15
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'LzyDryStartupTest'
         timeout-minutes: 5
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'LzyStartupWithAvailableZygotesTest'
         timeout-minutes: 5
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'MultiSessionTest'
         timeout-minutes: 5
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'PyApiTest'
         timeout-minutes: 15
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'RunTest'
         timeout-minutes: 5
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'SnapshotTest'
         timeout-minutes: 5
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'TerminalCrashTest'
         timeout-minutes: 5
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'ServantCrashTest'
         timeout-minutes: 5
         run: |
-          export PATH="$RUNNER_TEMP/miniconda/bin:$PATH"
           cd test && mvn test -Dtest=ServantCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'Clean docker files'
