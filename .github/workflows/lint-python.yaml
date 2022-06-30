@@ -15,7 +15,15 @@ jobs:
           fetch-depth: 0
 
       - name: Run mypy
-        run: cd pylzy && ./lint.sh && ./clean.sh && cd ..
+        run: |
+          cd pylzy
+          ./lint.sh
+          ./clean.sh
+          cd ..
 
       - name: Run mypy on DS
-        run: cd jupyter-kernel && ../pylzy/lint.sh && ../pylzy/clean.sh
+        run: |
+          cd jupyter-kernel
+          ../pylzy/lint.sh
+          ../pylzy/clean.sh
+          cd ..
