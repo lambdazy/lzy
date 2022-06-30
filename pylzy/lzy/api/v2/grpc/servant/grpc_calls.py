@@ -4,6 +4,8 @@ from lzy.proto.ai.lzy.priv.v2.lzy_fs_grpc import LzyFsStub
 from lzy.proto.ai.lzy.priv.v2.lzy_server_grpc import LzyServerStub
 from lzy.proto.bet.ai.lzy.priv.v2 import (
     Auth,
+    DataScheme,
+    DirectChannelSpec,
     ChannelCommand,
     ChannelCreate,
     ChannelDestroy,
@@ -14,6 +16,7 @@ from lzy.proto.bet.ai.lzy.priv.v2 import (
     SlotCommand,
     SlotCommandStatus,
     SlotMedia,
+    SnapshotChannelSpec,
     TaskProgress,
     TaskSpec,
     TaskStatus,
@@ -34,62 +37,6 @@ class Run:
         self.servant_fs = LzyFsStub(self._chan)
         self.pid = -1
 
-    async def create_channel(self, slot: Slot, channel_name: str) -> ChannelStatus:
-        # LOG.info("Create channel `{}` for slot `{}`.", channelName, slot.name());
-        create = ChannelCreate(content_type=slot.content_type, direct=slot.direction)
-        channel_cmd = ChannelCommand(
-            auth=self.auth,
-            channel_name=channel_name,
-            create=create,
-        )
-        result = await self.server.Channel(channel_cmd)
-        return result
-
-    async def destroy_channel(self, channel_name: str):
-        destroy = ChannelDestroy()
-        channel_cmd = ChannelCommand(
-            auth=self.auth,
-            channel_name=channel_name,
-            destroy=destroy,
-        )
-        # TODO[aleksZubakov]: try/catch here?
-        result = await self.server.Channel(channel_cmd)
-        return result
-
-    async def create_slot(
-        self, slot: Slot, pid: int, name: str, pipe: bool, channel_id: str
-    ) -> SlotCommandStatus:
-        create_cmd = CreateSlotCommand(
-            slot=slot,
-            channel_id=channel_id,
-            is_pipe=pipe,
-        )
-        # LOG.info("Create {}slot `{}` ({}) for channel `{}` with taskId {}.",
-        #         pipe ? "pipe " : "", slotName, name, channelId, pid);
-        slot_cmd = SlotCommand(
-            tid=str(pid),
-            slot=name,
-            create=create_cmd,
-        )
-        result = await self.servant_fs.ConfigureSlot(slot_cmd)
-        return result
-
-    async def resolve_slot(self, slot: Slot) -> str:
-        # LOG.info("Resolving slot " + slot.name());
-        #
-        # final String binding;
-        # if (slot.media() == Slot.Media.ARG) {
-        #     binding = String.join(" ", command.getArgList().subList(1, command.getArgList().size()));
-        # } else if (bindings.containsKey(slot.name())) {
-        #     binding = "channel:" + bindings.get(slot.name());
-        # } else {
-        #     binding = "channel:" + resolveChannel(slot);
-        # }
-        # LOG.info("Slot " + slot.name() + " resolved to " + binding);
-        #
-        binding = ""
-        return binding
-
     async def start(self, zygote: Zygote) -> TaskProgress:
         raise NotImplementedError("not implemented yet")
 
@@ -107,8 +54,7 @@ class Run:
             assignments=assignments,
         )
 
-        result = await self.server.Start(task_spec)
-        return result
+        return await self.server.Start(task_spec)
 
         #  final long startTimeMillis = System.currentTimeMillis();
         #  final Iterator<Tasks.TaskProgress> executionProgress = server.start(taskSpec.build());
