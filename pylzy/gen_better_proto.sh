@@ -10,12 +10,16 @@ set -ux
 [ ! -d "$proto_out" ] && mkdir -p "$proto_out"
 
 
+echo "Generating proto stubs"
 cd "$proto_path"
 python -m grpc_tools.protoc \
     -I . \
     --python_betterproto_out="$OLDPWD/$proto_out" \
     --proto_path=. \
-    $(find ai/lzy/priv -iname "*.proto" -type f)
+    $(find ai/lzy/ \
+        -iname "*.proto" -type f \
+        ! -name "lzy-server.proto" \
+        ! -name "lzy-kharon.proto" )
 cd "$OLDPWD"
 
 
