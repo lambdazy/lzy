@@ -74,28 +74,38 @@ class Run:
         result = await self.servant_fs.ConfigureSlot(slot_cmd)
         return result
 
+    async def resolve_slot(self, slot: Slot) -> str:
+        # LOG.info("Resolving slot " + slot.name());
+        #
+        # final String binding;
+        # if (slot.media() == Slot.Media.ARG) {
+        #     binding = String.join(" ", command.getArgList().subList(1, command.getArgList().size()));
+        # } else if (bindings.containsKey(slot.name())) {
+        #     binding = "channel:" + bindings.get(slot.name());
+        # } else {
+        #     binding = "channel:" + resolveChannel(slot);
+        # }
+        # LOG.info("Slot " + slot.name() + " resolved to " + binding);
+        #
+        binding = ""
+        return binding
+
     async def start(self, zygote: Zygote) -> TaskProgress:
+        raise NotImplementedError("not implemented yet")
+
         zygote.name += f"_{self.pid}"
-
-        assignments = []
-        for slot in zygote.slots:
-            # LOG.info("Resolving slot " + slot.name());
-            #
-            # final String binding;
-            # if (slot.media() == Slot.Media.ARG) {
-            #     binding = String.join(" ", command.getArgList().subList(1, command.getArgList().size()));
-            # } else if (bindings.containsKey(slot.name())) {
-            #     binding = "channel:" + bindings.get(slot.name());
-            # } else {
-            #     binding = "channel:" + resolveChannel(slot);
-            # }
-            # LOG.info("Slot " + slot.name() + " resolved to " + binding);
-
-            raise NotImplementedError("not implemented yet")
-            binding = "aaa"
-            assignments.append(SlotAssignment(slot, binding=binding))
-
-        task_spec = TaskSpec(auth=self.auth, zygote=zygote, assignments=assignments)
+        assignments = [
+            SlotAssignment(
+                slot=slot,
+                binding=self.resolve_slot(slot),
+            )
+            for slot in zygote.slots
+        ]
+        task_spec = TaskSpec(
+            auth=self.auth,
+            zygote=zygote,
+            assignments=assignments,
+        )
 
         result = await self.server.Start(task_spec)
         return result
