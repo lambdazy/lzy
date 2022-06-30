@@ -7,6 +7,7 @@ set -ux
 # proto_out="lzy/proto"
 # proto_path="../model/src/main/proto/"
 
+proto_out="$proto_out/bet"
 [ ! -d "$proto_out" ] && mkdir -p "$proto_out"
 
 
@@ -15,9 +16,9 @@ cd "$proto_path"
 python -m grpc_tools.protoc \
     -I . \
     --python_betterproto_out="$OLDPWD/$proto_out" \
-    --proto_path=. \
-    $(find ai/lzy/ \
+    $(find . \
         -iname "*.proto" -type f \
+        ! -name "lzy-graph-executor.proto" \
         ! -name "lzy-server.proto" \
         ! -name "lzy-kharon.proto" )
 cd "$OLDPWD"
