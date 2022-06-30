@@ -9,17 +9,18 @@ import ai.lzy.test.LzyIAMTestContext;
 import ai.lzy.v1.LzyAccessBindingServiceGrpc;
 import ai.lzy.v1.LzyAuthenticateServiceGrpc;
 import ai.lzy.whiteboard.api.SnapshotApi;
+import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
-import org.testcontainers.shaded.com.google.common.net.HostAndPort;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
+@SuppressWarnings("UnstableApiUsage")
 public class IAMThreadContext implements LzyIAMTestContext {
 
     private static final long IAM_STARTUP_SECONDS = 60;

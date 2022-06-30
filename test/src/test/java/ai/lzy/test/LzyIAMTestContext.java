@@ -4,8 +4,9 @@ import ai.lzy.priv.v1.LzyAccessServiceGrpc;
 import ai.lzy.priv.v1.LzySubjectServiceGrpc;
 import ai.lzy.v1.LzyAccessBindingServiceGrpc;
 import ai.lzy.v1.LzyAuthenticateServiceGrpc;
-import org.testcontainers.shaded.com.google.common.net.HostAndPort;
+import com.google.common.net.HostAndPort;
 
+@SuppressWarnings("UnstableApiUsage")
 public interface LzyIAMTestContext {
     HostAndPort address();
 
