@@ -1,6 +1,7 @@
 package ai.lzy.kharon.workflow;
 
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.PreDestroy;
@@ -53,19 +54,13 @@ public class WorkflowService extends LzyWorkflowImplBase {
 
         LOG.info("[createWorkflow], uid={}, request={}.", userId, JsonUtils.printRequest(request));
 
-        BiConsumer<CreateWorkflowResponse.ErrorCode, String> replyError = (rc, descr) -> {
+        BiConsumer<io.grpc.Status, String> replyError = (rc, descr) -> {
             LOG.error("[createWorkflow], fail: rc={}, msg={}.", rc, descr);
-            response.onNext(CreateWorkflowResponse.newBuilder()
-                .setError(CreateWorkflowResponse.Error.newBuilder()
-                    .setCode(rc.getNumber())
-                    .setDescription(descr)
-                    .build())
-                .build());
-            response.onCompleted();
+            response.onError(rc.withDescription(descr).asException());
         };
 
         if (isNullOrEmpty(request.getWorkflowName())) {
-            replyError.accept(CreateWorkflowResponse.ErrorCode.BAD_REQUEST, "Empty `workflowName`");
+            replyError.accept(Status.INVALID_ARGUMENT, "Empty `workflowName`");
             return;
         }
 
@@ -87,7 +82,7 @@ public class WorkflowService extends LzyWorkflowImplBase {
             if (rs.next()) {
                 var existingExecutionId = rs.getString("execution_id");
                 if (!isNullOrEmpty(existingExecutionId)) {
-                    replyError.accept(CreateWorkflowResponse.ErrorCode.ALREADY_EXISTS, String.format(
+                    replyError.accept(Status.ALREADY_EXISTS, String.format(
                         "Attempt to start one more instance of workflow: active is '%s', was started at '%s'",
                         existingExecutionId, rs.getTimestamp("execution_started_at")));
                     conn.rollback();
@@ -127,10 +122,8 @@ public class WorkflowService extends LzyWorkflowImplBase {
 
             if (startPortal(request.getWorkflowName(), executionId)) {
                 response.onNext(CreateWorkflowResponse.newBuilder()
-                        .setSuccess(CreateWorkflowResponse.Success.newBuilder()
-                                .setExecutionId(executionId)
-                                .build())
-                        .build());
+                    .setExecutionId(executionId)
+                    .build());
                 response.onCompleted();
             } else {
                 // rollback and return error
@@ -143,7 +136,7 @@ public class WorkflowService extends LzyWorkflowImplBase {
                 stmt.setString(2, request.getWorkflowName());
                 stmt.executeUpdate();
 
-                replyError.accept(CreateWorkflowResponse.ErrorCode.ERROR, "Error while creating portal");
+                replyError.accept(Status.INTERNAL, "Error while creating portal");
             }
         } catch (SQLException e) {
             LOG.error("[createWorkflow] Got SQLException: " + e.getMessage(), e);
@@ -158,17 +151,13 @@ public class WorkflowService extends LzyWorkflowImplBase {
         // TODO: auth
         String userId = "test";
 
-        BiConsumer<AttachWorkflowResponse.Status, String> replyError = (status, descr) -> {
+        BiConsumer<io.grpc.Status, String> replyError = (status, descr) -> {
             LOG.error("[attachWorkflow], fail: status={}, msg={}.", status, descr);
-            response.onNext(AttachWorkflowResponse.newBuilder()
-                .setStatus(status.getNumber())
-                .setDescription(descr)
-                .build());
-            response.onCompleted();
+            response.onError(status.withDescription(descr).asException());
         };
 
         if (isNullOrEmpty(request.getWorkflowName()) || isNullOrEmpty(request.getExecutionId())) {
-            replyError.accept(AttachWorkflowResponse.Status.BAD_REQUEST, "Empty 'workflowName' or 'executionId'");
+            replyError.accept(Status.INVALID_ARGUMENT, "Empty 'workflowName' or 'executionId'");
             return;
         }
 
@@ -188,13 +177,10 @@ public class WorkflowService extends LzyWorkflowImplBase {
                 LOG.info("[attachWorkflow] workflow '{}/{}' successfully attached.",
                     request.getWorkflowName(), request.getExecutionId());
 
-                response.onNext(AttachWorkflowResponse.newBuilder()
-                    .setStatus(FinishWorkflowResponse.Status.SUCCESS.getNumber())
-                    .setDescription("")
-                    .build());
+                response.onNext(AttachWorkflowResponse.getDefaultInstance());
                 response.onCompleted();
             } else {
-                replyError.accept(AttachWorkflowResponse.Status.NOT_FOUND, "");
+                replyError.accept(Status.NOT_FOUND, "");
             }
         } catch (SQLException e) {
             LOG.error("[finishWorkflow] Got SQLException: " + e.getMessage(), e);
@@ -208,17 +194,13 @@ public class WorkflowService extends LzyWorkflowImplBase {
 
         LOG.info("[finishWorkflow], uid={}, request={}.", userId, JsonUtils.printRequest(request));
 
-        BiConsumer<FinishWorkflowResponse.Status, String> replyError = (status, descr) -> {
+        BiConsumer<io.grpc.Status, String> replyError = (status, descr) -> {
             LOG.error("[finishWorkflow], fail: status={}, msg={}.", status, descr);
-            response.onNext(FinishWorkflowResponse.newBuilder()
-                .setStatus(status.getNumber())
-                .setDescription(descr)
-                .build());
-            response.onCompleted();
+            response.onError(status.withDescription(descr).asException());
         };
 
         if (isNullOrEmpty(request.getWorkflowName()) || isNullOrEmpty(request.getExecutionId())) {
-            replyError.accept(FinishWorkflowResponse.Status.BAD_REQUEST, "Empty 'workflowName' or 'executionId'");
+            replyError.accept(Status.INVALID_ARGUMENT, "Empty 'workflowName' or 'executionId'");
             return;
         }
 
@@ -237,13 +219,10 @@ public class WorkflowService extends LzyWorkflowImplBase {
             if (updated != 0) {
                 // TODO: start finish workflow process (cleanup all services)
 
-                response.onNext(FinishWorkflowResponse.newBuilder()
-                    .setStatus(FinishWorkflowResponse.Status.SUCCESS.getNumber())
-                    .setDescription("")
-                    .build());
+                response.onNext(FinishWorkflowResponse.getDefaultInstance());
                 response.onCompleted();
             } else {
-                replyError.accept(FinishWorkflowResponse.Status.NOT_FOUND, "");
+                replyError.accept(Status.NOT_FOUND, "");
             }
         } catch (SQLException e) {
             LOG.error("[finishWorkflow] Got SQLException: " + e.getMessage(), e);
