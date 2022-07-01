@@ -1,6 +1,16 @@
+locals {
+  server-labels = {
+    app                         = "lzy-server"
+    app.kubernetes.io / name    = "lzy-server"
+    app.kubernetes.io / part-of = "lzy"
+    lzy.ai / app                = "server"
+  }
+}
+
 resource "kubernetes_secret" "lzy_server_db_data" {
   metadata {
     name      = "server-db-data"
+    labels    = local.server-labels
     namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
 
@@ -13,10 +23,8 @@ resource "kubernetes_secret" "lzy_server_db_data" {
 
 resource "kubernetes_deployment" "server" {
   metadata {
-    name = "lzy-server"
-    labels = {
-      app = "lzy-server"
-    }
+    name      = "lzy-server"
+    labels    = local.server-labels
     namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
   spec {
@@ -24,16 +32,12 @@ resource "kubernetes_deployment" "server" {
       type = "Recreate"
     }
     selector {
-      match_labels = {
-        app = "lzy-server"
-      }
+      match_labels = local.server-labels
     }
     template {
       metadata {
-        name = "lzy-server"
-        labels = {
-          app = "lzy-server"
-        }
+        name      = "lzy-server"
+        labels    = local.server-labels
         namespace = kubernetes_namespace.server_namespace.metadata[0].name
       }
       spec {
@@ -147,7 +151,7 @@ resource "kubernetes_deployment" "server" {
             }
           }
           env {
-            name = "STORAGE_SEPARATED"
+            name  = "STORAGE_SEPARATED"
             value = var.s3-separated-per-bucket
           }
           env {
@@ -167,22 +171,22 @@ resource "kubernetes_deployment" "server" {
             value = true
           }
           env {
-            name = "KAFKA_LOGS_HOST"
+            name  = "KAFKA_LOGS_HOST"
             value = var.kafka-url
           }
 
           env {
-            name = "DATABASE_ENABLED"
+            name  = "DATABASE_ENABLED"
             value = "true"
           }
 
           env {
-            name = "DATABASE_PASSWORD"
+            name  = "DATABASE_PASSWORD"
             value = var.lzy_server_db_password == "" ? random_password.lzy_server_db_password[0].result : var.lzy_server_db_password
           }
 
           env {
-            name = "_JAVA_OPTIONS"
+            name  = "_JAVA_OPTIONS"
             value = "-Dserver.kuberAllocator.enabled=true"
           }
 
@@ -190,7 +194,7 @@ resource "kubernetes_deployment" "server" {
             for_each = var.server-additional-envs
             iterator = data
             content {
-              name = data.key
+              name  = data.key
               value = data.value
             }
           }
@@ -209,18 +213,12 @@ resource "kubernetes_deployment" "server" {
                 match_expressions {
                   key      = "app"
                   operator = "In"
-                  values = [
-                    "lzy-servant",
-                    "lzy-server",
-                    "lzy-server-db",
-                    "lzy-kharon",
-                    "lzy-backoffice",
-                    "whiteboard",
-                    "whiteboard-db",
-                    "grafana",
-                    "kafka",
-                    "clickhouse"
-                  ]
+                  values   = local.all-services-k8s-app-labels
+                }
+                match_expressions {
+                  key      = "app.kubernetes.io/managed-by"
+                  operator = "In"
+                  values   = ["Helm"]
                 }
               }
               topology_key = "kubernetes.io/hostname"
@@ -232,26 +230,27 @@ resource "kubernetes_deployment" "server" {
       }
     }
   }
-#  depends_on = [
-#    helm_release.lzy_server_db
-#  ]
+  #  depends_on = [
+  #    helm_release.lzy_server_db
+  #  ]
 }
 
 resource "kubernetes_service" "lzy_server" {
   metadata {
     name = "lzy-server-service"
+    labels = {
+      labels = local.server-labels
+    }
     namespace = kubernetes_namespace.server_namespace.metadata[0].name
     annotations = {
       #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
   }
   spec {
+    selector = local.server-labels
     port {
       port        = 8888
       target_port = 8888
-    }
-    selector = {
-      app = "lzy-server"
     }
   }
 }

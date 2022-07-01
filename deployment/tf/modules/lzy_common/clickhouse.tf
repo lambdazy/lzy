@@ -1,23 +1,25 @@
+locals {
+  clickhouse-labels = {
+    app                         = "clickhouse"
+    app.kubernetes.io / name    = "lzy-clickhouse"
+    app.kubernetes.io / part-of = "lzy"
+    lzy.ai / app                = "clickhouse"
+  }
+}
 
 resource "kubernetes_deployment" "clickhouse" {
   metadata {
-    name = "clickhouse"
-    labels = {
-      app = "clickhouse"
-    }
+    name   = "clickhouse"
+    labels = local.clickhouse-labels
   }
   spec {
     selector {
-      match_labels = {
-        app = "clickhouse"
-      }
+      match_labels = local.clickhouse-labels
     }
     template {
       metadata {
-        name = "clickhouse"
-        labels = {
-          app = "clickhouse"
-        }
+        name   = "clickhouse"
+        labels = local.clickhouse-labels
       }
       spec {
         container {
@@ -68,18 +70,12 @@ resource "kubernetes_deployment" "clickhouse" {
                 match_expressions {
                   key      = "app"
                   operator = "In"
-                  values = [
-                    "lzy-servant",
-                    "lzy-server",
-                    "lzy-server-db",
-                    "lzy-kharon",
-                    "lzy-backoffice",
-                    "whiteboard",
-                    "whiteboard-db",
-                    "grafana",
-                    "kafka",
-                    "clickhouse"
-                  ]
+                  values   = local.all-services-k8s-app-labels
+                }
+                match_expressions {
+                  key      = "app.kubernetes.io/managed-by"
+                  operator = "In"
+                  values   = ["Helm"]
                 }
               }
               topology_key = "kubernetes.io/hostname"
@@ -101,7 +97,8 @@ resource "kubernetes_deployment" "clickhouse" {
 
 resource "kubernetes_persistent_volume_claim" "clickhouse_volume" {
   metadata {
-    name = "clickhouse-volume"
+    name   = "clickhouse-volume"
+    labels = local.clickhouse-labels
   }
   spec {
     access_modes = ["ReadWriteOnce"]
@@ -116,7 +113,8 @@ resource "kubernetes_persistent_volume_claim" "clickhouse_volume" {
 
 resource "kubernetes_service" "clickhouse_service" {
   metadata {
-    name = "clickhouse-service"
+    name   = "clickhouse-service"
+    labels = local.clickhouse-labels
     annotations = {
       #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
@@ -126,9 +124,7 @@ resource "kubernetes_service" "clickhouse_service" {
       port        = 8123
       target_port = 8123
     }
-    selector = {
-      app = "clickhouse"
-    }
+    selector = local.clickhouse-labels
   }
   depends_on = [
     kubernetes_deployment.clickhouse

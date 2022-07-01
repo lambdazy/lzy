@@ -1,25 +1,28 @@
+locals {
+  kharon-labels = {
+    app                         = "lzy-kharon"
+    app.kubernetes.io / name    = "lzy-kharon"
+    app.kubernetes.io / part-of = "lzy"
+    lzy.ai / app                = "kharon"
+  }
+}
+
 resource "kubernetes_deployment" "kharon" {
   metadata {
-    name = "lzy-kharon"
-    labels = {
-      app : "lzy-kharon"
-    }
+    name   = "lzy-kharon"
+    labels = local.kharon-labels
   }
   spec {
     strategy {
       type = "Recreate"
     }
     selector {
-      match_labels = {
-        app = "lzy-kharon"
-      }
+      match_labels = local.kharon-labels
     }
     template {
       metadata {
-        name = "lzy-kharon"
-        labels = {
-          app : "lzy-kharon"
-        }
+        name   = "lzy-kharon"
+        labels = local.kharon-labels
       }
       spec {
         container {
@@ -75,18 +78,12 @@ resource "kubernetes_deployment" "kharon" {
                 match_expressions {
                   key      = "app"
                   operator = "In"
-                  values = [
-                    "lzy-servant",
-                    "lzy-server",
-                    "lzy-server-db",
-                    "lzy-kharon",
-                    "lzy-backoffice",
-                    "whiteboard",
-                    "whiteboard-db",
-                    "grafana",
-                    "kafka",
-                    "clickhouse"
-                  ]
+                  values   = local.all-services-k8s-app-labels
+                }
+                match_expressions {
+                  key      = "app.kubernetes.io/managed-by"
+                  operator = "In"
+                  values   = ["Helm"]
                 }
               }
               topology_key = "kubernetes.io/hostname"
@@ -104,16 +101,15 @@ resource "kubernetes_service" "lzy_kharon" {
   count = var.create_public_kharon_service ? 1 : 0
   metadata {
     name        = "lzy-kharon-load-balancer"
+    labels      = local.kharon-labels
     annotations = var.kharon_load_balancer_necessary_annotations
   }
   spec {
     load_balancer_ip = var.kharon_public_ip
     type             = "LoadBalancer"
+    selector         = local.kharon-labels
     port {
       port = 8899
-    }
-    selector = {
-      app = "lzy-kharon"
     }
   }
 }
