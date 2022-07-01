@@ -45,4 +45,4 @@ rmdir lzy/proto && rmdir lzy/
 cd "$OLDPWD"
 
 print_green "Generated next proto stubs:"
-find "$proto_out" -type f -iname "*.py"
+find "$proto_out" -type f -iname "*.py?"
