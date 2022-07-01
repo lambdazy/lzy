@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ai.lzy.priv.v2;
+package lzy.proto.priv.v2;
 
 option java_outer_classname = "Operations";
 option java_package = "ai.lzy.priv.v2";

@@ -2,15 +2,15 @@ from grpclib.client import Channel
 
 from lzy.proto.ai.lzy.priv.v2.lzy_fs_grpc import LzyFsStub
 from lzy.proto.ai.lzy.priv.v2.lzy_server_grpc import LzyServerStub
-from lzy.proto.bet.ai.lzy.priv.v2 import (
+from lzy.proto.priv.v2 import (
     Auth,
-    DataScheme,
-    DirectChannelSpec,
     ChannelCommand,
     ChannelCreate,
     ChannelDestroy,
     ChannelStatus,
     CreateSlotCommand,
+    DataScheme,
+    DirectChannelSpec,
     Slot,
     SlotAssignment,
     SlotCommand,

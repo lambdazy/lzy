@@ -1,4 +1,4 @@
-{pkgs}:
+{ pkgs }:
 let
   packageOverrides = self: super: rec {
     boto3 = super.boto3.overridePythonAttrs(old: rec {
@@ -60,6 +60,9 @@ let
 
     boto3-stubs = self.callPackage ./boto3-stubs.nix {
       inherit botocore-stubs;
+    };
+
+    grpc-stubs = self.callPackage ./grpc-stubs.nix {
     };
 
     types-pyyaml = self.callPackage ./types-pyyaml.nix { };

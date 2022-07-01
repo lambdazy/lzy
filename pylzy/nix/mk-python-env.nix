@@ -8,8 +8,9 @@ pkgs.mkShell {
       # Tells pip to put packages into $PIP_PREFIX instead of the usual locations.
       # See https://pip.pypa.io/en/stable/user_guide/#environment-variables.
       #
-      export PIP_PREFIX=$(pwd)/_build/pip_packages
-      export PYTHONPATH=${custom-python}/${custom-python.sitePackages}
+      export PIP_PREFIX="$(pwd)/_build/pip_packages"
+      export PYTHONPATH="$PYTHONPATH:${custom-python}/${custom-python.sitePackages}"
+      export PYTHONPATH="$PYTHONPATH:$PIP_PREFIX/${custom-python.sitePackages}"
       export PATH="$PIP_PREFIX/bin:$PATH"
       unset SOURCE_DATE_EPOCH
 
@@ -18,6 +19,6 @@ pkgs.mkShell {
 
       # proto paths
       export proto_out="lzy/proto"
-      export proto_path="../model/src/main/proto/"
+      export proto_path="$(pwd)/../model/src/main/proto/"
     '';
 }

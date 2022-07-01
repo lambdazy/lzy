@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package ai.lzy.priv.v2.graph;
+package lzy.proto.priv.v2.graph;
 
 option java_outer_classname = "GraphExecutorApi";
 option java_package = "ai.lzy.priv.v2.graph";
 
-import "ai/lzy/priv/v2/lzy-zygote.proto";
+import "lzy/proto/priv/v2/lzy-zygote.proto";
 
 service GraphExecutor {
   rpc Execute (GraphExecuteRequest) returns (GraphExecuteResponse);
