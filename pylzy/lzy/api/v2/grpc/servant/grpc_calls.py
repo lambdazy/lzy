@@ -1,8 +1,8 @@
 from grpclib.client import Channel
 
-from lzy.proto.ai.lzy.priv.v2.lzy_fs_grpc import LzyFsStub
-from lzy.proto.ai.lzy.priv.v2.lzy_server_grpc import LzyServerStub
-from lzy.proto.priv.v2 import (
+from lzy.proto.v2.lzy_fs_grpc import LzyFsStub
+from lzy.proto.v2.lzy_server_grpc import LzyServerStub
+from lzy.proto.bet.priv.v2 import (
     Auth,
     ChannelCommand,
     ChannelCreate,

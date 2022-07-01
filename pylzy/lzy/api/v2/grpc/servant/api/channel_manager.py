@@ -8,7 +8,7 @@ from lzy.api.v2.servant.model.channel import (
     SnapshotChannelSpec,
 )
 from lzy.api.v2.servant.model.slot import Slot
-from lzy.proto.bet.ai.lzy.priv.v2 import (
+from lzy.proto.bet.priv.v2 import (
     Auth,
     Channel,
     ChannelCommand,
