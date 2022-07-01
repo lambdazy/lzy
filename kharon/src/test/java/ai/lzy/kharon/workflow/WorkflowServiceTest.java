@@ -1,6 +1,8 @@
 package ai.lzy.kharon.workflow;
 
 import io.grpc.Context;
+import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import org.junit.After;
@@ -55,17 +57,21 @@ public class WorkflowServiceTest {
             new StreamObserver<>() {
                 @Override
                 public void onNext(CreateWorkflowResponse value) {
-                    assertEquals(CreateWorkflowResponse.KindCase.ERROR, value.getKindCase());
-                    assertEquals(CreateWorkflowResponse.ErrorCode.ALREADY_EXISTS.getNumber(), value.getError().getCode());
+                    Assert.fail("Unexpected");
                 }
 
                 @Override
                 public void onError(Throwable t) {
-                    Assert.fail(t.getMessage());
+                    if (t instanceof StatusException se) {
+                        assertEquals(Status.ALREADY_EXISTS.getCode(), se.getStatus().getCode());
+                    } else {
+                        Assert.fail(t.getMessage());
+                    }
                 }
 
                 @Override
                 public void onCompleted() {
+                    Assert.fail("Unexpected");
                 }
             });
     }
@@ -83,16 +89,21 @@ public class WorkflowServiceTest {
             new StreamObserver<>() {
                 @Override
                 public void onNext(FinishWorkflowResponse value) {
-                    assertEquals(FinishWorkflowResponse.Status.NOT_FOUND.getNumber(), value.getStatus());
+                    Assert.fail("Unexpected");
                 }
 
                 @Override
                 public void onError(Throwable t) {
-                    Assert.fail(t.getMessage());
+                    if (t instanceof StatusException se) {
+                        assertEquals(Status.NOT_FOUND.getCode(), se.getStatus().getCode());
+                    } else {
+                        Assert.fail(t.getMessage());
+                    }
                 }
 
                 @Override
                 public void onCompleted() {
+                    Assert.fail("Unexpected");
                 }
             });
     }
@@ -107,8 +118,7 @@ public class WorkflowServiceTest {
             new StreamObserver<>() {
                 @Override
                 public void onNext(CreateWorkflowResponse value) {
-                    assertEquals(CreateWorkflowResponse.KindCase.SUCCESS, value.getKindCase());
-                    executionId[0] = value.getSuccess().getExecutionId();
+                    executionId[0] = value.getExecutionId();
                 }
 
                 @Override
@@ -134,7 +144,6 @@ public class WorkflowServiceTest {
             new StreamObserver<>() {
                 @Override
                 public void onNext(FinishWorkflowResponse value) {
-                    assertEquals(FinishWorkflowResponse.Status.SUCCESS.getNumber(), value.getStatus());
                 }
 
                 @Override
