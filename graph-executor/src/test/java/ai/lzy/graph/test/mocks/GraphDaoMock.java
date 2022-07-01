@@ -24,56 +24,25 @@ public class GraphDaoMock extends GraphExecutionDaoImpl {
         return graph;
     }
 
-    @org.jetbrains.annotations.Nullable
-    @Override
-    public synchronized GraphExecutionState acquire(String workflowId, String graphExecutionId)
-        throws DaoException {
-        var graph = super.acquire(workflowId, graphExecutionId);
-        this.notifyAll();
-        return graph;
-    }
-
-    @Override
-    public synchronized void free(GraphExecutionState graph) throws DaoException {
-        this.notifyAll();
-        super.free(graph);
-    }
-
-    public synchronized void waitForStatus(String workflowId, String graphId,
-                                           GraphExecutionState.Status status,
-                                           int timeoutMillis) throws InterruptedException, DaoException {
-        long startTime = System.currentTimeMillis();
+    public void waitForStatus(String workflowId, String graphId, GraphExecutionState.Status status)
+            throws InterruptedException, DaoException {
         GraphExecutionState currentState = this.get(workflowId, graphId);
-        while ((currentState == null || currentState.status() != status)
-                && System.currentTimeMillis() - startTime < timeoutMillis) {
-            this.wait(timeoutMillis);
+        while (currentState == null || currentState.status() != status) {
+            Thread.sleep(10);
             currentState = this.get(workflowId, graphId);
-        }
-        if (currentState == null || currentState.status() != status) {
-            throw new RuntimeException("Timeout exceeded");
         }
     }
 
     public synchronized void waitForExecutingNow(String workflowId, String graphId,
-                                           Set<String> executions,
-                                           int timeoutMillis) throws InterruptedException, DaoException {
-        long startTime = System.currentTimeMillis();
+                                           Set<String> executions) throws InterruptedException, DaoException {
         GraphExecutionState currentState = this.get(workflowId, graphId);
-        while ((currentState == null
-            || !currentState.currentExecutionGroup()
-            .stream()
-            .map(TaskExecution::id)
-            .collect(Collectors.toSet()).equals(executions))
-            && System.currentTimeMillis() - startTime < timeoutMillis) {
-            this.wait(timeoutMillis);
-            currentState = this.get(workflowId, graphId);
-        }
-        if (currentState == null
+        while (currentState == null
             || !currentState.currentExecutionGroup()
             .stream()
             .map(TaskExecution::id)
             .collect(Collectors.toSet()).equals(executions)) {
-            throw new RuntimeException("Timeout exceeded");
+            Thread.sleep(10);
+            currentState = this.get(workflowId, graphId);
         }
     }
 

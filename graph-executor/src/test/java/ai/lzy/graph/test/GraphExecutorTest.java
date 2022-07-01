@@ -23,8 +23,11 @@ import java.util.stream.Stream;
 import ai.lzy.graph.db.DaoException;
 import ai.lzy.graph.db.QueueEventDao;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import ai.lzy.graph.algo.GraphBuilderImpl;
 import ai.lzy.graph.algo.GraphBuilder;
@@ -32,6 +35,7 @@ import ai.lzy.model.Slot;
 import ai.lzy.model.Zygote;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.priv.v2.Tasks;
+import org.junit.rules.Timeout;
 
 import java.util.stream.Collectors;
 
@@ -41,7 +45,9 @@ public class GraphExecutorTest {
     private SchedulerApiMock scheduler;
     private GraphDaoMock dao;
     private QueueEventDao queueEventDao;
-    private final int TIMEOUT = 1000;
+
+    @Rule
+    public Timeout globalTimeout = Timeout.seconds(10);
 
     @Before
     public void setUp() {
@@ -56,6 +62,7 @@ public class GraphExecutorTest {
         var context = ApplicationContext.run();
         dao = context.getBean(GraphDaoMock.class);
         queueEventDao = context.getBean(QueueEventDao.class);
+        Configurator.setAllLevels("ai.lzy.graph", Level.ALL);
     }
 
     @Test
@@ -254,7 +261,7 @@ public class GraphExecutorTest {
         }
 
         public void awaitExecutingNow(String... taskIds) throws InterruptedException, DaoException {
-            dao.waitForExecutingNow("", state.id(), new HashSet<>(Arrays.stream(taskIds).toList()), TIMEOUT);
+            dao.waitForExecutingNow("", state.id(), new HashSet<>(Arrays.stream(taskIds).toList()));
         }
 
         public void changeStatus(Tasks.TaskProgress s, String... taskIds) {
@@ -265,12 +272,12 @@ public class GraphExecutorTest {
 
         public void waitForStatus(Tasks.TaskProgress.Status s, String... taskIds) throws InterruptedException {
             for (String task : taskIds) {
-                scheduler.waitForStatus(task, s, TIMEOUT);
+                scheduler.waitForStatus(task, s);
             }
         }
 
         public void waitForStatus(GraphExecutionState.Status s) throws InterruptedException, DaoException {
-            dao.waitForStatus(state.workflowId(), state.id(), s, TIMEOUT);
+            dao.waitForStatus(state.workflowId(), state.id(), s);
             Assert.assertEquals(s, dao.get(state.workflowId(), state.id()).status());
         }
 
