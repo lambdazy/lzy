@@ -1,27 +1,24 @@
+import time
+from typing import Tuple
+
+import dataclass
 from grpclib.client import Channel
 
-from lzy.proto.v2.lzy_fs_grpc import LzyFsStub
-from lzy.proto.v2.lzy_server_grpc import LzyServerStub
 from lzy.proto.bet.priv.v2 import (
     Auth,
-    ChannelCommand,
-    ChannelCreate,
-    ChannelDestroy,
-    ChannelStatus,
-    CreateSlotCommand,
-    DataScheme,
-    DirectChannelSpec,
-    Slot,
+    ChannelCommad,
     SlotAssignment,
-    SlotCommand,
-    SlotCommandStatus,
-    SlotMedia,
-    SnapshotChannelSpec,
     TaskProgress,
     TaskSpec,
-    TaskStatus,
     Zygote,
 )
+from lzy.proto.priv.v2.lzy_fs_grpc import LzyFsStub
+from lzy.proto.priv.v2.lzy_server_grpc import LzyServerStub
+
+
+@dataclass.dataclass
+class Measurement:
+    time_ns: int = 0
 
 
 def creds():
@@ -37,9 +34,10 @@ class Run:
         self.servant_fs = LzyFsStub(self._chan)
         self.pid = -1
 
-    async def start(self, zygote: Zygote) -> TaskProgress:
+    async def exec(self, zygote: Zygote) -> Measurement:
         raise NotImplementedError("not implemented yet")
 
+        # preparing
         zygote.name += f"_{self.pid}"
         assignments = [
             SlotAssignment(
@@ -54,30 +52,10 @@ class Run:
             assignments=assignments,
         )
 
-        return await self.server.Start(task_spec)
+        # run
+        # TODO[ottergottaott]: measure time
+        rc, description = await self.start(task_spec)
 
-        #  final long startTimeMillis = System.currentTimeMillis();
-        #  final Iterator<Tasks.TaskProgress> executionProgress = server.start(taskSpec.build());
-        #  final int[] exit = new int[] {-1};
-        #  final String[] descriptionArr = new String[] {"Got no exit code"};
-        #  executionProgress.forEachRemaining(progress -> {
-        #      try {
-        #          LOG.info(JsonFormat.printer().print(progress));
-        #          if (progress.getStatus() == Tasks.TaskProgress.Status.ERROR
-        #              || progress.getStatus() == Tasks.TaskProgress.Status.SUCCESS) {
-        #              exit[0] = progress.getRc();
-        #              descriptionArr[0] = progress.getDescription();
-        #              System.in.close();
-        #          }
-        #      } catch (InvalidProtocolBufferException e) {
-        #          LOG.warn("Unable to parse execution progress", e);
-        #      } catch (IOException e) {
-        #          LOG.error("Unable to close stdin", e);
-        #      }
-        #  });
-        #  final int rc = exit[0];
-        #  final String description = descriptionArr[0];
-        #  final long finishTimeMillis = System.currentTimeMillis();
         #  MetricEventLogger.log(
         #      new MetricEvent(
         #          "time from Task start to Task finish",
@@ -94,6 +72,29 @@ class Run:
         #  channels.forEach(this::destroyChannel);
         #  return rc;
         # }
+
+        return Measurement()
+
+    async def start(self, task_spec: TaskSpec) -> Tuple[int, str]:
+        exit: int = 0
+        description: str = ""
+
+        with self.server.Start.open() as stream:
+            await stream.send_request()
+            await stream.send_message(task_spec)
+
+            async for task_progress in stream:
+                task_progress: TaskProgress = task_progress
+                if (
+                    task_progress.status is TaskProgress.ERROR
+                    or task_progress.status is TaskProgress.SUCCESS
+                ):
+                    # TODO[ottergottaott]: pretty print here
+                    print(task_progress)
+                    rc_ = task_progress.rc
+                    description = task_progress.description
+
+            return rc_, description
 
     def close(self):
         self._chan.close()
