@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package ai.lzy.priv.v2;
+
+import "ai/lzy/priv/v2/lzy-zygote.proto";
+import "google/protobuf/empty.proto";
+
+
+option java_outer_classname = "LzyPortalApi";
+option java_package = "ai.lzy.priv.v2";
+
+service LzyPortal {
+  rpc Start (google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  rpc Stop (google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  // returns error NOT_FOUND if portal is not active
+  rpc Status (google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  rpc ConfigureSlots (ConfigurePortalSlotsRequest) returns (ConfigurePortalSlotsResponse);
+}
+
+message PortalSlotDesc {
+  Slot slot = 1;
+  string channelId = 2;
+
+  message S3Storage {
+    string url = 1;
+    string user = 2;
+    string password = 3;
+  }
+  oneof storage {
+    S3Storage s3 = 10;
+  }
+}
+
+message ConfigurePortalSlotsRequest {
+  repeated PortalSlotDesc slots = 1;
+}
+
+message ConfigurePortalSlotsResponse {
+  bool success = 1;
+  string description = 2;
+}

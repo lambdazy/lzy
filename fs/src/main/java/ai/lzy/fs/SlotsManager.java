@@ -80,16 +80,20 @@ public class SlotsManager implements AutoCloseable {
         progress(progress);
     }
 
-    public synchronized LzySlot getOrCreateSlot(String task, Slot spec, @Nullable String binding) {
-        LOG.info("Configure slot, task: {}, spec: {}, binding: {}", task, spec.name(), binding);
+    public URI resolveSlotUri(String taskId, String slotName) {
+        return localLzyFsUri.resolve(Path.of("/", taskId, slotName).toString());
+    }
 
-        final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(task, t -> new HashMap<>());
+    public synchronized LzySlot getOrCreateSlot(String taskId, Slot spec, @Nullable String binding) {
+        LOG.info("getOrCreateSlot, taskId: {}, spec: {}, binding: {}", taskId, spec.name(), binding);
+
+        final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(taskId, t -> new HashMap<>());
         final LzySlot existing = taskSlots.get(spec.name());
         if (existing != null) {
             return existing;
         }
 
-        final URI slotUri = localLzyFsUri.resolve(Path.of("/", task, spec.name()).toString());
+        final URI slotUri = resolveSlotUri(taskId, spec.name());
 
         try {
             final LzySlot slot = createSlot(spec, binding);
@@ -101,7 +105,7 @@ public class SlotsManager implements AutoCloseable {
                 }
             } else {
                 final String msg = MessageFormat.format("Unable to create slot. Task: {}, spec: {}, binding: {}",
-                    task, spec.name(), binding);
+                    taskId, spec.name(), binding);
                 LOG.error(msg);
                 throw new RuntimeException(msg);
             }
@@ -122,7 +126,7 @@ public class SlotsManager implements AutoCloseable {
                 synchronized (SlotsManager.this) {
                     taskSlots.remove(slot.name());
                     if (taskSlots.isEmpty()) {
-                        task2slots.remove(task);
+                        task2slots.remove(taskId);
                         progress(Servant.ServantProgress.newBuilder()
                             .setCommunicationCompleted(Servant.CommunicationCompleted.newBuilder().build())
                             .build());
@@ -131,14 +135,12 @@ public class SlotsManager implements AutoCloseable {
                 }
             });
 
-            if (binding != null && binding.startsWith("channel:")) {
-                binding = binding.substring("channel:".length());
-            }
-
             final Servant.SlotAttach.Builder attachBuilder = Servant.SlotAttach.newBuilder()
                 .setSlot(GrpcConverter.to(spec))
                 .setUri(slotUri.toString());
-            if (binding != null) {
+
+            if (binding != null && binding.startsWith("channel:")) {
+                binding = binding.substring("channel:".length());
                 attachBuilder.setChannel(binding);
             }
 
@@ -167,15 +169,12 @@ public class SlotsManager implements AutoCloseable {
         }
 
         return switch (spec.media()) {
-            case PIPE, FILE -> {
-                var slot = switch (spec.direction()) {
-                    case INPUT -> new InFileSlot(contextId, spec);
-                    case OUTPUT -> (spec.name().startsWith("local://")
-                            ? new LocalOutFileSlot(contextId, spec, URI.create(spec.name()))
-                            : new OutFileSlot(contextId, spec));
-                };
-                yield slot;
-            }
+            case PIPE, FILE -> switch (spec.direction()) {
+                case INPUT -> new InFileSlot(contextId, spec);
+                case OUTPUT -> (spec.name().startsWith("local://")
+                        ? new LocalOutFileSlot(contextId, spec, URI.create(spec.name()))
+                        : new OutFileSlot(contextId, spec));
+            };
             case ARG -> new ArgumentsSlot(spec, binding);
         };
     }

@@ -20,6 +20,7 @@ import ai.lzy.priv.v2.*;
 
 import java.io.*;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -248,11 +249,9 @@ public class Run implements LzyCommand {
                     final Path inputSlotFile = Path.of(lzyRoot, slotName);
                     ForkJoinPool.commonPool().execute(() -> {
                         byte[] buffer = new byte[BUFFER_SIZE];
-                        try (OutputStream is = Files
-                            .newOutputStream(inputSlotFile, StandardOpenOption.WRITE)) {
+                        try (OutputStream is = Files.newOutputStream(inputSlotFile, StandardOpenOption.WRITE)) {
                             int read;
-                            while (System.in.available() > 0
-                                && (read = System.in.read(buffer)) >= 0) {
+                            while (System.in.available() > 0 && (read = System.in.read(buffer)) >= 0) {
                                 is.write(buffer, 0, read);
                             }
                         } catch (IOException e) {
@@ -287,12 +286,12 @@ public class Run implements LzyCommand {
                     final Path outputSlotFile = Path.of(lzyRoot, slotName);
                     ForkJoinPool.commonPool().execute(() -> {
                         byte[] buffer = new byte[BUFFER_SIZE];
-                        try (InputStream is = Files
-                            .newInputStream(outputSlotFile, StandardOpenOption.READ)) {
+                        try (InputStream is = Files.newInputStream(outputSlotFile, StandardOpenOption.READ)) {
                             int read;
                             while ((read = is.read(buffer)) >= 0) {
-                                ("stderr".equals(devSlot) ? System.err : System.out)
-                                    .write(buffer, 0, read);
+                                if (read > 0) {
+                                    ("stderr".equals(devSlot) ? System.err : System.out).write(buffer, 0, read);
+                                }
                             }
                         } catch (IOException e) {
                             LOG.warn("Unable to read from " + devSlot, e);
@@ -353,7 +352,6 @@ public class Run implements LzyCommand {
             }
             throw e;
         }
-
     }
 
     private String createChannel(Slot slot, String channelName) {

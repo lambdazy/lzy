@@ -12,4 +12,12 @@ public class JsonUtils {
             return "Unable to parse request; cause " + e;
         }
     }
+
+    public static String printSingleLineRequest(MessageOrBuilder request) {
+        try {
+            return JsonFormat.printer().omittingInsignificantWhitespace().print(request);
+        } catch (InvalidProtocolBufferException e) {
+            return "Unable to parse request; cause " + e;
+        }
+    }
 }

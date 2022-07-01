@@ -12,7 +12,8 @@ public enum UriScheme {
 
     // slots
     SlotS3("s3"),
-    SlotAzure("azure");
+    SlotAzure("azure"),
+    Snapshot("snapshot");
 
     private final String scheme;
 

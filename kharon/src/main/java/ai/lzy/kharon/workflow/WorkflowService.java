@@ -1,6 +1,7 @@
 package ai.lzy.kharon.workflow;
 
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.PreDestroy;

@@ -32,9 +32,9 @@ public final class Touch implements LzyCommand {
 
     @SuppressWarnings("CheckStyle")
     public int execute(CommandLine command) throws Exception {
-        System.out.println("touch request");
-        System.out.println(Arrays.toString(command.getOptions()));
-        command.getArgList().forEach(System.out::println);
+//        System.out.println("touch request");
+//        System.out.println(Arrays.toString(command.getOptions()));
+//        command.getArgList().forEach(System.out::println);
 
         if (command.getArgList().size() < 5 || !command.getArgList().get(3).equals("--slot")) {
             throw new IllegalArgumentException(

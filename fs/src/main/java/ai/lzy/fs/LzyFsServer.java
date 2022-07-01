@@ -1,5 +1,6 @@
 package ai.lzy.fs;
 
+import ai.lzy.model.*;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -16,10 +17,6 @@ import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.JsonUtils;
-import ai.lzy.model.Slot;
-import ai.lzy.model.Zygote;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
@@ -163,34 +160,32 @@ public final class LzyFsServer {
         fs.addSlot(slot);
     }
 
-    public LzyFsApi.SlotCommandStatus createSlot(LzyFsApi.CreateSlotRequest request) {
-        LOG.info("LzyFsServer::createSlot: taskId={}, slotName={}: {}.",
-                request.getTaskId(), request.getSlot().getName(), JsonUtils.printRequest(request));
+    public LzySlot createSlot(String taskId, Slot slot, String channelId, boolean fromPortal)
+            throws SlotCommandException {
+        LOG.info("LzyFsServer::createSlot: taskId={}, slotName={}, channelId={}.", taskId, slot.name(), channelId);
 
-        var existing = slotsManager.slot(request.getTaskId(), request.getSlot().getName());
+        var existing = slotsManager.slot(taskId, slot.name());
         if (existing != null) {
-            return onSlotError("Slot `" + request.getSlot().getName() + "` already exists.");
+            throw new SlotCommandException("Slot `" + slot.name() + "` already exists.");
         }
 
-        final Slot slotSpec = GrpcConverter.from(request.getSlot());
-        final LzySlot lzySlot = slotsManager.getOrCreateSlot(request.getTaskId(), slotSpec, request.getChannelId());
+        final LzySlot lzySlot = slotsManager.getOrCreateSlot(taskId, slot, channelId);
+        if (lzySlot instanceof LzyFileSlot fileSlot) {
+            addSlot(fileSlot);
+        }
 
-        // TODO: It will be removed after creating Portal
-        final URI channelUri = URI.create(request.getChannelId());
-        if (Objects.equals(channelUri.getScheme(), "snapshot") && lzySlot instanceof LzyOutputSlot) {
-            if (slotConnectionManager.snapshooter() == null) {
-                return onSlotError("Snapshot service was not initialized. Operation is not available.");
+        if (!fromPortal) {
+            final URI channelUri = URI.create(channelId);
+            if (Snapshot.match(channelUri) && lzySlot instanceof LzyOutputSlot) {
+                if (slotConnectionManager.snapshooter() == null) {
+                    throw new SlotCommandException("Snapshot service is not initialized. Operation is not available.");
+                }
+                String snapshotId = "snapshot://" + channelUri.getHost();
+                slotConnectionManager.snapshooter().registerSlot(lzySlot, snapshotId, channelId);
             }
-            String entryId = request.getChannelId();
-            String snapshotId = "snapshot://" + channelUri.getHost();
-            slotConnectionManager.snapshooter().registerSlot(lzySlot, snapshotId, entryId);
         }
 
-        if (lzySlot instanceof LzyFileSlot) {
-            fs.addSlot((LzyFileSlot) lzySlot);
-        }
-
-        return LzyFsApi.SlotCommandStatus.newBuilder().build();
+        return lzySlot;
     }
 
     public LzyFsApi.SlotCommandStatus connectSlot(LzyFsApi.ConnectSlotRequest request) {
@@ -207,7 +202,7 @@ public final class LzyFsServer {
             if (SlotS3.match(slotUri) || SlotAzure.match(slotUri)) {
                 ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToS3(slotUri, 0));
             } else {
-                ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToSlot(slotUri, 0));
+                ((LzyInputSlot) slot).connect(slotUri, SlotConnectionManager.connectToSlot(slotUri, 0));
             }
             return LzyFsApi.SlotCommandStatus.newBuilder().build();
         }
@@ -418,13 +413,16 @@ public final class LzyFsServer {
     private final class Impl extends LzyFsGrpc.LzyFsImplBase {
 
         private interface SlotFn<R> {
-            LzyFsApi.SlotCommandStatus call(R req);
+            LzyFsApi.SlotCommandStatus call(R req) throws SlotCommandException;
         }
 
         private static <R> void slotCall(R req, StreamObserver<LzyFsApi.SlotCommandStatus> resp, SlotFn<R> fn) {
             try {
                 var status = fn.call(req);
                 resp.onNext(status);
+                resp.onCompleted();
+            } catch (SlotCommandException e) {
+                resp.onNext(onSlotError(e.getMessage()));
                 resp.onCompleted();
             } catch (Exception e) {
                 resp.onError(e);
@@ -433,7 +431,10 @@ public final class LzyFsServer {
 
         @Override
         public void createSlot(LzyFsApi.CreateSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            slotCall(req, resp, LzyFsServer.this::createSlot);
+            slotCall(req, resp, r -> {
+                LzyFsServer.this.createSlot(r.getTaskId(), GrpcConverter.from(r.getSlot()), r.getChannelId(), false);
+                return LzyFsApi.SlotCommandStatus.newBuilder().build();
+            });
         }
 
         @Override
@@ -459,6 +460,12 @@ public final class LzyFsServer {
         @Override
         public void openOutputSlot(LzyFsApi.SlotRequest req, StreamObserver<LzyFsApi.Message> resp) {
             LzyFsServer.this.openOutputSlot(req, resp);
+        }
+    }
+
+    public static class SlotCommandException extends Exception {
+        public SlotCommandException(String message) {
+            super(message);
         }
     }
 }
