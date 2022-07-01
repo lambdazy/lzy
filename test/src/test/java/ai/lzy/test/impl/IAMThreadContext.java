@@ -24,7 +24,8 @@ import java.util.concurrent.locks.LockSupport;
 @SuppressWarnings("UnstableApiUsage")
 public class IAMThreadContext implements LzyIAMTestContext {
 
-    private static final Duration IAM_STARTUP_TIME = Duration.ofSeconds(60);
+    private static final Duration IAM_STARTUP_TIME = Duration.ofSeconds(10);
+    private static final Duration CHANNEL_SHUTDOWN_TIME = Duration.ofSeconds(5);
     private static final int IAM_PORT = 8443;
     private static final int USER_LIMIT = 60;
 
@@ -106,7 +107,7 @@ public class IAMThreadContext implements LzyIAMTestContext {
     public void close() {
         channel.shutdown();
         try {
-            channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+            channel.awaitTermination(CHANNEL_SHUTDOWN_TIME.getSeconds(), TimeUnit.SECONDS);
             lzyIAM.close();
             lzyIAM.awaitTermination();
         } catch (InterruptedException e) {
