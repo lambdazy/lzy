@@ -17,7 +17,6 @@ python -m mypy_protobuf 1>/dev/null 2>&1\
     || pip install mypy-protobuf
 
 print_green "Generating protobuf, grpclib and mypy proto stubs"
-
 cd "$proto_path"
 find . -iname "*.proto" -type f \
        -exec python -m grpc_tools.protoc -I . \

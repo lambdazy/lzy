@@ -20,7 +20,11 @@ pkgs.mkShell {
       alias exs="find . -maxdepth 1 -executable -type f"
 
       # proto paths
+<<<<<<< HEAD
       export proto_out="$(pwd)/ai/lzy/v1"
+=======
+      export proto_out="$(pwd)/lzy/proto"
+>>>>>>> 31dea042 (Stable gen_proto.sh, fix import hell and show .pyi files too)
       export proto_path="$(pwd)/../model/src/main/proto/"
     '';
 }
