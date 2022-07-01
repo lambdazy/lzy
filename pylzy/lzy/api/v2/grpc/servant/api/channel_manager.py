@@ -1,29 +1,29 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from lzy.api.v2.servant.model.slot import Slot
+from lzy.api.v2.grpc.servant.grpc_calls import Run
 from lzy.api.v2.servant.model.channel import (
     Channel,
     DirectChannelSpec,
     SnapshotChannelSpec,
 )
+from lzy.api.v2.servant.model.slot import Slot
 from lzy.proto.bet.ai.lzy.priv.v2 import (
     Auth,
-    DataScheme,
     Channel,
     ChannelCommand,
     ChannelCreate,
     ChannelDestroy,
     ChannelStatus,
     CreateSlotCommand,
+    DataScheme,
     DirectChannelSpec,
-    SnapshotChannelSpec,
-    SlotCommandStatus,
     SlotCommand,
+    SlotCommandStatus,
+    SnapshotChannelSpec,
 )
-from lzy.api.v2.grpc.servant.grpc_calls import Run
-from lzy.proto.ai.lzy.priv.v2.lzy_server_grpc import LzyServerStub
-from lzy.proto.ai.lzy.priv.v2.lzy_fs_grpc import LzyFsStub
+from lzy.proto.priv.v2.lzy_fs_grpc import LzyFsStub
+from lzy.proto.priv.v2.lzy_server_grpc import LzyServerStub
 
 
 class ChannelManager:
