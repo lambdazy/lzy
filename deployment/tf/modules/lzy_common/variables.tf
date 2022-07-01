@@ -116,6 +116,11 @@ variable "whiteboard-image" {
   default = "lzydock/lzy-whiteboard:master"
 }
 
+variable "iam-image" {
+  type    = string
+  default = "lzydock/lzy-iam:master"
+}
+
 variable "base-env-default-image" {
   type    = string
   default = "lzydock/default-env:master"
