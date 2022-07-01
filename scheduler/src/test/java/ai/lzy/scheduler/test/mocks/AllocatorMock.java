@@ -26,6 +26,7 @@ public class AllocatorMock extends ServantsAllocatorBase {
     public AllocateResult allocate(String workflowId, String servantId, Provisioning provisioning, Env env) {
         var token = UUID.randomUUID().toString();
         onAllocate.forEach(t -> t.call(workflowId, servantId, token));
+        saveRequest(workflowId, servantId, token, "");
         return new AllocateResult(token, "");
     }
 

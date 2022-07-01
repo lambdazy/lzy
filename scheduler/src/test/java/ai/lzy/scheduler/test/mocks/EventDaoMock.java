@@ -27,8 +27,8 @@ public class EventDaoMock implements ServantEventDao {
         var event = events.values()
             .stream()
             .filter(e -> e.timestamp().isBefore(Instant.now()))
-            .sorted()
-            .findFirst()
+            .filter(t -> Objects.equals(t.servantId(), servantId))
+            .min(Comparator.naturalOrder())
             .orElse(null);
         if (event != null) {
             events.remove(event.id());

@@ -116,6 +116,9 @@ public class ServantEventProcessor extends Thread {
             LOG.error("Cannot write new servant state to dao", e);
             throw new RuntimeException(e);
         }
+        if (newState.status() == Status.RUNNING || newState.status() == Status.IDLE) {
+            notifyReady.accept(workflowId, servantId);
+        }
         return newState.status() == Status.DESTROYED;
     }
 
@@ -127,10 +130,8 @@ public class ServantEventProcessor extends Thread {
 
             case ALLOCATION_REQUESTED -> {
                 assertStatus(currentState, event, Status.CREATED);
-                var meta = allocator.allocate(
-                    currentState.workflowId(), currentState.id(),
-                    currentState.provisioning(), currentState.env()
-                );
+                var meta = allocator.allocate(currentState.workflowId(), currentState.id(),
+                    currentState.provisioning(), currentState.env());
                 final ServantEvent timeout = ServantEvent.fromState(currentState, Type.ALLOCATION_TIMEOUT)
                     .setTimeout(config.allocationTimeoutSeconds())
                     .setRc(ReturnCodes.INTERNAL.getRc())
@@ -155,7 +156,6 @@ public class ServantEventProcessor extends Thread {
                     throw new AssertionException();
                 }
                 this.connection = new ServantConnectionImpl(event.servantUrl(), servant);
-                notifyReady.accept(workflowId, servantId);
                 final ServantEvent timeout = ServantEvent.fromState(currentState, Type.IDLE_TIMEOUT)
                     .setTimeout(config.idleTimeoutSeconds())
                     .setRc(ReturnCodes.SUCCESS.getRc())
@@ -198,6 +198,10 @@ public class ServantEventProcessor extends Thread {
             case CONFIGURED -> {
                 assertStatus(currentState, event, Status.CONFIGURING);
                 eventDao.removeAllByTypes(currentState.id(), Type.CONFIGURATION_TIMEOUT);
+                if (event.rc() != ReturnCodes.SUCCESS.getRc()) {
+                    yield stop(currentState, "Error while configuring servant: " + event.description());
+                }
+
                 final Task task = getTask(currentState.workflowId(), currentState.taskId());
                 final ServantConnection connection = getConnection(currentState);
 
@@ -235,7 +239,6 @@ public class ServantEventProcessor extends Thread {
                 final Task task = getTask(currentState.workflowId(), currentState.taskId());
                 task.notifyExecutionCompleted(event.rc(), event.description());
                 dao.freeFromTask(currentState.workflowId(), currentState.id());
-                notifyReady.accept(workflowId, servantId);
                 queue.put(ServantEvent
                     .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)
                     .setTimeout(config.idleHeartbeatPeriodSeconds())

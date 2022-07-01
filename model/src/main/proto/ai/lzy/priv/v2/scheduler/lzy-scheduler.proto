@@ -6,12 +6,12 @@ option java_outer_classname = "SchedulerApi";
 option java_package = "ai.lzy.priv.v2";
 
 import "ai/lzy/priv/v2/lzy-zygote.proto";
-// TODO killAll
 service Scheduler {
   rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
   rpc Status (TaskStatusRequest) returns (TaskStatusResponse);
   rpc List (TaskListRequest) returns (TaskListResponse);
   rpc Signal (TaskSignalRequest) returns (TaskSignalResponse);
+  rpc KillAll (KillAllRequest) returns (KillAllResponse);
 }
 
 message TaskStatus {
@@ -102,4 +102,11 @@ message TaskSignalRequest {
 message TaskSignalResponse {
   TaskStatus status = 1;
 }
+
+// ============ KillAll =============
+
+message KillAllRequest {
+  string workflowId = 1;
+}
+message KillAllResponse {}
 

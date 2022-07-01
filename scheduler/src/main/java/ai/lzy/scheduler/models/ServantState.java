@@ -41,6 +41,11 @@ public record ServantState(
             .setServantUrl(servantUrl);
     }
 
+    @Override
+    public String toString() {
+        return String.format("<workflowId: %s, id: %s, status: %s>", workflowId, id, status);
+    }
+
     public static class ServantStateBuilder {
         private final String id;
         private final String workflowId;

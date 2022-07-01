@@ -5,6 +5,7 @@ import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -92,11 +93,12 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     public AllocateResult allocate(String workflowId, String servantId, Provisioning provisioning, Env env) {
         final String token = UUID.randomUUID().toString();
         requestAllocation(workflowId, servantId, token);
+        saveRequest(workflowId, servantId, token, "");
         return new AllocateResult(token, "");
     }
 
     @Override
-    public void destroy(String workflowId, String servantId) throws Exception {
+    public void destroy(String workflowId, String servantId) {
         if (!servantThreads.containsKey(servantId)) {
             return;
         }

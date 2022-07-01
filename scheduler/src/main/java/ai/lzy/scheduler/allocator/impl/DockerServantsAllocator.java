@@ -96,16 +96,17 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     public AllocateResult allocate(String workflowId, String servantId, Provisioning provisioning, Env env) {
         final String token = UUID.randomUUID().toString();
         final String containerId = requestAllocation(workflowId, servantId, token);
+        saveRequest(workflowId, servantId, token, containerId);
         return new AllocateResult(token, containerId);
     }
 
     @Override
     public void destroy(String workflowId, String servantId) throws Exception {
-        final Servant servant = dao.get(workflowId, servantId);
-        if (servant == null) {
+        var request = getRequest(workflowId, servantId);
+        if (request == null) {
             throw new Exception("Cannot get servant from db");
         }
-        final String meta = servant.allocatorMetadata();
+        final String meta = request.allocationMeta();
         if (meta == null) {
             throw new Exception("Metadata of servant is null");
         }

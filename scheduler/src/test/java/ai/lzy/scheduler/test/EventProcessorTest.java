@@ -18,7 +18,9 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +39,9 @@ public class EventProcessorTest {
     public String workflowId;
     public CountDownLatch servantReady;
     public EventQueueManager manager;
+
+    @Rule
+    public Timeout globalTimeout = Timeout.seconds(10);
 
     @Before
     public void setUp() {
@@ -312,9 +317,9 @@ public class EventProcessorTest {
     }
 
 
-    private record AllocationRequest(String workflowId, String servantId, String token) {}
+    record AllocationRequest(String workflowId, String servantId, String token) {}
 
-    private AtomicZygote buildZygote(String... tags) {
+    public static AtomicZygote buildZygote(String... tags) {
         return new AtomicZygote() {
             @Override
             public Env env() {

@@ -59,6 +59,11 @@ public record ServantEvent(
         STOPPED  // Servant exited
     }
 
+    @Override
+    public String toString() {
+        return String.format("<type:%s, timestamp: %s>", type, timestamp);
+    }
+
     public static class EventBuilder {
         private final ServantState state;
         private final Type type;

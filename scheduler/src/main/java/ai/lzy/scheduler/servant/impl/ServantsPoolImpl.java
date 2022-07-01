@@ -84,6 +84,7 @@ public class ServantsPoolImpl extends Thread implements ServantsPool {
                     }
             });
             processor.start();
+            servant.allocate();
             processors.add(processor);
         }
 

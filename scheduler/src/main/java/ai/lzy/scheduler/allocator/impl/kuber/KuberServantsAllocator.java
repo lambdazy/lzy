@@ -3,6 +3,7 @@ package ai.lzy.scheduler.allocator.impl.kuber;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
+import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.servant.Servant;
 import com.google.gson.JsonElement;
@@ -114,16 +115,21 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     public AllocateResult allocate(String workflowId, String servantId, Provisioning provisioning, Env env) {
         final String token = UUID.randomUUID().toString();
         final KuberMeta meta = requestAllocation(workflowId, servantId, token, provisioning);
+        saveRequest(workflowId, servantId, token, meta.toJson());
         return new AllocateResult(token, meta.toJson());
     }
 
     @Override
     public void destroy(String workflowId, String servantId) throws Exception {
-        final Servant servant = dao.get(workflowId, servantId);
-        if (servant == null) {
-            throw new Exception("Servant not found");
+        var request = getRequest(workflowId, servantId);
+        if (request == null) {
+            throw new Exception("Cannot get servant from db");
         }
-        final KuberMeta meta = KuberMeta.fromJson(servant.allocatorMetadata());
+        final String json = request.allocationMeta();
+        if (json == null) {
+            throw new Exception("Metadata of servant is null");
+        }
+        final KuberMeta meta = KuberMeta.fromJson(json);
         if (meta == null) {
             throw new Exception("Cannot parse servant metadata");
         }

@@ -5,7 +5,6 @@ import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.servant.Servant;
-import ai.lzy.scheduler.servant.impl.EventQueue;
 import ai.lzy.scheduler.servant.impl.EventQueueManager;
 import ai.lzy.scheduler.servant.impl.ServantImpl;
 import org.jetbrains.annotations.Nullable;
@@ -38,12 +37,11 @@ public class ServantDaoMock implements ServantDao {
     }
 
     @Override
-    public synchronized void updateAndFree(ServantState resource) {
+    public void updateAndFree(ServantState resource) {
         var key = new ServantKey(resource.workflowId(), resource.id());
         var servant = storage.get(key);
         storage.put(new ServantKey(resource.workflowId(), resource.id()),
                 new ServantDesc(resource, false, servant.acquiredForTask()));
-        this.notifyAll();
     }
 
     @Override
@@ -114,18 +112,17 @@ public class ServantDaoMock implements ServantDao {
     }
 
     @Override
-    public synchronized void freeFromTask(String workflowId, String servantId) {
+    public void freeFromTask(String workflowId, String servantId) {
         var servant = storage.get(new ServantKey(workflowId, servantId));
         if (servant == null) {
             return;
         }
         storage.put(new ServantKey(workflowId, servantId),
                 new ServantDesc(servant.state, servant.acquired, false));
-        this.notifyAll();
     }
 
     @Override
-    public void invalidate(Servant servant, String description) {
+    public synchronized void invalidate(Servant servant, String description) {
         var state = new ServantState.ServantStateBuilder(servant.id(), servant.workflowId(),
                 servant.provisioning(), ServantState.Status.DESTROYED)
                 .setErrorDescription(description)
@@ -158,14 +155,12 @@ public class ServantDaoMock implements ServantDao {
             s = servant.state().status();
         }
         while (s == null || s != status) {
-            synchronized (this) {
-                this.wait();
-                servant = storage.get(key);
-                if (servant == null) {
-                    s = null;
-                } else {
-                    s = servant.state().status();
-                }
+            Thread.sleep(10);
+            servant = storage.get(key);
+            if (servant == null) {
+                s = null;
+            } else {
+                s = servant.state().status();
             }
         }
     }

@@ -1,6 +1,8 @@
 package ai.lzy.scheduler.db;
 
 import ai.lzy.model.graph.Provisioning;
+import ai.lzy.scheduler.allocator.ServantsAllocator;
+import ai.lzy.scheduler.allocator.ServantsAllocator.AllocateResult;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.models.ServantState.Status;
 import ai.lzy.scheduler.servant.Servant;
