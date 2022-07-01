@@ -16,34 +16,38 @@ source ./util.sh
 python -m mypy_protobuf 1>/dev/null 2>&1
 [ $? -ne 0 ] && pip install mypy-protobuf
 
-print_green "Generating betterproto dataclasses stubs"
+print_green "Generating protobuf, grpclib and mypy proto stubs"
 
 cd "$proto_path" && \
-    python -m grpc_tools.protoc \
-           -I . \
-           --python_out="$proto_out" \
-           --mypy_out="$proto_out" \
-           --grpclib_python_out="$proto_out" \
-           --proto_path="$proto_path" \
-           $(find . -iname "*.proto" -type f)
+    find . -iname "*.proto" -type f \
+        -print \
+        -exec python -m grpc_tools.protoc \
+                     -I . \
+                     --python_out="$proto_out" \
+                     --mypy_out="$proto_out" \
+                     --grpclib_python_out="$proto_out" \
+                     --proto_path="$proto_path" \
+                     '{}' +
 
 cd "$proto_out" && \
    mv lzy/proto/* ./ && \
    rmdir -p "lzy/proto"
 
-print_green "Generating betterproto dataclasses stubs"
+out="$proto_out/bet"
+print_green "Generating betterproto dataclasses stubs in $out"
 
 cd "$proto_path" && \
-    python -m grpc_tools.protoc \
-           -I . \
-           --python_betterproto_out="$proto_out/bet" \
-           $(find . \
-                  -iname "*.proto" -type f \
-                  ! -name "lzy-graph-executor.proto" \
-                  ! -name "lzy-server.proto" \
-                  ! -name "lzy-kharon.proto" )
+    find . \
+        -iname "*.proto" -type f \
+        ! -name "lzy-graph-executor.proto" \
+        ! -name "lzy-server.proto" \
+        ! -name "lzy-kharon.proto" \
+        -exec python -m grpc_tools.protoc \
+                     -I . \
+                     --python_betterproto_out="$out" \
+                     '{}' +
 
-cd "$proto_out/bet" && \
+cd "$out" && \
    mv lzy/proto/* ./ && \
    rm "lzy/__init__.py" && \
    rmdir -p "lzy/proto"
