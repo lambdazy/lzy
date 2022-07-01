@@ -38,9 +38,8 @@ public class SchedulerApiMock implements SchedulerApi {
         return status(workflowId, taskId);
     }
 
-    public synchronized void changeStatus(String taskId, Tasks.TaskProgress status) {
+    public void changeStatus(String taskId, Tasks.TaskProgress status) {
         statusByTaskId.put(taskId, status);
-        notifyAll();
     }
 
     public final static Tasks.TaskProgress QUEUE = Tasks.TaskProgress.newBuilder()
@@ -56,13 +55,9 @@ public class SchedulerApiMock implements SchedulerApi {
         String call(String workflowId, TaskDescription tasks, SchedulerApiMock scheduler);
     }
 
-    public synchronized void waitForStatus(String taskId, Tasks.TaskProgress.Status status, int timeoutMillis) throws InterruptedException {
-        long startTime = System.currentTimeMillis();
-        while ((statusByTaskId.get(taskId) == null || statusByTaskId.get(taskId).getStatus() != status) && System.currentTimeMillis() - startTime < timeoutMillis) {
-            this.wait(timeoutMillis);
-        }
-        if (statusByTaskId.get(taskId) == null || statusByTaskId.get(taskId).getStatus() != status) {
-            throw new RuntimeException("Timeout exceeded");
+    public void waitForStatus(String taskId, Tasks.TaskProgress.Status status) throws InterruptedException {
+        while (statusByTaskId.get(taskId) == null || statusByTaskId.get(taskId).getStatus() != status) {
+            Thread.sleep(10);
         }
     }
 }
