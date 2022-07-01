@@ -23,8 +23,8 @@ resource "kubernetes_daemonset" "servant_cpu_fictive_containers" {
       }
       spec {
         container {
-          image = var.servant-image
-          name  = "fictive-servant"
+          image   = var.servant-image
+          name    = "fictive-servant"
           command = ["tail", "-f", "/entrypoint.sh"]
         }
         node_selector = {
@@ -54,8 +54,8 @@ resource "kubernetes_daemonset" "servant_gpu_fictive_containers" {
       }
       spec {
         container {
-          image = var.servant-image
-          name  = "fictive-servant"
+          image   = var.servant-image
+          name    = "fictive-servant"
           command = ["tail", "-f", "/entrypoint.sh"]
         }
         node_selector = {

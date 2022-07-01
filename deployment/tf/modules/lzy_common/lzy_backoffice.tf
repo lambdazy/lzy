@@ -1,3 +1,12 @@
+locals {
+  backoffice-labels = {
+    app                         = "lzy-backoffice"
+    app.kubernetes.io / name    = "lzy-backoffice"
+    app.kubernetes.io / part-of = "lzy"
+    lzy.ai / app                = "backoffice"
+  }
+}
+
 resource "tls_private_key" "backoffice_key" {
   algorithm = "RSA"
   rsa_bits  = 2048
@@ -5,7 +14,8 @@ resource "tls_private_key" "backoffice_key" {
 
 resource "kubernetes_secret" "backoffice_secrets" {
   metadata {
-    name = "backoffice-secrets"
+    labels = local.backoffice-labels
+    name   = "backoffice-secrets"
   }
 
   data = {
@@ -17,26 +27,20 @@ resource "kubernetes_secret" "backoffice_secrets" {
 
 resource "kubernetes_deployment" "lzy_backoffice" {
   metadata {
-    name = "lzy-backoffice"
-    labels = {
-      app = "lzy-backoffice"
-    }
+    name   = "lzy-backoffice"
+    labels = local.backoffice-labels
   }
   spec {
     strategy {
       type = "Recreate"
     }
     selector {
-      match_labels = {
-        app = "lzy-backoffice"
-      }
+      match_labels = local.backoffice-labels
     }
     template {
       metadata {
-        name = "lzy-backoffice"
-        labels = {
-          app = "lzy-backoffice"
-        }
+        name   = "lzy-backoffice"
+        labels = local.backoffice-labels
       }
       spec {
         container {
@@ -158,18 +162,12 @@ resource "kubernetes_deployment" "lzy_backoffice" {
                 match_expressions {
                   key      = "app"
                   operator = "In"
-                  values = [
-                    "lzy-servant",
-                    "lzy-server",
-                    "lzy-server-db",
-                    "lzy-kharon",
-                    "lzy-backoffice",
-                    "whiteboard",
-                    "whiteboard-db",
-                    "grafana",
-                    "kafka",
-                    "clickhouse"
-                  ]
+                  values   = local.all-services-k8s-app-labels
+                }
+                match_expressions {
+                  key      = "app.kubernetes.io/managed-by"
+                  operator = "In"
+                  values   = ["Helm"]
                 }
               }
               topology_key = "kubernetes.io/hostname"
@@ -187,14 +185,13 @@ resource "kubernetes_service" "lzy_backoffice" {
   count = var.create_public_backoffice_service ? 1 : 0
   metadata {
     name        = "lzy-backoffice-service"
+    labels      = local.backoffice-labels
     annotations = var.backoffice_load_balancer_necessary_annotations
   }
   spec {
     load_balancer_ip = var.backoffice_public_ip
     type             = "LoadBalancer"
-    selector = {
-      app : "lzy-backoffice"
-    }
+    selector         = local.backoffice-labels
     port {
       name        = "backend"
       port        = 8080
