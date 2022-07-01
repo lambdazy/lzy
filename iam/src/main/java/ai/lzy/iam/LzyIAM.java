@@ -1,15 +1,5 @@
 package ai.lzy.iam;
 
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.netty.NettyServerBuilder;
-import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.exceptions.NoSuchBeanException;
-import org.apache.commons.cli.*;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.grpc.service.LzyABSService;
@@ -18,9 +8,17 @@ import ai.lzy.iam.grpc.service.LzyAuthService;
 import ai.lzy.iam.grpc.service.LzySubjectService;
 import ai.lzy.iam.storage.impl.DbAuthService;
 import ai.lzy.model.grpc.ChannelBuilder;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.netty.NettyServerBuilder;
+import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.exceptions.NoSuchBeanException;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class LzyIAM {
