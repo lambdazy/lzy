@@ -16,6 +16,7 @@ import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -23,7 +24,7 @@ import java.util.concurrent.locks.LockSupport;
 @SuppressWarnings("UnstableApiUsage")
 public class IAMThreadContext implements LzyIAMTestContext {
 
-    private static final long IAM_STARTUP_SECONDS = 60;
+    private static final Duration IAM_STARTUP_TIME = Duration.ofSeconds(60);
     private static final int IAM_PORT = 8443;
     private static final int USER_LIMIT = 60;
 
@@ -86,16 +87,16 @@ public class IAMThreadContext implements LzyIAMTestContext {
                 .build();
         lzySubjectServiceClient = LzySubjectServiceGrpc.newBlockingStub(channel)
                 .withWaitForReady()
-                .withDeadlineAfter(IAM_STARTUP_SECONDS, TimeUnit.SECONDS);
+                .withDeadlineAfter(IAM_STARTUP_TIME.getSeconds(), TimeUnit.SECONDS);
         lzyAccessServiceClient = LzyAccessServiceGrpc.newBlockingStub(channel)
                 .withWaitForReady()
-                .withDeadlineAfter(IAM_STARTUP_SECONDS, TimeUnit.SECONDS);
+                .withDeadlineAfter(IAM_STARTUP_TIME.getSeconds(), TimeUnit.SECONDS);
         lzyAccessBindingServiceBlockingStub = LzyAccessBindingServiceGrpc.newBlockingStub(channel)
                 .withWaitForReady()
-                .withDeadlineAfter(IAM_STARTUP_SECONDS, TimeUnit.SECONDS);
+                .withDeadlineAfter(IAM_STARTUP_TIME.getSeconds(), TimeUnit.SECONDS);
         lzyAuthenticateServiceBlockingStub = LzyAuthenticateServiceGrpc.newBlockingStub(channel)
                 .withWaitForReady()
-                .withDeadlineAfter(IAM_STARTUP_SECONDS, TimeUnit.SECONDS);
+                .withDeadlineAfter(IAM_STARTUP_TIME.getSeconds(), TimeUnit.SECONDS);
         while (channel.getState(true) != ConnectivityState.READY) {
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
         }

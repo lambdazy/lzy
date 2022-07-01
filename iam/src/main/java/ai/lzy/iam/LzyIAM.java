@@ -56,6 +56,22 @@ public class LzyIAM {
         this.iamServer = builder.build();
     }
 
+    public void start() throws IOException {
+        iamServer.start();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("gRPC server is shutting down!");
+            iamServer.shutdown();
+        }));
+    }
+
+    public void close() {
+        iamServer.shutdownNow();
+    }
+
+    public void awaitTermination() throws InterruptedException {
+        iamServer.awaitTermination();
+    }
+
     public static void main(String[] args) throws IOException, InterruptedException {
         try (ApplicationContext context = ApplicationContext.run()) {
             try {
@@ -67,22 +83,5 @@ public class LzyIAM {
                 LOG.info("Shutdown");
             }
         }
-    }
-
-    public void start() throws IOException {
-        iamServer.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("gRPC server is shutting down!");
-            iamServer.shutdown();
-        }));
-
-    }
-
-    public void close() {
-        iamServer.shutdownNow();
-    }
-
-    public void awaitTermination() throws InterruptedException {
-        iamServer.awaitTermination();
     }
 }
