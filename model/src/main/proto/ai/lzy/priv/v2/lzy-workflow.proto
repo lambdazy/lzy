@@ -19,26 +19,7 @@ message CreateWorkflowRequest {
 }
 
 message CreateWorkflowResponse {
-  message Success {
-    string executionId = 1;
-  }
-
-  enum ErrorCode {
-    UNSPECIFIED = 0;
-    BAD_REQUEST = 1;
-    ALREADY_EXISTS = 2;
-    ERROR = 3;
-  }
-
-  message Error {
-    uint32 code = 1;
-    string description = 2;
-  }
-
-  oneof kind {
-    Success success = 1;
-    Error error = 2;
-  }
+  string executionId = 1;
 }
 
 message AttachWorkflowRequest {
@@ -47,17 +28,6 @@ message AttachWorkflowRequest {
 }
 
 message AttachWorkflowResponse {
-  enum Status {
-    UNSPECIFIED = 0;
-    SUCCESS = 1;
-    BAD_REQUEST = 2;
-    NOT_FOUND = 3;
-    ALREADY_EXISTS = 4;
-    ERROR = 5;
-  }
-
-  uint32 status = 1;
-  string description = 2;
 }
 
 message FinishWorkflowRequest {
@@ -67,16 +37,6 @@ message FinishWorkflowRequest {
 }
 
 message FinishWorkflowResponse {
-  enum Status {
-    UNSPECIFIED = 0;
-    SUCCESS = 1;
-    BAD_REQUEST = 2;
-    NOT_FOUND = 3;
-    ERROR = 4;
-  }
-
-  uint32 status = 1;
-  string description = 2;
 }
 
 message DeleteWorkflowRequest {
@@ -84,14 +44,4 @@ message DeleteWorkflowRequest {
 }
 
 message DeleteWorkflowResponse {
-  enum Status {
-    UNSPECIFIED = 0;
-    SUCCESS = 1;
-    NOT_FOUND = 2;
-    STILL_RUNNING = 3;
-    ERROR = 4;
-  }
-
-  uint32 status = 1;
-  string description = 2;
 }
