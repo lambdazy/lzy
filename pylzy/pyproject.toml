@@ -18,5 +18,5 @@ extend-exclude = '''
 '''
 [tool.mypy]
 exclude = [
-    'lzy/proto/'  # TOML literal string (single-quotes, no escaping necessary)
+   # 'lzy/proto/'  # TOML literal string (single-quotes, no escaping necessary)
 ]
