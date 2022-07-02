@@ -1,4 +1,4 @@
-from lzy.proto.bet.priv.v2 import Slot, SlotDirection, SlotMedia, DataScheme
+from lzy.proto.bet.priv.v2 import DataScheme, Slot, SlotDirection, SlotMedia
 
 
 def create_slot(
