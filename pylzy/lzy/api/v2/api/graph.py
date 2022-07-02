@@ -39,12 +39,14 @@ class Graph:
 
 
 class GraphBuilder:
-    def __init__(self):
+    def __init__(self, calls: List[LzyCall]):
         self._snapshot_id = None
-        self._calls = []
         self._id_to_call = {}
         self._adjacency_graph = {}
         self._already_built = False
+        self._calls = []
+        for cl in calls:
+            self._add_call(cl)
 
     def snapshot_id(self, snapshot_id: str) -> "GraphBuilder":
         if self._already_built:
@@ -68,7 +70,7 @@ class GraphBuilder:
                 dependent_calls.append(arg.lzy_call)
         return unique_values(dependent_calls)
 
-    def add_call(self, call: LzyCall) -> "GraphBuilder":
+    def _add_call(self, call: LzyCall) -> "GraphBuilder":
         if self._already_built:
             raise BuildError("Adding call to an already built graph is not allowed")
         dependent_calls: List[LzyCall] = self._dependent_calls(call)
