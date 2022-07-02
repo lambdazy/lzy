@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 # -------------------------------------------- Graph status
-from lzy.api.v2.grpc.servant.api.task_spec import TaskSpec
+from lzy.proto.bet.priv.v2 import TaskSpec
 
 
 class Status(ABC):

@@ -14,6 +14,18 @@ def opposite(direction: SlotDirection):
     return map_to_opposite[direction]
 
 
+def file_slot_t(
+        name: Path,
+        direction: SlotDirection,
+        type_: type,
+) -> Slot:
+    return file_slot(
+        name,
+        direction,
+        dump_type(type_)
+    )
+
+
 def file_slot(
         name: Path,
         direction: SlotDirection,
