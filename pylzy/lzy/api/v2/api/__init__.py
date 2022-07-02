@@ -4,16 +4,14 @@ import sys
 import uuid
 from typing import Any, Callable, TypeVar
 
-import yaml
-
 from lzy._proxy.result import Nothing
 from lzy.api.v2.api.lzy_call import LzyCall
-from lzy.api.v2.api.lzy_op import LzyOp, FuncSignature
 from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 from lzy.api.v2.api.provisioning import Gpu, Provisioning
 from lzy.api.v2.utils import infer_call_signature, infer_return_type, lazy_proxy
-from lzy.api.v2.servant.model.zygote_python_func import python_func_zygote
+from lzy.api.v2.servant.model.zygote import python_func_zygote
 from lzy.api.v2.api.lzy import Lzy
+from lzy.env.env_provider import EnvProvider
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -84,27 +82,20 @@ def create_lazy_constructor(
             return f(*args, **kwargs)
 
         signature = infer_call_signature(f, output_type, *args, **kwargs)
-        env_provider = current_workflow._env_provider
+        env_provider: EnvProvider = current_workflow._env_provider
 
         # we need specify globals() for caller site to find all
         # required modules
         caller_globals = inspect.stack()[1].frame.f_globals
 
-        func_sign = FuncSignature(
-            signature.func.callable,
-            signature.func.input_types,
-            signature.func.output_type,
-            signature.func.arg_names,
-            signature.func.kwarg_names,
-        )
         owner: Lzy = current_workflow.owner
         zygote = python_func_zygote(
                 owner._serializer,
-                owner.env_provider.for_op(caller_globals),
+                signature.func,
+                env_provider.for_op(caller_globals),
                 provisioning,
-                func_sign,
             )
-        lzy_call = LzyCall(zygote, func_sign, args, kwargs, str(uuid.uuid4()))
+        lzy_call = LzyCall(zygote, signature.func, args, kwargs, str(uuid.uuid4()))
 
         current_workflow.call(lzy_call)
 
