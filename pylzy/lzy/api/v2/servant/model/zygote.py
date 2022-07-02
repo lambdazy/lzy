@@ -1,6 +1,5 @@
 import base64
-import os
-from typing import Dict, Generic, List, Optional, TypeVar, Iterable
+from typing import List, Optional, TypeVar, Tuple
 from pathlib import Path
 
 from lzy.api.v2.servant.model.signatures import FuncSignature
@@ -9,26 +8,30 @@ from lzy.serialization.serializer import MemBytesSerializer
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-from lzy.api.v2.servant.model.slot import file_slot, dump_type
+from lzy.api.v2.servant.model.slot import file_slot_t
 from lzy.proto.bet.priv.v2 import Zygote, Slot, SlotDirection, Provisioning, EnvSpec, ExecutionDescription
 
 
-def create_slots(signature: FuncSignature[T]):
+def create_slots(signature: FuncSignature[T]) -> Tuple[List[Slot], Slot]:
     arg_slots: List[Slot] = [
-        file_slot(
+        file_slot_t(
             Path(signature.name) / name,
             SlotDirection.INPUT,
-            dump_type(type_)
+            type_
         )
         for name, type_ in signature.input_types.items()
     ]
 
-    return_slot = file_slot(
+    return_slot: Slot = file_slot_t(
         Path("fnc_name") / "return",
         SlotDirection.OUTPUT,
-        dump_type(signature.output_type)
+        signature.output_type
     )
     return arg_slots, return_slot
+
+
+def to_base64(inp: bytes) -> str:
+    return base64.b64encode(inp).decode("ascii")
 
 
 def generate_fuze(
@@ -43,12 +46,8 @@ def generate_fuze(
             "/lzy/api/v1/startup.py ",
         ]
     )
-    serialized_func = base64.b64encode(
-        serializer.serialize_to_string(signature)
-    ).decode("ascii")
-    serialized_execution_description = base64.b64encode(
-        serializer.serialize_to_string(execution)
-    ).decode("ascii")
+    serialized_func = to_base64(serializer.serialize_to_string(signature))
+    serialized_execution_description = to_base64(serializer.serialize_to_string(execution))
     return _com + serialized_func + " " + serialized_execution_description
 
 
