@@ -1,13 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
+from pathlib import Path
 
+from lzy.api.v1.servant.bash_servant_client import BashServantClient
+from lzy.api.v2.servant.model.file_slots import create_slot
 from lzy.api.v2.grpc.servant.grpc_calls import Run
-from lzy.api.v2.servant.model.channel import (
-    Channel,
-    DirectChannelSpec,
-    SnapshotChannelSpec,
-)
-from lzy.api.v2.servant.model.slot import Slot
 from lzy.proto.bet.priv.v2 import (
     Auth,
     Channel,
@@ -18,8 +15,10 @@ from lzy.proto.bet.priv.v2 import (
     CreateSlotCommand,
     DataScheme,
     DirectChannelSpec,
+    Slot,
     SlotCommand,
     SlotCommandStatus,
+    SlotDirection,
     SnapshotChannelSpec,
 )
 from lzy.proto.priv.v2.lzy_fs_grpc import LzyFsStub
@@ -27,6 +26,102 @@ from lzy.proto.priv.v2.lzy_server_grpc import LzyServerStub
 
 
 class ChannelManager:
+    def __init__(self, snapshot_id: str, channel_api: "ChannelApi"):
+        self._entry_id_to_channel: Dict[str, Channel] = {}
+        self._snapshot_id = snapshot_id
+        self._channel_api = channel_api
+
+    async def channel(self, entry_id: str, type_: type) -> Channel:
+        if entry_id in self._entry_id_to_channel:
+            return self._entry_id_to_channel[entry_id]
+
+        result: ChannelStatus = await self._channel_api.create_snapshot_channel(
+            entry_id,
+            type_,
+            self._snapshot_id,
+            entry_id,
+        )
+
+        self._entry_id_to_channel[entry_id] = result.channel
+        # TODO[ottergottaott]: what todo with connected slots here?
+        return result.channel
+
+    async def destroy(self, entry_id: str) -> bool:
+        if entry_id not in self._entry_id_to_channel:
+            return
+
+        channel: Channel = self._entry_id_to_channel[entry_id]
+        await self._channel_api.destroy_channel(channel.channel_id)
+        return self._entry_id_to_channel.pop(entry_id, None) is not None
+
+    def destroy_all(self):
+        for entry in list(self._entry_id_to_channel):
+            self.destroy(entry)
+
+    def in_slot(self, entry_id: str, data_scheme: DataScheme) -> Path:
+        return self._resolve(entry_id, SlotDirection.INPUT, data_scheme)
+
+    def out_slot(self, entry_id: str, data_scheme: DataScheme) -> Path:
+        return self._resolve(entry_id, SlotDirection.OUTPUT, data_scheme)
+
+    def _resolve(
+        self, entry_id: str, direction: SlotDirection, data_scheme: DataScheme
+    ) -> Path:
+        path = Path("tasks") / "snapshot" / self._snapshot_id / entry_id
+        slot = create_slot(
+            str(path),
+            direction,
+            data_scheme,
+        )
+        self._touch(slot, self.channel(entry_id, data_scheme.real_type))
+        path = self._resolve_slot_path(slot)
+        return path
+
+    def _touch(self, slot: Slot, channel: Channel):
+        pass
+
+    def _resolve_slot_path(self, slot: Slot) -> Path:
+        pass
+
+
+class ChannelApi(ABC):
+    async def create_direct_channel(
+        self,
+        name: str,
+        content_type: DataScheme,
+    ) -> ChannelStatus:
+        pass
+
+    async def create_snapshot_channel(
+        self,
+        name: str,
+        content_type: DataScheme,
+        snapshot_id: str,
+        entry_id: str,
+    ) -> ChannelStatus:
+        pass
+
+    async def destroy_channel(self, channel_name: str):
+        pass
+
+    async def create_slot(
+        self,
+        slot: Slot,
+        pid: int,
+        name: str,
+        pipe: bool,
+        channel_id: str,
+    ) -> SlotCommandStatus:
+        pass
+
+    async def resolve_slot(self, slot: Slot) -> str:
+        pass
+
+    def close(self):
+        pass
+
+
+class ChannelGrpcApi(ChannelApi):
     def __init__(
         self,
         auth: Auth,
