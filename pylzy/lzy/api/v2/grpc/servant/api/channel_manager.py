@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Optional, Set
+from typing import Dict, Optional
 
 from betterproto import which_one_of as which
 
-from lzy.api.v2.servant.model.file_slots import create_slot
+from lzy.api.v2.servant.model.slot import pickle_type
 from lzy.proto.bet.priv.v2 import (
     Auth,
     Channel,
@@ -21,7 +21,7 @@ from lzy.proto.bet.priv.v2 import (
     SlotCommandStatus,
     SlotDirection,
     SlotMedia,
-    SnapshotChannelSpec,
+    SnapshotChannelSpec, SchemeType,
 )
 from lzy.proto.priv.v2.lzy_fs_grpc import LzyFsStub
 from lzy.proto.priv.v2.lzy_server_grpc import LzyServerStub
@@ -39,7 +39,7 @@ class ChannelManager:
 
         result: ChannelStatus = await self._channel_api.create_snapshot_channel(
             entry_id,
-            type_,
+            dump_type(type_),
             self._snapshot_id,
             entry_id,
         )
@@ -69,7 +69,7 @@ class ChannelManager:
         return self._resolve(entry_id, SlotDirection.OUTPUT, data_scheme)
 
     def _resolve(
-        self, entry_id: str, direction: SlotDirection, data_scheme: DataScheme
+            self, entry_id: str, direction: SlotDirection, data_scheme: DataScheme
     ) -> Path:
         path = Path("tasks") / "snapshot" / self._snapshot_id / entry_id
         slot = _file_slot(path, direction, data_scheme)
@@ -80,42 +80,29 @@ class ChannelManager:
         pass
 
 
-def _file_slot(
-    name: Path,
-    direction: SlotDirection,
-    data_schema: DataScheme,
-) -> Slot:
-    return Slot(
-        name=str(name),
-        media=SlotMedia.FILE,
-        direction=direction,
-        content_type=data_schema,
-    )
-
-
 class ChannelApi(ABC):
     @abstractmethod
     async def create_direct_channel(
-        self,
-        name: str,
-        content_type: DataScheme,
+            self,
+            name: str,
+            content_type: DataScheme,
     ) -> ChannelStatus:
         pass
 
     @abstractmethod
     async def create_snapshot_channel(
-        self,
-        name: str,
-        content_type: DataScheme,
-        snapshot_id: str,
-        entry_id: str,
+            self,
+            name: str,
+            content_type: DataScheme,
+            snapshot_id: str,
+            entry_id: str,
     ) -> ChannelStatus:
         pass
 
     @abstractmethod
     async def channel_state(
-        self,
-        name: str,
+            self,
+            name: str,
     ) -> ChannelStatus:
         pass
 
@@ -125,11 +112,11 @@ class ChannelApi(ABC):
 
     @abstractmethod
     async def create_slot(
-        self,
-        slot: Slot,
-        channel_id: str,
-        tid: Optional[str] = None,
-        pipe: bool = False,
+            self,
+            slot: Slot,
+            channel_id: str,
+            tid: Optional[str] = None,
+            pipe: bool = False,
     ) -> SlotCommandStatus:
         pass
 
@@ -144,10 +131,10 @@ class ChannelApi(ABC):
 
 class ChannelGrpcApi(ChannelApi):
     def __init__(
-        self,
-        auth: Auth,
-        server: LzyServerStub,
-        servant_fs: LzyFsStub,
+            self,
+            auth: Auth,
+            server: LzyServerStub,
+            servant_fs: LzyFsStub,
     ):
         self.server = server
         self.servant_fs = servant_fs
@@ -155,9 +142,9 @@ class ChannelGrpcApi(ChannelApi):
         self.pid = -1  # TODO[ottergottaott]
 
     async def create_direct_channel(
-        self,
-        name: str,
-        content_type: DataScheme,
+            self,
+            name: str,
+            content_type: DataScheme,
     ) -> ChannelStatus:
         return await self.create_channel(
             name,
@@ -166,11 +153,11 @@ class ChannelGrpcApi(ChannelApi):
         )
 
     async def create_snapshot_channel(
-        self,
-        name: str,
-        content_type: DataScheme,
-        snapshot_id: str,
-        entry_id: str,
+            self,
+            name: str,
+            content_type: DataScheme,
+            snapshot_id: str,
+            entry_id: str,
     ) -> ChannelStatus:
         snapshot = SnapshotChannelSpec(snapshot_id, entry_id)
         return await self.create_channel(
@@ -181,10 +168,10 @@ class ChannelGrpcApi(ChannelApi):
 
     # kwargs trick:
     async def create_channel(
-        self,
-        name: str,
-        content_type: DataScheme,
-        **type_,
+            self,
+            name: str,
+            content_type: DataScheme,
+            **type_,
     ) -> ChannelStatus:
         # LOG.info("Create channel `{}` for slot `{}`.", channelName, slot.name());
         create = ChannelCreate(
@@ -200,8 +187,8 @@ class ChannelGrpcApi(ChannelApi):
         return await self.server.Channel(channel_cmd)
 
     async def channel_state(
-        self,
-        name: str,
+            self,
+            name: str,
     ) -> ChannelStatus:
         channel_cmd = ChannelCommand(
             auth=self.auth,
@@ -221,11 +208,11 @@ class ChannelGrpcApi(ChannelApi):
         return await self.server.Channel(channel_cmd)
 
     async def create_slot(
-        self,
-        slot: Slot,
-        channel_id: str,
-        tid: Optional[str] = None,
-        pipe: bool = False,
+            self,
+            slot: Slot,
+            channel_id: str,
+            tid: Optional[str] = None,
+            pipe: bool = False,
     ) -> SlotCommandStatus:
         create = CreateSlotCommand(
             slot=slot,

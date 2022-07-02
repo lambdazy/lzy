@@ -3,29 +3,30 @@ import os
 from typing import Dict, Generic, List, Optional, TypeVar, Iterable
 from pathlib import Path
 
-from lzy.api.v2.servant.model.execution import ExecutionDescription
 from lzy.api.v2.servant.model.signatures import FuncSignature
 from lzy.serialization.serializer import MemBytesSerializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-from lzy.api.v2.grpc.servant.api.channel_manager import _file_slot
+from lzy.api.v2.servant.model.slot import file_slot, dump_type
 from lzy.proto.bet.priv.v2 import Zygote, Slot, SlotDirection, Provisioning, EnvSpec, ExecutionDescription
 
 
-def create_slots(fnc_name: str, param_names: Iterable[str]):
+def create_slots(signature: FuncSignature[T]):
     arg_slots: List[Slot] = [
-        _file_slot(
-            os.path.join(os.sep, fnc_name, name),
+        file_slot(
+            Path(signature.name) / name,
             SlotDirection.INPUT,
+            dump_type(type_)
         )
-        for name in param_names
+        for name, type_ in signature.input_types.items()
     ]
 
-    return_slot = _file_slot(
+    return_slot = file_slot(
         Path("fnc_name") / "return",
         SlotDirection.OUTPUT,
+        dump_type(signature.output_type)
     )
     return arg_slots, return_slot
 
@@ -53,13 +54,13 @@ def generate_fuze(
 
 def python_func_zygote(
     serializer: MemBytesSerializer,
+    sign: FuncSignature[T],
     env: EnvSpec,
     provisioning: Provisioning = "",
-    sign: FuncSignature[T],
     execution: Optional[ExecutionDescription] = None,
 ) -> Zygote:
     fuze = generate_fuze(sign, serializer, execution)
-    arg_slots, return_slot = create_slots(sign.name, sign.param_names)
+    arg_slots, return_slot = create_slots(sign)
     return Zygote(
         env=env,
         provisioning=provisioning,
