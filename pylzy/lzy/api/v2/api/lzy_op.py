@@ -1,19 +1,19 @@
 from dataclasses import dataclass
 from typing import Callable, Dict, Generic, Iterable, Tuple, Type, TypeVar
 
+from lzy.proto.bet.priv.v2 import EnvSpec, Provisioning, Zygote
+
+from lzy.api.v2.servant.model.zygote import Zygote
+
 # from lzy.api.v2.api.provisioning import Provisioning
 # from lzy.env.env import Env
 
-from lzy.proto.bet.priv.v2 import Zygote, Provisioning, EnvSpec
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 @dataclass
-class LzyOp(Generic[T]):
-    env: EnvSpec
-    provisioning: Provisioning
-
+class FuncSignature(Generic[T]):
     callable: Callable[..., T]
     input_types: Dict[str, type]
     output_type: Type[T]
@@ -30,6 +30,7 @@ class LzyOp(Generic[T]):
 
     @property
     def description(self) -> str:
+        # TODO: is it needed?
         if not hasattr(self.callable, "__name__"):
             return repr(self.callable)
         return self.callable.__name__
