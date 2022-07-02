@@ -4,8 +4,6 @@ from typing import Dict, Optional, Set
 
 from betterproto import which_one_of as which
 
-from lzy.api.v1.servant.bash_servant_client import BashServantClient
-from lzy.api.v2.grpc.servant.grpc_calls import Run
 from lzy.api.v2.servant.model.file_slots import create_slot
 from lzy.proto.bet.priv.v2 import (
     Auth,
@@ -22,6 +20,7 @@ from lzy.proto.bet.priv.v2 import (
     SlotCommand,
     SlotCommandStatus,
     SlotDirection,
+    SlotMedia,
     SnapshotChannelSpec,
 )
 from lzy.proto.priv.v2.lzy_fs_grpc import LzyFsStub
@@ -29,13 +28,12 @@ from lzy.proto.priv.v2.lzy_server_grpc import LzyServerStub
 
 
 class ChannelManager:
-    def __init__(self, snapshot_id: str, channel_api: "ChannelApi", fs_api: "FsApi"):
+    def __init__(self, snapshot_id: str, channel_api: "ChannelApi"):
         self._entry_id_to_channel: Dict[str, Channel] = {}
         self._snapshot_id = snapshot_id
         self._channel_api = channel_api
-        self._fs_api = fs_api
 
-    async def channel(self, entry_id: str, type_: type) -> Channel:
+    async def channel(self, entry_id: str, type_: type) -> ChannelStatus:
         if entry_id in self._entry_id_to_channel:
             return self._entry_id_to_channel[entry_id]
 
@@ -50,7 +48,7 @@ class ChannelManager:
         # TODO[ottergottaott]: what todo with connected slots here?
         return result.channel
 
-    async def destroy(self, entry_id: str):
+    async def destroy(self, entry_id: str) -> ChannelStatus:
         if entry_id not in self._entry_id_to_channel:
             return
 
@@ -74,58 +72,28 @@ class ChannelManager:
         self, entry_id: str, direction: SlotDirection, data_scheme: DataScheme
     ) -> Path:
         path = Path("tasks") / "snapshot" / self._snapshot_id / entry_id
-        slot = create_slot(
-            str(path),
-            direction,
-            data_scheme,
-        )
-        self._touch(slot, entry_id)
-        path = self._resolve_slot_path(slot)
-        return path
-
-    async def _touch(self, slot: Slot, entry_id: str):
-        channel_status: ChannelStatus = await self._channel_api.channel_state(entry_id)
-        channel = channel_status.channel
-
-        status: SlotCommandStatus = await self._fs_api.configure_slot(slot, entry_id)
-        print(status)
+        slot = _file_slot(str(path), direction, data_scheme)
+        await self._channel_api.create_slot(slot, entry_id)
+        return self._resolve_slot_path(slot)
 
     def _resolve_slot_path(self, slot: Slot) -> Path:
         pass
 
 
-class FsApi(ABC):
-    @abstractmethod
-    async def configure_slot(
-        self,
-        slot: Slot,
-        channel_id: str,
-        is_pipe: bool = False,
-    ) -> SlotCommandStatus:
-        pass
+def _file_slot(
+    name: str,
+    direction: SlotDirection,
+    data_schema: DataScheme,
+) -> Slot:
+    return Slot(
+        name=name,
+        media=SlotMedia.FILE,
+        direction=direction,
+        content_type=data_schema,
+    )
 
 
-class GrpcFsApi(FsApi):
-    def __init__(self, auth: Auth, fs_stub: LzyFsStub):
-        self.auth = auth
-        self.fs_stub = fs_stub
-
-    async def configure_slot(
-        self,
-        slot: Slot,
-        channel_id: str,
-        is_pipe: bool = False,
-    ) -> SlotCommandStatus:
-        name, value = which(self.auth, "credenctials")
-        tid = value.task_id if name == "task" else f"user-{value.user_id}"
-
-        create = CreateSlotCommand(slot=slot, channel_id=channel_id, is_pipe=is_pipe)
-        slot_cmd = SlotCommand(tid=tid, slot=slot, create=create)
-
-        return await self.fs_stub.ConfigureSlot(slot_cmd)
-
-
-class ChannelApil(ABC):
+class ChannelApi(ABC):
     @abstractmethod
     async def create_direct_channel(
         self,
@@ -159,10 +127,9 @@ class ChannelApil(ABC):
     async def create_slot(
         self,
         slot: Slot,
-        pid: int,
-        name: str,
-        pipe: bool,
         channel_id: str,
+        tid: Optional[str] = None,
+        pipe: bool = False,
     ) -> SlotCommandStatus:
         pass
 
@@ -184,8 +151,8 @@ class ChannelGrpcApi(ChannelApi):
     ):
         self.server = server
         self.servant_fs = servant_fs
-        self.auth = Auth("", "")  # TODO
-        self.pid = -1
+        self.auth = auth
+        self.pid = -1  # TODO[ottergottaott]
 
     async def create_direct_channel(
         self,
@@ -225,6 +192,7 @@ class ChannelGrpcApi(ChannelApi):
             **type_,
         )
         channel_cmd = ChannelCommand(
+            # is it useless?
             auth=self.auth,
             channel_name=name,
             create=create,
@@ -255,21 +223,27 @@ class ChannelGrpcApi(ChannelApi):
     async def create_slot(
         self,
         slot: Slot,
-        pid: int,
-        name: str,
-        pipe: bool,
         channel_id: str,
+        tid: Optional[str] = None,
+        pipe: bool = False,
     ) -> SlotCommandStatus:
         create = CreateSlotCommand(
             slot=slot,
             channel_id=channel_id,
             is_pipe=pipe,
         )
+
         # LOG.info("Create {}slot `{}` ({}) for channel `{}` with taskId {}.",
         #         pipe ? "pipe " : "", slotName, name, channelId, pid);
+        #
+
+        name, value = which(self.auth, "credenctials")
+        if tid is None:
+            tid = value.task_id if name == "task" else f"user-{value.user_id}"
+
         slot_cmd = SlotCommand(
-            tid=str(pid),
-            slot=name,
+            tid=tid,
+            slot=slot.name,
             create=create,
         )
         return await self.servant_fs.ConfigureSlot(slot_cmd)
