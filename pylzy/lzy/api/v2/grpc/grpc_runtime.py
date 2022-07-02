@@ -57,7 +57,7 @@ class GrpcRuntime(Runtime):
         self,
         storage_client: StorageClient,
         bucket: str,
-        channel_manager: ChannelManager = ChannelManagerImpl(),
+        channel_manager: ChannelManager,
         graph_executor_client: GraphExecutorClient = GrpcGraphExecutorClient(),
     ):
         self._storage_client = storage_client
@@ -177,7 +177,7 @@ class GrpcRuntime(Runtime):
     def _task_spec(
         self, call: LzyCall, snapshot_id: str, serializer: Serializer
     ) -> TaskSpec:
-        zygote = self._zygote(call, serializer)
+        zygote = call.zygote
         arg_name_to_call_id: Dict[str, str] = _get_or_generate_call_ids(call)
         bindings: Bindings = self._bindings(
             call, zygote, snapshot_id, arg_name_to_call_id
