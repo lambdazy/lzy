@@ -11,7 +11,7 @@ from lzy.api.v2.api.runtime.runtime import Runtime
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
 from lzy.api.v2.grpc.channel_manager import ChannelManager
 from lzy.api.v2.grpc.graph_executor_client import GraphExecutorClient
-from lzy.api.v2.grpc.grpc_graph_executor_client import (
+from lzy.api.v2.grpc.graph_executor_client import (
     GrpcGraphExecutorClient,
 )
 
