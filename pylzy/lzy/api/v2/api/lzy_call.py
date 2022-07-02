@@ -2,7 +2,6 @@ import uuid
 from itertools import chain
 from typing import Any, Dict, Generic, Iterator, Tuple, TypeVar
 
-from lzy.api.v2.api.lzy_op import LzyOp
 from lzy.api.v2.servant.model.signatures import FuncSignature
 from lzy.proto.bet.priv.v2 import Zygote
 
@@ -19,6 +18,14 @@ class LzyCall(Generic[T]):
         self._args = args
         self._kwargs = kwargs
         self._entry_id = entry_id
+
+    @property
+    def zygote(self) -> Zygote:
+        return self._zygote
+
+    @property
+    def signature(self) -> FuncSignature[T]:
+        return self._sign
 
     @property
     def id(self) -> str:

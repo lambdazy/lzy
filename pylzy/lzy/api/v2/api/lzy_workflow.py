@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, List, Optional
 from lzy.api.v2.api import LzyCall
 from lzy.api.v2.api.lzy_workflow_splitter import LzyWorkflowSplitter
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
+from lzy.env.env_provider import EnvProvider
 
 if TYPE_CHECKING:
     from lzy.api.v2.api.lzy import Lzy
@@ -20,7 +21,7 @@ class LzyWorkflow:
         self._name = name
         self._eager = eager
         self._owner = owner
-        self._env_provider = self._owner.env_provider
+        self._env_provider: EnvProvider = self._owner.env_provider
         self._lzy_mount = lzy_mount
         self._ops: List[LzyCall] = []
         self._runtime = self._owner.runtime
