@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from lzy.api.v2.grpc.servant.api.graph_executor_client import (
+from lzy.api.v2.grpc.graph_executor_client import (
     GraphExecutionStatus,
     GraphExecutorClient,
     TaskSpec,
