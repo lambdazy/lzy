@@ -72,7 +72,7 @@ class ChannelManager:
         self, entry_id: str, direction: SlotDirection, data_scheme: DataScheme
     ) -> Path:
         path = Path("tasks") / "snapshot" / self._snapshot_id / entry_id
-        slot = _file_slot(str(path), direction, data_scheme)
+        slot = _file_slot(path, direction, data_scheme)
         await self._channel_api.create_slot(slot, entry_id)
         return self._resolve_slot_path(slot)
 
@@ -81,12 +81,12 @@ class ChannelManager:
 
 
 def _file_slot(
-    name: str,
+    name: Path,
     direction: SlotDirection,
     data_schema: DataScheme,
 ) -> Slot:
     return Slot(
-        name=name,
+        name=str(name),
         media=SlotMedia.FILE,
         direction=direction,
         content_type=data_schema,
