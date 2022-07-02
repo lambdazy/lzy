@@ -5,23 +5,18 @@ import zipfile
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
-from lzy.api.v2.api import Gpu, LzyCall
+from lzy.api.v2.api import LzyCall
 from lzy.api.v2.api.graph import Graph
 from lzy.api.v2.api.runtime.runtime import Runtime
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
-from lzy.api.v2.grpc.servant.api.channel_manager import ChannelManager
-from lzy.api.v2.grpc.servant.api.graph_executor_client import GraphExecutorClient
-from lzy.api.v2.grpc.servant.impl.channel_manager_impl import ChannelManagerImpl
-from lzy.api.v2.grpc.servant.impl.grpc_graph_executor_client import (
+from lzy.api.v2.grpc.channel_manager import ChannelManager
+from lzy.api.v2.grpc.graph_executor_client import GraphExecutorClient
+from lzy.api.v2.grpc.grpc_graph_executor_client import (
     GrpcGraphExecutorClient,
 )
-from lzy.api.v2.servant.model.channel import Binding, Bindings
-from lzy.api.v2.servant.model.env import BaseEnv, Env, PyEnv
-from lzy.api.v2.servant.model.file_slots import create_slot
-from lzy.api.v2.servant.model.provisioning import Provisioning
-from lzy.api.v2.servant.model.signatures import FuncSignature
-from lzy.api.v2.servant.model.slot import Direction, Slot
-from lzy.api.v2.servant.model.zygote_python_func import python_func_zygote
+
+from lzy.proto.bet.priv.v2 import Binding, BaseEnv, EnvSpec, PythonEnv, SlotDirection, Slot
+
 from lzy.api.v2.utils import fileobj_hash, is_lazy_proxy, materialized, zipdir
 from lzy.serialization.serializer import Serializer
 from lzy.storage.credentials import StorageCredentials
@@ -86,14 +81,14 @@ class GrpcRuntime(Runtime):
                     entry_id = str(uuid.uuid4())
                     self._load_arg(entry_id, arg, serializer)
 
-    def _env(self, call: LzyCall) -> Env:
+    def _env(self, call: LzyCall) -> EnvSpec:
         base_env = call._zygote.env.base_env
         aux_env = call._zygote.env.aux_env
         if aux_env is None:
             if base_env is not None:
-                return Env(base_env=BaseEnv(base_env.base_docker_image))
+                return EnvSpec(base_env=BaseEnv(base_env.base_docker_image))
             else:
-                return Env()
+                return EnvEnv()
 
         local_modules_uploaded = []
         for local_module in aux_env.local_modules_paths:
@@ -135,7 +130,7 @@ class GrpcRuntime(Runtime):
             call_id = arg_name_to_call_id[name]
             slot = create_slot(
                 os.path.sep.join(("tasks", "snapshot", snapshot_id, call_id)),
-                Direction.OUTPUT,
+                SlotDirection.OUTPUT,
             )
             self._channel_manager.touch(
                 slot, self._channel_manager.snapshot_channel(snapshot_id, call_id)
@@ -158,7 +153,7 @@ class GrpcRuntime(Runtime):
         snapshot_id: str,
         arg_name_to_call_id: Dict[str, str],
     ):
-        bindings: Bindings = []
+        bindings: List[Binding] = []
         for name, arg in call.named_arguments():
             slot: Slot = zygote.slot(name)
             if is_lazy_proxy(arg) and not materialized(arg):
@@ -176,7 +171,7 @@ class GrpcRuntime(Runtime):
     ) -> TaskSpec:
         zygote = call.zygote
         arg_name_to_call_id: Dict[str, str] = _get_or_generate_call_ids(call)
-        bindings: Bindings = self._bindings(
+        bindings: List[Binding] = self._bindings(
             call, zygote, snapshot_id, arg_name_to_call_id
         )
         self._dump_arguments(call, arg_name_to_call_id, snapshot_id, serializer)
