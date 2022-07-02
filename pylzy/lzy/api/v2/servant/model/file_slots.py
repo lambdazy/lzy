@@ -1,29 +1,17 @@
-from lzy.api.v2.servant.model.slot import Direction, Media, Slot
+from lzy.proto.bet.priv.v2 import Slot, SlotDirection, SlotMedia, DataScheme
 
 
-class FileSlot(Slot):
-    @property
-    def media(self) -> Media:
-        return Media.FILE
+def create_slot(
+    name: str,
+    direction: SlotDirection,
+    data_schema: DataScheme,
+) -> Slot:
+    return Slot(
+        name=name,
+        media=SlotMedia.FILE,
+        direction=direction,
+        content_type=data_schema,
+    )
 
 
-class InFileSlot(FileSlot):
-    @property
-    def direction(self) -> Direction:
-        return Direction.INPUT
-
-
-class OutFileSlot(FileSlot):
-    @property
-    def direction(self) -> Direction:
-        return Direction.OUTPUT
-
-
-def create_slot(name: str, direction: Direction) -> Slot:
-    if direction == Direction.INPUT:
-        return InFileSlot(name)
-
-    if direction == Direction.OUTPUT:
-        return OutFileSlot(name)
-
-    raise ValueError(f"Cannot create fileslot for direction: {direction}")
+print(create_slot("test", SlotDirection.INPUT, None))
