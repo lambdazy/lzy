@@ -29,6 +29,7 @@ class LzyWorkflow:
         )
         self._splitter = LzyWorkflowSplitter()
 
+    @property
     def owner(self) -> "Lzy":
         return self._owner
 
