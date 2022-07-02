@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, List, Optional
 
 from lzy.api.v2.api import LzyCall
-from lzy.api.v2.api.lzy_workflow_splitter import LzyWorkflowSplitter
+from lzy.api.v2.api.graph import Graph, GraphBuilder
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
 from lzy.env.env_provider import EnvProvider
 
@@ -23,12 +23,11 @@ class LzyWorkflow:
         self._owner = owner
         self._env_provider: EnvProvider = self._owner.env_provider
         self._lzy_mount = lzy_mount
-        self._ops: List[LzyCall] = []
         self._runtime = self._owner.runtime
         self._snapshot = self._owner.snapshot_provider.get(
             lzy_mount, self._owner._serializer
         )
-        self._splitter = LzyWorkflowSplitter()
+        self._call_queue: List[LzyCall] = []
 
     @property
     def owner(self) -> "Lzy":
@@ -38,13 +37,14 @@ class LzyWorkflow:
         return self._snapshot
 
     def call(self, call: LzyCall) -> Any:
-        self._splitter.call(call)
+        self._call_queue.append(call)
         if self._eager:
             self.barrier()
 
     def barrier(self) -> None:
-        graph = self._splitter.barrier()
+        graph = GraphBuilder(self._call_queue).build()
         self._runtime.exec(graph, self._snapshot, lambda: print("progress"))
+        self._call_queue = []
 
     def __enter__(self) -> "LzyWorkflow":
         if type(self).instance is not None:
