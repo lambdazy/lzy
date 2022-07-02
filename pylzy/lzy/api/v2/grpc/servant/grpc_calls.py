@@ -42,7 +42,8 @@ class Run:
         assignments = [
             SlotAssignment(
                 slot=slot,
-                binding=self.resolve_slot(slot),
+                # TODO[ottergottaott]: normal resolve call
+                binding=None,  # self.resolve_slot(slot),
             )
             for slot in zygote.slots
         ]
