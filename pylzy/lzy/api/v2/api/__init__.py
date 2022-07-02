@@ -8,10 +8,12 @@ import yaml
 
 from lzy._proxy.result import Nothing
 from lzy.api.v2.api.lzy_call import LzyCall
-from lzy.api.v2.api.lzy_op import LzyOp
+from lzy.api.v2.api.lzy_op import LzyOp, FuncSignature
 from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 from lzy.api.v2.api.provisioning import Gpu, Provisioning
 from lzy.api.v2.utils import infer_call_signature, infer_return_type, lazy_proxy
+from lzy.api.v2.servant.model.zygote_python_func import python_func_zygote
+from lzy.api.v2.api.lzy import Lzy
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -88,17 +90,21 @@ def create_lazy_constructor(
         # required modules
         caller_globals = inspect.stack()[1].frame.f_globals
 
-        lzy_op = LzyOp(
-            env_provider.for_op(caller_globals),
-            provisioning,
+        func_sign = FuncSignature(
             signature.func.callable,
             signature.func.input_types,
             signature.func.output_type,
             signature.func.arg_names,
             signature.func.kwarg_names,
         )
-
-        lzy_call = LzyCall(lzy_op, args, kwargs, str(uuid.uuid4()))
+        owner: Lzy = current_workflow.owner
+        zygote = python_func_zygote(
+                owner._serializer,
+                owner.env_provider.for_op(caller_globals),
+                provisioning,
+                func_sign,
+            )
+        lzy_call = LzyCall(zygote, func_sign, args, kwargs, str(uuid.uuid4()))
 
         current_workflow.call(lzy_call)
 

@@ -1,63 +1,73 @@
-import json
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Generic, List, Optional, TypeVar
+import base64
+import os
+from typing import Dict, Generic, List, Optional, TypeVar, Iterable
+from pathlib import Path
 
-from lzy.api.v2.servant.model.env import Env
-from lzy.api.v2.servant.model.provisioning import Provisioning
+from lzy.api.v2.servant.model.execution import ExecutionDescription
 from lzy.api.v2.servant.model.signatures import FuncSignature
-from lzy.api.v2.servant.model.slot import Slot
+from lzy.serialization.serializer import MemBytesSerializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-# Zygote should've been just marked as
-# @dataclass(frozen=True)
-# but mypy is broken here a bit, so workaround with mixin is needed:
-# https://stackoverflow.com/questions/69330256/how-to-get-an-abstract-dataclass-to-pass-mypy
-# https://github.com/python/mypy/issues/5374#issuecomment-568335302
-@dataclass
-class ZygoteDataclassMixin(Generic[T]):
-    signature: FuncSignature[T]
-    arg_slots: List[Slot]
-    return_slot: Slot
-    env: Env
-    provisioning: Optional[Provisioning]
+from lzy.api.v2.grpc.servant.api.channel_manager import _file_slot
+from lzy.proto.bet.priv.v2 import Zygote, Slot, SlotDirection, Provisioning, EnvSpec, ExecutionDescription
 
 
-class Zygote(ZygoteDataclassMixin[T], ABC):
-    @property
-    def slots(self) -> List[Slot]:
-        return self.arg_slots + [self.return_slot]
-
-    @property
-    def name(self) -> str:
-        return self.signature.name
-
-    @property
-    def description(self) -> str:
-        return self.name
-
-    @property
-    @abstractmethod
-    def command(self) -> str:
-        pass
-
-    def to_json(self) -> str:
-        env = self.env
-        provisioning = self.provisioning
-        return json.dumps(
-            {
-                # tried to serialize env as json and it didn't work,
-                # so build dict here instead for env
-                "env": env.as_dct(),
-                "fuze": self.command,
-                "provisioning": {"tags": [{"tag": tag} for tag in provisioning.tags()]}
-                if provisioning
-                else {},
-                "slots": [slot.to_dict() for slot in self.slots],
-                "description": self.description,
-            },
-            sort_keys=True,
-            indent=3,
+def create_slots(fnc_name: str, param_names: Iterable[str]):
+    arg_slots: List[Slot] = [
+        _file_slot(
+            os.path.join(os.sep, fnc_name, name),
+            SlotDirection.INPUT,
         )
+        for name in param_names
+    ]
+
+    return_slot = _file_slot(
+        Path("fnc_name") / "return",
+        SlotDirection.OUTPUT,
+    )
+    return arg_slots, return_slot
+
+
+def generate_fuze(
+    signature: FuncSignature[T],
+    serializer: MemBytesSerializer,
+    execution: Optional[ExecutionDescription] = None,
+) -> str:
+    _com = "".join(
+        [
+            "python ",
+            "$(python -c 'import site; print(site.getsitepackages()[0])')",
+            "/lzy/api/v1/startup.py ",
+        ]
+    )
+    serialized_func = base64.b64encode(
+        serializer.serialize_to_string(signature)
+    ).decode("ascii")
+    serialized_execution_description = base64.b64encode(
+        serializer.serialize_to_string(execution)
+    ).decode("ascii")
+    return _com + serialized_func + " " + serialized_execution_description
+
+
+def python_func_zygote(
+    serializer: MemBytesSerializer,
+    env: EnvSpec,
+    provisioning: Provisioning = "",
+    sign: FuncSignature[T],
+    execution: Optional[ExecutionDescription] = None,
+) -> Zygote:
+    fuze = generate_fuze(sign, serializer, execution)
+    arg_slots, return_slot = create_slots(sign.name, sign.param_names)
+    return Zygote(
+        env=env,
+        provisioning=provisioning,
+        fuze=fuze,
+        slots=[
+            *arg_slots,
+            return_slot,
+        ],
+        description=sign.description,
+        name=sign.name,
+    )

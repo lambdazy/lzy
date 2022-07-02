@@ -9,10 +9,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 @dataclass
-class LzyOp(Generic[T]):
-    env: EnvSpec
-    provisioning: Provisioning
-
+class FuncSignature(Generic[T]):
     callable: Callable[..., T]
     input_types: Dict[str, type]
     output_type: Type[T]
@@ -29,6 +26,7 @@ class LzyOp(Generic[T]):
 
     @property
     def description(self) -> str:
+        # TODO: is it needed?
         if not hasattr(self.callable, "__name__"):
             return repr(self.callable)
         return self.callable.__name__

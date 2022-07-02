@@ -11,22 +11,25 @@ from lzy.api.v2.api.runtime.runtime import Runtime
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
 from lzy.api.v2.grpc.servant.api.channel_manager import ChannelManager
 from lzy.api.v2.grpc.servant.api.graph_executor_client import GraphExecutorClient
-from lzy.api.v2.grpc.servant.api.task_spec import TaskSpec
 from lzy.api.v2.grpc.servant.impl.channel_manager_impl import ChannelManagerImpl
 from lzy.api.v2.grpc.servant.impl.grpc_graph_executor_client import (
     GrpcGraphExecutorClient,
 )
 from lzy.api.v2.servant.model.channel import Binding, Bindings
-from lzy.api.v2.servant.model.env import AuxEnv, BaseEnv, Env, PyEnv
+
 from lzy.api.v2.servant.model.file_slots import create_slot
 from lzy.api.v2.servant.model.provisioning import Provisioning
 from lzy.api.v2.servant.model.signatures import FuncSignature
 from lzy.api.v2.servant.model.slot import Direction, Slot
-from lzy.api.v2.servant.model.zygote_python_func import ZygotePythonFunc
+
+from lzy.api.v2.servant.model.zygote_python_func import python_func_zygote
 from lzy.api.v2.utils import fileobj_hash, is_lazy_proxy, materialized, zipdir
 from lzy.serialization.serializer import Serializer
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient, from_credentials
+
+
+from lzy.proto.bet.priv.v2 import TaskSpec, BaseEnv, Env, AuxEnv
 
 
 def _generate_channel_name(call_id: str):
@@ -129,44 +132,32 @@ class GrpcRuntime(Runtime):
         serializer: Serializer,
     ):
         for name, arg in call.named_arguments():
-            if not is_lazy_proxy(arg):
-                call_id = arg_name_to_call_id[name]
-                slot = create_slot(
-                    os.path.sep.join(("tasks", "snapshot", snapshot_id, call_id)),
-                    Direction.OUTPUT,
-                )
-                self._channel_manager.touch(
-                    slot, self._channel_manager.snapshot_channel(snapshot_id, call_id)
-                )
-                path = _get_slot_path(slot)
-                # with path.open('wb') as handle:
-                #     serializer.serialize_to_file(arg, handle)
-                #     handle.flush()
-                #     os.fsync(handle.fileno())
+            if is_lazy_proxy(arg):
+                continue
+            call_id = arg_name_to_call_id[name]
+            slot = create_slot(
+                os.path.sep.join(("tasks", "snapshot", snapshot_id, call_id)),
+                Direction.OUTPUT,
+            )
+            self._channel_manager.touch(
+                slot, self._channel_manager.snapshot_channel(snapshot_id, call_id)
+            )
+            path = _get_slot_path(slot)
+            # with path.open('wb') as handle:
+            #     serializer.serialize_to_file(arg, handle)
+            #     handle.flush()
+            #     os.fsync(handle.fileno())
+            #
 
-    def _zygote(self, call: LzyCall, serializer: Serializer) -> ZygotePythonFunc:
-        if call.op.provisioning.gpu is not None and call.op.provisioning.gpu.is_any:
-            provisioning = Provisioning(Gpu.any())
-        else:
-            provisioning = Provisioning()
-
-        return ZygotePythonFunc(
-            serializer,
-            FuncSignature(
-                call.op.callable,
-                call.op.input_types,
-                call.op.output_type,
-                call.op.arg_names,
-                call.op.kwarg_names,
-            ),
-            self._env(call),
-            provisioning,
-        )
+    #  def _zygote(self, call: LzyCall, serializer: Serializer) -> Zygote:
+    #      if call.op.provisioning.gpu is not None and call.op.provisioning.gpu.is_any:
+    #          provisioning = Provisioning(Gpu.any())
+    #      else:
+    #          provisioning = Provisioning()
 
     def _bindings(
         self,
         call: LzyCall,
-        zygote: ZygotePythonFunc,
         snapshot_id: str,
         arg_name_to_call_id: Dict[str, str],
     ):
