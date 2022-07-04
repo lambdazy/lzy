@@ -1,9 +1,9 @@
 locals {
   clickhouse-labels = {
     app                         = "clickhouse"
-    app.kubernetes.io / name    = "lzy-clickhouse"
-    app.kubernetes.io / part-of = "lzy"
-    lzy.ai / app                = "clickhouse"
+    "app.kubernetes.io/name"    = "lzy-clickhouse"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "clickhouse"
   }
   clickhouse-port     = 8123
   clickhouse-k8s-name = "clickhouse"

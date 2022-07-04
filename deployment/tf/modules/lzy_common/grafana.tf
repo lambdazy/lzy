@@ -1,9 +1,9 @@
 locals {
   grafana-labels = {
     app                         = "grafana"
-    app.kubernetes.io / name    = "lzy-grafana"
-    app.kubernetes.io / part-of = "lzy"
-    lzy.ai / app                = "grafana"
+    "app.kubernetes.io/name"    = "lzy-grafana"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "grafana"
   }
   grafana-port     = 3000
   grafana-k8s-name = "grafana"
