@@ -1,9 +1,9 @@
 locals {
   whiteboard-labels = {
     app                         = "whiteboard"
-    app.kubernetes.io / name    = "lzy-whiteboard"
-    app.kubernetes.io / part-of = "lzy"
-    lzy.ai / app                = "whiteboard"
+    "app.kubernetes.io/name"    = "lzy-whiteboard"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "whiteboard"
   }
   whiteboard-port     = 8999
   whiteboard-k8s-name = "whiteboard"

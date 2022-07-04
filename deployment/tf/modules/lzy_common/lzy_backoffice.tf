@@ -1,9 +1,9 @@
 locals {
   backoffice-labels = {
     app                         = "lzy-backoffice"
-    app.kubernetes.io / name    = "lzy-backoffice"
-    app.kubernetes.io / part-of = "lzy"
-    lzy.ai / app                = "backoffice"
+    "app.kubernetes.io/name"    = "lzy-backoffice"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "backoffice"
   }
   backoffice-frontend-port     = 80
   backoffice-frontend-tls-port = 443

@@ -1,9 +1,9 @@
 locals {
   kharon-labels = {
     app                         = "lzy-kharon"
-    app.kubernetes.io / name    = "lzy-kharon"
-    app.kubernetes.io / part-of = "lzy"
-    lzy.ai / app                = "kharon"
+    "app.kubernetes.io/name"    = "lzy-kharon"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "kharon"
   }
   kharon-port                  = 8899
   kharon-servant-proxy-port    = 8900

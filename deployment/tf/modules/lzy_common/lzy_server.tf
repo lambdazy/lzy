@@ -1,9 +1,9 @@
 locals {
   server-labels = {
     app                         = "lzy-server"
-    app.kubernetes.io / name    = "lzy-server"
-    app.kubernetes.io / part-of = "lzy"
-    lzy.ai / app                = "server"
+    "app.kubernetes.io/name"    = "lzy-server"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "server"
   }
   server-port     = 8888
   server-k8s-name = "lzy-server"
@@ -239,10 +239,8 @@ resource "kubernetes_deployment" "server" {
 
 resource "kubernetes_service" "lzy_server" {
   metadata {
-    name = "${local.server-k8s-name}-service"
-    labels = {
-      labels = local.server-labels
-    }
+    name      = "${local.server-k8s-name}-service"
+    labels    = local.server-labels
     namespace = kubernetes_namespace.server_namespace.metadata[0].name
     annotations = {
       #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
