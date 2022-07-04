@@ -5,12 +5,13 @@ locals {
     app.kubernetes.io / part-of = "lzy"
     lzy.ai / app                = "grafana"
   }
-  grafana-port = 3000
+  grafana-port     = 3000
+  grafana-k8s-name = "grafana"
 }
 
 resource "kubernetes_deployment" "grafana" {
   metadata {
-    name   = "grafana"
+    name   = local.grafana-k8s-name
     labels = local.grafana-labels
   }
   spec {
@@ -19,12 +20,12 @@ resource "kubernetes_deployment" "grafana" {
     }
     template {
       metadata {
-        name   = "grafana"
+        name   = local.grafana-k8s-name
         labels = local.grafana-labels
       }
       spec {
         container {
-          name  = "grafana"
+          name  = local.grafana-k8s-name
           image = var.grafana-image
           env {
             name  = "GF_INSTALL_PLUGINS"
@@ -102,7 +103,7 @@ resource "kubernetes_deployment" "grafana" {
 resource "kubernetes_service" "grafana_service" {
   count = var.create_public_grafana_service ? 1 : 0
   metadata {
-    name        = "grafana-service"
+    name        = "${local.grafana-k8s-name}-service"
     labels      = local.grafana-labels
     annotations = var.grafana_load_balancer_necessary_annotations
   }

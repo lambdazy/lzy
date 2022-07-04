@@ -5,7 +5,8 @@ locals {
     app.kubernetes.io / part-of = "lzy"
     lzy.ai / app                = "whiteboard"
   }
-  whiteboard-port = 8999
+  whiteboard-port     = 8999
+  whiteboard-k8s-name = "whiteboard"
 }
 
 resource "kubernetes_secret" "whiteboard_db_data" {
@@ -23,7 +24,7 @@ resource "kubernetes_secret" "whiteboard_db_data" {
 
 resource "kubernetes_deployment" "whiteboard" {
   metadata {
-    name   = "whiteboard"
+    name   = local.whiteboard-k8s-name
     labels = local.whiteboard-labels
   }
   spec {
@@ -35,12 +36,12 @@ resource "kubernetes_deployment" "whiteboard" {
     }
     template {
       metadata {
-        name   = "whiteboard"
+        name   = local.whiteboard-k8s-name
         labels = local.whiteboard-labels
       }
       spec {
         container {
-          name              = "whiteboard"
+          name              = local.whiteboard-k8s-name
           image             = var.whiteboard-image
           image_pull_policy = "Always"
           env {
@@ -104,7 +105,7 @@ resource "kubernetes_deployment" "whiteboard" {
 
 resource "kubernetes_service" "whiteboard" {
   metadata {
-    name   = "whiteboard"
+    name   = local.whiteboard-k8s-name
     labels = local.whiteboard-labels
     annotations = {
       #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name

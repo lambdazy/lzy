@@ -8,11 +8,12 @@ locals {
   kharon-port                  = 8899
   kharon-servant-proxy-port    = 8900
   kharon-servant-fs-proxy-port = 8901
+  kharon-k8s-name              = "lzy-kharon"
 }
 
 resource "kubernetes_deployment" "kharon" {
   metadata {
-    name   = "lzy-kharon"
+    name   = local.kharon-k8s-name
     labels = local.kharon-labels
   }
   spec {
@@ -24,12 +25,12 @@ resource "kubernetes_deployment" "kharon" {
     }
     template {
       metadata {
-        name   = "lzy-kharon"
+        name   = local.kharon-k8s-name
         labels = local.kharon-labels
       }
       spec {
         container {
-          name              = "lzy-kharon"
+          name              = local.kharon-k8s-name
           image             = var.kharon-image
           image_pull_policy = "Always"
           env {
@@ -107,7 +108,7 @@ resource "kubernetes_deployment" "kharon" {
 resource "kubernetes_service" "lzy_kharon" {
   count = var.create_public_kharon_service ? 1 : 0
   metadata {
-    name        = "lzy-kharon-load-balancer"
+    name        = "${local.kharon-k8s-name}-load-balancer"
     labels      = local.kharon-labels
     annotations = var.kharon_load_balancer_necessary_annotations
   }
