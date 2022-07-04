@@ -9,6 +9,7 @@ locals {
   backoffice-frontend-tls-port = 443
   backoffice-backend-port      = 8080
   backoffice-backend-tls-port  = 8443
+  backoffice-k8s-name          = "lzy-backoffice"
 }
 
 resource "tls_private_key" "backoffice_key" {
@@ -31,7 +32,7 @@ resource "kubernetes_secret" "backoffice_secrets" {
 
 resource "kubernetes_deployment" "lzy_backoffice" {
   metadata {
-    name   = "lzy-backoffice"
+    name   = local.backoffice-k8s-name
     labels = local.backoffice-labels
   }
   spec {
@@ -43,12 +44,12 @@ resource "kubernetes_deployment" "lzy_backoffice" {
     }
     template {
       metadata {
-        name   = "lzy-backoffice"
+        name   = local.backoffice-k8s-name
         labels = local.backoffice-labels
       }
       spec {
         container {
-          name              = "lzy-backoffice-frontend"
+          name              = "${local.backoffice-k8s-name}-frontend"
           image             = var.backoffice-frontend-image
           image_pull_policy = "Always"
           port {
@@ -67,7 +68,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           }
         }
         container {
-          name              = "lzy-backoffice-backend"
+          name              = "${local.backoffice-k8s-name}-backend"
           image             = var.backoffice-backend-image
           image_pull_policy = "Always"
           env {
@@ -188,7 +189,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
 resource "kubernetes_service" "lzy_backoffice" {
   count = var.create_public_backoffice_service ? 1 : 0
   metadata {
-    name        = "lzy-backoffice-service"
+    name        = "${local.backoffice-k8s-name}-service"
     labels      = local.backoffice-labels
     annotations = var.backoffice_load_balancer_necessary_annotations
   }

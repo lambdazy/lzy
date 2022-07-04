@@ -5,12 +5,13 @@ locals {
     app.kubernetes.io / part-of = "lzy"
     lzy.ai / app                = "clickhouse"
   }
-  clickhouse-port = 8123
+  clickhouse-port     = 8123
+  clickhouse-k8s-name = "clickhouse"
 }
 
 resource "kubernetes_deployment" "clickhouse" {
   metadata {
-    name   = "clickhouse"
+    name   = local.clickhouse-k8s-name
     labels = local.clickhouse-labels
   }
   spec {
@@ -19,12 +20,12 @@ resource "kubernetes_deployment" "clickhouse" {
     }
     template {
       metadata {
-        name   = "clickhouse"
+        name   = local.clickhouse-k8s-name
         labels = local.clickhouse-labels
       }
       spec {
         container {
-          name  = "clickhouse"
+          name  = local.clickhouse-k8s-name
           image = var.clickhouse-image
           env {
             name = "CLICKHOUSE_USER"
@@ -98,7 +99,7 @@ resource "kubernetes_deployment" "clickhouse" {
 
 resource "kubernetes_persistent_volume_claim" "clickhouse_volume" {
   metadata {
-    name   = "clickhouse-volume"
+    name   = "${local.clickhouse-k8s-name}-volume"
     labels = local.clickhouse-labels
   }
   spec {
@@ -114,7 +115,7 @@ resource "kubernetes_persistent_volume_claim" "clickhouse_volume" {
 
 resource "kubernetes_service" "clickhouse_service" {
   metadata {
-    name   = "clickhouse-service"
+    name   = "${local.clickhouse-k8s-name}-service"
     labels = local.clickhouse-labels
     annotations = {
       #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name

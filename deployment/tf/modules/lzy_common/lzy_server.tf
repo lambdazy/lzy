@@ -5,7 +5,8 @@ locals {
     app.kubernetes.io / part-of = "lzy"
     lzy.ai / app                = "server"
   }
-  server-port = 8888
+  server-port     = 8888
+  server-k8s-name = "lzy-server"
 }
 
 resource "kubernetes_secret" "lzy_server_db_data" {
@@ -24,7 +25,7 @@ resource "kubernetes_secret" "lzy_server_db_data" {
 
 resource "kubernetes_deployment" "server" {
   metadata {
-    name      = "lzy-server"
+    name      = local.server-k8s-name
     labels    = local.server-labels
     namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
@@ -37,13 +38,13 @@ resource "kubernetes_deployment" "server" {
     }
     template {
       metadata {
-        name      = "lzy-server"
+        name      = local.server-k8s-name
         labels    = local.server-labels
         namespace = kubernetes_namespace.server_namespace.metadata[0].name
       }
       spec {
         container {
-          name              = "lzy-server"
+          name              = local.server-k8s-name
           image             = var.server-image
           image_pull_policy = "Always"
           env {
@@ -238,7 +239,7 @@ resource "kubernetes_deployment" "server" {
 
 resource "kubernetes_service" "lzy_server" {
   metadata {
-    name = "lzy-server-service"
+    name = "${local.server-k8s-name}-service"
     labels = {
       labels = local.server-labels
     }
