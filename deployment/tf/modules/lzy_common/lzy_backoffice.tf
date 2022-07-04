@@ -5,6 +5,10 @@ locals {
     app.kubernetes.io / part-of = "lzy"
     lzy.ai / app                = "backoffice"
   }
+  backoffice-frontend-port     = 80
+  backoffice-frontend-tls-port = 443
+  backoffice-backend-port      = 8080
+  backoffice-backend-tls-port  = 8443
 }
 
 resource "tls_private_key" "backoffice_key" {
@@ -49,13 +53,13 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           image_pull_policy = "Always"
           port {
             name           = "frontend"
-            container_port = 80
-            host_port      = 80
+            container_port = local.backoffice-frontend-port
+            host_port      = local.backoffice-frontend-port
           }
           port {
             name           = "frontendtls"
-            container_port = 443
-            host_port      = 443
+            container_port = local.backoffice-frontend-tls-port
+            host_port      = local.backoffice-frontend-tls-port
           }
           volume_mount {
             name       = "cert"
@@ -72,7 +76,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           }
           env {
             name  = "GRPC_PORT"
-            value = "8888"
+            value = local.server-port
           }
           env {
             name  = "GRPC_WBHOST"
@@ -80,7 +84,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           }
           env {
             name  = "GRPC_WBPORT"
-            value = "8999"
+            value = local.whiteboard-port
           }
           env {
             name = "OAUTH_GITHUB_CLIENT_ID"
@@ -114,13 +118,13 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           }
           port {
             name           = "backend"
-            container_port = 8080
-            host_port      = 8080
+            container_port = local.backoffice-backend-port
+            host_port      = local.backoffice-backend-port
           }
           port {
             name           = "backendtls"
-            container_port = 8443
-            host_port      = 8443
+            container_port = local.backoffice-backend-tls-port
+            host_port      = local.backoffice-backend-tls-port
           }
           args = [
             "-Dmicronaut.ssl.keyStore.password=${var.ssl-keystore-password}",
@@ -194,29 +198,29 @@ resource "kubernetes_service" "lzy_backoffice" {
     selector         = local.backoffice-labels
     port {
       name        = "backend"
-      port        = 8080
-      target_port = 8080
+      port        = local.backoffice-backend-port
+      target_port = local.backoffice-backend-port
     }
     dynamic "port" {
       for_each = var.ssl-enabled ? [1] : []
       content {
         name        = "backendtls"
-        port        = 8443
-        target_port = 8443
+        port        = local.backoffice-backend-tls-port
+        target_port = local.backoffice-backend-tls-port
       }
     }
     dynamic "port" {
       for_each = var.ssl-enabled ? [1] : []
       content {
         name        = "frontendtls"
-        port        = 443
-        target_port = 443
+        port        = local.backoffice-frontend-tls-port
+        target_port = local.backoffice-frontend-tls-port
       }
     }
     port {
       name        = "frontend"
-      port        = 80
-      target_port = 80
+      port        = local.backoffice-frontend-port
+      target_port = local.backoffice-frontend-port
     }
   }
 }

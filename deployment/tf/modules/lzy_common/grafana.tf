@@ -5,6 +5,7 @@ locals {
     app.kubernetes.io / part-of = "lzy"
     lzy.ai / app                = "grafana"
   }
+  grafana-port = 3000
 }
 
 resource "kubernetes_deployment" "grafana" {
@@ -65,8 +66,8 @@ resource "kubernetes_deployment" "grafana" {
             value = "false"
           }
           port {
-            container_port = 3000
-            host_port      = 3000
+            container_port = local.grafana-port
+            host_port      = local.grafana-port
           }
         }
         node_selector = {
@@ -110,7 +111,8 @@ resource "kubernetes_service" "grafana_service" {
     type             = "LoadBalancer"
     selector         = local.grafana-labels
     port {
-      port = 3000
+      port        = local.grafana-port
+      target_port = local.grafana-port
     }
   }
 }

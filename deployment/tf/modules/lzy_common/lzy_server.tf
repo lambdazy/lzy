@@ -5,6 +5,7 @@ locals {
     app.kubernetes.io / part-of = "lzy"
     lzy.ai / app                = "server"
   }
+  server-port = 8888
 }
 
 resource "kubernetes_secret" "lzy_server_db_data" {
@@ -156,7 +157,7 @@ resource "kubernetes_deployment" "server" {
           }
           env {
             name  = "SERVER_WHITEBOARD_URI"
-            value = "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:8999"
+            value = "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:${local.whiteboard-port}"
           }
           env {
             name  = "SERVANT_IMAGE"
@@ -199,8 +200,8 @@ resource "kubernetes_deployment" "server" {
             }
           }
           port {
-            container_port = 8888
-            host_port      = 8888
+            container_port = local.server-port
+            host_port      = local.server-port
           }
         }
         node_selector = {
@@ -230,9 +231,9 @@ resource "kubernetes_deployment" "server" {
       }
     }
   }
-  #  depends_on = [
-  #    helm_release.lzy_server_db
-  #  ]
+  depends_on = [
+    helm_release.lzy_server_db
+  ]
 }
 
 resource "kubernetes_service" "lzy_server" {
@@ -248,9 +249,10 @@ resource "kubernetes_service" "lzy_server" {
   }
   spec {
     selector = local.server-labels
+    type     = "ClusterIP"
     port {
-      port        = 8888
-      target_port = 8888
+      port        = local.server-port
+      target_port = local.server-port
     }
   }
 }
