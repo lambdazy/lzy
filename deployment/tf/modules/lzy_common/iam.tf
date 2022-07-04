@@ -1,15 +1,17 @@
 locals {
   iam-labels = {
     app                         = "iam"
-    app.kubernetes.io / name    = "iam"
-    app.kubernetes.io / part-of = "lzy"
-    lzy.ai / app                = "iam"
+    "app.kubernetes.io/name"    = "iam"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "iam"
   }
+  iam-port     = 8443
+  iam-k8s-name = "iam"
 }
 
 resource "kubernetes_secret" "iam_db_data" {
   metadata {
-    name      = "iam-db-data"
+    name      = "${local.iam-k8s-name}-db-data"
     labels    = local.iam-labels
     namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
@@ -23,7 +25,7 @@ resource "kubernetes_secret" "iam_db_data" {
 
 resource "kubernetes_deployment" "iam" {
   metadata {
-    name   = "iam"
+    name   = local.iam-k8s-name
     labels = local.iam-labels
   }
   spec {
@@ -35,17 +37,17 @@ resource "kubernetes_deployment" "iam" {
     }
     template {
       metadata {
-        name   = "iam"
+        name   = local.iam-k8s-name
         labels = local.iam-labels
       }
       spec {
         container {
-          name              = "iam"
+          name              = local.iam-k8s-name
           image             = var.iam-image
           image_pull_policy = "Always"
           port {
-            container_port = 8443
-            host_port      = 8443
+            container_port = local.iam-port
+            host_port      = local.iam-port
           }
         }
         node_selector = {
@@ -79,7 +81,7 @@ resource "kubernetes_deployment" "iam" {
 
 resource "kubernetes_service" "iam" {
   metadata {
-    name = "lzy-iam-service"
+    name = "${local.iam-k8s-name}-service"
     labels = {
       labels = local.iam-labels
     }
@@ -87,8 +89,8 @@ resource "kubernetes_service" "iam" {
   spec {
     selector = local.iam-labels
     port {
-      port        = 8443
-      target_port = 8443
+      port        = local.iam-port
+      target_port = local.iam-port
     }
   }
 }
