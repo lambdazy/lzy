@@ -121,12 +121,6 @@
       <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
-      <dependency>
-          <groupId>ru.yandex</groupId>
-          <artifactId>env-service</artifactId>
-          <version>0.1</version>
-          <scope>compile</scope>
-      </dependency>
   </dependencies>
 
   <build>
