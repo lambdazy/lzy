@@ -5,6 +5,7 @@ locals {
     app.kubernetes.io / part-of = "lzy"
     lzy.ai / app                = "clickhouse"
   }
+  clickhouse-port = 8123
 }
 
 resource "kubernetes_deployment" "clickhouse" {
@@ -52,8 +53,8 @@ resource "kubernetes_deployment" "clickhouse" {
             value = "1"
           }
           port {
-            container_port = 8123
-            host_port      = 8123
+            container_port = local.clickhouse-port
+            host_port      = local.clickhouse-port
           }
           volume_mount {
             mount_path = "/var/lib/clickhouse/"
@@ -121,8 +122,8 @@ resource "kubernetes_service" "clickhouse_service" {
   }
   spec {
     port {
-      port        = 8123
-      target_port = 8123
+      port        = local.clickhouse-port
+      target_port = local.clickhouse-port
     }
     selector = local.clickhouse-labels
   }

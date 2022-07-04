@@ -5,6 +5,7 @@ locals {
     app.kubernetes.io / part-of = "lzy"
     lzy.ai / app                = "whiteboard"
   }
+  whiteboard-port = 8999
 }
 
 resource "kubernetes_secret" "whiteboard_db_data" {
@@ -59,14 +60,14 @@ resource "kubernetes_deployment" "whiteboard" {
             value = kubernetes_service.lzy_server.spec[0].cluster_ip
           }
           port {
-            container_port = 8999
-            host_port      = 8999
+            container_port = local.whiteboard-port
+            host_port      = local.whiteboard-port
           }
           args = [
             "-z",
-            "http://${kubernetes_service.lzy_server.spec[0].cluster_ip}:8888",
+            "http://${kubernetes_service.lzy_server.spec[0].cluster_ip}:${local.server-port}",
             "-p",
-            "8999"
+            local.whiteboard-port
           ]
         }
         node_selector = {
@@ -96,6 +97,9 @@ resource "kubernetes_deployment" "whiteboard" {
       }
     }
   }
+  depends_on = [
+    helm_release.whiteboard_db
+  ]
 }
 
 resource "kubernetes_service" "whiteboard" {
@@ -107,12 +111,12 @@ resource "kubernetes_service" "whiteboard" {
     }
   }
   spec {
-    port {
-      protocol    = "TCP"
-      port        = 8999
-      target_port = 8999
-    }
     selector = local.whiteboard-labels
     type     = "ClusterIP"
+    port {
+      protocol    = "TCP"
+      port        = local.whiteboard-port
+      target_port = local.whiteboard-port
+    }
   }
 }
