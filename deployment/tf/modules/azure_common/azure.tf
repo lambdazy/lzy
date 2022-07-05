@@ -172,6 +172,12 @@ module "lzy_common" {
   lzy_whiteboard_db_user     = "whiteboard"
   lzy_whiteboard_db_password = ""
 
+  iam_db_host     = "iam-postgresql.default.svc.cluster.local"
+  iam_db_port     = 5432
+  iam_db_name     = "iamDB"
+  iam_db_user     = "iam"
+  iam_db_password = ""
+
   s3-bucket-name                                 = "lzy-bucket"
   storage-provider                               = "azure"
   azure-connection-string                        = azurerm_storage_account.main_s3.primary_connection_string

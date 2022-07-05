@@ -81,6 +81,22 @@ variable "lzy_whiteboard_db_user" {
 variable "lzy_whiteboard_db_password" {
 }
 
+// iam db
+variable "iam_db_host" {
+}
+
+variable "iam_db_port" {
+}
+
+variable "iam_db_name" {
+}
+
+variable "iam_db_user" {
+}
+
+variable "iam_db_password" {
+}
+
 variable "backoffice-frontend-image" {
   type    = string
   default = "lzydock/lzy-backoffice-frontend:master"
