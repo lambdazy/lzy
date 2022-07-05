@@ -44,6 +44,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardFieldStatus,
     WhiteboardList,
 )
+from lzy.api.v2.utils import unwrap
 from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.serialization.hasher import DelegatingHasher, Hasher
 from lzy.serialization.serializer import (
@@ -96,7 +97,7 @@ class LzyEnvBase(ABC):
 
         dcls = dataclasses.make_dataclass(
             cls_name=f"WB{wb_description.id}",
-            fields=[(name, f.type_) for name, f in fields_.items()],
+            fields=[(name, unwrap(f.type_)) for name, f in fields_.items()],
             init=False,
             namespace={"__getattribute__": __getattribute__},
         )
@@ -111,7 +112,7 @@ class LzyEnvBase(ABC):
             if field.name in field_types:
                 if field.status is WhiteboardFieldStatus.FINISHED:
                     whiteboard_dict[field.name] = self._whiteboard_api.resolve(
-                        field.uri, field_types[field.name]
+                        unwrap(field.uri), field_types[field.name]
                     )
         # noinspection PyArgumentList
         instance = typ(**whiteboard_dict)
@@ -482,7 +483,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
                         "local_modules/"
                         + os.path.basename(local_module)
                         + "/"
-                        + fileobj_hash(archive.file)
+                        + fileobj_hash(archive.file)  # type: ignore
                     )  # type: ignore
                     archive.seek(0)
                     if not self._storage_client.blob_exists(self._bucket, key):

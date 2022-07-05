@@ -184,7 +184,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     class __EntryId:
         entry_id: str
 
-    def resolve_args(self) -> Iterable[Tuple[str, Union[Any, __EntryId]]]:
+    def resolve_args(self) -> Iterable[Tuple[str, type, Union[Any, __EntryId]]]:
         for name, arg in self.signature.named_arguments():
             if not is_lazy_proxy(arg):
                 yield name, type(arg), arg

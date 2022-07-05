@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, List, Tuple, Union
 import pkg_resources
 import requests
 import yaml
-from importlib_metadata import packages_distributions
+from importlib_metadata import packages_distributions  # type: ignore
 from stdlib_list import stdlib_list
 
 

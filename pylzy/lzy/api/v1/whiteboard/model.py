@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from inspect import Signature
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, cast
 from urllib import parse
 
 from lzy.api.v1.servant.model.slot import Slot
@@ -168,7 +168,7 @@ class UUIDEntryIdGenerator(EntryIdGenerator):
 
 class InMemWhiteboardApi(WhiteboardApi):
     def resolve(self, field_url: str, field_type: Type[T]) -> T:
-        return None
+        return cast(T, None)
 
     def __init__(self) -> None:
         self.__whiteboards: Dict[str, WhiteboardDescription] = {}

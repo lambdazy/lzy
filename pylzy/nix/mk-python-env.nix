@@ -9,7 +9,7 @@ pkgs.mkShell {
       # See https://pip.pypa.io/en/stable/user_guide/#environment-variables.
       #
       export PIP_PREFIX=$(pwd)/_build/pip_packages
-      export PYTHONPATH=${custom-python}/${custom-python.sitePackages}
+      export PYTHONPATH="$PIP_PREFIX/lib/python3.9/site-packages:${custom-python}/${custom-python.sitePackages}"
       export PATH="$PIP_PREFIX/bin:$PATH"
       unset SOURCE_DATE_EPOCH
 

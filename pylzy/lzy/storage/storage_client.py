@@ -6,7 +6,7 @@ from typing import IO, Any, Tuple, TypeVar
 from urllib import parse
 
 import boto3
-from azure.storage.blob import (
+from azure.storage.blob import (  # type: ignore
     BlobServiceClient,
     ContainerClient,
     StorageStreamDownloader,
@@ -14,6 +14,7 @@ from azure.storage.blob import (
 from botocore.exceptions import ClientError
 from pure_protobuf.dataclasses_ import load, loads  # type: ignore
 
+from lzy.api.v2.utils import unwrap
 from lzy.storage.credentials import (
     AmazonCredentials,
     AzureCredentials,
@@ -90,7 +91,7 @@ class AzureClient(StorageClient):
     def blob_exists(self, container: str, blob: str) -> bool:
         container_client: ContainerClient = self.client.get_container_client(container)
         blob_client = container_client.get_blob_client(blob)
-        return blob_client.exists()
+        return unwrap(blob_client.exists())
 
     def generate_uri(self, container: str, blob: str) -> str:
         return f"azure:/{container}/{blob}"

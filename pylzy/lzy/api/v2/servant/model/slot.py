@@ -18,7 +18,7 @@ class Direction(Enum):
     OUTPUT = 2
 
     def to_json(self) -> str:
-        return self.value
+        return str(self.value)
 
     @staticmethod
     def opposite(direction):

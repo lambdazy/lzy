@@ -29,10 +29,11 @@ _t="typechecker"
 
 rc=0
 
-run black   $_f
-run isort   $_f
-run mypy    $_t
-run pyright $_t
+run black                                           $_f
+run isort                                           $_f
+run "mypy --install-types --non-interactive"        $_t
+
+# run pyright $_t
 
 print_cmd_exit $rc "Whole pipeline"
 [ $rc -eq 0 ]

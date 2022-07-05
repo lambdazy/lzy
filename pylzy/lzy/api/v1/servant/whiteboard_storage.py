@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import IO, TypeVar
 
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient  # type: ignore
 from pure_protobuf.dataclasses_ import load, loads  # type: ignore
 
 from lzy.storage.credentials import (

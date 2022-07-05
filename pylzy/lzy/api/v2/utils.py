@@ -5,7 +5,17 @@ import uuid
 from io import BytesIO
 from itertools import chain
 from pathlib import Path
-from typing import Any, Callable, Dict, Type, TypeVar, Union, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    get_type_hints,
+)
 from zipfile import ZipFile
 
 # noinspection PyProtectedMember
@@ -134,3 +144,8 @@ class LzyExecutionException(Exception):
             " please send the following trace files: /tmp/lzy-log/"
         )
         super().__init__(message, *args)
+
+
+def unwrap(val: Optional[T]) -> T:
+    assert val is not None, "val is None :c"
+    return cast(T, val)

@@ -3,7 +3,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict
+from typing import Dict, cast
 
 import cloudpickle
 
@@ -13,7 +13,9 @@ def pickle_type(type_: type) -> str:
 
 
 def unpickle_type(base64_str: str) -> type:
-    return cloudpickle.loads(base64.b64decode(base64_str))
+    type_ = cloudpickle.loads(base64.b64decode(base64_str))
+    assert isinstance(type_, type), "is not type"
+    return cast(type, type_)
 
 
 class Media(Enum):
