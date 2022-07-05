@@ -64,7 +64,9 @@ jobs:
 
       - name: 'build servant image'
         timeout-minutes: 15
-        run: mvn package -P build-servant -f servant/pom.xml -DskipTests
+        run: |
+          docker pull lzydock/lzy-servant-base:master
+          mvn package -P build-servant -f servant/pom.xml -DskipTests
 
       - name: 'DockerServantTest'
         timeout-minutes: 15
