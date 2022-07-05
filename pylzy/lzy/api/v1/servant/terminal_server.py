@@ -70,6 +70,7 @@ class TerminalServer:
 
         terminal_args = [
             "--lzy-address", self._config.server_url,
+            "--lzy-whiteboard", self._config.server_url,
             "--lzy-mount", self._config.lzy_mount,
             "--host", "localhost",
         ]
