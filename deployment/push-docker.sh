@@ -25,7 +25,7 @@ for ARG in "$@"; do
   esac
 done
 
-SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
+SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard lzy-iam"
 if [[ $BASE = true ]]; then
   SERVICES="lzy-servant-base $SERVICES"
 fi
@@ -45,6 +45,7 @@ if [[ $REBUILD = true ]]; then
   docker build -t lzy-server -f server/Dockerfile server
   docker build -t lzy-whiteboard -f whiteboard/Dockerfile whiteboard
   docker build -t lzy-kharon -f kharon/Dockerfile kharon
+  docker build -t lzy-iam -f iam/Dockerfile iam
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-backend:$CUSTOM_TAG" lzy-backoffice/Dockerfile
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
 fi
