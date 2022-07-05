@@ -1,13 +1,13 @@
 package ai.lzy.scheduler.models;
 
-import java.net.URL;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+
+import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.jetbrains.annotations.NotNull;
 
 public record ServantEvent(
@@ -20,8 +20,7 @@ public record ServantEvent(
     @Nullable String description,
     @Nullable Integer rc,
     @Nullable String taskId,
-    @Nullable Integer signalNumber,
-    @Nullable URL servantUrl
+    @Nullable HostAndPort servantUrl
 ) implements Delayed {
 
     public static EventBuilder fromState(ServantState state, Type type) {
@@ -53,7 +52,6 @@ public record ServantEvent(
         IDLE_HEARTBEAT,  // Heartbeat of servant while its idle
         IDLE_HEARTBEAT_TIMEOUT,  // Timeout of heartbeat waiting of servant
         IDLE_TIMEOUT,  // Servant is too long unused
-        SIGNAL,  // Process signal to servant
         STOP,  // Stop requested
         STOPPING_TIMEOUT,  // Timeout of graceful shutdown of servant
         STOPPED  // Servant exited
@@ -71,8 +69,7 @@ public record ServantEvent(
         private Integer rc = null;
         private String description = null;
         private String taskId = null;
-        private Integer signalNumber = null;
-        private URL servantUrl = null;
+        private HostAndPort servantUrl = null;
 
         private EventBuilder(ServantState state, Type type) {
             this.state = state;
@@ -99,12 +96,7 @@ public record ServantEvent(
             return this;
         }
 
-        public EventBuilder setSignalNumber(Integer signalNumber) {
-            this.signalNumber = signalNumber;
-            return this;
-        }
-
-        public EventBuilder setServantUrl(URL servantUrl) {
+        public EventBuilder setServantUrl(HostAndPort servantUrl) {
             this.servantUrl = servantUrl;
             return this;
         }
@@ -119,7 +111,6 @@ public record ServantEvent(
                 description,
                 rc,
                 taskId,
-                signalNumber,
                 servantUrl
             );
         }

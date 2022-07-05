@@ -7,6 +7,7 @@ import java.util.Map;
 
 @ConfigurationProperties("scheduler")
 public record ServiceConfig(
+        int port,
         int maxServantsPerWorkflow,
         Map<String, Integer> provisioningLimits,
         Integer defaultProvisioningLimit,

@@ -2,6 +2,7 @@ package ai.lzy.scheduler.test.mocks;
 
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
+import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.db.ServantDao;
 
@@ -18,20 +19,19 @@ public class AllocatorMock extends ServantsAllocatorBase {
     private final List<BiConsumer<String, String>> onDestroy = new ArrayList<>();
 
     @Inject
-    public AllocatorMock(ServantDao dao) {
-        super(dao);
+    public AllocatorMock(ServantDao dao, ServantMetaStorage metaStorage) {
+        super(dao, metaStorage);
     }
 
     @Override
-    public AllocateResult allocate(String workflowId, String servantId, Provisioning provisioning, Env env) {
-        var token = UUID.randomUUID().toString();
+    public void allocate(String workflowId, String servantId, Provisioning provisioning) {
+        var token = metaStorage.generateToken(workflowId, servantId);
         onAllocate.forEach(t -> t.call(workflowId, servantId, token));
-        saveRequest(workflowId, servantId, token, "");
-        return new AllocateResult(token, "");
     }
 
     @Override
-    public void destroy(String workflowId, String servantId) throws Exception {
+    public void destroy(String workflowId, String servantId) {
+        metaStorage.clear(workflowId, servantId);
         onDestroy.forEach(t -> t.accept(workflowId, servantId));
     }
 

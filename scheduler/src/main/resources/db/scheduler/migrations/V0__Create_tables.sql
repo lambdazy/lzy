@@ -5,12 +5,14 @@ CREATE type servant_event_type AS ENUM (
     'CONFIGURED',
     'CONFIGURATION_TIMEOUT',
     'EXECUTION_REQUESTED',
+    'EXECUTING_HEARTBEAT',
+    'EXECUTING_HEARTBEAT_TIMEOUT',
     'EXECUTION_COMPLETED',
     'EXECUTION_TIMEOUT',
-    'DISCONNECTED',
     'COMMUNICATION_COMPLETED',
+    'IDLE_HEARTBEAT',
+    'IDLE_HEARTBEAT_TIMEOUT',
     'IDLE_TIMEOUT',
-    'SIGNAL',
     'STOP',
     'STOPPING_TIMEOUT',
     'STOPPED'
@@ -32,10 +34,13 @@ CREATE TABLE servant (
     workflow_id varchar(255) NOT NULL,
     status servant_status NOT NULL,
     provisioning varchar(64) ARRAY NOT NULL,
-    env_json varchar(10485760) NOT NULL,
 
     error_description varchar(2048) NULL,
     task_id varchar(255) NULL,
+    servant_url varchar(255) NULL,
+
+    acquired bool NOT NULL DEFAULT false,
+    acquired_for_task bool NOT NULL DEFAULT false,
 
     PRIMARY KEY (id, workflow_id)
 );
@@ -50,12 +55,28 @@ CREATE TABLE servant_event (
     description varchar(10485760) NULL,
     rc int NULL,
     task_id varchar(255) NULL,
-    signal_num int NULL,
+    servant_url varchar(255) NULL,
 
-    FOREIGN KEY (servant_id, workflow_id) references servants(servant_id, workflow_id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-    FOREIGN KEY (task_id, workflow_id) references tasks(task_id, workflow_id)
+    FOREIGN KEY (servant_id, workflow_id) references servant(id, workflow_id)
         ON UPDATE CASCADE
         ON DELETE CASCADE
+);
+
+CREATE type task_status AS ENUM (
+    'QUEUE',
+    'EXECUTING',
+    'SUCCESS',
+    'ERROR'
+);
+
+CREATE TABLE task (
+    id varchar(255) NOT NULL,
+    workflow_id varchar(255) NOT NULL,
+    task_description_json varchar(10485760) NOT NULL,
+    status task_status NOT NULL,
+
+    rc int NULL,
+    error_description varchar(10485760) NULL,
+    servant_id varchar(255) NULL,
+    PRIMARY KEY(id, workflow_id)
 );

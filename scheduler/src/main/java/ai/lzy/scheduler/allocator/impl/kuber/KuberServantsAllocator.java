@@ -2,6 +2,7 @@ package ai.lzy.scheduler.allocator.impl.kuber;
 
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
+import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
@@ -40,8 +41,8 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     private final CoreV1Api api;
 
     @Inject
-    public KuberServantsAllocator(ServantDao dao, ServantPodProvider provider) {
-        super(dao);
+    public KuberServantsAllocator(ServantDao dao, ServantPodProvider provider, ServantMetaStorage metaStorage) {
+        super(dao, metaStorage);
         this.provider = provider;
         try {
             Configuration.setDefaultApiClient(Config.defaultClient());
@@ -112,22 +113,18 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    public AllocateResult allocate(String workflowId, String servantId, Provisioning provisioning, Env env) {
-        final String token = UUID.randomUUID().toString();
+    public void allocate(String workflowId, String servantId, Provisioning provisioning) {
+        final String token = metaStorage.generateToken(workflowId, servantId);
         final KuberMeta meta = requestAllocation(workflowId, servantId, token, provisioning);
-        saveRequest(workflowId, servantId, token, meta.toJson());
-        return new AllocateResult(token, meta.toJson());
+        metaStorage.saveMeta(workflowId, servantId, meta.toJson());
     }
 
     @Override
     public void destroy(String workflowId, String servantId) throws Exception {
-        var request = getRequest(workflowId, servantId);
-        if (request == null) {
-            throw new Exception("Cannot get servant from db");
-        }
-        final String json = request.allocationMeta();
+        var json = metaStorage.getMeta(workflowId, servantId);
+        metaStorage.clear(workflowId, servantId);
         if (json == null) {
-            throw new Exception("Metadata of servant is null");
+            throw new Exception("Cannot get servant from db");
         }
         final KuberMeta meta = KuberMeta.fromJson(json);
         if (meta == null) {

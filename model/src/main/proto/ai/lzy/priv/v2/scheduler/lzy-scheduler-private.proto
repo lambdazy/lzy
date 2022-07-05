@@ -16,37 +16,43 @@ message RegisterServantRequest {
   string workflowId = 1;
   string servantId = 2;
   string servantToken = 3;
-  string servantUri = 4;
 }
 message RegisterServantResponse {}
 
 // ========= Progress ==========
-message Started {}
-message Configured {
-  int32 rc = 1;
-  string description = 2;
-}
-message Concluded {}
-message CommunicationCompleted {}
-message ExecutionConcluded {
-  int32 rc = 1;
-  string description = 2;
-}
-
-message Executing {}
-message Idle {}
-
 
 message ServantProgress {
+
+  message Started {}
+
+  message Configured {
+    message Ok {}
+    message Err {
+      string description = 1;
+    }
+    oneof result {
+      Ok ok = 1;
+      Err err = 2;
+    }
+  }
+  message Finished {}
+  message CommunicationCompleted {}
+  message ExecutionCompleted {
+    int32 rc = 1;
+    string description = 2;
+  }
+
+  message Executing {}
+  message Idle {}
+
   oneof status {
-    Started start = 1;
     Configured configured = 2;
-    ExecutionConcluded executeStop = 3;
+    ExecutionCompleted executionCompleted = 3;
     CommunicationCompleted communicationCompleted = 4;
-    Concluded exit = 5;
+    Finished finished = 5;
 
     Executing executing = 6;
-    Idle idle = 7;
+    Idle idling = 7;
   }
 }
 

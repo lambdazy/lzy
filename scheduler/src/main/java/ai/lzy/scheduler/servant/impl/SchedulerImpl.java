@@ -65,7 +65,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
     }
 
     @Override
-    public void signal(String workflowId, String taskId, int signalNumber, String issue) throws StatusException {
+    public Task stopTask(String workflowId, String taskId, String issue) throws StatusException {
         if (stopping.get()) {
             throw io.grpc.Status.UNAVAILABLE.withDescription("Service is stopping. Please try again").asException();
         }
@@ -88,7 +88,8 @@ public class SchedulerImpl extends Thread implements Scheduler {
                 .asException();
         }
 
-        servant.signal(signalNumber);
+        servant.stop(issue);
+        return task;
     }
 
     @Override
@@ -112,10 +113,25 @@ public class SchedulerImpl extends Thread implements Scheduler {
     }
 
     @Override
+    public List<Task> list(String workflow) throws StatusException {
+        try {
+            return taskDao.list(workflow);
+        } catch (DaoException e) {
+            throw Status.INTERNAL.asException();
+        }
+    }
+
+    @Override
     public void terminate() {
         stopping.set(true);
         this.interrupt();
         pool.shutdown();
+    }
+
+    @Override
+    public void awaitTermination() throws InterruptedException {
+        pool.waitForShutdown();
+        this.join();
     }
 
     @Override
@@ -178,9 +194,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
         boolean validProvisioning = config.provisioningLimits().keySet().containsAll(
             taskDesc.zygote()
                 .provisioning()
-                .tags()
-                .map(Provisioning.Tag::tag)
-                .toList());
+                .tags().stream().toList());
         if (!validProvisioning) {
             throw Status.INVALID_ARGUMENT.withDescription("Wrong provisioning tags").asException();
         }

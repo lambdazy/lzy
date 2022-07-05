@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.test.mocks;
 
+import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.TaskDesc;
 import ai.lzy.scheduler.models.TaskState;
@@ -35,13 +36,20 @@ public class TaskDaoMock implements TaskDao {
     }
 
     @Override
-    public List<Task> filter(TaskState.Status... statuses) {
-        Set<TaskState.Status> statusSet = new HashSet<>(Arrays.asList(statuses));
+    public List<Task> filter(TaskState.Status status) {
         return storage.values()
             .stream()
-            .filter(t -> statusSet.contains(t.status()))
+            .filter(t -> t.status().equals(status))
             .map(t -> new TaskImpl(t, this))
             .map(t -> (Task) t)
+            .toList();
+    }
+
+    @Override
+    public List<Task> list(String workflowId) throws DaoException {
+        return storage.values().stream()
+            .filter(t -> t.workflowId().equals(workflowId))
+            .map(t -> (Task)new TaskImpl(t, this))
             .toList();
     }
 

@@ -89,26 +89,18 @@ public class ServantDaoMock implements ServantDao {
         return new ServantImpl(servant.state(), queueManager.get(servant.state.workflowId(), servant.state.id()));
     }
 
-    @Nullable
     @Override
-    public synchronized Servant acquireForTask(String workflowId,
-                                               Provisioning provisioning, ServantState.Status... statuses) {
-        var statusSet = new HashSet<>(Arrays.asList(statuses));
-        var servant = storage.values()
-            .stream()
-            .filter(t -> t.state.workflowId().equals(workflowId)
-                && contains(t.state.provisioning(), provisioning)
-                && statusSet.contains(t.state().status())
-                && !t.acquiredForTask()
-            )
-            .findFirst()
-            .orElse(null);
+    public synchronized void acquireForTask(String workflowId, String servantId) throws AcquireException {
+        var servant = storage.get(new ServantKey(workflowId, servantId));
         if (servant == null) {
-            return null;
+            return;
         }
+        if (servant.acquiredForTask) {
+            throw new AcquireException();
+        }
+
         storage.put(new ServantKey(workflowId, servant.state.id()),
                 new ServantDesc(servant.state(), servant.acquired(), true));
-        return new ServantImpl(servant.state, queueManager.get(servant.state.workflowId(), servant.state.id()));
     }
 
     @Override
@@ -143,7 +135,7 @@ public class ServantDaoMock implements ServantDao {
     private record ServantDesc(ServantState state, boolean acquired, boolean acquiredForTask) {}
 
     private boolean contains(Provisioning p1, Provisioning p2) {
-        return p1.tags().collect(Collectors.toSet()).containsAll(p2.tags().toList());
+        return p1.tags().containsAll(p2.tags());
     }
 
     public void awaitState(String workflowId, String servantId,

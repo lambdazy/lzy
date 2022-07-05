@@ -10,7 +10,7 @@ service Scheduler {
   rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
   rpc Status (TaskStatusRequest) returns (TaskStatusResponse);
   rpc List (TaskListRequest) returns (TaskListResponse);
-  rpc Signal (TaskSignalRequest) returns (TaskSignalResponse);
+  rpc Stop (TaskStopRequest) returns (TaskStopResponse);
   rpc KillAll (KillAllRequest) returns (KillAllResponse);
 }
 
@@ -83,23 +83,14 @@ message TaskListResponse {
 
 // =========== Signal ============
 
-enum Signal {
-  NONE = 0;
-  HUP = 1;
-  INT = 2;
-  reserved 3 to 8;
-  KILL = 9;
-}
-
-message TaskSignalRequest {
+message TaskStopRequest {
   string workflowId = 1;
   string taskId = 2;
 
-  Signal signal = 3;
-  string issue = 4;
+  string issue = 3;
 }
 
-message TaskSignalResponse {
+message TaskStopResponse {
   TaskStatus status = 1;
 }
 
@@ -107,6 +98,7 @@ message TaskSignalResponse {
 
 message KillAllRequest {
   string workflowId = 1;
+  string issue = 2;
 }
 message KillAllResponse {}
 

@@ -14,7 +14,9 @@ public interface TaskDao {
     @Nullable
     Task get(String workflowId, String taskId) throws DaoException;
 
-    List<Task> filter(TaskState.Status... statuses) throws DaoException;
+    List<Task> filter(TaskState.Status status) throws DaoException;
+
+    List<Task> list(String workflowId) throws DaoException;
 
     void update(Task state) throws DaoException;
 }

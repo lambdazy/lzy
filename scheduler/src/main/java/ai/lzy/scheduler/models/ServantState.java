@@ -2,6 +2,7 @@ package ai.lzy.scheduler.models;
 
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
+import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 
 import java.net.URL;
 import javax.annotation.Nullable;
@@ -12,12 +13,9 @@ public record ServantState(
     Provisioning provisioning,
     Status status,
 
-    @Nullable Env env,
     @Nullable String errorDescription,
     @Nullable String taskId,
-    @Nullable URL servantUrl,
-    @Nullable String allocatorMeta,
-    @Nullable String allocationToken
+    @Nullable HostAndPort servantUrl
 ) {
 
     public enum Status {
@@ -33,11 +31,8 @@ public record ServantState(
 
     public ServantStateBuilder copy() {
         return new ServantStateBuilder(id, workflowId, provisioning, status)
-            .setEnv(env)
             .setTaskId(taskId)
             .setErrorDescription(errorDescription)
-            .setAllocatorMeta(allocatorMeta)
-            .setAllocationToken(allocationToken)
             .setServantUrl(servantUrl);
     }
 
@@ -52,12 +47,9 @@ public record ServantState(
         private final Provisioning provisioning;
         private Status status;
 
-        @Nullable private Env env = null;
         @Nullable private String taskId = null;
         @Nullable private String errorDescription = null;
-        @Nullable private URL servantUrl = null;
-        @Nullable private String allocatorMeta = null;
-        @Nullable private String allocationToken = null;
+        @Nullable private HostAndPort servantUrl = null;
 
         public ServantStateBuilder(String id, String workflowId, Provisioning provisioning, Status status) {
             this.id = id;
@@ -81,29 +73,13 @@ public record ServantState(
             return this;
         }
 
-        public ServantStateBuilder setServantUrl(URL servantUrl) {
+        public ServantStateBuilder setServantUrl(HostAndPort servantUrl) {
             this.servantUrl = servantUrl;
             return this;
         }
 
-        public ServantStateBuilder setAllocatorMeta(String allocatorMeta) {
-            this.allocatorMeta = allocatorMeta;
-            return this;
-        }
-
-        public ServantStateBuilder setAllocationToken(@Nullable String allocationToken) {
-            this.allocationToken = allocationToken;
-            return this;
-        }
-
-        public ServantStateBuilder setEnv(@Nullable Env env) {
-            this.env = env;
-            return this;
-        }
-
         public ServantState build() {
-            return new ServantState(id, workflowId, provisioning, status, env, errorDescription,
-                taskId, servantUrl, allocatorMeta, allocationToken);
+            return new ServantState(id, workflowId, provisioning, status, errorDescription, taskId, servantUrl);
         }
     }
 }

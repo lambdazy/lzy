@@ -4,7 +4,12 @@ import ai.lzy.model.Slot;
 import ai.lzy.model.graph.*;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.priv.v2.Operations;
+import ai.lzy.scheduler.allocator.impl.ServantMetaStorageImpl;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
+import ai.lzy.scheduler.db.DaoException;
+import ai.lzy.scheduler.db.ServantDao;
+import ai.lzy.scheduler.db.ServantEventDao;
+import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.models.TaskDesc;
 import ai.lzy.scheduler.servant.Servant;
@@ -13,7 +18,8 @@ import ai.lzy.scheduler.servant.impl.ServantEventProcessor;
 import ai.lzy.scheduler.task.Task;
 import ai.lzy.scheduler.test.mocks.*;
 import io.grpc.Status;
-import io.grpc.StatusException;
+import io.micronaut.context.ApplicationContext;
+import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
@@ -29,13 +35,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 public class EventProcessorTest {
     public AllocatorMock allocator;
-    public EventDaoMock events;
-    public ServantDaoMock servantDao;
-    public TaskDaoMock tasks;
+    public ServantEventDao events;
+    public ServantDao servantDao;
+    public TaskDao tasks;
     public String workflowId;
     public CountDownLatch servantReady;
     public EventQueueManager manager;
@@ -46,17 +52,20 @@ public class EventProcessorTest {
     @Before
     public void setUp() {
         workflowId = "wf";
-        tasks = new TaskDaoMock();
-        events = new EventDaoMock();
-        manager = new EventQueueManager(events);
-        servantDao = new ServantDaoMock(manager);
-        allocator = new AllocatorMock(servantDao);
+        var context = ApplicationContext.run();
+        tasks = context.getBean(TaskDao.class);
+        events = context.getBean(ServantEventDao.class);
+        manager = context.getBean(EventQueueManager.class);
+        servantDao = context.getBean(ServantDao.class);
+        MetaStorageMock meta = new MetaStorageMock();
+        ServantMetaStorageImpl storage = new ServantMetaStorageImpl(meta);
+        allocator = new AllocatorMock(servantDao, storage);
         servantReady = new CountDownLatch(1);
         Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
     }
 
     @Test
-    public void testSimple() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testSimple() throws Exception {
         try(var processor = new ProcessorContext(new ServantEventProcessorConfig(2, 2, 2, 2, 10, 10))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
@@ -69,7 +78,7 @@ public class EventProcessorTest {
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
             processor.servant.notifyExecutionCompleted(0, "Ok");
-            servantDao.awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.RUNNING);
+            awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.RUNNING);
 
             final var newTask = tasks.get(this.workflowId, task.taskId());
             Assert.assertNotNull(newTask);
@@ -79,27 +88,27 @@ public class EventProcessorTest {
             Assert.assertNull(servant.taskId());
 
             processor.servant.notifyCommunicationCompleted();
-            servantDao.awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.IDLE);
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.IDLE);
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.STOPPING);  // Idle timeout
             processor.servant.notifyStopped(0, "Ok");
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed after stop
         }
     }
 
     @Test
-    public void testAllocationTimeout() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testAllocationTimeout() throws Exception {
         try (var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 100, 100, 100, 100, 100))) {
             processor.getServant().allocate();
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
 
     @Test
-    public void testIdleTimeout() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testIdleTimeout() throws Exception {
         try (var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 1, 100, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
@@ -107,13 +116,13 @@ public class EventProcessorTest {
             final var alloc = allocationRequested.get();
             allocator.register(alloc.workflowId, alloc.servantId, processor.generateServant(), alloc.token);
             processor.awaitForReady();
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
     @Test
-    public void testConfigurationTimeout() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testConfigurationTimeout() throws Exception {
         try (var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 100, 1, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
@@ -122,13 +131,13 @@ public class EventProcessorTest {
             allocator.register(alloc.workflowId, alloc.servantId, processor.generateServant(), alloc.token);
             processor.awaitForReady();
             processor.generateTask();
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
     @Test
-    public void testStoppingTimeout() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testStoppingTimeout() throws Exception {
         try(var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 100, 100, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
@@ -140,13 +149,13 @@ public class EventProcessorTest {
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.servant.stop("Test");
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
     @Test
-    public void testExecutingHeartbeats() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testExecutingHeartbeats() throws Exception {
         try(var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 100, 100, 100, 1, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
@@ -167,13 +176,13 @@ public class EventProcessorTest {
             processor.servant.executingHeartbeat();
             Thread.sleep(500);
             processor.servant.executingHeartbeat();
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
     @Test
-    public void testIdleHeartbeats() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testIdleHeartbeats() throws Exception {
         try (var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 100, 100, 100, 100, 1))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
@@ -189,13 +198,13 @@ public class EventProcessorTest {
             processor.servant.idleHeartbeat();
             Thread.sleep(500);
             processor.servant.idleHeartbeat();
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
     @Test
-    public void testFailEnv() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testFailEnv() throws Exception {
         try(var processor = new ProcessorContext(new ServantEventProcessorConfig(2, 2, 2, 2, 2, 2))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
@@ -206,13 +215,13 @@ public class EventProcessorTest {
             processor.awaitForReady();
             processor.generateTask();
             processor.env.await();
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
     @Test
-    public void testFailExec() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testFailExec() throws Exception {
         try(var processor = new ProcessorContext(new ServantEventProcessorConfig(2, 2, 2, 2, 2, 2))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
@@ -225,13 +234,13 @@ public class EventProcessorTest {
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed by timeout
         }
     }
 
     @Test
-    public void testFailStop() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testFailStop() throws Exception {
         try(var processor = new ProcessorContext(new ServantEventProcessorConfig(2, 2, 2, 2, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
@@ -245,17 +254,17 @@ public class EventProcessorTest {
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
             processor.servant.notifyExecutionCompleted(0, "Ok");
-            servantDao.awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.RUNNING);
+            awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.RUNNING);
 
             processor.servant.notifyCommunicationCompleted();
-            servantDao.awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.IDLE);
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.IDLE);
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed by timeout
         }
     }
 
     @Test
-    public void testRestore() throws InterruptedException, ExecutionException, IOException, StatusException {
+    public void testRestore() throws Exception {
         String servantId;
         final CompletableFuture<AllocationRequest> allocationRequested;
         final ServantEventProcessorConfig config = new ServantEventProcessorConfig(2, 2, 2, 2, 100, 100);
@@ -276,13 +285,13 @@ public class EventProcessorTest {
                 .setOnExec(exec::countDown)
                 .setOnStop(stop::countDown)
                 .build();
-        final URI servantUri = URI.create("http://localhost:" + port);
 
         try(var processor = new ProcessorContext(servantId, config)) {
             final var alloc = allocationRequested.get();
-            servantDao.awaitState(processor.servant.workflowId(), processor.servant.id(),
+            awaitState(processor.servant.workflowId(), processor.servant.id(),
                     ServantState.Status.CONNECTING);
-            allocator.register(alloc.workflowId, alloc.servantId, servantUri, alloc.token);
+            allocator.register(alloc.workflowId, alloc.servantId,
+                    HostAndPort.fromParts("localhost", port), alloc.token);
         }
 
         try(var processor = new ProcessorContext(servantId, config)) {
@@ -299,17 +308,17 @@ public class EventProcessorTest {
             processor.servant.notifyExecutionCompleted(0, "Ok");
         }
         try(var processor = new ProcessorContext(servantId, config)) {
-            servantDao.awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.RUNNING);
+            awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.RUNNING);
             processor.servant.notifyCommunicationCompleted();
         }
         try(var processor = new ProcessorContext(servantId, config)) {
-            servantDao.awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.IDLE);
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(), processor.servant.id(), ServantState.Status.IDLE);
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.STOPPING);  // Idle timeout
             processor.servant.notifyStopped(0, "Ok");
         }
         try(var processor = new ProcessorContext(servantId, config)) {
-            servantDao.awaitState(processor.servant.workflowId(),
+            awaitState(processor.servant.workflowId(),
                     processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed after stop
         }
 
@@ -348,8 +357,7 @@ public class EventProcessorTest {
 
             @Override
             public Provisioning provisioning() {
-                return () -> Arrays.stream(tags)
-                        .map(t -> (Provisioning.Tag) () -> t);
+                return () -> Arrays.stream(tags).collect(Collectors.toSet());
             }
 
             @Override
@@ -387,15 +395,16 @@ public class EventProcessorTest {
             stop = new CountDownLatch(1);
         private AllocatedServantMock mock;
 
-        public ProcessorContext(ServantEventProcessorConfig config, String... provisioningTags) {
-            servant = servantDao.create(workflowId, () -> Arrays.stream(provisioningTags).map(t -> () -> t));
+        public ProcessorContext(ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
+            servant = servantDao.create(workflowId, () -> Arrays.stream(provisioningTags).collect(Collectors.toSet()));
             processor = new ServantEventProcessor(workflowId, servant.id(), config, allocator, tasks, events,
                 servantDao, manager, (a, b) -> latch.countDown());
             processor.start();
             tags = provisioningTags;
         }
 
-        public ProcessorContext(String servantId, ServantEventProcessorConfig config, String... provisioningTags) {
+        public ProcessorContext(String servantId,
+                                ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
             servant = Objects.requireNonNull(servantDao.get(workflowId, servantId));
             processor = new ServantEventProcessor(workflowId, servantId, config, allocator, tasks, events,
                     servantDao, manager, (a, b) -> latch.countDown());
@@ -407,17 +416,17 @@ public class EventProcessorTest {
             latch.await();
         }
 
-        public Task generateTask() {
+        public Task generateTask() throws DaoException {
             Task task = tasks.create(workflowId, new TaskDesc(buildZygote(tags), Map.of()));
             servant.setTask(task);
             return task;
         }
 
-        public URI generateServant() throws IOException {
+        public HostAndPort generateServant() throws IOException {
             return generateServant(false, false, false);
         }
 
-        public URI generateServant(boolean failEnv, boolean failExec, boolean failStop) throws IOException {
+        public HostAndPort generateServant(boolean failEnv, boolean failExec, boolean failStop) throws IOException {
             final var port = FreePortFinder.find(1000, 2000);
             mock = new AllocatedServantMock.ServantBuilder(port)
                 .setOnEnv(() -> {
@@ -439,7 +448,7 @@ public class EventProcessorTest {
                     }
                 })
                 .build();
-            return URI.create("http://localhost:" + port);
+            return HostAndPort.fromParts("localhost", port);
         }
 
         public Servant getServant() {
@@ -452,6 +461,24 @@ public class EventProcessorTest {
             processor.join();
             if (mock != null) {
                 mock.close();
+            }
+        }
+    }
+
+    public void awaitState(String workflowId, String servantId,
+                                   ServantState.Status status) throws InterruptedException, DaoException {
+        ServantState.Status s = null;
+        var servant = servantDao.get(workflowId, servantId);
+        if (servant != null) {
+            s = servant.status();
+        }
+        while (s == null || s != status) {
+            Thread.sleep(10);
+            servant = servantDao.get(workflowId, servantId);
+            if (servant == null) {
+                s = null;
+            } else {
+                s = servant.status();
             }
         }
     }

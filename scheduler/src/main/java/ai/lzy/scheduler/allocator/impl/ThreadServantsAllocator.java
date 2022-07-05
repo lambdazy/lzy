@@ -3,9 +3,9 @@ package ai.lzy.scheduler.allocator.impl;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -22,7 +22,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -37,8 +36,9 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     private final ServiceConfig serverConfig;
     private final ConcurrentHashMap<String, ServantDescription> servantThreads = new ConcurrentHashMap<>();
 
-    public ThreadServantsAllocator(ServantDao dao, ServiceConfig serverConfig) {
-        super(dao);
+    @Singleton
+    public ThreadServantsAllocator(ServantDao dao, ServiceConfig serverConfig, ServantMetaStorage metaStorage) {
+        super(dao, metaStorage);
         this.serverConfig = serverConfig;
         try {
             final File servantJar = new File(serverConfig.threadAllocator().filePath());
@@ -56,6 +56,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     private void requestAllocation(String workflowId, String servantId, String servantToken) {
         int servantNumber = servantCounter.incrementAndGet();
         LOG.info("Allocating servant {}", servantId);
+        int port = FreePortFinder.find(10000, 11000);
 
         @SuppressWarnings("CheckStyle")
         Thread task = new Thread("servant-" + servantId) {
@@ -67,7 +68,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                         "--lzy-whiteboard", serverConfig.whiteboardUri().toString(),
                         "--lzy-mount", "/tmp/lzy" + servantNumber,
                         "--host", serverConfig.schedulerUri().getHost(),
-                        "--port", Integer.toString(FreePortFinder.find(10000, 11000)),
+                        "--port", Integer.toString(port),
                         "--fs-port", Integer.toString(FreePortFinder.find(11000, 12000)),
                         "start",
                         "--workflowId", workflowId,
@@ -90,15 +91,14 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    public AllocateResult allocate(String workflowId, String servantId, Provisioning provisioning, Env env) {
-        final String token = UUID.randomUUID().toString();
+    public void allocate(String workflowId, String servantId, Provisioning provisioning) {
+        final String token = metaStorage.generateToken(workflowId, servantId);
         requestAllocation(workflowId, servantId, token);
-        saveRequest(workflowId, servantId, token, "");
-        return new AllocateResult(token, "");
     }
 
     @Override
     public void destroy(String workflowId, String servantId) {
+        metaStorage.clear(workflowId, servantId);
         if (!servantThreads.containsKey(servantId)) {
             return;
         }

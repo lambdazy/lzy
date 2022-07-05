@@ -39,7 +39,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     private ServerConfig serverConfig;
 
     private static boolean isNeedGpu(Provisioning provisioning) {
-        return provisioning.tags().anyMatch(tag -> tag.tag().contains("GPU"));
+        return provisioning.tags().stream().anyMatch(tag -> tag.contains("GPU"));
     }
 
     @Override

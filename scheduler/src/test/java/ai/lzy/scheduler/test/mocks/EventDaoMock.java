@@ -11,12 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EventDaoMock implements ServantEventDao {
     private final Map<String, ServantEvent> events = new ConcurrentHashMap<>();
 
-    @Nullable
-    @Override
-    public ServantEvent get(String id) {
-        return events.get(id);
-    }
-
     @Override
     public void save(ServantEvent event) {
         events.put(event.id(), event);
@@ -34,12 +28,6 @@ public class EventDaoMock implements ServantEventDao {
             events.remove(event.id());
         }
         return event;
-    }
-
-    @Nullable
-    @Override
-    public ServantEvent remove(String id) {
-        return events.remove(id);
     }
 
     @Override

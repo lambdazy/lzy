@@ -24,9 +24,4 @@ public interface ServantsPool {
      */
     void shutdown();
     void waitForShutdown() throws InterruptedException;
-
-    /**
-     * Destroy pool and all servants in it
-     */
-    void destroy();
 }

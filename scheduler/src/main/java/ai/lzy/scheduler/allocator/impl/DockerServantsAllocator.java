@@ -3,10 +3,10 @@ package ai.lzy.scheduler.allocator.impl;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.scheduler.servant.Servant;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.*;
@@ -29,8 +29,8 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     private final ServiceConfig config;
 
     @Inject
-    public DockerServantsAllocator(ServantDao dao, ServiceConfig config) {
-        super(dao);
+    public DockerServantsAllocator(ServantDao dao, ServiceConfig config, ServantMetaStorage metaStorage) {
+        super(dao, metaStorage);
         this.config = config;
     }
 
@@ -93,24 +93,20 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    public AllocateResult allocate(String workflowId, String servantId, Provisioning provisioning, Env env) {
-        final String token = UUID.randomUUID().toString();
+    public void allocate(String workflowId, String servantId, Provisioning provisioning) {
+        final String token = metaStorage.generateToken(workflowId, servantId);
         final String containerId = requestAllocation(workflowId, servantId, token);
-        saveRequest(workflowId, servantId, token, containerId);
-        return new AllocateResult(token, containerId);
+        metaStorage.saveMeta(workflowId, servantId, containerId);
     }
 
     @Override
     public void destroy(String workflowId, String servantId) throws Exception {
-        var request = getRequest(workflowId, servantId);
-        if (request == null) {
+        var containerId = metaStorage.getMeta(workflowId, servantId);
+        metaStorage.clear(workflowId, servantId);
+        if (containerId == null) {
             throw new Exception("Cannot get servant from db");
         }
-        final String meta = request.allocationMeta();
-        if (meta == null) {
-            throw new Exception("Metadata of servant is null");
-        }
-        DOCKER.killContainerCmd(meta).exec();
-        DOCKER.removeContainerCmd(meta).exec();
+        DOCKER.killContainerCmd(containerId).exec();
+        DOCKER.removeContainerCmd(containerId).exec();
     }
 }

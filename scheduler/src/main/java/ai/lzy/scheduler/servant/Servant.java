@@ -4,6 +4,8 @@ import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.models.ServantState.Status;
 import ai.lzy.scheduler.task.Task;
+import org.apache.curator.shaded.com.google.common.net.HostAndPort;
+
 import java.net.URL;
 import javax.annotation.Nullable;
 
@@ -11,14 +13,13 @@ public interface Servant {
 
     // ========= Events ===========
     void allocate();
-    void notifyConnected(URL servantUrl);
+    void notifyConnected(HostAndPort servantUrl);
     void notifyConfigured(int rc, String description);
     void setTask(Task task);
     void notifyExecutionCompleted(int rc, String description);
     void notifyCommunicationCompleted();
     void stop(String issue);
     void notifyStopped(int rc, String description);
-    void signal(int signalNum);
 
     void executingHeartbeat();
     void idleHeartbeat();
@@ -28,11 +29,8 @@ public interface Servant {
     String workflowId();
     Provisioning provisioning();
     Status status();
-    Env env();
 
     @Nullable String taskId();
     @Nullable String errorDescription();
-    @Nullable String allocationToken();
-    @Nullable URL servantURL();
-    @Nullable String allocatorMetadata();
+    @Nullable HostAndPort servantURL();
 }

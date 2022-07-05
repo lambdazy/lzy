@@ -7,6 +7,8 @@ import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.task.Task;
 import java.net.URL;
+
+import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.jetbrains.annotations.Nullable;
 
 public class ServantImpl implements Servant {
@@ -26,7 +28,7 @@ public class ServantImpl implements Servant {
     }
 
     @Override
-    public void notifyConnected(URL servantUrl) {
+    public void notifyConnected(HostAndPort servantUrl) {
         events.put(ServantEvent.fromState(state, ServantEvent.Type.CONNECTED)
             .setServantUrl(servantUrl)
             .setDescription("Servant connected to scheduler")
@@ -80,14 +82,6 @@ public class ServantImpl implements Servant {
     }
 
     @Override
-    public void signal(int signalNum) {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.SIGNAL)
-            .setDescription("Signal sent")
-            .setSignalNumber(signalNum)
-            .build());
-    }
-
-    @Override
     public void executingHeartbeat() {
         events.put(ServantEvent.fromState(state, ServantEvent.Type.EXECUTING_HEARTBEAT)
             .setDescription("Executing heartbeat")
@@ -121,16 +115,6 @@ public class ServantImpl implements Servant {
         return state.status();
     }
 
-    @Override
-    public Env env() {
-        return state.env();
-    }
-
-    @Override
-    public String allocatorMetadata() {
-        return state.allocatorMeta();
-    }
-
     @Nullable
     @Override
     public String taskId() {
@@ -145,13 +129,7 @@ public class ServantImpl implements Servant {
 
     @Nullable
     @Override
-    public String allocationToken() {
-        return state.allocationToken();
-    }
-
-    @Nullable
-    @Override
-    public URL servantURL() {
+    public HostAndPort servantURL() {
         return state.servantUrl();
     }
 }

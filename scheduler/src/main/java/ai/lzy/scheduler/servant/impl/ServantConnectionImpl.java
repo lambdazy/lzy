@@ -15,6 +15,7 @@ import ai.lzy.scheduler.servant.ServantConnection;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import org.apache.commons.lang3.NotImplementedException;
+import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 
 import java.net.URL;
 import java.util.Arrays;
@@ -25,7 +26,7 @@ public class ServantConnectionImpl implements ServantConnection {
     private final LzyServantGrpc.LzyServantBlockingStub servantBlockingStub;
     private final Servant servant;
 
-    public ServantConnectionImpl(URL servantUrl, Servant servant) {
+    public ServantConnectionImpl(HostAndPort servantUrl, Servant servant) {
         this.servant = servant;
         this.channel = ChannelBuilder.forAddress(servantUrl.getHost(), servantUrl.getPort())
             .usePlaintext()
