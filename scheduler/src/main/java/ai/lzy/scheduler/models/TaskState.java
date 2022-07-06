@@ -13,9 +13,10 @@ public record TaskState(
     @Nullable String servantId
 ) {
     public enum Status {
-        QUEUE,
-        EXECUTING,
-        SUCCESS,
-        ERROR
+        QUEUE,  // Task is in scheduler queue
+        SCHEDULED,  // Task is scheduled to servant, but event not processed yet
+        EXECUTING,  // Task executing in servant
+        SUCCESS,  // Task execution completed
+        ERROR  // Task execution failed
     }
 }

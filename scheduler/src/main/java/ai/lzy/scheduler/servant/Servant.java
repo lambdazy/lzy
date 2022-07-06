@@ -12,7 +12,6 @@ import javax.annotation.Nullable;
 public interface Servant {
 
     // ========= Events ===========
-    void allocate();
     void notifyConnected(HostAndPort servantUrl);
     void notifyConfigured(int rc, String description);
     void setTask(Task task);

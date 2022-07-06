@@ -130,7 +130,7 @@ public class SchedulerApi {
             int rcInt = rc == null ? 0 : rc;
             var b = switch (task.status()) {
                 case QUEUE -> builder.setQueue(TaskStatus.Queue.newBuilder().build());
-                case EXECUTING -> builder.setExecuting(TaskStatus.Executing.newBuilder().build());
+                case SCHEDULED, EXECUTING -> builder.setExecuting(TaskStatus.Executing.newBuilder().build());
                 case ERROR -> builder.setError(TaskStatus.Error.newBuilder()
                         .setDescription(task.errorDescription())
                         .setRc(rcInt)

@@ -25,7 +25,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Singleton
-public class ServantsPoolImpl extends Thread implements ServantsPool {
+public class ServantsPoolImpl implements ServantsPool {
     private final ServiceConfig config;
     private final ServantEventProcessorConfig servantConfig;
     private final ServantDao dao;
@@ -77,7 +77,14 @@ public class ServantsPoolImpl extends Thread implements ServantsPool {
         }
         if (servant != null) {
             initProcessor(servant);
-            servant.allocate();
+            try {
+                dao.acquireForTask(workflowId, servant.id());
+            } catch (DaoException | ServantDao.AcquireException e) {
+                LOG.error("Error while acquiring new servant", e);
+                throw new RuntimeException(e);
+            }
+            future.complete(servant);
+            return future;
         }
 
         waiters.computeIfAbsent(workflowId, t -> new HashSet<>())
@@ -213,7 +220,27 @@ public class ServantsPoolImpl extends Thread implements ServantsPool {
     }
 
     private synchronized void servantDestroyed(String workflowId, String servantId) {
-        aliveServants.get(workflowId).remove(servantId);
+        var servant = aliveServants.get(workflowId).remove(servantId);
+        var set = waiters.get(workflowId);
+        if (set == null) {
+            return;
+        }
+        for (var waiter: set) {
+            if (servant.provisioning().tags().containsAll(waiter.provisioning.tags())) {
+                // TODO(artolord) make more fair scheduling
+                try {
+                    if (countAlive(workflowId, waiter.provisioning) < limit(waiter.provisioning)) {
+                        set.remove(waiter);
+                        var newServant = dao.create(workflowId, waiter.provisioning);
+                        initProcessor(newServant);
+                        dao.acquireForTask(workflowId, newServant.id());
+                        waiter.future.complete(newServant);
+                    }
+                } catch (DaoException | ServantDao.AcquireException e) {
+                    LOG.error("Error while creating servant", e);
+                }
+            }
+        }
     }
 
     private int countAlive(String workflowId, Provisioning provisioning) {

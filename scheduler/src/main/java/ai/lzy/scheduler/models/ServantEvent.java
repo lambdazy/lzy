@@ -38,7 +38,6 @@ public record ServantEvent(
     }
 
     public enum Type {
-        ALLOCATION_REQUESTED,  // Event that represents allocation start
         ALLOCATION_TIMEOUT,
         CONNECTED,  // Servant connected to scheduler with method register
         CONFIGURED,  // Servant env configuration completed

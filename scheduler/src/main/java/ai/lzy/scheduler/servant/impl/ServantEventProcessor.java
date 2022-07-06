@@ -97,6 +97,7 @@ public class ServantEventProcessor extends Thread {
                     }
                     boolean isDestroyed = this.process(event);
                     if (isDestroyed) {
+                        notifyDestroyed.accept(workflowId, servantId);
                         return;
                     }
                 } finally {
@@ -104,7 +105,6 @@ public class ServantEventProcessor extends Thread {
                 }
             }
         } finally {
-            notifyDestroyed.accept(workflowId, servantId);
             destroy();
         }
 
@@ -148,21 +148,6 @@ public class ServantEventProcessor extends Thread {
             case ALLOCATION_TIMEOUT, STOPPING_TIMEOUT, STOPPED,
                     IDLE_HEARTBEAT_TIMEOUT, EXECUTING_HEARTBEAT_TIMEOUT -> destroy(currentState, event);
 
-            case ALLOCATION_REQUESTED -> {
-                assertStatus(currentState, event, Status.CREATED);
-                allocator.allocate(currentState.workflowId(), currentState.id(),
-                    currentState.provisioning());
-                final ServantEvent timeout = ServantEvent.fromState(currentState, Type.ALLOCATION_TIMEOUT)
-                    .setTimeout(config.allocationTimeoutSeconds())
-                    .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
-                    .setDescription("Allocation timeout reached")
-                    .build();
-                queue.put(timeout);
-                yield currentState.copy()
-                    .setStatus(Status.CONNECTING)
-                    .build();
-            }
-
             case CONNECTED -> {
                 assertStatus(currentState, event, Status.CONNECTING);
                 eventDao.removeAllByTypes(currentState.id(), Type.ALLOCATION_TIMEOUT);
@@ -174,20 +159,25 @@ public class ServantEventProcessor extends Thread {
                     throw new AssertionException();
                 }
                 this.connection = new ServantConnectionImpl(event.servantUrl(), servant);
-                final ServantEvent timeout = ServantEvent.fromState(currentState, Type.IDLE_TIMEOUT)
-                    .setTimeout(config.idleTimeoutSeconds())
-                    .setRc(ReturnCodes.SUCCESS.getRc())
-                    .setDescription("Servant is destroyed because of long idle state")
+                final Task task = getTask(currentState.workflowId(), currentState.taskId());
+                final ServantConnection connection = getConnection(currentState);
+
+                connection.api().configure(task.description().zygote().env());
+                final ServantEvent timeout = ServantEvent.fromState(currentState, Type.CONFIGURATION_TIMEOUT)
+                    .setTimeout(config.configuringTimeoutSeconds())
+                    .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
+                    .setDescription("Environment is installing too long.")
                     .build();
                 queue.put(timeout);
                 yield currentState.copy()
+                    .setStatus(Status.CONFIGURING)
+                    .setTaskId(task.taskId())
                     .setServantUrl(event.servantUrl())
-                    .setStatus(Status.IDLE)
                     .build();
             }
 
             case EXECUTION_REQUESTED -> {
-                assertStatus(currentState, event, Status.RUNNING, Status.IDLE);
+                assertStatus(currentState, event, Status.RUNNING, Status.IDLE, Status.CREATED);
                 eventDao.removeAllByTypes(currentState.id(), Type.IDLE_TIMEOUT);
                 eventDao.removeAllByTypes(currentState.id(), Type.IDLE_HEARTBEAT_TIMEOUT, Type.IDLE_HEARTBEAT);
                 if (event.taskId() == null) {
@@ -196,6 +186,21 @@ public class ServantEventProcessor extends Thread {
                 }
 
                 final Task task = getTask(currentState.workflowId(), event.taskId());
+                task.notifyExecuting(currentState.id());
+
+                if (currentState.status() == Status.CREATED) {
+                    allocator.allocate(currentState.workflowId(), currentState.id(), currentState.provisioning());
+                    final ServantEvent timeout = ServantEvent.fromState(currentState, Type.ALLOCATION_TIMEOUT)
+                        .setTimeout(config.allocationTimeoutSeconds())
+                        .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
+                        .setDescription("Allocation timeout reached")
+                        .build();
+                    queue.put(timeout);
+                    yield currentState.copy()
+                        .setStatus(Status.CONNECTING)
+                        .setTaskId(task.taskId())
+                        .build();
+                }
 
                 final ServantConnection connection = getConnection(currentState);
 
@@ -223,7 +228,6 @@ public class ServantEventProcessor extends Thread {
                 final ServantConnection connection = getConnection(currentState);
 
                 connection.api().startExecution(currentState.taskId(), task.description());
-                task.notifyExecuting(currentState.id());
 
                 queue.put(ServantEvent
                     .fromState(currentState, Type.EXECUTING_HEARTBEAT_TIMEOUT)

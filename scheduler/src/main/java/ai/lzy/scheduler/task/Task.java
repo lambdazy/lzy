@@ -17,6 +17,7 @@ public interface Task {
     @Nullable String errorDescription();
 
     // ========= Servant events ==========
+    void notifyScheduled() throws DaoException;
     void notifyExecuting(String servantId) throws DaoException;
     void notifyExecutionCompleted(Integer rc, String description) throws DaoException;
 }

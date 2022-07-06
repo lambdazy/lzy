@@ -21,13 +21,6 @@ public class ServantImpl implements Servant {
     }
 
     @Override
-    public void allocate() {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.ALLOCATION_REQUESTED)
-            .setDescription("Allocation of servant requested")
-            .build());
-    }
-
-    @Override
     public void notifyConnected(HostAndPort servantUrl) {
         events.put(ServantEvent.fromState(state, ServantEvent.Type.CONNECTED)
             .setServantUrl(servantUrl)

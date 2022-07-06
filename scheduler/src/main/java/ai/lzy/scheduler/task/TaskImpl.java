@@ -56,6 +56,13 @@ public class TaskImpl implements Task {
     }
 
     @Override
+    public void notifyScheduled() throws DaoException {
+        state = new TaskState(taskId(), workflowId(), description(),
+                Status.SCHEDULED, rc(), errorDescription(), servantId());
+        dao.update(this);
+    }
+
+    @Override
     public void notifyExecuting(String servantId) throws DaoException {
         state = new TaskState(taskId(), workflowId(), description(),
             Status.EXECUTING, rc(), errorDescription(), servantId);

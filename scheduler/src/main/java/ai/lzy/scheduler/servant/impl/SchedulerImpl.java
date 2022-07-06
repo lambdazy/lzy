@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.servant.impl;
 
+import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Slot;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.configs.ServiceConfig;
@@ -143,14 +144,30 @@ public class SchedulerImpl extends Thread implements Scheduler {
                 continue;
             }
 
-            pool.waitForFree(task.workflowId(), task.description().zygote().provisioning())
-                .whenComplete((servant, throwable) -> {
-                    if (throwable != null) {
-                        LOG.info("Pool is stopping.");
-                        return;
+            var future = pool.waitForFree(task.workflowId(),
+                task.description().zygote().provisioning());
+            if (future == null) {
+                LOG.info("Pool is stopping.");
+                continue;
+            }
+            future.whenComplete((servant, throwable) -> {
+                if (throwable != null) {
+                    LOG.error("Unknown error", throwable);
+                    try {
+                        task.notifyExecutionCompleted(ReturnCodes.INTERNAL_ERROR.getRc(), "Some internal error");
+                    } catch (DaoException e) {
+                        LOG.error("Cannot notify task about error", e);
                     }
-                    servant.setTask(task);
-                });
+                    return;
+                }
+                try {
+                    task.notifyScheduled();
+                } catch (DaoException e) {
+                    LOG.error("Cannot notify task about scheduled state");
+                    throw new RuntimeException(e);
+                }
+                servant.setTask(task);
+            });
         }
     }
 

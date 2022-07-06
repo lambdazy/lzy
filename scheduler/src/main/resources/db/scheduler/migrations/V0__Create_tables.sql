@@ -1,5 +1,4 @@
 CREATE type servant_event_type AS ENUM (
-    'ALLOCATION_REQUESTED',
     'ALLOCATION_TIMEOUT',
     'CONNECTED',
     'CONFIGURED',
@@ -64,6 +63,7 @@ CREATE TABLE servant_event (
 
 CREATE type task_status AS ENUM (
     'QUEUE',
+    'SCHEDULED',
     'EXECUTING',
     'SUCCESS',
     'ERROR'
