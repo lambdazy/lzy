@@ -1,6 +1,7 @@
-package ai.lzy.server.kuber;
+package ai.lzy.scheduler.allocator.impl.kuber;
 
-import ai.lzy.server.configs.ServerConfig;
+import ai.lzy.model.graph.Provisioning;
+import ai.lzy.scheduler.configs.ServiceConfig;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
@@ -11,7 +12,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ai.lzy.model.graph.Provisioning;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,14 +36,14 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         new V1ResourceRequirements().putLimitsItem("nvidia.com/gpu", Quantity.fromString("1"));
 
     @Inject
-    private ServerConfig serverConfig;
+    private ServiceConfig serverConfig;
 
     private static boolean isNeedGpu(Provisioning provisioning) {
         return provisioning.tags().stream().anyMatch(tag -> tag.contains("GPU"));
     }
 
     @Override
-    public V1Pod createServantPod(Provisioning provisioning, String token, String servantId, String bucket)
+    public V1Pod createServantPod(Provisioning provisioning, String token, String servantId, String workflowId)
         throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
@@ -78,7 +78,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
             throw new PodProviderException("cannot find " + LZY_SERVANT_CONTAINER_NAME + " container in pod spec");
         }
         final V1Container container = containerOptional.get();
-        addEnvVars(container, token, servantId, bucket);
+        addEnvVars(container, token, servantId, workflowId);
 
         final String podName = "lzy-servant-" + servantId.toLowerCase(Locale.ROOT);
         // k8s pod name can only contain symbols [-a-z0-9]
@@ -102,19 +102,19 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     }
 
     private void addEnvVars(V1Container container, String token,
-                            String servantId, String bucketName) {
+                            String servantId, String workflowId) {
         container.addEnvItem(
             new V1EnvVar().name("SERVANT_ID").value(servantId)
         ).addEnvItem(
             new V1EnvVar().name("SERVANT_TOKEN").value(token)
         ).addEnvItem(
-            new V1EnvVar().name("LZY_SERVER_URI").value(serverConfig.getServerUri().toString())
+            new V1EnvVar().name("LZY_SERVER_URI").value(serverConfig.schedulerUri().toString())
         ).addEnvItem(
-            new V1EnvVar().name("LZYWHITEBOARD").value(serverConfig.getWhiteboardUri().toString())
+            new V1EnvVar().name("LZYWHITEBOARD").value(serverConfig.whiteboardUri().toString())
         ).addEnvItem(
-            new V1EnvVar().name("BUCKET_NAME").value(bucketName)
+            new V1EnvVar().name("BASE_ENV_DEFAULT_IMAGE").value(serverConfig.baseEnvDefaultImage())
         ).addEnvItem(
-            new V1EnvVar().name("BASE_ENV_DEFAULT_IMAGE").value(serverConfig.getBaseEnvDefaultImage())
+            new V1EnvVar().name("WORKFLOW_ID").value(workflowId)
         );
     }
 }

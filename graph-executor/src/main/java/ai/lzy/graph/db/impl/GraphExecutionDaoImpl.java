@@ -128,7 +128,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
             try (final PreparedStatement st = conn.prepareStatement(
                 "SELECT "
                     + GRAPH_FIELDS_LIST
-                    + " FROM graph_execution_state WHERE workflow_id = ? AND id = ?")
+                    + " FROM graph_execution_state WHERE workflow_id = ? AND id = ?"
+                    + " FOR UPDATE")
             ) {
                 st.setString(1, workflowId);
                 st.setString(2, graphExecutionId);

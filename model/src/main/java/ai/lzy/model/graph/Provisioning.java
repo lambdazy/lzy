@@ -1,18 +1,15 @@
 package ai.lzy.model.graph;
 
+import java.util.Set;
 import java.util.stream.Stream;
 
 public interface Provisioning {
-    Stream<Tag> tags();
-
-    interface Tag {
-        String tag();
-    }
+    Set<String> tags();
 
     class Any implements Provisioning {
         @Override
-        public Stream<Tag> tags() {
-            return Stream.empty();
+        public Set<String> tags() {
+            return Set.of();
         }
     }
 }
