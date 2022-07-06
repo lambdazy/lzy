@@ -38,6 +38,8 @@ CREATE TABLE servant (
     task_id varchar(255) NULL,
     servant_url varchar(255) NULL,
 
+    allocator_meta varchar(10485760) NULL,
+
     acquired bool NOT NULL DEFAULT false,
     acquired_for_task bool NOT NULL DEFAULT false,
 

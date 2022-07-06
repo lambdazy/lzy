@@ -1,6 +1,7 @@
 package ai.lzy.scheduler.db.impl;
 
 import ai.lzy.model.graph.Provisioning;
+import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.Storage;
@@ -27,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Singleton
-public class ServantDaoImpl implements ServantDao {
+public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
 
     private final Storage storage;
     private final EventQueueManager queue;
@@ -273,5 +274,54 @@ public class ServantDaoImpl implements ServantDao {
             }
         }
         return res;
+    }
+
+    @Override
+    public void clear(String workflowName, String servantId) {
+        try (var con = storage.connect(); var ps = con.prepareStatement(""" 
+             UPDATE servant
+             SET allocator_meta = null
+             WHERE id = ? AND workflow_name = ?""")) {
+            ps.setString(1, servantId);
+            ps.setString(2, workflowName);
+            ps.execute();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void saveMeta(String workflowName, String servantId, String meta) {
+        try (var con = storage.connect(); var ps = con.prepareStatement(""" 
+             UPDATE servant
+             SET allocator_meta = ?
+             WHERE id = ? AND workflow_name = ?""")) {
+            ps.setString(1, meta);
+            ps.setString(2, servantId);
+            ps.setString(3, workflowName);
+            ps.execute();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Nullable
+    @Override
+    public String getMeta(String workflowName, String servantId) {
+        try (var con = storage.connect(); var ps = con.prepareStatement(""" 
+             SELECT allocator_meta FROM servant
+             WHERE id = ? AND workflow_name = ?""")) {
+            ps.setString(1, servantId);
+            ps.setString(2, workflowName);
+            try (var rs = ps.executeQuery()) {
+                if (!rs.isBeforeFirst()) {
+                    return null;
+                }
+                rs.next();
+                return rs.getString(1);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

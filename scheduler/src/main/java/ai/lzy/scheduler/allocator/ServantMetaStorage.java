@@ -4,10 +4,10 @@ import javax.annotation.Nullable;
 
 public interface ServantMetaStorage {
 
-    void clear(String workflowId, String servantId);
+    void clear(String workflowName, String servantId);
 
-    void saveMeta(String workflowId, String servantId, String meta);
+    void saveMeta(String workflowName, String servantId, String meta);
 
     @Nullable
-    String getMeta(String workflowId, String servantId);
+    String getMeta(String workflowName, String servantId);
 }

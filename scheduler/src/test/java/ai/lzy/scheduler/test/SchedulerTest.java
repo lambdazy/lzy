@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.test;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.scheduler.allocator.impl.ServantMetaStorageImpl;
+import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.DaoException;
@@ -53,8 +53,7 @@ public class SchedulerTest {
         events = context.getBean(ServantEventDao.class);
         manager = context.getBean(EventQueueManager.class);
         servantDao = context.getBean(ServantDao.class);
-        MetaStorageMock meta = new MetaStorageMock();
-        ServantMetaStorageImpl storage = new ServantMetaStorageImpl(meta);
+        ServantMetaStorage storage = context.getBean(ServantMetaStorage.class);
         allocator = new AllocatorMock(servantDao, storage);
         servantReady = new CountDownLatch(1);
         Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
