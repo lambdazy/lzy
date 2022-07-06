@@ -23,9 +23,11 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-// TODO(artolord) Add more logs
-
 public class ServantEventProcessor extends Thread {
+
+    private static final Logger LOG = LogManager.getLogger(ServantEventProcessor.class);
+    private static final ThreadGroup SERVANTS_TG = new ThreadGroup("servants");
+
     private final EventQueue queue;
     private final ServantDao dao;
     private final ServantEventDao eventDao;
@@ -35,18 +37,17 @@ public class ServantEventProcessor extends Thread {
     private final String servantId;
     private final String workflowId;
     private final BiConsumer<String, String> notifyReady;  // notify scheduler about free servant
-
-    private static final Logger LOG = LogManager.getLogger(ServantEventProcessor.class);
-    private static final ThreadGroup SERVANTS_TG = new ThreadGroup("servants");
-
-    @Nullable private ServantConnection connection = null;
+    private final BiConsumer<String, String> notifyDestroyed;  // notify scheduler about destroyed state
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     private final Lock processingLock = new ReentrantLock();  // lock to prevent thread from interrupts while processing
 
+    @Nullable
+    private ServantConnection connection = null;
+
     public ServantEventProcessor(String workflowId, String servantId,
-                                 ServantEventProcessorConfig config, ServantsAllocator allocator,
-                                 TaskDao taskDao, ServantEventDao eventDao, ServantDao dao,
-                                 EventQueueManager queueManager, BiConsumer<String, String> notifyReady) {
+                                 ServantEventProcessorConfig config, ServantsAllocator allocator, TaskDao taskDao,
+                                 ServantEventDao eventDao, ServantDao dao, EventQueueManager queueManager,
+                                 BiConsumer<String, String> notifyReady, BiConsumer<String, String> notifyDestroyed) {
         super(SERVANTS_TG, "servant-" + servantId);
         this.dao = dao;
         this.notifyReady = notifyReady;
@@ -56,6 +57,7 @@ public class ServantEventProcessor extends Thread {
         this.eventDao = eventDao;
         this.servantId = servantId;
         this.workflowId = workflowId;
+        this.notifyDestroyed = notifyDestroyed;
         queue = queueManager.get(workflowId, servantId);
     }
 
@@ -102,6 +104,7 @@ public class ServantEventProcessor extends Thread {
                 }
             }
         } finally {
+            notifyDestroyed.accept(workflowId, servantId);
             destroy();
         }
 
@@ -151,7 +154,7 @@ public class ServantEventProcessor extends Thread {
                     currentState.provisioning());
                 final ServantEvent timeout = ServantEvent.fromState(currentState, Type.ALLOCATION_TIMEOUT)
                     .setTimeout(config.allocationTimeoutSeconds())
-                    .setRc(ReturnCodes.INTERNAL.getRc())
+                    .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Allocation timeout reached")
                     .build();
                 queue.put(timeout);
@@ -224,7 +227,7 @@ public class ServantEventProcessor extends Thread {
 
                 queue.put(ServantEvent
                     .fromState(currentState, Type.EXECUTING_HEARTBEAT_TIMEOUT)
-                    .setRc(ReturnCodes.INTERNAL.getRc())
+                    .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Servant is dead")
                     .setTimeout(config.executingHeartbeatPeriodSeconds())
                     .build()
@@ -239,7 +242,7 @@ public class ServantEventProcessor extends Thread {
                 eventDao.removeAllByTypes(currentState.id(), Type.EXECUTING_HEARTBEAT_TIMEOUT);
                 queue.put(ServantEvent
                     .fromState(currentState, Type.EXECUTING_HEARTBEAT_TIMEOUT)
-                    .setRc(ReturnCodes.INTERNAL.getRc())
+                    .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Servant is dead")
                     .setTimeout(config.executingHeartbeatPeriodSeconds())
                     .build()
@@ -273,7 +276,7 @@ public class ServantEventProcessor extends Thread {
                 queue.put(ServantEvent
                     .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)
                     .setTimeout(config.idleHeartbeatPeriodSeconds())
-                    .setRc(ReturnCodes.INTERNAL.getRc())
+                    .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Servant is dead")
                     .build()
                 );
@@ -352,7 +355,7 @@ public class ServantEventProcessor extends Thread {
         final int rc;
         final String description;
         if (currentEvent != null) {
-            rc = currentEvent.rc() == null ? ReturnCodes.INTERNAL.getRc() : currentEvent.rc();
+            rc = currentEvent.rc() == null ? ReturnCodes.INTERNAL_ERROR.getRc() : currentEvent.rc();
             description = currentEvent.description() == null ? "Internal error" : currentEvent.description();
         } else {
             rc = ReturnCodes.INTERNAL_ERROR.getRc();
@@ -436,7 +439,7 @@ public class ServantEventProcessor extends Thread {
         if (currentState.taskId() != null) {
             Task task = getTask(currentState.workflowId(), currentState.taskId());
             try {
-                task.notifyExecutionCompleted(ReturnCodes.INTERNAL.getRc(), description);
+                task.notifyExecutionCompleted(ReturnCodes.INTERNAL_ERROR.getRc(), description);
             } catch (DaoException e) {
                 LOG.error("Cannot notify task about stop", e);
             }
@@ -445,7 +448,7 @@ public class ServantEventProcessor extends Thread {
         connection.api().gracefulStop();
         final ServantEvent timeout = ServantEvent.fromState(currentState, Type.STOPPING_TIMEOUT)
             .setTimeout(config.servantStopTimeoutSeconds())
-            .setRc(ReturnCodes.INTERNAL.getRc())
+            .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
             .setDescription("Servant stopping timeout")
             .build();
         queue.put(timeout);

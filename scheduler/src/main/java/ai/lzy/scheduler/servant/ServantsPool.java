@@ -4,6 +4,7 @@ package ai.lzy.scheduler.servant;
 import ai.lzy.model.graph.Provisioning;
 
 import javax.annotation.Nullable;
+import java.util.concurrent.CompletableFuture;
 
 public interface ServantsPool {
     /**
@@ -12,10 +13,8 @@ public interface ServantsPool {
      * @param workflowId workflow in what to allocate servant
      * @param provisioning provisioning to match
      * @return allocated servant handle
-     * @throws InterruptedException if interrupted while waiting
      */
-    @Nullable
-    Servant waitForFree(String workflowId, Provisioning provisioning) throws InterruptedException;
+    CompletableFuture<Servant> waitForFree(String workflowId, Provisioning provisioning);
 
     void start();
 

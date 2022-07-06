@@ -17,11 +17,9 @@ import io.grpc.StatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -31,11 +29,11 @@ import org.apache.logging.log4j.Logger;
 
 @Singleton
 public class SchedulerImpl extends Thread implements Scheduler {
+    private static final Logger LOG = LogManager.getLogger(SchedulerImpl.class);
+
     private final ServantDao dao;
     private final TaskDao taskDao;
     private final ServantsPool pool;
-
-    private static final Logger LOG = LogManager.getLogger(SchedulerImpl.class);
     private final BlockingQueue<Task> tasks = new LinkedBlockingQueue<>();
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     private final ServiceConfig config;
@@ -145,25 +143,14 @@ public class SchedulerImpl extends Thread implements Scheduler {
                 continue;
             }
 
-            Servant servant;
-            while (true) {
-                try {
-                    servant = pool.waitForFree(task.workflowId(), task.description().zygote().provisioning());
-                    break;
-                } catch (InterruptedException e) {
-                    LOG.debug("Thread interrupted", e);
-                    if (stopping.get()) {
+            pool.waitForFree(task.workflowId(), task.description().zygote().provisioning())
+                .whenComplete((servant, throwable) -> {
+                    if (throwable != null) {
+                        LOG.info("Pool is stopping.");
                         return;
                     }
-                }
-            }
-
-            if (servant == null) {
-                LOG.info("Pool is stopping. Stopping scheduler");
-                return;
-            }
-
-            servant.setTask(task);
+                    servant.setTask(task);
+                });
         }
     }
 

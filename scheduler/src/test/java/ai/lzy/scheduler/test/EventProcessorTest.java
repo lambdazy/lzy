@@ -66,7 +66,7 @@ public class EventProcessorTest {
 
     @Test
     public void testSimple() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(2, 2, 2, 2, 10, 10))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 10, 10))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             processor.getServant().allocate();
@@ -205,7 +205,7 @@ public class EventProcessorTest {
 
     @Test
     public void testFailEnv() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(2, 2, 2, 2, 2, 2))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 2, 2))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             processor.getServant().allocate();
@@ -222,7 +222,7 @@ public class EventProcessorTest {
 
     @Test
     public void testFailExec() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(2, 2, 2, 2, 2, 2))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 2, 2))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             processor.getServant().allocate();
@@ -241,7 +241,7 @@ public class EventProcessorTest {
 
     @Test
     public void testFailStop() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(2, 2, 2, 2, 100, 100))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             processor.getServant().allocate();
@@ -267,7 +267,7 @@ public class EventProcessorTest {
     public void testRestore() throws Exception {
         String servantId;
         final CompletableFuture<AllocationRequest> allocationRequested;
-        final ServantEventProcessorConfig config = new ServantEventProcessorConfig(2, 2, 2, 2, 100, 100);
+        final ServantEventProcessorConfig config = new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100);
 
         try(var processor = new ProcessorContext(config)) {
             servantId = processor.servant.id();
@@ -398,7 +398,7 @@ public class EventProcessorTest {
         public ProcessorContext(ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
             servant = servantDao.create(workflowId, () -> Arrays.stream(provisioningTags).collect(Collectors.toSet()));
             processor = new ServantEventProcessor(workflowId, servant.id(), config, allocator, tasks, events,
-                servantDao, manager, (a, b) -> latch.countDown());
+                servantDao, manager, (a, b) -> latch.countDown(), (a, b) -> {});
             processor.start();
             tags = provisioningTags;
         }
@@ -407,7 +407,7 @@ public class EventProcessorTest {
                                 ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
             servant = Objects.requireNonNull(servantDao.get(workflowId, servantId));
             processor = new ServantEventProcessor(workflowId, servantId, config, allocator, tasks, events,
-                    servantDao, manager, (a, b) -> latch.countDown());
+                    servantDao, manager, (a, b) -> latch.countDown(), (a, b) -> {});
             processor.start();
             tags = provisioningTags;
         }
