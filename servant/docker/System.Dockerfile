@@ -1,7 +1,7 @@
 FROM lzydock/lzy-servant-base:master
 
 RUN mkdir -p /tmp/lzy-log/servant \
-    && mkdir tmp/resources
+    && mkdir -p /tmp/resources
 
 COPY pylzy/ pylzy
 COPY servant/target/servant-1.0-SNAPSHOT.jar pylzy/lzy/lzy-servant.jar
