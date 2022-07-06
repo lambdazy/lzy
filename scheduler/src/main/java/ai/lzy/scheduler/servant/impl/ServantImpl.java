@@ -1,12 +1,10 @@
 package ai.lzy.scheduler.servant.impl;
 
-import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.models.ServantEvent;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.task.Task;
-import java.net.URL;
 
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.jetbrains.annotations.Nullable;
@@ -94,8 +92,8 @@ public class ServantImpl implements Servant {
     }
 
     @Override
-    public String workflowId() {
-        return state.workflowId();
+    public String workflowName() {
+        return state.workflowName();
     }
 
     @Override

@@ -12,21 +12,21 @@ import javax.annotation.Nullable;
 public interface ServantDao {
 
     @Nullable
-    ServantState acquire(String workflowId, String servantId) throws AcquireException, DaoException;
+    ServantState acquire(String workflowName, String servantId) throws AcquireException, DaoException;
     void updateAndFree(ServantState resource) throws DaoException;
 
     List<Servant> getAllFree() throws DaoException;
     List<Servant> getAllAcquired() throws DaoException;
 
-    Servant create(String workflowId, Provisioning provisioning) throws DaoException;
-    int countAlive(String workflowId, Provisioning provisioning) throws DaoException;
+    Servant create(String workflowName, Provisioning provisioning) throws DaoException;
+    int countAlive(String workflowName, Provisioning provisioning) throws DaoException;
 
     @Nullable
-    Servant get(String workflowId, String servantId) throws DaoException;
-    List<Servant> get(String workflowId) throws DaoException;
+    Servant get(String workflowName, String servantId) throws DaoException;
+    List<Servant> get(String workflowName) throws DaoException;
 
-    void acquireForTask(String workflowId, String servantId) throws DaoException, AcquireException;
-    void freeFromTask(String workflowId, String servantId) throws DaoException;
+    void acquireForTask(String workflowName, String servantId) throws DaoException, AcquireException;
+    void freeFromTask(String workflowName, String servantId) throws DaoException;
 
     void invalidate(Servant servant, String description) throws DaoException;
 

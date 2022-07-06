@@ -16,7 +16,6 @@ import ai.lzy.scheduler.servant.impl.SchedulerImpl;
 import ai.lzy.scheduler.servant.impl.ServantsPoolImpl;
 import ai.lzy.scheduler.test.EventProcessorTest.AllocationRequest;
 import ai.lzy.scheduler.test.mocks.*;
-import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.apache.logging.log4j.Level;
@@ -26,12 +25,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static ai.lzy.scheduler.test.EventProcessorTest.buildZygote;
 
@@ -74,7 +71,7 @@ public class SchedulerTest {
         scheduler.start();
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
-        var task1 = scheduler.execute(workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task1 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
@@ -88,7 +85,7 @@ public class SchedulerTest {
                 .build();
         final HostAndPort servantUri = HostAndPort.fromParts("localhost", port);
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
-        allocator.register(req.workflowId(), req.servantId(), servantUri, req.token());
+        allocator.register(req.workflowId(), req.servantId(), servantUri);
 
         env.take();
         var servant = servantDao.get(req.workflowId(), req.servantId());
@@ -97,8 +94,8 @@ public class SchedulerTest {
         exec.take();
         servant.notifyExecutionCompleted(0, "Ok");
 
-        var task2 = scheduler.execute(workflowId, new TaskDesc(buildZygote(), Map.of()));
-        var task3 = scheduler.execute(workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task2 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task3 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
 
         env.take();
         servant.notifyConfigured(0, "OK");
@@ -135,8 +132,8 @@ public class SchedulerTest {
 
         allocator.onAllocationRequested(((a, b, c) -> requests.add(new AllocationRequest(a, b, c))));
 
-        var task1 = scheduler.execute(workflowId, new TaskDesc(buildZygote(), Map.of()));
-        var task2 = scheduler.execute(workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task1 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task2 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
 
         final var port1 = FreePortFinder.find(1000, 2000);
         final CountDownLatch env1 = new CountDownLatch(1),
@@ -161,10 +158,10 @@ public class SchedulerTest {
         final HostAndPort servantUri2 = HostAndPort.fromParts("localhost", port2);
 
         var r1 = requests.take();
-        allocator.register(r1.workflowId(), r1.servantId(), servantUri1, r1.token());
+        allocator.register(r1.workflowId(), r1.servantId(), servantUri1);
 
         var r2 = requests.take();
-        allocator.register(r2.workflowId(), r2.servantId(), servantUri2, r2.token());
+        allocator.register(r2.workflowId(), r2.servantId(), servantUri2);
 
         env1.await();
         env2.await();
@@ -216,7 +213,7 @@ public class SchedulerTest {
 
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
-        var task1 = scheduler.execute(workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task1 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
@@ -230,7 +227,7 @@ public class SchedulerTest {
                 .build();
         final HostAndPort servantUri = HostAndPort.fromParts("localhost", port);
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
-        allocator.register(req.workflowId(), req.servantId(), servantUri, req.token());
+        allocator.register(req.workflowId(), req.servantId(), servantUri);
 
         env.take();
         var servant = servantDao.get(req.workflowId(), req.servantId());
@@ -244,11 +241,11 @@ public class SchedulerTest {
 
         scheduler = restart.apply(scheduler);
 
-        var task2 = scheduler.execute(workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task2 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
 
         scheduler = restart.apply(scheduler);
 
-        var task3 = scheduler.execute(workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task3 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
 
         env.take();
         servant.notifyConfigured(0, "OK");

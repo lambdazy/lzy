@@ -25,8 +25,7 @@ public class AllocatorMock extends ServantsAllocatorBase {
 
     @Override
     public void allocate(String workflowId, String servantId, Provisioning provisioning) {
-        var token = metaStorage.generateToken(workflowId, servantId);
-        onAllocate.forEach(t -> t.call(workflowId, servantId, token));
+        onAllocate.forEach(t -> t.call(workflowId, servantId, ""));
     }
 
     @Override

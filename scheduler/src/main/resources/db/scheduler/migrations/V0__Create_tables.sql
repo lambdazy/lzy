@@ -30,7 +30,7 @@ CREATE type servant_status AS ENUM (
 
 CREATE TABLE servant (
     id varchar(255) NOT NULL,
-    workflow_id varchar(255) NOT NULL,
+    workflow_name varchar(255) NOT NULL,
     status servant_status NOT NULL,
     provisioning varchar(64) ARRAY NOT NULL,
 
@@ -41,14 +41,14 @@ CREATE TABLE servant (
     acquired bool NOT NULL DEFAULT false,
     acquired_for_task bool NOT NULL DEFAULT false,
 
-    PRIMARY KEY (id, workflow_id)
+    PRIMARY KEY (id, workflow_name)
 );
 
 CREATE TABLE servant_event (
     id varchar(255) NOT NULL PRIMARY KEY,
     time timestamp NOT NULL,
     servant_id varchar(255) NOT NULL,
-    workflow_id varchar(255) NOT NULL,
+    workflow_name varchar(255) NOT NULL,
     type servant_event_type NOT NULL,
 
     description varchar(10485760) NULL,
@@ -56,7 +56,7 @@ CREATE TABLE servant_event (
     task_id varchar(255) NULL,
     servant_url varchar(255) NULL,
 
-    FOREIGN KEY (servant_id, workflow_id) references servant(id, workflow_id)
+    FOREIGN KEY (servant_id, workflow_name) references servant(id, workflow_name)
         ON UPDATE CASCADE
         ON DELETE CASCADE
 );
@@ -72,6 +72,7 @@ CREATE type task_status AS ENUM (
 CREATE TABLE task (
     id varchar(255) NOT NULL,
     workflow_id varchar(255) NOT NULL,
+    workflow_name varchar(255) NOT NULL,
     task_description_json varchar(10485760) NOT NULL,
     status task_status NOT NULL,
 

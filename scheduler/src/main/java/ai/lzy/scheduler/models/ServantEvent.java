@@ -14,7 +14,7 @@ public record ServantEvent(
     String id,
     Instant timestamp,
     String servantId,
-    String workflowId,
+    String workflowName,
     Type type,
 
     @Nullable String description,
@@ -105,7 +105,7 @@ public record ServantEvent(
                 UUID.randomUUID().toString(),
                 timestamp,
                 state.id(),
-                state.workflowId(),
+                state.workflowName(),
                 type,
                 description,
                 rc,

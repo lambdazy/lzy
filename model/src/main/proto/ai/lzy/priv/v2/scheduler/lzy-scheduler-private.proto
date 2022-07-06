@@ -13,9 +13,8 @@ service SchedulerPrivate {
 // =========Register servant=========
 
 message RegisterServantRequest {
-  string workflowId = 1;
+  string workflowName = 1;
   string servantId = 2;
-  string servantToken = 3;
 }
 message RegisterServantResponse {}
 
@@ -57,9 +56,8 @@ message ServantProgress {
 }
 
 message ServantProgressRequest {
-  string workflowId = 1;
+  string workflowName = 1;
   string servantId = 2;
-  string servantToken = 3;
-  ServantProgress progress = 4;
+  ServantProgress progress = 3;
 }
 message ServantProgressResponse {}

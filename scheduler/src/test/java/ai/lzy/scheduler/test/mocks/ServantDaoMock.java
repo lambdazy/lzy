@@ -11,7 +11,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public class ServantDaoMock implements ServantDao {
     private final Map<ServantKey, ServantDesc> storage = new ConcurrentHashMap<>();
@@ -23,24 +22,24 @@ public class ServantDaoMock implements ServantDao {
 
     @Nullable
     @Override
-    public synchronized ServantState acquire(String workflowId, String servantId) throws AcquireException {
-        var servant = storage.get(new ServantKey(workflowId, servantId));
+    public synchronized ServantState acquire(String workflowName, String servantId) throws AcquireException {
+        var servant = storage.get(new ServantKey(workflowName, servantId));
         if (servant == null) {
             return null;
         }
         if (servant.acquired()) {
             throw new AcquireException();
         }
-        storage.put(new ServantKey(workflowId, servantId),
+        storage.put(new ServantKey(workflowName, servantId),
                 new ServantDesc(servant.state(), true, servant.acquiredForTask()));
         return servant.state();
     }
 
     @Override
     public void updateAndFree(ServantState resource) {
-        var key = new ServantKey(resource.workflowId(), resource.id());
+        var key = new ServantKey(resource.workflowName(), resource.id());
         var servant = storage.get(key);
-        storage.put(new ServantKey(resource.workflowId(), resource.id()),
+        storage.put(new ServantKey(resource.workflowName(), resource.id()),
                 new ServantDesc(resource, false, servant.acquiredForTask()));
     }
 
@@ -49,7 +48,7 @@ public class ServantDaoMock implements ServantDao {
         return storage.values()
             .stream()
             .filter(t -> t.state().status() != ServantState.Status.DESTROYED && !t.acquired())
-            .map(t -> (Servant) new ServantImpl(t.state(), queueManager.get(t.state().workflowId(), t.state.id())))
+            .map(t -> (Servant) new ServantImpl(t.state(), queueManager.get(t.state().workflowName(), t.state.id())))
             .toList();
     }
 
@@ -58,40 +57,40 @@ public class ServantDaoMock implements ServantDao {
         return storage.values()
             .stream()
             .filter(t -> t.state().status() != ServantState.Status.DESTROYED && t.acquired())
-            .map(t -> (Servant) new ServantImpl(t.state(), queueManager.get(t.state().workflowId(), t.state.id())))
+            .map(t -> (Servant) new ServantImpl(t.state(), queueManager.get(t.state().workflowName(), t.state.id())))
             .toList();
     }
 
     @Override
-    public Servant create(String workflowId, Provisioning provisioning) {
+    public Servant create(String workflowName, Provisioning provisioning) {
         var servantId = UUID.randomUUID().toString();
-        var state = new ServantState.ServantStateBuilder(servantId, workflowId,
+        var state = new ServantState.ServantStateBuilder(servantId, workflowName,
             provisioning, ServantState.Status.CREATED).build();
-        storage.put(new ServantKey(workflowId, servantId), new ServantDesc(state, false, false));
-        return new ServantImpl(state, queueManager.get(state.workflowId(), state.id()));
+        storage.put(new ServantKey(workflowName, servantId), new ServantDesc(state, false, false));
+        return new ServantImpl(state, queueManager.get(state.workflowName(), state.id()));
     }
 
     @Override
-    public int countAlive(String workflowId, Provisioning provisioning) {
+    public int countAlive(String workflowName, Provisioning provisioning) {
         return (int) storage.values()
             .stream()
-            .filter(t -> t.state().workflowId().equals(workflowId) && contains(t.state().provisioning(), provisioning))
+            .filter(t -> t.state().workflowName().equals(workflowName) && contains(t.state().provisioning(), provisioning))
             .count();
     }
 
     @Nullable
     @Override
-    public Servant get(String workflowId, String servantId) {
-        var servant = storage.get(new ServantKey(workflowId, servantId));
+    public Servant get(String workflowName, String servantId) {
+        var servant = storage.get(new ServantKey(workflowName, servantId));
         if (servant == null) {
             return null;
         }
-        return new ServantImpl(servant.state(), queueManager.get(servant.state.workflowId(), servant.state.id()));
+        return new ServantImpl(servant.state(), queueManager.get(servant.state.workflowName(), servant.state.id()));
     }
 
     @Override
-    public synchronized void acquireForTask(String workflowId, String servantId) throws AcquireException {
-        var servant = storage.get(new ServantKey(workflowId, servantId));
+    public synchronized void acquireForTask(String workflowName, String servantId) throws AcquireException {
+        var servant = storage.get(new ServantKey(workflowName, servantId));
         if (servant == null) {
             return;
         }
@@ -99,35 +98,35 @@ public class ServantDaoMock implements ServantDao {
             throw new AcquireException();
         }
 
-        storage.put(new ServantKey(workflowId, servant.state.id()),
+        storage.put(new ServantKey(workflowName, servant.state.id()),
                 new ServantDesc(servant.state(), servant.acquired(), true));
     }
 
     @Override
-    public void freeFromTask(String workflowId, String servantId) {
-        var servant = storage.get(new ServantKey(workflowId, servantId));
+    public void freeFromTask(String workflowName, String servantId) {
+        var servant = storage.get(new ServantKey(workflowName, servantId));
         if (servant == null) {
             return;
         }
-        storage.put(new ServantKey(workflowId, servantId),
+        storage.put(new ServantKey(workflowName, servantId),
                 new ServantDesc(servant.state, servant.acquired, false));
     }
 
     @Override
     public synchronized void invalidate(Servant servant, String description) {
-        var state = new ServantState.ServantStateBuilder(servant.id(), servant.workflowId(),
+        var state = new ServantState.ServantStateBuilder(servant.id(), servant.workflowName(),
                 servant.provisioning(), ServantState.Status.DESTROYED)
                 .setErrorDescription(description)
                 .build();
-        storage.put(new ServantKey(servant.workflowId(), servant.id()),
+        storage.put(new ServantKey(servant.workflowName(), servant.id()),
                 new ServantDesc(state, false, false));
     }
 
     @Override
-    public List<Servant> get(String workflowId) throws DaoException {
+    public List<Servant> get(String workflowName) throws DaoException {
         return storage.values().stream()
-            .filter(t -> t.state().workflowId().equals(workflowId))
-            .map(s -> (Servant) new ServantImpl(s.state(), queueManager.get(s.state.workflowId(), s.state.id())))
+            .filter(t -> t.state().workflowName().equals(workflowName))
+            .map(s -> (Servant) new ServantImpl(s.state(), queueManager.get(s.state.workflowName(), s.state.id())))
             .toList();
     }
 

@@ -32,7 +32,7 @@ public class ServantDaoImpl implements ServantDao {
     private final Storage storage;
     private final EventQueueManager queue;
 
-    private static final String FIELDS = "id, workflow_id, status, provisioning,"
+    private static final String FIELDS = "id, workflow_name, status, provisioning,"
             + " error_description, task_id, servant_url";
 
     @Inject
@@ -43,18 +43,18 @@ public class ServantDaoImpl implements ServantDao {
 
     @Nullable
     @Override
-    public ServantState acquire(String workflowId, String servantId) throws AcquireException, DaoException {
+    public ServantState acquire(String workflowName, String servantId) throws AcquireException, DaoException {
         final int affected;
         try (var con = storage.connect(); var ps = con.prepareStatement("""
                 UPDATE servant SET acquired = true
-                 WHERE id = ? AND workflow_id = ? AND acquired = false""")) {
+                 WHERE id = ? AND workflow_name = ? AND acquired = false""")) {
             ps.setString(1, servantId);
-            ps.setString(2, workflowId);
+            ps.setString(2, workflowName);
             affected = ps.executeUpdate();
         } catch (SQLException e) {
             throw new DaoException(e);
         }
-        final var state = getState(workflowId, servantId);
+        final var state = getState(workflowName, servantId);
         if (state == null) {
             return null;
         }
@@ -68,9 +68,9 @@ public class ServantDaoImpl implements ServantDao {
     public void updateAndFree(ServantState resource) throws DaoException {
         try (var con = storage.connect(); var ps = con.prepareStatement(
             " UPDATE servant SET (" + FIELDS + ", acquired) = (?, ?, ?, ?, ?, ?, ?, false) "
-                + " WHERE workflow_id = ? AND  id = ?")) {
+                + " WHERE workflow_name = ? AND  id = ?")) {
             writeState(resource, con, ps);
-            ps.setString(8, resource.workflowId());
+            ps.setString(8, resource.workflowName());
             ps.setString(9, resource.id());
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -101,23 +101,23 @@ public class ServantDaoImpl implements ServantDao {
     }
 
     @Override
-    public Servant create(String workflowId, Provisioning provisioning) throws DaoException {
+    public Servant create(String workflowName, Provisioning provisioning) throws DaoException {
         final var id = UUID.randomUUID().toString();
         final var status = ServantState.Status.CREATED;
-        final var state = new ServantStateBuilder(id, workflowId, provisioning, status).build();
+        final var state = new ServantStateBuilder(id, workflowName, provisioning, status).build();
         try (var con = storage.connect(); var ps = con.prepareStatement(
             " INSERT INTO servant(" + FIELDS + ")"
                 + " VALUES (?, ?, ?, ?, ?, ?, ?)")) {
             writeState(state, con, ps);
             ps.execute();
-            return new ServantImpl(state, queue.get(state.workflowId(), state.id()));
+            return new ServantImpl(state, queue.get(state.workflowName(), state.id()));
         } catch (SQLException e) {
             throw new DaoException(e);
         }
     }
 
     @Override
-    public int countAlive(String workflowId, Provisioning provisioning) throws DaoException {
+    public int countAlive(String workflowName, Provisioning provisioning) throws DaoException {
         try (var con = storage.connect(); var ps = con.prepareStatement("""
                 SELECT count() FROM servant
                 WHERE status != 'DESTROYED' AND provisioning @> ?""")) {
@@ -134,20 +134,20 @@ public class ServantDaoImpl implements ServantDao {
 
     @Nullable
     @Override
-    public Servant get(String workflowId, String servantId) throws DaoException {
-        final var state = getState(workflowId, servantId);
+    public Servant get(String workflowName, String servantId) throws DaoException {
+        final var state = getState(workflowName, servantId);
         if (state == null) {
             return  null;
         }
-        return new ServantImpl(state, queue.get(state.workflowId(), state.id()));
+        return new ServantImpl(state, queue.get(state.workflowName(), state.id()));
     }
 
     @Override
-    public List<Servant> get(String workflowId) throws DaoException {
+    public List<Servant> get(String workflowName) throws DaoException {
         try (var con = storage.connect(); var ps = con.prepareStatement(
                 " SELECT " + FIELDS + " FROM servant"
-                        + " WHERE workflow_id = ? AND status != 'DESTROYED'")) {
-            ps.setString(1, workflowId);
+                        + " WHERE workflow_name = ? AND status != 'DESTROYED'")) {
+            ps.setString(1, workflowName);
             return readServants(ps);
         } catch (SQLException e) {
             throw new DaoException(e);
@@ -155,16 +155,16 @@ public class ServantDaoImpl implements ServantDao {
     }
 
     @Override
-    public void acquireForTask(String workflowId, String servantId) throws DaoException, AcquireException {
+    public void acquireForTask(String workflowName, String servantId) throws DaoException, AcquireException {
         AtomicBoolean failed = new AtomicBoolean(false);
         Utils.executeInTransaction(storage, con -> {
             final ServantState state;
             try (var ps = con.prepareStatement(
                 "SELECT " + FIELDS + " FROM servant " + """
-                WHERE workflow_id = ? AND id = ? AND acquired_for_task = false
+                WHERE workflow_name = ? AND id = ? AND acquired_for_task = false
                 FOR UPDATE
                 """)) {
-                ps.setString(1, workflowId);
+                ps.setString(1, workflowName);
                 ps.setString(2, servantId);
                 try (var rs = ps.executeQuery()) {
                     if (!rs.isBeforeFirst()) {
@@ -178,9 +178,9 @@ public class ServantDaoImpl implements ServantDao {
             try (var ps = con.prepareStatement("""
                 UPDATE servant
                 SET acquired_for_task = true
-                WHERE workflow_id = ? AND id = ?
+                WHERE workflow_name = ? AND id = ?
                 """)) {
-                ps.setString(1, state.workflowId());
+                ps.setString(1, state.workflowName());
                 ps.setString(2, state.id());
                 ps.executeUpdate();
             }
@@ -191,12 +191,12 @@ public class ServantDaoImpl implements ServantDao {
     }
 
     @Override
-    public void freeFromTask(String workflowId, String servantId) throws DaoException {
+    public void freeFromTask(String workflowName, String servantId) throws DaoException {
         try (var con = storage.connect(); var ps = con.prepareStatement("""
                 UPDATE servant
                 SET acquired_for_task = false
-                WHERE workflow_id = ? AND id = ?""")) {
-            ps.setString(1, workflowId);
+                WHERE workflow_name = ? AND id = ?""")) {
+            ps.setString(1, workflowName);
             ps.setString(2, servantId);
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -209,9 +209,9 @@ public class ServantDaoImpl implements ServantDao {
         try (var con = storage.connect(); var ps = con.prepareStatement("""
                 UPDATE servant
                 SET (acquired_for_task, acquired, status, error_description) = (false, false, 'DESTROYED', ?)
-                WHERE workflow_id = ? AND id = ?""")) {
+                WHERE workflow_name = ? AND id = ?""")) {
             ps.setString(1, description);
-            ps.setString(2, servant.workflowId());
+            ps.setString(2, servant.workflowName());
             ps.setString(3, servant.id());
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -223,7 +223,7 @@ public class ServantDaoImpl implements ServantDao {
         int paramCount = 0;
         var url = state.servantUrl();
         ps.setString(++paramCount, state.id());
-        ps.setString(++paramCount, state.workflowId());
+        ps.setString(++paramCount, state.workflowName());
         ps.setString(++paramCount, state.status().name());
         ps.setArray(++paramCount, con.createArrayOf("varchar", state.provisioning().tags().toArray()));
         ps.setString(++paramCount, state.errorDescription());
@@ -249,7 +249,7 @@ public class ServantDaoImpl implements ServantDao {
     private ServantState getState(String workflowId, String servantId) throws DaoException {
         try (var con = storage.connect(); var ps = con.prepareStatement(
                 " SELECT " + FIELDS + " FROM servant"
-                    + " WHERE id = ? AND workflow_id = ?")) {
+                    + " WHERE id = ? AND workflow_name = ?")) {
             ps.setString(1, servantId);
             ps.setString(2, workflowId);
             try (var rs = ps.executeQuery()) {
@@ -269,7 +269,7 @@ public class ServantDaoImpl implements ServantDao {
         try (var rs = ps.executeQuery()) {
             while (rs.next()) {
                 var state = readServantState(rs);
-                res.add(new ServantImpl(state, queue.get(state.workflowId(), state.id())));
+                res.add(new ServantImpl(state, queue.get(state.workflowName(), state.id())));
             }
         }
         return res;

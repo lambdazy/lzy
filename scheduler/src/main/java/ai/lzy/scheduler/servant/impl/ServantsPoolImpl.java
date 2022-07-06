@@ -9,7 +9,6 @@ import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.db.TaskDao;
-import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.ServantsPool;
 import ai.lzy.scheduler.task.Task;
@@ -55,12 +54,12 @@ public class ServantsPoolImpl implements ServantsPool {
 
     @Nullable
     @Override
-    public CompletableFuture<Servant> waitForFree(String workflowId, Provisioning provisioning) {
+    public CompletableFuture<Servant> waitForFree(String workflowName, Provisioning provisioning) {
         final CompletableFuture<Servant> future = new CompletableFuture<>();
         if (stopping.get()) {
             return null;
         }
-        Servant free = tryToAcquire(workflowId, provisioning);
+        Servant free = tryToAcquire(workflowName, provisioning);
         if (free != null) {
             future.complete(free);
             return future;
@@ -68,8 +67,8 @@ public class ServantsPoolImpl implements ServantsPool {
         Servant servant = null;
         synchronized (this) {
             try {
-                if (countAlive(workflowId, provisioning) < limit(provisioning)) {
-                    servant = dao.create(workflowId, provisioning);
+                if (countAlive(workflowName, provisioning) < limit(provisioning)) {
+                    servant = dao.create(workflowName, provisioning);
                 }
             } catch (DaoException e) {
                 LOG.error("Cannot count servants", e);
@@ -78,7 +77,7 @@ public class ServantsPoolImpl implements ServantsPool {
         if (servant != null) {
             initProcessor(servant);
             try {
-                dao.acquireForTask(workflowId, servant.id());
+                dao.acquireForTask(workflowName, servant.id());
             } catch (DaoException | ServantDao.AcquireException e) {
                 LOG.error("Error while acquiring new servant", e);
                 throw new RuntimeException(e);
@@ -87,7 +86,7 @@ public class ServantsPoolImpl implements ServantsPool {
             return future;
         }
 
-        waiters.computeIfAbsent(workflowId, t -> new HashSet<>())
+        waiters.computeIfAbsent(workflowName, t -> new HashSet<>())
             .add(new Waiter(provisioning, future));
         return future;
     }
@@ -123,7 +122,7 @@ public class ServantsPoolImpl implements ServantsPool {
         }
         for (Servant servant: acquired) {
             LOG.error("Cannot restart servant <{}> from workflow <{}> because it is in invalid state",
-                servant.id(), servant.workflowId());
+                servant.id(), servant.workflowName());
             try {
                 dao.invalidate(servant, "Servant is in invalid state after restart");
             } catch (DaoException e) {
@@ -131,7 +130,7 @@ public class ServantsPoolImpl implements ServantsPool {
             }
             if (servant.taskId() != null) {
                 try {
-                    final Task task = tasks.get(servant.workflowId(), servant.taskId());
+                    final Task task = tasks.get(servant.workflowName(), servant.taskId());
                     if (task != null) {
                         task.notifyExecutionCompleted(ReturnCodes.INTERNAL_ERROR.getRc(),
                             "Failed because of servant wrong state");
@@ -141,18 +140,18 @@ public class ServantsPoolImpl implements ServantsPool {
                 }
             }
             try {
-                allocator.destroy(servant.workflowId(), servant.id());
+                allocator.destroy(servant.workflowName(), servant.id());
             } catch (Exception e) {
                 LOG.error("""
                     Cannot destroy servant <{}> from workflow <{}> with url <{}>, going to next servant.
-                    PLEASE DESTROY THIS SERVANT FOR YOURSELF""", servant.id(), servant.workflowId(),
+                    PLEASE DESTROY THIS SERVANT FOR YOURSELF""", servant.id(), servant.workflowName(),
                     servant.servantURL(), e);
             }
         }
         for (Servant servant: free) {
             boolean isFree;
             try {
-                dao.acquireForTask(servant.workflowId(), servant.id());
+                dao.acquireForTask(servant.workflowName(), servant.id());
                 isFree = true;
             } catch (ServantDao.AcquireException e) {
                 LOG.debug("Servant {} is not free", servant.id());
@@ -162,19 +161,19 @@ public class ServantsPoolImpl implements ServantsPool {
                 continue;
             }
             if (isFree) {
-                free(servant.workflowId(), servant.id());
+                free(servant.workflowName(), servant.id());
             }
             initProcessor(servant);
         }
     }
 
     @Nullable
-    private synchronized Servant tryToAcquire(String workflowId, Provisioning provisioning) {
-        var map = freeServantsByWorkflow.computeIfAbsent(workflowId, t -> new ConcurrentHashMap<>());
+    private synchronized Servant tryToAcquire(String workflowName, Provisioning provisioning) {
+        var map = freeServantsByWorkflow.computeIfAbsent(workflowName, t -> new ConcurrentHashMap<>());
         for (var servant: map.values()) {
             if (servant.provisioning().tags().containsAll(provisioning.tags())) {
                 try {
-                    dao.acquireForTask(servant.workflowId(), servant.id());
+                    dao.acquireForTask(servant.workflowName(), servant.id());
                     map.remove(servant.id());
                 } catch (DaoException e) {
                     throw new RuntimeException("Cannot acquire servant", e);
@@ -188,22 +187,22 @@ public class ServantsPoolImpl implements ServantsPool {
         return null;
     }
 
-    private synchronized void free(String workflowId, String servantId) {
+    private synchronized void free(String workflowName, String servantId) {
         final Servant servant;
         try {
-            dao.freeFromTask(workflowId, servantId);
-            servant = dao.get(workflowId, servantId);
+            dao.freeFromTask(workflowName, servantId);
+            servant = dao.get(workflowName, servantId);
         } catch (DaoException e) {
             throw new RuntimeException("Cannot free servant", e);
         }
         if (servant == null) {
             return;
         }
-        final var set = waiters.computeIfAbsent(workflowId, t -> new HashSet<>());
+        final var set = waiters.computeIfAbsent(workflowName, t -> new HashSet<>());
         for (var waiter: set) {
             if (servant.provisioning().tags().containsAll(waiter.provisioning.tags())) {
                 try {
-                    dao.acquireForTask(workflowId, servantId);
+                    dao.acquireForTask(workflowName, servantId);
                 } catch (DaoException e) {
                     LOG.error("Cannot acquire servant", e);
                     continue;
@@ -215,13 +214,13 @@ public class ServantsPoolImpl implements ServantsPool {
                 return;
             }
         }
-        freeServantsByWorkflow.computeIfAbsent(workflowId, t -> new ConcurrentHashMap<>())
+        freeServantsByWorkflow.computeIfAbsent(workflowName, t -> new ConcurrentHashMap<>())
             .put(servantId, servant);
     }
 
-    private synchronized void servantDestroyed(String workflowId, String servantId) {
-        var servant = aliveServants.get(workflowId).remove(servantId);
-        var set = waiters.get(workflowId);
+    private synchronized void servantDestroyed(String workflowName, String servantId) {
+        var servant = aliveServants.get(workflowName).remove(servantId);
+        var set = waiters.get(workflowName);
         if (set == null) {
             return;
         }
@@ -229,11 +228,11 @@ public class ServantsPoolImpl implements ServantsPool {
             if (servant.provisioning().tags().containsAll(waiter.provisioning.tags())) {
                 // TODO(artolord) make more fair scheduling
                 try {
-                    if (countAlive(workflowId, waiter.provisioning) < limit(waiter.provisioning)) {
+                    if (countAlive(workflowName, waiter.provisioning) < limit(waiter.provisioning)) {
                         set.remove(waiter);
-                        var newServant = dao.create(workflowId, waiter.provisioning);
+                        var newServant = dao.create(workflowName, waiter.provisioning);
                         initProcessor(newServant);
-                        dao.acquireForTask(workflowId, newServant.id());
+                        dao.acquireForTask(workflowName, newServant.id());
                         waiter.future.complete(newServant);
                     }
                 } catch (DaoException | ServantDao.AcquireException e) {
@@ -257,8 +256,8 @@ public class ServantsPoolImpl implements ServantsPool {
     private record Waiter(Provisioning provisioning, CompletableFuture<Servant> future) {}
 
     private void initProcessor(Servant servant) {
-        aliveServants.computeIfAbsent(servant.workflowId(), t -> new ConcurrentHashMap<>()).put(servant.id(), servant);
-        var processor = new ServantEventProcessor(servant.workflowId(), servant.id(),
+        aliveServants.computeIfAbsent(servant.workflowName(), t -> new ConcurrentHashMap<>()).put(servant.id(), servant);
+        var processor = new ServantEventProcessor(servant.workflowName(), servant.id(),
             servantConfig, allocator, tasks, events, dao, queueManager,
             this::free, this::servantDestroyed);
         processors.add(processor);

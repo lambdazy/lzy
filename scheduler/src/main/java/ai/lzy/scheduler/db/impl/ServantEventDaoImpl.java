@@ -17,7 +17,7 @@ import java.util.Arrays;
 public class ServantEventDaoImpl implements ServantEventDao {
     private final Storage storage;
 
-    private static final String FIELDS = " id, \"time\", servant_id, workflow_id, \"type\","
+    private static final String FIELDS = " id, \"time\", servant_id, workflow_name, \"type\","
         + " description, rc, task_id, servant_url ";
 
     public ServantEventDaoImpl(Storage storage) {
@@ -34,7 +34,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
             ps.setString(++count, event.id());
             ps.setTimestamp(++count, Timestamp.from(event.timestamp()));
             ps.setString(++count, event.servantId());
-            ps.setString(++count, event.workflowId());
+            ps.setString(++count, event.workflowName());
             ps.setString(++count, event.type().name());
 
             ps.setString(++count, event.description());

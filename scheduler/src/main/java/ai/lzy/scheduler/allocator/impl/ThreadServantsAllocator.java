@@ -71,7 +71,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
                         "--port", Integer.toString(port),
                         "--fs-port", Integer.toString(FreePortFinder.find(11000, 12000)),
                         "start",
-                        "--workflowId", workflowId,
+                        "--workflowName", workflowId,
                         "--sid", servantId,
                         "--token", servantToken,
                     });
@@ -92,8 +92,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     public void allocate(String workflowId, String servantId, Provisioning provisioning) {
-        final String token = metaStorage.generateToken(workflowId, servantId);
-        requestAllocation(workflowId, servantId, token);
+        requestAllocation(workflowId, servantId, "");  // TODO(artolord) add token
     }
 
     @Override

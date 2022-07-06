@@ -6,7 +6,6 @@ import ai.lzy.scheduler.db.ServantMetaStorageDao.MetaStorageEntry;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.UUID;
 
 @Singleton
 public class ServantMetaStorageImpl implements ServantMetaStorage {
@@ -15,21 +14,6 @@ public class ServantMetaStorageImpl implements ServantMetaStorage {
     @Inject
     public ServantMetaStorageImpl(ServantMetaStorageDao dao) {
         this.dao = dao;
-    }
-
-    @Override
-    public String generateToken(String workflowId, String servantId) {
-        final MetaStorageEntry entry = dao.get(workflowId, servantId);
-        final String token = UUID.randomUUID().toString();
-        if (entry != null) {
-            if (entry.token() != null) {
-                throw new IllegalStateException("Token already exists");
-            }
-            dao.save(new MetaStorageEntry(workflowId, servantId, entry.meta(), token));
-            return token;
-        }
-        dao.save(new MetaStorageEntry(workflowId, servantId, null, token));
-        return token;
     }
 
     @Override
@@ -54,15 +38,5 @@ public class ServantMetaStorageImpl implements ServantMetaStorage {
             return null;
         }
         return entry.meta();
-    }
-
-    @Override
-    public boolean auth(String workflowId, String servantId, String token) {
-        final MetaStorageEntry entry = dao.get(workflowId, servantId);
-        if (entry == null) {
-            return false;
-        }
-        final var actualToken = entry.token();
-        return actualToken != null && actualToken.equals(token);
     }
 }

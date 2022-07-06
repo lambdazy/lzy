@@ -94,8 +94,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     public void allocate(String workflowId, String servantId, Provisioning provisioning) {
-        final String token = metaStorage.generateToken(workflowId, servantId);
-        final String containerId = requestAllocation(workflowId, servantId, token);
+        final String containerId = requestAllocation(workflowId, servantId, "");  // TODO(artolord) add token generation
         metaStorage.saveMeta(workflowId, servantId, containerId);
     }
 

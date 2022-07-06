@@ -56,7 +56,8 @@ message TaskDesc {
 
 message TaskScheduleRequest {
   string workflowId = 1;
-  TaskDesc task = 2;
+  string workflowName = 2;
+  TaskDesc task = 3;
 }
 message TaskScheduleResponse {
   TaskStatus status = 1;
@@ -97,7 +98,7 @@ message TaskStopResponse {
 // ============ KillAll =============
 
 message KillAllRequest {
-  string workflowId = 1;
+  string workflowName = 1;
   string issue = 2;
 }
 message KillAllResponse {}

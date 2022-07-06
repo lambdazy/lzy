@@ -15,10 +15,10 @@ public class TaskDaoMock implements TaskDao {
     private final Map<TaskKey, TaskState> storage = new ConcurrentHashMap<>();
 
     @Override
-    public Task create(String workflowId, TaskDesc taskDesc) {
+    public Task create(String workflowId, String workflowName, TaskDesc taskDesc) {
         final String taskId = UUID.randomUUID().toString();
         final TaskState state = new TaskState(
-            taskId, workflowId, taskDesc, TaskState.Status.QUEUE,
+            taskId, workflowId, workflowName, taskDesc, TaskState.Status.QUEUE,
             null, null, null
         );
         storage.put(new TaskKey(workflowId, taskId), state);
@@ -55,7 +55,7 @@ public class TaskDaoMock implements TaskDao {
 
     @Override
     public void update(Task state) {
-        final TaskState newState = new TaskState(state.taskId(), state.workflowId(),
+        final TaskState newState = new TaskState(state.taskId(), state.workflowId(), state.workflowName(),
             state.description(), state.status(), state.rc(), state.errorDescription(), state.servantId());
         storage.put(new TaskKey(state.workflowId(), state.taskId()), newState);
     }

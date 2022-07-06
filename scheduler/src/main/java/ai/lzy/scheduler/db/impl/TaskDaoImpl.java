@@ -15,7 +15,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -24,7 +23,7 @@ import java.util.UUID;
 public class TaskDaoImpl implements TaskDao {
 
     private static final String FIELDS = """
-        id, workflow_id, task_description_json, status,
+        id, workflow_id, workflow_name, task_description_json, status,
         rc, error_description, servant_id""";
 
     private final Storage storage;
@@ -34,15 +33,16 @@ public class TaskDaoImpl implements TaskDao {
     }
 
     @Override
-    public Task create(String workflowId, TaskDesc taskDesc) throws DaoException {
+    public Task create(String workflowId, String workflowName, TaskDesc taskDesc) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement("""
-                INSERT INTO task(id, workflow_id, task_description_json, status)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO task(id, workflow_id, workflow_name, task_description_json, status)
+                VALUES (?, ?, ?, ?, ?)
                 """)) {
             int paramCount = 0;
             String id = UUID.randomUUID().toString();
             st.setString(++paramCount, id);
             st.setString(++paramCount, workflowId);
+            st.setString(++paramCount, workflowName);
 
             ObjectMapper objectMapper = new ObjectMapper();
             st.setString(++paramCount, objectMapper.writeValueAsString(taskDesc));
@@ -50,7 +50,7 @@ public class TaskDaoImpl implements TaskDao {
             st.setString(++paramCount, TaskState.Status.QUEUE.toString());
             st.execute();
             return new TaskImpl(
-                new TaskState(id, workflowId, taskDesc, TaskState.Status.QUEUE, null, null, null), this);
+                new TaskState(id, workflowId, workflowName, taskDesc, TaskState.Status.QUEUE, null, null, null), this);
         } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
         }
@@ -140,12 +140,13 @@ public class TaskDaoImpl implements TaskDao {
         int resCount = 0;
         final String id = rs.getString(++resCount);
         final String workflowIdRes = rs.getString(++resCount);
+        final String workflowName = rs.getString(++resCount);
         final TaskDesc taskDesc = objectMapper.readValue(rs.getString(++resCount), TaskDesc.class);
         final TaskState.Status status = TaskState.Status.valueOf(rs.getString(++resCount));
         final Integer rc = rs.getObject(++resCount, Integer.class);
         final String errorDesc = rs.getString(++resCount);
         final String servantId = rs.getString(++resCount);
-        final var state = new TaskState(id, workflowIdRes, taskDesc, status, rc, errorDesc, servantId);
+        final var state = new TaskState(id, workflowIdRes, workflowName, taskDesc, status, rc, errorDesc, servantId);
         return new TaskImpl(state, this);
     }
 }

@@ -22,15 +22,7 @@ public abstract class ServantsAllocatorBase implements ServantsAllocator {
 
     @Override
     public void register(String workflowId, String servantId,
-                         HostAndPort servantUri, String servantToken) throws StatusException {
-
-        var authed = metaStorage.auth(workflowId, servantId, servantToken);
-
-        if (!authed) {
-            LOG.error("Wrong allocation token from servant <{}> in workflow <{}>", servantId, workflowId);
-            throw Status.NOT_FOUND.withDescription("Servant not found in workflow").asException();
-        }
-
+                         HostAndPort servantUri) throws StatusException {
         final Servant servant;
         try {
             servant = dao.get(workflowId, servantId);

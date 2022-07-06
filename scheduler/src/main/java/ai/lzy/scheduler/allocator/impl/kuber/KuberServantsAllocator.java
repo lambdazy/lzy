@@ -114,8 +114,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     public void allocate(String workflowId, String servantId, Provisioning provisioning) {
-        final String token = metaStorage.generateToken(workflowId, servantId);
-        final KuberMeta meta = requestAllocation(workflowId, servantId, token, provisioning);
+        final KuberMeta meta = requestAllocation(workflowId, servantId, "", provisioning);  // TODO(artolord) add token
         metaStorage.saveMeta(workflowId, servantId, meta.toJson());
     }
 

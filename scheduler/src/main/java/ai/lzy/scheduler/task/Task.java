@@ -9,6 +9,7 @@ public interface Task {
     // ========= Fields ==========
     String taskId();
     String workflowId();
+    String workflowName();
     TaskDesc description();
     TaskState.Status status();
 

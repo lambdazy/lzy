@@ -1,15 +1,13 @@
 package ai.lzy.scheduler.models;
 
-import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 
-import java.net.URL;
 import javax.annotation.Nullable;
 
 public record ServantState(
     String id,
-    String workflowId,
+    String workflowName,
     Provisioning provisioning,
     Status status,
 
@@ -30,7 +28,7 @@ public record ServantState(
     }
 
     public ServantStateBuilder copy() {
-        return new ServantStateBuilder(id, workflowId, provisioning, status)
+        return new ServantStateBuilder(id, workflowName, provisioning, status)
             .setTaskId(taskId)
             .setErrorDescription(errorDescription)
             .setServantUrl(servantUrl);
@@ -38,12 +36,12 @@ public record ServantState(
 
     @Override
     public String toString() {
-        return String.format("<workflowId: %s, id: %s, status: %s>", workflowId, id, status);
+        return String.format("<workflowName: %s, id: %s, status: %s>", workflowName, id, status);
     }
 
     public static class ServantStateBuilder {
         private final String id;
-        private final String workflowId;
+        private final String workflowName;
         private final Provisioning provisioning;
         private Status status;
 
@@ -51,9 +49,9 @@ public record ServantState(
         @Nullable private String errorDescription = null;
         @Nullable private HostAndPort servantUrl = null;
 
-        public ServantStateBuilder(String id, String workflowId, Provisioning provisioning, Status status) {
+        public ServantStateBuilder(String id, String workflowName, Provisioning provisioning, Status status) {
             this.id = id;
-            this.workflowId = workflowId;
+            this.workflowName = workflowName;
             this.provisioning = provisioning;
             this.status = status;
         }
@@ -79,7 +77,7 @@ public record ServantState(
         }
 
         public ServantState build() {
-            return new ServantState(id, workflowId, provisioning, status, errorDescription, taskId, servantUrl);
+            return new ServantState(id, workflowName, provisioning, status, errorDescription, taskId, servantUrl);
         }
     }
 }

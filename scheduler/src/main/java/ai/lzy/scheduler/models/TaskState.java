@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 public record TaskState(
     String id,
     String workflowId,
+    String workflowName,
     TaskDesc description,
     Status status,
 

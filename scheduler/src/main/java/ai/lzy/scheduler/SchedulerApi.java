@@ -53,7 +53,8 @@ public class SchedulerApi {
         public void schedule(TaskScheduleRequest request, StreamObserver<TaskScheduleResponse> responseObserver) {
             final Task task;
             try {
-                task = scheduler.execute(request.getWorkflowId(), TaskDesc.fromGrpc(request.getTask()));
+                task = scheduler.execute(request.getWorkflowId(), request.getWorkflowName(),
+                    TaskDesc.fromGrpc(request.getTask()));
             } catch (StatusException e) {
                 responseObserver.onError(e);
                 return;
@@ -111,7 +112,7 @@ public class SchedulerApi {
         @Override
         public void killAll(KillAllRequest request, StreamObserver<KillAllResponse> responseObserver) {
             try {
-                scheduler.killAll(request.getWorkflowId(), request.getIssue());
+                scheduler.killAll(request.getWorkflowName(), request.getIssue());
             } catch (StatusException e) {
                 responseObserver.onError(e);
                 return;
@@ -154,30 +155,20 @@ public class SchedulerApi {
     @Singleton
     private static class PrivateApiImpl extends SchedulerPrivateImplBase {
         private final ServantDao dao;
-        private final ServantMetaStorage meta;
         private final ServantsAllocator allocator;
 
         @Inject
         private PrivateApiImpl(ServantDao dao, ServantMetaStorage meta, ServantsAllocator allocator) {
             this.dao = dao;
-            this.meta = meta;
             this.allocator = allocator;
         }
 
         @Override
         public void servantProgress(ServantProgressRequest request,
                                     StreamObserver<ServantProgressResponse> responseObserver) {
-            var auth = meta.auth(request.getWorkflowId(), request.getServantId(),
-                request.getServantToken());
-            if (!auth) {
-                LOG.error("Unauthorized progress: {}", JsonUtils.printRequest(request));
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Servant not found").asException());
-                return;
-            }
-
             final Servant servant;
             try {
-                servant = dao.get(request.getWorkflowId(), request.getServantId());
+                servant = dao.get(request.getWorkflowName(), request.getServantId());
             } catch (DaoException e) {
                 responseObserver.onError(Status.INTERNAL
                         .withDescription("Database exception").asException());
@@ -217,17 +208,10 @@ public class SchedulerApi {
         @Override
         public void registerServant(RegisterServantRequest request,
                                     StreamObserver<RegisterServantResponse> responseObserver) {
-            var auth = meta.auth(request.getWorkflowId(), request.getServantId(),
-                    request.getServantToken());
-            if (!auth) {
-                LOG.error("Unauthorized register request: {}", JsonUtils.printRequest(request));
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Servant not found").asException());
-                return;
-            }
             RemoteAddressContext context = RemoteAddressContext.KEY.get();
             try {
-                allocator.register(request.getWorkflowId(), request.getServantId(),
-                        context.address(), request.getServantToken());
+                allocator.register(request.getWorkflowName(), request.getServantId(),
+                        context.address());
             } catch (StatusException e) {
                 responseObserver.onError(e);
                 return;

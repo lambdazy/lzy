@@ -2,7 +2,6 @@ package ai.lzy.scheduler.servant.impl;
 
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Slot;
-import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
@@ -20,7 +19,6 @@ import jakarta.inject.Singleton;
 
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -49,13 +47,13 @@ public class SchedulerImpl extends Thread implements Scheduler {
     }
 
     @Override
-    public Task execute(String workflowId, TaskDesc taskDesc) throws StatusException {
+    public Task execute(String workflowId, String workflowName, TaskDesc taskDesc) throws StatusException {
         validateTask(taskDesc);
         if (stopping.get()) {
             throw io.grpc.Status.UNAVAILABLE.withDescription("Service is stopping. Please try again").asException();
         }
         try {
-            final Task task = taskDao.create(workflowId, taskDesc);
+            final Task task = taskDao.create(workflowId, workflowName, taskDesc);
             tasks.add(task);
             return task;
         } catch (DaoException e) {
@@ -101,9 +99,9 @@ public class SchedulerImpl extends Thread implements Scheduler {
     }
 
     @Override
-    public void killAll(String workflowId, String issue) throws StatusException {
+    public void killAll(String workflowName, String issue) throws StatusException {
         try {
-            List<Servant> servants = dao.get(workflowId);
+            List<Servant> servants = dao.get(workflowName);
             servants.forEach(s -> s.stop(issue));
         } catch (DaoException e) {
             LOG.error("Error while getting servant from db", e);
@@ -144,7 +142,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
                 continue;
             }
 
-            var future = pool.waitForFree(task.workflowId(),
+            var future = pool.waitForFree(task.workflowName(),
                 task.description().zygote().provisioning());
             if (future == null) {
                 LOG.info("Pool is stopping.");
