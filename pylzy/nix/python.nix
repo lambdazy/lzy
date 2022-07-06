@@ -42,10 +42,10 @@ let
     
     cloudpickle = super.cloudpickle.overridePythonAttrs(old: rec {
       pname = "cloudpickle";
-      version = "2.0.0";
+      version = "2.1.0";
       src = super.fetchPypi {
         inherit pname version;
-        sha256 = "XNAvO0F6eDuoSk7D4pD/eSkAn+UfZAVCPPzPrdQ7pKQ=";
+        sha256 = "bb233e876a58491d9590a676f93c7a5473a08f747d5ab9df7f9ce564b3e7938e";
       };
       propagatedBuildInputs = [
         super.pytest super.psutil
