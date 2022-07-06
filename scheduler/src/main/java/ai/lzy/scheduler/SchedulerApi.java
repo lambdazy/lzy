@@ -128,7 +128,7 @@ public class SchedulerApi {
 
             Integer rc = task.rc();
             int rcInt = rc == null ? 0 : rc;
-            switch (task.status()) {
+            var b = switch (task.status()) {
                 case QUEUE -> builder.setQueue(TaskStatus.Queue.newBuilder().build());
                 case EXECUTING -> builder.setExecuting(TaskStatus.Executing.newBuilder().build());
                 case ERROR -> builder.setError(TaskStatus.Error.newBuilder()
@@ -138,8 +138,8 @@ public class SchedulerApi {
                 case SUCCESS -> builder.setSuccess(TaskStatus.Success.newBuilder()
                         .setRc(rcInt)
                         .build());
-            }
-            return builder.build();
+            };
+            return b.build();
         }
 
         public void close() {
@@ -201,7 +201,8 @@ public class SchedulerApi {
 
                 case COMMUNICATIONCOMPLETED -> servant.notifyCommunicationCompleted();
                 case FINISHED -> servant.notifyStopped(0, "Ok");
-                case EXECUTIONCOMPLETED -> servant.notifyExecutionCompleted(request.getProgress().getExecutionCompleted().getRc(),
+                case EXECUTIONCOMPLETED -> servant
+                        .notifyExecutionCompleted(request.getProgress().getExecutionCompleted().getRc(),
                         request.getProgress().getExecutionCompleted().getDescription());
                 default -> {
                     LOG.error("Unknown progress from servant: {}", JsonUtils.printRequest(request));
@@ -277,7 +278,7 @@ public class SchedulerApi {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Stopping GraphExecutor service");
             api.close();
-            while(true) {
+            while (true) {
                 try {
                     thread.join();
                     break;
@@ -290,7 +291,9 @@ public class SchedulerApi {
             try {
                 api.awaitTermination();
                 break;
-            } catch (InterruptedException ignored) {}
+            } catch (InterruptedException ignored) {
+                // ignored
+            }
         }
     }
 

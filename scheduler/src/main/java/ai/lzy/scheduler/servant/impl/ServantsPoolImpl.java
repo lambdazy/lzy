@@ -113,7 +113,8 @@ public class ServantsPoolImpl extends Thread implements ServantsPool {
     }
 
     private synchronized void restore() {
-        final List<Servant> acquired, free;
+        final List<Servant> acquired;
+        final List<Servant> free;
         try {
             acquired = dao.getAllAcquired();
             free = dao.getAllFree();

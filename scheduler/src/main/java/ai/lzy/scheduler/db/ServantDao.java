@@ -23,12 +23,12 @@ public interface ServantDao {
 
     @Nullable
     Servant get(String workflowId, String servantId) throws DaoException;
+    List<Servant> get(String workflowId) throws DaoException;
 
     void acquireForTask(String workflowId, String servantId) throws DaoException, AcquireException;
     void freeFromTask(String workflowId, String servantId) throws DaoException;
 
     void invalidate(Servant servant, String description) throws DaoException;
-    List<Servant> get(String workflowId) throws DaoException;
 
     class AcquireException extends Exception {}
 }

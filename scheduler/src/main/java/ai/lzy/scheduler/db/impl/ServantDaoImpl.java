@@ -143,18 +143,30 @@ public class ServantDaoImpl implements ServantDao {
     }
 
     @Override
+    public List<Servant> get(String workflowId) throws DaoException {
+        try (var con = storage.connect(); var ps = con.prepareStatement(
+                " SELECT " + FIELDS + " FROM servant"
+                        + " WHERE workflow_id = ? AND status != 'DESTROYED'")) {
+            ps.setString(1, workflowId);
+            return readServants(ps);
+        } catch (SQLException e) {
+            throw new DaoException(e);
+        }
+    }
+
+    @Override
     public void acquireForTask(String workflowId, String servantId) throws DaoException, AcquireException {
         AtomicBoolean failed = new AtomicBoolean(false);
         Utils.executeInTransaction(storage, con -> {
             final ServantState state;
             try (var ps = con.prepareStatement(
-                "SELECT " + FIELDS + " FROM servant "+ """
+                "SELECT " + FIELDS + " FROM servant " + """
                 WHERE workflow_id = ? AND id = ? AND acquired_for_task = false
                 FOR UPDATE
                 """)) {
                 ps.setString(1, workflowId);
                 ps.setString(2, servantId);
-                try(var rs = ps.executeQuery()) {
+                try (var rs = ps.executeQuery()) {
                     if (!rs.isBeforeFirst()) {
                         failed.set(true);
                         return;
@@ -202,18 +214,6 @@ public class ServantDaoImpl implements ServantDao {
             ps.setString(2, servant.workflowId());
             ps.setString(3, servant.id());
             ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new DaoException(e);
-        }
-    }
-
-    @Override
-    public List<Servant> get(String workflowId) throws DaoException {
-        try (var con = storage.connect(); var ps = con.prepareStatement(
-                " SELECT " + FIELDS + " FROM servant"
-                + " WHERE workflow_id = ? AND status != 'DESTROYED'")) {
-            ps.setString(1, workflowId);
-            return readServants(ps);
         } catch (SQLException e) {
             throw new DaoException(e);
         }

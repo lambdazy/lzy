@@ -111,7 +111,7 @@ public class ServantEventProcessor extends Thread {
 
         final ServantState currentState;
         try {
-             currentState = dao.acquire(workflowId, servantId);
+            currentState = dao.acquire(workflowId, servantId);
         } catch (ServantDao.AcquireException | DaoException e) {
             throw new RuntimeException("Cannot acquire servant for processing");  // must be unreachable
         }
@@ -120,7 +120,7 @@ public class ServantEventProcessor extends Thread {
         }
         ServantState newState;
         try {
-             newState = processEvent(currentState, event);
+            newState = processEvent(currentState, event);
         } catch (Exception e) {
             LOG.error("Error while processing event {}", event, e);
             newState = destroy(currentState, event);
@@ -249,7 +249,8 @@ public class ServantEventProcessor extends Thread {
 
             case EXECUTION_COMPLETED -> {
                 assertStatus(currentState, event, Status.EXECUTING);
-                eventDao.removeAllByTypes(currentState.id(), Type.EXECUTING_HEARTBEAT_TIMEOUT, Type.EXECUTING_HEARTBEAT);
+                eventDao.removeAllByTypes(currentState.id(),
+                        Type.EXECUTING_HEARTBEAT_TIMEOUT, Type.EXECUTING_HEARTBEAT);
                 final Task task = getTask(currentState.workflowId(), currentState.taskId());
                 task.notifyExecutionCompleted(event.rc(), event.description());
                 queue.put(ServantEvent
@@ -311,7 +312,9 @@ public class ServantEventProcessor extends Thread {
             Servant servant = null;
             try {
                 servant = dao.get(workflowId, servantId);
-            } catch (DaoException ignored) {}
+            } catch (DaoException e) {
+                LOG.error("Cannot get servant", e);
+            }
             if (servant == null) {
                 throw new AssertionException();
             }
@@ -398,6 +401,12 @@ public class ServantEventProcessor extends Thread {
             .build();
     }
 
+    private void destroy() {
+        if (this.connection != null) {
+            this.connection.close();
+        }
+    }
+
     private void assertStatus(ServantState currentState, ServantEvent event,
                                       Status... statuses) throws AssertionException {
         if (!List.of(statuses).contains(currentState.status())) {
@@ -456,12 +465,6 @@ public class ServantEventProcessor extends Thread {
             this.interrupt();
         } finally {
             this.processingLock.unlock();
-        }
-    }
-
-    private void destroy() {
-        if (this.connection != null) {
-            this.connection.close();
         }
     }
 }

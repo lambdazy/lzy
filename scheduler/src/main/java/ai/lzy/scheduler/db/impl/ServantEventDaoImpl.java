@@ -42,7 +42,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
             ps.setString(++count, event.taskId());
 
             var url = event.servantUrl();
-            ps.setString(++count, url == null ? null: url.toString());
+            ps.setString(++count, url == null ? null : url.toString());
 
             ps.execute();
         } catch (SQLException e) {
@@ -80,8 +80,8 @@ public class ServantEventDaoImpl implements ServantEventDao {
                         final var rc = rs.getObject(++count, Integer.class);
                         final var taskId = rs.getString(++count);
                         final var servantUrl = rs.getString(++count);
-                        event[0] = new ServantEvent(id, timestamp.toInstant(), servant, workflowId, type, description, rc,
-                                taskId, servantUrl == null ? null : HostAndPort.fromString(servantUrl));
+                        event[0] = new ServantEvent(id, timestamp.toInstant(), servant, workflowId, type, description,
+                                rc, taskId, servantUrl == null ? null : HostAndPort.fromString(servantUrl));
                     }
                 }
                 try (var ps = con.prepareStatement("""
