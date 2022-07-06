@@ -256,7 +256,8 @@ public class ServantsPoolImpl implements ServantsPool {
     private record Waiter(Provisioning provisioning, CompletableFuture<Servant> future) {}
 
     private void initProcessor(Servant servant) {
-        aliveServants.computeIfAbsent(servant.workflowName(), t -> new ConcurrentHashMap<>()).put(servant.id(), servant);
+        aliveServants.computeIfAbsent(servant.workflowName(),
+            t -> new ConcurrentHashMap<>()).put(servant.id(), servant);
         var processor = new ServantEventProcessor(servant.workflowName(), servant.id(),
             servantConfig, allocator, tasks, events, dao, queueManager,
             this::free, this::servantDestroyed);
