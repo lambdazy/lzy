@@ -3,6 +3,7 @@ package ai.lzy.scheduler.allocator.impl.kuber;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
+import ai.lzy.scheduler.allocator.ServantsAllocator;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
@@ -33,16 +34,17 @@ import java.util.stream.Collectors;
 
 @Singleton
 @Requires(property = "scheduler.kuberAllocator.enabled", value = "true")
-public class KuberServantsAllocator extends ServantsAllocatorBase {
+public class KuberServantsAllocator implements ServantsAllocator {
     private static final Logger LOG = LogManager.getLogger(KuberServantsAllocator.class);
     private static final String NAMESPACE = "default";
 
     private final ServantPodProvider provider;
     private final CoreV1Api api;
+    private final ServantMetaStorage metaStorage;
 
     @Inject
-    public KuberServantsAllocator(ServantDao dao, ServantPodProvider provider, ServantMetaStorage metaStorage) {
-        super(dao, metaStorage);
+    public KuberServantsAllocator(ServantPodProvider provider, ServantMetaStorage metaStorage) {
+        this.metaStorage = metaStorage;
         this.provider = provider;
         try {
             Configuration.setDefaultApiClient(Config.defaultClient());

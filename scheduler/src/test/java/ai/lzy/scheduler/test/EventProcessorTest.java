@@ -4,7 +4,6 @@ import ai.lzy.model.Slot;
 import ai.lzy.model.graph.*;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.priv.v2.Operations;
-import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
@@ -57,8 +56,7 @@ public class EventProcessorTest {
         events = context.getBean(ServantEventDao.class);
         manager = context.getBean(EventQueueManager.class);
         servantDao = context.getBean(ServantDao.class);
-        ServantMetaStorage storage = context.getBean(ServantMetaStorage.class);
-        allocator = new AllocatorMock(servantDao, storage);
+        allocator = new AllocatorMock();
         servantReady = new CountDownLatch(1);
         Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
     }
@@ -71,7 +69,7 @@ public class EventProcessorTest {
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             final var alloc = allocationRequested.get();
-            allocator.register(alloc.workflowId, alloc.servantId, processor.generateServant());
+            processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
@@ -114,7 +112,7 @@ public class EventProcessorTest {
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             final var alloc = allocationRequested.get();
-            allocator.register(alloc.workflowId, alloc.servantId, processor.generateServant());
+            processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
@@ -132,7 +130,7 @@ public class EventProcessorTest {
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             final var alloc = allocationRequested.get();
-            allocator.register(alloc.workflowId, alloc.servantId, processor.generateServant());
+            processor.getServant().notifyConnected(processor.generateServant());
             awaitState(processor.servant.workflowName(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
         }
@@ -146,7 +144,7 @@ public class EventProcessorTest {
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             final var alloc = allocationRequested.get();
-            allocator.register(alloc.workflowId, alloc.servantId, processor.generateServant());
+            processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.servant.stop("Test");
@@ -163,7 +161,7 @@ public class EventProcessorTest {
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             final var alloc = allocationRequested.get();
-            allocator.register(alloc.workflowId, alloc.servantId, processor.generateServant());
+            processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.servant.executingHeartbeat();
@@ -189,7 +187,7 @@ public class EventProcessorTest {
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             final var alloc = allocationRequested.get();
-            allocator.register(alloc.workflowId, alloc.servantId, processor.generateServant());
+            processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
@@ -214,9 +212,9 @@ public class EventProcessorTest {
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
-            final var alloc = allocationRequested.get();
+            allocationRequested.get();
             final var servantURI = processor.generateServant(/*failEnv*/ true, false, false);
-            allocator.register(alloc.workflowId, alloc.servantId, servantURI);
+            processor.getServant().notifyConnected(servantURI);
             processor.env.await();
             awaitState(processor.servant.workflowName(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
@@ -230,9 +228,9 @@ public class EventProcessorTest {
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
-            final var alloc = allocationRequested.get();
+            allocationRequested.get();
             final var servantURI = processor.generateServant(false, /*failExec*/ true, false);
-            allocator.register(alloc.workflowId, alloc.servantId, servantURI);
+            processor.getServant().notifyConnected(servantURI);
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
@@ -248,9 +246,9 @@ public class EventProcessorTest {
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
-            final var alloc = allocationRequested.get();
+            allocationRequested.get();
             final var servantURI = processor.generateServant(false, false, /*failStop*/ true);
-            allocator.register(alloc.workflowId, alloc.servantId, servantURI);
+            processor.servant.notifyConnected(servantURI);
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
@@ -292,8 +290,7 @@ public class EventProcessorTest {
             final var alloc = allocationRequested.get();
             awaitState(processor.servant.workflowName(), processor.servant.id(),
                     ServantState.Status.CONNECTING);
-            allocator.register(alloc.workflowId, alloc.servantId,
-                    HostAndPort.fromParts("localhost", port));
+            processor.servant.notifyConnected(HostAndPort.fromParts("localhost", port));
         }
 
         try(var processor = new ProcessorContext(servantId, config)) {

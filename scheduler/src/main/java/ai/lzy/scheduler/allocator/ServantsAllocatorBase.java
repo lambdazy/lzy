@@ -19,20 +19,4 @@ public abstract class ServantsAllocatorBase implements ServantsAllocator {
         this.dao = dao;
         this.metaStorage = metaStorage;
     }
-
-    @Override
-    public void register(String workflowId, String servantId,
-                         HostAndPort servantUri) throws StatusException {
-        final Servant servant;
-        try {
-            servant = dao.get(workflowId, servantId);
-        } catch (DaoException e) {
-            throw Status.INTERNAL.asException();
-        }
-
-        if (servant == null) {
-            throw Status.NOT_FOUND.withDescription("Servant not found in workflow").asException();
-        }
-        servant.notifyConnected(servantUri);
-    }
 }

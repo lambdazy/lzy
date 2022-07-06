@@ -4,6 +4,7 @@ import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
+import ai.lzy.scheduler.allocator.ServantsAllocator;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
@@ -23,14 +24,15 @@ import static ai.lzy.model.Constants.LOGS_DIR;
 
 @Singleton
 @Requires(property = "scheduler.dockerAllocator.enabled", value = "true")
-public class DockerServantsAllocator extends ServantsAllocatorBase {
+public class DockerServantsAllocator implements ServantsAllocator {
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
     private static final Logger LOG = LogManager.getLogger(DockerServantsAllocator.class);
     private final ServiceConfig config;
+    private final ServantMetaStorage metaStorage;
 
     @Inject
-    public DockerServantsAllocator(ServantDao dao, ServiceConfig config, ServantMetaStorage metaStorage) {
-        super(dao, metaStorage);
+    public DockerServantsAllocator(ServiceConfig config, ServantMetaStorage metaStorage) {
+        this.metaStorage = metaStorage;
         this.config = config;
     }
 

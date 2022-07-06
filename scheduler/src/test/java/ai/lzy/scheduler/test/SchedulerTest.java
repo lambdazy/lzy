@@ -1,7 +1,6 @@
 package ai.lzy.scheduler.test;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.DaoException;
@@ -53,8 +52,7 @@ public class SchedulerTest {
         events = context.getBean(ServantEventDao.class);
         manager = context.getBean(EventQueueManager.class);
         servantDao = context.getBean(ServantDao.class);
-        ServantMetaStorage storage = context.getBean(ServantMetaStorage.class);
-        allocator = new AllocatorMock(servantDao, storage);
+        allocator = new AllocatorMock();
         servantReady = new CountDownLatch(1);
         Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
     }
@@ -84,10 +82,10 @@ public class SchedulerTest {
                 .build();
         final HostAndPort servantUri = HostAndPort.fromParts("localhost", port);
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
-        allocator.register(req.workflowId(), req.servantId(), servantUri);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        servant.notifyConnected(servantUri);
 
         env.take();
-        var servant = servantDao.get(req.workflowId(), req.servantId());
         servant.notifyConfigured(0, "Ok");
 
         exec.take();
@@ -157,16 +155,15 @@ public class SchedulerTest {
         final HostAndPort servantUri2 = HostAndPort.fromParts("localhost", port2);
 
         var r1 = requests.take();
-        allocator.register(r1.workflowId(), r1.servantId(), servantUri1);
+        var servant1 = servantDao.get(r1.workflowId(), r1.servantId());
+        servant1.notifyConnected(servantUri1);
 
         var r2 = requests.take();
-        allocator.register(r2.workflowId(), r2.servantId(), servantUri2);
+        var servant2 = servantDao.get(r2.workflowId(), r2.servantId());
+        servant2.notifyConnected(servantUri2);
 
         env1.await();
         env2.await();
-
-        var servant1 = servantDao.get(r1.workflowId(), r1.servantId());
-        var servant2 = servantDao.get(r2.workflowId(), r2.servantId());
 
         servant1.notifyConfigured(0, "Ok");
         servant2.notifyConfigured(0, "Ok");
@@ -226,10 +223,10 @@ public class SchedulerTest {
                 .build();
         final HostAndPort servantUri = HostAndPort.fromParts("localhost", port);
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
-        allocator.register(req.workflowId(), req.servantId(), servantUri);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        servant.notifyConnected(servantUri);
 
         env.take();
-        var servant = servantDao.get(req.workflowId(), req.servantId());
 
         scheduler = restart.apply(scheduler);
 

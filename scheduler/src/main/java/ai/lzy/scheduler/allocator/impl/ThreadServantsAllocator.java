@@ -4,6 +4,7 @@ import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
+import ai.lzy.scheduler.allocator.ServantsAllocator;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
@@ -28,17 +29,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Singleton
 @Requires(property = "scheduler.threadAllocator.enabled", value = "true")
-public class ThreadServantsAllocator extends ServantsAllocatorBase {
+public class ThreadServantsAllocator implements ServantsAllocator {
     private static final Logger LOG = LogManager.getLogger(ThreadServantsAllocator.class);
 
     private final Method servantMain;
     private final AtomicInteger servantCounter = new AtomicInteger(0);
     private final ServiceConfig serverConfig;
     private final ConcurrentHashMap<String, ServantDescription> servantThreads = new ConcurrentHashMap<>();
+    private final ServantMetaStorage metaStorage;
 
     @Singleton
-    public ThreadServantsAllocator(ServantDao dao, ServiceConfig serverConfig, ServantMetaStorage metaStorage) {
-        super(dao, metaStorage);
+    public ThreadServantsAllocator(ServiceConfig serverConfig, ServantMetaStorage metaStorage) {
+        this.metaStorage = metaStorage;
         this.serverConfig = serverConfig;
         try {
             final File servantJar = new File(serverConfig.threadAllocator().filePath());

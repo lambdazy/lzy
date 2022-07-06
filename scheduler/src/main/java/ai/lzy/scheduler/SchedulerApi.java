@@ -209,13 +209,20 @@ public class SchedulerApi {
         public void registerServant(RegisterServantRequest request,
                                     StreamObserver<RegisterServantResponse> responseObserver) {
             RemoteAddressContext context = RemoteAddressContext.KEY.get();
+            final Servant servant;
             try {
-                allocator.register(request.getWorkflowName(), request.getServantId(),
-                        context.address());
-            } catch (StatusException e) {
-                responseObserver.onError(e);
+                servant = dao.get(request.getWorkflowName(), request.getServantId());
+            } catch (DaoException e) {
+                responseObserver.onError(Status.INTERNAL.asException());
                 return;
             }
+
+            if (servant == null) {
+                responseObserver.onError(
+                    Status.NOT_FOUND.withDescription("Servant not found in workflow").asException());
+                return;
+            }
+            servant.notifyConnected(context.address());
             responseObserver.onNext(RegisterServantResponse.newBuilder().build());
             responseObserver.onCompleted();
         }

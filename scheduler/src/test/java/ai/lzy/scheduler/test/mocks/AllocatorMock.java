@@ -3,6 +3,7 @@ package ai.lzy.scheduler.test.mocks;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
+import ai.lzy.scheduler.allocator.ServantsAllocator;
 import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.db.ServantDao;
 
@@ -14,14 +15,9 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 @Singleton
-public class AllocatorMock extends ServantsAllocatorBase {
+public class AllocatorMock implements ServantsAllocator {
     private final List<OnAllocatedRequest> onAllocate = new ArrayList<>();
     private final List<BiConsumer<String, String>> onDestroy = new ArrayList<>();
-
-    @Inject
-    public AllocatorMock(ServantDao dao, ServantMetaStorage metaStorage) {
-        super(dao, metaStorage);
-    }
 
     @Override
     public void allocate(String workflowId, String servantId, Provisioning provisioning) {
@@ -30,7 +26,6 @@ public class AllocatorMock extends ServantsAllocatorBase {
 
     @Override
     public void destroy(String workflowId, String servantId) {
-        metaStorage.clear(workflowId, servantId);
         onDestroy.forEach(t -> t.accept(workflowId, servantId));
     }
 
