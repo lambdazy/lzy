@@ -32,6 +32,7 @@ fi
 BRANCH=$(echo "$1" | awk '{print tolower($0)}')
 CUSTOM_TAG=$2
 
+export DOCKER_BUILDKIT=1
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
     docker build -t lzydock/default-env-base:master -f servant/docker/DefaultEnv.Base.Dockerfile .
