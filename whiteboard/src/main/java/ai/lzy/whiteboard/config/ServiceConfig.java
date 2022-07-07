@@ -3,7 +3,7 @@ package ai.lzy.whiteboard.config;
 import io.micronaut.context.annotation.ConfigurationProperties;
 
 @ConfigurationProperties("server")
-public class ServerConfig {
+public class ServiceConfig {
     private String uri;
     private String iamUri;
     private int port;

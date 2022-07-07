@@ -38,7 +38,7 @@ import ai.lzy.model.snapshot.WhiteboardStatus;
 import ai.lzy.model.snapshot.WhiteboardStatus.State;
 import ai.lzy.model.utils.Permissions;
 import ai.lzy.whiteboard.auth.SimpleAuthenticator;
-import ai.lzy.whiteboard.config.ServerConfig;
+import ai.lzy.whiteboard.config.ServiceConfig;
 import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
 import ai.lzy.priv.v2.LzyServerGrpc;
 import ai.lzy.priv.v2.LzyWhiteboard;
@@ -54,9 +54,9 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     private final Authenticator auth;
 
     @Inject
-    public WhiteboardApi(ServerConfig serverConfig, WhiteboardRepository whiteboardRepository,
-        SnapshotRepository snapshotRepository) {
-        URI uri = URI.create(serverConfig.getUri());
+    public WhiteboardApi(ServiceConfig serviceConfig, WhiteboardRepository whiteboardRepository,
+                         SnapshotRepository snapshotRepository) {
+        URI uri = URI.create(serviceConfig.getUri());
         final ManagedChannel serverChannel = ChannelBuilder
             .forAddress(uri.getHost(), uri.getPort())
             .usePlaintext()

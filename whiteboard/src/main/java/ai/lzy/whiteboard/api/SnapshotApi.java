@@ -29,7 +29,7 @@ import ai.lzy.model.snapshot.SnapshotEntryStatus;
 import ai.lzy.model.snapshot.SnapshotStatus;
 import ai.lzy.model.utils.Permissions;
 import ai.lzy.whiteboard.auth.SimpleAuthenticator;
-import ai.lzy.whiteboard.config.ServerConfig;
+import ai.lzy.whiteboard.config.ServiceConfig;
 import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 import ai.lzy.priv.v2.IAM.Auth;
 
@@ -64,8 +64,8 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
     private final LzyServerGrpc.LzyServerBlockingStub server;
 
     @Inject
-    public SnapshotApi(ServerConfig serverConfig, SnapshotRepository repository) {
-        URI uri = URI.create(serverConfig.getUri());
+    public SnapshotApi(ServiceConfig serviceConfig, SnapshotRepository repository) {
+        URI uri = URI.create(serviceConfig.getUri());
         final ManagedChannel serverChannel = ChannelBuilder
             .forAddress(uri.getHost(), uri.getPort())
             .usePlaintext()
