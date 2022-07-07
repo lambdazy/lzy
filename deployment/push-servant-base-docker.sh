@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+export DOCKER_BUILDKIT=1
 MAJOR=1
 
 if [[ $# -lt 1 ]]; then
