@@ -6,6 +6,7 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 public class ServerConfig {
     private String uri;
     private String iamUri;
+    private int port;
 
     public String getUri() {
         return uri;
@@ -21,5 +22,13 @@ public class ServerConfig {
 
     public void setIamUri(String iamUri) {
         this.iamUri = iamUri;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
     }
 }

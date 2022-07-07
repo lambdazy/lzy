@@ -2,6 +2,7 @@ package ai.lzy.whiteboard;
 
 import ai.lzy.whiteboard.api.SnapshotApi;
 import ai.lzy.whiteboard.api.WhiteboardApi;
+import ai.lzy.whiteboard.config.ServerConfig;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.micronaut.context.ApplicationContext;
@@ -23,45 +24,20 @@ public class LzySnapshot {
 
     private static final Logger LOG = LogManager.getLogger(LzySnapshot.class);
 
-    private static final Options options = new Options();
-    private static final String LZY_SNAPSHOT_HOST_ENV = "LZY_WHITEBOARD_HOST";
-    private static final String DEFAULT_LZY_SNAPSHOT_LOCALHOST = "http://localhost";
-
-    static {
-        options.addOption(new Option("p", "port", true, "gRPC port setting"));
-        options.addOption(
-            new Option("z", "lzy-server-address", true, "Lzy server address [host:port]"));
-    }
+    private static final String LZY_SNAPSHOT_HOST_ENV = "LZY_SNAPSHOT_HOST";
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        final CommandLineParser cliParser = new DefaultParser();
-        final HelpFormatter cliHelp = new HelpFormatter();
-        CommandLine parse = null;
-        try {
-            parse = cliParser.parse(options, args);
-        } catch (ParseException e) {
-            System.out.println(e.getMessage());
-            cliHelp.printHelp("lzy-snapshot", options);
-            System.exit(-1);
-        }
-        URI serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
-        final String lzyWhiteboardHost;
-        if (System.getenv().containsKey(LZY_SNAPSHOT_HOST_ENV)) {
-            lzyWhiteboardHost = "http://" + System.getenv(LZY_SNAPSHOT_HOST_ENV);
-        } else {
-            lzyWhiteboardHost = DEFAULT_LZY_SNAPSHOT_LOCALHOST;
-        }
-        final int port = Integer.parseInt(parse.getOptionValue('p', "8999"));
-        URI snapshotURI = URI.create(lzyWhiteboardHost + ":" + port);
-        LOG.info("Starting at: " + snapshotURI);
-        try (ApplicationContext context = ApplicationContext.run(
-            PropertySource.of(
-                Map.of(
-                    "snapshot.uri", snapshotURI.toString(),
-                    "server.uri", serverAddress.toString()
-                )
-            )
-        )) {
+        try (ApplicationContext context = ApplicationContext.run()) {
+            ServerConfig config = context.getBean(ServerConfig.class);
+            int port = config.getPort();
+            final String lzyWhiteboardHost;
+            if (System.getenv().containsKey(LZY_SNAPSHOT_HOST_ENV)) {
+                lzyWhiteboardHost = System.getenv(LZY_SNAPSHOT_HOST_ENV);
+            } else {
+                lzyWhiteboardHost = "localhost";
+            }
+            LOG.info("Starting at: " + lzyWhiteboardHost + ":" + port);
+
             SnapshotApi spImpl = context.getBean(SnapshotApi.class);
             WhiteboardApi wbImpl = context.getBean(WhiteboardApi.class);
             ServerBuilder<?> builder = ServerBuilder.forPort(port)

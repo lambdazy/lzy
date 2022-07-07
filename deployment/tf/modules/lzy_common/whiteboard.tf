@@ -64,6 +64,14 @@ resource "kubernetes_deployment" "whiteboard" {
             name  = "SERVER_IAM_URI"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
+          env {
+            name = "LZY_SNAPSHOT_HOST"
+            value_from {
+              field_ref {
+                field_path = "status.podIP"
+              }
+            }
+          }
           port {
             container_port = local.whiteboard-port
             host_port      = local.whiteboard-port
