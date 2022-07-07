@@ -35,11 +35,11 @@ public class DaoTest {
             .addEdge("2", "3")
             .addEdge("3", "1")
             .build();
-        GraphExecutionState s = dao.create("1", d);
+        GraphExecutionState s = dao.create("1", "changeMe", d);
         GraphExecutionState s2 = dao.get("1", s.id());
         Assert.assertEquals(s, s2);
 
-        GraphExecutionState s3 = dao.create("1", d);
+        GraphExecutionState s3 = dao.create("1", "changeMe", d);
         List<GraphExecutionState> list = dao.list("1");
         Assert.assertEquals(Set.of(s, s3), Set.copyOf(list));
 

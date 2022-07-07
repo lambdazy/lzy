@@ -5,6 +5,7 @@ import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.graph.api.SchedulerApi;
 import ai.lzy.graph.exec.ChannelChecker;
 import ai.lzy.graph.model.TaskExecution;
+import ai.lzy.priv.v2.SchedulerApi.TaskStatus;
 import ai.lzy.priv.v2.Tasks;
 import ai.lzy.priv.v2.Tasks.TaskProgress.Status;
 
@@ -26,7 +27,7 @@ public class DirectChannelChecker implements ChannelChecker {
         if (exec == null) {
             return false;
         }
-        final Tasks.TaskProgress progress = api.status(workflowId, exec.id());
-        return progress != null && progress.getStatus() == Status.SUCCESS;
+        final TaskStatus status = api.status(workflowId, exec.id());
+        return status != null && status.hasSuccess();
     }
 }
