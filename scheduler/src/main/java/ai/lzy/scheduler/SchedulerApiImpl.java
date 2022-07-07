@@ -1,6 +1,7 @@
 package ai.lzy.scheduler;
 
 import ai.lzy.priv.v2.SchedulerApi;
+import ai.lzy.priv.v2.SchedulerApi.*;
 import ai.lzy.priv.v2.SchedulerGrpc;
 import ai.lzy.scheduler.models.TaskDesc;
 import ai.lzy.scheduler.servant.Scheduler;
@@ -23,7 +24,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
     }
 
     @Override
-    public void schedule(SchedulerApi.TaskScheduleRequest request, StreamObserver<SchedulerApi.TaskScheduleResponse> responseObserver) {
+    public void schedule(TaskScheduleRequest request, StreamObserver<TaskScheduleResponse> responseObserver) {
         final Task task;
         try {
             task = scheduler.execute(request.getWorkflowId(), request.getWorkflowName(),
@@ -32,14 +33,14 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             responseObserver.onError(e);
             return;
         }
-        responseObserver.onNext(SchedulerApi.TaskScheduleResponse.newBuilder()
+        responseObserver.onNext(TaskScheduleResponse.newBuilder()
                 .setStatus(buildTaskStatus(task))
                 .build());
         responseObserver.onCompleted();
     }
 
     @Override
-    public void status(SchedulerApi.TaskStatusRequest request, StreamObserver<SchedulerApi.TaskStatusResponse> responseObserver) {
+    public void status(TaskStatusRequest request, StreamObserver<TaskStatusResponse> responseObserver) {
         final Task task;
         try {
             task = scheduler.status(request.getWorkflowId(), request.getTaskId());
@@ -47,14 +48,14 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             responseObserver.onError(e);
             return;
         }
-        responseObserver.onNext(SchedulerApi.TaskStatusResponse.newBuilder()
+        responseObserver.onNext(TaskStatusResponse.newBuilder()
                 .setStatus(buildTaskStatus(task))
                 .buildPartial());
         responseObserver.onCompleted();
     }
 
     @Override
-    public void list(SchedulerApi.TaskListRequest request, StreamObserver<SchedulerApi.TaskListResponse> responseObserver) {
+    public void list(TaskListRequest request, StreamObserver<TaskListResponse> responseObserver) {
         final List<Task> tasks;
         try {
             tasks = scheduler.list(request.getWorkflowId());
@@ -65,12 +66,12 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         List<SchedulerApi.TaskStatus> statuses = tasks.stream()
                 .map(SchedulerApiImpl::buildTaskStatus)
                 .toList();
-        responseObserver.onNext(SchedulerApi.TaskListResponse.newBuilder().addAllStatus(statuses).build());
+        responseObserver.onNext(TaskListResponse.newBuilder().addAllStatus(statuses).build());
         responseObserver.onCompleted();
     }
 
     @Override
-    public void stop(SchedulerApi.TaskStopRequest request, StreamObserver<SchedulerApi.TaskStopResponse> responseObserver) {
+    public void stop(TaskStopRequest request, StreamObserver<TaskStopResponse> responseObserver) {
         final Task task;
         try {
             task = scheduler.stopTask(request.getWorkflowId(), request.getTaskId(), request.getIssue());
@@ -78,19 +79,19 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             responseObserver.onError(e);
             return;
         }
-        responseObserver.onNext(SchedulerApi.TaskStopResponse.newBuilder().setStatus(buildTaskStatus(task)).build());
+        responseObserver.onNext(TaskStopResponse.newBuilder().setStatus(buildTaskStatus(task)).build());
         responseObserver.onCompleted();
     }
 
     @Override
-    public void killAll(SchedulerApi.KillAllRequest request, StreamObserver<SchedulerApi.KillAllResponse> responseObserver) {
+    public void killAll(KillAllRequest request, StreamObserver<KillAllResponse> responseObserver) {
         try {
             scheduler.killAll(request.getWorkflowName(), request.getIssue());
         } catch (StatusException e) {
             responseObserver.onError(e);
             return;
         }
-        responseObserver.onNext(SchedulerApi.KillAllResponse.newBuilder().build());
+        responseObserver.onNext(KillAllResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
 
