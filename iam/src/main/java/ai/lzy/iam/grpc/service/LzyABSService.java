@@ -5,6 +5,7 @@ import ai.lzy.iam.storage.impl.DbAccessBindingClient;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.resources.AuthPermission;
@@ -25,6 +26,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Singleton
 public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingServiceImplBase {
     public static final Logger LOG = LogManager.getLogger(LzyABSService.class);
 
