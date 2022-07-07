@@ -60,6 +60,10 @@ resource "kubernetes_deployment" "whiteboard" {
             name  = "SERVER_URI"
             value = kubernetes_service.lzy_server.spec[0].cluster_ip
           }
+          env {
+            name  = "SERVER_IAM_URI"
+            value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+          }
           port {
             container_port = local.whiteboard-port
             host_port      = local.whiteboard-port
