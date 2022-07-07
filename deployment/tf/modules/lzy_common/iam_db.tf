@@ -6,10 +6,13 @@ resource "random_password" "iam_db_password" {
 
 resource "kubernetes_secret" "iam_db" {
   metadata {
-    name      = "iam-db"
+    name = "iam-db"
   }
 
   data = {
+    postgresql-postgres-password = random_password.iam_db_password[0].result
+    postgresql-password          = random_password.iam_db_password[0].result
+    postgres-password            = random_password.iam_db_password[0].result
     password                     = random_password.iam_db_password[0].result
   }
 

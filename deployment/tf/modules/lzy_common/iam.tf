@@ -105,10 +105,8 @@ resource "kubernetes_deployment" "iam" {
 
 resource "kubernetes_service" "iam" {
   metadata {
-    name = "${local.iam-k8s-name}-service"
-    labels = {
-      labels = local.iam-labels
-    }
+    name   = "${local.iam-k8s-name}-service"
+    labels = local.iam-labels
   }
   spec {
     selector = local.iam-labels
