@@ -41,7 +41,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     }
 
     @Override
-    public GraphExecutionState create(String workflowId, String workflowName, GraphDescription description) throws DaoException {
+    public GraphExecutionState create(String workflowId, String workflowName,
+                                      GraphDescription description) throws DaoException {
         try (final Connection con = storage.connect();
              final PreparedStatement st = con.prepareStatement(
                  "INSERT INTO graph_execution_state ( "
