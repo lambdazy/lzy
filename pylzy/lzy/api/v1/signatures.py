@@ -1,13 +1,15 @@
-from itertools import chain
-
 from dataclasses import dataclass
+from itertools import chain
 from typing import (
     Any,
+    Callable,
+    Dict,
     Generic,
     Iterable,
+    Iterator,
+    Tuple,
     Type,
-    Callable,
-    TypeVar, Dict, Tuple, Iterator,
+    TypeVar,
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -53,7 +55,9 @@ class CallSignature(Generic[T]):
         return self.func.callable(*self.args, **self.kwargs)
 
     def named_arguments(self) -> Iterator[Tuple[str, Any]]:
-        for name, arg in chain(zip(self.func.arg_names, self.args), self.kwargs.items()):
+        for name, arg in chain(
+            zip(self.func.arg_names, self.args), self.kwargs.items()
+        ):
             yield name, arg
 
     @property

@@ -2,11 +2,11 @@ import abc
 import os
 import tempfile
 from pathlib import Path
-from typing import TypeVar, Dict, List
+from typing import Dict, List, TypeVar
 
 from lzy.api.v1.servant.model.channel import Channel, SnapshotChannelSpec
 from lzy.api.v1.servant.model.file_slots import create_slot
-from lzy.api.v1.servant.model.slot import Slot, Direction, DataSchema
+from lzy.api.v1.servant.model.slot import DataSchema, Direction, Slot
 from lzy.api.v1.servant.servant_client import ServantClient
 
 
@@ -118,7 +118,9 @@ class LocalChannelManager(ChannelManager):
         for path in self._tmp_files:
             os.remove(path)
 
-    def _resolve(self, entry_id: str, direction: Direction, data_schema: DataSchema) -> Path:
+    def _resolve(
+        self, entry_id: str, direction: Direction, data_schema: DataSchema
+    ) -> Path:
         file = tempfile.NamedTemporaryFile()
         self._tmp_files.append(file.name)
         return Path(file.name)

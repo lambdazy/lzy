@@ -1,6 +1,6 @@
+import uuid
 from typing import List, Optional
 from unittest import TestCase
-import uuid
 
 from lzy.api.v1 import op
 from lzy.api.v1.env import LzyLocalEnv
@@ -22,7 +22,7 @@ class BaseApiTests(TestCase):
         @op
         def process(p: str) -> List[str]:
             res = []
-            for sp in p.split(' '):
+            for sp in p.split(" "):
                 res.append(sp)
             return res
 
@@ -126,12 +126,12 @@ class BaseApiTests(TestCase):
         # @op(input_types=(), output_type=A)
         @op
         def a() -> A:
-            return A('a')
+            return A("a")
 
         # @op(input_types=(), output_type=A)
         @op
         def b(val_a: A) -> B:
-            return B(val_a.a(), 'b')
+            return B(val_a.a(), "b")
 
         # Act
         # noinspection PyUnusedLocal
@@ -140,8 +140,8 @@ class BaseApiTests(TestCase):
             b_res = b(a_res)
 
         # Assert
-        self.assertEqual('a', a_res.a())
-        self.assertEqual('b', b_res.b())
+        self.assertEqual("a", a_res.a())
+        self.assertEqual("b", b_res.b())
 
     def test_function_with_none(self):
         variable: int = 0
@@ -171,6 +171,7 @@ class BaseApiTests(TestCase):
 
     def test_not_annotated_type_error(self):
         with self.assertRaises(TypeError) as _:
+
             @op
             def not_annotated():
                 pass
@@ -204,12 +205,12 @@ class BaseApiTests(TestCase):
     def test_args_kwargs(self):
         @op
         def opt(a, b, *args, **kwargs) -> List[str]:
-            return [a, b, args[0], kwargs['s']]
+            return [a, b, args[0], kwargs["s"]]
 
         # Act
         # noinspection PyUnusedLocal
         with LzyLocalEnv().workflow(name=WORKFLOW_NAME) as env:
-            s = opt('str', 'str', *('str',), **{'s': 'str'})
+            s = opt("str", "str", *("str",), **{"s": "str"})
 
         # the result depends on the order of execution here
         self.assertEqual(s, ["str", "str", "str", "str"])

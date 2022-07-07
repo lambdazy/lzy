@@ -2,15 +2,25 @@ import logging
 import os.path
 import pathlib
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Tuple, IO
+from typing import IO, Any, Tuple, TypeVar
 from urllib import parse
 
 import boto3
-from azure.storage.blob import BlobServiceClient, StorageStreamDownloader, ContainerClient
+from azure.storage.blob import (  # type: ignore
+    BlobServiceClient,
+    ContainerClient,
+    StorageStreamDownloader,
+)
 from botocore.exceptions import ClientError
-from pure_protobuf.dataclasses_ import loads, load  # type: ignore
+from pure_protobuf.dataclasses_ import load, loads  # type: ignore
 
-from lzy.storage.credentials import AzureCredentials, AmazonCredentials, AzureSasCredentials, StorageCredentials
+from lzy.api.v2.utils import unwrap
+from lzy.storage.credentials import (
+    AmazonCredentials,
+    AzureCredentials,
+    AzureSasCredentials,
+    StorageCredentials,
+)
 
 logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
     logging.WARNING
@@ -49,8 +59,8 @@ class AzureClient(StorageClient):
 
         downloader: StorageStreamDownloader = (
             self.client.get_container_client(bucket)
-                .get_blob_client(str(other))
-                .download_blob()
+            .get_blob_client(str(other))
+            .download_blob()
         )
         with open(path, "wb") as f:
             downloader.readinto(f)
@@ -66,8 +76,8 @@ class AzureClient(StorageClient):
 
         downloader: StorageStreamDownloader = (
             self.client.get_container_client(bucket)
-                .get_blob_client(str(other))
-                .download_blob()
+            .get_blob_client(str(other))
+            .download_blob()
         )
         data = downloader.readinto(dest)
         return data
@@ -81,17 +91,19 @@ class AzureClient(StorageClient):
     def blob_exists(self, container: str, blob: str) -> bool:
         container_client: ContainerClient = self.client.get_container_client(container)
         blob_client = container_client.get_blob_client(blob)
-        return blob_client.exists()
+        return unwrap(blob_client.exists())
 
     def generate_uri(self, container: str, blob: str) -> str:
         return f"azure:/{container}/{blob}"
 
     @staticmethod
-    def from_connection_string(credentials: AzureCredentials) -> 'AzureClient':
-        return AzureClient(BlobServiceClient.from_connection_string(credentials.connection_string))
+    def from_connection_string(credentials: AzureCredentials) -> "AzureClient":
+        return AzureClient(
+            BlobServiceClient.from_connection_string(credentials.connection_string)
+        )
 
     @staticmethod
-    def from_sas(credentials: AzureSasCredentials) -> 'AzureClient':
+    def from_sas(credentials: AzureSasCredentials) -> "AzureClient":
         return AzureClient(BlobServiceClient(credentials.endpoint))
 
 
@@ -99,10 +111,10 @@ class AmazonClient(StorageClient):
     def __init__(self, credentials: AmazonCredentials):
         super().__init__()
         self._client = boto3.client(
-            's3',
+            "s3",
             aws_access_key_id=credentials.access_token,
             aws_secret_access_key=credentials.secret_token,
-            endpoint_url=credentials.endpoint
+            endpoint_url=credentials.endpoint,
         )
         self.__logger = logging.getLogger(self.__class__.__name__)
 

@@ -1,7 +1,7 @@
-from typing import Callable
 import uuid
+from typing import Callable
 
-from lzy.api.v1 import op, LzyLocalEnv
+from lzy.api.v1 import LzyLocalEnv, op
 
 SOME_GLOBAL: int = 0
 

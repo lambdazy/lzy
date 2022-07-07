@@ -1,4 +1,4 @@
-from typing import Iterator, List, Dict, Any, Set
+from typing import Any, Dict, Iterator, List, Set
 
 from lzy.api.v2.api import LzyCall
 from lzy.api.v2.utils import is_lazy_proxy, materialized
@@ -15,8 +15,13 @@ def unique_values(values: List[Any]):
 
 
 class Graph:
-    def __init__(self, snapshot_id: str, calls: List[LzyCall], id_to_call: Dict[str, LzyCall],
-                 adjacency_graph: Dict[str, List[str]]):
+    def __init__(
+        self,
+        snapshot_id: str,
+        calls: List[LzyCall],
+        id_to_call: Dict[str, LzyCall],
+        adjacency_graph: Dict[str, List[str]],
+    ):
         self._snapshot_id = snapshot_id
         self._calls = unique_values(calls)
         self._id_to_call = id_to_call
@@ -41,9 +46,11 @@ class GraphBuilder:
         self._adjacency_graph = {}
         self._already_built = False
 
-    def snapshot_id(self, snapshot_id: str) -> 'GraphBuilder':
+    def snapshot_id(self, snapshot_id: str) -> "GraphBuilder":
         if self._already_built:
-            raise BuildError("Setting snapshot_id in an already built graph is not allowed")
+            raise BuildError(
+                "Setting snapshot_id in an already built graph is not allowed"
+            )
         self._snapshot_id = snapshot_id
         return self
 
@@ -61,7 +68,7 @@ class GraphBuilder:
                 dependent_calls.append(arg.lzy_call)
         return unique_values(dependent_calls)
 
-    def add_call(self, call: LzyCall) -> 'GraphBuilder':
+    def add_call(self, call: LzyCall) -> "GraphBuilder":
         if self._already_built:
             raise BuildError("Adding call to an already built graph is not allowed")
         dependent_calls: List[LzyCall] = self._dependent_calls(call)
@@ -78,5 +85,9 @@ class GraphBuilder:
 
     def build(self) -> Graph:
         self._already_built = True
-        return Graph(snapshot_id=self._snapshot_id, calls=self._calls, id_to_call=self._id_to_call,
-                     adjacency_graph=self._adjacency_graph)
+        return Graph(
+            snapshot_id=self._snapshot_id,
+            calls=self._calls,
+            id_to_call=self._id_to_call,
+            adjacency_graph=self._adjacency_graph,
+        )

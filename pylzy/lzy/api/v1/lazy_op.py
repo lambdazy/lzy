@@ -4,26 +4,31 @@ import logging
 import os
 import time
 import uuid
-from abc import abstractmethod, ABC
-from typing import Optional, Any, TypeVar, Generic, Tuple, Iterable, Union, List
+from abc import ABC, abstractmethod
+from typing import Any, Generic, Iterable, List, Optional, Tuple, TypeVar, Union
 
-from pure_protobuf.dataclasses_ import load, Message  # type: ignore
+from pure_protobuf.dataclasses_ import Message, load  # type: ignore
 
-from lzy.api.v1.servant.model.slot import DataSchema, pickle_type
+from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.servant.channel_manager import ChannelManager
-from lzy.api.v1.servant.model.channel import Bindings, Binding
-from lzy.api.v1.servant.model.env import PyEnv, Env
-from lzy.api.v1.servant.model.execution import Execution, InputExecutionValue, ExecutionDescription, ExecutionValue
+from lzy.api.v1.servant.model.channel import Binding, Bindings
+from lzy.api.v1.servant.model.env import Env, PyEnv
+from lzy.api.v1.servant.model.execution import (
+    Execution,
+    ExecutionDescription,
+    ExecutionValue,
+    InputExecutionValue,
+)
 from lzy.api.v1.servant.model.return_codes import ReturnCode
+from lzy.api.v1.servant.model.slot import DataSchema, pickle_type
 from lzy.api.v1.servant.model.zygote import Provisioning, Zygote
 from lzy.api.v1.servant.model.zygote_python_func import ZygotePythonFunc
 from lzy.api.v1.servant.servant_client import ServantClient
-from lzy.api.v1.utils import is_lazy_proxy, LzyExecutionException
-from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.signatures import CallSignature, FuncSignature
+from lzy.api.v1.utils import LzyExecutionException, is_lazy_proxy
 from lzy.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
 from lzy.serialization.hasher import Hasher
-from lzy.serialization.serializer import MemBytesSerializer, FileSerializer
+from lzy.serialization.serializer import FileSerializer, MemBytesSerializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -57,9 +62,11 @@ class LzyOp(Generic[T], ABC):
         return self._return_entry_id
 
     def __repr__(self):
-        return f"{self.__class__.__name__}: signature={self._sign}, " \
-               f"materialized={self._materialized}, " \
-               f"materialization={self._materialization}"
+        return (
+            f"{self.__class__.__name__}: signature={self._sign}, "
+            f"materialized={self._materialized}, "
+            f"materialization={self._materialization}"
+        )
 
 
 class LzyLocalOp(LzyOp, Generic[T]):
@@ -85,19 +92,19 @@ class LzyLocalOp(LzyOp, Generic[T]):
 
 class LzyRemoteOp(LzyOp, Generic[T]):
     def __init__(
-            self,
-            servant: ServantClient,
-            signature: CallSignature[T],
-            snapshot_id: str,
-            entry_id_generator: EntryIdGenerator,
-            mem_serializer: MemBytesSerializer,
-            file_serializer: FileSerializer,
-            hasher: Hasher,
-            provisioning: Optional[Provisioning] = None,
-            env: Optional[PyEnv] = None,
-            deployed: bool = False,
-            channel_manager: Optional[ChannelManager] = None,
-            cache_policy: CachePolicy = CachePolicy.IGNORE
+        self,
+        servant: ServantClient,
+        signature: CallSignature[T],
+        snapshot_id: str,
+        entry_id_generator: EntryIdGenerator,
+        mem_serializer: MemBytesSerializer,
+        file_serializer: FileSerializer,
+        hasher: Hasher,
+        provisioning: Optional[Provisioning] = None,
+        env: Optional[PyEnv] = None,
+        deployed: bool = False,
+        channel_manager: Optional[ChannelManager] = None,
+        cache_policy: CachePolicy = CachePolicy.IGNORE,
     ):
         if (not provisioning or not env) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
@@ -118,22 +125,21 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
         for input_type in signature.func.input_types.values():
             if issubclass(input_type, Message):
-                setattr(input_type, 'LZY_MESSAGE', 'LZY_WB_MESSAGE')
+                setattr(input_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
 
         output_type = signature.func.output_type
         if issubclass(output_type, Message):
-            setattr(output_type, 'LZY_MESSAGE', 'LZY_WB_MESSAGE')
+            setattr(output_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
 
         self._zygote = ZygotePythonFunc(
-            mem_serializer,
-            signature.func,
-            Env(aux_env=env),
-            provisioning
+            mem_serializer, signature.func, Env(aux_env=env), provisioning
         )
 
         self._entry_id_generator = entry_id_generator
 
-        super().__init__(signature, entry_id_generator.generate(self._zygote.return_slot.name))
+        super().__init__(
+            signature, entry_id_generator.generate(self._zygote.return_slot.name)
+        )
 
     @property
     def zygote(self) -> Zygote:
@@ -143,16 +149,15 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         for entry_id, obj in args:
             data_schema = DataSchema(pickle_type(type(obj)))
             path = self._channel_manager.out_slot(entry_id, data_schema)
-            with path.open('wb') as file:
+            with path.open("wb") as file:
                 self._file_serializer.serialize_to_file(obj, file)
                 file.flush()
                 os.fsync(file.fileno())
 
     @classmethod
     def _execution_exception_message(
-            cls,
-            execution: Execution,
-            func: FuncSignature[Any], return_code: int) -> str:
+        cls, execution: Execution, func: FuncSignature[Any], return_code: int
+    ) -> str:
 
         if return_code == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR.value:
             message = "Failed to install environment on remote machine"
@@ -163,8 +168,13 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         return LzyRemoteOp._exception(execution, func, return_code, message)
 
     @classmethod
-    def _exception(cls, execution: Execution, func: FuncSignature[Any],
-                   returncode: int, message: str) -> str:
+    def _exception(
+        cls,
+        execution: Execution,
+        func: FuncSignature[Any],
+        returncode: int,
+        message: str,
+    ) -> str:
         return (
             f"Task {execution.id()[:4]} failed in func {func.name}"
             f"with rc {returncode} and message: {message}"
@@ -174,19 +184,23 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     class __EntryId:
         entry_id: str
 
-    def resolve_args(self) -> Iterable[Tuple[str, Union[Any, __EntryId]]]:
+    def resolve_args(self) -> Iterable[Tuple[str, type, Union[Any, __EntryId]]]:
         for name, arg in self.signature.named_arguments():
-            if is_lazy_proxy(arg):
-                # noinspection PyProtectedMember
-                op: LzyOp = arg._op
-                op.execute()
-                yield name, op.signature.func.output_type, self.__EntryId(op.return_entry_id())
+            if not is_lazy_proxy(arg):
+                yield name, type(arg), arg
                 continue
-            yield name, type(arg), arg
+
+            # noinspection PyProtectedMember
+            op: LzyOp = arg._op
+            op.execute()
+            entry_id = self.__EntryId(op.return_entry_id())
+            yield name, op.signature.func.output_type, entry_id
 
     def execution_logic(self):
         execution_id = str(uuid.uuid4())
-        self._log.info(f"Running zygote {self._zygote.name}, execution id {execution_id}")
+        self._log.info(
+            f"Running zygote {self._zygote.name}, execution id {execution_id}"
+        )
 
         bindings: Bindings = []
         write_later: List[Tuple[str, Any]] = []
@@ -207,25 +221,32 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             inputs.append(InputExecutionValue(name, entry_id, hash_))
 
         bindings.append(
-            Binding(self.zygote.return_slot,
-                    self._channel_manager.channel(self.return_entry_id(), self.signature.func.output_type))
+            Binding(
+                self.zygote.return_slot,
+                self._channel_manager.channel(
+                    self.return_entry_id(), self.signature.func.output_type
+                ),
+            )
         )
 
         if self._cache_policy.restore():
-            executions = self._servant.resolve_executions(self.signature.func.name, self._snapshot_id, inputs)
+            executions = self._servant.resolve_executions(
+                self.signature.func.name, self._snapshot_id, inputs
+            )
             if len(executions) >= 1:
-                return_value = next(filter(lambda x: x.name == "return", executions[0].outputs))
+                return_value = next(
+                    filter(lambda x: x.name == "return", executions[0].outputs)
+                )
                 self._return_entry_id = return_value.entry_id
                 return
 
-        description = self._build_description(inputs) if self._cache_policy.save() else None
+        description = (
+            self._build_description(inputs) if self._cache_policy.save() else None
+        )
 
         self._zygote.execution_description = description
 
-        execution = self._servant.run(
-            execution_id, self._zygote,
-            bindings
-        )
+        execution = self._servant.run(execution_id, self._zygote, bindings)
 
         self.dump_arguments(write_later)
 
@@ -234,20 +255,23 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         result = execution.wait_for()
         rc_ = result.returncode
         if rc_ == 0:
-            self._log.info("Executed task %s for func %s with rc %s",
-                           execution.id()[:4], self.signature.func.name, rc_, )
+            self._log.info(
+                f"Executed task {execution.id()[:4]} for func {self.signature.func.name} with rc {rc_}",
+            )
             return
 
         message = self._execution_exception_message(execution, func, rc_)
         self._log.error(f"Execution exception with message: {message}")
         raise LzyExecutionException(message)
 
-    def _build_description(self, inputs: Iterable[InputExecutionValue]) -> ExecutionDescription:
+    def _build_description(
+        self, inputs: Iterable[InputExecutionValue]
+    ) -> ExecutionDescription:
         return ExecutionDescription(
             self.signature.func.name,
             self._snapshot_id,
             inputs,
-            (ExecutionValue("return", self.return_entry_id()),)
+            (ExecutionValue("return", self.return_entry_id()),),
         )
 
     def materialize(self) -> Any:
@@ -258,8 +282,12 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 self._materialization = self.signature.exec()
             else:
                 self.execute()
-                output_data_scheme = DataSchema(pickle_type(self.signature.func.output_type))
-                path = self._channel_manager.in_slot(self.return_entry_id(), output_data_scheme)
+                output_data_scheme = DataSchema(
+                    pickle_type(self.signature.func.output_type)
+                )
+                path = self._channel_manager.in_slot(
+                    self.return_entry_id(), output_data_scheme
+                )
                 try:
                     with path.open("rb") as handle:
                         # Wait for slot to become open
@@ -268,13 +296,18 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                             if not path.exists():
                                 raise LzyExecutionException("Cannot read from slot")
                         handle.seek(0)
-                        self._materialization = self._file_serializer.deserialize_from_file(handle,
-                                                                                            self.signature.func.output_type)
+                        self._materialization = (
+                            self._file_serializer.deserialize_from_file(
+                                handle, self.signature.func.output_type
+                            )
+                        )
                         self._materialized = True
                         self._log.info("Materializing function %s done", name)
                 except Exception as e:
                     self._log.error(e)
-                    raise LzyExecutionException("Materialization failed: cannot read data from return slot")
+                    raise LzyExecutionException(
+                        "Materialization failed: cannot read data from return slot"
+                    )
                 finally:
                     self._channel_manager.destroy(self.return_entry_id())
         else:
@@ -291,16 +324,16 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     # pylint: disable=too-many-arguments
     @staticmethod
     def restore(
-            servant: ServantClient,
-            materialized: bool,
-            materialization: Any,
-            call_s: CallSignature[T],
-            provisioning: Provisioning,
-            env: PyEnv,
-            snapshot_id: str,
-            mem_serializer: MemBytesSerializer,
-            file_serializer: FileSerializer,
-            hasher: Hasher
+        servant: ServantClient,
+        materialized: bool,
+        materialization: Any,
+        call_s: CallSignature[T],
+        provisioning: Provisioning,
+        env: PyEnv,
+        snapshot_id: str,
+        mem_serializer: MemBytesSerializer,
+        file_serializer: FileSerializer,
+        hasher: Hasher,
     ):
         op_ = LzyRemoteOp(
             servant,
@@ -312,7 +345,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             hasher,
             provisioning,
             env,
-            deployed=False
+            deployed=False,
         )
         op_._materialized = materialized  # pylint: disable=protected-access
         op_._materialization = materialization  # pylint: disable=protected-access
@@ -322,14 +355,16 @@ class LzyRemoteOp(LzyOp, Generic[T]):
     def reducer(op_: "LzyRemoteOp") -> Any:
         return LzyRemoteOp.restore, (
             # pylint: disable=protected-access
-            op_._servant, op_.is_materialized(), op_._materialization,
+            op_._servant,
+            op_.is_materialized(),
+            op_._materialization,
             op_.signature,
             op_.zygote.provisioning,
             op_.zygote.env,
             op_._snapshot_id,
             op_._mem_serializer,
             op_._file_serializer,
-            op_._hasher
+            op_._hasher,
         )
 
     def _destroy_binding(self, binding: Binding) -> None:

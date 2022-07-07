@@ -17,6 +17,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: 'python-test'
+        timeout-minutes: 5
+        run: |
+          cd pylzy/ && ./run_tests.sh && ./clean.sh && cd ..
+
       - name: 'install python requirements'
         run: |
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r servant/docker/requirements.txt
@@ -24,11 +29,6 @@ jobs:
       - name: 'install pylzy'
         run: |
           eval "$(conda shell.bash hook)" && conda activate py39 && cd pylzy/ && pip install . && cd ..
-
-      - name: 'python-test'
-        timeout-minutes: 5
-        run: |
-          eval "$(conda shell.bash hook)" && conda activate py39 && cd pylzy/ && python -m unittest discover tests/ && cd ..
 
       - name: 'java unit tests and install'
         timeout-minutes: 5

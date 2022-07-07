@@ -6,16 +6,18 @@ from typing import Any, Dict, Iterable, List, Tuple, Union
 import pkg_resources
 import requests
 import yaml
-from importlib_metadata import packages_distributions
+from importlib_metadata import packages_distributions  # type: ignore
 from stdlib_list import stdlib_list
 
 
 # https://stackoverflow.com/a/1883251
 def get_base_prefix_compat():
     # Get base/real prefix, or sys.prefix if there is none.
-    return getattr(sys, "base_prefix", None) or \
-           getattr(sys, "real_prefix", None) or \
-           sys.prefix
+    return (
+        getattr(sys, "base_prefix", None)
+        or getattr(sys, "real_prefix", None)
+        or sys.prefix
+    )
 
 
 def in_virtualenv():
@@ -44,7 +46,9 @@ _installed_versions = {
 pypi_existence_cache: Dict[str, bool] = dict()
 
 
-def create_yaml(installed_packages: Dict[str, Tuple[str, ...]], name: str = "default") -> Tuple[str, str]:
+def create_yaml(
+    installed_packages: Dict[str, Tuple[str, ...]], name: str = "default"
+) -> Tuple[str, str]:
     # always use only first three numbers, otherwise conda won't find
     python_version = to_str(sys.version_info[:3])
     if python_version in _installed_versions:
@@ -71,8 +75,10 @@ def exists_in_pypi(package_name: str) -> bool:
     if package_name in pypi_existence_cache:
         return pypi_existence_cache[package_name]
 
-    response = requests.get("https://pypi.python.org/pypi/{}/json"
-                            .format(package_name), allow_redirects=False)
+    response = requests.get(
+        f"https://pypi.python.org/pypi/{package_name}/json",
+        allow_redirects=False,
+    )
     result: bool = 200 <= response.status_code < 300 or response.status_code == 301
     pypi_existence_cache[package_name] = result
     return result
@@ -82,7 +88,9 @@ version = "3.9" if sys.version_info > (3, 9) else None
 STDLIB_LIST = stdlib_list(version)
 
 
-def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]], List[str]]:
+def select_modules(
+    namespace: Dict[str, Any]
+) -> Tuple[Dict[str, Tuple[str, ...]], List[str]]:
     dist_versions: Dict[str, Tuple[str, ...]] = all_installed_packages()
 
     distributions = packages_distributions()
@@ -119,7 +127,7 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
         full_module_name = module.__name__
         current_parents: List[ModuleType] = []
         while True:
-            last_dot_idx = full_module_name.rfind('.')
+            last_dot_idx = full_module_name.rfind(".")
             if last_dot_idx == -1:
                 break
 
@@ -139,7 +147,7 @@ def select_modules(namespace: Dict[str, Any]) -> Tuple[Dict[str, Tuple[str, ...]
     all_local_modules.update(dict.fromkeys(reversed(local_modules)))
 
     def get_path(module: ModuleType) -> Union[List[str], str]:
-        if not hasattr(module, '__path__'):
+        if not hasattr(module, "__path__"):
             return str(module.__file__)
         else:
             # case for namespace package

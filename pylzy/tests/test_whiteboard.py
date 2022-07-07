@@ -1,6 +1,6 @@
 import dataclasses
 import uuid
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 from unittest import TestCase
 
 from lzy.api.v1 import op
@@ -9,7 +9,7 @@ from lzy.api.v1.whiteboard import whiteboard
 
 
 @dataclasses.dataclass
-@whiteboard(namespace='wb', tags=["simple_whiteboard"])
+@whiteboard(namespace="wb", tags=["simple_whiteboard"])
 class WB:
     a: int
     b: int
@@ -17,7 +17,7 @@ class WB:
 
 
 @dataclasses.dataclass
-@whiteboard(namespace='wb', tags=["optional_whiteboard"])
+@whiteboard(namespace="wb", tags=["optional_whiteboard"])
 class WBOptional:
     a: Optional[str] = None
 
@@ -76,7 +76,9 @@ class WhiteboardTests(TestCase):
             with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
                 wb.a = 3
                 wb.a = self.num()
-            self.assertTrue('Whiteboard field can be assigned only once' in str(context.exception))
+            self.assertTrue(
+                "Whiteboard field can be assigned only once" in str(context.exception)
+            )
 
     def test_default_assigns(self):
         with self.assertRaises(AttributeError) as context:
@@ -84,7 +86,9 @@ class WhiteboardTests(TestCase):
             with LzyLocalEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
                 wb.a = self.num()
                 wb.a = self.num()
-        self.assertTrue('Whiteboard field can be assigned only once' in str(context.exception))
+        self.assertTrue(
+            "Whiteboard field can be assigned only once" in str(context.exception)
+        )
 
     def test_local_values(self):
         wb = WB(1, 1)

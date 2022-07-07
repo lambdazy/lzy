@@ -3,10 +3,10 @@ from datetime import datetime
 from typing import List
 
 import setuptools
-from setuptools import Distribution, Command
+from setuptools import Command, Distribution
 from setuptools.command.install import install
-from setuptools.command.sdist import sdist
 from setuptools.command.install_egg_info import install_egg_info
+from setuptools.command.sdist import sdist
 from wheel.bdist_wheel import bdist_wheel  # type: ignore
 
 
