@@ -1,11 +1,14 @@
 #!/bin/bash
 
+set -e
+export DOCKER_BUILDKIT=1
 MAJOR=1
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <git-branch-name> <installation-tag> [--rebuild [--base [--update [--major]]]]"
   exit
 fi
+echo "Script run with args: $@"
 
 BASE=false
 REBUILD=false
