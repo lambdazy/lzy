@@ -13,6 +13,7 @@ public interface Scheduler {
     void killAll(String workflowName, String issue) throws StatusException;
     List<Task> list(String workflow) throws StatusException;
 
+    void start();
     void terminate();
     void awaitTermination() throws InterruptedException;
 }

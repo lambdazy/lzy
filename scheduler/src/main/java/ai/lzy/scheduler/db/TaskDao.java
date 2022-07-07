@@ -10,7 +10,7 @@ public interface TaskDao {
     Task create(String workflowId, String workflowName, TaskDesc taskDesc) throws DaoException;
 
     @Nullable
-    Task get(String workflowId, String taskId) throws DaoException;
+    Task get(String taskId) throws DaoException;
 
     List<Task> filter(TaskState.Status status) throws DaoException;
 
