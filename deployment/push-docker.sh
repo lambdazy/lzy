@@ -5,12 +5,11 @@ export DOCKER_BUILDKIT=1
 MAJOR=1
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <git-branch-name> <installation-tag> [--rebuild [--base [--update [--major]]]]"
+  echo "Usage: $0 <git-branch-name> <installation-tag> [--rebuild [--update [--major]]]"
   exit
 fi
 echo "Script run with args: $@"
 
-BASE=false
 REBUILD=false
 UPDATE=false
 
@@ -19,9 +18,6 @@ for ARG in "$@"; do
   --rebuild)
     REBUILD=true
     ;;
-  --base)
-    BASE=true
-    ;;
   --update)
     UPDATE=true
     ;;
@@ -29,20 +25,14 @@ for ARG in "$@"; do
 done
 
 SERVICES="lzy-server lzy-servant lzy-kharon lzy-whiteboard"
-if [[ $BASE = true ]]; then
-  SERVICES="lzy-servant-base $SERVICES"
-fi
 BRANCH=$(echo "$1" | awk '{print tolower($0)}')
 CUSTOM_TAG=$2
 
+PUSHED_IMAGES=""
+NL=$'\n'
+
 if [[ $REBUILD = true ]]; then
-  if [[ $BASE = true ]]; then
-    docker build -t lzydock/default-env-base:master -f servant/docker/DefaultEnv.Base.Dockerfile .
-    docker build -t lzydock/default-env:from-tar -f servant/docker/DefaultEnv.Dockerfile .
-    docker save -o servant/docker/default-env-image.tar lzydock/default-env:from-tar
-    docker build -t lzy-servant-base -t lzydock/lzy-servant-base:master -f servant/docker/System.Base.Dockerfile .
-    rm -f servant/docker/default-env-image.tar
-  fi
+  docker pull lzydock/lzy-servant-base:master
   mvn clean install -DskipTests
   docker build -t lzy-servant -f servant/docker/System.Dockerfile .
   docker build -t lzy-server -f server/Dockerfile server
@@ -50,13 +40,6 @@ if [[ $REBUILD = true ]]; then
   docker build -t lzy-kharon -f kharon/Dockerfile kharon
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-backend:$CUSTOM_TAG" lzy-backoffice/Dockerfile
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
-fi
-
-PUSHED_IMAGES=""
-
-if [[ $BASE = true ]]; then
-  docker push lzydock/lzy-servant-base:master
-  PUSHED_IMAGES="$PUSHED_IMAGES${NL}lzy-servant-base-image = \"lzydock/lzy-servant-base:master\""
 fi
 
 for SERVICE in $SERVICES; do
@@ -83,7 +66,6 @@ for SERVICE in $SERVICES; do
   echo "pushing $NEW_TAG"
   docker push "$NEW_TAG" && docker image rm "$NEW_TAG"
   echo ""
-  NL=$'\n'
   PUSHED_IMAGES="$PUSHED_IMAGES${NL}$SERVICE-image = \"lzydock/$SERVICE:$BRANCH-$TAG\""
 done
 echo "$PUSHED_IMAGES"

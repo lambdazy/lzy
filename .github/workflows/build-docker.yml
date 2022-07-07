@@ -33,11 +33,17 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: 'push-docker'
+      - name: 'Build and push servant-base'
+        if: ${{ github.event.inputs.servant-base }}
+        run: |
+          FLAGS=""
+          if [[ ${{ github.event.inputs.update }} == true ]]; then FLAGS="--update"; fi
+          bash deployment/push-servant-base-docker.sh "${{ github.ref_name }}" "${{ github.event.inputs.tag }}" $FLAGS
+
+      - name: 'Build and push all dockers'
         run: |
           FLAGS="--rebuild"
           if [[ ${{ github.event.inputs.update }} == true ]]; then FLAGS="$FLAGS --update"; fi
-          if [[ ${{ github.event.inputs.servant-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
           bash deployment/push-docker.sh "${{ github.ref_name }}" "${{ github.event.inputs.tag }}" $FLAGS
 
       - name: 'Clean docker files'
