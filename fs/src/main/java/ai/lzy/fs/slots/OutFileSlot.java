@@ -20,6 +20,7 @@ import java.util.Spliterators;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -171,7 +172,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
 
     @Override
     public Stream<ByteString> readFromPosition(long offset) throws IOException {
-        LOG.info("OutFileSlot.readFromPosition for slot " + this.definition().name());
+        LOG.info("OutFileSlot.readFromPosition for slot " + this.definition().name() + ", current state " + state());
         final FileChannel channel;
         waitForState(OPEN);
         if (state() != OPEN) {
@@ -183,20 +184,25 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             throw new RuntimeException(e);
         }
         LOG.info("Slot {} is ready", name());
+        return readFileChannel(name(), offset, channel, () -> state() == OPEN);
+    }
+
+    public static Stream<ByteString> readFileChannel(String filename, long offset, FileChannel channel,
+                                                     BooleanSupplier readyFn) throws IOException {
         channel.position(offset);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<>() {
             private final ByteBuffer bb = ByteBuffer.allocate(PAGE_SIZE);
 
             @Override
             public boolean hasNext() {
-                if (state() != OPEN) {
-                    LOG.info("Slot {} hasNext is not open", name());
+                if (!readyFn.getAsBoolean()) {
+                    LOG.info("Slot {} hasNext is not open", filename);
                     return false;
                 }
                 try {
                     bb.clear();
                     int read = channel.read(bb);
-                    LOG.info("Slot {} hasNext read {}", name(), read);
+                    LOG.info("Slot {} hasNext read {}", filename, read);
                     return read >= 0;
                 } catch (IOException e) {
                     LOG.warn("Unable to read line from reader", e);

@@ -26,6 +26,16 @@ public interface StorageClient {
         return create(credentials, DEFAULT_TRANSMITTER_NAME, DEFAULT_DOWNLOAD_POOL_SIZE, DEFAULT_UPLOAD_POOL_SIZE);
     }
 
+    static StorageClient createAmazonS3Client(URI endpoint, String accessToken, String secretToken) {
+        return new AmazonStorageClient(accessToken, secretToken, endpoint,
+                DEFAULT_TRANSMITTER_NAME, DEFAULT_DOWNLOAD_POOL_SIZE, DEFAULT_UPLOAD_POOL_SIZE);
+    }
+
+    static StorageClient createAzureS3Client(String connectionString) {
+        return new AzureStorageClient(connectionString,
+                DEFAULT_TRANSMITTER_NAME, DEFAULT_DOWNLOAD_POOL_SIZE, DEFAULT_UPLOAD_POOL_SIZE);
+    }
+
     Transmitter transmitter();
 
     URI getURI(String bucketName, String key);

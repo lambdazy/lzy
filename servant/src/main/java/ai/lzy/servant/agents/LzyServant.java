@@ -168,7 +168,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
-            if (portal.isActive() || status.get().getValue() < AgentStatus.REGISTERED.getValue()) {
+            if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
@@ -201,7 +201,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
-            if (portal.isActive() || status.get().getValue() >= AgentStatus.REGISTERED.getValue()) {
+            if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
@@ -218,7 +218,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
-            if (portal.isActive() || status.get().getValue() < AgentStatus.REGISTERED.getValue()) {
+            if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
@@ -251,6 +251,8 @@ public class LzyServant extends LzyAgent {
             responseObserver.onCompleted();
 
             try {
+                status.set(AgentStatus.EXECUTING);
+
                 assignments.map(
                         entry -> {
                             LzySlot slot = context.getOrCreateSlot(tid, entry.slot(), entry.binding());
@@ -274,6 +276,7 @@ public class LzyServant extends LzyAgent {
                         lzyFs.addSlot((LzyFileSlot) slot);
                     }
                 });
+
                 currentExecution.set(context.execute(tid, zygote, progress -> {
                     LOG.info("Servant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
@@ -301,9 +304,7 @@ public class LzyServant extends LzyAgent {
                 }));
             } catch (Exception e) {
                 forceStop("Error while execution", e);
-                return;
             }
-            status.set(AgentStatus.EXECUTING);
         }
 
         @Override
@@ -397,13 +398,14 @@ public class LzyServant extends LzyAgent {
         }
 
         @Override
-        public void status(Empty request, StreamObserver<Empty> responseObserver) {
+        public void status(Empty request, StreamObserver<LzyPortalApi.PortalStatus> responseObserver) {
             if (currentExecution.get() != null) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
             if (portal.isActive()) {
-                responseObserver.onNext(Empty.getDefaultInstance());
+                var response = portal.status();
+                responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } else {
                 responseObserver.onError(Status.NOT_FOUND.asException());
@@ -411,16 +413,16 @@ public class LzyServant extends LzyAgent {
         }
 
         @Override
-        public void configureSlots(LzyPortalApi.ConfigurePortalSlotsRequest request,
-                                   StreamObserver<LzyPortalApi.ConfigurePortalSlotsResponse> responseObserver) {
+        public void openSlots(LzyPortalApi.OpenSlotsRequest request,
+                              StreamObserver<LzyPortalApi.OpenSlotsResponse> responseObserver) {
             if (currentExecution.get() != null) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
             if (portal.isActive()) {
                 try {
-                    var resp = portal.configureSlots(request);
-                    responseObserver.onNext(resp);
+                    var response = portal.openSlots(request);
+                    responseObserver.onNext(response);
                     responseObserver.onCompleted();
                 } catch (Exception e) {
                     LOG.error(e.getMessage(), e);

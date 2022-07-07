@@ -13,7 +13,7 @@ public class JsonUtils {
         }
     }
 
-    public static String printSingleLineRequest(MessageOrBuilder request) {
+    public static String printSingleLine(MessageOrBuilder request) {
         try {
             return JsonFormat.printer().omittingInsignificantWhitespace().print(request);
         } catch (InvalidProtocolBufferException e) {

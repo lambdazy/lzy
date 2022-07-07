@@ -188,7 +188,7 @@ public abstract class LzyAgent implements Closeable {
             final String script = scriptBuilder.toString();
 
             if (lzyFs.registerCommand(to, script, z)) {
-                LOG.info("Command `{}` registered.", to);
+                LOG.debug("Command `{}` registered.", to);
             } else {
                 LOG.warn("Command `{}` already exists.", to);
             }

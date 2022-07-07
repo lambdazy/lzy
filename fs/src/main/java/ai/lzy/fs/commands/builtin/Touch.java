@@ -13,7 +13,6 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Base64;
 
 public final class Touch implements LzyCommand {
@@ -32,10 +31,6 @@ public final class Touch implements LzyCommand {
 
     @SuppressWarnings("CheckStyle")
     public int execute(CommandLine command) throws Exception {
-//        System.out.println("touch request");
-//        System.out.println(Arrays.toString(command.getOptions()));
-//        command.getArgList().forEach(System.out::println);
-
         if (command.getArgList().size() < 5 || !command.getArgList().get(3).equals("--slot")) {
             throw new IllegalArgumentException(
                 "Invalid call format. Expected `touch <common-opts> slot-path channel-name --slot slot-description`.");
