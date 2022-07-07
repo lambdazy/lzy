@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from lzy.api.v2.servant.model.encoding import ENCODING as encoding
 # noinspection PyUnresolvedReferences
 import lzy.api  # needed to instantiate logging #  pylint: disable=unused-import
+from lzy.api.v2.servant.model.encoding import ENCODING as encoding
 
 
 @dataclass
@@ -30,8 +30,12 @@ class TerminalServer:
     jar_path = jar_path.resolve().absolute()
     start_timeout_sec = 30
 
-    def __init__(self, config: TerminalConfig, custom_log_file: str = "/tmp/lzy-log/custom_terminal_log",
-                 terminal_log_path: str = "/tmp/lzy-log/terminal_log"):
+    def __init__(
+        self,
+        config: TerminalConfig,
+        custom_log_file: str = "/tmp/lzy-log/custom_terminal_log",
+        terminal_log_path: str = "/tmp/lzy-log/terminal_log",
+    ):
         Path("/tmp/lzy-log").mkdir(parents=True, exist_ok=True)
         self._config = config
         self._log_file = custom_log_file
@@ -53,34 +57,44 @@ class TerminalServer:
         if self._config.private_key_path is not None:
             private_key_path = Path(self._config.private_key_path).expanduser()
             if not private_key_path.resolve().exists():
-                raise ValueError("Private key path does not exists: "
-                                 f"{self._config.private_key_path}")
+                raise ValueError(
+                    "Private key path does not exists: "
+                    f"{self._config.private_key_path}"
+                )
 
         # TODO: understand why terminal writes to stdout even with
         # TODO: custom.log.file argument and drop terminal_log_path and
         # TODO: redirection
         if not self._terminal_log:
             # pylint: disable=consider-using-with
-            self._terminal_log = open(self._terminal_log_path,
-                                      "w", encoding=encoding)
+            self._terminal_log = open(self._terminal_log_path, "w", encoding=encoding)
         env = os.environ.copy()
         if self._config.user is not None:
             env["USER"] = self._config.user
 
         terminal_args = [
-            "--lzy-address", self._config.server_url,
-            "--lzy-mount", self._config.lzy_mount,
-            "--host", "localhost",
+            "--lzy-address",
+            self._config.server_url,
+            "--lzy-mount",
+            self._config.lzy_mount,
+            "--host",
+            "localhost",
         ]
         if self._config.port is not None:
-            terminal_args.extend((
-                "--port", self._config.port,
-            ))
+            terminal_args.extend(
+                (
+                    "--port",
+                    self._config.port,
+                )
+            )
 
         if self._config.private_key_path is not None:
-            terminal_args.extend((
-                "--private-key", private_key_path,
-            ))
+            terminal_args.extend(
+                (
+                    "--private-key",
+                    private_key_path,
+                )
+            )
         terminal_args.append("terminal")
 
         # pylint: disable=consider-using-with
@@ -92,16 +106,19 @@ class TerminalServer:
                 "-Djava.library.path=/usr/local/lib",
                 f"-Dcustom.log.file={self._log_file}",
                 f"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:{self._config.debug_port}",
-                "-jar", TerminalServer.jar_path,
-                *terminal_args
+                "-jar",
+                TerminalServer.jar_path,
+                *terminal_args,
             ],
             # stdout=self._terminal_log,
             # stderr=self._terminal_log,
             env=env,
         )
         started_ts = int(time.time())
-        while not self._check_exists_safe(sbin_channel) \
-                and int(time.time()) < started_ts + self.start_timeout_sec:
+        while (
+            not self._check_exists_safe(sbin_channel)
+            and int(time.time()) < started_ts + self.start_timeout_sec
+        ):
             time.sleep(0.2)
 
         if not self._check_exists_safe(sbin_channel):

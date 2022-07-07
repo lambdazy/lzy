@@ -1,19 +1,21 @@
 import base64
-from dataclasses import dataclass
-from abc import ABC, abstractmethod
 import json
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict
+from typing import Dict, cast
 
 import cloudpickle
 
 
 def pickle_type(type_: type) -> str:
-    return base64.b64encode(cloudpickle.dumps(type_)).decode('ascii')
+    return base64.b64encode(cloudpickle.dumps(type_)).decode("ascii")
 
 
 def unpickle_type(base64_str: str) -> type:
-    return cloudpickle.loads(base64.b64decode(base64_str))
+    type_ = cloudpickle.loads(base64.b64decode(base64_str))
+    assert isinstance(type_, type), "is not type"
+    return cast(type, type_)
 
 
 class Media(Enum):
@@ -51,8 +53,8 @@ class DataSchema:
 
     def to_dict(self) -> Dict[str, str]:
         return {
-           "type": self.type_,
-           "schemeType": self.schemeType,
+            "type": self.type_,
+            "schemeType": self.schemeType,
         }
 
     def to_json(self) -> str:

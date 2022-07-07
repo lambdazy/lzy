@@ -85,4 +85,6 @@ class LzyWorkflowTests(TestCase):
             with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow1:
                 with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow2:
                     pass
-            self.assertTrue('Simultaneous workflows are not supported' in str(context.exception))
+            self.assertTrue(
+                "Simultaneous workflows are not supported" in str(context.exception)
+            )

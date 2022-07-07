@@ -1,8 +1,9 @@
 from multiprocessing import Pool, Process
-from time import sleep
 from random import randint
+from time import sleep
+from typing import Set
 
-from task_generator import TaskGenerator
+from task_generator import LzyTask, TaskGenerator
 
 
 class RandomRunner(Process):
@@ -11,7 +12,7 @@ class RandomRunner(Process):
         task_supplier: TaskGenerator,
         max_task_in_parallel,
         max_rand_sleep_period_sec,
-        num_task_to_execute
+        num_task_to_execute,
     ):
         super().__init__(target=self.cycle, name="main_random_runner")
         self.task_supplier = task_supplier
@@ -19,7 +20,7 @@ class RandomRunner(Process):
         self.max_rand_sleep_period_sec = max_rand_sleep_period_sec
         self.num_task_to_execute = num_task_to_execute
         self.tasks_counter = 0
-        self.tasks_queue = set()
+        self.tasks_queue: Set[LzyTask] = set()
 
     def collect_finished_tasks(self):
         tasks_to_remove = set()

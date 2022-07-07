@@ -35,7 +35,7 @@ class ClassWithStaticAndClassMethods:
 
 
 class ClassWithSlotsAttribute:
-    __slots__ = ('_fields',)
+    __slots__ = ("_fields",)
 
     def __init__(self, _fields=None):
         if not _fields:
@@ -119,7 +119,7 @@ class ProxyTests(TestCase):
         self.assertEqual(42, val)
 
     def test_primitive_type_none(self):
-        integer =  self.lazy_constructed_obj_none(int)
+        integer = self.lazy_constructed_obj_none(int)
         val = self.lazy_constructed_obj(int, 0)
         with self.assertRaises(AttributeError):
             for i in range(integer):
@@ -190,7 +190,7 @@ class ProxyTests(TestCase):
         self.assertNotEqual(prxy.a, prxy.b)
         self.assertEqual(len(materialized), 1)
 
-        prxy =  self.lazy_constructed_obj_none(MockType)
+        prxy = self.lazy_constructed_obj_none(MockType)
         with self.assertRaises(AttributeError):
             print(prxy.a)
 
@@ -222,7 +222,7 @@ class ProxyTests(TestCase):
         self.assertEqual(len(materialized), 1)
         self.assertEqual(prxy.a, prxy.b)
 
-        prxy =  self.lazy_constructed_obj_none(MockType)
+        prxy = self.lazy_constructed_obj_none(MockType)
         with self.assertRaises(AttributeError):
             prxy.a = 42
 

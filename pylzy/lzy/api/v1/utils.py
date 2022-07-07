@@ -8,15 +8,17 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Type,
     Tuple,
+    Type,
     TypeVar,
-    get_type_hints, Union, cast
+    Union,
+    cast,
+    get_type_hints,
 )
 from zipfile import ZipFile
 
 from lzy._proxy import proxy
-from lzy._proxy.result import Result, Nothing, Just
+from lzy._proxy.result import Just, Nothing, Result
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -26,10 +28,10 @@ TypeInferResult = Result[type]
 
 def infer_real_type(type_: Type[T]) -> Type[T]:
     if hasattr(type_, "__origin__"):
-        origin: Type = type_.__origin__
+        origin: Type = type_.__origin__  # type: ignore
         if origin == Union:  # type: ignore
             # noinspection PyUnresolvedReferences
-            args = type_.__args__  # TODO: what should we do with real Union?
+            args = type_.__args__  # type: ignore  # TODO: what should we do with real Union?
             if len(args) == 2 and args[1] is type(None):  # check typ is Optional
                 return infer_real_type(args[0])
         return cast(Type[T], origin)
@@ -53,9 +55,7 @@ def infer_arg_types(*args) -> Tuple[type, ...]:
     # noinspection PyProtectedMember
     # pylint: disable=protected-access
     return tuple(
-        arg._op.return_type
-        if is_lazy_proxy(arg) else type(arg)
-        for arg in args
+        arg._op.return_type if is_lazy_proxy(arg) else type(arg) for arg in args
     )
 
 
@@ -65,7 +65,7 @@ def is_lazy_proxy(obj: Any) -> bool:
 
 
 def lazy_proxy(
-        materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]
+    materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]
 ) -> Any:
     return proxy(
         materialization,
@@ -86,7 +86,7 @@ def wrap_local_value(obj: Any):
 def check_message_field(obj: Any) -> bool:
     if obj is None:
         return False
-    return hasattr(obj, 'LZY_MESSAGE')
+    return hasattr(obj, "LZY_MESSAGE")
 
 
 def zipdir(path: str, zipfile: ZipFile):
@@ -94,7 +94,7 @@ def zipdir(path: str, zipfile: ZipFile):
         for file in files:
             zipfile.write(
                 os.path.join(root, file),
-                os.path.relpath(os.path.join(root, file), os.path.join(path, '..'))
+                os.path.relpath(os.path.join(root, file), os.path.join(path, "..")),
             )
 
 
@@ -111,29 +111,41 @@ def fileobj_hash(fileobj: BytesIO) -> str:
     return md5.hexdigest()
 
 
-def infer_call_signature(f: Callable, output_type: type, *args, **kwargs) -> CallSignature:
+def infer_call_signature(
+    f: Callable, output_type: type, *args, **kwargs
+) -> CallSignature:
     types_mapping = {}
     argspec = inspect.getfullargspec(f)
 
     # pylint: disable=protected-access
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
-        types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+        types_mapping[name] = (
+            arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+        )
 
     generated_names = []
-    for arg in args[len(argspec.args):]:
+    for arg in args[len(argspec.args) :]:
         name = str(uuid.uuid4())
         generated_names.append(name)
         # noinspection PyProtectedMember
-        types_mapping[name] = arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+        types_mapping[name] = (
+            arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+        )
 
-    arg_names = tuple(argspec.args[:len(args)] + generated_names)
+    arg_names = tuple(argspec.args[: len(args)] + generated_names)
     kwarg_names = tuple(kwargs.keys())
-    return CallSignature(FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names), args, kwargs)
+    return CallSignature(
+        FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names),
+        args,
+        kwargs,
+    )
 
 
 class LzyExecutionException(Exception):
     def __init__(self, message, *args):
-        message += "If you are going to ask for help of cloud support," \
-                   " please send the following trace files: /tmp/lzy-log/"
+        message += (
+            "If you are going to ask for help of cloud support,"
+            " please send the following trace files: /tmp/lzy-log/"
+        )
         super().__init__(message, *args)

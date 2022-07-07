@@ -1,11 +1,19 @@
 from typing import List, Optional
 
-from lzy.api.v2.grpc.servant.api.graph_executor_client import GraphExecutorClient, GraphExecutionStatus, TaskSpec
+from lzy.api.v2.grpc.servant.api.graph_executor_client import (
+    GraphExecutionStatus,
+    GraphExecutorClient,
+    TaskSpec,
+)
 
 
 class GrpcGraphExecutorClient(GraphExecutorClient):
-    def execute(self, workflow_id: str, tasks: List[TaskSpec], parent_graph_id: Optional[str] = None) \
-            -> GraphExecutionStatus:
+    def execute(
+        self,
+        workflow_id: str,
+        tasks: List[TaskSpec],
+        parent_graph_id: Optional[str] = None,
+    ) -> GraphExecutionStatus:
         # TODO: implement
         pass
 

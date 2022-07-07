@@ -1,11 +1,10 @@
 import uuid
-
 from dataclasses import dataclass
 from typing import List, Optional
 
-from lzy.api.v1.whiteboard import whiteboard, view
+from data import MessageClass, Rule
 
-from data import Rule, MessageClass
+from lzy.api.v1.whiteboard import view, whiteboard
 
 simple_whiteboard_tag = "simple_whiteboard_" + str(uuid.uuid4())
 another_simple_whiteboard_tag = "another_simple_whiteboard_" + str(uuid.uuid4())

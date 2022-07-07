@@ -4,16 +4,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterable, List
 
-from lzy.storage.credentials import AmazonCredentials
-from lzy.storage.credentials import (
-    # AzureCredentials,
-    # AmazonCredentials,
-    StorageCredentials,
+from lzy.api.v1.servant.model.channel import Bindings, Channel
+from lzy.api.v1.servant.model.execution import (
+    Execution,
+    ExecutionDescription,
+    InputExecutionValue,
 )
-from lzy.api.v1.servant.model.channel import Channel, Bindings
-from lzy.api.v1.servant.model.execution import Execution, ExecutionDescription, InputExecutionValue
 from lzy.api.v1.servant.model.slot import Slot
 from lzy.api.v1.servant.model.zygote import Zygote
+from lzy.storage.credentials import AmazonCredentials, StorageCredentials
 
 
 class CredentialsTypes(Enum):
@@ -50,11 +49,7 @@ class ServantClient(ABC):
         pass
 
     @abstractmethod
-    def run(
-            self,
-            execution_id: str,
-            zygote: Zygote,
-            bindings: Bindings) -> Execution:
+    def run(self, execution_id: str, zygote: Zygote, bindings: Bindings) -> Execution:
         pass
 
     @abstractmethod
@@ -71,10 +66,8 @@ class ServantClient(ABC):
 
     @abstractmethod
     def resolve_executions(
-            self,
-            name: str,
-            snapshot_id: str,
-            inputs: Iterable[InputExecutionValue]) -> List[ExecutionDescription]:
+        self, name: str, snapshot_id: str, inputs: Iterable[InputExecutionValue]
+    ) -> List[ExecutionDescription]:
         pass
 
     def _zygote_path(self, zygote: Zygote) -> str:
@@ -85,8 +78,9 @@ class ServantClientMock(ServantClient):
     def save_execution(self, execution: ExecutionDescription):
         pass
 
-    def resolve_executions(self, name: str, snapshot_id: str, inputs: Iterable[InputExecutionValue]) \
-            -> List[ExecutionDescription]:
+    def resolve_executions(
+        self, name: str, snapshot_id: str, inputs: Iterable[InputExecutionValue]
+    ) -> List[ExecutionDescription]:
         return []
 
     def mount(self) -> Path:
@@ -111,7 +105,9 @@ class ServantClientMock(ServantClient):
         pass
 
     def get_credentials(self, typ: CredentialsTypes, bucket: str) -> StorageCredentials:
-        return AmazonCredentials("https://service.us-west-2.amazonaws.com", "access_token", "secret_token")
+        return AmazonCredentials(
+            "https://service.us-west-2.amazonaws.com", "access_token", "secret_token"
+        )
 
     def get_bucket(self) -> str:
         return "bucket"

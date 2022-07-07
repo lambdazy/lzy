@@ -11,7 +11,7 @@ import cloudpickle
 from lzy.api.v1.env import LzyRemoteEnv
 from lzy.api.v1.servant.bash_servant_client import BashServantClient
 from lzy.api.v1.servant.servant_client import ServantClientMock
-from lzy.api.v1.whiteboard.model import InMemWhiteboardApi, InMemSnapshotApi
+from lzy.api.v1.whiteboard.model import InMemSnapshotApi, InMemWhiteboardApi
 from lzy.storage.storage_client import StorageClient
 
 
@@ -45,8 +45,8 @@ def worker(shared):
 
     for k, v in shared.items():
         sys.modules[k] = cloudpickle.loads(v)
-    obj = cloudpickle.loads(shared['object'])
-    shared['result'] = obj.echo()
+    obj = cloudpickle.loads(shared["object"])
+    shared["result"] = obj.echo()
 
 
 class ModulesSearchTests(TestCase):
@@ -63,10 +63,9 @@ class ModulesSearchTests(TestCase):
         self._workflow = self._env.workflow(name=self._WORKFLOW_NAME)
         self._workflow._storage_client = self._storage_client
         from test_modules.level1.level1 import Level1  # type: ignore
+
         level1 = Level1()
-        py_env = self._workflow.py_env({
-            'level1': level1
-        })
+        py_env = self._workflow.py_env({"level1": level1})
         result = dict()
         for k, v in py_env.local_modules_uploaded():
             with tempfile.NamedTemporaryFile("wb+") as handle:
@@ -74,17 +73,18 @@ class ModulesSearchTests(TestCase):
                 handle.seek(0)
                 result[k] = handle.read()
         self.assertEqual(len(result), 1)
-        self.assertTrue('test_modules' in result)
+        self.assertTrue("test_modules" in result)
 
     def test_py_env_modules_user_provided(self):
         os.chdir(os.path.dirname(__file__))
-        self._workflow = self._env.workflow(name=self._WORKFLOW_NAME, local_module_paths=['test_modules_2'])
+        self._workflow = self._env.workflow(
+            name=self._WORKFLOW_NAME, local_module_paths=["test_modules_2"]
+        )
         self._workflow._storage_client = self._storage_client
         from test_modules.level1.level1 import Level1  # type: ignore
+
         level1 = Level1()
-        py_env = self._workflow.py_env({
-            'level1': level1
-        })
+        py_env = self._workflow.py_env({"level1": level1})
         result = dict()
         for k, v in py_env.local_modules_uploaded():
             with tempfile.NamedTemporaryFile("wb+") as handle:
@@ -92,5 +92,5 @@ class ModulesSearchTests(TestCase):
                 handle.seek(0)
                 result[k] = handle.read()
         self.assertEqual(len(result), 1)
-        self.assertTrue('test_modules_2' in result)
-        self.assertFalse('test_modules' in result)
+        self.assertTrue("test_modules_2" in result)
+        self.assertFalse("test_modules" in result)

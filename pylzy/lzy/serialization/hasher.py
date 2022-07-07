@@ -13,7 +13,7 @@ class HashableFileLikeObj:
         self._sig.update(data)
 
     def hash(self) -> str:
-        return self._sig.hexdigest() # type: ignore
+        return self._sig.hexdigest()  # type: ignore
 
 
 class Hasher(abc.ABC):
