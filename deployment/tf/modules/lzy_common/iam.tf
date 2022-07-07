@@ -55,7 +55,7 @@ resource "kubernetes_deployment" "iam" {
           }
           env {
             name  = "DATABASE_USERNAME"
-            value = var.iam_db_name
+            value = var.iam_db_user
           }
           env {
             name  = "DATABASE_PASSWORD"
