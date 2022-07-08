@@ -3,7 +3,7 @@ from typing import Optional
 
 from betterproto import which_one_of as which
 
-from lzy.proto.bet.priv.v2 import DataScheme, ChannelStatus, Slot, SlotCommandStatus, Auth, LzyFsStub, \
+from lzy.proto.bet.priv.v2.__init__ import DataScheme, ChannelStatus, Slot, SlotCommandStatus, Auth, LzyFsStub, \
     DirectChannelSpec, SnapshotChannelSpec, ChannelCreate, ChannelCommand, ChannelState, ChannelDestroy, \
     CreateSlotCommand, SlotCommand
 from lzy.proto.priv.v2.lzy_server_grpc import LzyServerStub
