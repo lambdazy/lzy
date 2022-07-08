@@ -53,8 +53,7 @@ public class SnapshotThreadContext implements LzySnapshotTestContext {
         try (ApplicationContext context = ApplicationContext.run(
                 PropertySource.of(
                         Map.of(
-                                "snapshot.uri", address(),
-                                "server.uri", serverAddress
+                                "service.serverUri", serverAddress
                         )
                 )
         )) {
