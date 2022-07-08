@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package ai.lzy.priv.v2.scheduler;
+package lzy.proto.priv.v2.scheduler;
 
 option java_outer_classname = "SchedulerApi";
 option java_package = "ai.lzy.priv.v2";
 
-import "ai/lzy/priv/v2/lzy-zygote.proto";
+import "lzy/proto/priv/v2/lzy-zygote.proto";
 service Scheduler {
   rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
   rpc Status (TaskStatusRequest) returns (TaskStatusResponse);
