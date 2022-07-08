@@ -73,7 +73,11 @@ public class InMemTasksManager implements TasksManager {
 
     @Override
     public void addUserSlot(String user, Slot slot, ChannelSpec channel) {
-        userSlots.computeIfAbsent(user, u -> new ConcurrentHashMap<>()).put(slot, channel);
+        try {
+            userSlots.computeIfAbsent(user, u -> new ConcurrentHashMap<>()).put(slot, channel);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
