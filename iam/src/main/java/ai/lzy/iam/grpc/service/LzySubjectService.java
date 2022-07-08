@@ -6,6 +6,7 @@ import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.impl.Root;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.resources.AuthPermission;
@@ -19,6 +20,7 @@ import ai.lzy.priv.v1.LzySubjectServiceGrpc;
 
 import java.util.Objects;
 
+@Singleton
 public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceImplBase {
     public static final Logger LOG = LogManager.getLogger(LzySubjectService.class);
 

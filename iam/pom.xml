@@ -17,7 +17,7 @@
   <properties>
     <packaging>jar</packaging>
     <micronaut.runtime>netty</micronaut.runtime>
-    <exec.mainClass>ai.lzy.iam</exec.mainClass>
+    <exec.mainClass>ai.lzy.iam.LzyIAM</exec.mainClass>
   </properties>
 
   <dependencies>

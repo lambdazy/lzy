@@ -78,7 +78,8 @@ public class LzyIAM {
                 lzyIAM.start();
                 lzyIAM.awaitTermination();
             } catch (NoSuchBeanException e) {
-                LOG.info("Shutdown");
+                LOG.error("Shutdown, ", e);
+                System.exit(-1);
             }
         }
     }
