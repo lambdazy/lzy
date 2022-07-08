@@ -4,6 +4,9 @@ metadata:
   name: lzy-servant
   labels:
     app: lzy-servant
+    app.kubernetes.io/name: lzy-servant
+    app.kubernetes.io/part-of: lzy
+    lzy.ai/app: servant
 spec:
   containers:
     - name: lzy-servant
@@ -64,6 +67,9 @@ spec:
                   - lzy-kharon
                   - lzy-backoffice
                   - whiteboard
+                  - grafana
+                  - kafka
+                  - clickhouse
           topologyKey: "kubernetes.io/hostname"
   hostNetwork: true
   dnsPolicy: ClusterFirstWithHostNet

@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, Iterable, List
+from typing import Dict, Iterable, List, Optional, Tuple
 
 
 class BaseEnv(ABC):
@@ -34,7 +34,9 @@ class AuxEnv(ABC):
 
 
 class PyEnv(AuxEnv):
-    def __init__(self, env_name: str, yaml: str, local_modules_uploaded: List[Tuple[str, str]]):
+    def __init__(
+        self, env_name: str, yaml: str, local_modules_uploaded: List[Tuple[str, str]]
+    ):
         super().__init__()
         self._name = env_name
         self._yaml = yaml
@@ -55,9 +57,14 @@ class PyEnv(AuxEnv):
 
     def as_dct(self):
         if self._local_modules_uploaded:
-            return {"name": self._name, "yaml": self._yaml,
-                    "localModules": [{"name": name, "uri": uri} for index, (name, uri)
-                                     in enumerate(self._local_modules_uploaded)]}
+            return {
+                "name": self._name,
+                "yaml": self._yaml,
+                "localModules": [
+                    {"name": name, "uri": uri}
+                    for index, (name, uri) in enumerate(self._local_modules_uploaded)
+                ],
+            }
         else:
             return {"name": self._name, "yaml": self._yaml}
 
@@ -74,7 +81,7 @@ class Env(EnvDataclass, ABC):
         if self.base_env:
             dct["baseEnv"] = self.base_env.as_dct()
         if self.aux_env:
-            dct["auxEnv"] = {self.aux_env.type_id() : self.aux_env.as_dct()}
+            dct["auxEnv"] = {self.aux_env.type_id(): self.aux_env.as_dct()}
         return dct
 
 

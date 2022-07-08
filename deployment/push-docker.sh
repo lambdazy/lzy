@@ -50,6 +50,12 @@ if [[ $REBUILD = true ]]; then
 fi
 
 PUSHED_IMAGES=""
+
+if [[ $BASE = true ]]; then
+  docker push lzydock/lzy-servant-base:master
+  PUSHED_IMAGES="$PUSHED_IMAGES${NL}lzy-servant-base-image = \"lzydock/lzy-servant-base:master\""
+fi
+
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
   if [[ $UPDATE = true ]]; then

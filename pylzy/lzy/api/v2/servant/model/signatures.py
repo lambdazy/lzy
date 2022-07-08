@@ -1,13 +1,15 @@
-from itertools import chain
-
 from dataclasses import dataclass
+from itertools import chain
 from typing import (
     Any,
+    Callable,
+    Dict,
     Generic,
     Iterable,
+    Iterator,
+    Tuple,
     Type,
-    Callable,
-    TypeVar, Dict, Tuple, Iterator,
+    TypeVar,
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name

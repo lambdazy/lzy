@@ -3,7 +3,7 @@ import argparse
 import signal
 import sys
 
-from lzy.api.v1.servant.terminal_server import TerminalServer, TerminalConfig
+from lzy.api.v1.servant.terminal_server import TerminalConfig, TerminalServer
 
 
 def create_signal_handler(terminal: TerminalServer):
@@ -16,8 +16,9 @@ def create_signal_handler(terminal: TerminalServer):
 
 
 def console_main():
-    parser = argparse.ArgumentParser(description='lzy-terminal entrypoint')
+    parser = argparse.ArgumentParser(description="lzy-terminal entrypoint")
 
+    # fmt: off
     parser.add_argument("-s", "--server", dest="url", default="https://api.lzy.ai:8899",
                         help="Server url.\nOptional: https://api.lzy.ai:8899 is used"
                              "as default if key is not given.",
@@ -45,6 +46,7 @@ def console_main():
                                        " as default value if key is not given.")
     parser.add_argument("-d", "--debug-port", default="5006", dest="debug",
                         type=str, help="Port to attach java debugger.")
+    # fmt: on
 
     args = parser.parse_args()
     config = TerminalConfig(
@@ -54,7 +56,7 @@ def console_main():
         private_key_path=args.keypath,
         user=args.user,
         debug_port=args.debug,
-        lzy_mount=args.mountpath
+        lzy_mount=args.mountpath,
     )
     terminal_server = TerminalServer(config)
     print(terminal_server.jar_path)

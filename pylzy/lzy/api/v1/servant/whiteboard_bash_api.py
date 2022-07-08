@@ -2,30 +2,30 @@ import base64
 import json
 import logging
 import tempfile
+from datetime import datetime
 from json.decoder import JSONDecodeError
-from typing import Any, Type, Dict, List, TypeVar, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, cast
 
 # noinspection PyProtectedMember
 import cloudpickle
 
 from lzy._proxy import proxy_optional
-from lzy.api.v1.servant.servant_client import ServantClient, CredentialsTypes
+from lzy.api.v1.servant.bash_servant_client import exec_bash
+from lzy.api.v1.servant.servant_client import CredentialsTypes, ServantClient
+from lzy.api.v1.servant.whiteboard_storage import WhiteboardStorage
 from lzy.api.v1.utils import infer_real_type
 from lzy.api.v1.whiteboard.model import (
     SnapshotApi,
     SnapshotDescription,
     WhiteboardApi,
-    get_bucket_from_url,
     WhiteboardDescription,
     WhiteboardFieldDescription,
     WhiteboardFieldStatus,
     WhiteboardStatus,
+    get_bucket_from_url,
 )
-from lzy.storage.credentials import StorageCredentials
 from lzy.serialization.serializer import FileSerializer
-from lzy.api.v1.servant.bash_servant_client import exec_bash
-from datetime import datetime
-from lzy.api.v1.servant.whiteboard_storage import WhiteboardStorage
+from lzy.storage.credentials import StorageCredentials
 
 
 class SnapshotBashApi(SnapshotApi):
@@ -92,7 +92,11 @@ class WhiteboardBashApi(WhiteboardApi):
         return obj
 
     def create(
-        self, fields: List[Tuple[str, type]], snapshot_id: str, namespace: str, tags: List[str]
+        self,
+        fields: List[Tuple[str, type]],
+        snapshot_id: str,
+        namespace: str,
+        tags: List[str],
     ) -> WhiteboardDescription:
         self._log.info(
             f"Creating whiteboard for snapshot {snapshot_id} with fields {fields}, namespace {namespace}, tags {tags}"
@@ -155,7 +159,7 @@ class WhiteboardBashApi(WhiteboardApi):
                     WhiteboardFieldStatus(field["status"]),
                     field.get("dependentFieldNames"),
                     uri,
-                    type_
+                    type_,
                 )
             )
         snapshot = SnapshotDescription(res["snapshot"]["snapshotId"])

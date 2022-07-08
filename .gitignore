@@ -160,8 +160,10 @@ __pycache__
 pylzy/build
 pylzy/dist
 pylzy/*.egg-info
+pylzy/lzy/proto
 
 **/*.env
+pylzy/*.egg-info
 **/.vscode
 
 # Local .terraform directories
@@ -180,8 +182,7 @@ tvars.json
 # tfplan
 **/tfplan
 
-# test trash
+# test/trash
 test/bindings.json
 test/filename
 test/slot.json
-

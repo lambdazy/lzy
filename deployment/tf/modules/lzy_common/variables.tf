@@ -186,11 +186,11 @@ variable "servant-image" {
 }
 
 variable "kafka-url" {
-  type = string
+  type    = string
   default = "kafka.default.svc.cluster.local:9092"
 }
 
 variable "server-additional-envs" {
-  type = map(string)
+  type    = map(string)
   default = {}
 }

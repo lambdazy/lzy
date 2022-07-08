@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Optional
 
-
 # -------------------------------------------- Graph status
 from lzy.api.v2.grpc.servant.api.task_spec import TaskSpec
 
@@ -35,6 +34,8 @@ class Completed(Status):
 
 class Failed(Status):
     pass
+
+
 # -------------------------------------------- Graph status
 
 
@@ -47,8 +48,12 @@ class GraphExecutionStatus:
 
 class GraphExecutorClient(ABC):
     @abstractmethod
-    def execute(self, workflow_id: str, tasks: List[TaskSpec], parent_graph_id: Optional[str] = None) \
-            -> GraphExecutionStatus:
+    def execute(
+        self,
+        workflow_id: str,
+        tasks: List[TaskSpec],
+        parent_graph_id: Optional[str] = None,
+    ) -> GraphExecutionStatus:
         pass
 
     @abstractmethod

@@ -50,7 +50,8 @@ public class ServerThreadContext implements LzyServerTestContext {
             ));
             case DOCKER_ALLOCATOR -> appProperties.putAll(Map.of(
                 "server.dockerAllocator.enabled", "true",
-                "servant.dockerSupport.enabled", "true"
+                "servant.dockerSupport.enabled", "true",
+                "server.baseEnvDefaultImage", "lzydock/default-env:from-tar"
             ));
         }
     }

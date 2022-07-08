@@ -1,6 +1,7 @@
-from task import LzyTask, durable_task
 from random import randint
 from uuid import uuid4
+
+from task import LzyTask, durable_task
 
 
 class TaskGenerator:
@@ -14,8 +15,5 @@ class TaskGenerator:
             durable_task,
             f"task_on_{total_minutes}_min_{str(uuid4())[:4]}",
             args=(),
-            kwargs={
-                "total_minutes": total_minutes,
-                "step_minutes": 1
-            }
+            kwargs={"total_minutes": total_minutes, "step_minutes": 1},
         )

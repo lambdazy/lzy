@@ -1,16 +1,24 @@
 import sys
-import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+import yaml
 from yaml import safe_load
 
-from lzy.env.env import Env, AuxEnv
-from lzy.env.env_provider import EnvProvider
-from lzy.pkg_info import to_str, _installed_versions, all_installed_packages, select_modules
 from lzy.api.v2.servant.model.encoding import ENCODING as encoding
+from lzy.env.env import AuxEnv, Env
+from lzy.env.env_provider import EnvProvider
+from lzy.pkg_info import (
+    _installed_versions,
+    all_installed_packages,
+    select_modules,
+    to_str,
+)
 
 
-def create_yaml(installed_packages: Dict[str, Tuple[str, ...]], name: str = "default") -> Tuple[str, str]:
+def create_yaml(
+    installed_packages: Dict[str, Tuple[str, ...]], name: str = "default"
+) -> Tuple[str, str]:
     # always use only first three numbers, otherwise conda won't find
     python_version = to_str(sys.version_info[:3])
     if python_version in _installed_versions:
@@ -34,12 +42,16 @@ def create_yaml(installed_packages: Dict[str, Tuple[str, ...]], name: str = "def
 
 
 class DefaultEnvProvider(EnvProvider):
-    def __init__(self, conda_yaml_path: Optional[Path] = None, local_modules_paths: Optional[List[str]] = None):
+    def __init__(
+        self,
+        conda_yaml_path: Optional[Path] = None,
+        local_modules_paths: Optional[List[str]] = None,
+    ):
         self._conda_yaml_path = conda_yaml_path
         self._local_modules_paths = local_modules_paths
 
     def for_op(self, namespace: Optional[Dict[str, Any]] = None) -> Env:
-        local_module_paths_found: List[str]  = []
+        local_module_paths_found: List[str] = []
         if self._conda_yaml_path is None:
             if namespace is None:
                 name, yaml = create_yaml(installed_packages=all_installed_packages())
@@ -52,11 +64,21 @@ class DefaultEnvProvider(EnvProvider):
             else:
                 local_modules_paths = self._local_modules_paths
 
-            return Env(aux_env=AuxEnv(name=name, conda_yaml=yaml, local_modules_paths=local_modules_paths))
+            return Env(
+                aux_env=AuxEnv(
+                    name=name, conda_yaml=yaml, local_modules_paths=local_modules_paths
+                )
+            )
 
         # TODO: as usually not good idea to read whole file into memory
         # TODO: but right now it's the best option
         with open(self._conda_yaml_path, "r", encoding=encoding) as file:
             name, yaml_str = "default", file.read()
             data = safe_load(yaml_str)
-            return Env(aux_env=AuxEnv(name=data.get('name', name), conda_yaml=yaml_str, local_modules_paths=[]))
+            return Env(
+                aux_env=AuxEnv(
+                    name=data.get("name", name),
+                    conda_yaml=yaml_str,
+                    local_modules_paths=[],
+                )
+            )

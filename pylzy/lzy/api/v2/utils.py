@@ -4,19 +4,23 @@ import os
 import uuid
 from io import BytesIO
 from itertools import chain
+from pathlib import Path
 from typing import (
     Any,
     Callable,
     Dict,
+    Optional,
     Type,
     TypeVar,
-    get_type_hints, Union
+    Union,
+    cast,
+    get_type_hints,
 )
 from zipfile import ZipFile
 
 # noinspection PyProtectedMember
 from lzy._proxy import proxy
-from lzy._proxy.result import Result, Nothing, Just
+from lzy._proxy.result import Just, Nothing, Result
 from lzy.api.v2.servant.model.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -59,7 +63,7 @@ def materialized(obj: Any) -> bool:
 
 
 def lazy_proxy(
-        materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]
+    materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]
 ) -> Any:
     return proxy(
         materialization,
@@ -80,16 +84,13 @@ def wrap_local_value(obj: Any):
 def check_message_field(obj: Any) -> bool:
     if obj is None:
         return False
-    return hasattr(obj, 'LZY_MESSAGE')
+    return hasattr(obj, "LZY_MESSAGE")
 
 
 def zipdir(path: str, zipfile: ZipFile):
     for root, dirs, files in os.walk(path):
         for file in files:
-            zipfile.write(
-                os.path.join(root, file),
-                os.path.relpath(os.path.join(root, file), os.path.join(path, '..'))
-            )
+            zipfile.write(Path(root) / file, Path("../..") / root / file)
 
 
 def fileobj_hash(fileobj: BytesIO) -> str:
@@ -105,29 +106,46 @@ def fileobj_hash(fileobj: BytesIO) -> str:
     return md5.hexdigest()
 
 
-def infer_call_signature(f: Callable, output_type: type, *args, **kwargs) -> CallSignature:
+def infer_call_signature(
+    f: Callable, output_type: type, *args, **kwargs
+) -> CallSignature:
     types_mapping = {}
     argspec = inspect.getfullargspec(f)
 
     # pylint: disable=protected-access
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
-        types_mapping[name] = arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
+        types_mapping[name] = (
+            arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
+        )
 
     generated_names = []
-    for arg in args[len(argspec.args):]:
+    for arg in args[len(argspec.args) :]:
         name = str(uuid.uuid4())
         generated_names.append(name)
         # noinspection PyProtectedMember
-        types_mapping[name] = arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
+        types_mapping[name] = (
+            arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
+        )
 
-    arg_names = tuple(argspec.args[:len(args)] + generated_names)
+    arg_names = tuple(argspec.args[: len(args)] + generated_names)
     kwarg_names = tuple(kwargs.keys())
-    return CallSignature(FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names), args, kwargs)
+    return CallSignature(
+        FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names),
+        args,
+        kwargs,
+    )
 
 
 class LzyExecutionException(Exception):
     def __init__(self, message, *args):
-        message += "If you are going to ask for help of cloud support," \
-                   " please send the following trace files: /tmp/lzy-log/"
+        message += (
+            "If you are going to ask for help of cloud support,"
+            " please send the following trace files: /tmp/lzy-log/"
+        )
         super().__init__(message, *args)
+
+
+def unwrap(val: Optional[T]) -> T:
+    assert val is not None, "val is None :c"
+    return cast(T, val)

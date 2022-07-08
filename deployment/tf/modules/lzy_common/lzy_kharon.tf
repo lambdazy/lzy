@@ -1,29 +1,36 @@
+locals {
+  kharon-labels = {
+    app                         = "lzy-kharon"
+    "app.kubernetes.io/name"    = "lzy-kharon"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "kharon"
+  }
+  kharon-port                  = 8899
+  kharon-servant-proxy-port    = 8900
+  kharon-servant-fs-proxy-port = 8901
+  kharon-k8s-name              = "lzy-kharon"
+}
+
 resource "kubernetes_deployment" "kharon" {
   metadata {
-    name = "lzy-kharon"
-    labels = {
-      app : "lzy-kharon"
-    }
+    name   = local.kharon-k8s-name
+    labels = local.kharon-labels
   }
   spec {
     strategy {
       type = "Recreate"
     }
     selector {
-      match_labels = {
-        app = "lzy-kharon"
-      }
+      match_labels = local.kharon-labels
     }
     template {
       metadata {
-        name = "lzy-kharon"
-        labels = {
-          app : "lzy-kharon"
-        }
+        name   = local.kharon-k8s-name
+        labels = local.kharon-labels
       }
       spec {
         container {
-          name              = "lzy-kharon"
+          name              = local.kharon-k8s-name
           image             = var.kharon-image
           image_pull_policy = "Always"
           env {
@@ -39,12 +46,16 @@ resource "kubernetes_deployment" "kharon" {
             value = kubernetes_service.lzy_server.spec[0].cluster_ip
           }
           port {
-            container_port = 8899
-            host_port      = 8899
+            container_port = local.kharon-port
+            host_port      = local.kharon-port
           }
           port {
-            container_port = 8900
-            host_port      = 8900
+            container_port = local.kharon-servant-proxy-port
+            host_port      = local.kharon-servant-proxy-port
+          }
+          port {
+            container_port = local.kharon-servant-fs-proxy-port
+            host_port      = local.kharon-servant-fs-proxy-port
           }
           args = [
             "--lzy-server-address",
@@ -54,11 +65,11 @@ resource "kubernetes_deployment" "kharon" {
             "-e",
             var.kharon_public_ip,
             "--port",
-            "8899",
+            local.kharon-port,
             "--servant-proxy-port",
-            "8900",
+            local.kharon-servant-proxy-port,
             "--servantfs-proxy-port",
-            "8901",
+            local.kharon-servant-fs-proxy-port,
             "-w",
             "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:8999",
             "-lsa",
@@ -75,18 +86,12 @@ resource "kubernetes_deployment" "kharon" {
                 match_expressions {
                   key      = "app"
                   operator = "In"
-                  values = [
-                    "lzy-servant",
-                    "lzy-server",
-                    "lzy-server-db",
-                    "lzy-kharon",
-                    "lzy-backoffice",
-                    "whiteboard",
-                    "whiteboard-db",
-                    "grafana",
-                    "kafka",
-                    "clickhouse"
-                  ]
+                  values   = local.all-services-k8s-app-labels
+                }
+                match_expressions {
+                  key      = "app.kubernetes.io/managed-by"
+                  operator = "In"
+                  values   = ["Helm"]
                 }
               }
               topology_key = "kubernetes.io/hostname"
@@ -103,17 +108,17 @@ resource "kubernetes_deployment" "kharon" {
 resource "kubernetes_service" "lzy_kharon" {
   count = var.create_public_kharon_service ? 1 : 0
   metadata {
-    name        = "lzy-kharon-load-balancer"
+    name        = "${local.kharon-k8s-name}-load-balancer"
+    labels      = local.kharon-labels
     annotations = var.kharon_load_balancer_necessary_annotations
   }
   spec {
     load_balancer_ip = var.kharon_public_ip
     type             = "LoadBalancer"
+    selector         = local.kharon-labels
     port {
-      port = 8899
-    }
-    selector = {
-      app = "lzy-kharon"
+      port        = local.kharon-port
+      target_port = local.kharon-port
     }
   }
 }

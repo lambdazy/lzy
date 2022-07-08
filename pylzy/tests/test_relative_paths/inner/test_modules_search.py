@@ -12,9 +12,7 @@ class ModulesSearchTests(TestCase):
         bar_func = bar
 
         # Act
-        remote, local = select_modules({
-            'bar_func': bar_func
-        })
+        remote, local = select_modules({"bar_func": bar_func})
 
         # Assert
         os.chdir(os.path.dirname(__file__))

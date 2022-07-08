@@ -28,5 +28,6 @@
         <module>iam</module>
         <module>graph-executor</module>
         <module>jupyter-kernel</module>
+        <module>scheduler</module>
     </modules>
 </project>

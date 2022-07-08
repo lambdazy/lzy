@@ -1,30 +1,32 @@
-from dataclasses import dataclass
-from abc import ABC, abstractmethod
 import json
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum
 
 
 class Media(Enum):
-    FILE = "FILE"
-    PIPE = "PIPE"
-    ARG = "ARG"
+    FILE = 1
+    PIPE = 2
+    ARG = 3
 
     def to_json(self) -> str:
-        return self.value
+        return self.name
 
 
 class Direction(Enum):
-    INPUT = "INPUT"
-    OUTPUT = "OUTPUT"
+    INPUT = 1
+    OUTPUT = 2
 
     def to_json(self) -> str:
-        return self.value
+        return str(self.value)
 
     @staticmethod
     def opposite(direction):
-        return {Direction.INPUT: Direction.OUTPUT, Direction.OUTPUT: Direction.INPUT}[
-            direction
-        ]
+        map_to_opposite = {
+            Direction.INPUT: Direction.OUTPUT,
+            Direction.OUTPUT: Direction.INPUT,
+        }
+        return map_to_opposite[direction]
 
 
 class DataSchema:

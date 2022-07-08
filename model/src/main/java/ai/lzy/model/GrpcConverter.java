@@ -18,11 +18,13 @@ import ai.lzy.model.snapshot.SnapshotEntry;
 import ai.lzy.model.snapshot.SnapshotEntryStatus;
 import ai.lzy.model.snapshot.WhiteboardField;
 import ai.lzy.model.snapshot.WhiteboardStatus;
+import ai.lzy.priv.v2.Operations.Provisioning.Tag;
 import com.google.protobuf.Timestamp;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -55,7 +57,7 @@ public abstract class GrpcConverter {
     }
 
     public static Provisioning from(Operations.Provisioning provisioning) {
-        return () -> provisioning.getTagsList().stream().map(tag -> (Provisioning.Tag) tag::getTag);
+        return () -> provisioning.getTagsList().stream().map(Tag::getTag).collect(Collectors.toSet());
     }
 
     public static Env from(Operations.EnvSpec env) {
@@ -208,8 +210,8 @@ public abstract class GrpcConverter {
 
     private static Operations.Provisioning to(Provisioning provisioning) {
         return Operations.Provisioning.newBuilder()
-            .addAllTags(provisioning.tags()
-                .map(tag -> Operations.Provisioning.Tag.newBuilder().setTag(tag.tag()).build())
+            .addAllTags(provisioning.tags().stream()
+                .map(tag -> Tag.newBuilder().setTag(tag).build())
                 .collect(Collectors.toList()))
             .build();
     }

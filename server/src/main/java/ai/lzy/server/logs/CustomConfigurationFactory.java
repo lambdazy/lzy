@@ -23,7 +23,7 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
             Objects.equals(System.getenv("KAFKA_LOGS_ENABLED"), "true"),
             System.getenv("KAFKA_LOGS_HOST"),
             "{"
-                + "\"timestamp\":\"%d{UNIX}\","
+                + "\"timestamp\":\"%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC}\","
                 + " \"thread\": \"%t\","
                 + "  \"level\": \"%-5level\","
                 + " \"logger\": \"%logger{36}\","

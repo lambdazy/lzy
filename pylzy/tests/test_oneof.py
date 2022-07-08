@@ -1,10 +1,8 @@
 from dataclasses import dataclass
-
-
 from unittest import TestCase
 
-from pure_protobuf.dataclasses_ import message, one_of, part
-from pure_protobuf.oneof import OneOf_
+from pure_protobuf.dataclasses_ import message, one_of, part  # type: ignore
+from pure_protobuf.oneof import OneOf_  # type: ignore
 
 
 class TestOneOf(TestCase):

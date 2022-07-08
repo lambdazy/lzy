@@ -1,6 +1,18 @@
+locals {
+  whiteboard-labels = {
+    app                         = "whiteboard"
+    "app.kubernetes.io/name"    = "lzy-whiteboard"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "whiteboard"
+  }
+  whiteboard-port     = 8999
+  whiteboard-k8s-name = "whiteboard"
+}
+
 resource "kubernetes_secret" "whiteboard_db_data" {
   metadata {
-    name = "whiteboard-db-data"
+    name   = "whiteboard-db-data"
+    labels = local.whiteboard-labels
   }
 
   data = {
@@ -12,30 +24,24 @@ resource "kubernetes_secret" "whiteboard_db_data" {
 
 resource "kubernetes_deployment" "whiteboard" {
   metadata {
-    name = "whiteboard"
-    labels = {
-      app = "whiteboard"
-    }
+    name   = local.whiteboard-k8s-name
+    labels = local.whiteboard-labels
   }
   spec {
     strategy {
       type = "Recreate"
     }
     selector {
-      match_labels = {
-        app = "whiteboard"
-      }
+      match_labels = local.whiteboard-labels
     }
     template {
       metadata {
-        name = "whiteboard"
-        labels = {
-          app = "whiteboard"
-        }
+        name   = local.whiteboard-k8s-name
+        labels = local.whiteboard-labels
       }
       spec {
         container {
-          name              = "whiteboard"
+          name              = local.whiteboard-k8s-name
           image             = var.whiteboard-image
           image_pull_policy = "Always"
           env {
@@ -55,14 +61,14 @@ resource "kubernetes_deployment" "whiteboard" {
             value = kubernetes_service.lzy_server.spec[0].cluster_ip
           }
           port {
-            container_port = 8999
-            host_port      = 8999
+            container_port = local.whiteboard-port
+            host_port      = local.whiteboard-port
           }
           args = [
             "-z",
-            "http://${kubernetes_service.lzy_server.spec[0].cluster_ip}:8888",
+            "http://${kubernetes_service.lzy_server.spec[0].cluster_ip}:${local.server-port}",
             "-p",
-            "8999"
+            local.whiteboard-port
           ]
         }
         node_selector = {
@@ -75,18 +81,12 @@ resource "kubernetes_deployment" "whiteboard" {
                 match_expressions {
                   key      = "app"
                   operator = "In"
-                  values = [
-                    "lzy-servant",
-                    "lzy-server",
-                    "lzy-server-db",
-                    "lzy-kharon",
-                    "lzy-backoffice",
-                    "whiteboard",
-                    "whiteboard-db",
-                    "grafana",
-                    "kafka",
-                    "clickhouse"
-                  ]
+                  values   = local.all-services-k8s-app-labels
+                }
+                match_expressions {
+                  key      = "app.kubernetes.io/managed-by"
+                  operator = "In"
+                  values   = ["Helm"]
                 }
               }
               topology_key = "kubernetes.io/hostname"
@@ -98,24 +98,26 @@ resource "kubernetes_deployment" "whiteboard" {
       }
     }
   }
+  depends_on = [
+    helm_release.whiteboard_db
+  ]
 }
 
 resource "kubernetes_service" "whiteboard" {
   metadata {
-    name = "whiteboard"
+    name   = local.whiteboard-k8s-name
+    labels = local.whiteboard-labels
     annotations = {
       #      "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
     }
   }
   spec {
+    selector = local.whiteboard-labels
+    type     = "ClusterIP"
     port {
       protocol    = "TCP"
-      port        = 8999
-      target_port = 8999
+      port        = local.whiteboard-port
+      target_port = local.whiteboard-port
     }
-    selector = {
-      app = "whiteboard"
-    }
-    type = "ClusterIP"
   }
 }

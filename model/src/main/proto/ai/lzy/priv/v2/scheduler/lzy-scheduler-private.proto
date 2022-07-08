@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package ai.lzy.priv.v2.scheduler;
+
+option java_outer_classname = "SchedulerPrivateApi";
+option java_package = "ai.lzy.priv.v2.lzy";
+
+service SchedulerPrivate {
+  rpc RegisterServant (RegisterServantRequest) returns (RegisterServantResponse);
+  rpc ServantProgress (ServantProgressRequest) returns (ServantProgressResponse);
+}
+
+// =========Register servant=========
+
+message RegisterServantRequest {
+  string workflowName = 1;
+  string servantId = 2;
+}
+message RegisterServantResponse {}
+
+// ========= Progress ==========
+
+message ServantProgress {
+
+  message Started {}
+
+  message Configured {
+    message Ok {}
+    message Err {
+      string description = 1;
+    }
+    oneof result {
+      Ok ok = 1;
+      Err err = 2;
+    }
+  }
+  message Finished {}
+  message CommunicationCompleted {}
+  message ExecutionCompleted {
+    int32 rc = 1;
+    string description = 2;
+  }
+
+  message Executing {}
+  message Idle {}
+
+  oneof status {
+    Configured configured = 2;
+    ExecutionCompleted executionCompleted = 3;
+    CommunicationCompleted communicationCompleted = 4;
+    Finished finished = 5;
+
+    Executing executing = 6;
+    Idle idling = 7;
+  }
+}
+
+message ServantProgressRequest {
+  string workflowName = 1;
+  string servantId = 2;
+  ServantProgress progress = 3;
+}
+message ServantProgressResponse {}

@@ -5,6 +5,7 @@ package ai.lzy.priv.v2.graph;
 option java_outer_classname = "GraphExecutorApi";
 option java_package = "ai.lzy.priv.v2.graph";
 
+import "ai/lzy/priv/v2/scheduler/lzy-scheduler.proto";
 import "ai/lzy/priv/v2/lzy-zygote.proto";
 
 service GraphExecutor {
@@ -27,10 +28,8 @@ message SlotToChannelAssignment {
 
 message TaskExecutionStatus {
   string taskDescriptionId = 1;
-  TaskStatus progress = 2;
+  scheduler.TaskStatus progress = 2;
 }
-
-message TaskStatus {} // Info about task from scheduler
 
 message GraphExecutionStatus {
   message Waiting {}
