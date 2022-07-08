@@ -1,6 +1,6 @@
 iam:
   userLimit: 60 # 0 - is infinite limit
   serverPort: 8443
-database:
-  minPoolSize: 5
-  maxPoolSize: 100
+  database:
+    minPoolSize: 5
+    maxPoolSize: 100

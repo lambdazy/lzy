@@ -23,22 +23,23 @@ public class InternalUserInserter {
     public void addOrUpdateInternalUser(InternalUserConfig config) {
         try (final Connection connection = storage.connect()) {
             PreparedStatement st = connection.prepareStatement(
-                    "INSERT INTO users (user_id, auth_provider, provider_user_id, access_type) "
-                            + "VALUES (?, ?, ?, ?) "
-                            + "ON CONFLICT DO NOTHING;"
+                    """
+                            INSERT INTO users (user_id, auth_provider, provider_user_id, access_type)
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT DO NOTHING;
 
-                            + "INSERT INTO credentials (name, \"value\", user_id, type) "
-                            + "VALUES (?, ?, ?, ?) "
-                            + "ON CONFLICT (name, user_id) DO UPDATE SET "
-                            + "name = ?, "
-                            + "\"value\" = ?, "
-                            + "user_id = ?, "
-                            + "type = ? "
-                            + ";"
+                            INSERT INTO credentials (name, "value", user_id, type)
+                            VALUES (?, ?, ?, ?) ON CONFLICT (name, user_id) DO UPDATE SET
+                            name = ?,
+                            "value" = ?,
+                            user_id = ?,
+                            type = ?
+                            ;
 
-                            + "INSERT INTO user_resource_roles (user_id, resource_id, resource_type, role) "
-                            + "VALUES (?, ?, ?, ?) "
-                            + "ON CONFLICT DO NOTHING;"
+                            INSERT INTO user_resource_roles (user_id, resource_id, resource_type, role)
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT DO NOTHING;
+                            """
             );
             int parameterIndex = 0;
             st.setString(++parameterIndex, config.userName());

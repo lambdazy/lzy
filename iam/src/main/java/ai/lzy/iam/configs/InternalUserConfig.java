@@ -2,7 +2,7 @@ package ai.lzy.iam.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 
-@ConfigurationProperties("internal")
+@ConfigurationProperties("iam.internal")
 public class InternalUserConfig {
     private String userName;
     private String credentialName;
