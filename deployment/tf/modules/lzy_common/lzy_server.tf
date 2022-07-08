@@ -162,7 +162,7 @@ resource "kubernetes_deployment" "server" {
           }
           env {
             name  = "SERVER_IAM_URI"
-            value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+            value = "http://${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
             name  = "SERVANT_IMAGE"

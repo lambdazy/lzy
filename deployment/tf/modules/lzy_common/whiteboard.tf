@@ -58,11 +58,11 @@ resource "kubernetes_deployment" "whiteboard" {
           }
           env {
             name  = "SERVICE_SERVER_URI"
-            value = "${kubernetes_service.lzy_server.spec[0].cluster_ip}:${local.server-port}"
+            value = "http://${kubernetes_service.lzy_server.spec[0].cluster_ip}:${local.server-port}"
           }
           env {
             name  = "SERVICE_IAM_URI"
-            value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+            value = "http://${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
             name  = "SERVICE_PORT"

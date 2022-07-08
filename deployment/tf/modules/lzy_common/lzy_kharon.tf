@@ -43,11 +43,11 @@ resource "kubernetes_deployment" "kharon" {
           }
           env {
             name  = "LZY_SERVER_IP"
-            value = kubernetes_service.lzy_server.spec[0].cluster_ip
+            value = "http://${kubernetes_service.lzy_server.spec[0].cluster_ip}:${local.server-port}"
           }
           env {
             name  = "KHARON_IAM_ADDRESS"
-            value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+            value = "http://${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           port {
             container_port = local.kharon-port
