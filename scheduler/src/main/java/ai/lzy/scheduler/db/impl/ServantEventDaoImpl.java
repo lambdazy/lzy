@@ -7,11 +7,15 @@ import ai.lzy.scheduler.db.Utils;
 import ai.lzy.scheduler.models.ServantEvent;
 import jakarta.inject.Singleton;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 @Singleton
 public class ServantEventDaoImpl implements ServantEventDao {
@@ -70,18 +74,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
                             return;
                         }
                         rs.next();
-                        int count = 0;
-                        final var id = rs.getString(++count);
-                        final var timestamp = rs.getTimestamp(++count);
-                        final var servant = rs.getString(++count);
-                        final var workflowId = rs.getString(++count);
-                        final var type = ServantEvent.Type.valueOf(rs.getString(++count));
-                        final var description = rs.getString(++count);
-                        final var rc = rs.getObject(++count, Integer.class);
-                        final var taskId = rs.getString(++count);
-                        final var servantUrl = rs.getString(++count);
-                        event[0] = new ServantEvent(id, timestamp.toInstant(), servant, workflowId, type, description,
-                                rc, taskId, servantUrl == null ? null : HostAndPort.fromString(servantUrl));
+                        event[0] = readEvent(rs);
                     }
                 }
                 try (var ps = con.prepareStatement("""
@@ -95,6 +88,42 @@ public class ServantEventDaoImpl implements ServantEventDao {
             throw new RuntimeException("Cannot take event", e);
         }
         return event[0];
+    }
+
+    @Override
+    public List<ServantEvent> list(String servantId) {
+        try (var con = storage.connect(); var ps = con.prepareStatement(
+                "SELECT " + FIELDS + "FROM servant_event WHERE servant_id = ?")) {
+            ps.setString(1, servantId);
+
+            List<ServantEvent> events = new ArrayList<>();
+
+            try (var rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    final ServantEvent event = readEvent(rs);
+                    events.add(event);
+                }
+            }
+            return events;
+        } catch (SQLException e) {
+            throw new RuntimeException("Cannot save event", e);
+        }
+    }
+
+    @NotNull
+    private ServantEvent readEvent(ResultSet rs) throws SQLException {
+        int count = 0;
+        final var id = rs.getString(++count);
+        final var timestamp = rs.getTimestamp(++count);
+        final var servant = rs.getString(++count);
+        final var workflowId = rs.getString(++count);
+        final var type = ServantEvent.Type.valueOf(rs.getString(++count));
+        final var description = rs.getString(++count);
+        final var rc = rs.getObject(++count, Integer.class);
+        final var taskId = rs.getString(++count);
+        final var servantUrl = rs.getString(++count);
+        return new ServantEvent(id, timestamp.toInstant(), servant, workflowId, type, description,
+            rc, taskId, servantUrl == null ? null : HostAndPort.fromString(servantUrl));
     }
 
     @Override
