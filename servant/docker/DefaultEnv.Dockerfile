@@ -1,4 +1,5 @@
-FROM lzydock/default-env-base:master
+ARG DEFAULT_ENV_BASE_TAG=latest
+FROM lzydock/default-env-base:${DEFAULT_ENV_BASE_TAG}
 
 ### copy lzy-py sources & install
 COPY pylzy/ pylzy
