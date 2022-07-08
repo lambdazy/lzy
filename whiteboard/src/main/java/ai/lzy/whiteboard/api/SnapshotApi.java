@@ -55,7 +55,7 @@ import ai.lzy.priv.v2.LzyWhiteboard.SaveExecutionResponse;
 import ai.lzy.priv.v2.SnapshotApiGrpc;
 
 @Singleton
-@Requires(property = "service.serverUri")
+@Requires(property = "service.server-uri")
 public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     private static final Logger LOG = LogManager.getLogger(SnapshotApi.class);

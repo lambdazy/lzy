@@ -45,7 +45,7 @@ import ai.lzy.priv.v2.LzyWhiteboard;
 import ai.lzy.priv.v2.WbApiGrpc;
 
 @Singleton
-@Requires(property = "service.serverUri")
+@Requires(property = "service.server-uri")
 public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     private static final Logger LOG = LogManager.getLogger(WhiteboardApi.class);
