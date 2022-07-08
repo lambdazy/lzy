@@ -13,6 +13,7 @@ public class EventQueue {
     public EventQueue(ServantEventDao dao, String servantId) {
         this.dao = dao;
         this.servantId = servantId;
+        restore();
     }
 
     public ServantEvent waitForNext() throws InterruptedException {
@@ -27,5 +28,10 @@ public class EventQueue {
     public void put(ServantEvent event) {
         dao.save(event);
         queue.put(event);
+    }
+
+    private void restore() {
+        final var events = dao.list(servantId);
+        queue.addAll(events);
     }
 }

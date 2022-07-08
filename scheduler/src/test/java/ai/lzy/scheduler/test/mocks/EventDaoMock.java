@@ -31,6 +31,11 @@ public class EventDaoMock implements ServantEventDao {
     }
 
     @Override
+    public List<ServantEvent> list(String servantId) {
+        return events.values().stream().filter(t -> t.servantId().equals(servantId)).toList();
+    }
+
+    @Override
     public void removeAllByTypes(String servantId, ServantEvent.Type... types) {
         Set<ServantEvent.Type> typeSet = new HashSet<>(Arrays.asList(types));
         events.values()
