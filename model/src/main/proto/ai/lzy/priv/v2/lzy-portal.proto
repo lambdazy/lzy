@@ -48,6 +48,10 @@ message PortalSlotDesc {
   message Snapshot {
     // portal local storage
     string id = 1;
+
+    // TODO:
+    //  - support whiteboard
+    //  - support kafka (streaming)
   }
 
   oneof storage {

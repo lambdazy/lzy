@@ -39,7 +39,7 @@ import static java.util.Objects.requireNonNull;
 
 public class PortalTest {
 
-    public class ServerMock extends LzyServerGrpc.LzyServerImplBase {
+    public static class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         private final int port;
         private final ApplicationContext ctx;
         private final Server server;
@@ -73,7 +73,7 @@ public class PortalTest {
             return port;
         }
 
-        public void start() throws IOException {
+        public void start1() throws IOException {
             server.start();
         }
 
@@ -437,7 +437,7 @@ public class PortalTest {
                         } else if (action.hasExecuteStop()) {
                             tasks.get(taskId).complete(action.getExecuteStop());
                         } else if (action.hasCommunicationCompleted()) {
-                            taskId = null; // all slots are flushed
+                            taskId = null;
                             taskCompleted.complete(null);
                         }
                     });
@@ -458,7 +458,7 @@ public class PortalTest {
     @Before
     public void before() throws IOException {
         server = new ServerMock();
-        server.start();
+        server.start1();
         servants = new HashMap<>();
     }
 
@@ -499,14 +499,10 @@ public class PortalTest {
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
         // create channels for task_1
-        server.channel(makeCreateDirectChannelCommand("channel_1"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Channel created: " + JsonUtils.printSingleLine(status))));
-        server.channel(makeCreateDirectChannelCommand("task_1:stdin"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Stdin channel created: " + JsonUtils.printSingleLine(status))));
-        server.channel(makeCreateDirectChannelCommand("task_1:stdout"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Stdout channel created: " + JsonUtils.printSingleLine(status))));
-        server.channel(makeCreateDirectChannelCommand("task_1:stderr"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Stderr channel created: " + JsonUtils.printSingleLine(status))));
+        createChannel("channel_1");
+        createChannel("task_1:stdin");
+        createChannel("task_1:stdout");
+        createChannel("task_1:stderr");
 
         // configure portal to snapshot `channel-1` data
         server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
@@ -556,14 +552,10 @@ public class PortalTest {
 
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
-        server.channel(makeDestroyChannelCommand("channel_1"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Destroy 'channel_1': " + JsonUtils.printSingleLine(status))));
-        server.channel(makeDestroyChannelCommand("task_1:stdin"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Destroy '/dev/stdin': " + JsonUtils.printSingleLine(status))));
-        server.channel(makeDestroyChannelCommand("task_1:stdout"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Destroy '/dev/stdout': " + JsonUtils.printSingleLine(status))));
-        server.channel(makeDestroyChannelCommand("task_1:stderr"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Destroy '/dev/stderr': " + JsonUtils.printSingleLine(status))));
+        destroyChannel("channel_1");
+        destroyChannel("task_1:stdin");
+        destroyChannel("task_1:stdout");
+        destroyChannel("task_1:stderr");
 
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASK 2 -----------------------------------------\n");
@@ -572,14 +564,10 @@ public class PortalTest {
         ///// consumer task  /////
 
         // create channels for task_2
-        server.channel(makeCreateDirectChannelCommand("channel_2"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Channel created: " + JsonUtils.printSingleLine(status))));
-        server.channel(makeCreateDirectChannelCommand("task_2:stdin"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Stdin channel created: " + JsonUtils.printSingleLine(status))));
-        server.channel(makeCreateDirectChannelCommand("task_2:stdout"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Stdout channel created: " + JsonUtils.printSingleLine(status))));
-        server.channel(makeCreateDirectChannelCommand("task_2:stderr"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Stderr channel created: " + JsonUtils.printSingleLine(status))));
+        createChannel("channel_2");
+        createChannel("task_2:stdin");
+        createChannel("task_2:stdout");
+        createChannel("task_2:stderr");
 
         // open portal output slot
         server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
@@ -632,14 +620,10 @@ public class PortalTest {
 
         // task_2 clean up
         System.out.println("-- cleanup task2 scenario --");
-        server.channel(makeDestroyChannelCommand("channel_2"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Destroy 'channel_2': " + JsonUtils.printSingleLine(status))));
-        server.channel(makeDestroyChannelCommand("task_2:stdin"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Destroy '/dev/stdin': " + JsonUtils.printSingleLine(status))));
-        server.channel(makeDestroyChannelCommand("task_2:stdout"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Destroy '/dev/stdout': " + JsonUtils.printSingleLine(status))));
-        server.channel(makeDestroyChannelCommand("task_2:stderr"), SuccessStreamObserver.wrap(
-            status -> System.out.println("Destroy '/dev/stderr': " + JsonUtils.printSingleLine(status))));
+        destroyChannel("channel_2");
+        destroyChannel("task_2:stdin");
+        destroyChannel("task_2:stdout");
+        destroyChannel("task_2:stderr");
 
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----------------------------------------------\n");
@@ -649,7 +633,7 @@ public class PortalTest {
         Assert.assertEquals("i-am-a-hacker\n", result);
     }
 
-    private LzyServant startServant(String servantId) throws URISyntaxException, IOException {
+    private void startServant(String servantId) throws URISyntaxException, IOException {
         var servant = new LzyServant(LzyAgentConfig.builder()
                 .serverAddress(URI.create("grpc://localhost:" + server.port()))
                 .whiteboardAddress(URI.create("grpc://localhost:" + rollPort()))
@@ -663,9 +647,18 @@ public class PortalTest {
                 .build());
         servant.start();
         servants.put(servantId, servant);
-        return servant;
     }
 
+
+    private void createChannel(String name) {
+        server.channel(makeCreateDirectChannelCommand(name), SuccessStreamObserver.wrap(
+            status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
+    }
+
+    private void destroyChannel(String name) {
+        server.channel(makeDestroyChannelCommand(name), SuccessStreamObserver.wrap(
+            status -> System.out.println("Channel '" + name + "' removed: " + JsonUtils.printSingleLine(status))));
+    }
 
     private static Channels.ChannelCommand makeCreateDirectChannelCommand(String channelName) {
         return Channels.ChannelCommand.newBuilder()
