@@ -15,6 +15,8 @@ let
     stdlib-list
     pure-protobuf
 
+    pip
+
     # it's here just to get protoc
     protobuf
     grpcio-tools

@@ -49,7 +49,7 @@ cd "$proto_path" && \
 
 cd "$out" && \
    mv lzy/proto/* ./ && \
-   rm "lzy/__init__.py" && \
+   find . -name "__init__.py" -exec rm -v {} + && \
    rmdir -p "lzy/proto"
 
 print_green "Generated next proto stubs:"
