@@ -45,7 +45,7 @@ import ai.lzy.priv.v2.LzyWhiteboard;
 import ai.lzy.priv.v2.WbApiGrpc;
 
 @Singleton
-@Requires(property = "server.uri")
+@Requires(property = "service.serverUri")
 public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
 
     private static final Logger LOG = LogManager.getLogger(WhiteboardApi.class);
@@ -56,7 +56,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
     @Inject
     public WhiteboardApi(ServiceConfig serviceConfig, WhiteboardRepository whiteboardRepository,
                          SnapshotRepository snapshotRepository) {
-        URI uri = URI.create(serviceConfig.getUri());
+        URI uri = URI.create(serviceConfig.getServerUri());
         final ManagedChannel serverChannel = ChannelBuilder
             .forAddress(uri.getHost(), uri.getPort())
             .usePlaintext()

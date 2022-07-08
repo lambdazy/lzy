@@ -57,11 +57,11 @@ resource "kubernetes_deployment" "whiteboard" {
             value = var.lzy_whiteboard_db_password == "" ? random_password.whiteboard_db_password[0].result : var.lzy_whiteboard_db_password
           }
           env {
-            name  = "SERVER_URI"
+            name  = "SERVICE_SERVER_URI"
             value = kubernetes_service.lzy_server.spec[0].cluster_ip
           }
           env {
-            name  = "SERVER_IAM_URI"
+            name  = "SERVICE_IAM_URI"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
@@ -76,12 +76,6 @@ resource "kubernetes_deployment" "whiteboard" {
             container_port = local.whiteboard-port
             host_port      = local.whiteboard-port
           }
-          args = [
-            "-z",
-            "http://${kubernetes_service.lzy_server.spec[0].cluster_ip}:${local.server-port}",
-            "-p",
-            local.whiteboard-port
-          ]
         }
         node_selector = {
           type = "lzy"

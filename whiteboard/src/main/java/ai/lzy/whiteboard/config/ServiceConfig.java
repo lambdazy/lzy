@@ -2,18 +2,18 @@ package ai.lzy.whiteboard.config;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 
-@ConfigurationProperties("server")
+@ConfigurationProperties("service")
 public class ServiceConfig {
-    private String uri;
+    private String serverUri;
     private String iamUri;
     private int port;
 
-    public String getUri() {
-        return uri;
+    public String getServerUri() {
+        return serverUri;
     }
 
-    public void setUri(String uri) {
-        this.uri = uri;
+    public void setServerUri(String serverUri) {
+        this.serverUri = serverUri;
     }
 
     public String getIamUri() {

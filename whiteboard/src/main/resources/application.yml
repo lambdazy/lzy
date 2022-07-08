@@ -1,2 +1,2 @@
 service:
-  uri: 'localhost:8888'
+  serverUri: 'localhost:8888'

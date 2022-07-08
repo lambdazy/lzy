@@ -55,7 +55,7 @@ import ai.lzy.priv.v2.LzyWhiteboard.SaveExecutionResponse;
 import ai.lzy.priv.v2.SnapshotApiGrpc;
 
 @Singleton
-@Requires(property = "server.uri")
+@Requires(property = "service.serverUri")
 public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     private static final Logger LOG = LogManager.getLogger(SnapshotApi.class);
@@ -65,7 +65,7 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
 
     @Inject
     public SnapshotApi(ServiceConfig serviceConfig, SnapshotRepository repository) {
-        URI uri = URI.create(serviceConfig.getUri());
+        URI uri = URI.create(serviceConfig.getServerUri());
         final ManagedChannel serverChannel = ChannelBuilder
             .forAddress(uri.getHost(), uri.getPort())
             .usePlaintext()
