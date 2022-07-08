@@ -103,12 +103,11 @@ public class SlotsManager implements AutoCloseable {
                 throw new RuntimeException(msg);
             }
 
-            String channelId = null;
             if (binding != null && binding.startsWith("channel:")) {
-                channelId = binding.substring("channel:".length());
+                binding = binding.substring("channel:".length());
             }
 
-            return registerSlot(taskId, slot, channelId);
+            return registerSlot(taskId, slot, binding);
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
