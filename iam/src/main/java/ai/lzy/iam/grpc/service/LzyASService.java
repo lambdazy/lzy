@@ -5,6 +5,7 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.authorization.exceptions.AuthException;
@@ -19,6 +20,7 @@ import ai.lzy.priv.v1.LzyAccessServiceGrpc;
 
 import java.util.Objects;
 
+@Singleton
 @Requires(beans = DbAccessClient.class)
 public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase {
 

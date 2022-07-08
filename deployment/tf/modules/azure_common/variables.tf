@@ -15,7 +15,7 @@ variable "cpu_pool_auto_scale" {
 }
 
 variable "cpu_pool_size" {
-  type = number
+  type    = number
   default = 5
 }
 
@@ -90,6 +90,12 @@ variable "whiteboard-image" {
   type    = string
   default = "lzydock/lzy-whiteboard:master"
 }
+
+variable "iam-image" {
+  type    = string
+  default = "lzydock/lzy-iam:master"
+}
+
 variable "s3-postfics" {
   type = string
 }
