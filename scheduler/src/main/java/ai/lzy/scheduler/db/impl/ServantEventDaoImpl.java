@@ -98,7 +98,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
 
             List<ServantEvent> events = new ArrayList<>();
 
-            try(var rs = ps.executeQuery()) {
+            try (var rs = ps.executeQuery()) {
                 while (rs.next()) {
                     final ServantEvent event = readEvent(rs);
                     events.add(event);
