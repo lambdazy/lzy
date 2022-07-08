@@ -43,7 +43,7 @@ public class DockerEnvironment implements BaseEnvironment {
     public final CreateContainerResponse container;
     public final String sourceImage;
 
-    public DockerEnvironment(BaseEnvConfig config) throws EnvironmentInstallationException {
+    public DockerEnvironment(BaseEnvConfig config) {
         sourceImage = prepareImage(config);
 
         LOG.info("Creating container from image={} ...", sourceImage);
@@ -196,36 +196,11 @@ public class DockerEnvironment implements BaseEnvironment {
         DOCKER.killContainerCmd(container.getId()).exec();
     }
 
-    private String prepareImage(BaseEnvConfig config) throws EnvironmentInstallationException {
+    private String prepareImage(BaseEnvConfig config) {
         if (Objects.equals(config.image(), config.defaultImage())) {
-            LOG.info("Default image {} requested", config.image());
-
-            String cachedImageName = "lzydock/default-env:from-tar";
-            String loadImageCmd = "docker load -i default-env-image.tar";
-            try {
-                Process loadImageProcess = Runtime.getRuntime().exec(new String[] {"bash", "-c", loadImageCmd});
-                loadImageProcess.waitFor();
-                int exitCode = loadImageProcess.exitValue();
-                if (exitCode != 0) {
-                    String errorMessage = "Failed to load image " + cachedImageName + " from tar, "
-                        + "exit code: " + exitCode + ", "
-                        + "stderr:\n" + IOUtils.toString(loadImageProcess.getErrorStream()) + "\n";
-                    LOG.error(errorMessage);
-                    throw new EnvironmentInstallationException(errorMessage);
-                }
-            } catch (InterruptedException | IOException e) {
-                LOG.error("Failed to load image {} from tar", cachedImageName);
-                throw new EnvironmentInstallationException(e);
-            }
-
-            final List<Image> cachedImages = DOCKER.listImagesCmd().withImageNameFilter(cachedImageName).exec();
-            if (!cachedImages.isEmpty()) {
-                LOG.info("Cached image {} found", cachedImageName);
-                return cachedImageName;
-            } else {
-                LOG.info("No cached images found");
-            }
-
+            LOG.info("Default image requested");
+        } else {
+            LOG.info("Custom image {} requested", config.image());
         }
         LOG.info("Pulling image {} ...", config.image());
         final var pullingImage = DOCKER
