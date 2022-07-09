@@ -9,12 +9,12 @@ source ./util.sh
 # proto_out="lzy/proto"
 # proto_path="../model/src/main/proto/"
 
-[ ! -d "$proto_out" ] && mkdir -p "$proto_out/bet"
+[ ! -d "$proto_out" ] && mkdir -p "$proto_out"
 
 # check mypy, it's hack actually but for some reason it's not installed
 # ok with nix
-python -m mypy_protobuf 1>/dev/null 2>&1
-[ $? -ne 0 ] && pip install mypy-protobuf
+python -m mypy_protobuf 1>/dev/null 2>&1\
+    || pip install mypy-protobuf
 
 print_green "Generating protobuf, grpclib and mypy proto stubs"
 
