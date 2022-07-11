@@ -7,6 +7,107 @@
 * Java (>= 17)
   * Ubuntu: `apt install default-jre`
   * macOS: `brew install java`
+* Python
+<details><summary>Supported python versions</summary>
+<p>
+
+python                         3.6.2
+
+python                         3.6.3
+
+python                         3.6.4
+
+python                         3.6.5
+
+python                         3.6.6
+
+python                         3.6.7
+
+python                         3.6.8
+
+python                         3.6.9
+
+python                        3.6.10
+
+python                        3.6.12
+
+python                        3.6.13
+
+python                         3.7.0
+
+python                         3.7.1
+
+python                         3.7.2
+
+python                         3.7.3
+
+python                         3.7.4
+
+python                         3.7.5
+
+python                         3.7.6
+
+python                         3.7.7
+
+python                         3.7.9
+
+python                        3.7.10
+
+python                        3.7.11
+
+python                        3.7.13
+
+python                         3.8.0
+
+python                         3.8.1
+
+python                         3.8.2
+
+python                         3.8.3
+
+python                         3.8.5
+
+python                         3.8.8
+
+python                        3.8.10
+
+python                        3.8.11
+
+python                        3.8.12
+
+python                        3.8.13
+
+python                         3.9.0
+
+python                         3.9.1
+
+python                         3.9.2
+
+python                         3.9.4
+
+python                         3.9.5
+
+python                         3.9.6
+
+python                         3.9.7
+
+python                        3.9.11
+
+python                        3.9.12
+
+python                        3.10.0
+
+python                        3.10.3
+
+python                        3.10.4
+
+
+
+
+
+</p>
+</details>
+
 
 ### Installation
 
