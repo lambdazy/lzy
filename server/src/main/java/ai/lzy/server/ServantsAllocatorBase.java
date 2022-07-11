@@ -56,10 +56,6 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         ttl.scheduleAtFixedRate(this, PERIOD, PERIOD);
     }
 
-    public ServantsAllocatorBase(Authenticator auth, int waitBeforeShutdownInSec) {
-        this(auth, waitBeforeShutdownInSec, 100);
-    }
-
     protected abstract void requestAllocation(String servantId, String servantToken,
                                               Provisioning provisioning,
                                               String bucket);
@@ -150,6 +146,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                         if (result.getRc() != 0) {
                             request.completeExceptionally(
                                 new EnvironmentInstallationException(result.getDescription()));
+                            spareServants.put(connection, Instant.now().plus(waitBeforeShutdown, ChronoUnit.SECONDS));
                             return;
                         }
                         request.complete(connection);
@@ -266,6 +263,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             tasksToShutdown.forEach(s -> {
                 final SessionImpl session = servant2sessions.remove(s.id());
                 if (session != null) {
+                    //noinspection SuspiciousMethodCalls
                     session.servants.remove(s);
                 }
                 shuttingDown.put(s, Instant.now().plus(GRACEFUL_SHUTDOWN_PERIOD_SEC, ChronoUnit.SECONDS));
@@ -280,9 +278,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             });
             tasksToForceStop.forEach(this::terminate);
         });
-        executor.execute(() -> {
-            notAllocatedServants.forEach(this::terminate);
-        });
+        executor.execute(() -> notAllocatedServants.forEach(this::terminate));
     }
 
     private static class ServantConnectionImpl implements ServantConnection {
