@@ -53,7 +53,3 @@ COPY servant/docker/requirements.txt /
 COPY servant/docker/conda_prepare.sh /
 RUN chmod a+rx /conda_prepare.sh
 RUN ./conda_prepare.sh init
-
-### cached default-env
-# docker save -o servant/docker/default-env-image.tar lzydock/default-env:from-tar
-COPY --chmod=444 servant/docker/default-env-image.tar /
