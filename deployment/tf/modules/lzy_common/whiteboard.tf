@@ -93,6 +93,11 @@ resource "kubernetes_deployment" "whiteboard" {
                   operator = "In"
                   values   = local.all-services-k8s-app-labels
                 }
+              }
+              topology_key = "kubernetes.io/hostname"
+            }
+            required_during_scheduling_ignored_during_execution {
+              label_selector {
                 match_expressions {
                   key      = "app.kubernetes.io/managed-by"
                   operator = "In"
