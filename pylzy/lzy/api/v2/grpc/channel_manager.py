@@ -12,6 +12,7 @@ from lzy.proto.bet.priv.v2 import (
 
 from lzy.api.v2.grpc.api.channel import ChannelApi
 
+
 class ChannelManager:
     def __init__(self, snapshot_id: str, channel_api: ChannelApi):
         self._entry_id_to_channel: Dict[str, Channel] = {}

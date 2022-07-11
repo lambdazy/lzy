@@ -5,6 +5,7 @@ let
   lzy = ps: ps.callPackage ./nix/lzy.nix {};
 
   python-dev = python.withPackages(ps: with ps; [
+    pip
     boto3
     cloudpickle
     pyyaml

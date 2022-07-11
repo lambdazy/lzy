@@ -1,6 +1,8 @@
 syntax = "proto3";
 
 package lzy.proto.priv.v2.graph;
+
+option java_outer_classname = "GraphExecutorApi";
 option java_package = "ai.lzy.priv.v2.graph";
 
 import "lzy/proto/priv/v2/lzy-zygote.proto";
