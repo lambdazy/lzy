@@ -2,6 +2,7 @@ locals {
   lzy-node-k8s-label = "lzy"
   all-services-k8s-app-labels = [
     "lzy-servant",
+    local.iam-labels.app,
     local.server-labels.app,
     local.kharon-labels.app,
     local.backoffice-labels.app,
