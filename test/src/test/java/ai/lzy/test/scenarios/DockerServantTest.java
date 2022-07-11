@@ -2,6 +2,10 @@ package ai.lzy.test.scenarios;
 
 import ai.lzy.test.LzyServerTestContext;
 import ai.lzy.test.LzyTerminalTestContext;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Map;
 import org.junit.Assert;
@@ -43,10 +47,16 @@ public class DockerServantTest extends LocalScenario {
 
         //Act
         terminal.publish(echo42);
+
+        Instant beforeRun = Instant.now();
+        System.out.println("DockerServantTest: run " + operationName + " at " + beforeRun.toString());
+
         final LzyTerminalTestContext.Terminal.ExecutionResult result = terminal.run(echo42.name(), "", Map.of());
 
-        //Assert
-        //Assert.assertTrue(result.stderr(), result.stderr().isEmpty());
+        Instant afterRun = Instant.now();
+        System.out.println("DockerServantTest: run finished " + operationName + " at " + afterRun.toString()
+                           + "; spent " + Duration.between(beforeRun, afterRun).getSeconds() + "s");
+
         Assert.assertEquals("42\n", result.stdout());
     }
 

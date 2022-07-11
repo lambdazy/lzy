@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -e
 MAJOR=1
 
 if [[ $# -lt 1 ]]; then
@@ -35,12 +36,10 @@ CUSTOM_TAG=$2
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
     docker build -t lzydock/default-env-base:master -f servant/docker/DefaultEnv.Base.Dockerfile .
-    docker build -t lzydock/default-env:from-tar -f servant/docker/DefaultEnv.Dockerfile .
-    docker save -o servant/docker/default-env-image.tar lzydock/default-env:from-tar
     docker build -t lzy-servant-base -t lzydock/lzy-servant-base:master -f servant/docker/System.Base.Dockerfile .
-    rm -f servant/docker/default-env-image.tar
   fi
   mvn clean install -DskipTests
+  docker build -t lzydock/default-env:master -f servant/docker/DefaultEnv.Dockerfile .
   docker build -t lzy-servant -f servant/docker/System.Dockerfile .
   docker build -t lzy-server -f server/Dockerfile server
   docker build -t lzy-whiteboard -f whiteboard/Dockerfile whiteboard
@@ -51,11 +50,18 @@ if [[ $REBUILD = true ]]; then
 fi
 
 PUSHED_IMAGES=""
+NL=$'\n'
 
 if [[ $BASE = true ]]; then
+  docker push lzydock/default-env-base:master
+  PUSHED_IMAGES="$PUSHED_IMAGES${NL}default-env-base-image = \"lzydock/default-env-base:master\""
+
   docker push lzydock/lzy-servant-base:master
   PUSHED_IMAGES="$PUSHED_IMAGES${NL}lzy-servant-base-image = \"lzydock/lzy-servant-base:master\""
 fi
+
+docker push lzydock/default-env:master
+PUSHED_IMAGES="$PUSHED_IMAGES${NL}default-env-image = \"lzydock/default-env:master\""
 
 for SERVICE in $SERVICES; do
   echo "pushing docker for $SERVICE"
@@ -82,7 +88,6 @@ for SERVICE in $SERVICES; do
   docker push "$NEW_TAG" && docker image rm "$NEW_TAG"
   echo "::set-output name=${SERVICE#lzy-}-image::$BRANCH-$TAG" # for github actions
   echo ""
-  NL=$'\n'
   PUSHED_IMAGES="$PUSHED_IMAGES${NL}$SERVICE-image = \"lzydock/$SERVICE:$BRANCH-$TAG\""
 done
 echo "$PUSHED_IMAGES"
