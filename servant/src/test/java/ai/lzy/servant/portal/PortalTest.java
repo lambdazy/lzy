@@ -25,10 +25,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
@@ -211,7 +208,7 @@ public class PortalTest {
 
         public void startPortalOn(String servantId) {
             System.out.println("Starting portal on servant '" + servantId + "'...");
-            requireNonNull(servantHandlers.get(servantId)).startPortal();
+            requireNonNull(servantHandlers.get(servantId)).startPortal(servantId + ":stdout", servantId + ":stderr");
         }
 
         public ServantHandler portal() {
@@ -245,7 +242,7 @@ public class PortalTest {
         private void attachSlot(String servantId, Servant.SlotAttach attach) {
             String channelName = attach.getChannel();
             if (attach.getSlot().getName().startsWith("/dev/std")) {
-                Assert.assertTrue(JsonUtils.printSingleLine(attach), attach.getChannel().isEmpty());
+                // Assert.assertTrue(JsonUtils.printSingleLine(attach), attach.getChannel().isEmpty());
 
                 var uri = URI.create(attach.getUri());
                 var taskId = uri.getPath().substring(1, uri.getPath().length() - attach.getSlot().getName().length());
@@ -371,8 +368,11 @@ public class PortalTest {
                 }
             }
 
-            public void startPortal() {
-                portalStub.start(Empty.getDefaultInstance());
+            public void startPortal(String stdoutChannel, String stderrChannel) {
+                portalStub.start(LzyPortalApi.StartPortalRequest.newBuilder()
+                    .setStdoutChannelId(stdoutChannel)
+                    .setStderrChannelId(stderrChannel)
+                    .build());
                 portalStub.status(Empty.getDefaultInstance());
                 portal = true;
             }
@@ -457,6 +457,7 @@ public class PortalTest {
 
     @Before
     public void before() throws IOException {
+        System.err.println("---> " + ForkJoinPool.commonPool().getParallelism());
         server = new ServerMock();
         server.start1();
         servants = new HashMap<>();
@@ -488,7 +489,12 @@ public class PortalTest {
         // portal
         startServant("portal");
         server.waitServantStart("portal");
+        createChannel("portal:stdout");
+        createChannel("portal:stderr");
         server.startPortalOn("portal");
+
+        var portalStdout = readPortalSlot("portal:stdout");
+        var portalStderr = readPortalSlot("portal:stderr");
 
         // servant
         startServant("servant");
@@ -514,9 +520,17 @@ public class PortalTest {
                     .setContentType(makePlainTextDataScheme())
                     .build())
                 .setChannelId("channel_1")
-                .setSnapshot(LzyPortalApi.PortalSlotDesc.Snapshot.newBuilder()
-                    .setId("snapshot_1")
-                    .build())
+                .setSnapshot(LzyPortalApi.PortalSlotDesc.Snapshot.newBuilder().setId("snapshot_1").build())
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputSlot("/portal_task_1:stdout"))
+                .setChannelId("task_1:stdout")
+                .setStdout(LzyPortalApi.PortalSlotDesc.StdOut.newBuilder().setTaskId("task_1").build())
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputSlot("/portal_task_1:stderr"))
+                .setChannelId("task_1:stderr")
+                .setStderr(LzyPortalApi.PortalSlotDesc.StdErr.newBuilder().setTaskId("task_1").build())
                 .build())
             .build());
 
@@ -537,17 +551,30 @@ public class PortalTest {
             .setZygote(Operations.Zygote.newBuilder()
                 .setName("zygote_1")
                 .addSlots(taskOutputSlot)
-                .setFuze("echo 'i-am-a-hacker' > /tmp/lzy_servant/slot_1")
+                .setFuze("echo 'i-am-a-hacker' > /tmp/lzy_servant/slot_1 && echo 'hello'")
                 .build())
             .addAssignments(Tasks.SlotAssignment.newBuilder()
                 .setTaskId("task_1")
                 .setSlot(taskOutputSlot)
                 .setBinding("channel:channel_1")
                 .build())
+            .addAssignments(Tasks.SlotAssignment.newBuilder()
+                .setTaskId("task_1")
+                .setSlot(makeOutputSlot("/dev/stdout"))
+                .setBinding("channel:task_1:stdout")
+                .build())
+            .addAssignments(Tasks.SlotAssignment.newBuilder()
+                .setTaskId("task_1")
+                .setSlot(makeOutputSlot("/dev/stderr"))
+                .setBinding("channel:task_1:stderr")
+                .build())
             .build(),
             SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
 
         server.waitTaskCompleted("task_1");
+        Assert.assertEquals("task_1; hello\n", portalStdout.take());
+        Assert.assertEquals("task_1; ", portalStdout.take());
+        Assert.assertEquals("task_1; ", portalStderr.take());
         server.waitPortalCompleted();
 
         // task_1 clean up
@@ -583,6 +610,16 @@ public class PortalTest {
                     .setId("snapshot_1")
                     .build())
                 .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputSlot("/portal_task_2:stdout"))
+                .setChannelId("task_2:stdout")
+                .setStdout(LzyPortalApi.PortalSlotDesc.StdOut.newBuilder().setTaskId("task_2").build())
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputSlot("/portal_task_2:stderr"))
+                .setChannelId("task_2:stderr")
+                .setStderr(LzyPortalApi.PortalSlotDesc.StdErr.newBuilder().setTaskId("task_2").build())
+                .build())
             .build());
 
         Thread.sleep(Duration.ofSeconds(1).toMillis());
@@ -604,18 +641,31 @@ public class PortalTest {
             .setZygote(Operations.Zygote.newBuilder()
                 .setName("zygote_2")
                 .addSlots(taskInputSlot)
-                .setFuze("/tmp/lzy_servant/sbin/cat /tmp/lzy_servant/slot_2 > " + tmpFile.getAbsolutePath())
+                .setFuze("echo 'x' && /tmp/lzy_servant/sbin/cat /tmp/lzy_servant/slot_2 > " + tmpFile.getAbsolutePath())
                 .build())
             .addAssignments(Tasks.SlotAssignment.newBuilder()
                 .setTaskId("task_2")
                 .setSlot(taskInputSlot)
                 .setBinding("channel:channel_2")
                 .build())
+            .addAssignments(Tasks.SlotAssignment.newBuilder()
+                .setTaskId("task_2")
+                .setSlot(makeOutputSlot("/dev/stdout"))
+                .setBinding("channel:task_2:stdout")
+                .build())
+            .addAssignments(Tasks.SlotAssignment.newBuilder()
+                .setTaskId("task_2")
+                .setSlot(makeOutputSlot("/dev/stderr"))
+                .setBinding("channel:task_2:stderr")
+                .build())
             .build(),
             SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
 
         // wait
         server.waitTaskCompleted("task_2");
+        Assert.assertEquals("task_2; x\n", portalStdout.take());
+        Assert.assertEquals("task_2; ", portalStdout.take());
+        Assert.assertEquals("task_2; ", portalStderr.take());
         server.waitPortalCompleted();
 
         // task_2 clean up
@@ -628,6 +678,10 @@ public class PortalTest {
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----------------------------------------------\n");
 
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
 
         var result = new String(Files.readAllBytes(tmpFile.toPath()));
         Assert.assertEquals("i-am-a-hacker\n", result);
@@ -649,7 +703,6 @@ public class PortalTest {
         servants.put(servantId, servant);
     }
 
-
     private void createChannel(String name) {
         server.channel(makeCreateDirectChannelCommand(name), SuccessStreamObserver.wrap(
             status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
@@ -658,6 +711,39 @@ public class PortalTest {
     private void destroyChannel(String name) {
         server.channel(makeDestroyChannelCommand(name), SuccessStreamObserver.wrap(
             status -> System.out.println("Channel '" + name + "' removed: " + JsonUtils.printSingleLine(status))));
+    }
+
+    private ArrayBlockingQueue<Object> readPortalSlot(String channel) {
+        var portalSlot = server.directChannels.get(channel).outputSlot.get();
+
+        var iter = server.portal().servantFsStub.openOutputSlot(
+            LzyFsApi.SlotRequest.newBuilder()
+                .setSlotUri(portalSlot.getUri())
+                .setOffset(0)
+                .build());
+
+        var values = new ArrayBlockingQueue<>(100);
+
+        ForkJoinPool.commonPool().execute(() -> {
+            try {
+                iter.forEachRemaining(message -> {
+                    System.out.println(" ::: got " + JsonUtils.printSingleLine(message));
+                    switch (message.getMessageCase()) {
+                        case CONTROL -> {
+                            if (LzyFsApi.Message.Controls.EOS != message.getControl()) {
+                                values.offer(new AssertionError(JsonUtils.printSingleLine(message)));
+                            }
+                        }
+                        case CHUNK -> values.offer(message.getChunk().toStringUtf8());
+                        default -> values.offer(new AssertionError(JsonUtils.printSingleLine(message)));
+                    }
+                });
+            } catch (Exception e) {
+                values.offer(e);
+            }
+        });
+
+        return values;
     }
 
     private static Channels.ChannelCommand makeCreateDirectChannelCommand(String channelName) {
@@ -681,6 +767,24 @@ public class PortalTest {
         return Operations.DataScheme.newBuilder()
             .setType("text")
             .setSchemeType(Operations.SchemeType.plain)
+            .build();
+    }
+
+    private static Operations.Slot makeInputSlot(String slotName) {
+        return Operations.Slot.newBuilder()
+            .setName(slotName)
+            .setMedia(Operations.Slot.Media.FILE)
+            .setDirection(Operations.Slot.Direction.INPUT)
+            .setContentType(makePlainTextDataScheme())
+            .build();
+    }
+
+    private static Operations.Slot makeOutputSlot(String slotName) {
+        return Operations.Slot.newBuilder()
+            .setName(slotName)
+            .setMedia(Operations.Slot.Media.FILE)
+            .setDirection(Operations.Slot.Direction.OUTPUT)
+            .setContentType(makePlainTextDataScheme())
             .build();
     }
 

@@ -95,7 +95,7 @@ public class LzyServant extends LzyAgent {
     }
 
     @Override
-    protected URI serverUri() {
+    public URI serverUri() {
         return agentAddress;
     }
 
@@ -263,8 +263,8 @@ public class LzyServant extends LzyAgent {
                             } else {
                                 channelName = entry.binding();
                             }
-                            final URI channelUri = URI.create(channelName);
-                            if (Objects.equals(channelUri.getScheme(), "snapshot") && slot instanceof LzyOutputSlot) {
+                            if (channelName.startsWith("snapshot://") && slot instanceof LzyOutputSlot) {
+                                final URI channelUri = URI.create(channelName);
                                 String snapshotId = "snapshot://" + channelUri.getHost();
                                 lzyFs.getSlotConnectionManager().snapshooter()
                                         .registerSlot(slot, snapshotId, channelName);
@@ -298,7 +298,7 @@ public class LzyServant extends LzyAgent {
                             ),
                             UserEvent.UserEventType.ExecutionComplete
                         ));
-                        LOG.info("Servant::exit {}", agentAddress);
+                        LOG.info("Servant::executionStop {}, ready for the new one", agentAddress);
                         status.set(AgentStatus.REGISTERED);
                     }
                 }));
@@ -369,13 +369,14 @@ public class LzyServant extends LzyAgent {
 
     private class PortalImpl extends LzyPortalGrpc.LzyPortalImplBase {
         @Override
-        public void start(Empty request, StreamObserver<Empty> responseObserver) {
+        public void start(LzyPortalApi.StartPortalRequest request,
+                          StreamObserver<LzyPortalApi.StartPortalResponse> responseObserver) {
             if (currentExecution.get() != null) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
-            if (portal.start()) {
-                responseObserver.onNext(Empty.getDefaultInstance());
+            if (portal.start(request)) {
+                responseObserver.onNext(LzyPortalApi.StartPortalResponse.getDefaultInstance());
                 responseObserver.onCompleted();
             } else {
                 responseObserver.onError(Status.ALREADY_EXISTS.asException());

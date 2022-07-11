@@ -2,12 +2,14 @@ package ai.lzy.servant.commands;
 
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.LzyPortalGrpc;
+import ai.lzy.priv.v2.*;
 import com.google.protobuf.Empty;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.apache.commons.cli.CommandLine;
 
+import java.net.URI;
+import java.util.Base64;
 import java.util.Set;
 
 public class Portal implements LzyCommand {
@@ -29,20 +31,69 @@ public class Portal implements LzyCommand {
             .build();
         var portal = LzyPortalGrpc.newBlockingStub(portalChannel);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(portalChannel::shutdown));
+        var serverAddr = URI.create(command.getOptionValue('z'));
+        var auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
+        var serverChannel = ChannelBuilder
+            .forAddress(serverAddr.getHost(), serverAddr.getPort())
+            .usePlaintext()
+            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+            .build();
+        var server = LzyServerGrpc.newBlockingStub(serverChannel);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            portalChannel.shutdown();
+            serverChannel.shutdown();
+        }));
 
         return switch (command.getArgs()[0]) {
-            case "start" -> startPortal(portal);
+            case "start" -> startPortal(portal, server, auth);
             case "stop" -> stopPortal(portal);
             default -> statusPortal(portal);
         };
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private int startPortal(LzyPortalGrpc.LzyPortalBlockingStub portal) {
+    private int startPortal(LzyPortalGrpc.LzyPortalBlockingStub portal, LzyServerGrpc.LzyServerBlockingStub server,
+                            IAM.Auth auth) {
         System.out.println("Starting portal...");
+
         try {
-            portal.start(Empty.getDefaultInstance());
+            server.channel(Channels.ChannelCommand.newBuilder()
+                .setAuth(auth)
+                .setChannelName("portal:stdout")
+                .setCreate(Channels.ChannelCreate.newBuilder()
+                    .setContentType(Operations.DataScheme.newBuilder()
+                        .setSchemeType(Operations.SchemeType.plain)
+                        .build())
+                    .setDirect(Channels.DirectChannelSpec.getDefaultInstance())
+                    .build())
+                .build());
+        } catch (StatusRuntimeException e) {
+            System.err.println("Failed to create stdout channel: " + e.getStatus());
+            e.printStackTrace(System.err);
+        }
+
+        try {
+            server.channel(Channels.ChannelCommand.newBuilder()
+                .setAuth(auth)
+                .setChannelName("portal:stderr")
+                .setCreate(Channels.ChannelCreate.newBuilder()
+                    .setContentType(Operations.DataScheme.newBuilder()
+                        .setSchemeType(Operations.SchemeType.plain)
+                        .build())
+                    .setDirect(Channels.DirectChannelSpec.getDefaultInstance())
+                    .build())
+                .build());
+        } catch (StatusRuntimeException e) {
+            System.err.println("Failed to create stderr channel: " + e.getStatus());
+            e.printStackTrace(System.err);
+        }
+
+        try {
+            portal.start(LzyPortalApi.StartPortalRequest.newBuilder()
+                .setStdoutChannelId("portal:stdout")
+                .setStderrChannelId("portal:stderr")
+                .build());
             System.out.println("Portal started.");
             return 0;
         } catch (StatusRuntimeException e) {

@@ -10,7 +10,7 @@ option java_outer_classname = "LzyPortalApi";
 option java_package = "ai.lzy.priv.v2";
 
 service LzyPortal {
-  rpc Start (google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Start (StartPortalRequest) returns (StartPortalResponse);
 
   rpc Stop (google.protobuf.Empty) returns (google.protobuf.Empty);
 
@@ -19,6 +19,14 @@ service LzyPortal {
 
   rpc OpenSlots (OpenSlotsRequest) returns (OpenSlotsResponse);
   rpc SaveSnapshotSlot (SaveSnapshotSlotRequest) returns (SaveSnapshotSlotResponse);
+}
+
+message StartPortalRequest {
+  string stdoutChannelId = 1;
+  string stderrChannelId = 2;
+}
+
+message StartPortalResponse {
 }
 
 message PortalSlotStatus {
@@ -54,12 +62,23 @@ message PortalSlotDesc {
     //  - support kafka (streaming)
   }
 
-  oneof storage {
+  message StdOut {
+    string taskId = 1;
+  }
+
+  message StdErr {
+    string taskId = 1;
+  }
+
+  oneof kind {
     // internal volatile storage
     Snapshot snapshot = 10;
+    // stdout/stderr of tasks (will be combined and transferred to portal stdout/stderr slots)
+    StdOut stdout = 11;
+    StdErr stderr = 12;
     // external (persistent) storages
-    AmazonS3Endpoint amazonS3 = 11;
-    AzureS3Endpoint azureS3 = 12;
+//    AmazonS3Endpoint amazonS3 = 11;
+//    AzureS3Endpoint azureS3 = 12;
   }
 }
 

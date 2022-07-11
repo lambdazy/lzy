@@ -86,6 +86,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     }
 
     @Nullable
+    @Override
     public URI connectedTo() {
         return connected;
     }
