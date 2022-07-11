@@ -9,7 +9,7 @@ source ./util.sh
 # proto_out="lzy/proto"
 # proto_path="../model/src/main/proto/"
 
-[ ! -d "$proto_out" ] && mkdir -p "$proto_out"
+[ -d "$proto_out" ] || mkdir -p "$proto_out"
 
 # check mypy, it's hack actually but for some reason it's not installed
 # ok with nix
