@@ -3,7 +3,7 @@
 set -e
 MAJOR=1
 
-if [[ $# -lt 1 ]]; then
+if [[ $# -lt 2 ]]; then
   echo "Usage: $0 <git-branch-name> <installation-tag> [--rebuild [--base [--update [--major]]]]"
   exit
 fi
@@ -36,21 +36,21 @@ CUSTOM_TAG=$2
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
     docker build -t lzy-servant-base -f servant/docker/System.Base.Dockerfile .
-    SERVANT_BASE = "lzy-servant-base"
+    SERVANT_BASE="lzy-servant-base"
     docker build -t default-env-base -f servant/docker/DefaultEnv.Base.Dockerfile .
-    DEFAULT_ENV_BASE = "default-env-base"
+    DEFAULT_ENV_BASE="default-env-base"
   else
-    SERVANT_BASE = "$(latest-docker-image-on-branch.sh lzy-servant-base $BRANCH)"
+    SERVANT_BASE="$(latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)"
     docker pull "$SERVANT_BASE"
-    DEFAULT_ENV_BASE = "$(latest-docker-image-on-branch.sh default-env-base $BRANCH)"
+    DEFAULT_ENV_BASE="$(latest-docker-image-on-branches.sh default-env-base $BRANCH dev)"
     docker pull "$DEFAULT_ENV_BASE"
   fi
   mvn clean install -DskipTests
 
-  SERVANT_BASE_TAG = "$(echo $SERVANT_BASE | awk -F: '{print $2}')"
+  SERVANT_BASE_TAG="$(echo $SERVANT_BASE | awk -F: '{print $2}')"
   docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
 
-  DEFAULT_ENV_BASE_TAG = "$(echo DEFAULT_ENV_BASE | awk -F: '{print $2}')"
+  DEFAULT_ENV_BASE_TAG="$(echo DEFAULT_ENV_BASE | awk -F: '{print $2}')"
   docker build -t --build-arg "DEFAULT_ENV_BASE_TAG=$DEFAULT_ENV_BASE_TAG" default-env -f servant/docker/DefaultEnv.Dockerfile .
 
   docker build -t lzy-server -f server/Dockerfile server
@@ -67,8 +67,8 @@ NL=$'\n'
 for IMAGE in $IMAGES; do
   echo "pushing image for $IMAGE"
   if [[ $UPDATE = true ]]; then
-    PREV_NAME = "$(latest-docker-image-on-branch.sh $IMAGE $BRANCH)"
-    PREV_TAG = "$(echo PREV_NAME | awk -F: '{print $2}')"
+    PREV_NAME="$(latest-docker-image-on-branches.sh $IMAGE $BRANCH dev)"
+    PREV_TAG="$(echo PREV_NAME | awk -F: '{print $2}')"
     VERSION=$(echo "$PREV_TAG" | sed "s/$BRANCH-//")
     PREV_MAJOR=$(echo "$VERSION" | awk -F. '{print $1}')
     PREV_MINOR=$(echo "$VERSION" | awk -F. '{print $2}')
