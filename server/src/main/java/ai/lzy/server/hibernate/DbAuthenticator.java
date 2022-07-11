@@ -162,7 +162,7 @@ public class DbAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean checkBackOfficeSession(UUID sessionId, String userId) {
+    public boolean checkBackOfficeSession(String sessionId, String userId) {
         try (Session session = storage.getSessionFactory().openSession()) {
             BackofficeSessionModel sessionModel = session.find(BackofficeSessionModel.class, sessionId);
             return Objects.equals(sessionModel.getOwner().getUserId(), userId);
