@@ -18,6 +18,7 @@
     <packaging>jar</packaging>
     <micronaut.runtime>netty</micronaut.runtime>
     <exec.mainClass>ai.lzy.servant.BashApi</exec.mainClass>
+    <docker.buildArg.SERVANT_BASE_TAG>latest</docker.buildArg.SERVANT_BASE_TAG>
   </properties>
 
   <dependencies>
@@ -290,6 +291,9 @@
                   <build>
                     <contextDir>${project.basedir}/../</contextDir>
                     <dockerFile>${project.basedir}/docker/System.Dockerfile</dockerFile>
+                    <args>
+                      <SERVANT_BASE_TAG>${docker.buildArg.SERVANT_BASE_TAG}</SERVANT_BASE_TAG>
+                    </args>
                     <noCache>true</noCache>
                     <imagePullPolicy>IfNotPresent</imagePullPolicy>
                   </build>
@@ -309,7 +313,7 @@
       </build>
     </profile>
     <profile>
-      <id>build-servant</id>
+      <id>build-default-env</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
@@ -322,7 +326,7 @@
               <verbose>false</verbose>
               <images>
                 <image>
-                  <name>lzy-servant</name>
+                  <name>default-env</name>
                   <build>
                     <contextDir>${project.basedir}/../</contextDir>
                     <dockerFile>${project.basedir}/docker/DefaultEnv.Dockerfile</dockerFile>

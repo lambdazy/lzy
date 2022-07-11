@@ -1,4 +1,4 @@
-ARG SERVANT_BASE_TAG=latest
+ARG SERVANT_BASE_TAG
 FROM lzydock/lzy-servant-base:${SERVANT_BASE_TAG}
 
 RUN mkdir -p /tmp/lzy-log/servant \
