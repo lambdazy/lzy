@@ -18,6 +18,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.servant.portal.Utils.*;
 
@@ -278,7 +280,16 @@ public class PortalTest {
     }
 
     private ArrayBlockingQueue<Object> readPortalSlot(String channel) {
-        var portalSlot = server.directChannels.get(channel).outputSlot.get();
+        var outputSlotRef = server.directChannels.get(channel).outputSlot;
+        var portalSlot = outputSlotRef.get();
+        int n = 100;
+        while (portalSlot == null && n-- > 0) {
+            LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
+            portalSlot = outputSlotRef.get();
+        }
+
+        Assert.assertNotNull(portalSlot);
+
         var iter = server.portal().openOutputSlot(portalSlot.getUri());
 
         var values = new ArrayBlockingQueue<>(100);
