@@ -37,7 +37,8 @@ jobs:
       - name: 'build servant image'
         timeout-minutes: 15
         run: |
-          SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base ${{ github.ref_name }} dev)
+          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)
           docker pull $SERVANT_BASE_IMAGE
           SERVANT_BASE_TAG="$(echo $SERVANT_BASE | awk -F: '{print $2}')"
           mvn package -P build-servant -f servant/pom.xml -Ddocker.buildArg.SERVANT_BASE_TAG=$SERVANT_BASE_TAG -DskipTests
