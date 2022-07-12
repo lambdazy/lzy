@@ -399,8 +399,6 @@ public class ServantEventProcessor extends Thread {
             ? currentState.errorDescription()
             : description;
 
-        shutdown();
-
         return currentState.copy()
             .setStatus(Status.DESTROYED)
             .setTaskId(null)
