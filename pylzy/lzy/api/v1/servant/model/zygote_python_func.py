@@ -36,12 +36,15 @@ class ZygotePythonFunc(Zygote, Generic[T]):
             self._name_to_slot[name] = slot
             arg_slots.append(slot)
 
-        return_slot = create_slot(
-            os.path.join("/", sign.name, "return"),
-            Direction.OUTPUT,
-            DataSchema(pickle_type(sign.output_type)),
-        )
-        super().__init__(sign, arg_slots, return_slot, env, provisioning)
+        return_slots = []
+        for num, type_ in enumerate(sign.output_types):
+            return_slot = create_slot(
+                os.path.join("/", sign.name, "return", str(num)),
+                Direction.OUTPUT,
+                DataSchema(pickle_type(type_)),
+            )
+            return_slots.append(return_slot)
+        super().__init__(sign, arg_slots, return_slots, env, provisioning)
 
     # just a: /
     @property

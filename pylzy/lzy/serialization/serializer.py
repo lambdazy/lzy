@@ -5,29 +5,10 @@ import cloudpickle  # type: ignore
 from pure_protobuf.dataclasses_ import load, loads  # type: ignore
 
 from lzy.api.v2.utils import check_message_field, is_lazy_proxy
+from lzy.serialization.api import FileSerializer, MemBytesSerializer
 from lzy.serialization.dumper import CatboostPoolDumper, Dumper, LzyFileDumper
 
 T = TypeVar("T")  # pylint: disable=invalid-name
-
-
-class FileSerializer(ABC):
-    @abstractmethod
-    def serialize_to_file(self, obj: Any, file: IO) -> None:
-        pass
-
-    @abstractmethod
-    def deserialize_from_file(self, data: IO, obj_type: Type[T] = None) -> T:
-        pass
-
-
-class MemBytesSerializer(ABC):
-    @abstractmethod
-    def serialize_to_string(self, obj: Any) -> bytes:
-        pass
-
-    @abstractmethod
-    def deserialize_from_string(self, data: bytes, obj_type: Type[T] = None) -> T:
-        pass
 
 
 class FileSerializerImpl(FileSerializer):

@@ -5,27 +5,12 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import IO, Type, TypeVar, Generic
 
+import cloudpickle
+
 from lzy.api.v1.utils import File
+from lzy.serialization.api import FileSerializer, Dumper
 
 T = TypeVar("T")  # pylint: disable=invalid-name
-
-
-class Dumper(ABC, Generic[T]):
-    @abstractmethod
-    def dump(self, obj: T, dest: IO) -> None:
-        pass
-
-    @abstractmethod
-    def load(self, source: IO) -> T:
-        pass
-
-    @abstractmethod
-    def typ(self) -> Type[T]:
-        pass
-
-    @abstractmethod
-    def fit(self) -> bool:
-        pass
 
 
 # noinspection PyPackageRequirements
@@ -70,7 +55,6 @@ class CatboostPoolDumper(Dumper):
 
 
 class LzyFileDumper(Dumper[File]):
-    FILE_PATH_LENGTH = 4
 
     def dump(self, obj: File, dest: IO) -> None:
         with obj.path.open("rb") as f:
@@ -93,3 +77,33 @@ class LzyFileDumper(Dumper[File]):
 
     def fit(self) -> bool:
         return True
+
+
+G = TypeVar("G")  # pylint: disable=invalid-name
+
+
+class IterableDumper(Dumper[G]):
+
+    def __init__(self, typ: Type[G], serializer: FileSerializer):
+        self.__typ = typ
+        self.__serializer = serializer
+
+    def dump(self, obj: G, dest: IO) -> None:
+        writes = []
+        beg = dest.tell()
+        for data in obj:
+            cloudpickle.dump(type(data), dest)
+            self.__serializer.serialize_to_file(data, dest)
+
+    def load(self, source: IO) -> G:
+        pass
+
+    def typ(self) -> Type[G]:
+        return self.__typ
+
+    def fit(self) -> bool:
+        return True
+
+
+
+

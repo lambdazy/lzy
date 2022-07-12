@@ -53,7 +53,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 class ZygoteDataclassMixin(Generic[T]):
     signature: FuncSignature[T]
     arg_slots: List[Slot]
-    return_slot: Slot
+    return_slots: List[Slot]
     env: Env
     provisioning: Optional[Provisioning]
 
@@ -61,7 +61,7 @@ class ZygoteDataclassMixin(Generic[T]):
 class Zygote(ZygoteDataclassMixin[T], ABC):
     @property
     def slots(self) -> List[Slot]:
-        return self.arg_slots + [self.return_slot]
+        return self.arg_slots + self.return_slots
 
     @property
     def name(self) -> str:

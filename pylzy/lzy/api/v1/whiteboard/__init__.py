@@ -13,7 +13,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardApi,
     WhiteboardDescription,
 )
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.api import FileSerializer
 
 ALREADY_WRAPPED = "_already_wrapped_whiteboard"
 ALREADY_WRAPPED_READY = "_already_wrapped_ready_whiteboard"
