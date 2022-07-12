@@ -148,6 +148,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             host_port      = local.backoffice-backend-tls-port
           }
           args = [
+            "-Dmicronaut.env.deduction=true",
             "-Dmicronaut.ssl.keyStore.password=${var.ssl-keystore-password}",
             "-Dmicronaut.ssl.enabled=${var.ssl-enabled ? "true" : "false"}",
             "-Dmicronaut.server.dual-protocol=${var.ssl-enabled ? "true" : "false"}"
