@@ -1,6 +1,7 @@
 package ai.lzy.graph.api;
 
 import ai.lzy.graph.model.TaskDescription;
+import ai.lzy.priv.v2.SchedulerApi.TaskStatus;
 import ai.lzy.priv.v2.Tasks;
 
 import javax.annotation.Nullable;
@@ -13,7 +14,7 @@ public interface SchedulerApi {
      * @param task descriptions of task to execute
      * @return status of task that was registered
      */
-    Tasks.TaskProgress execute(String workflowId, TaskDescription task);
+    TaskStatus execute(String workflowId, TaskDescription task);
 
     /**
      * Get status of task by id
@@ -22,7 +23,7 @@ public interface SchedulerApi {
      * @return current status of task, null if not found
      */
     @Nullable
-    Tasks.TaskProgress status(String workflowId, String taskId);
+    TaskStatus status(String workflowId, String taskId);
 
     /**
      * Send kill to task by id
@@ -30,5 +31,5 @@ public interface SchedulerApi {
      * @param taskId task id
      * @return current status of task
      */
-    Tasks.TaskProgress kill(String workflowId, String taskId);
+    TaskStatus kill(String workflowId, String taskId);
 }

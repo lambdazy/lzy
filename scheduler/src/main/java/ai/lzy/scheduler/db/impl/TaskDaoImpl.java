@@ -58,13 +58,11 @@ public class TaskDaoImpl implements TaskDao {
 
     @Nullable
     @Override
-    public Task get(String workflowId, String taskId) throws DaoException {
+    public Task get(String taskId) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement(
-                "SELECT " + FIELDS + " FROM task "
-                + " WHERE id = ? AND workflow_id = ?")) {
+                "SELECT " + FIELDS + " FROM task WHERE id = ?")) {
             int paramCount = 0;
             st.setString(++paramCount, taskId);
-            st.setString(++paramCount, workflowId);
             try (var rs = st.executeQuery()) {
                 if (!rs.isBeforeFirst()) {
                     return null;
@@ -80,8 +78,7 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     public List<Task> filter(TaskState.Status status) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement(
-                "SELECT " + FIELDS + "  FROM task "
-                + " WHERE status = ?")) {
+                "SELECT " + FIELDS + "  FROM task WHERE status = ?")) {
             st.setString(1, status.name());
             final List<Task> tasks = new ArrayList<>();
             try (var rs = st.executeQuery()) {

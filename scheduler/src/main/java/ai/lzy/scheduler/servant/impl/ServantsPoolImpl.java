@@ -130,7 +130,7 @@ public class ServantsPoolImpl implements ServantsPool {
             }
             if (servant.taskId() != null) {
                 try {
-                    final Task task = tasks.get(servant.workflowName(), servant.taskId());
+                    final Task task = tasks.get(servant.taskId());
                     if (task != null) {
                         task.notifyExecutionCompleted(ReturnCodes.INTERNAL_ERROR.getRc(),
                             "Failed because of servant wrong state");

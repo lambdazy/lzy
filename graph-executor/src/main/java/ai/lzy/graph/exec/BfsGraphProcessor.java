@@ -1,5 +1,6 @@
 package ai.lzy.graph.exec;
 
+import ai.lzy.priv.v2.SchedulerApi.TaskStatus;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -45,8 +46,8 @@ public class BfsGraphProcessor implements GraphProcessor {
             case EXECUTING -> {
                 int completed = 0;
                 for (TaskExecution task: graph.executions()) {
-                    final Tasks.TaskProgress progress = api.status(graph.workflowId(), task.id());
-                    if (progress == null) {
+                    final TaskStatus status = api.status(graph.workflowId(), task.id());
+                    if (status == null) {
                         LOG.error(String.format(
                             "TaskVertex <%s> not found in scheduler,"
                                 + " but must be in executions of graph <%s>,"
@@ -54,10 +55,10 @@ public class BfsGraphProcessor implements GraphProcessor {
                         ));
                         yield stop(graph, "Internal error");
                     }
-                    if (progress.getStatus() == Tasks.TaskProgress.Status.SUCCESS) {
+                    if (status.hasSuccess()) {
                         completed++;
                     }
-                    if (progress.getStatus() == Tasks.TaskProgress.Status.ERROR) {
+                    if (status.hasError()) {
                         LOG.error("TaskVertex <" + task.id() + "> is in error state, stopping graph execution");
                         yield stop(graph, "TaskVertex <" + task.id() + "> is in error state");
                     }
@@ -107,8 +108,8 @@ public class BfsGraphProcessor implements GraphProcessor {
             final List<TaskExecution> newExecutions = diff
                 .stream()
                 .map(t -> {
-                    final Tasks.TaskProgress progress = api.execute(graph.workflowId(), t);
-                    return new TaskExecution(progress.getTid(), t);
+                    final TaskStatus progress = api.execute(graph.workflowId(), t);
+                    return new TaskExecution(progress.getTaskId(), t);
                 })
                 .collect(Collectors.toList());
 
