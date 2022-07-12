@@ -257,7 +257,13 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                 .peek(s -> uncompletedConnections.remove(s.id()))
                 .peek(waitingForAllocation::remove)
                 .peek(s -> servant2sessions.remove(s.id()))
-                .peek(s -> requests.get(s.id()).completeExceptionally(new RuntimeException("Timeout exceeded")))
+                .peek(s -> {
+                    if (requests.containsKey(s.id())) {
+                        requests.get(s.id()).completeExceptionally(new RuntimeException("Timeout exceeded"));
+                    } else {
+                        LOG.debug("Connection of servant {} not found", s.id());
+                    }
+                })
                 .peek(s -> requests.remove(s.id())).toList();
 
             executor.execute(() -> {
@@ -268,7 +274,10 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                         //noinspection SuspiciousMethodCalls
                         session.servants.remove(servantConnection);
                     }
-                    shuttingDown.put(servantConnection, Instant.now().plus(GRACEFUL_SHUTDOWN_PERIOD_SEC, ChronoUnit.SECONDS));
+                    shuttingDown.put(
+                        servantConnection,
+                        Instant.now().plus(GRACEFUL_SHUTDOWN_PERIOD_SEC, ChronoUnit.SECONDS)
+                    );
                     try {
                         //noinspection ResultOfMethodCallIgnored
                         servantConnection.control().stop(IAM.Empty.newBuilder().build());
