@@ -15,6 +15,7 @@ service SchedulerPrivate {
 message RegisterServantRequest {
   string workflowName = 1;
   string servantId = 2;
+  int32 apiPort = 3;
 }
 message RegisterServantResponse {}
 

@@ -2,6 +2,7 @@ package ai.lzy.graph.test.mocks;
 
 import ai.lzy.graph.api.SchedulerApi;
 import ai.lzy.graph.model.TaskDescription;
+import ai.lzy.priv.v2.SchedulerApi.TaskStatus;
 import ai.lzy.priv.v2.Tasks;
 
 import javax.annotation.Nullable;
@@ -9,7 +10,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SchedulerApiMock implements SchedulerApi {
-    final private Map<String, Tasks.TaskProgress> statusByTaskId = new ConcurrentHashMap<>();
+    final private Map<String, TaskStatus> statusByTaskId = new ConcurrentHashMap<>();
     private final OnExecute callback;
 
     public SchedulerApiMock(OnExecute callback) {
@@ -21,42 +22,42 @@ public class SchedulerApiMock implements SchedulerApi {
     }
 
     @Override
-    public Tasks.TaskProgress execute(String workflowId, TaskDescription tasks) {
+    public TaskStatus execute(String workflowId, TaskDescription tasks) {
         String taskId = callback.call(workflowId, tasks, this);
         return status(workflowId, taskId);
     }
 
     @Override
     @Nullable
-    public Tasks.TaskProgress status(String workflowId, String taskId) {
+    public TaskStatus status(String workflowId, String taskId) {
         return statusByTaskId.get(taskId);
     }
 
     @Override
-    public Tasks.TaskProgress kill(String workflowId, String taskId) {
+    public TaskStatus kill(String workflowId, String taskId) {
         changeStatus(taskId, ERROR);
         return status(workflowId, taskId);
     }
 
-    public void changeStatus(String taskId, Tasks.TaskProgress status) {
+    public void changeStatus(String taskId, TaskStatus status) {
         statusByTaskId.put(taskId, status);
     }
 
-    public final static Tasks.TaskProgress QUEUE = Tasks.TaskProgress.newBuilder()
-        .setStatus(Tasks.TaskProgress.Status.QUEUE).build();
-    public final static Tasks.TaskProgress EXECUTING = Tasks.TaskProgress.newBuilder()
-        .setStatus(Tasks.TaskProgress.Status.EXECUTING).build();
-    public final static Tasks.TaskProgress ERROR = Tasks.TaskProgress.newBuilder()
-            .setStatus(Tasks.TaskProgress.Status.ERROR).build();
-    public final static Tasks.TaskProgress COMPLETED = Tasks.TaskProgress.newBuilder()
-            .setStatus(Tasks.TaskProgress.Status.SUCCESS).build();
+    public final static TaskStatus QUEUE = TaskStatus.newBuilder()
+        .setQueue(TaskStatus.Queue.newBuilder().build()).build();
+    public final static TaskStatus EXECUTING = TaskStatus.newBuilder()
+        .setExecuting(TaskStatus.Executing.newBuilder().build()).build();
+    public final static TaskStatus ERROR = TaskStatus.newBuilder()
+            .setError(TaskStatus.Error.newBuilder().build()).build();
+    public final static TaskStatus COMPLETED = TaskStatus.newBuilder()
+            .setSuccess(TaskStatus.Success.newBuilder().build()).build();
 
     public interface OnExecute {
         String call(String workflowId, TaskDescription tasks, SchedulerApiMock scheduler);
     }
 
-    public void waitForStatus(String taskId, Tasks.TaskProgress.Status status) throws InterruptedException {
-        while (statusByTaskId.get(taskId) == null || statusByTaskId.get(taskId).getStatus() != status) {
+    public void waitForStatus(String taskId, TaskStatus.StatusCase status) throws InterruptedException {
+        while (statusByTaskId.get(taskId) == null || statusByTaskId.get(taskId).getStatusCase() != status) {
             Thread.sleep(10);
         }
     }

@@ -12,7 +12,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TaskDaoMock implements TaskDao {
-    private final Map<TaskKey, TaskState> storage = new ConcurrentHashMap<>();
+    private final Map<String, TaskState> storage = new ConcurrentHashMap<>();
 
     @Override
     public Task create(String workflowId, String workflowName, TaskDesc taskDesc) {
@@ -21,14 +21,14 @@ public class TaskDaoMock implements TaskDao {
             taskId, workflowId, workflowName, taskDesc, TaskState.Status.QUEUE,
             null, null, null
         );
-        storage.put(new TaskKey(workflowId, taskId), state);
+        storage.put(taskId, state);
         return new TaskImpl(state, this);
     }
 
     @Nullable
     @Override
-    public Task get(String workflowId, String taskId) {
-        final TaskState state = storage.get(new TaskKey(workflowId, taskId));
+    public Task get(String taskId) {
+        final TaskState state = storage.get(taskId);
         if (state == null) {
             return null;
         }
@@ -57,8 +57,6 @@ public class TaskDaoMock implements TaskDao {
     public void update(Task state) {
         final TaskState newState = new TaskState(state.taskId(), state.workflowId(), state.workflowName(),
             state.description(), state.status(), state.rc(), state.errorDescription(), state.servantId());
-        storage.put(new TaskKey(state.workflowId(), state.taskId()), newState);
+        storage.put(state.taskId(), newState);
     }
-
-    private record TaskKey(String workflowId, String taskId) {}
 }

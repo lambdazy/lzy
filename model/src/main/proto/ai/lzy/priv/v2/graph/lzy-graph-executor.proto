@@ -67,9 +67,10 @@ message ChannelDesc {
 
 message GraphExecuteRequest {
   string workflowId = 1;
-  repeated TaskDesc tasks = 2;
-  string parentGraphId = 3;
-  repeated ChannelDesc channels = 4;
+  string workflowName = 2;
+  repeated TaskDesc tasks = 3;
+  string parentGraphId = 4;
+  repeated ChannelDesc channels = 5;
 }
 message GraphExecuteResponse {
   GraphExecutionStatus status = 1;

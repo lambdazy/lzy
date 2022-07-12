@@ -17,6 +17,7 @@ import java.util.List;
 @JsonDeserialize
 public record GraphExecutionState(
         String workflowId,
+        String workflowName,
         String id,
         GraphDescription description,
         List<TaskExecution> executions,
@@ -83,6 +84,7 @@ public record GraphExecutionState(
     public GraphExecutionStateBuilder copyFromThis() {
         return new GraphExecutionStateBuilder()
             .withWorkflowId(workflowId)
+            .withWorkflowName(workflowName)
             .withId(id)
             .withDescription(description)
             .withExecutions(executions)
@@ -93,6 +95,7 @@ public record GraphExecutionState(
 
     public static class GraphExecutionStateBuilder {
         private String workflowId = null;
+        private String workflowName = null;
         private String id = null;
         private GraphDescription description = null;
         private List<TaskExecution> executions = new ArrayList<>();
@@ -102,6 +105,11 @@ public record GraphExecutionState(
 
         public GraphExecutionStateBuilder withWorkflowId(String workflowId) {
             this.workflowId = workflowId;
+            return this;
+        }
+
+        public GraphExecutionStateBuilder withWorkflowName(String workflowName) {
+            this.workflowName = workflowName;
             return this;
         }
 
@@ -141,7 +149,7 @@ public record GraphExecutionState(
                     "Cannot build GraphExecutionState with workflowId, id or description == null");
             }
             return new GraphExecutionState(
-                workflowId, id, description, executions, currentExecutionGroup,
+                workflowId, workflowName, id, description, executions, currentExecutionGroup,
                 status, errorDescription
             );
         }

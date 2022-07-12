@@ -181,7 +181,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
     private Task getTask(String workflowId, String taskId) throws StatusException {
         final Task task;
         try {
-            task = taskDao.get(workflowId, taskId);
+            task = taskDao.get(taskId);
             if (task == null) {
                 throw io.grpc.Status.NOT_FOUND.withDescription("Task not found").asException();
             }
