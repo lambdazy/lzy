@@ -72,7 +72,7 @@ public class EventProcessorTest {
 
     @Test
     public void testSimple() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 10, 10))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -216,7 +216,7 @@ public class EventProcessorTest {
 
     @Test
     public void testFailEnv() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 2, 2))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -232,7 +232,7 @@ public class EventProcessorTest {
 
     @Test
     public void testFailExec() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 2, 2))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
