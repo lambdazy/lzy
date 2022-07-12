@@ -78,19 +78,19 @@ resource "kubernetes_deployment" "iam" {
             value = local.iam-port
           }
           env {
-            name  = "IAM_INTERNAL_USERNAME"
+            name  = "IAM_INTERNAL_USER_NAME"
             value = local.iam-internal-user-name
           }
           env {
-            name  = "IAM_INTERNAL_CREDENTIALNAME"
+            name  = "IAM_INTERNAL_CREDENTIAL_NAME"
             value = local.iam-internal-cred-name
           }
           env {
-            name  = "IAM_INTERNAL_CREDENTIALVAUE"
+            name  = "IAM_INTERNAL_CREDENTIAL_VALUE"
             value = tls_private_key.internal_key.public_key_pem
           }
           env {
-            name  = "IAM_INTERNAL_CREDENTIALTYPE"
+            name  = "IAM_INTERNAL_CREDENTIAL_TYPE"
             value = local.iam-internal-cred-type
           }
           port {
