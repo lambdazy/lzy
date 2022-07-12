@@ -4,6 +4,7 @@ import ai.lzy.model.JsonUtils;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.utils.SessionIdInterceptor;
 import ai.lzy.priv.v2.*;
+import ai.lzy.priv.v2.Operations.SlotStatus;
 import com.google.protobuf.Empty;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
@@ -28,6 +29,7 @@ import static ai.lzy.servant.portal.Utils.makePlainTextDataScheme;
 import static io.grpc.Status.INVALID_ARGUMENT;
 import static java.util.Objects.requireNonNull;
 
+@SuppressWarnings({"ResultOfMethodCallIgnored", "SameParameterValue"})
 class ServerMock extends LzyServerGrpc.LzyServerImplBase {
     final int port;
     final ApplicationContext ctx;
@@ -241,12 +243,7 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
             channelName = taskId + ":" + attach.getSlot().getName().substring("/dev/".length());
         }
 
-        DirectChannelInfo channel = null;
-        try {
-            channel = requireNonNull(directChannels.get(channelName));
-        } catch (Exception e) {
-            throw e;
-        }
+        var channel = requireNonNull(directChannels.get(channelName));
         switch (attach.getSlot().getDirection()) {
             case INPUT -> {
                 if (!channel.inputSlot.compareAndSet(null, attach)) {
@@ -287,13 +284,14 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         }
     }
 
+    @SuppressWarnings("unused")
     private void detachSlot(String servantId, Servant.SlotDetach detach) {
     }
 
     class ServantHandler extends Thread {
         private final String servantId;
-        private final String servantUri;
-        private final String servantFsUri;
+        //private final String servantUri;
+        //private final String servantFsUri;
         private final LzyServantGrpc.LzyServantBlockingStub servantStub;
         private final LzyFsGrpc.LzyFsBlockingStub servantFsStub;
         private final LzyPortalGrpc.LzyPortalBlockingStub portalStub;
@@ -311,8 +309,8 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
             });
 
             this.servantId = req.getServantId();
-            this.servantUri = req.getServantURI();
-            this.servantFsUri = req.getFsURI();
+            var servantUri = req.getServantURI();
+            var servantFsUri = req.getFsURI();
             this.servantStub = LzyServantGrpc.newBlockingStub(
                 ChannelBuilder.forAddress(servantUri.substring("servant://".length()))
                     .usePlaintext()
@@ -407,7 +405,7 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
                         System.out.println("[portal slot] " + JsonUtils.printSingleLine(slot));
                         return switch (slot.getSlot().getDirection()) {
                             case INPUT ->
-                                Set.of(Operations.SlotStatus.State.OPEN, Operations.SlotStatus.State.DESTROYED).contains(slot.getState());
+                                Set.of(SlotStatus.State.OPEN, SlotStatus.State.DESTROYED).contains(slot.getState());
                             case OUTPUT -> true;
                             case UNRECOGNIZED -> throw new RuntimeException("Unexpected state");
                         };
