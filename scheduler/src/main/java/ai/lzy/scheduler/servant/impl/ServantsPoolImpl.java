@@ -86,7 +86,7 @@ public class ServantsPoolImpl implements ServantsPool {
             return future;
         }
 
-        waiters.computeIfAbsent(workflowName, t -> new HashSet<>())
+        waiters.computeIfAbsent(workflowName, t -> ConcurrentHashMap.newKeySet())
             .add(new Waiter(provisioning, future));
         return future;
     }
@@ -130,7 +130,7 @@ public class ServantsPoolImpl implements ServantsPool {
             }
             if (servant.taskId() != null) {
                 try {
-                    final Task task = tasks.get(servant.workflowName(), servant.taskId());
+                    final Task task = tasks.get(servant.taskId());
                     if (task != null) {
                         task.notifyExecutionCompleted(ReturnCodes.INTERNAL_ERROR.getRc(),
                             "Failed because of servant wrong state");

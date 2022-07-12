@@ -5,3 +5,28 @@ database:
   min-pool-size: 1
   max-pool-size: 5
   enabled: true
+servant-processor:
+  allocation-timeout-seconds: 2
+  configuring-timeout-seconds: 2
+  executing-heartbeat-period-seconds: 100
+  idle-heartbeat-period-seconds: 100
+  idle-timeout-seconds: 2
+  servant-stop-timeout-seconds: 2
+scheduler:
+  base-env-default-image: ""
+  max-servants-per-workflow: 1
+  port: 2392
+  default-provisioning-limit: 1
+  provisioning-limits:
+    a: 1
+    b: 10
+  whiteboard-uri: localhost:1234
+  scheduler-uri: localhost:1234
+  thread-allocator:
+    enabled: false
+    file-path: ""
+    servant-class-name: ""
+  docker-allocator:
+    enabled: false
+  kuberAllocator:
+    enabled: false

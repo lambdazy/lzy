@@ -232,7 +232,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                     session.save(user);
                 }
                 BackofficeSessionModel sessionModel =
-                    session.find(BackofficeSessionModel.class, UUID.fromString(request.getSessionId()));
+                    session.find(BackofficeSessionModel.class, request.getSessionId());
                 sessionModel.setOwner(user);
                 session.save(sessionModel);
                 responseObserver.onNext(
@@ -265,7 +265,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         }
         try (Session session = storage.getSessionFactory().openSession()) {
             BackofficeSessionModel sessionModel =
-                session.find(BackofficeSessionModel.class, UUID.fromString(request.getSessionId()));
+                session.find(BackofficeSessionModel.class, request.getSessionId());
             if (sessionModel == null) {
                 responseObserver.onNext(BackOffice.CheckSessionResponse.newBuilder()
                     .setStatus(BackOffice.CheckSessionResponse.SessionStatus.NOT_EXISTS).build());
@@ -394,7 +394,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
 
     private void authBackofficeUserCredentials(BackOffice.BackofficeUserCredentials credentials)
         throws StatusException {
-        if (!auth.checkBackOfficeSession(UUID.fromString(credentials.getSessionId()), credentials.getUserId())) {
+        if (!auth.checkBackOfficeSession(credentials.getSessionId(), credentials.getUserId())) {
             throw Status.PERMISSION_DENIED
                 .withDescription("Wrong user credentials")
                 .asException();

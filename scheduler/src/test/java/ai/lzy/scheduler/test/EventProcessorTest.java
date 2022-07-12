@@ -21,10 +21,7 @@ import io.micronaut.context.ApplicationContext;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
 import java.io.IOException;
@@ -44,6 +41,7 @@ public class EventProcessorTest {
     public String workflowId;
     public CountDownLatch servantReady;
     public EventQueueManager manager;
+    public ApplicationContext context;
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(30);
@@ -51,19 +49,30 @@ public class EventProcessorTest {
     @Before
     public void setUp() {
         workflowId = "wf";
-        var context = ApplicationContext.run();
+        context = ApplicationContext.run();
         tasks = context.getBean(TaskDao.class);
         events = context.getBean(ServantEventDao.class);
         manager = context.getBean(EventQueueManager.class);
         servantDao = context.getBean(ServantDao.class);
         allocator = new AllocatorMock();
         servantReady = new CountDownLatch(1);
-        Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
+    }
+
+    @After
+    public void tearDown() {
+        context.stop();
+        workflowId = null;
+        tasks = null;
+        events = null;
+        manager = null;
+        servantDao = null;
+        allocator = null;
+        servantReady = null;
     }
 
     @Test
     public void testSimple() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 10, 10))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -76,7 +85,7 @@ public class EventProcessorTest {
             processor.servant.notifyExecutionCompleted(0, "Ok");
             awaitState(processor.servant.workflowName(), processor.servant.id(), ServantState.Status.RUNNING);
 
-            final var newTask = tasks.get(this.workflowId, task.taskId());
+            final var newTask = tasks.get(task.taskId());
             Assert.assertNotNull(newTask);
             Assert.assertEquals("Ok", newTask.errorDescription());
             Assert.assertEquals(0, newTask.rc().intValue());
@@ -207,7 +216,7 @@ public class EventProcessorTest {
 
     @Test
     public void testFailEnv() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 2, 2))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -223,7 +232,7 @@ public class EventProcessorTest {
 
     @Test
     public void testFailExec() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 2, 2))) {
+        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100))) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -419,7 +428,7 @@ public class EventProcessorTest {
         }
 
         public HostAndPort generateServant(boolean failEnv, boolean failExec, boolean failStop) throws IOException {
-            final var port = FreePortFinder.find(1000, 2000);
+            final var port = FreePortFinder.find(10000, 20000);
             mock = new AllocatedServantMock.ServantBuilder(port)
                 .setOnEnv(() -> {
                     env.countDown();

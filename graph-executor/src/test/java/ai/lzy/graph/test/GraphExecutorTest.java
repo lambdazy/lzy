@@ -11,6 +11,7 @@ import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.graph.test.mocks.GraphDaoMock;
 import ai.lzy.graph.test.mocks.SchedulerApiMock;
+import ai.lzy.priv.v2.SchedulerApi.TaskStatus;
 import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
 import java.util.ArrayList;
@@ -34,10 +35,12 @@ import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.model.Slot;
 import ai.lzy.model.Zygote;
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.priv.v2.Tasks;
 import org.junit.rules.Timeout;
 
 import java.util.stream.Collectors;
+
+import static ai.lzy.priv.v2.SchedulerApi.TaskStatus.StatusCase.ERROR;
+import static ai.lzy.priv.v2.SchedulerApi.TaskStatus.StatusCase.QUEUE;
 
 @MicronautTest
 public class GraphExecutorTest {
@@ -52,9 +55,9 @@ public class GraphExecutorTest {
     @Before
     public void setUp() {
         scheduler = new SchedulerApiMock((a, b, sch) -> {
-            sch.changeStatus(b.id(), Tasks.TaskProgress.newBuilder()
-                .setTid(b.id())
-                .setStatus(Tasks.TaskProgress.Status.QUEUE)
+            sch.changeStatus(b.id(), TaskStatus.newBuilder()
+                .setTaskId(b.id())
+                .setQueue(TaskStatus.Queue.newBuilder().build())
                 .build()
             );
             return b.id();
@@ -82,22 +85,22 @@ public class GraphExecutorTest {
         try (var tester = new GraphTester(graph)) {
 
             // Step 1
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1", "3", "5", "7", "9");
+            tester.waitForStatus(QUEUE, "1", "3", "5", "7", "9");
             tester.awaitExecutingNow("1", "3", "5", "7", "9");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "5", "7", "9");
 
             // Step 2
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "6", "10");
+            tester.waitForStatus(QUEUE, "3", "6", "10");
             tester.awaitExecutingNow("3", "10");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "6", "10");
 
             // Step 3
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "8");
+            tester.waitForStatus(QUEUE, "3", "8");
             tester.awaitExecutingNow("3");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "8");
 
             // Step 4
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2", "4");
+            tester.waitForStatus(QUEUE, "2", "4");
             tester.awaitExecutingNow();
             tester.changeStatus(SchedulerApiMock.COMPLETED, "2", "4");
 
@@ -118,18 +121,18 @@ public class GraphExecutorTest {
 
         try (var tester = new GraphTester(graph)) {
             // Step 1
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1");
+            tester.waitForStatus(QUEUE, "1");
             tester.awaitExecutingNow("1");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 2
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2");
+            tester.waitForStatus(QUEUE, "2");
             tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
 
             // Step 3
             tester.changeStatus(SchedulerApiMock.ERROR, "1");
             tester.waitForStatus(GraphExecutionState.Status.FAILED);
-            tester.waitForStatus(Tasks.TaskProgress.Status.ERROR, "1", "2", "3");
+            tester.waitForStatus(ERROR, "1", "2", "3");
         }
     }
 
@@ -143,18 +146,18 @@ public class GraphExecutorTest {
 
         try (var tester = new GraphTester(graph)) {
             // Step 1
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1");
+            tester.waitForStatus(QUEUE, "1");
             tester.awaitExecutingNow("1");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 2
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2", "3");
+            tester.waitForStatus(QUEUE, "2", "3");
             tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
 
             tester.queue.stopGraph("", tester.state.id(), "Stopped from test");
 
             //Step 3
-            tester.waitForStatus(Tasks.TaskProgress.Status.ERROR, "1", "2", "3");
+            tester.waitForStatus(ERROR, "1", "2", "3");
             tester.waitForStatus(GraphExecutionState.Status.FAILED);
         }
     }
@@ -173,7 +176,7 @@ public class GraphExecutorTest {
 
         try (var tester = new GraphTester(graph)) {
             // Step 1
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1", "2");
+            tester.waitForStatus(QUEUE, "1", "2");
             tester.awaitExecutingNow("1", "2");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
@@ -182,7 +185,7 @@ public class GraphExecutorTest {
             tester.changeStatus(SchedulerApiMock.COMPLETED, "2");
 
             // Step 3
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "4", "5");
+            tester.waitForStatus(QUEUE, "3", "4", "5");
             tester.awaitExecutingNow();
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "4", "5");
 
@@ -211,17 +214,17 @@ public class GraphExecutorTest {
             workflowId = tester.state.workflowId();
             graphId = tester.state.id();
 
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "1", "3", "5", "7", "9");
+            tester.waitForStatus(QUEUE, "1", "3", "5", "7", "9");
             tester.awaitExecutingNow("1", "3", "5", "7", "9");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "5", "7", "9");
 
             // Step 2
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "6", "10");
+            tester.waitForStatus(QUEUE, "3", "6", "10");
             tester.awaitExecutingNow("3", "10");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "6", "10");
 
             // Step 3
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "3", "8");
+            tester.waitForStatus(QUEUE, "3", "8");
             tester.awaitExecutingNow("3");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "8");
         }
@@ -229,7 +232,7 @@ public class GraphExecutorTest {
         try (var tester = new GraphTester(workflowId, graphId)) {
 
             // Step 4
-            tester.waitForStatus(Tasks.TaskProgress.Status.QUEUE, "2", "4");
+            tester.waitForStatus(QUEUE, "2", "4");
             tester.awaitExecutingNow();
             tester.changeStatus(SchedulerApiMock.COMPLETED, "2", "4");
 
@@ -257,20 +260,20 @@ public class GraphExecutorTest {
             this.graph = graph;
             this.queue = initQueue();
             this.queue.start();
-            state = this.queue.startGraph("", graph);
+            state = this.queue.startGraph("", "changeMe", graph);
         }
 
         public void awaitExecutingNow(String... taskIds) throws InterruptedException, DaoException {
             dao.waitForExecutingNow("", state.id(), new HashSet<>(Arrays.stream(taskIds).toList()));
         }
 
-        public void changeStatus(Tasks.TaskProgress s, String... taskIds) {
+        public void changeStatus(TaskStatus s, String... taskIds) {
             for (String task : taskIds) {
                 scheduler.changeStatus(task, s);
             }
         }
 
-        public void waitForStatus(Tasks.TaskProgress.Status s, String... taskIds) throws InterruptedException {
+        public void waitForStatus(TaskStatus.StatusCase s, String... taskIds) throws InterruptedException {
             for (String task : taskIds) {
                 scheduler.waitForStatus(task, s);
             }
@@ -379,7 +382,7 @@ public class GraphExecutorTest {
         GraphBuilder builder = new GraphBuilderImpl();
         ChannelCheckerFactory factory = new ChannelCheckerFactory(scheduler);
         GraphProcessor processor = new BfsGraphProcessor(scheduler, builder, factory);
-        ServiceConfig config = new ServiceConfig(1234, 1);
+        ServiceConfig config = new ServiceConfig(1234, 1, new ServiceConfig.Scheduler("localhost", 1));
         return new QueueManager(processor, dao, config, queueEventDao);
     }
 }
