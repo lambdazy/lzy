@@ -4,8 +4,8 @@ from typing import IO, Any, Dict, Type, TypeVar
 import cloudpickle  # type: ignore
 from pure_protobuf.dataclasses_ import load, loads  # type: ignore
 
-from lzy.api.v2.utils import check_message_field
-from lzy.serialization.dumper import CatboostPoolDumper, Dumper
+from lzy.api.v2.utils import check_message_field, is_lazy_proxy
+from lzy.serialization.dumper import CatboostPoolDumper, Dumper, LzyFileDumper
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -33,16 +33,17 @@ class MemBytesSerializer(ABC):
 class FileSerializerImpl(FileSerializer):
     def __init__(self):
         self._registry: Dict[Type, Dumper] = {}
-        dumpers = [CatboostPoolDumper()]
+        dumpers = [CatboostPoolDumper(), LzyFileDumper()]
         for dumper in dumpers:
             if dumper.fit():
                 self._registry[dumper.typ()] = dumper
 
     def serialize_to_file(self, obj: Any, file: IO) -> None:
-        if type(obj) in self._registry:
-            dumper = self._registry[type(obj)]
+        typ = type(obj) if not is_lazy_proxy(obj) else type(obj.__lzy_origin__)
+        if typ in self._registry:
+            dumper = self._registry[typ]
             dumper.dump(obj, file)
-        elif check_message_field(type(obj)) or check_message_field(obj):
+        elif check_message_field(typ) or check_message_field(obj):
             obj.dump(file)  # type: ignore
         else:
             cloudpickle.dump(obj, file)
@@ -80,6 +81,7 @@ class DefaultSerializer(Serializer):
         self._mem_bytes_serializer: MemBytesSerializer = MemBytesSerializerImpl()
 
     def serialize_to_file(self, obj: Any, file: IO) -> None:
+        print(type(obj))
         self._file_serializer.serialize_to_file(obj, file)
 
     def deserialize_from_file(self, data: IO, obj_type: Type[T] = None) -> T:

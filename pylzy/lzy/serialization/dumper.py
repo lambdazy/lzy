@@ -1,12 +1,16 @@
 import os
 import tempfile
+import uuid
 from abc import ABC, abstractmethod
-from typing import IO, Type, TypeVar
+from pathlib import Path
+from typing import IO, Type, TypeVar, Generic
+
+from lzy.api.v1.utils import File
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-class Dumper(ABC):
+class Dumper(ABC, Generic[T]):
     @abstractmethod
     def dump(self, obj: T, dest: IO) -> None:
         pass
@@ -63,3 +67,29 @@ class CatboostPoolDumper(Dumper):
         import catboost
 
         return catboost.Pool  # type: ignore
+
+
+class LzyFileDumper(Dumper[File]):
+    FILE_PATH_LENGTH = 4
+
+    def dump(self, obj: File, dest: IO) -> None:
+        with obj.path.open("rb") as f:
+            data = f.read(4096)
+            while len(data) > 0:
+                dest.write(data)
+                data = f.read(4096)
+
+    def load(self, source: IO) -> File:
+        new_path = os.path.join("/tmp", str(uuid.uuid1()))
+        with open(new_path, "wb") as f:
+            data = source.read(4096)
+            while len(data) > 0:
+                f.write(data)
+                data = source.read(4096)
+        return File(new_path)
+
+    def typ(self) -> Type[File]:
+        return File
+
+    def fit(self) -> bool:
+        return True
