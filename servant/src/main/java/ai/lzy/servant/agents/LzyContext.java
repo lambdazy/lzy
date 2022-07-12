@@ -1,27 +1,26 @@
 package ai.lzy.servant.agents;
 
-import ai.lzy.servant.env.EnvironmentFactory;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.SlotsManager;
 import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.fs.slots.ArgumentsSlot;
+import ai.lzy.fs.slots.LineReaderSlot;
+import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.model.Slot;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
-import ai.lzy.servant.env.Environment;
-import ai.lzy.fs.slots.ArgumentsSlot;
-import ai.lzy.fs.slots.LineReaderSlot;
-import ai.lzy.fs.slots.WriterSlot;
-import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.priv.v2.Servant;
 import ai.lzy.priv.v2.Servant.ServantProgress;
+import ai.lzy.servant.env.Environment;
+import ai.lzy.servant.env.EnvironmentFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
-import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -82,7 +81,6 @@ public class LzyContext implements AutoCloseable {
         }
 
         final LzyExecution execution = new LzyExecution(contextId, zygote, arguments, mountRoot);
-        final WriterSlot stdinSlot = (WriterSlot) getOrCreateSlot(taskId, Slot.STDIN, null);
         final LineReaderSlot stdoutSlot = (LineReaderSlot) getOrCreateSlot(taskId, Slot.STDOUT, null);
         final LineReaderSlot stderrSlot = (LineReaderSlot) getOrCreateSlot(taskId, Slot.STDERR, null);
         execution.onProgress(progress -> {
@@ -90,7 +88,6 @@ public class LzyContext implements AutoCloseable {
             onProgress.accept(progress);
         });
         execution.start(env);
-        stdinSlot.setStream(new OutputStreamWriter(execution.process().in(), StandardCharsets.UTF_8));
         stdoutSlot.setStream(new LineNumberReader(new InputStreamReader(
             execution.process().out(),
             StandardCharsets.UTF_8
@@ -99,8 +96,12 @@ public class LzyContext implements AutoCloseable {
             execution.process().err(),
             StandardCharsets.UTF_8
         )));
+        try {
+            execution.process().in().close();
+        } catch (IOException e) {
+            // ignore
+        }
         execution.waitFor();
-        stdinSlot.destroy();
 
         final long executed = System.currentTimeMillis();
         MetricEventLogger.log(new MetricEvent(

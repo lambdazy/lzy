@@ -6,7 +6,6 @@ import ai.lzy.model.graph.Env;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.priv.v2.IAM;
 import ai.lzy.priv.v2.LzyServantGrpc;
-import ai.lzy.priv.v2.Servant.EnvResult;
 import ai.lzy.priv.v2.Tasks;
 import ai.lzy.scheduler.models.TaskDesc;
 import ai.lzy.scheduler.servant.Servant;
@@ -14,11 +13,8 @@ import ai.lzy.scheduler.servant.ServantApi;
 import ai.lzy.scheduler.servant.ServantConnection;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 
-import java.net.URL;
-import java.util.Arrays;
 import java.util.stream.Stream;
 
 public class ServantConnectionImpl implements ServantConnection {
@@ -40,6 +36,7 @@ public class ServantConnectionImpl implements ServantConnection {
         return new ServantApi() {
             @Override
             public void configure(Env env) throws StatusRuntimeException {
+                //noinspection ResultOfMethodCallIgnored
                 servantBlockingStub.env(GrpcConverter.to(env));
             }
 
@@ -48,8 +45,8 @@ public class ServantConnectionImpl implements ServantConnection {
                 Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
                     .setZygote(GrpcConverter.to(task.zygote()))
                     .setTid(taskId);
-                Arrays.stream(task.zygote().input()).forEach(slot -> {
-                    if (Stream.of(Slot.STDIN, Slot.STDOUT, Slot.STDERR)
+                task.zygote().slots().forEach(slot -> {
+                    if (Stream.of(Slot.STDOUT, Slot.STDERR)
                         .map(Slot::name)
                         .noneMatch(s -> s.equals(slot.name()))) {
                         builder.addAssignmentsBuilder()
