@@ -428,7 +428,7 @@ public class EventProcessorTest {
         }
 
         public HostAndPort generateServant(boolean failEnv, boolean failExec, boolean failStop) throws IOException {
-            final var port = FreePortFinder.find(1000, 2000);
+            final var port = FreePortFinder.find(10000, 20000);
             mock = new AllocatedServantMock.ServantBuilder(port)
                 .setOnEnv(() -> {
                     env.countDown();
