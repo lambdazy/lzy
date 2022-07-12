@@ -8,6 +8,7 @@ public class InternalUserConfig {
     private String credentialName;
     private String credentialValue;
     private String credentialType;
+    private String credentialPrivateKey;
 
     public String userName() {
         return userName;
@@ -39,5 +40,13 @@ public class InternalUserConfig {
 
     public void setCredentialType(String credentialType) {
         this.credentialType = credentialType;
+    }
+
+    public String credentialPrivateKey() {
+        return credentialPrivateKey;
+    }
+
+    public void setCredentialPrivateKey(String credentialPrivateKey) {
+        this.credentialPrivateKey = credentialPrivateKey;
     }
 }

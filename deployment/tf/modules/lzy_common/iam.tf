@@ -7,6 +7,9 @@ locals {
   }
   iam-port     = 8443
   iam-k8s-name = "iam"
+  iam-internal-user-name = "lzy-internal-agent"
+  iam-internal-cred-name = "Internal agent key"
+  iam-internal-cred-type = "public_key"
 }
 
 resource "kubernetes_secret" "iam_db_data" {
@@ -21,6 +24,11 @@ resource "kubernetes_secret" "iam_db_data" {
   }
 
   type = "Opaque"
+}
+
+resource "tls_private_key" "internal_key" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
 }
 
 resource "kubernetes_deployment" "iam" {
@@ -46,19 +54,19 @@ resource "kubernetes_deployment" "iam" {
           image             = var.iam-image
           image_pull_policy = "Always"
           env {
-            name  = "DATABASE_URL"
+            name  = "IAM_DATABASE_URL"
             value = "jdbc:postgresql://${var.iam_db_host}:${var.iam_db_port}/${var.iam_db_name}"
           }
           env {
-            name  = "DATABASE_ENABLED"
+            name  = "IAM_DATABASE_ENABLED"
             value = "true"
           }
           env {
-            name  = "DATABASE_USERNAME"
+            name  = "IAM_DATABASE_USERNAME"
             value = var.iam_db_user
           }
           env {
-            name  = "DATABASE_PASSWORD"
+            name  = "IAM_DATABASE_PASSWORD"
             value = var.iam_db_password == "" ? random_password.iam_db_password[0].result : var.iam_db_password
           }
           env {
@@ -68,6 +76,22 @@ resource "kubernetes_deployment" "iam" {
           env {
             name  = "IAM_SERVER_PORT"
             value = local.iam-port
+          }
+          env {
+            name  = "IAM_INTERNAL_USERNAME"
+            value = local.iam-internal-user-name
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIALNAME"
+            value = local.iam-internal-cred-name
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIALVAUE"
+            value = tls_private_key.internal_key.public_key_pem
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIALTYPE"
+            value = local.iam-internal-cred-type
           }
           port {
             container_port = local.iam-port

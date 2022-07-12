@@ -14,9 +14,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 @Singleton
-@Requires(property = "database.url")
-@Requires(property = "database.username")
-@Requires(property = "database.password")
+@Requires(property = "iam.database.url")
+@Requires(property = "iam.database.username")
+@Requires(property = "iam.database.password")
 public class DbStorage implements Storage {
     private static final Logger LOG = LogManager.getLogger(DbStorage.class);
     private static final String VALIDATION_QUERY_SQL = "select 1";

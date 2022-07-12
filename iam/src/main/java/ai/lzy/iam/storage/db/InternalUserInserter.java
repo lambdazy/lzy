@@ -8,6 +8,8 @@ import ai.lzy.iam.utils.UserVerificationType;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,12 +18,18 @@ import java.sql.SQLException;
 @Singleton
 @Requires(beans = Storage.class)
 public class InternalUserInserter {
+    public static final Logger LOG = LogManager.getLogger(InternalUserInserter.class);
 
     @Inject
     private Storage storage;
 
     public void addOrUpdateInternalUser(InternalUserConfig config) {
+        if (config.userName() == null) {
+            LOG.info("Empty InternalUserConfig, nothing to update");
+            return;
+        }
         try (final Connection connection = storage.connect()) {
+            LOG.info("Insert Internal user::{} with keyType::{}", config.userName(), config.credentialType());
             PreparedStatement st = connection.prepareStatement(
                     """
                             INSERT INTO users (user_id, auth_provider, provider_user_id, access_type)
@@ -33,8 +41,7 @@ public class InternalUserInserter {
                             name = ?,
                             "value" = ?,
                             user_id = ?,
-                            type = ?
-                            ;
+                            type = ?;
 
                             INSERT INTO user_resource_roles (user_id, resource_id, resource_type, role)
                             VALUES (?, ?, ?, ?)

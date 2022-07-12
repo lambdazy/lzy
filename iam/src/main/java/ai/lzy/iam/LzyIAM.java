@@ -1,5 +1,6 @@
 package ai.lzy.iam;
 
+import ai.lzy.iam.configs.DbConfig;
 import ai.lzy.iam.configs.InternalUserConfig;
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
@@ -38,6 +39,7 @@ public class LzyIAM {
 
     public LzyIAM(ApplicationContext context) {
         ServiceConfig config = context.getBean(ServiceConfig.class);
+        DbConfig dbConfig = context.getBean(DbConfig.class);
 
         InternalUserConfig internalUserConfig = context.getBean(InternalUserConfig.class);
         InternalUserInserter internalUserInserter = context.getBean(InternalUserInserter.class);
