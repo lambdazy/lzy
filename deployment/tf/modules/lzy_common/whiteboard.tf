@@ -57,19 +57,29 @@ resource "kubernetes_deployment" "whiteboard" {
             value = var.lzy_whiteboard_db_password == "" ? random_password.whiteboard_db_password[0].result : var.lzy_whiteboard_db_password
           }
           env {
-            name  = "SERVER_URI"
-            value = kubernetes_service.lzy_server.spec[0].cluster_ip
+            name  = "SERVICE_SERVER_URI"
+            value = "http://${kubernetes_service.lzy_server.spec[0].cluster_ip}:${local.server-port}"
+          }
+          env {
+            name  = "SERVICE_IAM_URI"
+            value = "http://${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+          }
+          env {
+            name  = "SERVICE_PORT"
+            value = local.whiteboard-port
+          }
+          env {
+            name = "LZY_SNAPSHOT_HOST"
+            value_from {
+              field_ref {
+                field_path = "status.podIP"
+              }
+            }
           }
           port {
             container_port = local.whiteboard-port
             host_port      = local.whiteboard-port
           }
-          args = [
-            "-z",
-            "http://${kubernetes_service.lzy_server.spec[0].cluster_ip}:${local.server-port}",
-            "-p",
-            local.whiteboard-port
-          ]
         }
         node_selector = {
           type = "lzy"
@@ -83,6 +93,11 @@ resource "kubernetes_deployment" "whiteboard" {
                   operator = "In"
                   values   = local.all-services-k8s-app-labels
                 }
+              }
+              topology_key = "kubernetes.io/hostname"
+            }
+            required_during_scheduling_ignored_during_execution {
+              label_selector {
                 match_expressions {
                   key      = "app.kubernetes.io/managed-by"
                   operator = "In"

@@ -1,16 +1,14 @@
 package ai.lzy.server.mocks;
 
-import io.grpc.Server;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.netty.NettyServerBuilder;
-import io.grpc.stub.StreamObserver;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.priv.v2.IAM;
 import ai.lzy.priv.v2.LzyServantGrpc;
 import ai.lzy.priv.v2.Operations;
 import ai.lzy.priv.v2.Servant;
-
+import io.grpc.Server;
+import io.grpc.StatusRuntimeException;
+import io.grpc.netty.NettyServerBuilder;
+import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -69,10 +67,10 @@ public class AllocatedServantMock {
         public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
             if (!failEnv) {
                 responseObserver.onNext(Servant.EnvResult.newBuilder().setRc(0).setDescription("OK").build());
-                responseObserver.onCompleted();
             } else {
-                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Bad exception").asException());
+                responseObserver.onNext(Servant.EnvResult.newBuilder().setRc(-1).setDescription("NOT OK").build());
             }
+            responseObserver.onCompleted();
         }
 
         @Override

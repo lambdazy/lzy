@@ -41,6 +41,7 @@ public class ChannelBuilder {
         this.maxBackoff = "2s";
         this.backoffMultiplier = 2;
         this.retryableStatusCodes = List.of(
+            Status.Code.CANCELLED.name(),
             Status.Code.UNAVAILABLE.name()
         );
     }

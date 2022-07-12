@@ -161,6 +161,10 @@ resource "kubernetes_deployment" "server" {
             value = "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:${local.whiteboard-port}"
           }
           env {
+            name  = "SERVER_IAM_URI"
+            value = "http://${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+          }
+          env {
             name  = "SERVANT_IMAGE"
             value = var.servant-image
           }
@@ -217,6 +221,11 @@ resource "kubernetes_deployment" "server" {
                   operator = "In"
                   values   = local.all-services-k8s-app-labels
                 }
+              }
+              topology_key = "kubernetes.io/hostname"
+            }
+            required_during_scheduling_ignored_during_execution {
+              label_selector {
                 match_expressions {
                   key      = "app.kubernetes.io/managed-by"
                   operator = "In"

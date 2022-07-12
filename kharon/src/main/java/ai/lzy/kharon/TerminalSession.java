@@ -46,7 +46,7 @@ public class TerminalSession {
                         //synchronize this block to avoid race between serverController instance building
                         // and setServerStream call (because server can call start before serverController
                         // instance is built)
-                        synchronized (ServerCommandHandler.this) {
+                        synchronized (TerminalSession.this) {
                             final AttachTerminal attachTerminal = terminalState.getAttachTerminal();
                             if (state != TerminalSessionState.UNBOUND) {
                                 throw new IllegalStateException("Double attach to terminal from user "

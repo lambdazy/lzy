@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class ServantAllocatorBaseTest {
+
     private static final String DEFAULT_USER = "default_user";
     private static final String DEFAULT_BUCKET = "default_bucket";
 
@@ -33,8 +34,8 @@ public class ServantAllocatorBaseTest {
     @BeforeClass
     public static void classSetUp() {
         final ApplicationContext run = ApplicationContext.run(Map.of(
-                "authenticator", "SimpleInMemAuthenticator",
-                "database.enabled", false
+            "authenticator", "SimpleInMemAuthenticator",
+            "database.enabled", false
         ));
         authenticator = run.getBean(Authenticator.class);
         executor = Executors.newFixedThreadPool(100);
@@ -137,9 +138,9 @@ public class ServantAllocatorBaseTest {
         //Arrange
         final Map<String, List<String>> userSessions = new HashMap<>();
         IntStream.range(0, 100)
-                .mapToObj(value -> "user_" + UUID.randomUUID())
-                .forEach(s -> userSessions.put(s, IntStream.range(0, 100)
-                        .mapToObj(value -> "session_" + UUID.randomUUID()).collect(Collectors.toList())));
+            .mapToObj(value -> "user_" + UUID.randomUUID())
+            .forEach(s -> userSessions.put(s, IntStream.range(0, 100)
+                .mapToObj(value -> "session_" + UUID.randomUUID()).collect(Collectors.toList())));
 
         //Act
         userSessions.forEach((uid, sids) -> sids.forEach(sid -> allocator.registerSession(uid, sid, DEFAULT_BUCKET)));
@@ -152,8 +153,8 @@ public class ServantAllocatorBaseTest {
                 Assert.assertEquals(uuid, session.id());
             });
         userSessions.forEach((uid, sids) ->
-                Assert.assertEquals(new HashSet<>(sids),
-                        allocator.sessions(uid).map(SessionManager.Session::id).collect(Collectors.toSet())));
+            Assert.assertEquals(new HashSet<>(sids),
+                allocator.sessions(uid).map(SessionManager.Session::id).collect(Collectors.toSet())));
     }
 
     @Test
@@ -203,7 +204,7 @@ public class ServantAllocatorBaseTest {
 
         //Act
         allocator.allocate(sid, new Provisioning.Any(),
-                GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
     }
 
     @Test
@@ -214,15 +215,16 @@ public class ServantAllocatorBaseTest {
 
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
-                sid, new Provisioning.Any(),
-                GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            sid, new Provisioning.Any(),
+            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
         final boolean allocated = allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
         final SessionManager.Session session = allocator.byServant(request.servantId());
 
         int port = FreePortFinder.find(10000, 20000);
 
-        AllocatedServantMock servantMock = new AllocatedServantMock(false, t -> {}, port);
+        AllocatedServantMock servantMock = new AllocatedServantMock(false, t -> {
+        }, port);
         allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(),
             new URI("dummy://foo"));
         ServantsAllocator.ServantConnection connection = feature.get();
@@ -257,7 +259,7 @@ public class ServantAllocatorBaseTest {
 
         //Act
         CompletableFuture<?> feature = allocator.allocate(sid, new Provisioning.Any(),
-                GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
         final boolean allocationRequested = allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
         allocator.deleteSession(sid);
@@ -324,14 +326,15 @@ public class ServantAllocatorBaseTest {
 
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
-                sid, new Provisioning.Any(),
-                GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            sid, new Provisioning.Any(),
+            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
         allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
 
         int port = FreePortFinder.find(10000, 20000);
 
-        AllocatedServantMock servantMock = new AllocatedServantMock(false, t -> {}, port);
+        AllocatedServantMock servantMock = new AllocatedServantMock(false, t -> {
+        }, port);
         allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(),
             new URI("dummy://foo"));
         ServantsAllocator.ServantConnection connection = feature.get();
@@ -375,5 +378,38 @@ public class ServantAllocatorBaseTest {
 
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
         Assert.assertEquals(request.servantId(), allocator.terminations().get(0).id());
+    }
+
+    @Test
+    public void testEnvFailOnAllocation() throws IOException, URISyntaxException, InterruptedException {
+        //Arrange
+        final String sid = "session_" + UUID.randomUUID();
+        allocator.registerSession(DEFAULT_USER, sid, DEFAULT_BUCKET);
+        final CountDownLatch stopLatch = new CountDownLatch(1);
+        int port = FreePortFinder.find(10000, 20000);
+        AllocatedServantMock servantMock = new AllocatedServantMock(true, t -> stopLatch.countDown(), port);
+
+        //Act
+        CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
+            sid, new Provisioning.Any(),
+            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+        final boolean allocated = allocator.waitForAllocations();
+        final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
+
+        allocator.register(request.servantId(), new URIBuilder().setHost("localhost").setPort(port).build(),
+            new URI("dummy://foo"));
+        try {
+            feature.get(30, TimeUnit.SECONDS);
+        } catch (ExecutionException | TimeoutException ignored) {
+        }
+        boolean completedExceptionally = feature.isCompletedExceptionally();
+
+        //Assert
+        Assert.assertTrue(stopLatch.await(30, TimeUnit.SECONDS));
+        Assert.assertTrue(allocated);
+        Assert.assertTrue(completedExceptionally);
+
+        servantMock.complete(null);
+        servantMock.close();
     }
 }
