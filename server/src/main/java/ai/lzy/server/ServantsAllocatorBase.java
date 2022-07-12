@@ -242,43 +242,57 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
     }
 
     public synchronized void run() {
-        final Instant now = Instant.now();
-        final List<ServantConnection> tasksToShutdown = Set.copyOf(spareServants.keySet()).stream()
-            .filter(s -> spareServants.get(s).isBefore(now))
-            .peek(spareServants::remove).toList();
-        final List<ServantConnection> tasksToForceStop = Set.copyOf(shuttingDown.keySet()).stream()
-            .filter(s -> shuttingDown.get(s).isBefore(now))
-            .peek(shuttingDown::remove).toList();
+        try {
+            final Instant now = Instant.now();
+            final List<ServantConnection> tasksToShutdown = Set.copyOf(spareServants.keySet()).stream()
+                .filter(s -> spareServants.get(s).isBefore(now))
+                .peek(spareServants::remove).toList();
+            final List<ServantConnection> tasksToForceStop = Set.copyOf(shuttingDown.keySet()).stream()
+                .filter(s -> shuttingDown.get(s).isBefore(now))
+                .peek(shuttingDown::remove).toList();
 
-        final List<ServantConnection> notAllocatedServants = Set.copyOf(waitingForAllocation.keySet())
-            .stream()
-            .filter(s -> waitingForAllocation.get(s).isBefore(now))
-            .peek(s -> uncompletedConnections.remove(s.id()))
-            .peek(waitingForAllocation::remove)
-            .peek(s -> servant2sessions.remove(s.id()))
-            .peek(s -> requests.get(s.id()).completeExceptionally(new RuntimeException("Timeout exceeded")))
-            .peek(s -> requests.remove(s.id())).toList();
+            final List<ServantConnection> notAllocatedServants = Set.copyOf(waitingForAllocation.keySet())
+                .stream()
+                .filter(s -> waitingForAllocation.get(s).isBefore(now))
+                .peek(s -> uncompletedConnections.remove(s.id()))
+                .peek(waitingForAllocation::remove)
+                .peek(s -> servant2sessions.remove(s.id()))
+                .peek(s -> {
+                    if (requests.containsKey(s.id())) {
+                        requests.get(s.id()).completeExceptionally(new RuntimeException("Timeout exceeded"));
+                    } else {
+                        LOG.debug("Connection of servant {} not found", s.id());
+                    }
+                })
+                .peek(s -> requests.remove(s.id())).toList();
 
-        executor.execute(() -> {
-            tasksToShutdown.forEach(s -> {
-                final SessionImpl session = servant2sessions.remove(s.id());
-                if (session != null) {
-                    //noinspection SuspiciousMethodCalls
-                    session.servants.remove(s);
-                }
-                shuttingDown.put(s, Instant.now().plus(GRACEFUL_SHUTDOWN_PERIOD_SEC, ChronoUnit.SECONDS));
-                try {
-                    //noinspection ResultOfMethodCallIgnored
-                    s.control().stop(IAM.Empty.newBuilder().build());
-                } catch (Exception e) {
-                    LOG.error("Failed to shutdown servant: ", e);
-                    terminate(s);
-                    shuttingDown.remove(s);
-                }
+            executor.execute(() -> {
+                tasksToShutdown.forEach(servantConnection -> {
+                    LOG.info("Deleting connection {}", servantConnection.id());
+                    final SessionImpl session = servant2sessions.remove(servantConnection.id());
+                    if (session != null) {
+                        //noinspection SuspiciousMethodCalls
+                        session.servants.remove(servantConnection);
+                    }
+                    shuttingDown.put(
+                        servantConnection,
+                        Instant.now().plus(GRACEFUL_SHUTDOWN_PERIOD_SEC, ChronoUnit.SECONDS)
+                    );
+                    try {
+                        //noinspection ResultOfMethodCallIgnored
+                        servantConnection.control().stop(IAM.Empty.newBuilder().build());
+                    } catch (Exception e) {
+                        LOG.error("Failed to shutdown servant: ", e);
+                        terminate(servantConnection);
+                        shuttingDown.remove(servantConnection);
+                    }
+                });
+                tasksToForceStop.forEach(this::terminate);
             });
-            tasksToForceStop.forEach(this::terminate);
-        });
-        executor.execute(() -> notAllocatedServants.forEach(this::terminate));
+            executor.execute(() -> notAllocatedServants.forEach(this::terminate));
+        } catch (Exception e) {
+            LOG.error("ServantsAllocatorBase::run failed with exception", e);
+        }
     }
 
     private static class ServantConnectionImpl implements ServantConnection {

@@ -65,25 +65,4 @@ public class MultiSessionTest extends LocalScenario {
         assertWithExpected(scenarioName, result2.get());
     }
 
-    @Test
-    public void parallelPyGraphExecutionInSingleTerminal() throws ExecutionException, InterruptedException {
-        final String scenarioName = "catboost_integration_cpu";
-        final LzyTerminalTestContext.Terminal terminal = createTerminal(
-            FreePortFinder.find(20000, 21000),
-            FreePortFinder.find(21000, 22000),
-            FreePortFinder.find(22000, 23000),
-            "user1",
-            "/tmp/lzy");
-
-        //Act
-        final CompletableFuture<LzyTerminalTestContext.Terminal.ExecutionResult> result1 = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> result1.complete(evalScenario(terminal, scenarioName)));
-
-        final CompletableFuture<LzyTerminalTestContext.Terminal.ExecutionResult> result2 = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> result2.complete(evalScenario(terminal, scenarioName)));
-
-        //Assert
-        assertWithExpected(scenarioName, result1.get());
-        assertWithExpected(scenarioName, result2.get());
-    }
 }
