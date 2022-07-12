@@ -1,4 +1,4 @@
-ARG DEFAULT_ENV_BASE_TAG=latest
+ARG DEFAULT_ENV_BASE_TAG
 FROM lzydock/default-env-base:${DEFAULT_ENV_BASE_TAG}
 
 ### copy lzy-py sources & install

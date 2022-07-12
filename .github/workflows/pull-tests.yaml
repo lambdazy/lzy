@@ -48,7 +48,7 @@ jobs:
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           DEFAULT_ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh default-env $BRANCH dev)
-          cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage=$DEFAULT_ENV_IMAGE && cd ..
+          cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$DEFAULT_ENV_IMAGE" && cd ..
 
       - name: 'LzyDryStartupTest'
         timeout-minutes: 5
