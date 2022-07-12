@@ -24,7 +24,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -278,7 +281,6 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
         LOG.error("Only snapshot is supported now");
         response.onError(Status.UNIMPLEMENTED.asException());
-        assert false;
     }
 
     @Override
@@ -357,14 +359,56 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
         LOG.error("Only snapshot or stdout/stderr are supported now");
         response.onError(Status.UNIMPLEMENTED.asException());
-        assert false;
     }
 
     @Override
     public synchronized void statusSlot(LzyFsApi.StatusSlotRequest request,
                                         StreamObserver<LzyFsApi.SlotCommandStatus> response) {
-        // TODO: implement me plz
-        super.statusSlot(request, response);
+        LOG.info("Status portal slot, taskId: {}, slotName: {}", request.getTaskId(), request.getSlotName());
+
+        if (!portalTaskId.equals(request.getTaskId())) {
+            response.onError(Status.INVALID_ARGUMENT
+                .withDescription("Unknown task " + request.getTaskId()).asException());
+            return;
+        }
+
+        Consumer<LzySlot> reply = slot -> {
+            response.onNext(LzyFsApi.SlotCommandStatus.newBuilder()
+                .setStatus(slot.status())
+                .build());
+            response.onCompleted();
+        };
+
+        for (var ss : snapshots.values()) {
+            var inputSlot = ss.getInputSlot();
+            if (inputSlot != null && inputSlot.name().equals(request.getSlotName())) {
+                reply.accept(inputSlot);
+                return;
+            }
+
+            for (var outputSlot : ss.getOutputSlots()) {
+                if (outputSlot.name().equals(request.getSlotName())) {
+                    reply.accept(outputSlot);
+                    return;
+                }
+            }
+        }
+
+        for (var stdSlot : new StdoutSlot[]{stdoutSlot, stderrSlot}) {
+            if (stdSlot.name().equals(request.getSlotName())) {
+                reply.accept(stdSlot);
+                return;
+            }
+
+            var slot = stdSlot.find(request.getSlotName());
+            if (slot != null) {
+                reply.accept(slot);
+                return;
+            }
+        }
+
+        response.onError(Status.NOT_FOUND
+            .withDescription("Slot '" + request.getSlotName() + "' not found").asException());
     }
 
     @Override
@@ -445,7 +489,6 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
         LOG.error("Only snapshot or stdout/stderr are supported now");
         response.onError(Status.UNIMPLEMENTED.asException());
-        assert false;
     }
 
     @Override
@@ -506,7 +549,6 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
         LOG.error("Only snapshot or stdout/stderr are supported now");
         response.onError(Status.UNIMPLEMENTED.asException());
-        assert false;
     }
 
     private static String portalSlotToSafeString(PortalSlotDesc slotDesc) {
