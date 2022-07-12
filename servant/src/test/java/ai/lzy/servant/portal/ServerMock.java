@@ -179,12 +179,11 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
             default -> response.onError(INVALID_ARGUMENT.withDescription("Unknown command").asException());
         }
     }
-
-    @Override
-    public void start(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> response) {
-        servant().startTask(request, response);
-    }
     // --- SERVER GRPC API  ---
+
+    void start(String servantId, Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> response) {
+        servant(servantId).startTask(request, response);
+    }
 
     void waitServantStart(String servantId) throws Exception {
         requireNonNull(servantHandlers.get(servantId)).waitStart();
@@ -212,11 +211,8 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
             .orElseThrow();
     }
 
-    ServantHandler servant() {
-        return servantHandlers.values().stream()
-            .filter(w -> !w.portal)
-            .findFirst()
-            .orElseThrow();
+    ServantHandler servant(String servantId) {
+        return servantHandlers.get(servantId);
     }
 
     void openPortalSlots(LzyPortalApi.OpenSlotsRequest request) {
@@ -224,8 +220,8 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         Assert.assertTrue(response.getDescription(), response.getSuccess());
     }
 
-    void waitTaskCompleted(String taskId) throws Exception {
-        var taskStatus = servant().tasks.get(taskId).get();
+    void waitTaskCompleted(String servantId, String taskId) throws Exception {
+        var taskStatus = servant(servantId).tasks.get(taskId).get();
         Assert.assertEquals(taskStatus.getDescription(), 0, taskStatus.getRc());
     }
 
