@@ -42,7 +42,7 @@ public class Run implements LzyCommand {
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final CountDownLatch communicationLatch = new CountDownLatch(3);
+    private final CountDownLatch communicationLatch = new CountDownLatch(2);
     private final List<String> channels = new ArrayList<>();
     private LzyServerGrpc.LzyServerBlockingStub server;
     private IAM.Auth auth;
@@ -228,41 +228,7 @@ public class Run implements LzyCommand {
             final Map<String, String> pipeConfig = pipesConfig.get(devSlot);
             switch (devSlot) {
                 case "stdin": {
-                    boolean pipe = false;
-                    final String stdinChannel;
-                    if (!pipeConfig.getOrDefault("node", "").isEmpty()) { // linux
-                        stdinChannel = prefix + ":" + devSlot + ":" + pipeConfig.get("node");
-                        pipe = true;
-                    } else if (!pipeConfig.getOrDefault("name", "").isEmpty()) { // macos
-                        stdinChannel = prefix + ":" + devSlot + ":" + pipeConfig.get("name");
-                        pipe = true;
-                    } else {
-                        stdinChannel = "stdin_" + UUID.randomUUID();
-                    }
-                    channels.add(stdinChannel);
-
-                    final String slotName = String.join("/", "/tasks", prefix, devSlot);
-                    createChannel(slot, stdinChannel);
-
-                    createSlotByProto(pid, pipe, "channel:" + stdinChannel, slotName, Slot.STDOUT);
-                    final Path inputSlotFile = Path.of(lzyRoot, slotName);
-                    ForkJoinPool.commonPool().execute(() -> {
-                        byte[] buffer = new byte[BUFFER_SIZE];
-                        try (OutputStream is = Files
-                            .newOutputStream(inputSlotFile, StandardOpenOption.WRITE)) {
-                            int read;
-                            while (System.in.available() > 0
-                                && (read = System.in.read(buffer)) >= 0) {
-                                is.write(buffer, 0, read);
-                            }
-                        } catch (IOException e) {
-                            LOG.warn("Unable to read from input stream", e);
-                        } finally {
-                            LOG.info("Slot {} has been processed, counting down latch", devSlot);
-                            communicationLatch.countDown();
-                        }
-                    });
-                    return stdinChannel;
+                    throw new RuntimeException("Slot stdin is not supported.");
                 }
                 case "stdout":
                 case "stderr": {
@@ -287,12 +253,10 @@ public class Run implements LzyCommand {
                     final Path outputSlotFile = Path.of(lzyRoot, slotName);
                     ForkJoinPool.commonPool().execute(() -> {
                         byte[] buffer = new byte[BUFFER_SIZE];
-                        try (InputStream is = Files
-                            .newInputStream(outputSlotFile, StandardOpenOption.READ)) {
+                        try (InputStream is = Files.newInputStream(outputSlotFile, StandardOpenOption.READ)) {
                             int read;
                             while ((read = is.read(buffer)) >= 0) {
-                                ("stderr".equals(devSlot) ? System.err : System.out)
-                                    .write(buffer, 0, read);
+                                ("stderr".equals(devSlot) ? System.err : System.out).write(buffer, 0, read);
                             }
                         } catch (IOException e) {
                             LOG.warn("Unable to read from " + devSlot, e);

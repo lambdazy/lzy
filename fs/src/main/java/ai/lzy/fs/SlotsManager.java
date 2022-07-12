@@ -8,11 +8,9 @@ import ai.lzy.fs.slots.InFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.fs.slots.LocalOutFileSlot;
 import ai.lzy.fs.slots.OutFileSlot;
-import ai.lzy.fs.slots.WriterSlot;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.Slot;
-import ai.lzy.model.slots.TextLinesInSlot;
 import ai.lzy.model.slots.TextLinesOutSlot;
 import ai.lzy.priv.v2.Servant;
 
@@ -155,7 +153,7 @@ public class SlotsManager implements AutoCloseable {
 
     private LzySlot createSlot(Slot spec, @Nullable String binding) throws IOException {
         if (spec.equals(Slot.STDIN)) {
-            return new WriterSlot(contextId, new TextLinesInSlot(spec.name()));
+            throw new AssertionError();
         }
 
         if (spec.equals(Slot.STDOUT)) {
@@ -167,15 +165,12 @@ public class SlotsManager implements AutoCloseable {
         }
 
         return switch (spec.media()) {
-            case PIPE, FILE -> {
-                var slot = switch (spec.direction()) {
-                    case INPUT -> new InFileSlot(contextId, spec);
-                    case OUTPUT -> (spec.name().startsWith("local://")
-                            ? new LocalOutFileSlot(contextId, spec, URI.create(spec.name()))
-                            : new OutFileSlot(contextId, spec));
-                };
-                yield slot;
-            }
+            case PIPE, FILE -> switch (spec.direction()) {
+                case INPUT -> new InFileSlot(contextId, spec);
+                case OUTPUT -> (spec.name().startsWith("local://")
+                        ? new LocalOutFileSlot(contextId, spec, URI.create(spec.name()))
+                        : new OutFileSlot(contextId, spec));
+            };
             case ARG -> new ArgumentsSlot(spec, binding);
         };
     }
