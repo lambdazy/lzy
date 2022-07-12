@@ -45,10 +45,32 @@ resource "kubernetes_deployment" "kharon" {
             name  = "LZY_SERVER_IP"
             value = kubernetes_service.lzy_server.spec[0].cluster_ip
           }
+
           env {
             name  = "KHARON_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
+          env {
+            name  = "IAM_INTERNAL_USER_NAME"
+            value = local.iam-internal-user-name
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_NAME"
+            value = local.iam-internal-cred-name
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_VALUE"
+            value = tls_private_key.internal_key.public_key_pem
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_PRIVATE_KEY"
+            value = tls_private_key.internal_key.private_key_pem
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_TYPE"
+            value = local.iam-internal-cred-type
+          }
+
           port {
             container_port = local.kharon-port
             host_port      = local.kharon-port
@@ -62,6 +84,7 @@ resource "kubernetes_deployment" "kharon" {
             host_port      = local.kharon-servant-fs-proxy-port
           }
           args = [
+            "-Dmicronaut.env.deduction=true",
             "--lzy-server-address",
             "http://$(LZY_SERVER_IP):8888",
             "--host",

@@ -113,6 +113,26 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             name  = "CREDENTIALS_PRIVATE_KEY_PATH"
             value = "/etc/sec/backofficePrivateKey.txt"
           }
+          env {
+            name  = "IAM_INTERNAL_USER_NAME"
+            value = local.iam-internal-user-name
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_NAME"
+            value = local.iam-internal-cred-name
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_VALUE"
+            value = tls_private_key.internal_key.public_key_pem
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_PRIVATE_KEY"
+            value = tls_private_key.internal_key.private_key_pem
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_TYPE"
+            value = local.iam-internal-cred-type
+          }
           volume_mount {
             name       = "sec"
             mount_path = "/etc/sec"
@@ -128,6 +148,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             host_port      = local.backoffice-backend-tls-port
           }
           args = [
+            "-Dmicronaut.env.deduction=true",
             "-Dmicronaut.ssl.keyStore.password=${var.ssl-keystore-password}",
             "-Dmicronaut.ssl.enabled=${var.ssl-enabled ? "true" : "false"}",
             "-Dmicronaut.server.dual-protocol=${var.ssl-enabled ? "true" : "false"}"

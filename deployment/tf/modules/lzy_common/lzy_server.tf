@@ -160,6 +160,32 @@ resource "kubernetes_deployment" "server" {
             name  = "SERVER_WHITEBOARD_URI"
             value = "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:${local.whiteboard-port}"
           }
+
+          env {
+            name  = "SERVER_IAM_URI"
+            value = "http://${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+          }
+          env {
+            name  = "IAM_INTERNAL_USER_NAME"
+            value = local.iam-internal-user-name
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_NAME"
+            value = local.iam-internal-cred-name
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_VALUE"
+            value = tls_private_key.internal_key.public_key_pem
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_PRIVATE_KEY"
+            value = tls_private_key.internal_key.private_key_pem
+          }
+          env {
+            name  = "IAM_INTERNAL_CREDENTIAL_TYPE"
+            value = local.iam-internal-cred-type
+          }
+
           env {
             name  = "SERVER_IAM_URI"
             value = "http://${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"

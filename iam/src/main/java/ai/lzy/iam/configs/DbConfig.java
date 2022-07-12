@@ -2,7 +2,7 @@ package ai.lzy.iam.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 
-@ConfigurationProperties("database")
+@ConfigurationProperties("iam.database")
 public class DbConfig {
 
     private String url;

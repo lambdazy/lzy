@@ -1,11 +1,14 @@
 package ai.lzy.iam;
 
+import ai.lzy.iam.configs.DbConfig;
+import ai.lzy.iam.configs.InternalUserConfig;
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.grpc.service.LzyABSService;
 import ai.lzy.iam.grpc.service.LzyASService;
 import ai.lzy.iam.grpc.service.LzyAuthService;
 import ai.lzy.iam.grpc.service.LzySubjectService;
+import ai.lzy.iam.storage.db.InternalUserInserter;
 import ai.lzy.iam.storage.impl.DbAuthService;
 import ai.lzy.model.grpc.ChannelBuilder;
 import io.grpc.Server;
@@ -36,6 +39,12 @@ public class LzyIAM {
 
     public LzyIAM(ApplicationContext context) {
         ServiceConfig config = context.getBean(ServiceConfig.class);
+        DbConfig dbConfig = context.getBean(DbConfig.class);
+
+        InternalUserConfig internalUserConfig = context.getBean(InternalUserConfig.class);
+        InternalUserInserter internalUserInserter = context.getBean(InternalUserInserter.class);
+        internalUserInserter.addOrUpdateInternalUser(internalUserConfig);
+
         ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getServerPort())
                 .permitKeepAliveWithoutCalls(true)
                 .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);

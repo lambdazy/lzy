@@ -13,6 +13,7 @@ import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.storage.Storage;
 import ai.lzy.iam.storage.db.ResourceBinding;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -44,12 +45,12 @@ public class DbAccessBindingClient {
     }
 
     public void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) throws AuthException {
-        try {
+        try (final Connection connection = storage.connect()) {
             StringBuilder query = new StringBuilder();
             for (AccessBinding ignored : accessBinding) {
                 query.append(insertQuery());
             }
-            final PreparedStatement st = storage.connect().prepareStatement(query.toString());
+            final PreparedStatement st = connection.prepareStatement(query.toString());
             int parameterIndex = 0;
             for (AccessBinding binding : accessBinding) {
                 st.setString(++parameterIndex, binding.subject().id());
@@ -65,7 +66,7 @@ public class DbAccessBindingClient {
 
     public void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBindingDeltas)
             throws AuthException {
-        try {
+        try (final Connection connection = storage.connect()) {
             StringBuilder query = new StringBuilder();
             for (AccessBindingDelta binding : accessBindingDeltas) {
                 if (binding.action() == AccessBindingAction.ADD) {
@@ -76,7 +77,7 @@ public class DbAccessBindingClient {
                     throw new RuntimeException("Unknown bindingDelta action:: " + binding.action());
                 }
             }
-            final PreparedStatement st = storage.connect().prepareStatement(query.toString());
+            final PreparedStatement st = connection.prepareStatement(query.toString());
             int parameterIndex = 0;
             for (AccessBindingDelta binding : accessBindingDeltas) {
                 if (binding.action() == AccessBindingAction.ADD) {
