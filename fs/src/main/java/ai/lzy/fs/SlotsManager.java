@@ -152,11 +152,11 @@ public class SlotsManager implements AutoCloseable {
     }
 
     private LzySlot createSlot(Slot spec, @Nullable String binding) throws IOException {
-        if (Slot.STDIN.equals(spec)) {
+        if (spec.equals(Slot.STDIN)) {
             throw new AssertionError();
         }
 
-        if (Slot.STDOUT.equals(spec)) {
+        if (spec.equals(Slot.STDOUT)) {
             return new LineReaderSlot(contextId, new TextLinesOutSlot(spec.name()));
         }
 

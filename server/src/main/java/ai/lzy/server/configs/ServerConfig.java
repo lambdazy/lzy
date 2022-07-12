@@ -8,6 +8,7 @@ import java.net.URI;
 public class ServerConfig {
     private URI serverUri;
     private URI whiteboardUri;
+    private URI iamUri;
     private String baseEnvDefaultImage;
 
     private YcCredentials yc;
