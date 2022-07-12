@@ -480,7 +480,8 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                 var ss = snapshots.get(snapshotId);
                 if (ss == null) {
                     LOG.error("Slot '{}' belongs to snapshot '{}', which is unknown", slotName, snapshotId);
-                    response.onError(Status.INTERNAL.withDescription("snapshot " + snapshotId + " broken").asException());
+                    response.onError(Status.INTERNAL
+                        .withDescription("snapshot " + snapshotId + " broken").asException());
                     return;
                 }
 
