@@ -1,6 +1,16 @@
 iam:
   userLimit: 60 # 0 - is infinite limit
   serverPort: 8443
-database:
-  minPoolSize: 5
-  maxPoolSize: 100
+  database:
+    url: "jdbc:postgresql://localhost:5432/local"
+    username: "local"
+    password: ""
+    enabled: true
+    minPoolSize: 5
+    maxPoolSize: 100
+#  internal:
+#    user-name: ""
+#    credential-name: ""
+#    credential-value: ""
+#    credential-private-key: ""
+#    credential-type: ""
