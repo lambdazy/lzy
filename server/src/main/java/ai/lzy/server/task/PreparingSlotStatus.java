@@ -25,11 +25,6 @@ public class PreparingSlotStatus implements SlotStatus {
     }
 
     @Override
-    public String user() {
-        return user;
-    }
-
-    @Override
     public String tid() {
         return task.tid();
     }

@@ -90,11 +90,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
 
     @Override
     protected void cleanup(ServantConnection s) {
-        if (!servantThreads.containsKey(s.id())) {
-            return;
-        }
-        servantThreads.get(s.id()).stop();
-        servantThreads.remove(s.id());
+        terminate(s);
     }
 
     @Override
@@ -102,6 +98,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
         if (!servantThreads.containsKey(connection.id())) {
             return;
         }
+        LOG.info("Terminating servant: " + connection.id());
         servantThreads.get(connection.id()).stop();
         servantThreads.remove(connection.id());
     }
@@ -119,6 +116,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
 
         private void stop() {
             try {
+                //noinspection removal
                 thread.stop();
             } finally {
                 try {

@@ -8,13 +8,18 @@ import static ai.lzy.server.task.Task.State.SUCCESS;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.Signal;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotStatus;
 import ai.lzy.model.Zygote;
 import ai.lzy.model.channel.ChannelSpec;
+import ai.lzy.priv.v2.LzyFsApi;
+import ai.lzy.priv.v2.LzyFsGrpc;
+import ai.lzy.priv.v2.Servant;
+import ai.lzy.priv.v2.Servant.ExecutionConcluded;
+import ai.lzy.priv.v2.Tasks;
 import ai.lzy.server.ChannelsManager;
 import ai.lzy.server.ServantsAllocator;
-import ai.lzy.server.TasksManager;
 import ai.lzy.server.channel.ChannelException;
 import ai.lzy.server.channel.Endpoint;
 import ai.lzy.server.local.ServantEndpoint;
@@ -30,11 +35,6 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
-import ai.lzy.priv.v2.LzyFsApi;
-import ai.lzy.priv.v2.LzyFsGrpc;
-import ai.lzy.priv.v2.Servant;
-import ai.lzy.priv.v2.Servant.ExecutionConcluded;
-import ai.lzy.priv.v2.Tasks;
 
 public class TaskImpl implements Task {
 
@@ -50,7 +50,7 @@ public class TaskImpl implements Task {
     private final Map<Slot, ChannelSpec> attachedSlots = new HashMap<>();
     private ServantsAllocator.ServantConnection servant;
     private State state = State.PREPARING;
-    private final List<TasksManager.Signal> signalsQueue = new ArrayList<>();
+    private final List<Signal> signalsQueue = new ArrayList<>();
 
     public TaskImpl(String owner, String tid, Zygote workload, Map<Slot, String> assignments,
         ChannelsManager channels, URI serverURI
@@ -281,7 +281,7 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public synchronized void signal(TasksManager.Signal signal) throws TaskException {
+    public synchronized void signal(Signal signal) throws TaskException {
         if (EnumSet.of(ERROR, SUCCESS).contains(state())) {
             throw new TaskException("Task is already concluded");
         }

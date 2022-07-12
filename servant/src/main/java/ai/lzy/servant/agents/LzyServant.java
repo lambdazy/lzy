@@ -11,10 +11,12 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.model.Context;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.Signal;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
 import ai.lzy.model.grpc.ChannelBuilder;
@@ -40,6 +42,7 @@ import java.util.stream.Stream;
 import static ai.lzy.model.UriScheme.LzyServant;
 
 public class LzyServant extends LzyAgent {
+
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
@@ -95,7 +98,7 @@ public class LzyServant extends LzyAgent {
     }
 
     @Override
-    public URI serverUri() {
+    protected URI serverUri() {
         return agentAddress;
     }
 
@@ -157,11 +160,15 @@ public class LzyServant extends LzyAgent {
         return server;
     }
 
-    private void forceStop(String reason, Throwable th) {
-        LOG.error("Force terminate servant {}: {}", config.getServantId(), reason, th);
-        portal.stop();
-        agentServer.shutdownNow();
-        lzyFs.forceStop();
+    private void forceStop(Throwable th) {
+        LOG.error("Force terminate servant {}: {}", config.getServantId(), th);
+        try {
+            portal.stop();
+            service.cleanupExecution();
+            agentServer.shutdownNow();
+        } finally {
+            lzyFs.stop();
+        }
     }
 
     private class ServantImpl extends LzyServantGrpc.LzyServantImplBase {
@@ -247,12 +254,8 @@ public class LzyServant extends LzyAgent {
                 ),
                 UserEvent.UserEventType.ExecutionPreparing
             ));
-            responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
-            responseObserver.onCompleted();
 
             try {
-                status.set(AgentStatus.EXECUTING);
-
                 assignments.map(
                         entry -> {
                             LzySlot slot = context.getOrCreateSlot(tid, entry.slot(), entry.binding());
@@ -277,6 +280,7 @@ public class LzyServant extends LzyAgent {
                     }
                 });
 
+                final long start = System.currentTimeMillis();
                 currentExecution.set(context.execute(tid, zygote, progress -> {
                     LOG.info("Servant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
@@ -301,29 +305,41 @@ public class LzyServant extends LzyAgent {
                         LOG.info("Servant::executionStop {}, ready for the new one", agentAddress);
                         status.set(AgentStatus.REGISTERED);
                     }
-                }));
+                });
+                status.set(AgentStatus.EXECUTING);
+                responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
+                responseObserver.onCompleted();
+
+                currentExecution.waitFor();
+                final long executed = System.currentTimeMillis();
+                MetricEventLogger.log(new MetricEvent(
+                    "time of task executing",
+                    Map.of("metric_type", "system_metric"),
+                    executed - start)
+                );
             } catch (Exception e) {
-                forceStop("Error while execution", e);
+                forceStop(e);
             }
         }
 
         @Override
         public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
-            LOG.info("Servant::stop {}", agentAddress);
-            context.close();
-
-            responseObserver.onNext(IAM.Empty.newBuilder().build());
-            responseObserver.onCompleted();
-            UserEventLogger.log(new UserEvent(
-                "Servant task exit",
-                Map.of(
-                    "task_id", config.getServantId(),
-                    "address", agentAddress.toString(),
-                    "exit_code", String.valueOf(0)
-                ),
-                UserEvent.UserEventType.TaskStop
-            ));
             try {
+                LOG.info("Servant::stop {}", agentAddress);
+                cleanupExecution();
+                responseObserver.onNext(IAM.Empty.newBuilder().build());
+                responseObserver.onCompleted();
+
+                context.close(); //wait for slots to complete
+                UserEventLogger.log(new UserEvent(
+                    "Servant task exit",
+                    Map.of(
+                        "task_id", config.getServantId(),
+                        "address", agentAddress.toString(),
+                        "exit_code", String.valueOf(0)
+                    ),
+                    UserEvent.UserEventType.TaskStop
+                ));
                 portal.stop();
                 agentServer.shutdown();
             } catch (Exception e) {
@@ -364,6 +380,13 @@ public class LzyServant extends LzyAgent {
         @Override
         public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             LzyServant.this.status(request, responseObserver);
+        }
+
+        private void cleanupExecution() {
+            LOG.info("Cleanup execution");
+            if (currentExecution != null) {
+                currentExecution.signal(Signal.KILL.sig());
+            }
         }
     }
 

@@ -59,11 +59,12 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                     offset += chunk.size();
                 }
             });
-            dataProvider.close();
         } catch (Exception e) {
             LOG.error("InputSlotBase:: Failed openOutputSlot connection to servant " + connected, e);
             close();
             return;
+        } finally {
+            dataProvider.close();
         }
         LOG.info("Opening slot {}", name());
         state(Operations.SlotStatus.State.OPEN);

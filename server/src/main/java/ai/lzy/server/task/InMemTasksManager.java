@@ -1,5 +1,6 @@
 package ai.lzy.server.task;
 
+import ai.lzy.model.Signal;
 import ai.lzy.server.configs.ServerConfig;
 import jakarta.inject.Singleton;
 import java.net.URI;
