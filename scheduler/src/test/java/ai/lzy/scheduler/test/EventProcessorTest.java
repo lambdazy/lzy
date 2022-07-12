@@ -21,10 +21,7 @@ import io.micronaut.context.ApplicationContext;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
 import java.io.IOException;
@@ -44,6 +41,7 @@ public class EventProcessorTest {
     public String workflowId;
     public CountDownLatch servantReady;
     public EventQueueManager manager;
+    public ApplicationContext context;
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(10);
@@ -51,14 +49,25 @@ public class EventProcessorTest {
     @Before
     public void setUp() {
         workflowId = "wf";
-        var context = ApplicationContext.run();
+        context = ApplicationContext.run();
         tasks = context.getBean(TaskDao.class);
         events = context.getBean(ServantEventDao.class);
         manager = context.getBean(EventQueueManager.class);
         servantDao = context.getBean(ServantDao.class);
         allocator = new AllocatorMock();
         servantReady = new CountDownLatch(1);
-        Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
+    }
+
+    @After
+    public void tearDown() {
+        context.stop();
+        workflowId = null;
+        tasks = null;
+        events = null;
+        manager = null;
+        servantDao = null;
+        allocator = null;
+        servantReady = null;
     }
 
     @Test
