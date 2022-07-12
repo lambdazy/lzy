@@ -61,7 +61,7 @@ public class LzyInternalTerminal extends LzyAgent implements Closeable {
     }
 
     @Override
-    protected URI serverUri() {
+    public URI serverUri() {
         return agentUri;
     }
 

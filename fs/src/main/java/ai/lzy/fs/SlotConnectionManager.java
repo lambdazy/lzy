@@ -58,7 +58,7 @@ public class SlotConnectionManager {
         }
     }
 
-    public Stream<ByteString> connectToSlot(URI slotUri, long offset) {
+    public static Stream<ByteString> connectToSlot(URI slotUri, long offset) {
         final Iterator<LzyFsApi.Message> msgIter;
         final ManagedChannel channel;
 

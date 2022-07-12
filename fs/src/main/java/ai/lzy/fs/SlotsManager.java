@@ -50,9 +50,10 @@ public class SlotsManager implements AutoCloseable {
             return;
         }
         LOG.info("Close SlotsManager...");
-        while (!task2slots.isEmpty()) {
+        int iter = 100;
+        while (!task2slots.isEmpty() && iter-- > 0) {
             LOG.info("Waiting for slots: {}...", Arrays.toString(slots().map(LzySlot::name).toArray()));
-            this.wait();
+            this.wait(1_000);
         }
         // TODO (tomato): it is better to move progress updates from SlotsManager
         progress(Servant.ServantProgress.newBuilder().setConcluded(Servant.Concluded.newBuilder().build()).build());
@@ -78,77 +79,99 @@ public class SlotsManager implements AutoCloseable {
         progress(progress);
     }
 
-    public synchronized LzySlot getOrCreateSlot(String task, Slot spec, @Nullable String binding) {
-        LOG.info("Configure slot, task: {}, spec: {}, binding: {}", task, spec.name(), binding);
+    public URI resolveSlotUri(String taskId, String slotName) {
+        return localLzyFsUri.resolve(Path.of("/", taskId, slotName).toString());
+    }
 
-        final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(task, t -> new HashMap<>());
+    public synchronized LzySlot getOrCreateSlot(String taskId, Slot spec, @Nullable String binding) {
+        LOG.info("getOrCreateSlot, taskId: {}, spec: {}, binding: {}", taskId, spec.name(), binding);
+
+        final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(taskId, t -> new HashMap<>());
         final LzySlot existing = taskSlots.get(spec.name());
         if (existing != null) {
             return existing;
         }
 
-        final URI slotUri = localLzyFsUri.resolve(Path.of("/", task, spec.name()).toString());
-
         try {
             final LzySlot slot = createSlot(spec, binding);
-            if (slot.state() != DESTROYED) {
-                if (spec.name().startsWith("local://")) { // No scheme in slot name
-                    taskSlots.put(spec.name().substring("local://".length()), slot);
-                } else {
-                    taskSlots.put(spec.name(), slot);
-                }
-            } else {
+
+            if (slot.state() == DESTROYED) {
                 final String msg = MessageFormat.format("Unable to create slot. Task: {}, spec: {}, binding: {}",
-                    task, spec.name(), binding);
+                        taskId, spec.name(), binding);
                 LOG.error(msg);
                 throw new RuntimeException(msg);
             }
-
-            slot.onState(SUSPENDED, () -> {
-                synchronized (SlotsManager.this) {
-                    progress(Servant.ServantProgress.newBuilder()
-                        .setDetach(Servant.SlotDetach.newBuilder()
-                            .setSlot(GrpcConverter.to(spec))
-                            .setUri(slotUri.toString())
-                            .build())
-                        .build());
-                    SlotsManager.this.notifyAll();
-                }
-            });
-
-            slot.onState(DESTROYED, () -> {
-                synchronized (SlotsManager.this) {
-                    taskSlots.remove(slot.name());
-                    if (taskSlots.isEmpty()) {
-                        task2slots.remove(task);
-                        progress(Servant.ServantProgress.newBuilder()
-                            .setCommunicationCompleted(Servant.CommunicationCompleted.newBuilder().build())
-                            .build());
-                    }
-                    SlotsManager.this.notifyAll();
-                }
-            });
 
             if (binding != null && binding.startsWith("channel:")) {
                 binding = binding.substring("channel:".length());
             }
 
-            final Servant.SlotAttach.Builder attachBuilder = Servant.SlotAttach.newBuilder()
-                .setSlot(GrpcConverter.to(spec))
-                .setUri(slotUri.toString());
-            if (binding != null) {
-                attachBuilder.setChannel(binding);
-            }
-
-            progress(Servant.ServantProgress.newBuilder()
-                .setAttach(attachBuilder.build())
-                .build());
-
-            LOG.info("Slot `{}` configured.", slotUri);
-            return slot;
+            return registerSlot(taskId, slot, binding);
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
+    }
+
+    public synchronized LzySlot registerSlot(String taskId, LzySlot slot, @Nullable String channelId) {
+        final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(taskId, t -> new HashMap<>());
+        if (taskSlots.containsKey(slot.name())) {
+            throw new RuntimeException("Slot already exists");
+        }
+
+        var spec = slot.definition();
+        var slotUri = resolveSlotUri(taskId, spec.name());
+
+        if (slot.state() != DESTROYED) {
+            if (spec.name().startsWith("local://")) { // No scheme in slot name
+                taskSlots.put(spec.name().substring("local://".length()), slot);
+            } else {
+                taskSlots.put(spec.name(), slot);
+            }
+        } else {
+            var msg = MessageFormat.format("Unable to create slot. Task: {}, spec: {}", taskId, spec.name());
+            LOG.error(msg);
+            throw new RuntimeException(msg);
+        }
+
+        slot.onState(SUSPENDED, () -> {
+            synchronized (SlotsManager.this) {
+                progress(Servant.ServantProgress.newBuilder()
+                    .setDetach(Servant.SlotDetach.newBuilder()
+                        .setSlot(GrpcConverter.to(spec))
+                        .setUri(slotUri.toString())
+                        .build())
+                    .build());
+                SlotsManager.this.notifyAll();
+            }
+        });
+
+        slot.onState(DESTROYED, () -> {
+            synchronized (SlotsManager.this) {
+                taskSlots.remove(slot.name());
+                if (taskSlots.isEmpty()) {
+                    task2slots.remove(taskId);
+                    progress(Servant.ServantProgress.newBuilder()
+                        .setCommunicationCompleted(Servant.CommunicationCompleted.newBuilder().build())
+                        .build());
+                }
+                SlotsManager.this.notifyAll();
+            }
+        });
+
+        final Servant.SlotAttach.Builder attachBuilder = Servant.SlotAttach.newBuilder()
+                .setSlot(GrpcConverter.to(spec))
+                .setUri(slotUri.toString());
+
+        if (channelId != null) {
+            attachBuilder.setChannel(channelId);
+        }
+
+        progress(Servant.ServantProgress.newBuilder()
+                .setAttach(attachBuilder.build())
+                .build());
+
+        LOG.info("Slot `{}` configured.", slotUri);
+        return slot;
     }
 
     private LzySlot createSlot(Slot spec, @Nullable String binding) throws IOException {

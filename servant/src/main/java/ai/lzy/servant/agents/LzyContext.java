@@ -59,7 +59,7 @@ public class LzyContext implements AutoCloseable {
         return slotsManager.slot(task, name);
     }
 
-    public LzySlot configureSlot(String task, Slot spec, String binding) {
+    public LzySlot getOrCreateSlot(String task, Slot spec, String binding) {
         final LzySlot slot = slotsManager.getOrCreateSlot(task, spec, binding);
 
         if (slot instanceof ArgumentsSlot) {
@@ -81,8 +81,8 @@ public class LzyContext implements AutoCloseable {
         }
 
         final LzyExecution execution = new LzyExecution(contextId, zygote, arguments, mountRoot);
-        final LineReaderSlot stdoutSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDOUT, null);
-        final LineReaderSlot stderrSlot = (LineReaderSlot) configureSlot(taskId, Slot.STDERR, null);
+        final LineReaderSlot stdoutSlot = (LineReaderSlot) getOrCreateSlot(taskId, Slot.STDOUT, null);
+        final LineReaderSlot stderrSlot = (LineReaderSlot) getOrCreateSlot(taskId, Slot.STDERR, null);
         execution.onProgress(progress -> {
             slotsManager.reportProgress(progress);
             onProgress.accept(progress);

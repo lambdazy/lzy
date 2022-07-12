@@ -2,6 +2,7 @@ package ai.lzy.model.grpc;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Status;
 
 import java.net.InetSocketAddress;
 import java.util.Collections;
@@ -40,8 +41,8 @@ public class ChannelBuilder {
         this.maxBackoff = "2s";
         this.backoffMultiplier = 2;
         this.retryableStatusCodes = List.of(
-            "CANCELLED",
-            "UNAVAILABLE"
+            Status.Code.CANCELLED.name(),
+            Status.Code.UNAVAILABLE.name()
         );
     }
 
