@@ -17,7 +17,8 @@ public enum ServantCommandHolder implements CommandHolder {
     snapshot(new Snapshot()),
     sessions(new Sessions()),
     start(new Start()),
-    cache(new Cache());
+    cache(new Cache()),
+    portal(new Portal());
 
     private final LzyCommand command;
 

@@ -1,8 +1,8 @@
 package ai.lzy.servant.agents;
 
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.Status;
+import ai.lzy.servant.portal.Portal;
+import com.google.protobuf.Empty;
+import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.Level;
@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import static ai.lzy.model.UriScheme.LzyServant;
@@ -44,6 +45,8 @@ public class LzyServant extends LzyAgent {
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final URI agentAddress;
     private final Server agentServer;
+    private final AtomicReference<LzyExecution> currentExecution = new AtomicReference<>(null);
+    private final Portal portal;
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();
     private LzyContext context;
 
@@ -58,6 +61,8 @@ public class LzyServant extends LzyAgent {
             .build();
         server = LzyServerGrpc.newBlockingStub(channel);
 
+        portal = new Portal(config.getServantId(), lzyFs);
+
         agentAddress =
             new URI(LzyServant.scheme(), null, config.getAgentHost(), config.getAgentPort(), null, null, null);
 
@@ -67,7 +72,8 @@ public class LzyServant extends LzyAgent {
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.SECONDS)
             .keepAliveTimeout(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.SECONDS)
             .keepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
-            .addService(new Impl())
+            .addService(new ServantImpl())
+            .addService(new PortalImpl())
             .build();
 
         final long finish = System.currentTimeMillis();
@@ -89,7 +95,7 @@ public class LzyServant extends LzyAgent {
     }
 
     @Override
-    protected URI serverUri() {
+    public URI serverUri() {
         return agentAddress;
     }
 
@@ -131,8 +137,7 @@ public class LzyServant extends LzyAgent {
         server.registerServant(commandBuilder.build());
         status.set(AgentStatus.REGISTERED);
 
-        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(),
-            lzyFs.getMountPoint().toString());
+        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(), lzyFs.getMountPoint().toString());
 
         final long finish = System.currentTimeMillis();
         MetricEventLogger.log(
@@ -154,15 +159,20 @@ public class LzyServant extends LzyAgent {
 
     private void forceStop(String reason, Throwable th) {
         LOG.error("Force terminate servant {}: {}", config.getServantId(), reason, th);
+        portal.stop();
         agentServer.shutdownNow();
         lzyFs.forceStop();
     }
 
-    private class Impl extends LzyServantGrpc.LzyServantImplBase {
-        private LzyExecution currentExecution;
+    private class ServantImpl extends LzyServantGrpc.LzyServantImplBase {
 
         @Override
         public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
+            if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
+
             LOG.info("Servant::prepare " + JsonUtils.printRequest(request));
             MetricEventLogger.timeIt(
                 "time of context preparing",
@@ -191,6 +201,11 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
+            if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
+
             waitForStart();
             LzyServant.this.context.onProgress(progress -> {
                 responseObserver.onNext(progress);
@@ -203,6 +218,11 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
+            if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
+
             if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
                 LOG.debug("Servant::execute " + JsonUtils.printRequest(request));
             } else {
@@ -231,9 +251,11 @@ public class LzyServant extends LzyAgent {
             responseObserver.onCompleted();
 
             try {
+                status.set(AgentStatus.EXECUTING);
+
                 assignments.map(
                         entry -> {
-                            LzySlot slot = context.configureSlot(tid, entry.slot(), entry.binding());
+                            LzySlot slot = context.getOrCreateSlot(tid, entry.slot(), entry.binding());
                             // TODO: It will be removed after creating Portal
                             final String channelName;
                             if (entry.binding().startsWith("channel:")) {
@@ -241,8 +263,8 @@ public class LzyServant extends LzyAgent {
                             } else {
                                 channelName = entry.binding();
                             }
-                            final URI channelUri = URI.create(channelName);
-                            if (Objects.equals(channelUri.getScheme(), "snapshot") && slot instanceof LzyOutputSlot) {
+                            if (channelName.startsWith("snapshot://") && slot instanceof LzyOutputSlot) {
+                                final URI channelUri = URI.create(channelName);
                                 String snapshotId = "snapshot://" + channelUri.getHost();
                                 lzyFs.getSlotConnectionManager().snapshooter()
                                         .registerSlot(slot, snapshotId, channelName);
@@ -254,7 +276,8 @@ public class LzyServant extends LzyAgent {
                         lzyFs.addSlot((LzyFileSlot) slot);
                     }
                 });
-                currentExecution = context.execute(tid, zygote, progress -> {
+
+                currentExecution.set(context.execute(tid, zygote, progress -> {
                     LOG.info("Servant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
                         "Servant execution progress",
@@ -275,15 +298,13 @@ public class LzyServant extends LzyAgent {
                             ),
                             UserEvent.UserEventType.ExecutionComplete
                         ));
-                        LOG.info("Servant::exit {}", agentAddress);
+                        LOG.info("Servant::executionStop {}, ready for the new one", agentAddress);
                         status.set(AgentStatus.REGISTERED);
                     }
-                });
+                }));
             } catch (Exception e) {
                 forceStop("Error while execution", e);
-                return;
             }
-            status.set(AgentStatus.EXECUTING);
         }
 
         @Override
@@ -303,6 +324,7 @@ public class LzyServant extends LzyAgent {
                 UserEvent.UserEventType.TaskStop
             ));
             try {
+                portal.stop();
                 agentServer.shutdown();
             } catch (Exception e) {
                 LOG.error("Error during agent server shutdown", e);
@@ -313,8 +335,8 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void signal(Tasks.TaskSignal request, StreamObserver<IAM.Empty> responseObserver) {
-            if (status.get().getValue() < AgentStatus.EXECUTING.getValue()) {
-                responseObserver.onError(Status.ABORTED.asException());
+            if (portal.isActive() || status.get().getValue() < AgentStatus.EXECUTING.getValue()) {
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
             if (status.get() != AgentStatus.EXECUTING) {
@@ -322,19 +344,94 @@ public class LzyServant extends LzyAgent {
                     .withDescription("Cannot send signal when servant not executing").asException());
                 return;
             }
-            currentExecution.signal(request.getSigValue());
+            var lzyExecution = currentExecution.get();
+            if (lzyExecution != null) {
+                lzyExecution.signal(request.getSigValue());
+            }
             responseObserver.onNext(IAM.Empty.newBuilder().build());
             responseObserver.onCompleted();
         }
 
         @Override
         public void update(IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
+            if (portal.isActive()) {
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
             LzyServant.this.update(request, responseObserver);
         }
 
         @Override
         public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             LzyServant.this.status(request, responseObserver);
+        }
+    }
+
+    private class PortalImpl extends LzyPortalGrpc.LzyPortalImplBase {
+        @Override
+        public void start(LzyPortalApi.StartPortalRequest request,
+                          StreamObserver<LzyPortalApi.StartPortalResponse> responseObserver) {
+            if (currentExecution.get() != null) {
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
+            if (portal.start(request)) {
+                responseObserver.onNext(LzyPortalApi.StartPortalResponse.getDefaultInstance());
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(Status.ALREADY_EXISTS.asException());
+            }
+        }
+
+        @Override
+        public void stop(Empty request, StreamObserver<Empty> responseObserver) {
+            if (currentExecution.get() != null) {
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
+            if (portal.stop()) {
+                portal.stop();
+                responseObserver.onNext(Empty.getDefaultInstance());
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(Status.NOT_FOUND.asException());
+            }
+        }
+
+        @Override
+        public void status(Empty request, StreamObserver<LzyPortalApi.PortalStatus> responseObserver) {
+            if (currentExecution.get() != null) {
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
+            if (portal.isActive()) {
+                var response = portal.status();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(Status.NOT_FOUND.asException());
+            }
+        }
+
+        @Override
+        public void openSlots(LzyPortalApi.OpenSlotsRequest request,
+                              StreamObserver<LzyPortalApi.OpenSlotsResponse> responseObserver) {
+            if (currentExecution.get() != null) {
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
+            if (portal.isActive()) {
+                try {
+                    var response = portal.openSlots(request);
+                    responseObserver.onNext(response);
+                    responseObserver.onCompleted();
+                } catch (Exception e) {
+                    LOG.error(e.getMessage(), e);
+                    responseObserver.onError(e);
+                }
+            } else {
+                responseObserver.onError(Status.UNIMPLEMENTED.asException());
+            }
         }
     }
 }

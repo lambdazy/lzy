@@ -256,7 +256,9 @@ public class Run implements LzyCommand {
                         try (InputStream is = Files.newInputStream(outputSlotFile, StandardOpenOption.READ)) {
                             int read;
                             while ((read = is.read(buffer)) >= 0) {
-                                ("stderr".equals(devSlot) ? System.err : System.out).write(buffer, 0, read);
+                                if (read > 0) {
+                                    ("stderr".equals(devSlot) ? System.err : System.out).write(buffer, 0, read);
+                                }
                             }
                         } catch (IOException e) {
                             LOG.warn("Unable to read from " + devSlot, e);
@@ -317,7 +319,6 @@ public class Run implements LzyCommand {
             }
             throw e;
         }
-
     }
 
     private String createChannel(Slot slot, String channelName) {

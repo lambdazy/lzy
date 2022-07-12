@@ -1,5 +1,6 @@
 package ai.lzy.fs;
 
+import ai.lzy.model.*;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -16,10 +17,6 @@ import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.JsonUtils;
-import ai.lzy.model.Slot;
-import ai.lzy.model.Zygote;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
@@ -34,6 +31,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.model.Constants.LOGS_DIR;
 import static ai.lzy.model.UriScheme.*;
@@ -55,6 +53,7 @@ public final class LzyFsServer {
     private final ManagedChannel lzyServerChannel;
     private final SlotConnectionManager slotConnectionManager;
     private final Server localServer;
+    private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
 
     public LzyFsServer(String sessionId, String mountPoint, URI selfUri, URI lzyServerUri, URI lzyWhiteboardUri,
                        IAM.Auth auth) throws IOException {
@@ -163,6 +162,11 @@ public final class LzyFsServer {
         fs.addSlot(slot);
     }
 
+    @Nullable
+    public LzyFsGrpc.LzyFsImplBase setSlotApiInterceptor(LzyFsGrpc.LzyFsImplBase interceptor) {
+        return slotApiInterceptor.getAndSet(interceptor);
+    }
+
     public LzyFsApi.SlotCommandStatus createSlot(LzyFsApi.CreateSlotRequest request) {
         LOG.info("LzyFsServer::createSlot: taskId={}, slotName={}: {}.",
                 request.getTaskId(), request.getSlot().getName(), JsonUtils.printRequest(request));
@@ -207,7 +211,7 @@ public final class LzyFsServer {
             if (SlotS3.match(slotUri) || SlotAzure.match(slotUri)) {
                 ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToS3(slotUri, 0));
             } else {
-                ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToSlot(slotUri, 0));
+                ((LzyInputSlot) slot).connect(slotUri, SlotConnectionManager.connectToSlot(slotUri, 0));
             }
             return LzyFsApi.SlotCommandStatus.newBuilder().build();
         }
@@ -322,12 +326,12 @@ public final class LzyFsServer {
     }
 
     public boolean registerCommand(Path cmd, String script, @Nullable Operations.Zygote zygote) {
-        LOG.info("Registering command `{}`...", cmd);
+        LOG.debug("Registering command `{}`...", cmd);
 
         boolean added = fs.addScript(new LzyScriptImpl(cmd, script, zygote), /* isSystem */ zygote == null);
 
         if (added) {
-            LOG.info("Command `{}` registered.", cmd);
+            LOG.debug("Command `{}` registered.", cmd);
         } else {
             LOG.warn("Command `{}` already exists.", cmd);
         }
@@ -380,7 +384,7 @@ public final class LzyFsServer {
 
         final String script = String.join(" ", commandParts) + "\n";
         if (fs.addScript(new LzyScriptImpl(cmd, script, null), /* isSystem */ true)) {
-            LOG.info("Register command `{}`.", name);
+            LOG.debug("Register command `{}`.", name);
         } else {
             LOG.warn("Command `{}` already exists.", name);
         }
@@ -416,12 +420,11 @@ public final class LzyFsServer {
 
 
     private final class Impl extends LzyFsGrpc.LzyFsImplBase {
-
         private interface SlotFn<R> {
             LzyFsApi.SlotCommandStatus call(R req);
         }
 
-        private static <R> void slotCall(R req, StreamObserver<LzyFsApi.SlotCommandStatus> resp, SlotFn<R> fn) {
+        private <R> void slotCall(R req, StreamObserver<LzyFsApi.SlotCommandStatus> resp, SlotFn<R> fn) {
             try {
                 var status = fn.call(req);
                 resp.onNext(status);
@@ -433,32 +436,62 @@ public final class LzyFsServer {
 
         @Override
         public void createSlot(LzyFsApi.CreateSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            slotCall(req, resp, LzyFsServer.this::createSlot);
+            var interceptor = slotApiInterceptor.get();
+            if (interceptor == null) {
+                slotCall(req, resp, LzyFsServer.this::createSlot);
+            } else {
+                interceptor.createSlot(req, resp);
+            }
         }
 
         @Override
         public void connectSlot(LzyFsApi.ConnectSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            slotCall(req, resp, LzyFsServer.this::connectSlot);
+            var interceptor = slotApiInterceptor.get();
+            if (interceptor == null) {
+                slotCall(req, resp, LzyFsServer.this::connectSlot);
+            } else {
+                interceptor.connectSlot(req, resp);
+            }
         }
 
         @Override
         public void disconnectSlot(LzyFsApi.DisconnectSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> rsp) {
-            slotCall(req, rsp, LzyFsServer.this::disconnectSlot);
+            var interceptor = slotApiInterceptor.get();
+            if (interceptor == null) {
+                slotCall(req, rsp, LzyFsServer.this::disconnectSlot);
+            } else {
+                interceptor.disconnectSlot(req, rsp);
+            }
         }
 
         @Override
         public void statusSlot(LzyFsApi.StatusSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            slotCall(req, resp, LzyFsServer.this::statusSlot);
+            var interceptor = slotApiInterceptor.get();
+            if (interceptor == null) {
+                slotCall(req, resp, LzyFsServer.this::statusSlot);
+            } else {
+                interceptor.statusSlot(req, resp);
+            }
         }
 
         @Override
         public void destroySlot(LzyFsApi.DestroySlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            slotCall(req, resp, LzyFsServer.this::destroySlot);
+            var interceptor = slotApiInterceptor.get();
+            if (interceptor == null) {
+                slotCall(req, resp, LzyFsServer.this::destroySlot);
+            } else {
+                interceptor.destroySlot(req, resp);
+            }
         }
 
         @Override
         public void openOutputSlot(LzyFsApi.SlotRequest req, StreamObserver<LzyFsApi.Message> resp) {
-            LzyFsServer.this.openOutputSlot(req, resp);
+            var interceptor = slotApiInterceptor.get();
+            if (interceptor == null) {
+                LzyFsServer.this.openOutputSlot(req, resp);
+            } else {
+                interceptor.openOutputSlot(req, resp);
+            }
         }
     }
 }

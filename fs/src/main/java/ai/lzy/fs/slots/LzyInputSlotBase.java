@@ -11,6 +11,8 @@ import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.priv.v2.Operations;
 
+import javax.annotation.Nullable;
+
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {
     private static final Logger LOG = LogManager.getLogger(LzyInputSlotBase.class);
 
@@ -29,7 +31,6 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         this.connected = slotUri;
         this.dataProvider = dataProvider;
     }
-
 
     @Override
     public void disconnect() {
@@ -82,5 +83,11 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             builder.setConnectedTo(connected.toString());
         }
         return builder.build();
+    }
+
+    @Nullable
+    @Override
+    public URI connectedTo() {
+        return connected;
     }
 }
