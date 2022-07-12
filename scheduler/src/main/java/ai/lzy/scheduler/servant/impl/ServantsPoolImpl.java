@@ -86,7 +86,7 @@ public class ServantsPoolImpl implements ServantsPool {
             return future;
         }
 
-        waiters.computeIfAbsent(workflowName, t -> new HashSet<>())
+        waiters.computeIfAbsent(workflowName, t -> ConcurrentHashMap.newKeySet())
             .add(new Waiter(provisioning, future));
         return future;
     }
