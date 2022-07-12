@@ -40,13 +40,14 @@ jobs:
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)
           docker pull $SERVANT_BASE_IMAGE
-          SERVANT_BASE_TAG="$(echo $SERVANT_BASE | awk -F: '{print $2}')"
-          mvn package -P build-servant -f servant/pom.xml -Ddocker.buildArg.SERVANT_BASE_TAG=$SERVANT_BASE_TAG -DskipTests
+          SERVANT_BASE_TAG="$(echo $SERVANT_BASE_IMAGE | awk -F: '{print $2}')"
+          docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
 
       - name: 'DockerServantTest'
         timeout-minutes: 15
         run: |
-          DEFAULT_ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh default-env ${{ github.ref_name }} dev)
+          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          DEFAULT_ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh default-env $BRANCH dev)
           cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage=$DEFAULT_ENV_IMAGE && cd ..
 
       - name: 'LzyDryStartupTest'
