@@ -391,13 +391,30 @@ public class PortalTest {
         destroyChannel("task_2:stdout");
         destroyChannel("task_2:stderr");
 
-        Assert.assertEquals("task_1; hello from task_1\n", portalStdout.take());
-        Assert.assertEquals("task_1; ", portalStdout.take());
-        Assert.assertEquals("task_2; hello from task_2\n", portalStdout.take());
-        Assert.assertEquals("task_2; ", portalStdout.take());
+        var expected = new HashSet<String>() {
+            {
+                add("task_1; hello from task_1\n");
+                add("task_1; ");
+                add("task_2; hello from task_2\n");
+                add("task_2; ");
+            }
+        };
+
+        while (!expected.isEmpty()) {
+            var actual = portalStdout.take();
+            Assert.assertTrue(actual.toString(), actual instanceof String);
+            Assert.assertTrue(actual.toString(), expected.remove(actual));
+        }
         Assert.assertNull(portalStdout.poll());
-        Assert.assertEquals("task_1; ", portalStderr.take());
-        Assert.assertEquals("task_2; ", portalStderr.take());
+
+        expected.add("task_1; ");
+        expected.add("task_2; ");
+
+        while (!expected.isEmpty()) {
+            var actual = portalStderr.take();
+            Assert.assertTrue(actual.toString(), actual instanceof String);
+            Assert.assertTrue(actual.toString(), expected.remove(actual));
+        }
         Assert.assertNull(portalStderr.poll());
 
         destroyChannel("portal:stdout");
