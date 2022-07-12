@@ -138,6 +138,7 @@ public class TaskImpl implements Task {
                         final URI slotUri = URI.create(attach.getUri());
                         final String channelName;
                         if (attach.getChannel().isEmpty()) {
+                            // std* slot
                             final String binding = assignments.getOrDefault(slot, "");
                             channelName = binding.startsWith("channel:")
                                 ? binding.substring("channel:".length())
@@ -226,7 +227,7 @@ public class TaskImpl implements Task {
         taskSpecBuilder.setZygote(GrpcConverter.to(workload));
         assignments.forEach((slot, binding) -> {
             // need to filter out std* slots because they don't exist on prepare
-            if (Stream.of(Slot.STDIN, Slot.STDOUT, Slot.STDERR).map(Slot::name).noneMatch(s -> s.equals(slot.name()))) {
+            if (Stream.of(Slot.STDOUT, Slot.STDERR).map(Slot::name).noneMatch(s -> s.equals(slot.name()))) {
                 taskSpecBuilder.addAssignmentsBuilder()
                     .setSlot(GrpcConverter.to(slot))
                     .setBinding(binding)
