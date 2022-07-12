@@ -68,13 +68,8 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private Server server;
 
     @Inject
-    public GraphExecutorApi(
-            GraphExecutionDao dao,
-            ServiceConfig config,
-            GraphBuilder graphBuilder,
-            QueueManager queueManager,
-            AuthConfig authConfig
-    ) {
+    public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config, GraphBuilder graphBuilder,
+                            QueueManager queueManager, AuthConfig authConfig) {
         this.dao = dao;
         this.config = config;
         this.graphBuilder = graphBuilder;
@@ -98,7 +93,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         }
         final GraphExecutionState graphExecution;
         try {
-            graphExecution = queueManager.startGraph(request.getWorkflowId(), graph);
+            graphExecution = queueManager.startGraph(request.getWorkflowId(), request.getWorkflowName(), graph);
         } catch (StatusException e) {
             LOG.error("Cannot create graph for workflow <" + request.getWorkflowId() + ">", e);
             responseObserver.onError(e);

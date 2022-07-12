@@ -76,7 +76,7 @@ public class EventProcessorTest {
             processor.servant.notifyExecutionCompleted(0, "Ok");
             awaitState(processor.servant.workflowName(), processor.servant.id(), ServantState.Status.RUNNING);
 
-            final var newTask = tasks.get(this.workflowId, task.taskId());
+            final var newTask = tasks.get(task.taskId());
             Assert.assertNotNull(newTask);
             Assert.assertEquals("Ok", newTask.errorDescription());
             Assert.assertEquals(0, newTask.rc().intValue());

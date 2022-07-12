@@ -38,6 +38,7 @@ public class SchedulerTest {
     public ServantDao servantDao;
     public TaskDao tasks;
     public String workflowId;
+    public String workflowName;
     public CountDownLatch servantReady;
     public EventQueueManager manager;
 
@@ -46,7 +47,8 @@ public class SchedulerTest {
 
     @Before
     public void setUp() {
-        workflowId = "wf";
+        workflowId = "wfid";
+        workflowName = "wf";
         var context = ApplicationContext.run();
         tasks = context.getBean(TaskDao.class);
         events = context.getBean(ServantEventDao.class);
@@ -68,7 +70,7 @@ public class SchedulerTest {
         scheduler.start();
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
-        var task1 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task1 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
@@ -91,8 +93,8 @@ public class SchedulerTest {
         exec.take();
         servant.notifyExecutionCompleted(0, "Ok");
 
-        var task2 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
-        var task3 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task2 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
+        var task3 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
 
         env.take();
         servant.notifyConfigured(0, "OK");
@@ -129,8 +131,8 @@ public class SchedulerTest {
 
         allocator.onAllocationRequested(((a, b, c) -> requests.add(new AllocationRequest(a, b, c))));
 
-        var task1 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
-        var task2 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task1 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
+        var task2 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
 
         final var port1 = FreePortFinder.find(1000, 2000);
         final CountDownLatch env1 = new CountDownLatch(1),
@@ -209,7 +211,7 @@ public class SchedulerTest {
 
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
-        var task1 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task1 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
@@ -237,11 +239,11 @@ public class SchedulerTest {
 
         scheduler = restart.apply(scheduler);
 
-        var task2 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task2 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
 
         scheduler = restart.apply(scheduler);
 
-        var task3 = scheduler.execute(workflowId, workflowId, new TaskDesc(buildZygote(), Map.of()));
+        var task3 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
 
         env.take();
         servant.notifyConfigured(0, "OK");

@@ -159,7 +159,7 @@ public class ServantEventProcessor extends Thread {
                     throw new AssertionException();
                 }
                 this.connection = new ServantConnectionImpl(event.servantUrl(), servant);
-                final Task task = getTask(currentState.workflowName(), currentState.taskId());
+                final Task task = getTask(currentState.taskId());
                 final ServantConnection connection = getConnection(currentState);
 
                 connection.api().configure(task.description().zygote().env());
@@ -185,7 +185,7 @@ public class ServantEventProcessor extends Thread {
                     throw new AssertionException();
                 }
 
-                final Task task = getTask(currentState.workflowName(), event.taskId());
+                final Task task = getTask(event.taskId());
                 task.notifyExecuting(currentState.id());
 
                 if (currentState.status() == Status.CREATED) {
@@ -224,7 +224,7 @@ public class ServantEventProcessor extends Thread {
                     yield stop(currentState, "Error while configuring servant: " + event.description());
                 }
 
-                final Task task = getTask(currentState.workflowName(), currentState.taskId());
+                final Task task = getTask(currentState.taskId());
                 final ServantConnection connection = getConnection(currentState);
 
                 connection.api().startExecution(currentState.taskId(), task.description());
@@ -258,7 +258,7 @@ public class ServantEventProcessor extends Thread {
                 assertStatus(currentState, event, Status.EXECUTING);
                 eventDao.removeAllByTypes(currentState.id(),
                         Type.EXECUTING_HEARTBEAT_TIMEOUT, Type.EXECUTING_HEARTBEAT);
-                final Task task = getTask(currentState.workflowName(), currentState.taskId());
+                final Task task = getTask(currentState.taskId());
                 task.notifyExecutionCompleted(event.rc(), event.description());
                 queue.put(ServantEvent
                     .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)
@@ -330,10 +330,10 @@ public class ServantEventProcessor extends Thread {
         return connection;
     }
 
-    private Task getTask(String workflowId, String taskId) throws AssertionException {
+    private Task getTask(String taskId) throws AssertionException {
         final Task task;
         try {
-            task = taskDao.get(workflowId, taskId);
+            task = taskDao.get(taskId);
         } catch (DaoException e) {
             LOG.error("Cannot get task from dao", e);
             throw new AssertionException();
@@ -373,7 +373,7 @@ public class ServantEventProcessor extends Thread {
 
         if (currentState.taskId() != null) {
             try {
-                final Task task = taskDao.get(currentState.workflowName(), currentState.taskId());
+                final Task task = taskDao.get(currentState.taskId());
                 if (task != null) {
                     task.notifyExecutionCompleted(rc, description);
                 }
@@ -386,7 +386,7 @@ public class ServantEventProcessor extends Thread {
             && currentEvent.taskId() != null
             && !currentEvent.taskId().equals(currentState.taskId())) {
             try {
-                final Task task = taskDao.get(currentState.workflowName(), currentEvent.taskId());
+                final Task task = taskDao.get(currentEvent.taskId());
                 if (task != null) {
                     task.notifyExecutionCompleted(rc, description);
                 }
@@ -441,7 +441,7 @@ public class ServantEventProcessor extends Thread {
     private ServantState stop(ServantState currentState, String description) throws AssertionException {
         eventDao.removeAll(currentState.id());
         if (currentState.taskId() != null) {
-            Task task = getTask(currentState.workflowName(), currentState.taskId());
+            Task task = getTask(currentState.taskId());
             try {
                 task.notifyExecutionCompleted(ReturnCodes.INTERNAL_ERROR.getRc(), description);
             } catch (DaoException e) {

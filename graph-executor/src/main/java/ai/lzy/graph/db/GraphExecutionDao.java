@@ -7,7 +7,8 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public interface GraphExecutionDao {
-    GraphExecutionState create(String workflowId, GraphDescription description) throws DaoException;
+    GraphExecutionState create(String workflowId, String workflowName,
+                               GraphDescription description) throws DaoException;
 
     @Nullable
     GraphExecutionState get(String workflowId, String graphExecutionId) throws DaoException;

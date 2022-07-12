@@ -92,14 +92,15 @@ public class QueueManager extends Thread {
         this.interrupt();
     }
 
-    public GraphExecutionState startGraph(String workflowId, GraphDescription graph) throws StatusException {
+    public GraphExecutionState startGraph(String workflowId,
+                                          String workflowName, GraphDescription graph) throws StatusException {
         if (stopping.get()) {
             throw io.grpc.Status.UNAVAILABLE.withDescription("Service stopping, please try later").asException();
         }
 
         final GraphExecutionState state;
         try {
-            state = dao.create(workflowId, graph);
+            state = dao.create(workflowId, workflowName, graph);
             eventDao.add(QueueEvent.Type.START, state.workflowId(), state.id(), "Starting graph");
         } catch (DaoException e) {
             LOG.error("Error while adding start graph event from workflow <{}>", workflowId, e);
