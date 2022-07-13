@@ -8,8 +8,7 @@ import ai.lzy.server.kuber.ServantPodProvider;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.V1Pod;
-import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.Config;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -46,18 +45,78 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(String servantId, String servantToken, Provisioning provisioning, String bucket) {
-        final V1Pod servantPodSpec;
+    protected void requestAllocation(String sessionId, String servantId, String servantToken, Provisioning provisioning, String bucket) {
+//        V1Taint taint = new V1Taint().key("servant_id").value(servantId).effect("NoSchedule");
+//        try {
+//            while (true) {
+//                V1NodeList v1NodeList = api.listNode(
+//                        // TODO: sometime "type=gpu", depends on provisioning
+//                        null, null, null, null, "type=cpu",
+//                        null, null, null, null, null
+//                );
+//                Optional<V1Node> nodeWithoutServantOptional = v1NodeList.getItems()
+//                        .stream()
+//                        .filter(node -> {
+//                            try {
+//                                boolean nodeHasServantPods = api.listNamespacedPod(
+//                                                NAMESPACE, null, null, null, null,
+//                                                "type=lzy-servant", null, null, null, null, null
+//                                        ).getItems()
+//                                        .stream()
+//                                        .anyMatch(pod -> node.getMetadata().getName().equals(pod.getStatus().getNominatedNodeName()));
+//                                return !nodeHasServantPods;
+//                            } catch (ApiException e) {
+//                                return false;
+//                            }
+//                        }).findAny();
+//                if (nodeWithoutServantOptional.isPresent()) {
+//                    V1Node node = nodeWithoutServantOptional.get();
+//                    V1Node replacedNode = api.replaceNode(node.getMetadata().getName(), node.spec(node.getSpec().addTaintsItem(taint)), null, null, null, null);
+//                    break;
+//                }
+//            }
+//        } catch (ApiException e) {
+//            // TODO
+//        }
+        // SERVANT LOCK POD CREATION
+        final V1Pod declaredServantLockPod;
         try {
-            servantPodSpec = provider.createServantPod(
-                    provisioning, servantToken, servantId, bucket
+            declaredServantLockPod = provider.createServantLockPod(
+                    provisioning, servantId, sessionId
+            );
+        } catch (PodProviderException e) {
+            throw new RuntimeException("Exception while creating servant lock pod spec", e);
+        }
+        final V1Pod createdServantLockPod;
+        try {
+            createdServantLockPod = api.createNamespacedPod(NAMESPACE, declaredServantLockPod, null, null, null, null);
+        } catch (ApiException e) {
+            throw new RuntimeException(String.format(
+                "Exception while creating servant lock pod in kuber "
+                        + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
+                e,
+                e.getMessage(),
+                e.getCode(),
+                e.getResponseBody(),
+                Arrays.stream(e.getStackTrace())
+                    .map(StackTraceElement::toString)
+                    .collect(Collectors.joining(","))
+            ));
+        }
+        LOG.info("Created servant lock pod in Kuber: {}", createdServantLockPod);
+
+        // LZY SERVANT POD CREATION
+        final V1Pod declaredServantPod;
+        try {
+            declaredServantPod = provider.createServantPod(
+                    provisioning, servantToken, servantId, bucket, sessionId
             );
         } catch (PodProviderException e) {
             throw new RuntimeException("Exception while creating servant pod spec", e);
         }
-        final V1Pod pod;
+        final V1Pod createdServantPod;
         try {
-            pod = api.createNamespacedPod(NAMESPACE, servantPodSpec, null, null, null, null);
+            createdServantPod = api.createNamespacedPod(NAMESPACE, declaredServantPod, null, null, null, null);
         } catch (ApiException e) {
             throw new RuntimeException(String.format(
                 "Exception while creating pod in kuber "
@@ -71,9 +130,9 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
                     .collect(Collectors.joining(","))
             ));
         }
-        LOG.info("Created servant pod in Kuber: {}", pod);
-        Objects.requireNonNull(pod.getMetadata());
-        servantPods.put(servantId, pod);
+        LOG.info("Created servant pod in Kuber: {}", createdServantPod);
+        Objects.requireNonNull(createdServantPod.getMetadata());
+        servantPods.put(servantId, createdServantPod);
     }
 
     @Override

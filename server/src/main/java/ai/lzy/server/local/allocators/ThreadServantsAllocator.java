@@ -51,7 +51,7 @@ public class ThreadServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(String servantId, String servantToken,
+    protected void requestAllocation(String sessionId, String servantId, String servantToken,
                                      Provisioning provisioning, String bucket) {
         int servantNumber = servantCounter.incrementAndGet();
         LOG.info("Allocating servant {}", servantId);
