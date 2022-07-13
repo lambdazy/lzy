@@ -22,7 +22,6 @@ spec:
                 operator: In
                 values:
                   - servant-lock
-                  - lzy-servant
                   - lzy-server
                   - lzy-kharon
                   - lzy-backoffice
