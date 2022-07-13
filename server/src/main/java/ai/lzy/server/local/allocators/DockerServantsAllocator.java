@@ -36,7 +36,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(String servantId, String servantToken, Provisioning provisioning, String bucket) {
+    protected void requestAllocation(String sessionId, String servantId, String servantToken, Provisioning provisioning, String bucket) {
         final int debugPort = FreePortFinder.find(5000, 6000);
         LOG.info("Found port for servant {}", debugPort);
 

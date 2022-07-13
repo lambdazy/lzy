@@ -56,7 +56,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
         ttl.scheduleAtFixedRate(this, PERIOD, PERIOD);
     }
 
-    protected abstract void requestAllocation(String servantId, String servantToken,
+    protected abstract void requestAllocation(String sessionId, String servantId, String servantToken,
                                               Provisioning provisioning,
                                               String bucket);
 
@@ -95,7 +95,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             ForkJoinPool.commonPool().execute(() -> {
                 final String servantToken = auth.registerServant(servantId);
                 try {
-                    requestAllocation(servantId, servantToken, provisioning, session.bucket());
+                    requestAllocation(sessionId, servantId, servantToken, provisioning, session.bucket());
                 } catch (Exception e) {
                     requestResult.completeExceptionally(e);
                 }
