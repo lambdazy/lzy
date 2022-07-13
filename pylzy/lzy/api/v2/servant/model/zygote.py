@@ -9,7 +9,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 from lzy.api.v2.servant.model.slot import file_slot_t
-from lzy.proto.bet.priv.v2 import Zygote, Slot, SlotDirection, Provisioning, EnvSpec, ExecutionDescription
+from lzy.proto.bet.priv.v2.__init__ import Zygote, Slot, SlotDirection, Provisioning, EnvSpec, ExecutionDescription
 
 
 def create_slots(signature: FuncSignature[T]) -> Tuple[List[Slot], Slot]:

@@ -1,9 +1,8 @@
 import os
 import tempfile
 import uuid
-import zipfile
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, cast
+from typing import Any, Callable, Dict, List, Optional
 
 from lzy.api.v2.api import LzyCall
 from lzy.api.v2.api.graph import Graph
@@ -15,22 +14,19 @@ from lzy.api.v2.grpc.graph_executor_client import (
     GrpcGraphExecutorClient,
 )
 
-from lzy.proto.bet.priv.v2 import (
+from lzy.proto.bet.priv.v2.__init__ import (
     Binding,
-    BaseEnv,
-    EnvSpec,
-    PythonEnv,
     SlotDirection,
     Slot,
 )
 
-from lzy.api.v2.utils import fileobj_hash, is_lazy_proxy, materialized, zipdir, unwrap
+from lzy.api.v2.utils import is_lazy_proxy, materialized, unwrap
 from lzy.serialization.serializer import Serializer
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient, from_credentials
 
 
-from lzy.proto.bet.priv.v2 import TaskSpec, BaseEnv, Env, AuxEnv
+from lzy.proto.bet.priv.v2.__init__ import TaskSpec, BaseEnv, Env, AuxEnv
 
 
 def _generate_channel_name(call_id: str):

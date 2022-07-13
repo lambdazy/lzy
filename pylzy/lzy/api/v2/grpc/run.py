@@ -1,12 +1,10 @@
-import time
 from typing import Tuple
 
 import dataclass
 from grpclib.client import Channel
 
-from lzy.proto.bet.priv.v2 import (
+from lzy.proto.bet.priv.v2.__init__ import (
     Auth,
-    ChannelCommad,
     SlotAssignment,
     TaskProgress,
     TaskSpec,
