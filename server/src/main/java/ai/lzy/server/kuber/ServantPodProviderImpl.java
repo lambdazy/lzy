@@ -85,7 +85,6 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         if (isNeedGpu(provisioning)) {
             typeLabelValue = "gpu";
             podSpec.setTolerations(GPU_SERVANT_POD_TOLERATIONS);
-            podSpec.getContainers().get(0).setResources(GPU_SERVANT_POD_RESOURCE);
         } else {
             typeLabelValue = "cpu";
         }
