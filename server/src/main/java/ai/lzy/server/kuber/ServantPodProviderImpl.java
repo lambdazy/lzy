@@ -25,7 +25,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     private static final String DEFAULT_LZY_SERVANT_POD_TEMPLATE_FILE =
         "/app/resources/kubernetes/lzy-servant-pod-template.yaml";
     private static final String LZY_SERVANT_CONTAINER_NAME = "lzy-servant";
-    private static final String SERVANT_LOCK_POD_TEMPLATE_FILE_PROPERTY = "lzy.servant.pod.template.file";
+    private static final String SERVANT_LOCK_POD_TEMPLATE_FILE_PROPERTY = "servant.lock.pod.template.file";
     private static final String DEFAULT_SERVANT_LOCK_POD_TEMPLATE_FILE =
         "/app/resources/kubernetes/servant-lock-pod-template.yaml";
     private static final String SERVANT_LOCK_CONTAINER_NAME = "servant-lock";

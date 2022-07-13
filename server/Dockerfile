@@ -14,5 +14,6 @@ ENTRYPOINT ["java", \
             "-Dmicronaut.env.deduction=true", \
             "-Dlzy.server.task.type=kuber", \
             "-Dlzy.servant.pod.template.file=/app/resources/kubernetes/lzy-servant-pod-template.yaml", \
+            "-Dservant.lock.pod.template.file=/app/resources/kubernetes/lzy-servant-pod-template.yaml", \
             "-jar", \
             "app/app.jar"]
