@@ -14,7 +14,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    get_type_hints, IO,
+    get_type_hints, IO, Iterable, Sequence,
 )
 from zipfile import ZipFile
 
@@ -24,7 +24,7 @@ from lzy.api.v1.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
-TypeInferResult = Result[type]
+TypeInferResult = Result[Sequence[Type]]
 
 
 def infer_real_type(type_: Type[T]) -> Type[T]:
@@ -45,9 +45,11 @@ def infer_return_type(func: Callable) -> TypeInferResult:
         return Nothing()
 
     or_type = hints["return"]
+    if isinstance(or_type, tuple):
+        return Just(tuple(infer_real_type(typ) for typ in or_type))
     or_type = infer_real_type(or_type)
     if isinstance(or_type, type):
-        return Just(or_type)
+        return Just(tuple((or_type,)))
 
     return Nothing()
 
@@ -56,7 +58,7 @@ def infer_arg_types(*args) -> Tuple[type, ...]:
     # noinspection PyProtectedMember
     # pylint: disable=protected-access
     return tuple(
-        arg._op.return_type if is_lazy_proxy(arg) else type(arg) for arg in args
+        arg._op.type if is_lazy_proxy(arg) else type(arg) for arg in args
     )
 
 
@@ -113,7 +115,7 @@ def fileobj_hash(fileobj: BytesIO) -> str:
 
 
 def infer_call_signature(
-    f: Callable, output_type: type, *args, **kwargs
+    f: Callable, output_types: Sequence[Type], *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
     argspec = inspect.getfullargspec(f)
@@ -122,7 +124,7 @@ def infer_call_signature(
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
         types_mapping[name] = (
-            arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+            arg._op.type if is_lazy_proxy(arg) else type(arg)
         )
 
     generated_names = []
@@ -131,13 +133,13 @@ def infer_call_signature(
         generated_names.append(name)
         # noinspection PyProtectedMember
         types_mapping[name] = (
-            arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+            arg._op.type if is_lazy_proxy(arg) else type(arg)
         )
 
     arg_names = tuple(argspec.args[: len(args)] + generated_names)
     kwarg_names = tuple(kwargs.keys())
     return CallSignature(
-        FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names),
+        FuncSignature(f, types_mapping, output_types, arg_names, kwarg_names),
         args,
         kwargs,
     )

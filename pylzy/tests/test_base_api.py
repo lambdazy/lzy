@@ -214,3 +214,15 @@ class BaseApiTests(TestCase):
 
         # the result depends on the order of execution here
         self.assertEqual(s, ["str", "str", "str", "str"])
+
+    def test_many_output(self):
+
+        @op
+        def foo() -> (str, int):
+            return "Lol", 239
+
+        with LzyLocalEnv().workflow(name=WORKFLOW_NAME):
+            lol, i = foo()
+
+        self.assertEqual(lol, "Lol")
+        self.assertEqual(i, 239)

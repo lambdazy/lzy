@@ -9,7 +9,7 @@ from typing import (
     Iterator,
     Tuple,
     Type,
-    TypeVar, List,
+    TypeVar, List, Sequence,
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -20,7 +20,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 class FuncSignature(Generic[T]):
     callable: Callable[..., T]
     input_types: Dict[str, type]
-    output_types: List[Type[T]]
+    output_types: Sequence[Type[T]]
     arg_names: Tuple[str, ...]
     kwarg_names: Tuple[str, ...]
 

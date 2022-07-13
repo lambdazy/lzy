@@ -4,6 +4,7 @@ from typing import Any, List
 from unittest import TestCase
 
 # noinspection PyProtectedMember
+from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
 from lzy._proxy import proxy
 from lzy.api.v1.lazy_op import LzyOp
 from lzy.api.v1.signatures import CallSignature, FuncSignature
@@ -111,9 +112,9 @@ class ProxyTests(TestCase):
             def __init__(self):
                 super().__init__(
                     CallSignature(
-                        FuncSignature(lambda: None, (), None, (), ()), (), {}
+                        FuncSignature(lambda: None, {}, (None,), (), ()), (), {}
                     ),
-                    "return_entry_id",
+                    UUIDEntryIdGenerator("Aaaaaa"),
                 )
 
             def materialize(self) -> Any:

@@ -5,7 +5,7 @@ import os
 import time
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Generic, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Generic, Iterable, List, Optional, Tuple, TypeVar, Union, Type
 
 from pure_protobuf.dataclasses_ import Message, load  # type: ignore
 
@@ -33,15 +33,50 @@ from lzy.serialization.serializer import FileSerializer, MemBytesSerializer
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
+class LzyReturnValue:
+    def __init__(self, op: 'LzyOp', value_num: int, entry_id: str, typ: Type[T]):
+        self.__op = op
+        self.__entry_id = entry_id
+        self.__type = typ
+        self._value_num = value_num
+
+    def materialize(self) -> T:
+        data = self.__op.materialize()
+        if len(self.__op.return_values()) > 1:
+            return data[self._value_num]
+        return data
+
+    def execute(self):
+        self.__op.execute()
+
+    @property
+    def entry_id(self) -> str:
+        return self.__entry_id
+
+    @property
+    def type(self) -> Type[T]:
+        return self.__type
+
+    @property
+    def op(self) -> 'LzyOp':
+        return self.__op
+
+    def change_entry_id(self, entry_id: str):
+        self.__entry_id = entry_id
+
+
 class LzyOp(Generic[T], ABC):
-    def __init__(self, signature: CallSignature[T], return_entry_id: str):
+    def __init__(self, signature: CallSignature[T], entry_id_generator: EntryIdGenerator):
         super().__init__()
         self._sign: CallSignature[T] = signature
         self._materialized: bool = False
         self._executed: bool = False
         self._materialization: Optional[T] = None
         self._log: logging.Logger = logging.getLogger(str(self.__class__))
-        self._return_entry_id = return_entry_id
+        self._return_values = tuple(
+            LzyReturnValue(self, num, entry_id_generator.generate(os.path.join("return", str(num))), typ)
+            for num, typ in enumerate(signature.func.output_types)
+        )
 
     @property
     def signature(self) -> CallSignature[T]:
@@ -58,8 +93,8 @@ class LzyOp(Generic[T], ABC):
     def execute(self):
         pass
 
-    def return_entry_id(self) -> str:
-        return self._return_entry_id
+    def return_values(self) -> Tuple[LzyReturnValue]:
+        return self._return_values
 
     def __repr__(self):
         return (
@@ -71,7 +106,7 @@ class LzyOp(Generic[T], ABC):
 
 class LzyLocalOp(LzyOp, Generic[T]):
     def __init__(self, signature: CallSignature[T]):
-        super().__init__(signature, str(uuid.uuid4()))
+        super().__init__(signature, UUIDEntryIdGenerator("snapshot"))
 
     def materialize(self) -> T:
         self._log.info("Materializing function %s", self.signature.func)
@@ -127,9 +162,10 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             if issubclass(input_type, Message):
                 setattr(input_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
 
-        output_type = signature.func.output_type
-        if issubclass(output_type, Message):
-            setattr(output_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
+        output_types = signature.func.output_types
+        for output_type in output_types:
+            if issubclass(output_type, Message):
+                setattr(output_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
 
         self._zygote = ZygotePythonFunc(
             mem_serializer, signature.func, Env(aux_env=env), provisioning
@@ -138,7 +174,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         self._entry_id_generator = entry_id_generator
 
         super().__init__(
-            signature, entry_id_generator.generate(self._zygote.return_slot.name)
+            signature, entry_id_generator
         )
 
     @property
@@ -191,10 +227,10 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 continue
 
             # noinspection PyProtectedMember
-            op: LzyOp = arg._op
+            op: LzyReturnValue = arg._op
             op.execute()
-            entry_id = self.__EntryId(op.return_entry_id())
-            yield name, op.signature.func.output_type, entry_id
+            entry_id = self.__EntryId(op.entry_id)
+            yield name, op.type, entry_id
 
     def execution_logic(self):
         execution_id = str(uuid.uuid4())
@@ -220,11 +256,12 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             bindings.append(Binding(slot, channel))
             inputs.append(InputExecutionValue(name, entry_id, hash_))
 
-        bindings.append(
+        for return_slot, val in zip(self.zygote.return_slots, self.return_values()):
+            bindings.append(
             Binding(
-                self.zygote.return_slot,
+                return_slot,
                 self._channel_manager.channel(
-                    self.return_entry_id(), self.signature.func.output_type
+                    val.entry_id, val.type
                 ),
             )
         )
@@ -234,10 +271,11 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 self.signature.func.name, self._snapshot_id, inputs
             )
             if len(executions) >= 1:
-                return_value = next(
-                    filter(lambda x: x.name == "return", executions[0].outputs)
-                )
-                self._return_entry_id = return_value.entry_id
+                values = {
+                    v.name: v.entry_id for v in executions[0].outputs
+                }
+                for num, return_value in enumerate(self.return_values()):
+                    return_value.change_entry_id(values[os.path.join("return", str(num))])
                 return
 
         description = (
@@ -271,22 +309,30 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             self.signature.func.name,
             self._snapshot_id,
             inputs,
-            (ExecutionValue("return", self.return_entry_id()),),
+            tuple(
+                ExecutionValue(os.path.join("return", str(num)), val.entry_id)
+                for num, val in enumerate(self.return_values())
+            ),
         )
 
     def materialize(self) -> Any:
         name = self.signature.func.name
         self._log.info("Materializing function %s", name)
-        if not self._materialized:
-            if self._deployed:
-                self._materialization = self.signature.exec()
-            else:
-                self.execute()
+        if self._materialized:
+            return self._materialization
+        if self._deployed:
+            self._materialized = True
+            self._materialization = self.signature.exec()
+            return self._materialization
+        else:
+            self.execute()
+            materialization = []
+            for val in self.return_values():
                 output_data_scheme = DataSchema(
-                    pickle_type(self.signature.func.output_type)
+                    pickle_type(val.type)
                 )
                 path = self._channel_manager.in_slot(
-                    self.return_entry_id(), output_data_scheme
+                    val.entry_id, output_data_scheme
                 )
                 try:
                     with path.open("rb") as handle:
@@ -296,24 +342,22 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                             if not path.exists():
                                 raise LzyExecutionException("Cannot read from slot")
                         handle.seek(0)
-                        self._materialization = (
+                        materialization.append(
                             self._file_serializer.deserialize_from_file(
-                                handle, self.signature.func.output_type
+                                handle, val.type
                             )
                         )
-                        self._materialized = True
-                        self._log.info("Materializing function %s done", name)
                 except Exception as e:
                     self._log.error(e)
                     raise LzyExecutionException(
                         "Materialization failed: cannot read data from return slot"
                     )
                 finally:
-                    self._channel_manager.destroy(self.return_entry_id())
-        else:
-            # noinspection PyTypeChecker
-            self._log.info("Function %s has been already materialized", name)
-        return self._materialization
+                    self._channel_manager.destroy(val.entry_id)
+            self._materialized = True
+            self._log.info("Materializing function %s done", name)
+            self._materialization = tuple(materialization)
+            return self._materialization
 
     def execute(self):
         if self._executed:

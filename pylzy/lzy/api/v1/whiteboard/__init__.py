@@ -110,7 +110,7 @@ def wrap_whiteboard(
 
         if is_lazy_proxy(value):
             # noinspection PyProtectedMember
-            entry_id = value._op.return_entry_id()  # pylint: disable=protected-access
+            entry_id = value._op.entry_id  # pylint: disable=protected-access
             if entry_id is None:
                 raise RuntimeError("Cannot get entry_id from op")
         else:
