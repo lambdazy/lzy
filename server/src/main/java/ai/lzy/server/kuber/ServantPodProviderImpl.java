@@ -48,7 +48,9 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     }
 
     @Override
-    public V1Pod createServantLockPod(Provisioning provisioning, String servantId, String sessionId) throws PodProviderException {
+    public V1Pod createServantLockPod(
+            Provisioning provisioning, String servantId, String sessionId
+    ) throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
             Configuration.setDefaultApiClient(client);
@@ -94,8 +96,9 @@ public class ServantPodProviderImpl implements ServantPodProvider {
     }
 
     @Override
-    public V1Pod createServantPod(Provisioning provisioning, String token, String servantId, String bucket, String sessionId)
-            throws PodProviderException {
+    public V1Pod createServantPod(
+            Provisioning provisioning, String token, String servantId, String bucket, String sessionId
+    ) throws PodProviderException {
         try {
             final ApiClient client = ClientBuilder.cluster().build();
             Configuration.setDefaultApiClient(client);

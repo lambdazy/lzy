@@ -45,44 +45,14 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(String sessionId, String servantId, String servantToken, Provisioning provisioning, String bucket) {
-//        V1Taint taint = new V1Taint().key("servant_id").value(servantId).effect("NoSchedule");
-//        try {
-//            while (true) {
-//                V1NodeList v1NodeList = api.listNode(
-//                        // TODO: sometime "type=gpu", depends on provisioning
-//                        null, null, null, null, "type=cpu",
-//                        null, null, null, null, null
-//                );
-//                Optional<V1Node> nodeWithoutServantOptional = v1NodeList.getItems()
-//                        .stream()
-//                        .filter(node -> {
-//                            try {
-//                                boolean nodeHasServantPods = api.listNamespacedPod(
-//                                                NAMESPACE, null, null, null, null,
-//                                                "type=lzy-servant", null, null, null, null, null
-//                                        ).getItems()
-//                                        .stream()
-//                                        .anyMatch(pod -> node.getMetadata().getName().equals(pod.getStatus().getNominatedNodeName()));
-//                                return !nodeHasServantPods;
-//                            } catch (ApiException e) {
-//                                return false;
-//                            }
-//                        }).findAny();
-//                if (nodeWithoutServantOptional.isPresent()) {
-//                    V1Node node = nodeWithoutServantOptional.get();
-//                    V1Node replacedNode = api.replaceNode(node.getMetadata().getName(), node.spec(node.getSpec().addTaintsItem(taint)), null, null, null, null);
-//                    break;
-//                }
-//            }
-//        } catch (ApiException e) {
-//            // TODO
-//        }
+    protected void requestAllocation(
+            String sessionId, String servantId, String servantToken, Provisioning provisioning, String bucket
+    ) {
         // SERVANT LOCK POD CREATION
         final V1Pod declaredServantLockPod;
         try {
             declaredServantLockPod = provider.createServantLockPod(
-                    provisioning, servantId, sessionId
+                provisioning, servantId, sessionId
             );
         } catch (PodProviderException e) {
             throw new RuntimeException("Exception while creating servant lock pod spec", e);
@@ -109,7 +79,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         final V1Pod declaredServantPod;
         try {
             declaredServantPod = provider.createServantPod(
-                    provisioning, servantToken, servantId, bucket, sessionId
+                provisioning, servantToken, servantId, bucket, sessionId
             );
         } catch (PodProviderException e) {
             throw new RuntimeException("Exception while creating servant pod spec", e);
