@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from lzy.proto.bet.priv.v2 import Snapshot
+from lzy.proto.bet.priv.v2.__init__ import Snapshot
 
 
 class SnapshotApi(ABC):

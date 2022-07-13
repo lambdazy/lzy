@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING, Any, List, Optional
+from uuid import uuid4
 
 from lzy.api.v2.api import LzyCall
-from lzy.api.v2.api.graph import Graph, GraphBuilder
+from lzy.api.v2.api.graph import build_graph_execute_request
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
 from lzy.env.env_provider import EnvProvider
 
@@ -29,6 +30,8 @@ class LzyWorkflow:
         )
         self._call_queue: List[LzyCall] = []
 
+        self._id = str(uuid4())
+
     @property
     def owner(self) -> "Lzy":
         return self._owner
@@ -36,13 +39,13 @@ class LzyWorkflow:
     def snapshot(self) -> Snapshot:
         return self._snapshot
 
-    def call(self, call: LzyCall) -> Any:
+    def register_call(self, call: LzyCall) -> Any:
         self._call_queue.append(call)
         if self._eager:
             self.barrier()
 
     def barrier(self) -> None:
-        graph = GraphBuilder(self._call_queue).build()
+        graph = build_graph_execute_request(self._id, self._call_queue)
         self._runtime.exec(graph, self._snapshot, lambda: print("progress"))
         self._call_queue = []
 
