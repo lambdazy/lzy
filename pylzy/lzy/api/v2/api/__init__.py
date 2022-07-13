@@ -8,10 +8,10 @@ from lzy._proxy.result import Nothing
 from lzy.api.v2.api.lzy_call import LzyCall
 from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 from lzy.api.v2.api.provisioning import Gpu, Provisioning
-from lzy.api.v2.utils import infer_call_signature, infer_return_type, lazy_proxy
+from lzy.api.v2.utils import infer_call_signature, infer_return_type\
+from lzy.api.v2.proxy_adapter import lzy_proxy
 from lzy.api.v2.servant.model.zygote import python_func_zygote
 from lzy.api.v2.api.lzy import Lzy
-from lzy.env.env_provider import EnvProvider
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -77,27 +77,30 @@ def create_lazy_constructor(
     @functools.wraps(f)
     def lazy(*args, **kwargs):
         # TODO: defaults?
-        current_workflow = LzyWorkflow.get_active()
-        if current_workflow is None:
+        active_wflow = LzyWorkflow.get_active()
+        if active_wflow is None:
             return f(*args, **kwargs)
 
         signature = infer_call_signature(f, output_type, *args, **kwargs)
-        env_provider: EnvProvider = current_workflow._env_provider
 
         # we need specify globals() for caller site to find all
         # required modules
         caller_globals = inspect.stack()[1].frame.f_globals
 
-        owner: Lzy = current_workflow.owner
         zygote = python_func_zygote(
-                owner._serializer,
-                signature.func,
-                env_provider.for_op(caller_globals),
-                provisioning,
-            )
-        lzy_call = LzyCall(zygote, signature.func, args, kwargs, str(uuid.uuid4()))
+            active_wflow.owner._serializer,
+            signature.func,
+            active_wflow._env_provider.for_op(caller_globals),
+            provisioning,
+        )
 
-        current_workflow.call(lzy_call)
+        lzy_call = LzyCall(
+            zygote,
+            active_wflow,
+            signature,
+            str(uuid.uuid4()),
+        )
+        active_wflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return
         # the real None. LzyEnv later will materialize it anyway.
@@ -113,15 +116,7 @@ def create_lazy_constructor(
         if issubclass(output_type, type(None)):
             return None
         else:
-
-            def materialize():
-                value = current_workflow.snapshot().get(lzy_call.entry_id)
-                if value is not None:
-                    return value
-                current_workflow.barrier()
-                return current_workflow.snapshot().get(lzy_call.entry_id)
-
-            return lazy_proxy(materialize, output_type, {"lzy_call": lzy_call})
+            return lzy_proxy(lzy_call)
 
     return lazy
 

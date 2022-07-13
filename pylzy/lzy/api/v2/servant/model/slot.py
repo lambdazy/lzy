@@ -15,21 +15,17 @@ def opposite(direction: SlotDirection):
 
 
 def file_slot_t(
-        name: Path,
-        direction: SlotDirection,
-        type_: type,
+    name: Path,
+    direction: SlotDirection,
+    type_: type,
 ) -> Slot:
-    return file_slot(
-        name,
-        direction,
-        dump_type(type_)
-    )
+    return file_slot(name, direction, dump_type(type_))
 
 
 def file_slot(
-        name: Path,
-        direction: SlotDirection,
-        data_schema: DataScheme,
+    name: Path,
+    direction: SlotDirection,
+    data_schema: DataScheme,
 ) -> Slot:
     return Slot(
         name=str(name),

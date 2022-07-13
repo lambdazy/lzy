@@ -3,9 +3,8 @@ from typing import Optional
 
 from betterproto import which_one_of as which
 
-from lzy.proto.bet.priv.v2.__init__ import DataScheme, ChannelStatus, Slot, SlotCommandStatus, Auth, LzyFsStub, \
-    DirectChannelSpec, SnapshotChannelSpec, ChannelCreate, ChannelCommand, ChannelState, ChannelDestroy, \
-    CreateSlotCommand, SlotCommand
+from lzy.proto.bet.priv.v2 import DataScheme, ChannelStatus, Slot, SlotCommandStatus, Auth, LzyFsStub, \
+    DirectChannelSpec, SnapshotChannelSpec, ChannelCreate, ChannelCommand, ChannelState, ChannelDestroy,
 from lzy.proto.priv.v2.lzy_server_grpc import LzyServerStub
 
 
@@ -143,7 +142,8 @@ class ChannelGrpcApi(ChannelApi):
             tid: Optional[str] = None,
             pipe: bool = False,
     ) -> SlotCommandStatus:
-        create = CreateSlotCommand(
+        create = CreateSlotRequest(
+            task_id=tid,
             slot=slot,
             channel_id=channel_id,
             is_pipe=pipe,
