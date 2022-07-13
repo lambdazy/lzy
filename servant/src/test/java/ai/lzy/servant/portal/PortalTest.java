@@ -18,7 +18,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.servant.portal.Utils.*;
@@ -89,7 +88,6 @@ public class PortalTest {
 
         // create channels for task_1
         createChannel("channel_1");
-        createChannel("task_1:stdin");
         createChannel("task_1:stdout");
         createChannel("task_1:stderr");
 
@@ -116,40 +114,36 @@ public class PortalTest {
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
-        var taskOutputSlot = Operations.Slot.newBuilder()
-            .setName("/slot_1")
-            .setMedia(Operations.Slot.Media.FILE)
-            .setDirection(Operations.Slot.Direction.OUTPUT)
-            .setContentType(makePlainTextDataScheme())
-            .build();
+        var taskOutputSlot = makeOutputFileSlot("/slot_1");
 
         // run task and store result at portal
-        server.start(Tasks.TaskSpec.newBuilder()
-            .setTid("task_1")
-            .setZygote(Operations.Zygote.newBuilder()
-                .setName("zygote_1")
-                .addSlots(taskOutputSlot)
-                .setFuze("echo 'i-am-a-hacker' > /tmp/lzy_servant/slot_1 && echo 'hello'")
-                .build())
-            .addAssignments(Tasks.SlotAssignment.newBuilder()
-                .setTaskId("task_1")
-                .setSlot(taskOutputSlot)
-                .setBinding("channel:channel_1")
-                .build())
-            .addAssignments(Tasks.SlotAssignment.newBuilder()
-                .setTaskId("task_1")
-                .setSlot(makeOutputPipeSlot("/dev/stdout"))
-                .setBinding("channel:task_1:stdout")
-                .build())
-            .addAssignments(Tasks.SlotAssignment.newBuilder()
-                .setTaskId("task_1")
-                .setSlot(makeOutputPipeSlot("/dev/stderr"))
-                .setBinding("channel:task_1:stderr")
-                .build())
-            .build(),
+        server.start("servant",
+            Tasks.TaskSpec.newBuilder()
+                .setTid("task_1")
+                .setZygote(Operations.Zygote.newBuilder()
+                    .setName("zygote_1")
+                    .addSlots(taskOutputSlot)
+                    .setFuze("echo 'i-am-a-hacker' > /tmp/lzy_servant/slot_1 && echo 'hello'")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_1")
+                    .setSlot(taskOutputSlot)
+                    .setBinding("channel:channel_1")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_1")
+                    .setSlot(makeOutputPipeSlot("/dev/stdout"))
+                    .setBinding("channel:task_1:stdout")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_1")
+                    .setSlot(makeOutputPipeSlot("/dev/stderr"))
+                    .setBinding("channel:task_1:stderr")
+                    .build())
+                .build(),
             SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
 
-        server.waitTaskCompleted("task_1");
+        server.waitTaskCompleted("servant", "task_1");
         Assert.assertEquals("task_1; hello\n", portalStdout.take());
         Assert.assertEquals("task_1; ", portalStdout.take());
         Assert.assertEquals("task_1; ", portalStderr.take());
@@ -158,19 +152,16 @@ public class PortalTest {
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
         destroyChannel("channel_1");
-        destroyChannel("task_1:stdin");
         destroyChannel("task_1:stdout");
         destroyChannel("task_1:stderr");
 
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASK 2 -----------------------------------------\n");
 
-
         ///// consumer task  /////
 
         // create channels for task_2
         createChannel("channel_2");
-        createChannel("task_2:stdin");
         createChannel("task_2:stdout");
         createChannel("task_2:stderr");
 
@@ -202,33 +193,35 @@ public class PortalTest {
         var taskInputSlot = makeInputFileSlot("/slot_2");
 
         // run task and load data from portal
-        server.start(Tasks.TaskSpec.newBuilder()
-            .setTid("task_2")
-            .setZygote(Operations.Zygote.newBuilder()
-                .setName("zygote_2")
-                .addSlots(taskInputSlot)
-                .setFuze("echo 'x' && /tmp/lzy_servant/sbin/cat /tmp/lzy_servant/slot_2 > " + tmpFile.getAbsolutePath())
-                .build())
-            .addAssignments(Tasks.SlotAssignment.newBuilder()
-                .setTaskId("task_2")
-                .setSlot(taskInputSlot)
-                .setBinding("channel:channel_2")
-                .build())
-            .addAssignments(Tasks.SlotAssignment.newBuilder()
-                .setTaskId("task_2")
-                .setSlot(makeOutputPipeSlot("/dev/stdout"))
-                .setBinding("channel:task_2:stdout")
-                .build())
-            .addAssignments(Tasks.SlotAssignment.newBuilder()
-                .setTaskId("task_2")
-                .setSlot(makeOutputPipeSlot("/dev/stderr"))
-                .setBinding("channel:task_2:stderr")
-                .build())
-            .build(),
+        server.start("servant",
+            Tasks.TaskSpec.newBuilder()
+                .setTid("task_2")
+                .setZygote(Operations.Zygote.newBuilder()
+                    .setName("zygote_2")
+                    .addSlots(taskInputSlot)
+                    .setFuze("echo 'x' && /tmp/lzy_servant/sbin/cat /tmp/lzy_servant/slot_2 > "
+                        + tmpFile.getAbsolutePath())
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_2")
+                    .setSlot(taskInputSlot)
+                    .setBinding("channel:channel_2")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_2")
+                    .setSlot(makeOutputPipeSlot("/dev/stdout"))
+                    .setBinding("channel:task_2:stdout")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_2")
+                    .setSlot(makeOutputPipeSlot("/dev/stderr"))
+                    .setBinding("channel:task_2:stderr")
+                    .build())
+                .build(),
             SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
 
         // wait
-        server.waitTaskCompleted("task_2");
+        server.waitTaskCompleted("servant", "task_2");
         Assert.assertEquals("task_2; x\n", portalStdout.take());
         Assert.assertEquals("task_2; ", portalStdout.take());
         Assert.assertEquals("task_2; ", portalStderr.take());
@@ -237,7 +230,6 @@ public class PortalTest {
         // task_2 clean up
         System.out.println("-- cleanup task2 scenario --");
         destroyChannel("channel_2");
-        destroyChannel("task_2:stdin");
         destroyChannel("task_2:stdout");
         destroyChannel("task_2:stderr");
 
@@ -251,6 +243,182 @@ public class PortalTest {
 
         var result = new String(Files.readAllBytes(tmpFile.toPath()));
         Assert.assertEquals("i-am-a-hacker\n", result);
+    }
+
+    @Test
+    public void testMultipleTasks() throws Exception {
+        // portal
+        startServant("portal");
+        server.waitServantStart("portal");
+        createChannel("portal:stdout");
+        createChannel("portal:stderr");
+        server.startPortalOn("portal");
+
+        var portalStdout = readPortalSlot("portal:stdout");
+        var portalStderr = readPortalSlot("portal:stderr");
+
+        // servant_1
+        startServant("servant_1");
+        server.waitServantStart("servant_1");
+
+        // servant_2
+        startServant("servant_2");
+        server.waitServantStart("servant_2");
+
+        // just for logs
+        Thread.sleep(Duration.ofSeconds(1).toMillis());
+        System.out.println("\n----- PREPARE PORTAL FOR TASKS -----------------------------------------\n");
+
+        // create channels for task_1
+        createChannel("channel_1");
+        createChannel("task_1:stdout");
+        createChannel("task_1:stderr");
+
+        // create channels for task_2
+        createChannel("channel_2");
+        createChannel("task_2:stdout");
+        createChannel("task_2:stderr");
+
+        // configure portal
+        server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            // task_1
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_slot_1"))
+                .setChannelId("channel_1")
+                .setSnapshot(makeSnapshotStorage("snapshot_1"))
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_task_1:stdout"))
+                .setChannelId("task_1:stdout")
+                .setStdout(makeStdoutStorage("task_1"))
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_task_1:stderr"))
+                .setChannelId("task_1:stderr")
+                .setStderr(makeStderrStorage("task_1"))
+                .build())
+            // task_2
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_slot_2"))
+                .setChannelId("channel_2")
+                .setSnapshot(makeSnapshotStorage("snapshot_2"))
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_task_2:stdout"))
+                .setChannelId("task_2:stdout")
+                .setStdout(makeStdoutStorage("task_2"))
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_task_2:stderr"))
+                .setChannelId("task_2:stderr")
+                .setStderr(makeStderrStorage("task_2"))
+                .build())
+            .build());
+
+        // just for logs
+        Thread.sleep(Duration.ofSeconds(1).toMillis());
+        System.out.println("\n----- RUN TASKS -----------------------------------------\n");
+
+        var task1OutputSlot = makeOutputFileSlot("/slot_1");
+        var task2OutputSlot = makeOutputFileSlot("/slot_2");
+
+        // run task_1 on servant_1
+        server.start("servant_1",
+            Tasks.TaskSpec.newBuilder()
+                .setTid("task_1")
+                .setZygote(Operations.Zygote.newBuilder()
+                    .setName("zygote_1")
+                    .addSlots(task1OutputSlot)
+                    .setFuze("echo 'hello from task_1' > /tmp/lzy_servant_1/slot_1 && echo 'hello from task_1'")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_1")
+                    .setSlot(task1OutputSlot)
+                    .setBinding("channel:channel_1")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_1")
+                    .setSlot(makeOutputPipeSlot("/dev/stdout"))
+                    .setBinding("channel:task_1:stdout")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_1")
+                    .setSlot(makeOutputPipeSlot("/dev/stderr"))
+                    .setBinding("channel:task_1:stderr")
+                    .build())
+                .build(),
+            SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
+
+        // run task_2 on servant_2
+        server.start("servant_2",
+            Tasks.TaskSpec.newBuilder()
+                .setTid("task_2")
+                .setZygote(Operations.Zygote.newBuilder()
+                    .setName("zygote_2")
+                    .addSlots(task2OutputSlot)
+                    .setFuze("echo 'hello from task_2' > /tmp/lzy_servant_2/slot_2 && echo 'hello from task_2'")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_2")
+                    .setSlot(task2OutputSlot)
+                    .setBinding("channel:channel_2")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_2")
+                    .setSlot(makeOutputPipeSlot("/dev/stdout"))
+                    .setBinding("channel:task_2:stdout")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId("task_2")
+                    .setSlot(makeOutputPipeSlot("/dev/stderr"))
+                    .setBinding("channel:task_2:stderr")
+                    .build())
+                .build(),
+            SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
+
+        server.waitTaskCompleted("servant_1", "task_1");
+        server.waitTaskCompleted("servant_2", "task_2");
+        server.waitPortalCompleted();
+
+        Thread.sleep(Duration.ofSeconds(1).toMillis());
+        System.out.println("\n----- TASKS DONE -----------------------------------------\n");
+
+        System.out.println("-- cleanup tasks --");
+        destroyChannel("channel_1");
+        destroyChannel("task_1:stdout");
+        destroyChannel("task_1:stderr");
+        destroyChannel("channel_2");
+        destroyChannel("task_2:stdout");
+        destroyChannel("task_2:stderr");
+
+        var expected = new HashSet<String>() {
+            {
+                add("task_1; hello from task_1\n");
+                add("task_1; ");
+                add("task_2; hello from task_2\n");
+                add("task_2; ");
+            }
+        };
+
+        while (!expected.isEmpty()) {
+            var actual = portalStdout.take();
+            Assert.assertTrue(actual.toString(), actual instanceof String);
+            Assert.assertTrue(actual.toString(), expected.remove(actual));
+        }
+        Assert.assertNull(portalStdout.poll());
+
+        expected.add("task_1; ");
+        expected.add("task_2; ");
+
+        while (!expected.isEmpty()) {
+            var actual = portalStderr.take();
+            Assert.assertTrue(actual.toString(), actual instanceof String);
+            Assert.assertTrue(actual.toString(), expected.remove(actual));
+        }
+        Assert.assertNull(portalStderr.poll());
+
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
     }
 
     private void startServant(String servantId) throws URISyntaxException, IOException {
