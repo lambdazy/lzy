@@ -160,7 +160,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
                                                 .operator("In")
                                                 .values(List.of(kuberValidName(sessionId)))
                                 )
-                        )
+                        ).topologyKey("kubernetes.io/hostname")
                 )
         );
 
