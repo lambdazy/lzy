@@ -34,15 +34,18 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class LzyReturnValue:
-    def __init__(self, op: 'LzyOp', value_num: int, entry_id: str, typ: Type[T]):
+    """
+    Class that represents return value of LzyOp
+    """
+    def __init__(self, op: 'LzyOp', index: int, entry_id: str, typ: Type[T]):
         self.__op = op
         self.__entry_id = entry_id
         self.__type = typ
-        self._value_num = value_num
+        self.__index = index
 
     def materialize(self) -> T:
         data = self.__op.materialize()
-        return data[self._value_num]
+        return data[self.__index]
 
     def execute(self):
         self.__op.execute()
