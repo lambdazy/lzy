@@ -15,7 +15,7 @@ class ChannelManager(abc.ABC):
         self._entry_id_to_channel: Dict[str, Channel] = {}
         self._snapshot_id = snapshot_id
 
-    def channel(self, entry_id: str, type_: type) -> Channel:
+    def channel(self, entry_id: str, type_: DataSchema) -> Channel:
         if entry_id in self._entry_id_to_channel:
             return self._entry_id_to_channel[entry_id]
         channel = Channel(
@@ -49,7 +49,7 @@ class ChannelManager(abc.ABC):
             direction,
             data_scheme,
         )
-        self._touch(slot, self.channel(entry_id, data_scheme.real_type))
+        self._touch(slot, self.channel(entry_id, data_scheme))
         path = self._resolve_slot_path(slot)
         return path
 

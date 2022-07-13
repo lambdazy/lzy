@@ -42,9 +42,7 @@ class LzyReturnValue:
 
     def materialize(self) -> T:
         data = self.__op.materialize()
-        if len(self.__op.return_values()) > 1:
-            return data[self._value_num]
-        return data
+        return data[self._value_num]
 
     def execute(self):
         self.__op.execute()
@@ -116,7 +114,9 @@ class LzyLocalOp(LzyOp, Generic[T]):
             self._log.info("Materializing function %s done", name)
         else:
             self._log.info("Function %s has been already materialized", name)
-        return self._materialization
+        if len(self.return_values()) > 1:
+            return self._materialization
+        return tuple((self._materialization,))
 
     def execute(self):
         if self._executed:
@@ -183,7 +183,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
 
     def dump_arguments(self, args: Iterable[Tuple[str, Any]]):
         for entry_id, obj in args:
-            data_schema = DataSchema(pickle_type(type(obj)))
+            data_schema = DataSchema.generate_schema(type(obj))
             path = self._channel_manager.out_slot(entry_id, data_schema)
             with path.open("wb") as file:
                 self._file_serializer.serialize_to_file(obj, file)
@@ -252,7 +252,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
                 hash_ = self._hasher.hash(data)
                 write_later.append((entry_id, data))
 
-            channel = self._channel_manager.channel(entry_id, out_type)
+            channel = self._channel_manager.channel(entry_id, DataSchema.generate_schema(out_type))
             bindings.append(Binding(slot, channel))
             inputs.append(InputExecutionValue(name, entry_id, hash_))
 
@@ -261,7 +261,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             Binding(
                 return_slot,
                 self._channel_manager.channel(
-                    val.entry_id, val.type
+                    val.entry_id, DataSchema.generate_schema(val.type)
                 ),
             )
         )
@@ -322,15 +322,17 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             return self._materialization
         if self._deployed:
             self._materialized = True
-            self._materialization = self.signature.exec()
+            materialization = self.signature.exec()
+            if len(self.return_values()) == 1:
+                self._materialization = tuple((materialization,))
+            else:
+                self._materialization = materialization
             return self._materialization
         else:
             self.execute()
             materialization = []
             for val in self.return_values():
-                output_data_scheme = DataSchema(
-                    pickle_type(val.type)
-                )
+                output_data_scheme = DataSchema.generate_schema(val.type)
                 path = self._channel_manager.in_slot(
                     val.entry_id, output_data_scheme
                 )

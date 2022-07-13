@@ -98,9 +98,6 @@ def main():
         deployed=True,
     )
 
-    if exec_description is not None:
-        servant.save_execution(exec_description)
-
     for num, val in enumerate(op_.return_values()):
 
         result_path = servant.mount() / func_s.name / "return" / str(num)
@@ -110,6 +107,8 @@ def main():
             out_handle.flush()
             os.fsync(out_handle.fileno())
     log("Execution done")
+    if exec_description is not None:
+        servant.save_execution(exec_description)
 
 
 if __name__ == "__main__":

@@ -91,13 +91,13 @@ class LzyEnvBase(ABC):
                 return super(type(self), self).__getattribute__(item)
             except AttributeError:
                 field_: WhiteboardFieldDescription = fields_[item]
-                value = wb_api.resolve(field_.uri, field_.type_)
+                value = wb_api.resolve(field_.uri, unwrap(field_.data_schema).real_type)
                 setattr(self, item, value)
                 return value
 
         dcls = dataclasses.make_dataclass(
             cls_name=f"WB{wb_description.id}",
-            fields=[(name, unwrap(f.type_)) for name, f in fields_.items()],
+            fields=[(name, unwrap(f.data_schema).real_type) for name, f in fields_.items()],
             init=False,
             namespace={"__getattribute__": __getattribute__},
         )

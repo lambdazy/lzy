@@ -4,7 +4,7 @@ from typing import IO, Any, Dict, Type, TypeVar
 import cloudpickle  # type: ignore
 from pure_protobuf.dataclasses_ import load, loads  # type: ignore
 
-from lzy.api.v2.utils import check_message_field, is_lazy_proxy
+from lzy.api.v2.utils import check_message_field
 from lzy.serialization.api import FileSerializer, MemBytesSerializer
 from lzy.serialization.dumper import CatboostPoolDumper, Dumper, LzyFileDumper
 
@@ -20,7 +20,7 @@ class FileSerializerImpl(FileSerializer):
                 self._registry[dumper.typ()] = dumper
 
     def serialize_to_file(self, obj: Any, file: IO) -> None:
-        typ = type(obj) if not is_lazy_proxy(obj) else type(obj.__lzy_origin__)
+        typ = type(obj) if not hasattr(obj, "__lzy_origin__") else type(obj.__lzy_origin__)
         if typ in self._registry:
             dumper = self._registry[typ]
             dumper.dump(obj, file)
@@ -62,7 +62,6 @@ class DefaultSerializer(Serializer):
         self._mem_bytes_serializer: MemBytesSerializer = MemBytesSerializerImpl()
 
     def serialize_to_file(self, obj: Any, file: IO) -> None:
-        print(type(obj))
         self._file_serializer.serialize_to_file(obj, file)
 
     def deserialize_from_file(self, data: IO, obj_type: Type[T] = None) -> T:

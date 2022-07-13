@@ -31,7 +31,7 @@ class ZygotePythonFunc(Zygote, Generic[T]):
             slot = create_slot(
                 os.path.join(os.sep, sign.name, name),
                 Direction.INPUT,
-                DataSchema(pickle_type(type_)),
+                DataSchema.generate_schema(type_),
             )
             self._name_to_slot[name] = slot
             arg_slots.append(slot)
@@ -41,7 +41,7 @@ class ZygotePythonFunc(Zygote, Generic[T]):
             return_slot = create_slot(
                 os.path.join("/", sign.name, "return", str(num)),
                 Direction.OUTPUT,
-                DataSchema(pickle_type(type_)),
+                DataSchema.generate_schema(type_),
             )
             return_slots.append(return_slot)
         super().__init__(sign, arg_slots, return_slots, env, provisioning)

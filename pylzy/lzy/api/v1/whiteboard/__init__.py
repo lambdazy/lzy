@@ -115,7 +115,7 @@ def wrap_whiteboard(
                 raise RuntimeError("Cannot get entry_id from op")
         else:
             entry_id = entry_id_generator.generate("/wb/field/" + key)
-            data_scheme = DataSchema(pickle_type(type(value)))
+            data_scheme = DataSchema.generate_schema(type(value))
             dump(channel_manager.out_slot(entry_id, data_scheme), value)
 
         whiteboard_api.link(whiteboard_id, key, entry_id)

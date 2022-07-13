@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, cast
 
 # noinspection PyProtectedMember
 import cloudpickle
+from lzy.api.v1.servant.model.slot import DataSchema
 
 from lzy._proxy import proxy_optional
 from lzy.api.v1.servant.bash_servant_client import exec_bash
@@ -147,10 +148,10 @@ class WhiteboardBashApi(WhiteboardApi):
     def _parse_wb_json(res: Dict[str, Any], log) -> WhiteboardDescription:
         fields = []
         for field in res.get("fields", []):
-            type_ = None
+            data_schema = None
             uri = None
             if "scheme" in field:
-                type_ = cloudpickle.loads(base64.b64decode(field["scheme"]["type"]))
+                data_schema = DataSchema(field["scheme"]["type"], field["scheme"].get("schemeType", "plain"))
                 uri = field["storageUri"]
 
             fields.append(
@@ -159,7 +160,7 @@ class WhiteboardBashApi(WhiteboardApi):
                     WhiteboardFieldStatus(field["status"]),
                     field.get("dependentFieldNames"),
                     uri,
-                    type_,
+                    data_schema,
                 )
             )
         snapshot = SnapshotDescription(res["snapshot"]["snapshotId"])
