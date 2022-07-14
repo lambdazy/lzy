@@ -27,6 +27,11 @@ public record ServantEvent(
         return new EventBuilder(state, type);
     }
 
+    public static ServantEvent noop(String workflowName, String servantId) {
+        return new ServantEvent(UUID.randomUUID().toString(),
+            Instant.now(), servantId, workflowName, Type.NOOP, "NOOP", null, null, null);
+    }
+
     @Override
     public int compareTo(@NotNull Delayed o) {
         return Long.compare(this.getDelay(TimeUnit.NANOSECONDS), o.getDelay(TimeUnit.NANOSECONDS));
@@ -38,6 +43,7 @@ public record ServantEvent(
     }
 
     public enum Type {
+        NOOP,  // empty event to interrupt queue. Does not save to db
         ALLOCATION_TIMEOUT,
         CONNECTED,  // Servant connected to scheduler with method register
         CONFIGURED,  // Servant env configuration completed
@@ -85,8 +91,8 @@ public record ServantEvent(
             return this;
         }
 
-        public EventBuilder setTimeout(long timeoutSecs) {
-            this.timestamp = Instant.now().plus(timeoutSecs, ChronoUnit.SECONDS);
+        public EventBuilder setTimeout(float timeoutSecs) {
+            this.timestamp = Instant.now().plus((long) Math.floor(timeoutSecs * 1000), ChronoUnit.MILLIS);
             return this;
         }
 

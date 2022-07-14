@@ -1,17 +1,18 @@
 database:
-  url: 'jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
+  url: 'jdbc:h2:/tmp/h2-scheduler;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
+#  url: 'jdbc:postgresql://localhost:5432/lzy-scheduler'
   username: 'test'
   password: ''
   min-pool-size: 1
-  max-pool-size: 5
+  max-pool-size: 1
   enabled: true
 servant-processor:
-  allocation-timeout-seconds: 2
-  configuring-timeout-seconds: 2
+  allocation-timeout-seconds: 100
+  configuring-timeout-seconds: 100
   executing-heartbeat-period-seconds: 100
   idle-heartbeat-period-seconds: 100
-  idle-timeout-seconds: 2
-  servant-stop-timeout-seconds: 2
+  idle-timeout-seconds: 0.1f
+  servant-stop-timeout-seconds: 100
 scheduler:
   base-env-default-image: ""
   max-servants-per-workflow: 1

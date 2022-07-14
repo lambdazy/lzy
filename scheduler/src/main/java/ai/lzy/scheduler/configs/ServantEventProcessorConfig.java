@@ -4,9 +4,9 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 
 @ConfigurationProperties("servant-processor")
 public record ServantEventProcessorConfig(
-        int allocationTimeoutSeconds,
-        int idleTimeoutSeconds,
-        int configuringTimeoutSeconds,
-        int servantStopTimeoutSeconds,
-        int executingHeartbeatPeriodSeconds,
-        int idleHeartbeatPeriodSeconds) { }
+        float allocationTimeoutSeconds,
+        float idleTimeoutSeconds,
+        float configuringTimeoutSeconds,
+        float servantStopTimeoutSeconds,
+        float executingHeartbeatPeriodSeconds,
+        float idleHeartbeatPeriodSeconds) { }

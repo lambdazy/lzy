@@ -39,7 +39,6 @@ public class ServantEventProcessor extends Thread {
     private final BiConsumer<String, String> notifyReady;  // notify scheduler about free servant
     private final BiConsumer<String, String> notifyDestroyed;  // notify scheduler about destroyed state
     private final AtomicBoolean stopping = new AtomicBoolean(false);
-    private final Lock processingLock = new ReentrantLock();  // lock to prevent thread from interrupts while processing
 
     @Nullable
     private ServantConnection connection = null;
@@ -89,19 +88,14 @@ public class ServantEventProcessor extends Thread {
                     }
                     throw e;
                 }
-                try {
-                    processingLock.lock();
-                    if (stopping.get()) {
-                        queue.put(event);
-                        return;
-                    }
-                    boolean isDestroyed = this.process(event);
-                    if (isDestroyed) {
-                        notifyDestroyed.accept(workflowName, servantId);
-                        return;
-                    }
-                } finally {
-                    processingLock.unlock();
+                if (stopping.get()) {
+                    queue.put(event);
+                    return;
+                }
+                boolean isDestroyed = this.process(event);
+                if (isDestroyed) {
+                    notifyDestroyed.accept(workflowName, servantId);
+                    return;
                 }
             }
         } finally {
@@ -129,14 +123,15 @@ public class ServantEventProcessor extends Thread {
             newState = destroy(currentState, event);
         }
         try {
-            LOG.debug("Servant state processed.\n old: {}\n new: {}\n event: {}",
-                currentState, newState, event);
             dao.updateAndFree(newState);
+            LOG.debug("Servant state processed.\n old: {}\n new: {}\n event: {}",
+                    currentState, newState, event);
         } catch (DaoException e) {
             LOG.error("Cannot write new servant state to dao", e);
             throw new RuntimeException(e);
         }
-        if (newState.status() == Status.RUNNING || newState.status() == Status.IDLE) {
+        if ((newState.status() == Status.RUNNING || newState.status() == Status.IDLE)
+            && !(currentState.status() == Status.RUNNING || currentState.status() == Status.IDLE)) {
             notifyReady.accept(workflowName, servantId);
         }
         return newState.status() == Status.DESTROYED;
@@ -308,6 +303,8 @@ public class ServantEventProcessor extends Thread {
                 assertStatus(currentState, event, Status.CONFIGURING);
                 yield stop(currentState, "Servant stopping: <" + event.description() + ">");
             }
+
+            case NOOP -> currentState;
         };
     }
 
@@ -464,12 +461,7 @@ public class ServantEventProcessor extends Thread {
     private static class AssertionException extends Exception {}
 
     public void shutdown() {
-        try {
-            this.processingLock.lock();
-            this.stopping.set(true);
-            this.interrupt();
-        } finally {
-            this.processingLock.unlock();
-        }
+        this.queue.put(ServantEvent.noop(workflowName, servantId));
+        this.stopping.set(true);
     }
 }

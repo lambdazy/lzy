@@ -80,6 +80,9 @@ public class QueueManager extends Thread {
             }
             try {
                 GraphExecutionKey key = queue.take();
+                if (GraphExecutionKey.isNoop(key)) {
+                    continue;
+                }
                 executor.submit(() -> process(key));
             } catch (InterruptedException e) {
                 LOG.debug("Thread is interrupted", e);
@@ -89,7 +92,7 @@ public class QueueManager extends Thread {
 
     public void gracefulShutdown() {
         stopping.set(true);
-        this.interrupt();
+        putIntoQueue(GraphExecutionKey.noop());
     }
 
     public GraphExecutionState startGraph(String workflowId,
@@ -224,5 +227,13 @@ public class QueueManager extends Thread {
         }
     }
 
-    private record GraphExecutionKey(String workflowId, String graphId) {}
+    private record GraphExecutionKey(String workflowId, String graphId) {
+        public static GraphExecutionKey noop() {
+            return new GraphExecutionKey("noop", "noop");
+        }
+
+        public static boolean isNoop(GraphExecutionKey key) {
+            return key.graphId().equals("noop") && key.workflowId().equals("noop");
+        }
+    }
 }
