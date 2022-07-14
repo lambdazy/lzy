@@ -174,6 +174,14 @@ public class LzyServant extends LzyAgent {
             }
 
             LOG.info("Servant::prepare " + JsonUtils.printRequest(request));
+            UserEventLogger.log(new UserEvent(
+                "Servant execution preparing",
+                Map.of(
+                    "servant_id", config.getServantId()
+                ),
+                UserEvent.UserEventType.ExecutionPreparing
+            ));
+            // TODO (lindvv): logs without lambda
             MetricEventLogger.timeIt(
                 "time of context preparing",
                 Map.of("metric_type", "system_metric"),
@@ -239,14 +247,6 @@ public class LzyServant extends LzyAgent {
                 request.getAssignmentsList().stream()
             );
             final String tid = request.getTid();
-            UserEventLogger.log(new UserEvent(
-                "Servant execution preparing",
-                Map.of(
-                    "task_id", tid,
-                    "zygote_description", zygote.description()
-                ),
-                UserEvent.UserEventType.ExecutionPreparing
-            ));
             responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
             responseObserver.onCompleted();
 
