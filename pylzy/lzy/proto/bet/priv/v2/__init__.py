@@ -956,7 +956,9 @@ class LzyServantStub(betterproto.ServiceStub):
             ExecutionStarted,
         )
 
-    async def signal(self, *, sig: "TaskSignalSIGType" = 0) -> Empty:
+    async def signal(
+        self, *, sig: "TaskSignalSIGType" = TaskSignalSIGType.NONE
+    ) -> Empty:
         request = TaskSignal()
         request.sig = sig
 
@@ -1142,7 +1144,7 @@ class LzyBackofficeStub(betterproto.ServiceStub):
         backoffice_credentials: Optional["UserCredentials"] = None,
         user_id: str = "",
         session_id: str = "",
-        provider: "OAuthProviders" = 0,
+        provider: "OAuthProviders" = OAuthProviders.GITHUB,
         provider_user_id: str = "",
     ) -> AuthUserSessionResponse:
         request = AuthUserSessionRequest()
