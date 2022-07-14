@@ -132,21 +132,18 @@ public class LzyTerminal extends LzyAgent implements Closeable {
     @Override
     public void close() {
         LOG.info("Close terminal...");
-        context.slots().forEach(slot -> {
-            LOG.info("  suspending slot {} ({})...", slot.name(), slot.status().getState());
-            slot.suspend();
-        });
-        context.close();
-        commandHandler.onCompleted();
-        channel.shutdown();
-        agentServer.shutdown();
-        super.close();
+        try {
+            commandHandler.onCompleted();
+            channel.shutdown();
+            agentServer.shutdown();
+        } finally {
+            super.close();
+        }
     }
 
     @Override
     public void awaitTermination() throws InterruptedException {
         channel.awaitTermination(10, TimeUnit.SECONDS);
-        super.awaitTermination();
     }
 
     private class CommandHandler {

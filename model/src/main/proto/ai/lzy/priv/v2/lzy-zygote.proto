@@ -51,15 +51,14 @@ message Slot {
 }
 
 message SlotStatus {
-  string user = 1;
-  string taskId = 2;
-  Slot declaration = 3;
+  string taskId = 1;
+  Slot declaration = 2;
 
-  string connectedTo = 4;
+  string connectedTo = 3;
 
-  uint64 pointer = 5;
+  uint64 pointer = 4;
 
-  State state = 6;
+  State state = 5;
 
   /* For input slot SUSPENDED command could happen while reading to change a source of data
   * For output slot CLOSED means that process has finished generating data.

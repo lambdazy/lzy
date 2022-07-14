@@ -10,6 +10,7 @@ import ai.lzy.model.Constants;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.Signal;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotStatus;
 import ai.lzy.model.StorageCredentials;
@@ -281,7 +282,7 @@ public class LzyServer {
                         return;
                     }
                     if (request.hasSignal()) {
-                        task.signal(TasksManager.Signal.valueOf(signal.getSigValue()));
+                        task.signal(Signal.valueOf(signal.getSigValue()));
                     }
                     break;
                 }
@@ -349,7 +350,7 @@ public class LzyServer {
                     concluded.set(true);
                     responseObserver.onCompleted();
                     if (parent != null) {
-                        parent.signal(TasksManager.Signal.CHLD);
+                        parent.signal(Signal.CHLD);
                     }
                 }
             });
@@ -363,16 +364,6 @@ public class LzyServer {
                     UserEvent.UserEventType.TaskCreate
                 )
             );
-            Context.current().addListener(ctxt -> {
-                concluded.set(true);
-                try {
-                    if (task.state().phase() < Task.State.SUCCESS.phase()) { // task is not complete yet
-                        task.signal(TasksManager.Signal.HUB);
-                    }
-                } catch (TaskException e) {
-                    LOG.warn("Exception during HUB signal, task id={}", task.tid(), e);
-                }
-            }, Runnable::run);
             task.state(Task.State.QUEUE);
         }
 
@@ -709,12 +700,7 @@ public class LzyServer {
             slotStatus.setChannel(to(channel));
             for (SlotStatus state : tasks.connected(channel)) {
                 final Operations.SlotStatus.Builder builder = slotStatus.addConnectedBuilder();
-                if (state.tid() != null) {
-                    builder.setTaskId(state.tid());
-                    builder.setUser(tasks.owner(state.tid()));
-                } else {
-                    builder.setUser(state.user());
-                }
+                builder.setTaskId(state.tid());
 
                 builder.setConnectedTo(channel.name())
                     .setDeclaration(to(state.slot()))

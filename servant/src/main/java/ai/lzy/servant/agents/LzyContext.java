@@ -74,7 +74,6 @@ public class LzyContext implements AutoCloseable {
     }
 
     public LzyExecution execute(String taskId, AtomicZygote zygote, Consumer<ServantProgress> onProgress) {
-        final long start = System.currentTimeMillis();
         if (env == null) {
             LOG.error("env is null before execution");
             throw new IllegalStateException("Cannot execute before prepare");
@@ -101,19 +100,6 @@ public class LzyContext implements AutoCloseable {
         } catch (IOException e) {
             // ignore
         }
-        execution.waitFor();
-
-        final long executed = System.currentTimeMillis();
-        MetricEventLogger.log(new MetricEvent(
-            "time of task executing",
-            Map.of("metric_type", "system_metric"),
-            executed - start)
-        );
-        MetricEventLogger.log(new MetricEvent(
-            "time of waiting for slots",
-            Map.of("metric_type", "system_metric"),
-            System.currentTimeMillis() - executed)
-        );
         return execution;
     }
 

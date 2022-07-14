@@ -260,6 +260,11 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
+        default String cs() {
+            final ExecutionResult execute = executeLzyCommand(BuiltinCommandHolder.cs);
+            return execute.stdout();
+        }
+
         default void createSlot(String path, String channelName, Slot slot) {
             try {
                 execute("echo '" + JsonFormat.printer().print(GrpcConverter.to(slot)) + "' > slot.json");

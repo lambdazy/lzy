@@ -91,7 +91,7 @@ public abstract class LzyAgent implements Closeable {
     protected void started() {
     }
 
-    public abstract URI serverUri();
+    protected abstract URI serverUri();
 
     protected abstract Server server();
 
@@ -213,9 +213,6 @@ public abstract class LzyAgent implements Closeable {
         builder.addAllConnections(context().slots().map(slot -> {
             final Operations.SlotStatus.Builder status = Operations.SlotStatus
                 .newBuilder(slot.status());
-            if (auth.hasUser()) {
-                status.setUser(auth.getUser().getUserId());
-            }
             return status.build();
         }).collect(Collectors.toList()));
         responseObserver.onNext(builder.build());

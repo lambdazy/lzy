@@ -475,11 +475,6 @@ public abstract class GrpcConverter {
         }
 
         @Override
-        public String user() {
-            return slotStatus.getUser();
-        }
-
-        @Override
         public String tid() {
             slotStatus.getTaskId();
             return !slotStatus.getTaskId().isEmpty() ? slotStatus.getTaskId() : null;
