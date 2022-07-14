@@ -67,8 +67,8 @@ NL=$'\n'
 for IMAGE in $IMAGES; do
   echo "pushing image for $IMAGE"
   if [[ $UPDATE = true ]]; then
-    PREV_NAME="$(deployment/latest-docker-image-on-branches.sh $IMAGE $BRANCH dev)"
-    PREV_TAG="$(echo PREV_NAME | awk -F: '{print $2}')"
+    PREV_NAME=$(deployment/latest-docker-image-on-branches.sh $IMAGE $BRANCH 2>&1 | sed "s/^.* //")
+    PREV_TAG=$(echo PREV_NAME | awk -F: '{print $2}')
     VERSION=$(echo "$PREV_TAG" | sed "s/$BRANCH-//")
     PREV_MAJOR=$(echo "$VERSION" | awk -F. '{print $1}')
     PREV_MINOR=$(echo "$VERSION" | awk -F. '{print $2}')
