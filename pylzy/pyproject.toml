@@ -4,7 +4,6 @@ skip = ["lzy/proto/"]
 [tool.pyright]
 include = ["lzy"]
 exclude = [
-    "lzy/proto/**",
     "**/__pycache__",
 ]
 [tool.black]
