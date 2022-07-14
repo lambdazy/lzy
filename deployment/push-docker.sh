@@ -35,23 +35,23 @@ CUSTOM_TAG=$2
 
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
-    docker build -t lzy-servant-base -f servant/docker/System.Base.Dockerfile .
-    SERVANT_BASE="lzy-servant-base"
-    docker build -t default-env-base -f servant/docker/DefaultEnv.Base.Dockerfile .
-    DEFAULT_ENV_BASE="default-env-base"
+    docker build -t lzy-servant-base -t lzydock/lzy-servant-base:local -f servant/docker/System.Base.Dockerfile .
+    SERVANT_BASE_TAG="local"
+    docker build -t default-env-base -t lzydock/default-env-base:local -f servant/docker/DefaultEnv.Base.Dockerfile .
+    DEFAULT_ENV_BASE_TAG="local"
   else
     SERVANT_BASE="$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)"
     docker pull "$SERVANT_BASE"
+    SERVANT_BASE_TAG="$(echo $SERVANT_BASE | awk -F: '{print $2}')"
+
     DEFAULT_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh default-env-base $BRANCH dev)"
     docker pull "$DEFAULT_ENV_BASE"
+    DEFAULT_ENV_BASE_TAG="$(echo DEFAULT_ENV_BASE | awk -F: '{print $2}')"
   fi
   mvn clean install -DskipTests
 
-  SERVANT_BASE_TAG="$(echo $SERVANT_BASE | awk -F: '{print $2}')"
-  docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
-
-  DEFAULT_ENV_BASE_TAG="$(echo DEFAULT_ENV_BASE | awk -F: '{print $2}')"
-  docker build -t --build-arg "DEFAULT_ENV_BASE_TAG=$DEFAULT_ENV_BASE_TAG" default-env -f servant/docker/DefaultEnv.Dockerfile .
+  docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG"         -t lzy-servant -f servant/docker/System.Dockerfile .
+  docker build --build-arg "DEFAULT_ENV_BASE_TAG=$DEFAULT_ENV_BASE_TAG" -t default-env -f servant/docker/DefaultEnv.Dockerfile .
 
   docker build -t lzy-server -f server/Dockerfile server
   docker build -t lzy-whiteboard -f whiteboard/Dockerfile whiteboard
@@ -85,7 +85,7 @@ for IMAGE in $IMAGES; do
   docker tag "$IMAGE" "$NEW_NAME" && docker image rm "$IMAGE"
   echo "pushing $NEW_NAME"
   docker push "$NEW_NAME" && ([[ $NEW_NAME == *"base"* ]] || docker image rm "$NEW_NAME")
-  echo "::set-output name=${$IMAGE#lzy-}-image::$BRANCH-$NEW_TAG" # for github actions
+  echo "::set-output name=${IMAGE#lzy-}-image::$BRANCH-$NEW_TAG" # for github actions
   echo ""
   PUSHED_IMAGES="$PUSHED_IMAGES${NL}$IMAGE-image = \"$NEW_NAME\""
 done
