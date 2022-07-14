@@ -40,9 +40,9 @@ if [[ $REBUILD = true ]]; then
     docker build -t default-env-base -f servant/docker/DefaultEnv.Base.Dockerfile .
     DEFAULT_ENV_BASE="default-env-base"
   else
-    SERVANT_BASE="$(latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)"
+    SERVANT_BASE="$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)"
     docker pull "$SERVANT_BASE"
-    DEFAULT_ENV_BASE="$(latest-docker-image-on-branches.sh default-env-base $BRANCH dev)"
+    DEFAULT_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh default-env-base $BRANCH dev)"
     docker pull "$DEFAULT_ENV_BASE"
   fi
   mvn clean install -DskipTests
@@ -67,7 +67,7 @@ NL=$'\n'
 for IMAGE in $IMAGES; do
   echo "pushing image for $IMAGE"
   if [[ $UPDATE = true ]]; then
-    PREV_NAME="$(latest-docker-image-on-branches.sh $IMAGE $BRANCH dev)"
+    PREV_NAME="$(deployment/latest-docker-image-on-branches.sh $IMAGE $BRANCH dev)"
     PREV_TAG="$(echo PREV_NAME | awk -F: '{print $2}')"
     VERSION=$(echo "$PREV_TAG" | sed "s/$BRANCH-//")
     PREV_MAJOR=$(echo "$VERSION" | awk -F. '{print $1}')
