@@ -36,8 +36,8 @@ if [[ $LATEST_TAG =~ \.-1$ ]]; then
 fi
 
 if [[ $LATEST_TAG =~ \.-1$ ]]; then
-  echo "Invalid tag $LATEST_TAG"
-  exit
+  echo "Invalid tag $LATEST_TAG" >&2
+  exit -1
 fi
 
 echo "$LATEST_TAG"
