@@ -91,7 +91,7 @@ public abstract class LzyAgent implements Closeable {
     protected void started() {
     }
 
-    public abstract URI serverUri();
+    protected abstract URI serverUri();
 
     protected abstract Server server();
 

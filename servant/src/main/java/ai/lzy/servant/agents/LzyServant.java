@@ -1,5 +1,6 @@
 package ai.lzy.servant.agents;
 
+import ai.lzy.model.logs.UserEvent.UserEventType;
 import ai.lzy.servant.portal.Portal;
 import com.google.protobuf.Empty;
 import io.grpc.*;
@@ -24,7 +25,6 @@ import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEventLogger;
-import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.priv.v2.*;
 
 import java.io.IOException;
@@ -32,7 +32,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -164,10 +163,18 @@ public class LzyServant extends LzyAgent {
         LOG.error("Force terminate servant {}: {}", config.getServantId(), th);
         try {
             portal.stop();
-            service.cleanupExecution();
+            cleanupExecution();
             agentServer.shutdownNow();
         } finally {
             lzyFs.stop();
+        }
+    }
+
+    private void cleanupExecution() {
+        LOG.info("Cleanup execution");
+        var lzyExecution = currentExecution.get();
+        if (lzyExecution != null) {
+            lzyExecution.signal(Signal.KILL.sig());
         }
     }
 
@@ -281,7 +288,7 @@ public class LzyServant extends LzyAgent {
                 });
 
                 final long start = System.currentTimeMillis();
-                currentExecution.set(context.execute(tid, zygote, progress -> {
+                final LzyExecution lzyExecution = context.execute(tid, zygote, progress -> {
                     LOG.info("Servant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
                         "Servant execution progress",
@@ -290,7 +297,7 @@ public class LzyServant extends LzyAgent {
                             "zygote_description", zygote.description(),
                             "progress", JsonUtils.printRequest(progress)
                         ),
-                        UserEvent.UserEventType.ExecutionProgress
+                        UserEventType.ExecutionProgress
                     ));
                     if (progress.hasExecuteStop()) {
                         UserEventLogger.log(new UserEvent(
@@ -300,17 +307,18 @@ public class LzyServant extends LzyAgent {
                                 "zygote_description", zygote.description(),
                                 "exit_code", String.valueOf(progress.getExecuteStop().getRc())
                             ),
-                            UserEvent.UserEventType.ExecutionComplete
+                            UserEventType.ExecutionComplete
                         ));
                         LOG.info("Servant::executionStop {}, ready for the new one", agentAddress);
                         status.set(AgentStatus.REGISTERED);
                     }
                 });
+                currentExecution.set(lzyExecution);
                 status.set(AgentStatus.EXECUTING);
                 responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
                 responseObserver.onCompleted();
 
-                currentExecution.waitFor();
+                lzyExecution.waitFor();
                 final long executed = System.currentTimeMillis();
                 MetricEventLogger.log(new MetricEvent(
                     "time of task executing",
@@ -380,13 +388,6 @@ public class LzyServant extends LzyAgent {
         @Override
         public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             LzyServant.this.status(request, responseObserver);
-        }
-
-        private void cleanupExecution() {
-            LOG.info("Cleanup execution");
-            if (currentExecution != null) {
-                currentExecution.signal(Signal.KILL.sig());
-            }
         }
     }
 
