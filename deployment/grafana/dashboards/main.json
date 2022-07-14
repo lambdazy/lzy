@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -25,6 +28,11 @@
   "liveNow": false,
   "panels": [
     {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -33,18 +41,21 @@
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
-            "barAlignment": 1,
+            "barAlignment": 0,
             "drawStyle": "bars",
-            "fillOpacity": 100,
-            "gradientMode": "hue",
+            "fillOpacity": 0,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "lineInterpolation": "linear",
-            "lineWidth": 3,
-            "pointSize": 5,
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 2,
+            "pointSize": 2,
             "scaleDistribution": {
               "type": "linear"
             },
@@ -90,7 +101,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "pluginVersion": "8.3.3",
@@ -112,8 +124,8 @@
           "hide": false,
           "interval": "",
           "intervalFactor": 1,
-          "query": "SELECT toDateTime((intDiv(t, 60) * 60)) AS t, sum(tps) as tpm FROM\n\n(SELECT toUnixTimestamp(timestamp) as t, count() as tps FROM\n    (SELECT\n         JSON_VALUE(message, '$.event.type') as type,\n         JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n         timestamp\n     FROM default.servant_logs WHERE logger = 'UserEventLogs')\nWHERE type = 'ExecutionStart'\nGROUP BY t\nORDER BY t)\nGROUP BY t\nORDER BY t",
-          "rawQuery": "SELECT toDateTime((intDiv(t, 60) * 60)) AS t, sum(tps) as tpm FROM\n\n(SELECT toUnixTimestamp(timestamp) as t, count() as tps FROM\n    (SELECT\n         JSON_VALUE(message, '$.event.type') as type,\n         JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n         timestamp\n     FROM default.servant_logs WHERE logger = 'UserEventLogs')\nWHERE type = 'ExecutionStart'\nGROUP BY t\nORDER BY t)\nGROUP BY t\nORDER BY t",
+          "query": "SELECT toStartOfFifteenMinutes(datetime) as datetime_rounded,\n       count() as tasks\nFROM (\n    SELECT parseDateTimeBestEffortOrNull(timestamp) as datetime,\n           JSON_VALUE(message, '$.event.type')      as event_type\n    FROM servant_logs\n    WHERE logger = 'UserEventLogs' AND event_type = 'TaskStartUp'\n)\nGROUP BY datetime_rounded\nORDER BY datetime_rounded",
+          "rawQuery": "SELECT toStartOfFifteenMinutes(datetime) as datetime_rounded,\n       count() as tasks\nFROM (\n    SELECT parseDateTimeBestEffortOrNull(timestamp) as datetime,\n           JSON_VALUE(message, '$.event.type')      as event_type\n    FROM servant_logs\n    WHERE logger = 'UserEventLogs' AND event_type = 'TaskStartUp'\n)\nGROUP BY datetime_rounded\nORDER BY datetime_rounded",
           "refId": "A",
           "round": "0s",
           "skip_comments": true,
@@ -121,16 +133,21 @@
           "tableLoading": false
         }
       ],
-      "title": "Started tasks per minute",
+      "title": "Started tasks per 15 minutes",
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -157,7 +174,9 @@
       "id": 4,
       "options": {
         "displayMode": "gradient",
-        "orientation": "auto",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "vertical",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -167,7 +186,7 @@
         },
         "showUnfilled": true
       },
-      "pluginVersion": "8.3.4",
+      "pluginVersion": "8.5.2",
       "targets": [
         {
           "database": "default",
@@ -183,9 +202,10 @@
           "extrapolate": true,
           "format": "time_series",
           "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
+          "hide": false,
           "intervalFactor": 1,
-          "query": "SELECT unix_date,\n       sum(JSONExtractString(tags, 'exit_code') = '0') AS ok, \n       sum(JSONExtractString(tags, 'exit_code') != '0') AS not_ok \nFROM (\n  SELECT JSON_VALUE(message, '$.event.type') AS type,\n         JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') AS tags,\n         toDate(toUnixTimestamp(timestamp)) AS unix_date\n  FROM default.servant_logs\n  WHERE logger = 'UserEventLogs'\n    AND type = 'ExecutionComplete'\n) events\nWHERE unix_date = toDate(now())\nGROUP BY unix_date\n\n",
-          "rawQuery": "SELECT unix_date,\n       sum(JSONExtractString(tags, 'exit_code') = '0') AS ok, \n       sum(JSONExtractString(tags, 'exit_code') != '0') AS not_ok \nFROM (\n  SELECT JSON_VALUE(message, '$.event.type') AS type,\n         JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') AS tags,\n         toDate(toUnixTimestamp(timestamp)) AS unix_date\n  FROM default.servant_logs\n  WHERE logger = 'UserEventLogs'\n    AND type = 'ExecutionComplete'\n) events\nWHERE unix_date = toDate(now())\nGROUP BY unix_date",
+          "query": "select date, succeed, failed, executing from (\nselect date,\n       COUNT(CASE\n           WHEN start_finish_events>1 THEN 1\n           END) as all_executions,\n       COUNT(CASE\n           WHEN start_finish_events=1 THEN 1\n           END) as executing,\n       COUNT(CASE\n           WHEN complete_events=1 THEN 1\n           END) as succeed,\n       all_executions - executing - succeed as failed\nfrom (\n    select toDate(MAX(datetime)) as date,\n           id,\n           COUNT(CASE\n               WHEN event_type='TaskStartUp' THEN 1\n               WHEN event_type='TaskStop' THEN 1\n               END) as start_finish_events,\n           COUNT(CASE\n               WHEN event_type='ExecutionComplete' AND exit_code='0' THEN 1\n               END) as complete_events,\n           count(*)\n    from (\n        select parseDateTimeBestEffortOrNull(timestamp)       as datetime,\n               JSON_VALUE(message, '$.event.type')            as event_type,\n               JSON_VALUE(message, '$.event.tags.task_id')    as tid,\n               JSON_VALUE(message, '$.event.tags.context_id') as cid,\n               CONCAT(tid, cid)                               as id,\n               JSON_VALUE(message, '$.event.tags.exit_code')  as exit_code,\n               *\n        from servant_logs\n        where logger = 'UserEventLogs'\n    ) group by id\n)\nwhere date = toDate(now())\ngroup by date\n)",
+          "rawQuery": "select date, succeed, failed, executing from (\nselect date,\n       COUNT(CASE\n           WHEN start_finish_events>1 THEN 1\n           END) as all_executions,\n       COUNT(CASE\n           WHEN start_finish_events=1 THEN 1\n           END) as executing,\n       COUNT(CASE\n           WHEN complete_events=1 THEN 1\n           END) as succeed,\n       all_executions - executing - succeed as failed\nfrom (\n    select toDate(MAX(datetime)) as date,\n           id,\n           COUNT(CASE\n               WHEN event_type='TaskStartUp' THEN 1\n               WHEN event_type='TaskStop' THEN 1\n               END) as start_finish_events,\n           COUNT(CASE\n               WHEN event_type='ExecutionComplete' AND exit_code='0' THEN 1\n               END) as complete_events,\n           count(*)\n    from (\n        select parseDateTimeBestEffortOrNull(timestamp)       as datetime,\n               JSON_VALUE(message, '$.event.type')            as event_type,\n               JSON_VALUE(message, '$.event.tags.task_id')    as tid,\n               JSON_VALUE(message, '$.event.tags.context_id') as cid,\n               CONCAT(tid, cid)                               as id,\n               JSON_VALUE(message, '$.event.tags.exit_code')  as exit_code,\n               *\n        from servant_logs\n        where logger = 'UserEventLogs'\n    ) group by id\n)\nwhere date = toDate(now())\ngroup by date\n)",
           "refId": "A",
           "round": "0s",
           "skip_comments": true,
@@ -197,6 +217,10 @@
       "type": "bargauge"
     },
     {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -206,7 +230,8 @@
           "custom": {
             "align": "center",
             "displayMode": "color-background",
-            "filterable": true
+            "filterable": true,
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -242,7 +267,7 @@
         },
         "showHeader": true
       },
-      "pluginVersion": "8.3.4",
+      "pluginVersion": "8.5.2",
       "targets": [
         {
           "datasource": {
@@ -255,8 +280,8 @@
           "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
           "interval": "",
           "intervalFactor": 1,
-          "query": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nORDER BY t\n)\nWHERE t = (intDiv(toUnixTimestamp(now()), 60 * 60 * 24) * 60 * 60 * 24)",
-          "rawQuery": "SELECT uid, count FROM (\nSELECT\n       JSONExtractString(tags, 'user_id') as uid,\n       count() as count,\n       (intDiv(timestamp, 60 * 60 * 24) * 60 * 60 * 24) as t\nFROM (\n        SELECT\n             JSON_VALUE(message, '$.event.type') as type,\n             JSONExtractRaw(JSONExtractRaw(message, 'event'), 'tags') as tags,\n             toUnixTimestamp(timestamp) as timestamp\n         FROM default.server_logs WHERE logger = 'UserEventLogs'\n)\nWHERE type = 'TaskCreate'\nGROUP BY uid, t\nORDER BY t\n)\nWHERE t = (intDiv(toUnixTimestamp(now()), 60 * 60 * 24) * 60 * 60 * 24)",
+          "query": "SELECT uid, count FROM (\nSELECT\n       uid,\n       toDate(datetime) as date,\n       count() as count\nFROM (\n    SELECT parseDateTimeBestEffortOrNull(timestamp)    as datetime,\n           JSON_VALUE(message, '$.event.type')         as event_type,\n           JSON_VALUE(message, '$.event.tags.user_id') as uid\n    FROM server_logs\n    WHERE logger = 'UserEventLogs' AND event_type = 'TaskCreate'\n)\nwhere date = toDate(now())\nGROUP BY uid, date\n)",
+          "rawQuery": "SELECT uid, count FROM (\nSELECT\n       uid,\n       toDate(datetime) as date,\n       count() as count\nFROM (\n    SELECT parseDateTimeBestEffortOrNull(timestamp)    as datetime,\n           JSON_VALUE(message, '$.event.type')         as event_type,\n           JSON_VALUE(message, '$.event.tags.user_id') as uid\n    FROM server_logs\n    WHERE logger = 'UserEventLogs' AND event_type = 'TaskCreate'\n)\nwhere date = toDate(now())\nGROUP BY uid, date\n)",
           "refId": "A",
           "round": "0s",
           "skip_comments": true
@@ -267,7 +292,7 @@
     }
   ],
   "refresh": "",
-  "schemaVersion": 34,
+  "schemaVersion": 36,
   "style": "dark",
   "tags": [],
   "templating": {
