@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package ai.lzy.priv.v2;
+package lzy.proto.priv.v2;
 
-import "ai/lzy/priv/v2/lzy-auth.proto";
-import "ai/lzy/priv/v2/lzy-task.proto";
+import "lzy/proto/priv/v2/lzy-auth.proto";
+import "lzy/proto/priv/v2/lzy-task.proto";
 
 option java_outer_classname = "BackOffice";
 option java_package = "ai.lzy.priv.v2";

@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package ai.lzy.priv.v2;
+package lzy.proto.priv.v2;
 
-import "ai/lzy/priv/v2/lzy-zygote.proto";
+import "lzy/proto/priv/v2/lzy-zygote.proto";
 
 option java_outer_classname = "LzyFsApi";
 option java_package = "ai.lzy.priv.v2";

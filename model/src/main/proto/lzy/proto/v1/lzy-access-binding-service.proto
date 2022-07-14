@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package ai.lzy.v1;
+package lzy.proto.v1;
 
-import "ai/lzy/v1/lzy-iam.proto";
+import "lzy/proto/v1/lzy-iam.proto";
 
 option java_outer_classname = "LABS";
 option java_package = "ai.lzy.v1";
