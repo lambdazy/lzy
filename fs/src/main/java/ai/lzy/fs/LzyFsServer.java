@@ -386,8 +386,11 @@ public final class LzyFsServer {
     }
 
 
-    private record LzyScriptImpl(Path location, CharSequence scriptText, Operations.Zygote zygote) implements
-        LzyScript {
+    private record LzyScriptImpl(
+        Path location,
+        CharSequence scriptText,
+        Operations.Zygote zygote
+    ) implements LzyScript {
 
         @Override
         public Zygote operation() {

@@ -34,7 +34,7 @@ public abstract class LzyBaseTest {
     }
 
     @After
-    public void tearDown() throws InterruptedException {
+    public void tearDown() {
         terminalContext.close();
     }
 

@@ -16,7 +16,7 @@ public class LzyDryStartupTest extends LocalScenario {
     }
 
     @After
-    public void tearDown() throws InterruptedException {
+    public void tearDown() {
         super.tearDown();
     }
 
