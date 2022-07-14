@@ -46,7 +46,7 @@ if [[ $REBUILD = true ]]; then
 
     DEFAULT_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh default-env-base $BRANCH dev)"
     docker pull "$DEFAULT_ENV_BASE"
-    DEFAULT_ENV_BASE_TAG="$(echo DEFAULT_ENV_BASE | awk -F: '{print $2}')"
+    DEFAULT_ENV_BASE_TAG="$(echo $DEFAULT_ENV_BASE | awk -F: '{print $2}')"
   fi
   mvn clean install -DskipTests
 
@@ -68,7 +68,7 @@ for IMAGE in $IMAGES; do
   echo "pushing image for $IMAGE"
   if [[ $UPDATE = true ]]; then
     PREV_NAME=$(deployment/latest-docker-image-on-branches.sh $IMAGE $BRANCH 2>&1 | sed "s/^.* //")
-    PREV_TAG=$(echo PREV_NAME | awk -F: '{print $2}')
+    PREV_TAG=$(echo $PREV_NAME | awk -F: '{print $2}')
     VERSION=$(echo "$PREV_TAG" | sed "s/$BRANCH-//")
     PREV_MAJOR=$(echo "$VERSION" | awk -F. '{print $1}')
     PREV_MINOR=$(echo "$VERSION" | awk -F. '{print $2}')
