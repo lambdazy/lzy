@@ -230,89 +230,90 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
-            if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
-                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-                return;
-            }
-
-            if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
-                LOG.debug("Servant::execute " + JsonUtils.printRequest(request));
-            } else {
-                LOG.info("Servant::execute request (tid={})", request.getTid());
-            }
-            if (status.get() == AgentStatus.EXECUTING) {
-                responseObserver.onError(Status.RESOURCE_EXHAUSTED.withDescription("Already executing").asException());
-                return;
-            }
-
-            status.set(AgentStatus.PREPARING_EXECUTION);
-            final String tid = request.getTid();
-            final AtomicZygote zygote = (AtomicZygote) GrpcConverter.from(request.getZygote());
-            UserEventLogger.log(new UserEvent(
-                "Servant execution preparing",
-                Map.of(
-                    "task_id", tid,
-                    "zygote_description", zygote.description()
-                ),
-                UserEvent.UserEventType.ExecutionPreparing
-            ));
-
-            GrpcConverter.from(request.getAssignmentsList().stream()).map(
-                entry -> {
-                    LzySlot slot = context.getOrCreateSlot(tid, entry.slot(), entry.binding());
-                    // TODO: It will be removed after creating Portal
-                    final String channelName;
-                    if (entry.binding().startsWith("channel:")) {
-                        channelName = entry.binding().substring("channel:".length());
-                    } else {
-                        channelName = entry.binding();
-                    }
-                    if (channelName.startsWith("snapshot://") && slot instanceof LzyOutputSlot) {
-                        final URI channelUri = URI.create(channelName);
-                        String snapshotId = "snapshot://" + channelUri.getHost();
-                        lzyFs.getSlotConnectionManager().snapshooter()
-                            .registerSlot(slot, snapshotId, channelName);
-                    }
-                    return slot;
+            try {
+                if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
+                    responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                    return;
                 }
-            ).forEach(slot -> {
-                if (slot instanceof LzyFileSlot) {
-                    lzyFs.addSlot((LzyFileSlot) slot);
-                }
-            });
 
-            final long start = System.currentTimeMillis();
-            final LzyExecution lzyExecution = context.execute(tid, zygote, progress -> {
-                LOG.info("Servant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
+                if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
+                    LOG.debug("Servant::execute " + JsonUtils.printRequest(request));
+                } else {
+                    LOG.info("Servant::execute request (tid={})", request.getTid());
+                }
+                if (status.get() == AgentStatus.EXECUTING) {
+                    responseObserver.onError(
+                        Status.RESOURCE_EXHAUSTED.withDescription("Already executing").asException());
+                    return;
+                }
+
+                status.set(AgentStatus.PREPARING_EXECUTION);
+                final String tid = request.getTid();
+                final AtomicZygote zygote = (AtomicZygote) GrpcConverter.from(request.getZygote());
                 UserEventLogger.log(new UserEvent(
-                    "Servant execution progress",
+                    "Servant execution preparing",
                     Map.of(
                         "task_id", tid,
-                        "zygote_description", zygote.description(),
-                        "progress", JsonUtils.printRequest(progress)
+                        "zygote_description", zygote.description()
                     ),
-                    UserEventType.ExecutionProgress
+                    UserEvent.UserEventType.ExecutionPreparing
                 ));
-                if (progress.hasExecuteStop()) {
+
+                GrpcConverter.from(request.getAssignmentsList().stream()).map(
+                    entry -> {
+                        LzySlot slot = context.getOrCreateSlot(tid, entry.slot(), entry.binding());
+                        // TODO: It will be removed after creating Portal
+                        final String channelName;
+                        if (entry.binding().startsWith("channel:")) {
+                            channelName = entry.binding().substring("channel:".length());
+                        } else {
+                            channelName = entry.binding();
+                        }
+                        if (channelName.startsWith("snapshot://") && slot instanceof LzyOutputSlot) {
+                            final URI channelUri = URI.create(channelName);
+                            String snapshotId = "snapshot://" + channelUri.getHost();
+                            lzyFs.getSlotConnectionManager().snapshooter()
+                                .registerSlot(slot, snapshotId, channelName);
+                        }
+                        return slot;
+                    }
+                ).forEach(slot -> {
+                    if (slot instanceof LzyFileSlot) {
+                        lzyFs.addSlot((LzyFileSlot) slot);
+                    }
+                });
+
+                final long start = System.currentTimeMillis();
+                final LzyExecution lzyExecution = context.execute(tid, zygote, progress -> {
+                    LOG.info("Servant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
-                        "Servant execution exit",
+                        "Servant execution progress",
                         Map.of(
                             "task_id", tid,
                             "zygote_description", zygote.description(),
-                            "exit_code", String.valueOf(progress.getExecuteStop().getRc())
+                            "progress", JsonUtils.printRequest(progress)
                         ),
-                        UserEventType.ExecutionComplete
+                        UserEventType.ExecutionProgress
                     ));
-                    LOG.info("Servant::executionStop {}, ready for the new one", agentAddress);
-                    status.set(AgentStatus.REGISTERED);
-                }
-            });
-            currentExecution.set(lzyExecution);
-            status.set(AgentStatus.EXECUTING);
-            responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
-            responseObserver.onCompleted();
+                    if (progress.hasExecuteStop()) {
+                        UserEventLogger.log(new UserEvent(
+                            "Servant execution exit",
+                            Map.of(
+                                "task_id", tid,
+                                "zygote_description", zygote.description(),
+                                "exit_code", String.valueOf(progress.getExecuteStop().getRc())
+                            ),
+                            UserEventType.ExecutionComplete
+                        ));
+                        LOG.info("Servant::executionStop {}, ready for the new one", agentAddress);
+                        status.set(AgentStatus.REGISTERED);
+                    }
+                });
+                currentExecution.set(lzyExecution);
+                status.set(AgentStatus.EXECUTING);
+                responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
+                responseObserver.onCompleted();
 
-            try {
                 lzyExecution.waitFor();
                 final long executed = System.currentTimeMillis();
                 MetricEventLogger.log(new MetricEvent(
