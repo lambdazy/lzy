@@ -1,2 +1,21 @@
 [tool.isort]
 profile = "black"
+skip = ["lzy/proto/"]
+[tool.pyright]
+include = ["lzy"]
+exclude = ["lzy/proto",
+    "**/__pycache__",
+]
+[tool.black]
+line-length = 88
+target-version = ['py36', 'py37', 'py38', 'py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  | lzy/proto/
+)/
+'''
+[tool.mypy]
+exclude = '''(?x)(
+    lzy/proto/.*
+)'''
