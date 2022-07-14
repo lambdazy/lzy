@@ -97,6 +97,7 @@ variable "iam_db_user" {
 variable "iam_db_password" {
 }
 
+// docker images
 variable "backoffice-frontend-image" {
   type    = string
   default = "lzydock/lzy-backoffice-frontend:master"
@@ -114,32 +115,30 @@ variable "clickhouse-image" {
 
 variable "grafana-image" {
   type    = string
-  default = "lzydock/grafana:master"
 }
 
 variable "kharon-image" {
   type    = string
-  default = "lzydock/lzy-kharon:master"
 }
 
 variable "server-image" {
   type    = string
-  default = "lzydock/lzy-server:master"
 }
 
 variable "whiteboard-image" {
   type    = string
-  default = "lzydock/lzy-whiteboard:master"
 }
 
 variable "iam-image" {
   type    = string
-  default = "lzydock/lzy-iam:master"
 }
 
-variable "base-env-default-image" {
+variable "servant-image" {
+  type = string
+}
+
+variable "default-env-image" {
   type    = string
-  default = "lzydock/default-env:master"
 }
 
 variable "s3-bucket-name" {
@@ -200,10 +199,6 @@ variable "ssl-cert-key" {
 variable "ssl-keystore-password" {
   type    = string
   default = ""
-}
-
-variable "servant-image" {
-  type = string
 }
 
 variable "kafka-url" {

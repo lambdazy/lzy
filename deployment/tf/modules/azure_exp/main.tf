@@ -14,10 +14,14 @@ module "azure_common" {
   oauth-github-client-secret = ""
   s3-postfics                = "exp"
   ssl-enabled                = false
-  backoffice-backend-image   = "lzydock/lzy-backoffice-backend:master"
-  backoffice-frontend-image  = "lzydock/lzy-backoffice-frontend:master"
-  server-image = "lzydock/lzy-server:dev-1.9"
-  servant-image = "lzydock/lzy-servant:dev-1.9"
-  kharon-image = "lzydock/lzy-kharon:dev-1.9"
-  whiteboard-image = "lzydock/lzy-whiteboard:dev-1.9"
+  backoffice-backend-image   = var.backoffice-backend-image
+  backoffice-frontend-image  = var.backoffice-frontend-image
+  clickhouse-image           = var.clickhouse-image
+  grafana-image              = var.grafana-image
+  kharon-image               = var.kharon-image
+  server-image               = var.server-image
+  whiteboard-image           = var.whiteboard-image
+  iam-image                  = var.iam-image
+  servant-image              = var.servant-image
+  default-env-image          = var.default-env-image
 }
