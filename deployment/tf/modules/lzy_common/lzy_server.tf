@@ -196,7 +196,7 @@ resource "kubernetes_deployment" "server" {
           }
           env {
             name  = "BASE_ENV_DEFAULT_IMAGE"
-            value = var.base-env-default-image
+            value = var.default-env-image
           }
           env {
             name  = "KAFKA_LOGS_ENABLED"

@@ -181,19 +181,21 @@ module "lzy_common" {
   s3-bucket-name            = "lzy-bucket"
   storage-provider          = "azure"
   azure-connection-string   = azurerm_storage_account.main_s3.primary_connection_string
-  whiteboard-image          = var.whiteboard-image
-  server-image              = var.server-image
-  kharon-image              = var.kharon-image
-  iam-image                 = var.iam-image
-  backoffice-backend-image  = var.backoffice-backend-image
-  backoffice-frontend-image = var.backoffice-frontend-image
-  clickhouse-image          = var.clickhouse-image
   azure-resource-group      = azurerm_resource_group.test.name
   ssl-enabled               = var.ssl-enabled
   ssl-cert                  = var.ssl-cert
   ssl-cert-key              = var.ssl-cert-key
   ssl-keystore-password     = var.ssl-keystore-password
-  servant-image             = var.servant-image
   s3-separated-per-bucket   = var.s3-separated-per-bucket
-  base-env-default-image    = var.base-env-default-image
+
+  backoffice-backend-image   = var.backoffice-backend-image
+  backoffice-frontend-image  = var.backoffice-frontend-image
+  clickhouse-image           = var.clickhouse-image
+  grafana-image              = var.grafana-image
+  kharon-image               = var.kharon-image
+  server-image               = var.server-image
+  whiteboard-image           = var.whiteboard-image
+  iam-image                  = var.iam-image
+  servant-image              = var.servant-image
+  default-env-image          = var.default-env-image
 }
