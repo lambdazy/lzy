@@ -160,7 +160,8 @@ __pycache__
 pylzy/build
 pylzy/dist
 pylzy/*.egg-info
-pylzy/lzy/proto
+pylzy/lzy/proto/priv/
+pylzy/lzy/proto/v1/
 
 **/*.env
 pylzy/*.egg-info
