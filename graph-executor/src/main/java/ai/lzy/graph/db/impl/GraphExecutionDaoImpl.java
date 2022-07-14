@@ -1,5 +1,6 @@
 package ai.lzy.graph.db.impl;
 
+import ai.lzy.model.db.Transaction;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,10 +10,9 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.Nullable;
-import ai.lzy.graph.db.DaoException;
+import ai.lzy.model.db.DaoException;
 import ai.lzy.graph.db.GraphExecutionDao;
-import ai.lzy.graph.db.Storage;
-import ai.lzy.graph.db.Utils;
+import ai.lzy.model.db.Storage;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.TaskExecution;
@@ -29,11 +29,11 @@ import java.util.UUID;
 public class GraphExecutionDaoImpl implements GraphExecutionDao {
     private final Storage storage;
 
-    private static final String GRAPH_FIELDS_LIST =
-        "workflow_id, workflow_name, id, "
-        + "error_description, status, "
-        + "graph_description_json, task_executions_json, "
-        + "current_execution_group_json, last_updated, acquired ";
+    private static final String GRAPH_FIELDS_LIST = """
+        workflow_id, workflow_name, id,
+        error_description, status,
+        graph_description_json, task_executions_json,
+        current_execution_group_json, last_updated, acquired""";
 
     @Inject
     public GraphExecutionDaoImpl(Storage storage) {
@@ -44,10 +44,9 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     public GraphExecutionState create(String workflowId, String workflowName,
                                       GraphDescription description) throws DaoException {
         try (final Connection con = storage.connect();
-             final PreparedStatement st = con.prepareStatement(
-                 "INSERT INTO graph_execution_state ( "
-                     + GRAPH_FIELDS_LIST
-                     + " ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);")
+             final PreparedStatement st = con.prepareStatement(String.format("""
+                 INSERT INTO graph_execution_state (%s)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", GRAPH_FIELDS_LIST))
         ) {
             String id = UUID.randomUUID().toString();
             GraphExecutionState state = GraphExecutionState.builder()
@@ -69,10 +68,10 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Override
     public GraphExecutionState get(String workflowId, String graphExecutionId) throws DaoException {
         try (final Connection con = storage.connect();
-             final PreparedStatement st = con.prepareStatement(
-                 "SELECT "
-                     + GRAPH_FIELDS_LIST
-                     + " FROM graph_execution_state WHERE workflow_id = ? AND id = ?")
+             final PreparedStatement st = con.prepareStatement(String.format("""
+                 SELECT %s
+                 FROM graph_execution_state
+                 WHERE workflow_id = ? AND id = ?""", GRAPH_FIELDS_LIST))
         ) {
             st.setString(1, workflowId);
             st.setString(2, graphExecutionId);
@@ -91,10 +90,11 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Override
     public List<GraphExecutionState> filter(GraphExecutionState.Status status) throws DaoException {
         try (final Connection con = storage.connect();
-             final PreparedStatement st = con.prepareStatement(
-                 "SELECT " + GRAPH_FIELDS_LIST + " FROM graph_execution_state"
-                     + " WHERE status = ? "
-                     + " ORDER BY last_updated ")
+             final PreparedStatement st = con.prepareStatement(String.format("""
+                 SELECT %s
+                 FROM graph_execution_state
+                 WHERE status = ?
+                 ORDER BY last_updated""", GRAPH_FIELDS_LIST))
         ) {
             st.setString(1, status.name());
             try (ResultSet s = st.executeQuery()) {
@@ -108,10 +108,10 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Override
     public List<GraphExecutionState> list(String workflowId) throws DaoException {
         try (final Connection con = storage.connect();
-             final PreparedStatement st = con.prepareStatement(
-                 "SELECT "
-                     + GRAPH_FIELDS_LIST
-                     + " FROM graph_execution_state WHERE workflow_id = ?")
+             final PreparedStatement st = con.prepareStatement(String.format("""
+                 SELECT %s
+                 FROM graph_execution_state
+                 WHERE workflow_id = ?""", GRAPH_FIELDS_LIST))
         ) {
             st.setString(1, workflowId);
             try (ResultSet s = st.executeQuery()) {
@@ -126,19 +126,18 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Override
     public GraphExecutionState acquire(String workflowId, String graphExecutionId) throws DaoException {
         final AtomicReference<GraphExecutionState> state = new AtomicReference<>();
-        Utils.executeInTransaction(storage, conn -> {
-            try (final PreparedStatement st = conn.prepareStatement(
-                "SELECT "
-                    + GRAPH_FIELDS_LIST
-                    + " FROM graph_execution_state WHERE workflow_id = ? AND id = ?"
-                    + " FOR UPDATE")
+        Transaction.execute(storage, conn -> {
+            try (final PreparedStatement st = conn.prepareStatement(String.format("""
+                    SELECT %s
+                    FROM graph_execution_state WHERE workflow_id = ? AND id = ?
+                    FOR UPDATE""", GRAPH_FIELDS_LIST))
             ) {
                 st.setString(1, workflowId);
                 st.setString(2, graphExecutionId);
                 try (ResultSet s = st.executeQuery()) {
                     if (!s.isBeforeFirst()) {
                         state.set(null);
-                        return;
+                        return true;
                     }
                     s.next();
                     state.set(fromResultSet(s));
@@ -151,8 +150,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
                 }
             }
 
-            try (final PreparedStatement st = conn.prepareStatement(
-                    """
+            try (final PreparedStatement st = conn.prepareStatement("""
                      UPDATE graph_execution_state
                      SET acquired = ?
                      WHERE workflow_id = ? AND id = ?""")
@@ -163,6 +161,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
                 st.executeUpdate();
             }
 
+            return true;
         });
         return state.get();
     }
@@ -170,19 +169,19 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Override
     public void free(GraphExecutionState graph) throws DaoException {
         try (final Connection con = storage.connect();
-            final PreparedStatement st = con.prepareStatement(
-                """
-                    UPDATE graph_execution_state
-                     SET workflow_id = ?,
-                     workflow_name = ?,
-                     id = ?,
-                     error_description = ?,
-                     status = ?,
-                     graph_description_json = ?,
-                     task_executions_json = ?,
-                     current_execution_group_json = ?, last_updated = ?,
-                     acquired = ?
-                     WHERE workflow_id = ? AND id = ?;""")
+            final PreparedStatement st = con.prepareStatement("""
+                UPDATE graph_execution_state
+                SET workflow_id = ?,
+                workflow_name = ?,
+                id = ?,
+                error_description = ?,
+                status = ?,
+                graph_description_json = ?,
+                task_executions_json = ?,
+                current_execution_group_json = ?,
+                last_updated = ?,
+                acquired = ?
+                WHERE workflow_id = ? AND id = ?""")
         ) {
             setGraphFields(st, graph);
             st.setString(11, graph.workflowId());

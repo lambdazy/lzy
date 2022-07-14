@@ -4,7 +4,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
-import ai.lzy.graph.db.Storage;
+import ai.lzy.model.db.Storage;
 
 import java.sql.Connection;
 import java.sql.SQLException;

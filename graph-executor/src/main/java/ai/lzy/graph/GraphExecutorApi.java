@@ -5,7 +5,7 @@ import static ai.lzy.model.utils.JwtCredentials.buildJWT;
 import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.graph.config.AuthConfig;
 import ai.lzy.graph.config.ServiceConfig;
-import ai.lzy.graph.db.DaoException;
+import ai.lzy.model.db.DaoException;
 import ai.lzy.graph.db.GraphExecutionDao;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;

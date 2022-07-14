@@ -1,0 +1,17 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="LzyKharon" type="MicronautRunConfigurationType" factoryName="Micronaut">
+    <module name="kharon" />
+    <option name="alternativeJrePath" />
+    <option name="alternativeJrePathEnabled" value="false" />
+    <option name="includeProvidedScope" value="true" />
+    <option name="mainClass" value="ai.lzy.kharon.LzyKharon" />
+    <option name="passParentEnvs" value="true" />
+    <option name="programParameters" value="-h localhost" />
+    <option name="shortenCommandLine" value="NONE" />
+    <option name="vmParameters" value="-Dmicronaut.env.deduction=true -Dmicronaut.environments=" />
+    <option name="workingDirectory" value="" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "ai/lzy/priv/v2/lzy-server.proto";
+
 package ai.lzy.priv.v2;
 
 option java_outer_classname = "LzyWorkflowApi";
@@ -20,6 +22,18 @@ message CreateWorkflowRequest {
 
 message CreateWorkflowResponse {
   string executionId = 1;
+
+  message TempS3 {
+    oneof credentials {
+      AmazonCredentials amazon = 1;
+      AzureCredentials azure = 2;
+      AzureSASCredentials azureSas = 3;
+    }
+
+    string bucket = 4;
+  }
+
+  TempS3 tempS3 = 2;
 }
 
 message AttachWorkflowRequest {
