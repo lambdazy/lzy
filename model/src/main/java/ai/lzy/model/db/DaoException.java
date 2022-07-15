@@ -1,4 +1,4 @@
-package ai.lzy.graph.db;
+package ai.lzy.model.db;
 
 public class DaoException extends Exception {
     public DaoException(Exception e) {

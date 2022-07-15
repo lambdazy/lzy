@@ -25,7 +25,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import ai.lzy.graph.db.GraphExecutionDao;
-import ai.lzy.graph.db.DaoException;
+import ai.lzy.model.db.DaoException;
 import ai.lzy.graph.db.QueueEventDao;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.GraphExecutionState.Status;
@@ -80,6 +80,9 @@ public class QueueManager extends Thread {
             }
             try {
                 GraphExecutionKey key = queue.take();
+                if (GraphExecutionKey.isNoop(key)) {
+                    continue;
+                }
                 executor.submit(() -> process(key));
             } catch (InterruptedException e) {
                 LOG.debug("Thread is interrupted", e);
@@ -89,7 +92,7 @@ public class QueueManager extends Thread {
 
     public void gracefulShutdown() {
         stopping.set(true);
-        this.interrupt();
+        putIntoQueue(GraphExecutionKey.noop());
     }
 
     public GraphExecutionState startGraph(String workflowId,
@@ -106,7 +109,7 @@ public class QueueManager extends Thread {
             LOG.error("Error while adding start graph event from workflow <{}>", workflowId, e);
             throw io.grpc.Status.INTERNAL.withDescription("Error while starting graph").asException();
         }
-        this.interrupt();
+        putIntoQueue(GraphExecutionKey.noop());
         return state;
     }
 
@@ -129,7 +132,7 @@ public class QueueManager extends Thread {
             LOG.error("Error while adding graph {} stop event from workflow {}", graphId, workflowId, e);
             throw io.grpc.Status.INTERNAL.withDescription("Error while stopping graph").asException();
         }
-        this.interrupt();
+        putIntoQueue(GraphExecutionKey.noop());
         return state;
     }
 
@@ -224,5 +227,13 @@ public class QueueManager extends Thread {
         }
     }
 
-    private record GraphExecutionKey(String workflowId, String graphId) {}
+    private record GraphExecutionKey(String workflowId, String graphId) {
+        public static GraphExecutionKey noop() {
+            return new GraphExecutionKey("noop", "noop");
+        }
+
+        public static boolean isNoop(GraphExecutionKey key) {
+            return key.graphId().equals("noop") && key.workflowId().equals("noop");
+        }
+    }
 }

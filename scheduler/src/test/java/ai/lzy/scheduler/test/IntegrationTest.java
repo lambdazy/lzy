@@ -27,16 +27,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
 
 public class IntegrationTest {
     private SchedulerApi api;
     private AllocatorMock allocator;
     private SchedulerGrpc.SchedulerBlockingStub stub;
     private SchedulerPrivateGrpc.SchedulerPrivateBlockingStub privateStub;
+    ManagedChannel privateChan;
+    ManagedChannel chan;
 
     @Before
     public void setUp() {
@@ -47,11 +46,11 @@ public class IntegrationTest {
             api = new SchedulerApi(impl, privateApi, config);
             allocator = context.getBean(AllocatorMock.class);
         }
-        ManagedChannel chan = ChannelBuilder.forAddress("localhost", 2392)
+        chan = ChannelBuilder.forAddress("localhost", 2392)
             .usePlaintext()
             .build();
         stub = SchedulerGrpc.newBlockingStub(chan);
-        ManagedChannel privateChan = ChannelBuilder.forAddress("localhost", 2392)
+        privateChan = ChannelBuilder.forAddress("localhost", 2392)
                 .usePlaintext()
                 .build();
         privateStub = SchedulerPrivateGrpc.newBlockingStub(privateChan);
@@ -62,6 +61,10 @@ public class IntegrationTest {
     public void tearDown() throws InterruptedException {
         api.close();
         api.awaitTermination();
+        privateChan.shutdown();
+        privateChan.awaitTermination(100, TimeUnit.SECONDS);
+        chan.shutdown();
+        chan.awaitTermination(100, TimeUnit.SECONDS);
     }
 
     @Test

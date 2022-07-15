@@ -61,7 +61,7 @@ public final class LzyFsServer {
     private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
 
     public LzyFsServer(String sessionId, String mountPoint, URI selfUri, URI lzyServerUri, URI lzyWhiteboardUri,
-        IAM.Auth auth) throws IOException {
+                       IAM.Auth auth) throws IOException {
         assert LzyFs.scheme().equals(selfUri.getScheme());
 
         this.sessionId = sessionId;
@@ -400,7 +400,6 @@ public final class LzyFsServer {
 
 
     private final class Impl extends LzyFsGrpc.LzyFsImplBase {
-
         private interface SlotFn<R> {
 
             LzyFsApi.SlotCommandStatus call(R req);

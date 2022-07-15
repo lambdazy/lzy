@@ -3,8 +3,8 @@ import ai.lzy.graph.db.impl.GraphExecutionDaoImpl;
 import jakarta.inject.Inject;
 import java.util.Set;
 import java.util.stream.Collectors;
-import ai.lzy.graph.db.DaoException;
-import ai.lzy.graph.db.Storage;
+import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.Storage;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 

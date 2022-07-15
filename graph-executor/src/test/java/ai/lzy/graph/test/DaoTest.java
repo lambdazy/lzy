@@ -11,7 +11,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import ai.lzy.graph.db.GraphExecutionDao;
-import ai.lzy.graph.db.DaoException;
+import ai.lzy.model.db.DaoException;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import org.junit.rules.Timeout;
