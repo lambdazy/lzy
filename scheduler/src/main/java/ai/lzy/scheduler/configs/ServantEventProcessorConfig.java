@@ -2,11 +2,15 @@ package ai.lzy.scheduler.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 
+import java.time.Duration;
+
 @ConfigurationProperties("servant-processor")
 public record ServantEventProcessorConfig(
-        int allocationTimeoutSeconds,
-        int idleTimeoutSeconds,
-        int configuringTimeoutSeconds,
-        int servantStopTimeoutSeconds,
-        int executingHeartbeatPeriodSeconds,
-        int idleHeartbeatPeriodSeconds) { }
+        Duration allocationTimeout,
+        Duration idleTimeout,
+        Duration configuringTimeout,
+        Duration servantStopTimeout,
+        Duration executingHeartbeatPeriod,
+        Duration idleHeartbeatPeriod) {
+
+}

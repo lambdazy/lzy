@@ -36,7 +36,7 @@ public class TaskDaoImpl implements TaskDao {
     public Task create(String workflowId, String workflowName, TaskDesc taskDesc) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement("""
                 INSERT INTO task(id, workflow_id, workflow_name, task_description_json, status)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, CAST(? AS task_status))
                 """)) {
             int paramCount = 0;
             String id = UUID.randomUUID().toString();
@@ -78,7 +78,7 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     public List<Task> filter(TaskState.Status status) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement(
-                "SELECT " + FIELDS + "  FROM task WHERE status = ?")) {
+                "SELECT " + FIELDS + "  FROM task WHERE status = CAST(? AS task_status)")) {
             st.setString(1, status.name());
             final List<Task> tasks = new ArrayList<>();
             try (var rs = st.executeQuery()) {
@@ -96,7 +96,6 @@ public class TaskDaoImpl implements TaskDao {
     public List<Task> list(String workflowId) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement(
                 "SELECT " + FIELDS + " FROM task "
-                + FIELDS
                 + " WHERE workflow_id = ?")) {
             st.setString(1, workflowId);
             final List<Task> tasks = new ArrayList<>();
@@ -116,7 +115,7 @@ public class TaskDaoImpl implements TaskDao {
         try (var conn = storage.connect(); var st = conn.prepareStatement(
                 """
                 UPDATE task
-                SET (status, rc, error_description, servant_id) = (?, ?, ?, ?)
+                SET (status, rc, error_description, servant_id) = (CAST(? AS task_status), ?, ?, ?)
                 WHERE workflow_id = ? AND id = ?""")) {
             int paramCount = 0;
             st.setString(++paramCount, state.status().name());

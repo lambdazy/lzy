@@ -1,4 +1,5 @@
 CREATE type servant_event_type AS ENUM (
+    'NOOP',
     'ALLOCATION_TIMEOUT',
     'CONNECTED',
     'CONFIGURED',

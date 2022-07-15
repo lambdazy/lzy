@@ -188,6 +188,7 @@ public class ServantsPoolImpl implements ServantsPool {
     }
 
     private synchronized void free(String workflowName, String servantId) {
+        LOG.debug("Servant {} from workflow {} freed", servantId, workflowName);
         final Servant servant;
         try {
             dao.freeFromTask(workflowName, servantId);

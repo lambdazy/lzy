@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.test;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
+import ai.lzy.scheduler.configs.ProcessorConfigBuilder;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
@@ -9,6 +9,7 @@ import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.models.TaskDesc;
+import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.ServantsPool;
 import ai.lzy.scheduler.servant.impl.EventQueueManager;
 import ai.lzy.scheduler.servant.impl.SchedulerImpl;
@@ -17,8 +18,7 @@ import ai.lzy.scheduler.test.EventProcessorTest.AllocationRequest;
 import ai.lzy.scheduler.test.mocks.*;
 import io.micronaut.context.ApplicationContext;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.config.Configurator;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,44 +26,52 @@ import org.junit.rules.Timeout;
 
 import java.net.URI;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.function.Function;
 
 import static ai.lzy.scheduler.test.EventProcessorTest.buildZygote;
 
 public class SchedulerTest {
+    public static final ApplicationContext context = ApplicationContext.run();
+
+    public static final ServantEventDao events = context.getBean(ServantEventDao.class);
+    public static final ServantDao servantDao = context.getBean(ServantDao.class);
+    public static final TaskDao tasks = context.getBean(TaskDao.class);
+    public static final EventQueueManager manager = context.getBean(EventQueueManager.class);
 
     public AllocatorMock allocator;
-    public ServantEventDao events;
-    public ServantDao servantDao;
-    public TaskDao tasks;
     public String workflowId;
     public String workflowName;
-    public CountDownLatch servantReady;
-    public EventQueueManager manager;
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(30);
 
     @Before
     public void setUp() {
-        workflowId = "wfid";
-        workflowName = "wf";
-        var context = ApplicationContext.run();
-        tasks = context.getBean(TaskDao.class);
-        events = context.getBean(ServantEventDao.class);
-        manager = context.getBean(EventQueueManager.class);
-        servantDao = context.getBean(ServantDao.class);
+        workflowId = "wfid" + UUID.randomUUID();
+        workflowName = "wf" + UUID.randomUUID();
         allocator = new AllocatorMock();
-        servantReady = new CountDownLatch(1);
-        Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
+    }
+
+    @After
+    public void tearDown() throws DaoException {
+        for (Servant servant : servantDao.get(workflowId)) {
+            servantDao.invalidate(servant, "destroy");
+            events.removeAll(servant.id());
+        }
+        for (var task: tasks.list(workflowId)) {
+            task.notifyExecutionCompleted(1, "End of test");
+        }
     }
 
     @Test
     public void testSimple() throws Exception {
         ServiceConfig config = new ServiceConfig(1234, 1, Map.of(), 1, URI.create("http://localhost:1000"),
             URI.create("http://localhost:1000"), "", null, null);
-        final ServantEventProcessorConfig processorConfig = new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100);
+        var processorConfig = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .build();
 
         ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks, manager);
         SchedulerImpl scheduler = new SchedulerImpl(servantDao, tasks, pool, config);
@@ -122,7 +130,9 @@ public class SchedulerTest {
         ServiceConfig config = new ServiceConfig(1234, /*maxServantsPerWorkflow*/2, Map.of(),
                 /*maxDefaultServant*/ 2, URI.create("http://localhost:1000"),
                 URI.create("http://localhost:1000"), "", null, null);
-        final ServantEventProcessorConfig processorConfig = new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100);
+        var processorConfig = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .build();
 
         final BlockingQueue<AllocationRequest> requests = new LinkedBlockingQueue<>();
         ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks, manager);
@@ -190,7 +200,9 @@ public class SchedulerTest {
     public void testRestart() throws Exception {
         ServiceConfig config = new ServiceConfig(1234, 1, Map.of(), 1, URI.create("http://localhost:1000"),
                 URI.create("http://localhost:1000"), "", null, null);
-        final ServantEventProcessorConfig processorConfig = new ServantEventProcessorConfig(1, 1, 1, 1, 100, 100);
+        var processorConfig = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .build();
 
         ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks, manager);
         SchedulerImpl scheduler = new SchedulerImpl(servantDao, tasks, pool, config);

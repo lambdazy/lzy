@@ -33,7 +33,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
         try (var con = storage.connect(); var ps = con.prepareStatement(
             "INSERT INTO servant_event ("
                 + FIELDS
-                + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                + ") VALUES (?, ?, ?, ?, CAST(? AS servant_event_type), ?, ?, ?, ?)")) {
             int count = 0;
             ps.setString(++count, event.id());
             ps.setTimestamp(++count, Timestamp.from(event.timestamp()));
@@ -56,7 +56,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
 
     @Nullable
     @Override
-    public ServantEvent take(String servantId) {
+    public ServantEvent take(String servantId) throws InterruptedException {
         final ServantEvent[] event = new ServantEvent[1];
         try {
             Utils.executeInTransaction(storage, con -> {
@@ -85,6 +85,9 @@ public class ServantEventDaoImpl implements ServantEventDao {
                 }
             });
         } catch (DaoException e) {
+            if (e.getCause() instanceof InterruptedException) {
+                throw new InterruptedException();
+            }
             throw new RuntimeException("Cannot take event", e);
         }
         return event[0];
@@ -132,7 +135,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
                 DELETE FROM servant_event
                  WHERE servant_id = ? AND "type" = ANY(?)""")) {
             ps.setString(1, servantId);
-            var array = con.createArrayOf("varchar", Arrays.stream(types).map(Enum::name).toArray());
+            var array = con.createArrayOf("servant_event_type", Arrays.stream(types).map(Enum::name).toArray());
             ps.setArray(2, array);
             ps.execute();
         } catch (SQLException e) {

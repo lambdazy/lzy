@@ -16,8 +16,6 @@ import ai.lzy.scheduler.servant.ServantConnection;
 import ai.lzy.scheduler.task.Task;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
@@ -39,7 +37,6 @@ public class ServantEventProcessor extends Thread {
     private final BiConsumer<String, String> notifyReady;  // notify scheduler about free servant
     private final BiConsumer<String, String> notifyDestroyed;  // notify scheduler about destroyed state
     private final AtomicBoolean stopping = new AtomicBoolean(false);
-    private final Lock processingLock = new ReentrantLock();  // lock to prevent thread from interrupts while processing
 
     @Nullable
     private ServantConnection connection = null;
@@ -89,19 +86,14 @@ public class ServantEventProcessor extends Thread {
                     }
                     throw e;
                 }
-                try {
-                    processingLock.lock();
-                    if (stopping.get()) {
-                        queue.put(event);
-                        return;
-                    }
-                    boolean isDestroyed = this.process(event);
-                    if (isDestroyed) {
-                        notifyDestroyed.accept(workflowName, servantId);
-                        return;
-                    }
-                } finally {
-                    processingLock.unlock();
+                if (stopping.get()) {
+                    queue.put(event);
+                    return;
+                }
+                boolean isDestroyed = this.process(event);
+                if (isDestroyed) {
+                    notifyDestroyed.accept(workflowName, servantId);
+                    return;
                 }
             }
         } finally {
@@ -129,14 +121,15 @@ public class ServantEventProcessor extends Thread {
             newState = destroy(currentState, event);
         }
         try {
-            LOG.debug("Servant state processed.\n old: {}\n new: {}\n event: {}",
-                currentState, newState, event);
             dao.updateAndFree(newState);
+            LOG.debug("Servant state processed.\n old: {}\n new: {}\n event: {}",
+                    currentState, newState, event);
         } catch (DaoException e) {
             LOG.error("Cannot write new servant state to dao", e);
             throw new RuntimeException(e);
         }
-        if (newState.status() == Status.RUNNING || newState.status() == Status.IDLE) {
+        if ((newState.status() == Status.RUNNING || newState.status() == Status.IDLE)
+            && !(currentState.status() == Status.RUNNING || currentState.status() == Status.IDLE)) {
             notifyReady.accept(workflowName, servantId);
         }
         return newState.status() == Status.DESTROYED;
@@ -164,7 +157,7 @@ public class ServantEventProcessor extends Thread {
 
                 connection.api().configure(task.description().zygote().env());
                 final ServantEvent timeout = ServantEvent.fromState(currentState, Type.CONFIGURATION_TIMEOUT)
-                    .setTimeout(config.configuringTimeoutSeconds())
+                    .setTimeout(config.configuringTimeout())
                     .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
                     .setDescription("Environment is installing too long.")
                     .build();
@@ -191,7 +184,7 @@ public class ServantEventProcessor extends Thread {
                 if (currentState.status() == Status.CREATED) {
                     allocator.allocate(currentState.workflowName(), currentState.id(), currentState.provisioning());
                     final ServantEvent timeout = ServantEvent.fromState(currentState, Type.ALLOCATION_TIMEOUT)
-                        .setTimeout(config.allocationTimeoutSeconds())
+                        .setTimeout(config.allocationTimeout())
                         .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                         .setDescription("Allocation timeout reached")
                         .build();
@@ -206,7 +199,7 @@ public class ServantEventProcessor extends Thread {
 
                 connection.api().configure(task.description().zygote().env());
                 final ServantEvent timeout = ServantEvent.fromState(currentState, Type.CONFIGURATION_TIMEOUT)
-                    .setTimeout(config.configuringTimeoutSeconds())
+                    .setTimeout(config.configuringTimeout())
                     .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
                     .setDescription("Environment is installing too long.")
                     .build();
@@ -233,7 +226,7 @@ public class ServantEventProcessor extends Thread {
                     .fromState(currentState, Type.EXECUTING_HEARTBEAT_TIMEOUT)
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Servant is dead")
-                    .setTimeout(config.executingHeartbeatPeriodSeconds())
+                    .setTimeout(config.executingHeartbeatPeriod())
                     .build()
                 );
                 yield currentState.copy()
@@ -248,7 +241,7 @@ public class ServantEventProcessor extends Thread {
                     .fromState(currentState, Type.EXECUTING_HEARTBEAT_TIMEOUT)
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Servant is dead")
-                    .setTimeout(config.executingHeartbeatPeriodSeconds())
+                    .setTimeout(config.executingHeartbeatPeriod())
                     .build()
                 );
                 yield currentState;
@@ -262,11 +255,11 @@ public class ServantEventProcessor extends Thread {
                 task.notifyExecutionCompleted(event.rc(), event.description());
                 queue.put(ServantEvent
                     .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)
-                    .setTimeout(config.idleHeartbeatPeriodSeconds())
+                    .setTimeout(config.idleHeartbeatPeriod())
                     .build());
                 queue.put(ServantEvent
                     .fromState(currentState, Type.IDLE_TIMEOUT)
-                    .setTimeout(config.idleTimeoutSeconds())
+                    .setTimeout(config.idleTimeout())
                     .build());
                 yield currentState.copy()
                     .setStatus(Status.RUNNING)
@@ -279,7 +272,7 @@ public class ServantEventProcessor extends Thread {
                 eventDao.removeAllByTypes(currentState.id(), Type.IDLE_HEARTBEAT_TIMEOUT);
                 queue.put(ServantEvent
                     .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)
-                    .setTimeout(config.idleHeartbeatPeriodSeconds())
+                    .setTimeout(config.idleHeartbeatPeriod())
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Servant is dead")
                     .build()
@@ -308,6 +301,8 @@ public class ServantEventProcessor extends Thread {
                 assertStatus(currentState, event, Status.CONFIGURING);
                 yield stop(currentState, "Servant stopping: <" + event.description() + ">");
             }
+
+            case NOOP -> currentState;
         };
     }
 
@@ -428,7 +423,7 @@ public class ServantEventProcessor extends Thread {
 
     private ServantState idle(ServantState currentState) {
         final ServantEvent timeout = ServantEvent.fromState(currentState, Type.IDLE_TIMEOUT)
-            .setTimeout(config.idleTimeoutSeconds())
+            .setTimeout(config.idleTimeout())
             .setRc(ReturnCodes.SUCCESS.getRc())
             .setDescription("Servant is destroyed because of long idle state")
             .build();
@@ -449,7 +444,7 @@ public class ServantEventProcessor extends Thread {
         final ServantConnection connection = getConnection(currentState);
         connection.api().gracefulStop();
         final ServantEvent timeout = ServantEvent.fromState(currentState, Type.STOPPING_TIMEOUT)
-            .setTimeout(config.servantStopTimeoutSeconds())
+            .setTimeout(config.servantStopTimeout())
             .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
             .setDescription("Servant stopping timeout")
             .build();
@@ -464,12 +459,7 @@ public class ServantEventProcessor extends Thread {
     private static class AssertionException extends Exception {}
 
     public void shutdown() {
-        try {
-            this.processingLock.lock();
-            this.stopping.set(true);
-            this.interrupt();
-        } finally {
-            this.processingLock.unlock();
-        }
+        this.queue.put(ServantEvent.noop(workflowName, servantId));
+        this.stopping.set(true);
     }
 }
