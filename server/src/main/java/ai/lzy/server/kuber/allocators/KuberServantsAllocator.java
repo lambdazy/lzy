@@ -75,6 +75,9 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
                     .collect(Collectors.joining(","))
             ));
         }
+        LOG.info("Created servant pod in Kuber: {}", createdServantPod);
+        servantPods.put(servantId, createdServantPod);
+
         Objects.requireNonNull(createdServantPod.getMetadata());
         String servantPodName = createdServantPod.getMetadata().getName();
         int tryCount = 0;
@@ -111,7 +114,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
             createdServantPod = KuberUtils.findPodByName(listNamespacedPod, servantPodName).orElseThrow(
                     () -> new RuntimeException("Didn't find requested servant pod in kuber: " + servantPodName)
             );
-            if (Objects.requireNonNull(createdServantPod.getStatus()).getNominatedNodeName() != null) {
+            if (!"Pending".equals(Objects.requireNonNull(createdServantPod.getStatus()).getPhase())) {
                 break;
             } else {
                 tryCount++;
@@ -121,8 +124,6 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
                 }
             }
         }
-        LOG.info("Created servant pod in Kuber: {}", createdServantPod);
-        servantPods.put(servantId, createdServantPod);
     }
 
     private void lockNewNodePerSession(String sessionId, String servantId, Provisioning provisioning) {
