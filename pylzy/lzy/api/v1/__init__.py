@@ -2,7 +2,7 @@ import functools
 import inspect
 import logging
 import sys
-from typing import Callable
+from typing import Callable, Type, Sequence
 
 from lzy._proxy.result import Nothing
 from lzy.api.v1.cache_policy import CachePolicy
@@ -36,9 +36,9 @@ def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
 
 
 # pylint: disable=unused-argument
-def op_(provisioning: Provisioning, *, output_type=None):
+def op_(provisioning: Provisioning, *, output_type: Type = None):
     def deco(f):
-        nonlocal output_type
+        output_types: Sequence[Type]
         if output_type is None:
             infer_result = infer_return_type(f)
             if isinstance(infer_result, Nothing):
@@ -48,7 +48,9 @@ def op_(provisioning: Provisioning, *, output_type=None):
                     f"annotate return type of your function."
                 )
             else:
-                output_type = infer_result.value
+                output_types = infer_result.value
+        else:
+            output_types = tuple((output_type, ))
 
         @functools.wraps(f)
         def lazy(*args, **kwargs):
@@ -57,8 +59,7 @@ def op_(provisioning: Provisioning, *, output_type=None):
             if current_workflow is None:
                 return f(*args, **kwargs)
 
-            nonlocal output_type
-            signature = infer_call_signature(f, output_type, *args, **kwargs)
+            signature = infer_call_signature(f, output_types, *args, **kwargs)
             if isinstance(current_workflow, LzyLocalWorkflow):
                 lzy_op = LzyLocalOp(signature)
             elif isinstance(current_workflow, LzyRemoteWorkflow):
@@ -101,10 +102,15 @@ def op_(provisioning: Provisioning, *, output_type=None):
             # >>> obj = op_none_operation()
             # >>> obj is None
             # >>> False
-            if issubclass(output_type, type(None)):
+            if len(output_types) == 1 and issubclass(output_types[0], type(None)):
                 return None
-            else:
-                return lazy_proxy(lzy_op.materialize, output_type, {"_op": lzy_op})
+            if len(output_types) == 1:
+                val = lzy_op.return_values()[0]
+                return lazy_proxy(val.materialize, val.type, {"_op": val})
+            return tuple(
+                lazy_proxy(val.materialize, val.type, {"_op": val})
+                for val in lzy_op.return_values()
+            )
 
         return lazy
 

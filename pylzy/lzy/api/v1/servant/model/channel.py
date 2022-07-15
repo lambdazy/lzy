@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, TypeVar, Union
 
-from lzy.api.v1.servant.model.slot import Slot
+from lzy.api.v1.servant.model.slot import Slot, DataSchema
 
 
 @dataclass
@@ -18,7 +18,7 @@ class DirectChannelSpec:
 @dataclass
 class Channel:
     name: str
-    type_: type
+    data_scheme: DataSchema
     spec: Union[SnapshotChannelSpec, DirectChannelSpec]
 
 

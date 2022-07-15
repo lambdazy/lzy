@@ -9,7 +9,7 @@ from typing import (
     Iterator,
     Tuple,
     Type,
-    TypeVar,
+    TypeVar, List, Sequence,
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -20,7 +20,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 class FuncSignature(Generic[T]):
     callable: Callable[..., T]
     input_types: Dict[str, type]
-    output_type: Type[T]
+    output_types: Sequence[Type[T]]
     arg_names: Tuple[str, ...]
     kwarg_names: Tuple[str, ...]
 
@@ -41,7 +41,7 @@ class FuncSignature(Generic[T]):
 
     def __repr__(self) -> str:
         input_types = ", ".join(f"{n}={t}" for n, t in self.input_types.items())
-        return f"{self.callable} {self.name}({input_types}) -> {self.output_type}"
+        return f"{self.callable} {self.name}({input_types}) -> {self.output_types}"
 
 
 @dataclass

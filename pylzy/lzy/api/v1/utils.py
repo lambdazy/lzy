@@ -4,6 +4,7 @@ import os
 import uuid
 from io import BytesIO
 from itertools import chain
+from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -13,7 +14,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    get_type_hints,
+    get_type_hints, IO, Iterable, Sequence,
 )
 from zipfile import ZipFile
 
@@ -23,7 +24,7 @@ from lzy.api.v1.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
-TypeInferResult = Result[type]
+TypeInferResult = Result[Sequence[Type]]
 
 
 def infer_real_type(type_: Type[T]) -> Type[T]:
@@ -44,9 +45,11 @@ def infer_return_type(func: Callable) -> TypeInferResult:
         return Nothing()
 
     or_type = hints["return"]
+    if isinstance(or_type, tuple):
+        return Just(tuple(infer_real_type(typ) for typ in or_type))
     or_type = infer_real_type(or_type)
     if isinstance(or_type, type):
-        return Just(or_type)
+        return Just(tuple((or_type,)))
 
     return Nothing()
 
@@ -55,7 +58,7 @@ def infer_arg_types(*args) -> Tuple[type, ...]:
     # noinspection PyProtectedMember
     # pylint: disable=protected-access
     return tuple(
-        arg._op.return_type if is_lazy_proxy(arg) else type(arg) for arg in args
+        arg._op.type if is_lazy_proxy(arg) else type(arg) for arg in args
     )
 
 
@@ -112,7 +115,7 @@ def fileobj_hash(fileobj: BytesIO) -> str:
 
 
 def infer_call_signature(
-    f: Callable, output_type: type, *args, **kwargs
+    f: Callable, output_types: Sequence[Type], *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
     argspec = inspect.getfullargspec(f)
@@ -121,7 +124,7 @@ def infer_call_signature(
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
         types_mapping[name] = (
-            arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+            arg._op.type if is_lazy_proxy(arg) else type(arg)
         )
 
     generated_names = []
@@ -130,13 +133,13 @@ def infer_call_signature(
         generated_names.append(name)
         # noinspection PyProtectedMember
         types_mapping[name] = (
-            arg._op.signature.func.output_type if is_lazy_proxy(arg) else type(arg)
+            arg._op.type if is_lazy_proxy(arg) else type(arg)
         )
 
     arg_names = tuple(argspec.args[: len(args)] + generated_names)
     kwarg_names = tuple(kwargs.keys())
     return CallSignature(
-        FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names),
+        FuncSignature(f, types_mapping, output_types, arg_names, kwarg_names),
         args,
         kwargs,
     )
@@ -149,3 +152,22 @@ class LzyExecutionException(Exception):
             " please send the following trace files: /tmp/lzy-log/"
         )
         super().__init__(message, *args)
+
+
+class File:
+
+    def __init__(self, path: str):
+        self.__path = Path(path)
+        if not self.__path.exists() or not self.__path.is_file():
+            raise ValueError("File path must points to file")
+
+    @property
+    def path(self) -> Path:
+        return self.__path
+
+    def copy(self) -> 'File':
+        return File(str(self.__path))
+
+    def open(self, *args, **kwargs) -> IO:
+        return cast(IO, self.__path.open(*args, **kwargs))
+

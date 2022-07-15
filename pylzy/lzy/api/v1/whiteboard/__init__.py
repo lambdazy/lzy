@@ -13,7 +13,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardApi,
     WhiteboardDescription,
 )
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.api import FileSerializer
 
 ALREADY_WRAPPED = "_already_wrapped_whiteboard"
 ALREADY_WRAPPED_READY = "_already_wrapped_ready_whiteboard"
@@ -110,12 +110,12 @@ def wrap_whiteboard(
 
         if is_lazy_proxy(value):
             # noinspection PyProtectedMember
-            entry_id = value._op.return_entry_id()  # pylint: disable=protected-access
+            entry_id = value._op.entry_id  # pylint: disable=protected-access
             if entry_id is None:
                 raise RuntimeError("Cannot get entry_id from op")
         else:
             entry_id = entry_id_generator.generate("/wb/field/" + key)
-            data_scheme = DataSchema(pickle_type(type(value)))
+            data_scheme = DataSchema.generate_schema(type(value))
             dump(channel_manager.out_slot(entry_id, data_scheme), value)
 
         whiteboard_api.link(whiteboard_id, key, entry_id)
