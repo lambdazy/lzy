@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import IO, Any, Dict, Type, TypeVar
+from typing import IO, Any, Dict, Type, TypeVar, cast
 
 import cloudpickle  # type: ignore
 from pure_protobuf.dataclasses_ import load, loads  # type: ignore
@@ -32,7 +32,7 @@ class FileSerializerImpl(FileSerializer):
     def deserialize_from_file(self, data: IO, obj_type: Type[T] = None) -> T:
         if obj_type in self._registry:
             dumper = self._registry[obj_type]
-            return dumper.load(data)
+            return cast(T, dumper.load(data))
         elif check_message_field(obj_type):
             return load(obj_type, data)  # type: ignore
         return cloudpickle.load(data)  # type: ignore

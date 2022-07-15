@@ -169,5 +169,5 @@ class File:
         return File(str(self.__path))
 
     def open(self, *args, **kwargs) -> IO:
-        return self.__path.open(*args, **kwargs)
+        return cast(IO, self.__path.open(*args, **kwargs))
 

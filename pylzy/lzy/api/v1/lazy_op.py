@@ -5,7 +5,7 @@ import os
 import time
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Generic, Iterable, List, Optional, Tuple, TypeVar, Union, Type
+from typing import Any, Generic, Iterable, List, Optional, Tuple, TypeVar, Union, Type, cast
 
 from pure_protobuf.dataclasses_ import Message, load  # type: ignore
 
@@ -33,7 +33,7 @@ from lzy.serialization.serializer import FileSerializer, MemBytesSerializer
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-class LzyReturnValue:
+class LzyReturnValue(Generic[T]):
     """
     Class that represents return value of LzyOp
     """
@@ -45,7 +45,7 @@ class LzyReturnValue:
 
     def materialize(self) -> T:
         data = self.__op.materialize()
-        return data[self.__index]
+        return cast(T, data[self.__index])
 
     def execute(self):
         self.__op.execute()
@@ -66,13 +66,13 @@ class LzyReturnValue:
         self.__entry_id = entry_id
 
 
-class LzyOp(Generic[T], ABC):
-    def __init__(self, signature: CallSignature[T], entry_id_generator: EntryIdGenerator):
+class LzyOp(ABC):
+    def __init__(self, signature: CallSignature[Tuple], entry_id_generator: EntryIdGenerator):
         super().__init__()
-        self._sign: CallSignature[T] = signature
+        self._sign: CallSignature[Tuple] = signature
         self._materialized: bool = False
         self._executed: bool = False
-        self._materialization: Optional[T] = None
+        self._materialization: Optional[Tuple] = None
         self._log: logging.Logger = logging.getLogger(str(self.__class__))
         self._return_values = tuple(
             LzyReturnValue(self, num, entry_id_generator.generate(os.path.join("return", str(num))), typ)
@@ -80,21 +80,21 @@ class LzyOp(Generic[T], ABC):
         )
 
     @property
-    def signature(self) -> CallSignature[T]:
+    def signature(self) -> CallSignature[Tuple]:
         return self._sign
 
     def is_materialized(self) -> bool:
         return self._materialized
 
     @abstractmethod
-    def materialize(self) -> T:
+    def materialize(self) -> Tuple:
         pass
 
     @abstractmethod
     def execute(self):
         pass
 
-    def return_values(self) -> Tuple[LzyReturnValue]:
+    def return_values(self) -> Tuple[LzyReturnValue, ...]:
         return self._return_values
 
     def __repr__(self):
@@ -105,11 +105,11 @@ class LzyOp(Generic[T], ABC):
         )
 
 
-class LzyLocalOp(LzyOp, Generic[T]):
-    def __init__(self, signature: CallSignature[T]):
+class LzyLocalOp(LzyOp):
+    def __init__(self, signature: CallSignature[Tuple]):
         super().__init__(signature, UUIDEntryIdGenerator("snapshot"))
 
-    def materialize(self) -> T:
+    def materialize(self) -> Tuple:
         self._log.info("Materializing function %s", self.signature.func)
         name = self.signature.func.name
         if not self._materialized:
@@ -128,11 +128,11 @@ class LzyLocalOp(LzyOp, Generic[T]):
         self._materialized = True
 
 
-class LzyRemoteOp(LzyOp, Generic[T]):
+class LzyRemoteOp(LzyOp):
     def __init__(
         self,
         servant: ServantClient,
-        signature: CallSignature[T],
+        signature: CallSignature[Tuple],
         snapshot_id: str,
         entry_id_generator: EntryIdGenerator,
         mem_serializer: MemBytesSerializer,
@@ -318,22 +318,22 @@ class LzyRemoteOp(LzyOp, Generic[T]):
             ),
         )
 
-    def materialize(self) -> Any:
+    def materialize(self) -> Tuple:
         name = self.signature.func.name
         self._log.info("Materializing function %s", name)
-        if self._materialized:
+        if self._materialized and self._materialization is not None:
             return self._materialization
         if self._deployed:
             self._materialized = True
-            materialization = self.signature.exec()
+            mat = self.signature.exec()
             if len(self.return_values()) == 1:
-                self._materialization = tuple((materialization,))
+                self._materialization = tuple((mat,))
             else:
-                self._materialization = materialization
+                self._materialization = mat
             return self._materialization
         else:
             self.execute()
-            materialization = []
+            materialization: List[Any] = []
             for val in self.return_values():
                 output_data_scheme = DataSchema.generate_schema(val.type)
                 path = self._channel_manager.in_slot(
@@ -376,7 +376,7 @@ class LzyRemoteOp(LzyOp, Generic[T]):
         servant: ServantClient,
         materialized: bool,
         materialization: Any,
-        call_s: CallSignature[T],
+        call_s: CallSignature[Tuple],
         provisioning: Provisioning,
         env: PyEnv,
         snapshot_id: str,

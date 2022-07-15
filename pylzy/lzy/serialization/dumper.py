@@ -3,7 +3,7 @@ import tempfile
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import IO, Type, TypeVar, Generic
+from typing import IO, Type, TypeVar, Generic, Iterable
 
 import cloudpickle
 
@@ -77,33 +77,3 @@ class LzyFileDumper(Dumper[File]):
 
     def fit(self) -> bool:
         return True
-
-
-G = TypeVar("G")  # pylint: disable=invalid-name
-
-
-class IterableDumper(Dumper[G]):
-
-    def __init__(self, typ: Type[G], serializer: FileSerializer):
-        self.__typ = typ
-        self.__serializer = serializer
-
-    def dump(self, obj: G, dest: IO) -> None:
-        writes = []
-        beg = dest.tell()
-        for data in obj:
-            cloudpickle.dump(type(data), dest)
-            self.__serializer.serialize_to_file(data, dest)
-
-    def load(self, source: IO) -> G:
-        pass
-
-    def typ(self) -> Type[G]:
-        return self.__typ
-
-    def fit(self) -> bool:
-        return True
-
-
-
-

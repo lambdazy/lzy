@@ -108,7 +108,7 @@ class LocalChannelManager(ChannelManager):
     def _resolve_slot_path(self, slot: Slot) -> Path:
         pass
 
-    def channel(self, entry_id: str, type_: type) -> Channel:
+    def channel(self, entry_id: str, type_: DataSchema) -> Channel:
         pass
 
     def destroy(self, entry_id: str):
