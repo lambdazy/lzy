@@ -11,13 +11,12 @@ public record KharonConfig(
     String address,
     @Nullable
     String externalHost,
-    @Nullable
     String iamAddress,
     String serverAddress,
     String whiteboardAddress,
     String snapshotAddress,
     int servantProxyPort,
-    int servantProxyFsPort,
+    int servantFsProxyPort,
     @Nullable
     WorkflowServiceConfig workflow
 ) {}

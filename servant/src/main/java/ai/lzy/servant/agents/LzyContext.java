@@ -9,8 +9,6 @@ import ai.lzy.model.Slot;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
 import ai.lzy.model.graph.Env;
-import ai.lzy.model.logs.MetricEvent;
-import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.priv.v2.Servant;
 import ai.lzy.priv.v2.Servant.ServantProgress;
 import ai.lzy.servant.env.Environment;
@@ -22,7 +20,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 

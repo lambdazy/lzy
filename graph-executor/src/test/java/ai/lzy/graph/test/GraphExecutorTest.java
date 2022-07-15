@@ -21,7 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import ai.lzy.graph.db.DaoException;
+import ai.lzy.model.db.DaoException;
 import ai.lzy.graph.db.QueueEventDao;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.apache.logging.log4j.Level;

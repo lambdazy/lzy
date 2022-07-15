@@ -6,6 +6,7 @@ RUN chmod -R 700 app/resources
 
 ENTRYPOINT ["java", \
             "-Xmx4G", \
+            "-Dmicronaut.env.deduction=true", \
             "-Dsun.jnu.encoding=UTF-8", \
             "-Dfile.encoding=UTF-8", \
             "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32", \

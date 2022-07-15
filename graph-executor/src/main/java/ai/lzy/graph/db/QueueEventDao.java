@@ -1,6 +1,8 @@
 package ai.lzy.graph.db;
 
 import ai.lzy.graph.model.QueueEvent;
+import ai.lzy.model.db.DaoException;
+
 import java.util.List;
 
 public interface QueueEventDao {

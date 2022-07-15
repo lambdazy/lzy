@@ -2,7 +2,7 @@ iam:
   userLimit: 60 # 0 - is infinite limit
   serverPort: 8443
   database:
-    url: "jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER;DATABASE_TO_UPPER=false"
+    url: "jdbc:h2:mem:testdb_iam;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER;DATABASE_TO_UPPER=false"
     username: "test"
     password: ""
     enabled: true

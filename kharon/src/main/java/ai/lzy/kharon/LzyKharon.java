@@ -5,6 +5,7 @@ import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.env.PropertySource;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -49,6 +50,7 @@ public class LzyKharon {
         options.addOption("z", "lzy-server-address", true, "Lzy server address [host:port]");
         options.addOption("w", "lzy-whiteboard-address", true, "Lzy whiteboard address [host:port]");
         options.addOption("lsa", "lzy-snapshot-address", true, "Lzy snapshot address [host:port]");
+        options.addOption("iam", "lzy-iam-address", true, "Lzy iam address [host:port]");
     }
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
@@ -92,7 +94,7 @@ public class LzyKharon {
 
         var servantProxyAddress = new URI(LzyServant.scheme(), null, selfAddress.getHost(), config.servantProxyPort(),
             null, null, null);
-        var servantProxyFsAddress = new URI(LzyFs.scheme(), null, selfAddress.getHost(), config.servantProxyFsPort(),
+        var servantProxyFsAddress = new URI(LzyFs.scheme(), null, selfAddress.getHost(), config.servantFsProxyPort(),
             null, null, null);
 
         sessionManager = new TerminalSessionManager();
@@ -128,7 +130,7 @@ public class LzyKharon {
             .addService(ServerInterceptors.intercept(new KharonServantProxyService(), sessionIdInterceptor))
             .build();
 
-        kharonServantFsProxy = NettyServerBuilder.forPort(config.servantProxyFsPort())
+        kharonServantFsProxy = NettyServerBuilder.forPort(config.servantFsProxyPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             //.keepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
@@ -161,9 +163,11 @@ public class LzyKharon {
             final URI serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
             final URI whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
             final URI snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
+            final URI iamAddress = URI.create(parse.getOptionValue("lzy-iam-address", "http://localhost:8443"));
 
             p.put("kharon.address", host + ":" + port);
             p.put("kharon.external-host", externalHost);
+            p.put("kharon.iam-address", iamAddress.getHost() + ":" + iamAddress.getPort());
             p.put("kharon.server-address", serverAddress.getHost() + ":" + serverAddress.getPort());
             p.put("kharon.whiteboard-address", whiteboardAddress.getHost() + ":" + whiteboardAddress.getPort());
             p.put("kharon.snapshot-address", snapshotAddress.getHost() + ":" + snapshotAddress.getPort());
@@ -173,7 +177,7 @@ public class LzyKharon {
             // p.put("kharon.workflow", null);
         }
 
-        try (ApplicationContext context = ApplicationContext.run(p)) {
+        try (ApplicationContext context = ApplicationContext.run(PropertySource.of("cli", p))) {
             final LzyKharon kharon = new LzyKharon(context);
 
             kharon.start();

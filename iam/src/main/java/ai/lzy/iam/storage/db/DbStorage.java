@@ -27,7 +27,7 @@ public class DbStorage implements Storage {
     public DbStorage(DbConfig dbConfig) {
         Flyway flyway = Flyway.configure()
                 .dataSource(dbConfig.getUrl(), dbConfig.getUsername(), dbConfig.getPassword())
-                .locations("classpath:db/migrations")
+                .locations("classpath:db/iam/migrations")
                 .load();
         flyway.migrate();
 

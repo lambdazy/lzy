@@ -59,7 +59,8 @@ public class LocalRunner {
             System.out.println("Run without Kharon...");
             kharonContext = null;
         } else {
-            kharonContext = new KharonThreadContext(serverContext.address(), whiteboardContext.address());
+            kharonContext = new KharonThreadContext(serverContext.address(), whiteboardContext.address(),
+                iamContext.address());
             kharonContext.init();
         }
 
