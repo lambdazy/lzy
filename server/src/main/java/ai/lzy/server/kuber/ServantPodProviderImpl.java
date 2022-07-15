@@ -18,6 +18,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
+import static ai.lzy.server.kuber.KuberUtils.kuberValidName;
+
 @Singleton
 public class ServantPodProviderImpl implements ServantPodProvider {
     private static final Logger LOG = LoggerFactory.getLogger(ServantPodProviderImpl.class);
@@ -164,12 +166,6 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         );
 
         return pod;
-    }
-
-    @NotNull
-    private String kuberValidName(String name) {
-        // k8s pod name can only contain symbols [-a-z0-9]
-        return name.toLowerCase(Locale.ROOT).replaceAll("[^-a-z0-9]", "-");
     }
 
     private void addEnvVars(V1Container container, String token,

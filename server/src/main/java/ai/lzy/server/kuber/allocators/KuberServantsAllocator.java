@@ -23,6 +23,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static ai.lzy.server.kuber.KuberUtils.kuberValidName;
+
 @Singleton
 @Requires(property = "server.kuberAllocator.enabled", value = "true")
 public class KuberServantsAllocator extends ServantsAllocatorBase {
@@ -95,7 +97,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         } catch (ApiException e) {
             throw new RuntimeException(String.format(
                 "Exception while creating servant lock pod in kuber "
-                        + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
+                    + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
                 e,
                 e.getMessage(),
                 e.getCode(),
@@ -106,6 +108,34 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
             ));
         }
         LOG.info("Created servant lock pod in Kuber: {}", createdServantLockPod);
+    }
+
+    @Override
+    public synchronized void deleteSession(String sessionId) {
+        super.deleteSession(sessionId);
+        // TODO delete or drain all locked nodes
+        try {
+             api.deleteCollectionNamespacedPod(
+                 NAMESPACE, null, null, null, null, 1,
+                 "session-id=" + kuberValidName(sessionId), Integer.MAX_VALUE,
+                 null, null, null, null,
+                 Integer.MAX_VALUE, null
+             );
+        } catch (ApiException e) {
+            throw new RuntimeException(
+                String.format(
+                    "Exception while listing servant lock pods in kuber "
+                        + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
+                    e,
+                    e.getMessage(),
+                    e.getCode(),
+                    e.getResponseBody(),
+                    Arrays.stream(e.getStackTrace())
+                        .map(StackTraceElement::toString)
+                        .collect(Collectors.joining(","))
+                )
+            );
+        }
     }
 
     @Override
@@ -148,7 +178,6 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
             throw new RuntimeException(e);
         }
         servantPods.remove(connection.id());
-
     }
 
     private boolean isPodExists(String namespace, String name) throws ApiException {
