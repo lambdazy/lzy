@@ -1,24 +1,34 @@
 package ai.lzy.storage;
 
-import ai.lzy.priv.v2.LzyStorageApi;
 import ai.lzy.priv.v2.LzyStorageApi.*;
 import ai.lzy.priv.v2.LzyStorageGrpc;
 import io.grpc.stub.StreamObserver;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 
+@Singleton
 public class StorageService extends LzyStorageGrpc.LzyStorageImplBase {
 
-    @Override
-    public void createUserS3Bucket(CreateUserS3BucketRequest request, StreamObserver<CreateUserS3BucketResponse> responseObserver) {
-        super.createUserS3Bucket(request, responseObserver);
+    @Inject
+    public StorageService(StorageConfig config) {
+        config.validate();
+
+
     }
 
     @Override
-    public void deleteUserS3Bucket(DeleteUserS3BucketRequest request, StreamObserver<DeleteUserS3BucketResponse> responseObserver) {
-        super.deleteUserS3Bucket(request, responseObserver);
+    public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<CreateS3BucketResponse> response) {
+        super.createS3Bucket(request, response);
     }
 
     @Override
-    public void getUserS3BucketCredentials(GetUserS3BucketCredentialsRequest request, StreamObserver<GetUserS3BucketCredentialsResponse> responseObserver) {
-        super.getUserS3BucketCredentials(request, responseObserver);
+    public void deleteS3Bucket(DeleteS3BucketRequest request, StreamObserver<DeleteS3BucketResponse> response) {
+        super.deleteS3Bucket(request, response);
+    }
+
+    @Override
+    public void getS3BucketCredentials(GetS3BucketCredentialsRequest request,
+                                       StreamObserver<GetS3BucketCredentialsResponse> response) {
+        super.getS3BucketCredentials(request, response);
     }
 }

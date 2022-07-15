@@ -8,35 +8,32 @@ option java_outer_classname = "LzyStorageApi";
 option java_package = "ai.lzy.priv.v2";
 
 service LzyStorage {
-  rpc CreateUserS3Bucket (CreateUserS3BucketRequest) returns (CreateUserS3BucketResponse);
-  rpc DeleteUserS3Bucket (DeleteUserS3BucketRequest) returns (DeleteUserS3BucketResponse);
+  rpc CreateS3Bucket (CreateS3BucketRequest) returns (CreateS3BucketResponse);
+  rpc DeleteS3Bucket (DeleteS3BucketRequest) returns (DeleteS3BucketResponse);
 
-  rpc GetUserS3BucketCredentials (GetUserS3BucketCredentialsRequest) returns (GetUserS3BucketCredentialsResponse);
+  rpc GetS3BucketCredentials (GetS3BucketCredentialsRequest) returns (GetS3BucketCredentialsResponse);
 }
 
-message CreateUserS3BucketRequest {
-  string userId = 1;
-  string bucket = 2;
+message CreateS3BucketRequest {
+  string bucket = 1;
   // TODO: size limit, ttl and other settings
 }
 
-message CreateUserS3BucketResponse {
+message CreateS3BucketResponse {
 }
 
-message DeleteUserS3BucketRequest {
-  string userId = 1;
-  string bucket = 2;
+message DeleteS3BucketRequest {
+  string bucket = 1;
 }
 
-message DeleteUserS3BucketResponse {
+message DeleteS3BucketResponse {
 }
 
-message GetUserS3BucketCredentialsRequest {
-  string userId = 1;
-  string bucket = 2;
+message GetS3BucketCredentialsRequest {
+  string bucket = 1;
 }
 
-message GetUserS3BucketCredentialsResponse {
+message GetS3BucketCredentialsResponse {
   oneof credentials {
     AmazonCredentials amazon = 1;
     AzureCredentials azure = 2;
