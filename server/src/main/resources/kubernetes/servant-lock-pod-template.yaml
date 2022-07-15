@@ -12,7 +12,7 @@ spec:
     - name: lzy-servant-lock
       image: hello-world
       imagePullPolicy: Always
-  restartPolicy: Always
+  restartPolicy: Never
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
