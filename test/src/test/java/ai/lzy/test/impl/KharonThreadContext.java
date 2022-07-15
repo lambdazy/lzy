@@ -1,6 +1,7 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.test.LzyKharonTestContext;
+import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
@@ -28,15 +29,17 @@ public class KharonThreadContext implements LzyKharonTestContext {
 
     private final String serverAddress;
     private final String whiteboardAddress;
+    private final String iamAddress;
     private LzyKharon kharon;
     private ManagedChannel channel;
     private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
-    public KharonThreadContext(String serverAddress, String whiteboardAddress) {
+    public KharonThreadContext(String serverAddress, String whiteboardAddress, HostAndPort iamAddress) {
         var sa = URI.create(serverAddress);
         var wa = URI.create(whiteboardAddress);
         this.serverAddress = sa.getHost() + ":" + sa.getPort();
         this.whiteboardAddress = wa.getHost() + ":" + wa.getPort();
+        this.iamAddress = iamAddress.toString();
     }
 
     @Override
@@ -65,10 +68,11 @@ public class KharonThreadContext implements LzyKharonTestContext {
                 "kharon.address", "localhost:" + LZY_KHARON_PORT,
                 "kharon.external-host", "localhost",
                 "kharon.server-address", serverAddress,
+                "kharon.iam-address", iamAddress,
                 "kharon.whiteboard-address", whiteboardAddress,
                 "kharon.snapshot-address", whiteboardAddress,
                 "kharon.servant-proxy-port", LZY_KHARON_SERVANT_PROXY_PORT,
-                "kharon.servant-proxy-fs-port", LZY_KHARON_SERVANT_FS_PROXY_PORT
+                "kharon.servant-fs-proxy-port", LZY_KHARON_SERVANT_FS_PROXY_PORT
                 //"kharon.workflow", null
         );
         try (ApplicationContext context = ApplicationContext.run(PropertySource.of(appProperties))) {

@@ -1,14 +1,8 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.fs.LzyFsServer;
-import ai.lzy.test.LzyKharonTestContext;
-import ai.lzy.test.LzyServerTestContext;
-import ai.lzy.test.LzySnapshotTestContext;
-import ai.lzy.test.LzyTerminalTestContext;
-import ai.lzy.test.impl.KharonThreadContext;
-import ai.lzy.test.impl.ServerThreadContext;
-import ai.lzy.test.impl.SnapshotThreadContext;
-import ai.lzy.test.impl.Utils;
+import ai.lzy.test.*;
+import ai.lzy.test.impl.*;
 import io.findify.s3mock.S3Mock;
 import org.junit.After;
 import org.junit.Assert;
@@ -28,6 +22,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     }
 
     protected LzyServerTestContext serverContext;
+    protected LzyIAMTestContext iamContext;
     protected LzySnapshotTestContext whiteboardContext;
     protected LzyKharonTestContext kharonContext;
     protected S3Mock s3Mock;
@@ -43,9 +38,12 @@ public abstract class LocalScenario extends LzyBaseTest {
         createServantLzyFolder();
         serverContext = new ServerThreadContext(servantAllocatorType);
         serverContext.init();
+        iamContext = new IAMThreadContext();
+        iamContext.init();
         whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
-        kharonContext = new KharonThreadContext(serverContext.address(), whiteboardContext.address());
+        kharonContext = new KharonThreadContext(serverContext.address(), whiteboardContext.address(),
+            iamContext.address());
         kharonContext.init();
         s3Mock = new S3Mock.Builder().withPort(Config.S3_PORT).withInMemoryBackend().build();
         s3Mock.start();
@@ -62,6 +60,7 @@ public abstract class LocalScenario extends LzyBaseTest {
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();
+        iamContext.close();
         s3Mock.shutdown();
     }
 

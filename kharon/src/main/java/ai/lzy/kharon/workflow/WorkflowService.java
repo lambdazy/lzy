@@ -1,8 +1,8 @@
 package ai.lzy.kharon.workflow;
 
 import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.kharon.workflow.storage.WorkflowDataSource;
 import ai.lzy.model.JsonUtils;
-import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.priv.v2.LzyWorkflowApi.*;
 import ai.lzy.priv.v2.LzyWorkflowGrpc.LzyWorkflowImplBase;
@@ -10,7 +10,6 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,12 +24,12 @@ import java.util.function.BiConsumer;
 
 @Singleton
 public class WorkflowService extends LzyWorkflowImplBase {
-    public static final Logger LOG = LogManager.getLogger(WorkflowService.class);
+    private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
-    private final Storage storage;
+    private final WorkflowDataSource storage;
 
     @Inject
-    public WorkflowService(@Named("WorkflowStorage") Storage storage) {
+    public WorkflowService(WorkflowDataSource storage) {
         this.storage = storage;
     }
 
@@ -109,6 +108,10 @@ public class WorkflowService extends LzyWorkflowImplBase {
         if (executionId[0] != null) {
             response.onNext(CreateWorkflowResponse.newBuilder()
                 .setExecutionId(executionId[0])
+                .setTempS3(CreateWorkflowResponse.TempS3.newBuilder()
+
+                    .setBucket("tmp__user_" + userId + "__" + executionId[0])
+                    .build())
                 .build());
             response.onCompleted();
         } else {
