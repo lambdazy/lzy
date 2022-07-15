@@ -1,3 +1,5 @@
+package ai.lzy.storage;
+
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
 import org.apache.logging.log4j.LogManager;

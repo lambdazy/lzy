@@ -1,2 +1,15 @@
 storage:
   address: 'localhost:7780'
+
+  amazon:
+    enabled: false
+    endpoint: ''
+    access-token: ''
+    secret-token: ''
+
+  azure:
+    enabled: false
+    connection-string: ''
+
+  memory:
+    enabled: false
