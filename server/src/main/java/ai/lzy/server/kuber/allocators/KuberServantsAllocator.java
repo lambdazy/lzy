@@ -115,12 +115,12 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         super.deleteSession(sessionId);
         // TODO delete or drain all locked nodes
         try {
-             api.deleteCollectionNamespacedPod(
-                 NAMESPACE, null, null, null, null, 1,
-                 "session-id=" + kuberValidName(sessionId), Integer.MAX_VALUE,
-                 null, null, null, null,
-                 Integer.MAX_VALUE, null
-             );
+            api.deleteCollectionNamespacedPod(
+                NAMESPACE, null, null, null, null, 1,
+                "session-id=" + kuberValidName(sessionId), Integer.MAX_VALUE,
+                null, null, null, null,
+                Integer.MAX_VALUE, null
+            );
         } catch (ApiException e) {
             throw new RuntimeException(
                 String.format(
