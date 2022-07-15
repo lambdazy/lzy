@@ -24,7 +24,7 @@ public class MockDbStorage implements DbStorage {
 
     public MockDbStorage() {
         Configuration cfg = new Configuration();
-        cfg.setProperty("hibernate.connection.url", "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
+        cfg.setProperty("hibernate.connection.url", "jdbc:h2:mem:testdb_wb;DB_CLOSE_DELAY=-1");
         cfg.setProperty("hibernate.connection.driver_class", "org.h2.Driver");
         cfg.setProperty("hibernate.dialect",
             "org.hibernate.dialect.H2Dialect");

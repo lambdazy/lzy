@@ -84,6 +84,7 @@ resource "kubernetes_deployment" "kharon" {
             host_port      = local.kharon-servant-fs-proxy-port
           }
           args = [
+            "-Dmicronaut.env.deduction=true",
             "--lzy-server-address",
             "http://$(LZY_SERVER_IP):8888",
             "--host",
