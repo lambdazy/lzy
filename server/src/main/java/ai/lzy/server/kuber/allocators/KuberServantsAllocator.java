@@ -50,7 +50,6 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     protected void requestAllocation(
             String sessionId, String servantId, String servantToken, Provisioning provisioning, String bucket
     ) {
-        lockNewNodePerSession(sessionId, servantId, provisioning);
         // LZY SERVANT POD CREATION
         final V1Pod declaredServantPod;
         try {
@@ -60,7 +59,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         } catch (PodProviderException e) {
             throw new RuntimeException("Exception while creating servant pod spec", e);
         }
-        final V1Pod createdServantPod;
+        V1Pod createdServantPod;
         try {
             createdServantPod = api.createNamespacedPod(NAMESPACE, declaredServantPod, null, null, null, null);
         } catch (ApiException e) {
@@ -76,8 +75,53 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
                     .collect(Collectors.joining(","))
             ));
         }
-        LOG.info("Created servant pod in Kuber: {}", createdServantPod);
         Objects.requireNonNull(createdServantPod.getMetadata());
+        String servantPodName = createdServantPod.getMetadata().getName();
+        int tryCount = 0;
+        boolean createdLockPod = false;
+        while (true) {
+            final V1PodList listNamespacedPod;
+            try {
+                listNamespacedPod = api.listNamespacedPod(
+                    NAMESPACE,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "app=lzy-servant",
+                    Integer.MAX_VALUE,
+                    null,
+                    null,
+                    null,
+                    Boolean.FALSE
+                );
+            } catch (ApiException e) {
+                throw new RuntimeException(String.format(
+                    "Exception while listing pod in kuber "
+                            + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
+                    e,
+                    e.getMessage(),
+                    e.getCode(),
+                    e.getResponseBody(),
+                    Arrays.stream(e.getStackTrace())
+                        .map(StackTraceElement::toString)
+                        .collect(Collectors.joining(","))
+                ));
+            }
+            createdServantPod = KuberUtils.findPodByName(listNamespacedPod, servantPodName).orElseThrow(
+                    () -> new RuntimeException("Didn't find requested servant pod in kuber: " + servantPodName)
+            );
+            if (Objects.requireNonNull(createdServantPod.getStatus()).getNominatedNodeName() != null) {
+                break;
+            } else {
+                tryCount++;
+                if (tryCount > 5 && !createdLockPod) {
+                    lockNewNodePerSession(sessionId, servantId, provisioning);
+                    createdLockPod = true;
+                }
+            }
+        }
+        LOG.info("Created servant pod in Kuber: {}", createdServantPod);
         servantPods.put(servantId, createdServantPod);
     }
 
@@ -182,17 +226,17 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
 
     private boolean isPodExists(String namespace, String name) throws ApiException {
         final V1PodList listNamespacedPod = api.listNamespacedPod(
-                namespace,
-                null,
-                null,
-                null,
-                null,
-                "app=lzy-servant",
-                Integer.MAX_VALUE,
-                null,
-                null,
-                null,
-                Boolean.FALSE
+            namespace,
+            null,
+            null,
+            null,
+            null,
+            "app=lzy-servant",
+            Integer.MAX_VALUE,
+            null,
+            null,
+            null,
+            Boolean.FALSE
         );
         final Optional<V1Pod> queriedPod = KuberUtils.findPodByName(listNamespacedPod, name);
         return queriedPod.isPresent();
