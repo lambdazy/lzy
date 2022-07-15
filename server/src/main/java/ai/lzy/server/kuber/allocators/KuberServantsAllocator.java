@@ -48,33 +48,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     protected void requestAllocation(
             String sessionId, String servantId, String servantToken, Provisioning provisioning, String bucket
     ) {
-        // SERVANT LOCK POD CREATION
-        final V1Pod declaredServantLockPod;
-        try {
-            declaredServantLockPod = provider.createServantLockPod(
-                provisioning, servantId, sessionId
-            );
-        } catch (PodProviderException e) {
-            throw new RuntimeException("Exception while creating servant lock pod spec", e);
-        }
-        final V1Pod createdServantLockPod;
-        try {
-            createdServantLockPod = api.createNamespacedPod(NAMESPACE, declaredServantLockPod, null, null, null, null);
-        } catch (ApiException e) {
-            throw new RuntimeException(String.format(
-                "Exception while creating servant lock pod in kuber "
-                        + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
-                e,
-                e.getMessage(),
-                e.getCode(),
-                e.getResponseBody(),
-                Arrays.stream(e.getStackTrace())
-                    .map(StackTraceElement::toString)
-                    .collect(Collectors.joining(","))
-            ));
-        }
-        LOG.info("Created servant lock pod in Kuber: {}", createdServantLockPod);
-
+        lockNewNodePerSession(sessionId, servantId, provisioning);
         // LZY SERVANT POD CREATION
         final V1Pod declaredServantPod;
         try {
@@ -103,6 +77,35 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         LOG.info("Created servant pod in Kuber: {}", createdServantPod);
         Objects.requireNonNull(createdServantPod.getMetadata());
         servantPods.put(servantId, createdServantPod);
+    }
+
+    private void lockNewNodePerSession(String sessionId, String servantId, Provisioning provisioning) {
+        // SERVANT LOCK POD CREATION
+        final V1Pod declaredServantLockPod;
+        try {
+            declaredServantLockPod = provider.createServantLockPod(
+                    provisioning, servantId, sessionId
+            );
+        } catch (PodProviderException e) {
+            throw new RuntimeException("Exception while creating servant lock pod spec", e);
+        }
+        final V1Pod createdServantLockPod;
+        try {
+            createdServantLockPod = api.createNamespacedPod(NAMESPACE, declaredServantLockPod, null, null, null, null);
+        } catch (ApiException e) {
+            throw new RuntimeException(String.format(
+                "Exception while creating servant lock pod in kuber "
+                        + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
+                e,
+                e.getMessage(),
+                e.getCode(),
+                e.getResponseBody(),
+                Arrays.stream(e.getStackTrace())
+                    .map(StackTraceElement::toString)
+                    .collect(Collectors.joining(","))
+            ));
+        }
+        LOG.info("Created servant lock pod in Kuber: {}", createdServantLockPod);
     }
 
     @Override
