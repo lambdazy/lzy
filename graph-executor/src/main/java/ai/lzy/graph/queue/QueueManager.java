@@ -109,7 +109,7 @@ public class QueueManager extends Thread {
             LOG.error("Error while adding start graph event from workflow <{}>", workflowId, e);
             throw io.grpc.Status.INTERNAL.withDescription("Error while starting graph").asException();
         }
-        this.interrupt();
+        putIntoQueue(GraphExecutionKey.noop());
         return state;
     }
 
@@ -132,7 +132,7 @@ public class QueueManager extends Thread {
             LOG.error("Error while adding graph {} stop event from workflow {}", graphId, workflowId, e);
             throw io.grpc.Status.INTERNAL.withDescription("Error while stopping graph").asException();
         }
-        this.interrupt();
+        putIntoQueue(GraphExecutionKey.noop());
         return state;
     }
 
