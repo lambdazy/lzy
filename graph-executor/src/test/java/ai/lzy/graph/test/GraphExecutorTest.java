@@ -26,10 +26,7 @@ import ai.lzy.graph.db.QueueEventDao;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import ai.lzy.graph.algo.GraphBuilderImpl;
 import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.model.Slot;
@@ -46,8 +43,9 @@ import static ai.lzy.priv.v2.SchedulerApi.TaskStatus.StatusCase.QUEUE;
 public class GraphExecutorTest {
 
     private SchedulerApiMock scheduler;
-    private GraphDaoMock dao;
-    private QueueEventDao queueEventDao;
+    private static final ApplicationContext context = ApplicationContext.run();
+    private static final GraphDaoMock dao = context.getBean(GraphDaoMock.class);
+    private static final QueueEventDao queueEventDao = context.getBean(QueueEventDao.class);
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(10);
@@ -62,10 +60,26 @@ public class GraphExecutorTest {
             );
             return b.id();
         });
-        var context = ApplicationContext.run();
-        dao = context.getBean(GraphDaoMock.class);
-        queueEventDao = context.getBean(QueueEventDao.class);
-        Configurator.setAllLevels("ai.lzy.graph", Level.ALL);
+    }
+
+    @After
+    public void tearDown() throws DaoException {
+        scheduler = null;
+        var graphs = dao.filter(GraphExecutionState.Status.EXECUTING);
+        graphs.addAll(dao.filter(GraphExecutionState.Status.WAITING));
+        for (var graph: graphs) {
+            dao.free(graph.copyFromThis()
+                .withStatus(GraphExecutionState.Status.FAILED)
+                .build());
+        }
+        queueEventDao.removeAllAcquired();
+        var events = queueEventDao.acquireWithLimit(100);
+        while (events.size() > 0) {
+            for (var event : events) {
+                queueEventDao.remove(event);
+            }
+            events = queueEventDao.acquireWithLimit(100);
+        }
     }
 
     @Test

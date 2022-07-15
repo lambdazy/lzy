@@ -9,7 +9,7 @@ public interface ServantEventDao {
     void save(ServantEvent event);
 
     @Nullable
-    ServantEvent take(String servantId);
+    ServantEvent take(String servantId) throws InterruptedException;
 
     List<ServantEvent> list(String servantId);
 

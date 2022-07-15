@@ -19,7 +19,6 @@ public interface ServantDao {
     List<Servant> getAllAcquired() throws DaoException;
 
     Servant create(String workflowName, Provisioning provisioning) throws DaoException;
-    int countAlive(String workflowName, Provisioning provisioning) throws DaoException;
 
     @Nullable
     Servant get(String workflowName, String servantId) throws DaoException;

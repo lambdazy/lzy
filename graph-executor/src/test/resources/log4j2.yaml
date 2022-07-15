@@ -24,7 +24,7 @@ Configuration:
         AppenderRef:
           ref: Console
 
-      - name: "ai.lzy.scheduler"
+      - name: "ai.lzy.graph"
         level: debug
         AppenderRef:
           ref: Console

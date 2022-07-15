@@ -4,6 +4,8 @@ import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.models.ServantEvent;
 import java.util.List;
 import java.util.concurrent.DelayQueue;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class EventQueue {
     private final ServantEventDao dao;

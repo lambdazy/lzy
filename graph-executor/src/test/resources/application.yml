@@ -3,5 +3,6 @@ database:
   username: 'test'
   password: ''
   min-pool-size: 1
-  max-pool-size: 5
+  max-pool-size: 1
   enabled: true
+  

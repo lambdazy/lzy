@@ -92,5 +92,4 @@ class DefaultSerializer(Serializer):
         return self._mem_bytes_serializer.deserialize_from_string(data, obj_type)
 
     def add_dumper(self, dumper: Dumper):
-        # TODO
         pass
