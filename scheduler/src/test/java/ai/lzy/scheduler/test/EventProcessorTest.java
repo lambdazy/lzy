@@ -4,6 +4,7 @@ import ai.lzy.model.Slot;
 import ai.lzy.model.graph.*;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.priv.v2.Operations;
+import ai.lzy.scheduler.configs.ProcessorConfigBuilder;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
@@ -22,7 +23,6 @@ import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.*;
-import org.junit.jupiter.api.RepeatedTest;
 import org.junit.rules.Timeout;
 
 import java.io.IOException;
@@ -88,7 +88,10 @@ public class EventProcessorTest {
 
     @Test
     public void testSimple() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 0.1f, 100, 100, 100, 100))) {
+        var config = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .build();
+        try(var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -119,7 +122,10 @@ public class EventProcessorTest {
 
     @Test
     public void testAllocationTimeout() throws Exception {
-        try (var processor = new ProcessorContext(new ServantEventProcessorConfig(0.1f, 100, 100, 100, 100, 100))) {
+        var config = new ProcessorConfigBuilder()
+            .setAllocationTimeout(100)
+            .build();
+        try (var processor = new ProcessorContext(config)) {
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             awaitState(processor.servant.workflowName(),
@@ -130,7 +136,11 @@ public class EventProcessorTest {
 
     @Test
     public void testIdleTimeout() throws Exception {
-        try (var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 0.1f, 100, 0.1f, 100, 100))) {
+        var config = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .setServantStopTimeout(100)
+            .build();
+        try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -148,7 +158,12 @@ public class EventProcessorTest {
 
     @Test
     public void testConfigurationTimeout() throws Exception {
-        try (var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 0.1f, 0.1f, 0.1f, 100, 100))) {
+        var config = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .setServantStopTimeout(100)
+            .setConfiguringTimeout(100)
+            .build();
+        try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -162,7 +177,11 @@ public class EventProcessorTest {
 
     @Test
     public void testStoppingTimeout() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 0.1f, 100, 0.1f, 100, 100))) {
+        var config = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .setServantStopTimeout(100)
+            .build();
+        try(var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -179,7 +198,10 @@ public class EventProcessorTest {
 
     @Test
     public void testExecutingHeartbeats() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 100, 100, 100, 0.1f, 100))) {
+        var config = new ProcessorConfigBuilder()
+            .setExecutingHeartbeatPeriod(100)
+            .build();
+        try(var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -190,13 +212,13 @@ public class EventProcessorTest {
             processor.servant.notifyConfigured(0, "Ok");
             processor.servant.executingHeartbeat();
 
-            Thread.sleep(100);
+            Thread.sleep(50);
             processor.servant.executingHeartbeat();
-            Thread.sleep(100);
+            Thread.sleep(50);
             processor.servant.executingHeartbeat();
-            Thread.sleep(100);
+            Thread.sleep(50);
             processor.servant.executingHeartbeat();
-            Thread.sleep(100);
+            Thread.sleep(50);
             processor.servant.executingHeartbeat();
             awaitState(processor.servant.workflowName(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
@@ -205,7 +227,10 @@ public class EventProcessorTest {
 
     @Test
     public void testIdleHeartbeats() throws Exception {
-        try (var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 100, 100, 100, 100, 0.1f))) {
+        var config = new ProcessorConfigBuilder()
+            .setIdleHeartbeatPeriod(100)
+            .build();
+        try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -216,13 +241,13 @@ public class EventProcessorTest {
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
             processor.servant.notifyExecutionCompleted(0, "Ok");
-            Thread.sleep(100);
+            Thread.sleep(50);
             processor.servant.idleHeartbeat();
-            Thread.sleep(100);
+            Thread.sleep(50);
             processor.servant.idleHeartbeat();
-            Thread.sleep(100);
+            Thread.sleep(50);
             processor.servant.idleHeartbeat();
-            Thread.sleep(100);
+            Thread.sleep(50);
             processor.servant.idleHeartbeat();
             awaitState(processor.servant.workflowName(),
                     processor.servant.id(), ServantState.Status.DESTROYED);
@@ -231,7 +256,11 @@ public class EventProcessorTest {
 
     @Test
     public void testFailEnv() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 0.1f, 100, 0.1f, 100, 100))) {
+        var config = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .setServantStopTimeout(100)
+            .build();
+        try(var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -247,7 +276,11 @@ public class EventProcessorTest {
 
     @Test
     public void testFailExec() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 0.1f, 100, 0.1f, 100, 100))) {
+        var config = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .setServantStopTimeout(100)
+            .build();
+        try(var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -265,7 +298,11 @@ public class EventProcessorTest {
 
     @Test
     public void testFailStop() throws Exception {
-        try(var processor = new ProcessorContext(new ServantEventProcessorConfig(100, 0.1f, 100, 0.1f, 100, 100))) {
+        var config = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .setServantStopTimeout(100)
+            .build();
+        try(var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
             allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
@@ -288,9 +325,11 @@ public class EventProcessorTest {
 
     @Test
     public void testRestore() throws Exception {
+        var config = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .build();
         String servantId;
         final CompletableFuture<AllocationRequest> allocationRequested;
-        final ServantEventProcessorConfig config = new ServantEventProcessorConfig(100, 0.1f, 100, 100, 100, 100);
 
         try(var processor = new ProcessorContext(config)) {
             servantId = processor.servant.id();

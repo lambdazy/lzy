@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.test;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
+import ai.lzy.scheduler.configs.ProcessorConfigBuilder;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
@@ -16,11 +16,8 @@ import ai.lzy.scheduler.servant.impl.SchedulerImpl;
 import ai.lzy.scheduler.servant.impl.ServantsPoolImpl;
 import ai.lzy.scheduler.test.EventProcessorTest.AllocationRequest;
 import ai.lzy.scheduler.test.mocks.*;
-import com.mchange.v2.uid.UidUtils;
 import io.micronaut.context.ApplicationContext;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -72,7 +69,9 @@ public class SchedulerTest {
     public void testSimple() throws Exception {
         ServiceConfig config = new ServiceConfig(1234, 1, Map.of(), 1, URI.create("http://localhost:1000"),
             URI.create("http://localhost:1000"), "", null, null);
-        final ServantEventProcessorConfig processorConfig = new ServantEventProcessorConfig(100, 0.1f, 100, 100, 100, 100);
+        var processorConfig = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .build();
 
         ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks, manager);
         SchedulerImpl scheduler = new SchedulerImpl(servantDao, tasks, pool, config);
@@ -131,7 +130,9 @@ public class SchedulerTest {
         ServiceConfig config = new ServiceConfig(1234, /*maxServantsPerWorkflow*/2, Map.of(),
                 /*maxDefaultServant*/ 2, URI.create("http://localhost:1000"),
                 URI.create("http://localhost:1000"), "", null, null);
-        final ServantEventProcessorConfig processorConfig = new ServantEventProcessorConfig(100, 0.1f, 100, 100, 100, 100);
+        var processorConfig = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .build();
 
         final BlockingQueue<AllocationRequest> requests = new LinkedBlockingQueue<>();
         ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks, manager);
@@ -199,7 +200,9 @@ public class SchedulerTest {
     public void testRestart() throws Exception {
         ServiceConfig config = new ServiceConfig(1234, 1, Map.of(), 1, URI.create("http://localhost:1000"),
                 URI.create("http://localhost:1000"), "", null, null);
-        final ServantEventProcessorConfig processorConfig = new ServantEventProcessorConfig(100, 0.1f, 100, 100, 100, 100);
+        var processorConfig = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .build();
 
         ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks, manager);
         SchedulerImpl scheduler = new SchedulerImpl(servantDao, tasks, pool, config);

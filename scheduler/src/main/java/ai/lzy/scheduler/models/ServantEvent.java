@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.models;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -91,8 +92,8 @@ public record ServantEvent(
             return this;
         }
 
-        public EventBuilder setTimeout(float timeoutSecs) {
-            this.timestamp = Instant.now().plus((long) Math.floor(timeoutSecs * 1000), ChronoUnit.MILLIS);
+        public EventBuilder setTimeout(Duration timeout) {
+            this.timestamp = Instant.now().plus(timeout);
             return this;
         }
 

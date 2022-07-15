@@ -211,9 +211,6 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
         } catch (SQLException e) {
             throw new DaoException(e);
         }
-        var state = getState(servant.workflowName(), servant.id());
-        assert state != null;
-        assert state.status() == ServantState.Status.DESTROYED : state;
     }
 
     private void writeState(ServantState state, Connection con, PreparedStatement ps) throws SQLException {
