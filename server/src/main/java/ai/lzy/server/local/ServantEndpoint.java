@@ -153,7 +153,7 @@ public class ServantEndpoint implements Endpoint {
                     .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
-            LOG.warn("Unable to close " + this);
+            LOG.warn("Unable to close " + this, sre);
             return 0;
         } finally {
             invalidate();

@@ -25,11 +25,12 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 public class TerminalThreadContext implements LzyTerminalTestContext {
+
     final private Map<String, LzyTerminal> terminals = new HashMap<>();
 
     @Override
     public Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress, int debugPort,
-                                               String user, String privateKeyPath) {
+        String user, String privateKeyPath) {
 
         if (terminals.get(path) != null) {
             final LzyTerminal term = terminals.remove(path);
@@ -174,14 +175,13 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
     @Override
     public void close() {
         for (Map.Entry<String, LzyTerminal> terminalEntry : terminals.entrySet()) {
-
             terminalEntry.getValue().close();
             try {
                 terminalEntry.getValue().awaitTermination();
                 if (SystemUtils.IS_OS_MAC) {
-                    Runtime.getRuntime().exec("umount -f " + terminalEntry.getKey());
+                    Runtime.getRuntime().exec(new String[]{"umount", "-f", terminalEntry.getKey()});
                 } else {
-                    Runtime.getRuntime().exec("umount " + terminalEntry.getKey());
+                    Runtime.getRuntime().exec(new String[]{"umount", terminalEntry.getKey()});
                 }
             } catch (InterruptedException | IOException e) {
                 throw new RuntimeException(e);

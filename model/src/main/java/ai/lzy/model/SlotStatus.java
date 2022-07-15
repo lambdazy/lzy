@@ -7,8 +7,6 @@ public interface SlotStatus {
     @Nullable
     String channelId();
 
-    String user();
-
     String tid();
 
     Slot slot();

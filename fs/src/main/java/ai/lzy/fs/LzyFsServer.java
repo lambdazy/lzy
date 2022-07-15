@@ -4,6 +4,8 @@ import ai.lzy.model.*;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -37,7 +39,9 @@ import static ai.lzy.model.Constants.LOGS_DIR;
 import static ai.lzy.model.UriScheme.*;
 
 public final class LzyFsServer {
+
     private static final Logger LOG = LogManager.getLogger(LzyFsServer.class);
+    public static final AtomicInteger mounted = new AtomicInteger(); //for tests
 
     public static final String DEFAULT_MOUNT_POINT = "/tmp/lzy";
     public static final String DEFAULT_HOST = "localhost";
@@ -53,6 +57,7 @@ public final class LzyFsServer {
     private final ManagedChannel lzyServerChannel;
     private final SlotConnectionManager slotConnectionManager;
     private final Server localServer;
+    private final AtomicBoolean stopped = new AtomicBoolean(false);
     private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
 
     public LzyFsServer(String sessionId, String mountPoint, URI selfUri, URI lzyServerUri, URI lzyWhiteboardUri,
@@ -123,22 +128,15 @@ public final class LzyFsServer {
     }
 
     public void stop() {
-        LOG.info("LzyFs shutdown request at {}.", selfUri);
-        try {
-            lzyServerChannel.shutdown();
-            localServer.shutdown();
-        } finally {
-            fs.umount();
-        }
-    }
-
-    public void forceStop() {
-        LOG.info("LzyFs force shutdown request at {}.", selfUri);
-        try {
-            lzyServerChannel.shutdownNow();
-            localServer.shutdownNow();
-        } finally {
-            fs.umount();
+        LOG.info("LzyFs shutdown request at {}, path {}", selfUri, mountPoint);
+        if (stopped.compareAndSet(false, true)) {
+            try {
+                lzyServerChannel.shutdown();
+                localServer.shutdown();
+            } finally {
+                fs.umount();
+                mounted.decrementAndGet();
+            }
         }
     }
 
@@ -149,10 +147,8 @@ public final class LzyFsServer {
                 slotConnectionManager.snapshooter().close();
             }
             slotsManager.close();
-            lzyServerChannel.awaitTermination(30, TimeUnit.SECONDS);
-            localServer.awaitTermination();
         } finally {
-            fs.umount();
+            stop();
         }
         LOG.info("LzyFs at {} terminated.", selfUri);
     }
@@ -169,7 +165,7 @@ public final class LzyFsServer {
 
     public LzyFsApi.SlotCommandStatus createSlot(LzyFsApi.CreateSlotRequest request) {
         LOG.info("LzyFsServer::createSlot: taskId={}, slotName={}: {}.",
-                request.getTaskId(), request.getSlot().getName(), JsonUtils.printRequest(request));
+            request.getTaskId(), request.getSlot().getName(), JsonUtils.printRequest(request));
 
         var existing = slotsManager.slot(request.getTaskId(), request.getSlot().getName());
         if (existing != null) {
@@ -243,9 +239,7 @@ public final class LzyFsServer {
         }
 
         final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());
-        if (auth.hasUser()) {
-            status.setUser(auth.getUser().getUserId());
-        }
+        status.setTaskId(request.getTaskId());
 
         return LzyFsApi.SlotCommandStatus.newBuilder()
             .setStatus(status.build())
@@ -356,6 +350,7 @@ public final class LzyFsServer {
             fs.umount();
             throw e;
         }
+        mounted.incrementAndGet();
 
         return fs;
     }
@@ -391,36 +386,22 @@ public final class LzyFsServer {
     }
 
 
-    private static final class LzyScriptImpl implements LzyScript {
-        private final Path location;
-        private final CharSequence scriptText;
-        private final Operations.Zygote zygote;
-
-        private LzyScriptImpl(Path location, CharSequence scriptText, Operations.Zygote zygote) {
-            this.location = location;
-            this.scriptText = scriptText;
-            this.zygote = zygote;
-        }
+    private record LzyScriptImpl(
+        Path location,
+        CharSequence scriptText,
+        Operations.Zygote zygote
+    ) implements LzyScript {
 
         @Override
         public Zygote operation() {
             return GrpcConverter.from(zygote);
-        }
-
-        @Override
-        public Path location() {
-            return location;
-        }
-
-        @Override
-        public CharSequence scriptText() {
-            return scriptText;
         }
     }
 
 
     private final class Impl extends LzyFsGrpc.LzyFsImplBase {
         private interface SlotFn<R> {
+
             LzyFsApi.SlotCommandStatus call(R req);
         }
 

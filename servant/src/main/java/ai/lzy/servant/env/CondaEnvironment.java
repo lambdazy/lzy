@@ -12,6 +12,8 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import net.lingala.zip4j.core.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
@@ -30,6 +32,8 @@ import ru.yandex.qe.s3.transfer.download.DownloadResult;
 public class CondaEnvironment implements AuxEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
+    private static final Lock lockForMultithreadingTests = new ReentrantLock();
+
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
     private final StorageClient storage;
@@ -88,6 +92,7 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     private void installPyenv() throws EnvironmentInstallationException {
+        lockForMultithreadingTests.lock();
         try {
             LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
             final String yamlPath = resourcesPath + "conda.yaml";
@@ -166,6 +171,8 @@ public class CondaEnvironment implements AuxEnvironment {
             }
         } catch (IOException | ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
+        } finally {
+            lockForMultithreadingTests.unlock();
         }
     }
 

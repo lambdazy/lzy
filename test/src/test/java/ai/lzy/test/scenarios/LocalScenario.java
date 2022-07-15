@@ -1,5 +1,6 @@
 package ai.lzy.test.scenarios;
 
+import ai.lzy.fs.LzyFsServer;
 import ai.lzy.test.LzyKharonTestContext;
 import ai.lzy.test.LzyServerTestContext;
 import ai.lzy.test.LzySnapshotTestContext;
@@ -20,7 +21,9 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 public abstract class LocalScenario extends LzyBaseTest {
+
     static class Config extends Utils.Defaults {
+
         protected static final int S3_PORT = 8001;
     }
 
@@ -51,11 +54,15 @@ public abstract class LocalScenario extends LzyBaseTest {
 
     @After
     public void tearDown() {
-        s3Mock.shutdown();
+        super.tearDown();
+        //wait until all servants unmount fs
+        final boolean flagUp = Utils.waitFlagUp(() -> LzyFsServer.mounted.get() == 0, 60, TimeUnit.SECONDS);
+        Assert.assertTrue("Not all fs servers are unmounted", flagUp);
+
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();
-        super.tearDown();
+        s3Mock.shutdown();
     }
 
     public void startTerminalWithDefaultConfig() {
