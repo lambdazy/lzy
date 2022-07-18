@@ -3,9 +3,11 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, cast
+from typing import Dict, cast, Any
 
 import cloudpickle
+
+from lzy.api.v1.utils import File
 
 
 def pickle_type(type_: type) -> str:
@@ -41,6 +43,12 @@ class Direction(Enum):
         ]
 
 
+PLAINTEXT_SCHEME_TYPE = "plain"
+FILE_TYPE = "file"
+
+CLOUDPICKLE_SCHEME_TYPE = "cloudpickle"
+
+
 @dataclass(frozen=True)
 class DataSchema:
     # TODO(aleksZubakov): probably we should expand this for case when type defined as proto
@@ -49,7 +57,13 @@ class DataSchema:
 
     @property
     def real_type(self) -> type:
-        return unpickle_type(self.type_)
+        if self.schemeType == PLAINTEXT_SCHEME_TYPE:
+            if self.type_ == FILE_TYPE:
+                return File
+            raise ValueError("Unsupported DataScheme type")
+        if self.schemeType == CLOUDPICKLE_SCHEME_TYPE:
+            return unpickle_type(self.type_)
+        raise ValueError("Unsupported DataScheme type")
 
     def to_dict(self) -> Dict[str, str]:
         return {
@@ -60,6 +74,12 @@ class DataSchema:
     def to_json(self) -> str:
         # TODO(aleksZubakov): has it be here?
         return json.dumps(self.to_dict(), sort_keys=True)
+
+    @staticmethod
+    def generate_schema(typ: type) -> 'DataSchema':
+        if typ == File:
+            return DataSchema(FILE_TYPE, PLAINTEXT_SCHEME_TYPE)
+        return DataSchema(pickle_type(typ), CLOUDPICKLE_SCHEME_TYPE)
 
 
 # actually Slot should be just marked as

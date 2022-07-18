@@ -83,4 +83,10 @@ public class PyApiTest extends LocalScenario {
         //Arrange
         evalAndAssertScenarioResult(terminal, "whiteboards");
     }
+
+    @Test
+    public void testFile() {
+        //Arrange
+        evalAndAssertScenarioResult(terminal, "file_test");
+    }
 }

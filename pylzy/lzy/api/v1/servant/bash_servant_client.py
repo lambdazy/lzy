@@ -180,11 +180,7 @@ class BashServantClient(ServantClient):
             prefix="channel_datascheme_", suffix=".json", dir="/tmp/"
         )
         with open(datascheme_file, "w", encoding=encoding) as file:
-            serialized_type_ = base64.b64encode(
-                cloudpickle.dumps(channel.type_)
-            ).decode("ascii")
-            json_scheme = {"schemeType": "cloudpickle", "type": serialized_type_}
-            json.dump(json_scheme, file, indent=3)
+            file.write(channel.data_scheme.to_json())
         command.extend(["-c", datascheme_file])
 
         return exec_bash(*command)
@@ -280,27 +276,25 @@ class BashServantClient(ServantClient):
             prefix="lzy_execution_description_", suffix=".json", dir="/tmp/"
         )
         with open(execution_description_file, "w", encoding=encoding) as file:
-            json.dump(
-                {
-                    "description": {
-                        "name": execution.name,
-                        "snapshotId": execution.snapshot_id,
-                        "input": [
-                            {
-                                "name": val.name,
-                                "hash": val.hash,
-                                "entryId": val.entry_id,
-                            }
-                            for val in execution.inputs
-                        ],
-                        "output": [
-                            {"name": val.name, "entryId": val.entry_id}
-                            for val in execution.outputs
-                        ],
-                    }
-                },
-                file,
-            )
+            data = {
+                "description": {
+                    "name": execution.name,
+                    "snapshotId": execution.snapshot_id,
+                    "input": [
+                        {
+                            "name": val.name,
+                            "hash": val.hash,
+                            "entryId": val.entry_id,
+                        }
+                        for val in execution.inputs
+                    ],
+                    "output": [
+                        {"name": val.name, "entryId": val.entry_id}
+                        for val in execution.outputs
+                    ],
+                }
+            }
+            json.dump(data, file)
         exec_bash(f"{self._mount}/sbin/cache", "save", execution_description_file)
 
     def resolve_executions(
@@ -325,6 +319,7 @@ class BashServantClient(ServantClient):
             json.dump(description, file)
 
         ret = exec_bash(f"{self._mount}/sbin/cache", "find", execution_description_file)
+        execution = json.loads(ret).get("execution", [])
         return [
             ExecutionDescription(
                 exec_description["name"],
@@ -338,7 +333,7 @@ class BashServantClient(ServantClient):
                     for val in exec_description.get("output", [])
                 ],
             )
-            for exec_description in json.loads(ret).get("execution", [])
+            for exec_description in execution
         ]
 
     @classmethod

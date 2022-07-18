@@ -1,4 +1,5 @@
-FROM lzydock/lzy-servant-base:master
+ARG SERVANT_BASE_TAG
+FROM lzydock/lzy-servant-base:${SERVANT_BASE_TAG}
 
 RUN mkdir -p /tmp/lzy-log/servant \
     && mkdir -p /tmp/resources

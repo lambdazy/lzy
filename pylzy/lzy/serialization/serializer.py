@@ -1,48 +1,30 @@
 from abc import ABC, abstractmethod
-from typing import IO, Any, Dict, Type, TypeVar
+from typing import IO, Any, Dict, Type, TypeVar, cast
 
 import cloudpickle  # type: ignore
 from pure_protobuf.dataclasses_ import load, loads  # type: ignore
 
 from lzy.api.v2.utils import check_message_field
-from lzy.serialization.dumper import CatboostPoolDumper, Dumper
+from lzy.serialization.api import FileSerializer, MemBytesSerializer
+from lzy.serialization.dumper import CatboostPoolDumper, Dumper, LzyFileDumper
 
 T = TypeVar("T")  # pylint: disable=invalid-name
-
-
-class FileSerializer(ABC):
-    @abstractmethod
-    def serialize_to_file(self, obj: Any, file: IO) -> None:
-        pass
-
-    @abstractmethod
-    def deserialize_from_file(self, data: IO, obj_type: Type[T] = None) -> T:
-        pass
-
-
-class MemBytesSerializer(ABC):
-    @abstractmethod
-    def serialize_to_string(self, obj: Any) -> bytes:
-        pass
-
-    @abstractmethod
-    def deserialize_from_string(self, data: bytes, obj_type: Type[T] = None) -> T:
-        pass
 
 
 class FileSerializerImpl(FileSerializer):
     def __init__(self):
         self._registry: Dict[Type, Dumper] = {}
-        dumpers = [CatboostPoolDumper()]
+        dumpers = [CatboostPoolDumper(), LzyFileDumper()]
         for dumper in dumpers:
             if dumper.fit():
                 self._registry[dumper.typ()] = dumper
 
     def serialize_to_file(self, obj: Any, file: IO) -> None:
-        if type(obj) in self._registry:
-            dumper = self._registry[type(obj)]
+        typ = type(obj) if not hasattr(obj, "__lzy_origin__") else type(obj.__lzy_origin__)
+        if typ in self._registry:
+            dumper = self._registry[typ]
             dumper.dump(obj, file)
-        elif check_message_field(type(obj)) or check_message_field(obj):
+        elif check_message_field(typ) or check_message_field(obj):
             obj.dump(file)  # type: ignore
         else:
             cloudpickle.dump(obj, file)
@@ -50,7 +32,7 @@ class FileSerializerImpl(FileSerializer):
     def deserialize_from_file(self, data: IO, obj_type: Type[T] = None) -> T:
         if obj_type in self._registry:
             dumper = self._registry[obj_type]
-            return dumper.load(data)
+            return cast(T, dumper.load(data))
         elif check_message_field(obj_type):
             return load(obj_type, data)  # type: ignore
         return cloudpickle.load(data)  # type: ignore

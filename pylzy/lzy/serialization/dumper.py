@@ -1,27 +1,16 @@
 import os
 import tempfile
+import uuid
 from abc import ABC, abstractmethod
-from typing import IO, Type, TypeVar
+from pathlib import Path
+from typing import IO, Type, TypeVar, Generic, Iterable
+
+import cloudpickle
+
+from lzy.api.v1.utils import File
+from lzy.serialization.api import FileSerializer, Dumper
 
 T = TypeVar("T")  # pylint: disable=invalid-name
-
-
-class Dumper(ABC):
-    @abstractmethod
-    def dump(self, obj: T, dest: IO) -> None:
-        pass
-
-    @abstractmethod
-    def load(self, source: IO) -> T:
-        pass
-
-    @abstractmethod
-    def typ(self) -> Type[T]:
-        pass
-
-    @abstractmethod
-    def fit(self) -> bool:
-        pass
 
 
 # noinspection PyPackageRequirements
@@ -63,3 +52,28 @@ class CatboostPoolDumper(Dumper):
         import catboost
 
         return catboost.Pool  # type: ignore
+
+
+class LzyFileDumper(Dumper[File]):
+
+    def dump(self, obj: File, dest: IO) -> None:
+        with obj.path.open("rb") as f:
+            data = f.read(4096)
+            while len(data) > 0:
+                dest.write(data)
+                data = f.read(4096)
+
+    def load(self, source: IO) -> File:
+        new_path = os.path.join("/tmp", str(uuid.uuid1()))
+        with open(new_path, "wb") as f:
+            data = source.read(4096)
+            while len(data) > 0:
+                f.write(data)
+                data = source.read(4096)
+        return File(new_path)
+
+    def typ(self) -> Type[File]:
+        return File
+
+    def fit(self) -> bool:
+        return True

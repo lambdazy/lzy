@@ -1,7 +1,7 @@
 import uuid
 
 from lzy.api.v1 import CachePolicy, LzyRemoteEnv, op
-from lzy.api.v1.lazy_op import LzyOp
+from lzy.api.v1.lazy_op import LzyOp, LzyReturnValue
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
@@ -27,8 +27,8 @@ with LzyRemoteEnv().workflow(
 ):
     c = fun2(fun1(), 1)
 
-op1: LzyOp = a._op
-op2: LzyOp = b._op
-op3: LzyOp = c._op
+op1: LzyReturnValue = a._op
+op2: LzyReturnValue = b._op
+op3: LzyReturnValue = c._op
 
-print(f"Is fun2 cached? {op1.return_entry_id() == op3.return_entry_id()}")
+print(f"Is fun2 cached? {op1.entry_id == op3.entry_id}")

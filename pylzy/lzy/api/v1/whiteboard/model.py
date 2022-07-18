@@ -10,7 +10,7 @@ from inspect import Signature
 from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, cast
 from urllib import parse
 
-from lzy.api.v1.servant.model.slot import Slot
+from lzy.api.v1.servant.model.slot import Slot, DataSchema
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -36,7 +36,7 @@ class WhiteboardFieldDescription:
         List[str]
     ]  # protobuf makes no distinction between empty list and null list
     uri: Optional[str]
-    type_: Optional[type]
+    data_schema: Optional[DataSchema]
 
 
 class WhiteboardStatus(Enum):
