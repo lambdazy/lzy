@@ -34,6 +34,16 @@ jobs:
         timeout-minutes: 10
         run: mvn clean install
 
+      - name: 'RunTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'PyApiTest'
+        timeout-minutes: 15
+        run: |
+          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
       - name: 'build servant image'
         timeout-minutes: 15
         run: |
@@ -64,16 +74,6 @@ jobs:
         timeout-minutes: 5
         run: |
           cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'PyApiTest'
-        timeout-minutes: 15
-        run: |
-          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'RunTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'SnapshotTest'
         timeout-minutes: 5
