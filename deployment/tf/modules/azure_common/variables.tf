@@ -51,6 +51,7 @@ variable "location" {
   default = "North Europe"
 }
 
+// docker images
 variable "backoffice-frontend-image" {
   type    = string
   default = "lzydock/lzy-backoffice-frontend:master"
@@ -61,39 +62,37 @@ variable "backoffice-backend-image" {
   default = "lzydock/lzy-backoffice-backend:master"
 }
 
-variable "servant-image" {
-  type    = string
-  default = "lzydock/lzy-servant:master"
-}
-
-variable "base-env-default-image" {
-  type    = string
-  default = "lzydock/default-env:master"
-}
-
 variable "clickhouse-image" {
   type    = string
   default = "clickhouse/clickhouse-server"
 }
 
+variable "grafana-image" {
+  type    = string
+}
+
 variable "kharon-image" {
   type    = string
-  default = "lzydock/lzy-kharon:master"
 }
 
 variable "server-image" {
   type    = string
-  default = "lzydock/lzy-server:master"
 }
 
 variable "whiteboard-image" {
   type    = string
-  default = "lzydock/lzy-whiteboard:master"
 }
 
 variable "iam-image" {
   type    = string
-  default = "lzydock/lzy-iam:master"
+}
+
+variable "servant-image" {
+  type = string
+}
+
+variable "default-env-image" {
+  type    = string
 }
 
 variable "s3-postfics" {
