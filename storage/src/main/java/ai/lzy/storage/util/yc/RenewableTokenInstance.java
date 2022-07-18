@@ -1,4 +1,4 @@
-package ai.lzy.server.utils.yc;
+package ai.lzy.storage.util.yc;
 
 import java.util.Date;
 import java.util.function.Supplier;

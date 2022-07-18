@@ -1,0 +1,31 @@
+storage:
+  address: 'localhost:7780'
+
+  database:
+    url: 'jdbc:postgresql://localhost:5432/lzy_storage_db'
+    username: 'lzy_user'
+    password: 'q'
+    min-pool-size: 1
+    max-pool-size: 5
+
+  yc:
+    enabled: false
+    service-account-id: ''
+    key-id: ''
+    private-key: ''
+    folder-id: ''
+
+  s3:
+    yc:
+      enabled: false
+      endpoint: ''
+      access-token: ''
+      secret-token: ''
+
+    azure:
+      enabled: false
+      connection-string: ''
+
+    memory:
+      enabled: true
+      port: 18081
