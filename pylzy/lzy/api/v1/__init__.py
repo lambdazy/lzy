@@ -2,7 +2,7 @@ import functools
 import inspect
 import logging
 import sys
-from typing import Callable, Type, Sequence
+from typing import Callable, Type, Sequence, Optional
 
 from lzy._proxy.result import Nothing
 from lzy.api.v1.cache_policy import CachePolicy
@@ -28,15 +28,15 @@ logging.root.addHandler(handler)
 
 
 # pylint: disable=[invalid-name]
-def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
+def op(func: Callable = None, *, gpu: Gpu = None, output_type=None, image_name : Optional[str] = None):
     provisioning = Provisioning(gpu)
     if func is None:
-        return op_(provisioning, output_type=output_type)
-    return op_(provisioning, output_type=output_type)(func)
+        return op_(provisioning, output_type=output_type, image_name=image_name)
+    return op_(provisioning, output_type=output_type, image_name=image_name)(func)
 
 
 # pylint: disable=unused-argument
-def op_(provisioning: Provisioning, *, output_type: Type = None):
+def op_(provisioning: Provisioning, *, output_type: Type = None, image_name: Optional[str] = None):
     def deco(f):
         output_types: Sequence[Type]
         if output_type is None:
@@ -68,6 +68,7 @@ def op_(provisioning: Provisioning, *, output_type: Type = None):
                     raise RuntimeError("Cannot find servant")
                 id_generator = UUIDEntryIdGenerator(current_workflow.snapshot_id())
 
+                base_env = current_workflow.base_env(image_name)
                 # we need specify globals() for caller site to find all
                 # required modules
                 caller_globals = inspect.stack()[1].frame.f_globals
@@ -82,6 +83,7 @@ def op_(provisioning: Provisioning, *, output_type: Type = None):
                     current_workflow.file_serializer(),
                     current_workflow.hasher(),
                     provisioning,
+                    base_env,
                     pyenv,
                     deployed=False,
                     channel_manager=current_workflow.channel_manager(),

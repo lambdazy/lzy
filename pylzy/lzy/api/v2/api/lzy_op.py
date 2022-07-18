@@ -2,14 +2,14 @@ from dataclasses import dataclass
 from typing import Callable, Dict, Generic, Iterable, Tuple, Type, TypeVar
 
 from lzy.api.v2.api.provisioning import Provisioning
-from lzy.env.env import Env
+from lzy.env.env import EnvSpec
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 @dataclass
 class LzyOp(Generic[T]):
-    env: Env
+    env: EnvSpec
     provisioning: Provisioning
 
     callable: Callable[..., T]

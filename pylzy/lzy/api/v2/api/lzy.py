@@ -8,7 +8,7 @@ from lzy.api.v2.api.query import Query
 from lzy.api.v2.api.runtime.runtime import Runtime
 from lzy.api.v2.api.snapshot.snapshot_provider import SnapshotProvider
 from lzy.api.v2.api.storage_spec import StorageSpec
-from lzy.env.default_env_provider import DefaultEnvProvider
+from lzy.env.lzy_env_provider import LzyEnvProvider
 from lzy.env.env_provider import EnvProvider
 from lzy.serialization.dumper import Dumper
 from lzy.serialization.serializer import DefaultSerializer
@@ -17,7 +17,7 @@ from lzy.serialization.serializer import DefaultSerializer
 class Lzy:
     def __init__(
         self,
-        env_provider: EnvProvider = DefaultEnvProvider(),
+        env_provider: EnvProvider = LzyEnvProvider(),
         runtime: Runtime = LocalRuntime(),
         snapshot_provider: SnapshotProvider = LocalSnapshotProvider(),
         storage_spec: StorageSpec = StorageSpec(),

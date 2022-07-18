@@ -3,10 +3,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
+import logging
 from yaml import safe_load
 
 from lzy.api.v2.servant.model.encoding import ENCODING as encoding
-from lzy.env.env import AuxEnv, Env
+from lzy.env.env import *
 from lzy.env.env_provider import EnvProvider
 from lzy.pkg_info import (
     _installed_versions,
@@ -41,16 +42,24 @@ def create_yaml(
     return name, yaml.dump(conda_yaml, sort_keys=False)
 
 
-class DefaultEnvProvider(EnvProvider):
+class LzyEnvProvider(EnvProvider):
     def __init__(
         self,
         conda_yaml_path: Optional[Path] = None,
         local_modules_paths: Optional[List[str]] = None,
+        image_name: Optional[str] = "default",
+        image_pull_policy: ImagePullPolicy = ImagePullPolicy.ALWAYS,
     ):
+        self._log = logging.getLogger(str(self.__class__))
+
         self._conda_yaml_path = conda_yaml_path
         self._local_modules_paths = local_modules_paths
+        self._image_name = image_name
+        if image_pull_policy != ImagePullPolicy.ALWAYS:
+            self._log.warning(f"Only ImagePullPolicy.ALWAYS supported, ignoring ImagePullPolicy {image_pull_policy}")
+        self._image_pull_policy = ImagePullPolicy.ALWAYS
 
-    def for_op(self, namespace: Optional[Dict[str, Any]] = None) -> Env:
+    def provide(self, namespace: Optional[Dict[str, Any]] = None) -> EnvSpec:
         local_module_paths_found: List[str] = []
         if self._conda_yaml_path is None:
             if namespace is None:
@@ -64,7 +73,8 @@ class DefaultEnvProvider(EnvProvider):
             else:
                 local_modules_paths = self._local_modules_paths
 
-            return Env(
+            return EnvSpec(
+                base_env=BaseEnv(name=self._image_name),
                 aux_env=AuxEnv(
                     name=name, conda_yaml=yaml, local_modules_paths=local_modules_paths
                 )
@@ -75,7 +85,8 @@ class DefaultEnvProvider(EnvProvider):
         with open(self._conda_yaml_path, "r", encoding=encoding) as file:
             name, yaml_str = "default", file.read()
             data = safe_load(yaml_str)
-            return Env(
+            return EnvSpec(
+                base_env=BaseEnv(name=self._image_name),
                 aux_env=AuxEnv(
                     name=data.get("name", name),
                     conda_yaml=yaml_str,

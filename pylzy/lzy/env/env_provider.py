@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
-from lzy.env.env import Env
+from lzy.env.env import EnvSpec
 
 
 class EnvProvider(ABC):
     @abstractmethod
-    def for_op(self, namespace: Optional[Dict[str, Any]] = None) -> Env:
+    def provide(self, namespace: Optional[Dict[str, Any]] = None) -> EnvSpec:
         pass
