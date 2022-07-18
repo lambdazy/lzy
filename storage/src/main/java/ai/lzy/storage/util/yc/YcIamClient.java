@@ -1,4 +1,4 @@
-package ai.lzy.server.utils.yc;
+package ai.lzy.storage.util.yc;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;

@@ -10,22 +10,8 @@ storage:
 
   yc:
     enabled: false
-    service-account-id: ''
-    key-id: ''
-    private-key: ''
-    folder-id: ''
 
   s3:
-    yc:
-      enabled: false
-      endpoint: ''
-      access-token: ''
-      secret-token: ''
-
-    azure:
-      enabled: false
-      connection-string: ''
-
     memory:
       enabled: true
       port: 18081
