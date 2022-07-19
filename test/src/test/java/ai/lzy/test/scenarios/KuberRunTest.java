@@ -58,4 +58,10 @@ public class KuberRunTest extends LzyBaseTest {
          */
         evalAndAssertScenarioResult(terminal, "whiteboards");
     }
+
+    @Test
+    public void testCustomImage() {
+        evalAndAssertScenarioResult(terminal, "custom-image");
+    }
+
 }
