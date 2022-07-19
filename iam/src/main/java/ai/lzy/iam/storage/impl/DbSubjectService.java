@@ -7,7 +7,7 @@ import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.User;
-import ai.lzy.iam.storage.Storage;
+import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.UserVerificationType;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -20,12 +20,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Singleton
-@Requires(beans = Storage.class)
+@Requires(beans = IamDataSource.class)
 public class DbSubjectService {
     private static final Logger LOG = LogManager.getLogger(DbSubjectService.class);
 
     @Inject
-    private Storage storage;
+    private IamDataSource storage;
 
     @Inject
     private ServiceConfig serviceConfig;

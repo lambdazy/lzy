@@ -7,38 +7,35 @@ import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.storage.Storage;
+import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Singleton
-@Requires(beans = Storage.class)
+@Requires(beans = IamDataSource.class)
 public class DbAccessClient {
     private static final Logger LOG = LogManager.getLogger(DbAccessClient.class);
 
     @Inject
-    private Storage storage;
+    private IamDataSource storage;
 
     public boolean hasResourcePermission(Subject subject, String resourceId, AuthPermission permission)
             throws AuthException {
         if (Role.LZY_INTERNAL_USER.permissions().contains(permission)) {
-            try (final PreparedStatement st = storage.connect().prepareStatement(
-                    "SELECT count(*) FROM user_resource_roles "
-                            + "WHERE user_id = ? "
-                            + "AND resource_id = ? "
-                            + "AND role = ?"
-                            + ";"
-            )) {
+            try (var conn = storage.connect()) {
+                var st = conn.prepareStatement("""
+                    SELECT count(*) FROM user_resource_roles
+                    WHERE user_id = ? AND resource_id = ? AND role = ?""");
+
                 int parameterIndex = 0;
                 st.setString(++parameterIndex, subject.id());
-                st.setString(++parameterIndex, new Root().resourceId());
+                st.setString(++parameterIndex, Root.INSTANCE.resourceId());
                 st.setString(++parameterIndex, Role.LZY_INTERNAL_USER.role());
                 final ResultSet rs = st.executeQuery();
                 if (rs.next()) {
@@ -51,12 +48,12 @@ public class DbAccessClient {
                 throw new AuthInternalException(e);
             }
         }
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT user_id FROM user_resource_roles "
-                        + "WHERE user_id = ? "
-                        + "AND resource_id = ? "
-                        + ";"
-        )) {
+
+        try (var conn = storage.connect()) {
+            var st = conn.prepareStatement("""
+                SELECT user_id FROM user_resource_roles
+                WHERE user_id = ? AND resource_id = ?""");
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, resourceId);
@@ -67,12 +64,12 @@ public class DbAccessClient {
         } catch (SQLException e) {
             throw new AuthInternalException(e);
         }
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT user_id FROM user_resource_roles "
-                        + "WHERE user_id = ? "
-                        + "AND resource_id = ? "
-                        + "AND " + queryByPermission(permission)
-        )) {
+
+        try (var conn = storage.connect()) {
+            var st = conn.prepareStatement("""
+                SELECT user_id FROM user_resource_roles
+                WHERE user_id = ? AND resource_id = ? AND""" + queryByPermission(permission));
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, resourceId);
@@ -83,11 +80,12 @@ public class DbAccessClient {
         } catch (SQLException e) {
             throw new AuthInternalException(e);
         }
+
         return false;
     }
 
     private String queryByPermission(AuthPermission permission) {
-        StringBuilder query = new StringBuilder("(");
+        StringBuilder query = new StringBuilder(" (");
         final boolean[] first = {true};
         Role.rolesByPermission(permission).forEach(r -> {
             if (first[0]) {

@@ -43,7 +43,7 @@ public class AccessServiceGrpcClient implements AccessClient {
         this.channel = channel;
         this.tokenSupplier = tokenSupplier;
         this.accessService = LzyAccessServiceGrpc.newBlockingStub(this.channel)
-                .withInterceptors(new ClientHeaderInterceptor<>(
+                .withInterceptors(ClientHeaderInterceptor.header(
                         GrpcHeaders.AUTHORIZATION,
                         () -> this.tokenSupplier.get().token()));
     }
@@ -60,6 +60,7 @@ public class AccessServiceGrpcClient implements AccessClient {
             AuthPermission permission) throws AuthException {
         try {
             var subj = accessService.authorize(LAS.AuthorizeRequest.newBuilder()
+                    .setSubject(GrpcConverter.from(subject))
                     .setPermission(permission.permission())
                     .setResource(GrpcConverter.from(resource))
                     .build());

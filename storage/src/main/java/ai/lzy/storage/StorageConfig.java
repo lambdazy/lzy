@@ -7,6 +7,7 @@ import javax.validation.ValidationException;
 @ConfigurationProperties("storage")
 public record StorageConfig(
     String address,
+    Iam iam,
     StorageDataSourceConfig database,
     S3Credentials s3,
     YcCredentials yc
@@ -69,5 +70,17 @@ public record StorageConfig(
         String keyId,
         String privateKey,
         String folderId
+    ) {}
+
+    @ConfigurationProperties("iam")
+    public record Iam(
+        String address,
+        IamInternal internal
+    ) {}
+
+    @ConfigurationProperties("iam.internal")
+    public record IamInternal(
+        String userName,
+        String credentialPrivateKey
     ) {}
 }

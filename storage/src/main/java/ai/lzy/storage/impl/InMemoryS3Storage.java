@@ -32,7 +32,7 @@ public class InMemoryS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
     @SuppressWarnings("UnstableApiUsage")
     public InMemoryS3Storage(StorageConfig config, StorageConfig.InMemoryS3Credentials s3Config) {
         var storageAddress = HostAndPort.fromString(config.address());
-        this.endpoint = storageAddress.getHost() + ":" + s3Config.port();
+        this.endpoint = "http://" + storageAddress.getHost() + ":" + s3Config.port();
 
         LOG.info("Starting in-memory s3 on {}", endpoint);
 

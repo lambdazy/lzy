@@ -4,8 +4,10 @@ import ai.lzy.iam.resources.AuthResource;
 
 public class Root implements AuthResource {
 
-    public static final String TYPE = "root";
     private static final String resourceId = "lzy.resource.root";
+
+    public static final String TYPE = "root";
+    public static final Root INSTANCE = new Root();
 
     public Root() {
     }

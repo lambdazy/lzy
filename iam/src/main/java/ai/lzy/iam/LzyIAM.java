@@ -23,6 +23,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class LzyIAM {
 
@@ -65,6 +66,10 @@ public class LzyIAM {
 
     public void start() throws IOException {
         iamServer.start();
+
+        LOG.info("IAM started on {}",
+            iamServer.getListenSockets().stream().map(Object::toString).collect(Collectors.joining()));
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("gRPC server is shutting down!");
             iamServer.shutdown();
