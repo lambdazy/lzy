@@ -34,16 +34,6 @@ jobs:
         timeout-minutes: 10
         run: mvn clean install
 
-      - name: 'RunTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'PyApiTest'
-        timeout-minutes: 15
-        run: |
-          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
       - name: 'build servant image'
         timeout-minutes: 15
         run: |
@@ -60,30 +50,10 @@ jobs:
           DEFAULT_ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh default-env $BRANCH dev)
           cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$DEFAULT_ENV_IMAGE" && cd ..
 
-      - name: 'LzyDryStartupTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'LzyStartupWithAvailableZygotesTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'MultiSessionTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
       - name: 'SnapshotTest'
         timeout-minutes: 5
         run: |
           cd test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'TerminalCrashTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'ServantCrashTest'
         timeout-minutes: 5
