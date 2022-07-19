@@ -16,10 +16,14 @@ import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import org.apache.logging.log4j.LogManager;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -65,10 +69,21 @@ public class IAMThreadContext implements LzyIAMTestContext {
 
     @Override
     public void init() {
-        final Map<String, Object> props;
+        Map<String, Object> props = null;
         try {
-            props = new YamlPropertySourceLoader()
-                .read("iam", new FileInputStream("../iam/src/main/resources/application-test.yml"));
+            final String[] files = {
+                "../iam/src/main/resources/application-test.yml",
+                "./iam/src/main/resources/application-test.yml"
+            };
+
+            for (var file: files) {
+                if (Files.exists(Path.of(file))) {
+                    props = new YamlPropertySourceLoader().read("iam", new FileInputStream(file));
+                    break;
+                }
+            }
+
+            Objects.requireNonNull(props);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
