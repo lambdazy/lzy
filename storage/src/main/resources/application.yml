@@ -1,6 +1,12 @@
 storage:
   address: 'localhost:7780'
 
+  iam:
+    address: 'localhost:8443'
+    internal:
+      user-name: "lzy-internal-user"
+      credential-private-key: "not-set"
+
   database:
     url: 'jdbc:postgresql://localhost:5432/lzy_storage_db'
     username: 'lzy_user'

@@ -12,15 +12,14 @@ import java.util.List;
 import java.util.UUID;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.graph.db.QueueEventDao;
-import ai.lzy.model.db.Storage;
 import ai.lzy.graph.model.QueueEvent;
 
 @Singleton
 public class QueueEventDaoImpl implements QueueEventDao {
-    private final Storage storage;
+    private final GraphExecutorDataSource storage;
 
     @Inject
-    public QueueEventDaoImpl(Storage storage) {
+    public QueueEventDaoImpl(GraphExecutorDataSource storage) {
         this.storage = storage;
     }
 

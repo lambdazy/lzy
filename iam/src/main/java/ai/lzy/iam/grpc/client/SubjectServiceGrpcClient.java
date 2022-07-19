@@ -40,7 +40,7 @@ public class SubjectServiceGrpcClient implements SubjectService {
         this.channel = channel;
         this.tokenSupplier = tokenSupplier;
         this.subjectService = LzySubjectServiceGrpc.newBlockingStub(this.channel)
-                .withInterceptors(new ClientHeaderInterceptor<>(
+                .withInterceptors(ClientHeaderInterceptor.header(
                         GrpcHeaders.AUTHORIZATION,
                         () -> this.tokenSupplier.get().token()));
     }

@@ -63,7 +63,7 @@ public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase 
 
     private boolean notInternalAccess(ai.lzy.iam.resources.subjects.Subject currentSubject) {
         return !accessClient.hasResourcePermission(currentSubject,
-                new Root().resourceId(),
+                Root.INSTANCE.resourceId(),
                 AuthPermission.INTERNAL_AUTHORIZE);
     }
 

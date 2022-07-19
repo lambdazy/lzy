@@ -1,9 +1,15 @@
 package ai.lzy.storage;
 
+import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.priv.v2.LzyStorageGrpc;
+import ai.lzy.v1.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
+import io.grpc.ManagedChannel;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
@@ -18,19 +24,28 @@ import java.util.concurrent.TimeUnit;
 public class LzyStorage {
     private static final Logger LOG = LogManager.getLogger(LzyStorage.class);
 
+    private final ManagedChannel iamChannel;
     private final Server server;
 
     public LzyStorage(ApplicationContext context) {
         var config = context.getBean(StorageConfig.class);
+
         var address = HostAndPort.fromString(config.address());
+        var iamAddress = HostAndPort.fromString(config.iam().address());
 
         var service = context.getBean(LzyStorageGrpc.LzyStorageImplBase.class);
+
+        iamChannel = ChannelBuilder.forAddress(iamAddress)
+            .usePlaintext()
+            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
+            .build();
 
         server = NettyServerBuilder
             .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(service)
+            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
+            .addService(ServerInterceptors.intercept(service, new AllowInternalUserOnlyInterceptor(iamChannel)))
             .build();
     }
 
@@ -38,16 +53,33 @@ public class LzyStorage {
         server.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("gRPC server is shutting down!");
-            server.shutdown();
+            try {
+                server.shutdown();
+            } finally {
+                iamChannel.shutdown();
+            }
         }));
     }
 
-    public void close() {
-        server.shutdownNow();
+    public void close(boolean force) {
+        try {
+            if (force) {
+                server.shutdownNow();
+            } else {
+                server.shutdown();
+            }
+        } finally {
+            if (force) {
+                iamChannel.shutdownNow();
+            } else {
+                iamChannel.shutdown();
+            }
+        }
     }
 
     public void awaitTermination() throws InterruptedException {
         server.awaitTermination();
+        iamChannel.awaitTermination(10, TimeUnit.SECONDS);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {

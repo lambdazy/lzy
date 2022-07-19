@@ -2,7 +2,7 @@ package ai.lzy.graph.config;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 
-@ConfigurationProperties("database")
+@ConfigurationProperties("graph-executor.database")
 public class DbConfig {
     private String url;
     private String username;

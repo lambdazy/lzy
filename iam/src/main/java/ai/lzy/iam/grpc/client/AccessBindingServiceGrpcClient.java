@@ -43,7 +43,7 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
         this.channel = channel;
         this.tokenSupplier = tokenSupplier;
         this.accessBindingService = LzyAccessBindingServiceGrpc.newBlockingStub(this.channel)
-                .withInterceptors(new ClientHeaderInterceptor<>(
+                .withInterceptors(ClientHeaderInterceptor.header(
                         GrpcHeaders.AUTHORIZATION,
                         () -> this.tokenSupplier.get().token()));
     }

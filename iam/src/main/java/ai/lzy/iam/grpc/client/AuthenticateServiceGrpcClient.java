@@ -42,7 +42,7 @@ public class AuthenticateServiceGrpcClient implements AuthenticateService {
         try {
             LzyAuthenticateServiceGrpc.LzyAuthenticateServiceBlockingStub authenticateService =
                     LzyAuthenticateServiceGrpc.newBlockingStub(this.channel)
-                            .withInterceptors(new ClientHeaderInterceptor<>(
+                            .withInterceptors(ClientHeaderInterceptor.header(
                                     GrpcHeaders.AUTHORIZATION,
                                     credentials::token));
             final IAM.Subject subject = authenticateService.authenticate(

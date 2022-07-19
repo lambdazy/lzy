@@ -5,6 +5,7 @@ import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.Role;
+import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,7 +16,6 @@ import ai.lzy.iam.authorization.exceptions.AuthBadRequestException;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.storage.Storage;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -29,14 +29,14 @@ public class DbAccessClientTest {
 
     private ApplicationContext ctx;
     private DbSubjectService subjectService;
-    private Storage storage;
+    private IamDataSource storage;
     private DbAccessClient accessClient;
     private DbAccessBindingClient accessBindingClient;
 
     @Before
     public void setUp() {
         ctx = ApplicationContext.run();
-        storage = ctx.getBean(Storage.class);
+        storage = ctx.getBean(IamDataSource.class);
         subjectService = ctx.getBean(DbSubjectService.class);
         accessClient = ctx.getBean(DbAccessClient.class);
         accessBindingClient = ctx.getBean(DbAccessBindingClient.class);

@@ -1,19 +1,20 @@
 package ai.lzy.graph.test.mocks;
+
 import ai.lzy.graph.db.impl.GraphExecutionDaoImpl;
-import jakarta.inject.Inject;
-import java.util.Set;
-import java.util.stream.Collectors;
-import ai.lzy.model.db.DaoException;
-import ai.lzy.model.db.Storage;
+import ai.lzy.graph.db.impl.GraphExecutorDataSource;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
-
 import ai.lzy.graph.model.TaskExecution;
+import ai.lzy.model.db.DaoException;
+import jakarta.inject.Inject;
+
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 public class GraphDaoMock extends GraphExecutionDaoImpl {
     @Inject
-    public GraphDaoMock(Storage storage) {
+    public GraphDaoMock(GraphExecutorDataSource storage) {
         super(storage);
     }
 
