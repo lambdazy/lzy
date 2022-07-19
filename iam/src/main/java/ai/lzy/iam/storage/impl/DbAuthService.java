@@ -53,16 +53,6 @@ public class DbAuthService implements AuthenticateService {
                         throw new AuthInternalException(e);
                     }
                 }
-
-                if (System.currentTimeMillis() == 1) {
-                    st = conn.prepareStatement("select * from credentials");
-                    rs = st.executeQuery();
-                    while (rs.next()) {
-                        System.out.println("--> " + rs.getString("name") + ", " + rs.getString("user_id") + ", "
-                            + rs.getString("value") + ", " + rs.getString("type"));
-                    }
-                }
-
                 throw new AuthPermissionDeniedException("Permission denied. Not found valid key.");
             } catch (SQLException e) {
                 throw new AuthInternalException(e);
