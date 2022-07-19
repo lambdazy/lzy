@@ -1,7 +1,6 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.iam.LzyIAM;
-import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.priv.v1.LzyAccessServiceGrpc;
 import ai.lzy.priv.v1.LzySubjectServiceGrpc;
@@ -15,15 +14,12 @@ import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
-import io.micronaut.core.io.scan.DefaultClassPathResourceLoader;
 import org.apache.logging.log4j.LogManager;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -32,8 +28,8 @@ public class IAMThreadContext implements LzyIAMTestContext {
 
     private static final Duration IAM_STARTUP_TIME = Duration.ofSeconds(10);
     private static final Duration CHANNEL_SHUTDOWN_TIME = Duration.ofSeconds(5);
-    private static final int IAM_PORT = 8443;
-    private static final int USER_LIMIT = 60;
+
+    public static final int IAM_PORT = 8443;
 
     private LzyAccessServiceGrpc.LzyAccessServiceBlockingStub lzyAccessServiceClient;
     private LzySubjectServiceGrpc.LzySubjectServiceBlockingStub lzySubjectServiceClient;
@@ -78,7 +74,6 @@ public class IAMThreadContext implements LzyIAMTestContext {
         }
 
         props.put("iam.server-port", IAM_PORT);
-        props.put("iam.user-limit", USER_LIMIT);
 
         try (ApplicationContext context = ApplicationContext.run(PropertySource.of(props))) {
             var logger = LogManager.getLogger(SnapshotApi.class);

@@ -97,13 +97,15 @@ public abstract class LzyBaseTest {
             final File stdout_file = scenario.resolve("expected_stdout").toFile();
             forEachLineInFile(stdout_file, line -> {
                 LOG.info("assert check if stdout contains: {}", line);
-                Assert.assertTrue(result.stdout().contains(line));
+                Assert.assertTrue("'" + result.stdout() + "' doesn't contain '" + line + "'",
+                    result.stdout().contains(line));
             });
 
             final File stderr_file = scenario.resolve("expected_stderr").toFile();
             forEachLineInFile(stderr_file, line -> {
                 LOG.info("assert check if stderr contains: {}", line);
-                Assert.assertTrue(result.stderr().contains(line));
+                Assert.assertTrue("'" + result.stderr() + "' doesn't contain '" + line + "'",
+                    result.stderr().contains(line));
             });
         } catch (IOException ioexc) {
             LOG.error("Happened while was reading one of expected files: ", ioexc);
