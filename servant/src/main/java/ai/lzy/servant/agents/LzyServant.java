@@ -1,5 +1,6 @@
 package ai.lzy.servant.agents;
 
+import ai.lzy.fs.LzyFsServer;
 import ai.lzy.model.logs.UserEvent.UserEventType;
 import ai.lzy.servant.portal.Portal;
 import com.google.protobuf.Empty;
@@ -13,9 +14,11 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.storage.StorageClient;
+import ai.lzy.model.Context;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.UriScheme;
 import ai.lzy.model.Signal;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
@@ -27,32 +30,45 @@ import ai.lzy.model.logs.UserEventLogger;
 import ai.lzy.v1.*;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.model.UriScheme.LzyServant;
 
-public class LzyServant extends LzyAgent {
-
+public class LzyServant implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
-    private final URI agentAddress;
-    private final Server agentServer;
+    private final LzyAgent agent;
+    private final LzyFsServer lzyFs;
+    private final LzyContext context;
     private final AtomicReference<LzyExecution> currentExecution = new AtomicReference<>(null);
     private final Portal portal;
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();
-    private LzyContext context;
 
-    public LzyServant(LzyAgentConfig config) throws URISyntaxException, IOException {
-        super(config);
-        final long start = System.currentTimeMillis();
+    public LzyServant(LzyAgentConfig config)
+        throws URISyntaxException, IOException, InvocationTargetException, NoSuchMethodException,
+        InstantiationException, IllegalAccessException {
+        agent = new LzyAgent(config, new ServantImpl(), new PortalImpl());
+        LOG.info("Starting servant at {}://{}:{}/{} with fs at {}:{}",
+            UriScheme.LzyServant.scheme(),
+            config.getAgentHost(),
+            config.getAgentPort(),
+            config.getRoot(),
+            config.getAgentHost(),
+            config.getFsPort());
+
+        long start = System.currentTimeMillis();
 
         final ManagedChannel channel = ChannelBuilder
             .forAddress(config.getServerAddress().getHost(), config.getServerAddress().getPort())
@@ -61,69 +77,24 @@ public class LzyServant extends LzyAgent {
             .build();
         server = LzyServerGrpc.newBlockingStub(channel);
 
-        portal = new Portal(config.getServantId(), lzyFs);
-
-        agentAddress =
-            new URI(LzyServant.scheme(), null, config.getAgentHost(), config.getAgentPort(), null, null, null);
-
-        agentServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(agentAddress.getHost(), agentAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.SECONDS)
-            .keepAliveTimeout(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.SECONDS)
-            .keepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
-            .addService(new ServantImpl())
-            .addService(new PortalImpl())
-            .build();
-
-        final long finish = System.currentTimeMillis();
+        long finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(
                 "time from agent construct finish to LzyServant construct finish",
                 Map.of(
-                    "context_id", config.getServantId(),
+                    "context_id", config.getAgentId(),
                     "metric_type", "system_metric"
                 ),
                 finish - start
             )
         );
-    }
 
-    @Override
-    protected LzyContext context() {
-        return context;
-    }
-
-    @Override
-    public URI serverUri() {
-        return agentAddress;
-    }
-
-    @Override
-    protected Server server() {
-        return agentServer;
-    }
-
-    protected void started() {
-        started.complete(true);
-    }
-
-    private void waitForStart() {
-        try {
-            started.get();
-        } catch (InterruptedException | ExecutionException e) {
-            LOG.error(e);
-        }
-    }
-
-    @Override
-    protected void onStartUp() {
-        final long start = System.currentTimeMillis();
+        start = System.currentTimeMillis();
         UserEventLogger.log(new UserEvent(
             "Servant startup",
             Map.of(
-                "context_id", config.getServantId(),
-                "address", agentAddress.toString()
+                "context_id", config.getAgentId(),
+                "address", agent.uri().toString()
             ),
             UserEvent.UserEventType.TaskStartUp
         ));
@@ -145,24 +116,30 @@ public class LzyServant extends LzyAgent {
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
 
-        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(), lzyFs.getMountPoint().toString());
+        lzyFs = agent.fs();
+        context = agent.context();
+        portal = new Portal(config.getAgentId(), lzyFs);
 
-        final long finish = System.currentTimeMillis();
+        finish = System.currentTimeMillis();
         MetricEventLogger.log(
             new MetricEvent(
                 "LzyServant startUp time",
                 Map.of(
-                    "context_id", config.getServantId(),
+                    "context_id", config.getAgentId(),
                     "metric_type", "system_metric"
                 ),
                 finish - start
             )
         );
+        started.complete(true);
     }
 
-    @Override
-    protected LzyServerGrpc.LzyServerBlockingStub serverApi() {
-        return server;
+    private void waitForStart() {
+        try {
+            started.get();
+        } catch (InterruptedException | ExecutionException e) {
+            LOG.error(e);
+        }
     }
 
     private void forceStop(Throwable th) {
@@ -170,7 +147,7 @@ public class LzyServant extends LzyAgent {
         try {
             portal.stop();
             cleanupExecution();
-            agentServer.shutdownNow();
+            agent.shutdownNow();
         } finally {
             lzyFs.stop();
         }
@@ -209,14 +186,14 @@ public class LzyServant extends LzyAgent {
                     final Servant.EnvResult.Builder result = Servant.EnvResult.newBuilder();
                     try {
                         final String bucket = server.getBucket(Lzy.GetBucketRequest
-                            .newBuilder().setAuth(auth).build()).getBucket();
+                            .newBuilder().setAuth(agent.auth()).build()).getBucket();
                         final Lzy.GetS3CredentialsResponse credentials = server.getS3Credentials(
                             Lzy.GetS3CredentialsRequest.newBuilder()
                                 .setBucket(bucket)
-                                .setAuth(auth)
+                                .setAuth(agent.auth())
                                 .build()
                         );
-                        context().prepare(GrpcConverter.from(request), StorageClient.create(credentials));
+                        context.prepare(GrpcConverter.from(request), StorageClient.create(credentials));
                     } catch (EnvironmentInstallationException e) {
                         LOG.error("Unable to install environment", e);
                         result.setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc());
@@ -235,19 +212,19 @@ public class LzyServant extends LzyAgent {
             }
 
             waitForStart();
-            LzyServant.this.context.onProgress(progress -> {
+            context.onProgress(progress -> {
                 responseObserver.onNext(progress);
                 if (progress.getStatusCase() == Servant.ServantProgress.StatusCase.CONCLUDED) {
                     responseObserver.onCompleted();
                 }
             });
-            LzyServant.this.context.start();
+            context.start();
         }
 
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             try {
-                if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
+                if (portal.isActive() || agent.getStatus() != AgentStatus.REGISTERED) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                     return;
                 }
@@ -257,13 +234,13 @@ public class LzyServant extends LzyAgent {
                 } else {
                     LOG.info("Servant::execute request (tid={})", request.getTid());
                 }
-                if (status.get() == AgentStatus.EXECUTING) {
+                if (agent.getStatus() == AgentStatus.EXECUTING) {
                     responseObserver.onError(
                         Status.RESOURCE_EXHAUSTED.withDescription("Already executing").asException());
                     return;
                 }
 
-                status.set(AgentStatus.PREPARING_EXECUTION);
+                agent.updateStatus(AgentStatus.PREPARING_EXECUTION);
                 final String tid = request.getTid();
                 final AtomicZygote zygote = (AtomicZygote) GrpcConverter.from(request.getZygote());
                 UserEventLogger.log(new UserEvent(
@@ -301,7 +278,7 @@ public class LzyServant extends LzyAgent {
 
                 final long start = System.currentTimeMillis();
                 final LzyExecution lzyExecution = context.execute(tid, zygote, progress -> {
-                    LOG.info("Servant::progress {} {}", agentAddress, JsonUtils.printRequest(progress));
+                    LOG.info("Servant::progress {} {}", agent.uri(), JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
                         "Servant execution progress",
                         Map.of(
@@ -321,12 +298,12 @@ public class LzyServant extends LzyAgent {
                             ),
                             UserEventType.ExecutionComplete
                         ));
-                        LOG.info("Servant::executionStop {}, ready for the new one", agentAddress);
-                        status.set(AgentStatus.REGISTERED);
+                        LOG.info("Servant::executionStop {}, ready for the new one", agent.uri());
+                        agent.updateStatus(AgentStatus.REGISTERED);
                     }
                 });
                 currentExecution.set(lzyExecution);
-                status.set(AgentStatus.EXECUTING);
+                agent.updateStatus(AgentStatus.EXECUTING);
                 responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
                 responseObserver.onCompleted();
 
@@ -345,7 +322,7 @@ public class LzyServant extends LzyAgent {
         @Override
         public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
             try {
-                LOG.info("Servant::stop {}", agentAddress);
+                LOG.info("Servant::stop {}", agent.uri());
                 cleanupExecution();
                 responseObserver.onNext(IAM.Empty.newBuilder().build());
                 responseObserver.onCompleted();
@@ -354,8 +331,8 @@ public class LzyServant extends LzyAgent {
                 UserEventLogger.log(new UserEvent(
                     "Servant task exit",
                     Map.of(
-                        "task_id", config.getServantId(),
-                        "address", agentAddress.toString(),
+                        "task_id", agent.id(),
+                        "address", agent.uri().toString(),
                         "exit_code", String.valueOf(0)
                     ),
                     UserEvent.UserEventType.TaskStop
@@ -371,11 +348,11 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void signal(Tasks.TaskSignal request, StreamObserver<IAM.Empty> responseObserver) {
-            if (portal.isActive() || status.get().getValue() < AgentStatus.EXECUTING.getValue()) {
+            if (portal.isActive() || agent.getStatus().getValue() < AgentStatus.EXECUTING.getValue()) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
-            if (status.get() != AgentStatus.EXECUTING) {
+            if (agent.getStatus() != AgentStatus.EXECUTING) {
                 responseObserver.onError(Status.NOT_FOUND
                     .withDescription("Cannot send signal when servant not executing").asException());
                 return;
@@ -394,12 +371,12 @@ public class LzyServant extends LzyAgent {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
-            LzyServant.this.update(request, responseObserver);
+            agent.update(server.zygotes(request), responseObserver);
         }
 
         @Override
         public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
-            LzyServant.this.status(request, responseObserver);
+            agent.status(request, responseObserver);
         }
     }
 

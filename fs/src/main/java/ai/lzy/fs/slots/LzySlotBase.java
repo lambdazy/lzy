@@ -1,6 +1,9 @@
 package ai.lzy.fs.slots;
 
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.Slot;
@@ -19,23 +22,63 @@ import static ai.lzy.v1.Operations.SlotStatus.State.*;
 public class LzySlotBase implements LzySlot {
     private static final Logger LOG = LogManager.getLogger(LzySlotBase.class);
 
-    private final Slot definition;
-    private final Map<Operations.SlotStatus.State, List<StateChangeAction>> actions = synchronizedMap(new HashMap<>());
+    private static final int NUM_EXECUTORS = 8;
+    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(NUM_EXECUTORS);
+
+    private final SlotInstance slotInstance;
     private final List<Consumer<ByteString>> trafficTrackers = new CopyOnWriteArrayList<>();
     private final AtomicReference<Operations.SlotStatus.State> state = new AtomicReference<>(UNBOUND);
 
-    protected LzySlotBase(Slot definition) {
-        this.definition = definition;
+    private final Map<Operations.SlotStatus.State, List<StateChangeAction>> actions = synchronizedMap(new HashMap<>());
+    private final Queue<Operations.SlotStatus.State> changeStateQueue = new LinkedList<>();
+
+    protected LzySlotBase(SlotInstance slotInstance) {
+        this.slotInstance = slotInstance;
+        EXECUTOR.execute(this::stateWatchingThread);
+    }
+
+    private void stateWatchingThread() {
+        Operations.SlotStatus.State newState;
+        do {
+            synchronized (changeStateQueue) {
+                while (changeStateQueue.isEmpty() && state.get() != DESTROYED) {
+                    try {
+                        changeStateQueue.wait();
+                    } catch (InterruptedException e) {
+                        LOG.warn("State watching thread was interrupted", e);
+                    }
+                }
+                newState = changeStateQueue.poll();
+                LOG.info("stateWatchingThread poll state {}", newState);
+            }
+
+            final Operations.SlotStatus.State finalNewState = newState;
+            actions.getOrDefault(newState, List.of()).forEach(
+                action -> {
+                    LOG.info("Running action for slot {} with state {}", name(), finalNewState);
+                    try {
+                        action.run();
+                    } catch (Throwable e) {
+                        action.onError(e);
+                    }
+                }
+            );
+        } while (newState != DESTROYED);
+    }
+
+    @Override
+    public SlotInstance instance() {
+        return slotInstance;
     }
 
     @Override
     public String name() {
-        return definition.name();
+        return slotInstance.name();
     }
 
     @Override
     public Slot definition() {
-        return definition;
+        return slotInstance.spec();
     }
 
     public Operations.SlotStatus.State state() {
@@ -50,19 +93,10 @@ public class LzySlotBase implements LzySlot {
         LOG.info("Slot `{}` change state {} -> {}.", name(), state, newState);
         state.set(newState);
 
-        actions.getOrDefault(newState, List.of()).forEach(
-            action -> {
-                if (state.get() == newState) {
-                    try {
-                        action.run();
-                    } catch (Throwable e) {
-                        action.onError(e);
-                    }
-                } else {
-                    LOG.error("Slot `{}` state has changed (expected {}, got {}), don't run obsolete action ({}).",
-                        definition.name(), newState, state.get(), action);
-                }
-            });
+        synchronized (changeStateQueue) {
+            changeStateQueue.add(newState);
+            changeStateQueue.notify();
+        }
 
         notifyAll();
     }
@@ -77,7 +111,7 @@ public class LzySlotBase implements LzySlot {
         actions.computeIfAbsent(state, s -> new CopyOnWriteArrayList<>()).add(new StateChangeAction() {
             @Override
             public void onError(Throwable th) {
-                LOG.fatal("Uncaught exception in slot {}.", definition.name(), th);
+                LOG.fatal("Uncaught exception in slot {}.", name(), th);
 
                 for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
                     if (element.getClassName().startsWith("org.junit.")) {

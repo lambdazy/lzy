@@ -1,16 +1,18 @@
 package ai.lzy.servant.agents;
 
-import com.google.protobuf.ByteString;
-import io.grpc.stub.StreamObserver;
-import java.net.URI;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.model.JsonUtils;
+import static ai.lzy.model.GrpcConverter.to;
+
 import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.SlotInstance;
 import ai.lzy.v1.Kharon.ReceivedDataStatus;
 import ai.lzy.v1.Kharon.SendSlotDataMessage;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyKharonGrpc;
+import com.google.protobuf.ByteString;
+import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class TerminalSlotSender {
 
@@ -31,22 +33,22 @@ public class TerminalSlotSender {
             LzyFsApi.Message.newBuilder().setControl(LzyFsApi.Message.Controls.EOS).build()).build();
     }
 
-    public void connect(LzyOutputSlot lzySlot, URI slotUri) {
-        LOG.info("TerminalOutputSlot::connect " + slotUri);
-        final SlotWriter writer = new SlotWriter(lzySlot, slotUri);
+    public void connect(LzyOutputSlot lzySlot, SlotInstance toSlot) {
+        LOG.info("TerminalOutputSlot::connect to " + toSlot);
+        final SlotWriter writer = new SlotWriter(lzySlot, toSlot);
         writer.run();
     }
 
     private class SlotWriter {
 
         private final LzyOutputSlot lzySlot;
-        private final URI slotUri;
+        private final SlotInstance toSlot;
         private final StreamObserver<SendSlotDataMessage> responseObserver;
         private long offset = 0;
 
-        SlotWriter(LzyOutputSlot lzySlot, URI slotUri) {
+        SlotWriter(LzyOutputSlot lzySlot, SlotInstance toSlot) {
             this.lzySlot = lzySlot;
-            this.slotUri = slotUri;
+            this.toSlot = toSlot;
             final StreamObserver<ReceivedDataStatus> statusReceiver = new StreamObserver<>() {
                 @Override
                 public void onNext(ReceivedDataStatus receivedDataStatus) {
@@ -74,7 +76,7 @@ public class TerminalSlotSender {
                 LOG.info("Starting sending bytes slot:: " + lzySlot);
                 responseObserver.onNext(SendSlotDataMessage.newBuilder()
                     .setRequest(LzyFsApi.SlotRequest.newBuilder()
-                        .setSlotUri(slotUri.toString())
+                        .setSlotInstance(to(toSlot))
                         .setOffset(offset)
                         .build())
                     .build());

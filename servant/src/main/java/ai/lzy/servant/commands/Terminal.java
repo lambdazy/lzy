@@ -29,34 +29,30 @@ public class Terminal implements LzyCommand {
     }
 
     @Override
-    public int execute(CommandLine parse) throws Exception {
-        if (!parse.hasOption('z')) {
+    public int execute(CommandLine commandLine) throws Exception {
+        if (!commandLine.hasOption('z')) {
             throw new IllegalArgumentException(
                 "Provide lzy server address with -z option to start a task.");
         }
 
-        final CommandLine localCmd;
-        final HelpFormatter cliHelp = new HelpFormatter();
-        try {
-            localCmd = new DefaultParser().parse(options, parse.getArgs(), false);
-        } catch (ParseException e) {
-            cliHelp.printHelp("terminal", options);
+        final CommandLine localCmd = parse(commandLine, options);
+        if (localCmd == null) {
             return -1;
         }
 
-        String serverAddress = parse.getOptionValue('z');
+        String serverAddress = commandLine.getOptionValue('z');
         if (!serverAddress.contains("//")) {
             serverAddress = "http://" + serverAddress;
         }
-        final int port = Integer.parseInt(parse.getOptionValue('p', "9999"));
-        final int fsPort = Integer.parseInt(parse.getOptionValue('q', "9998"));
+        final int port = Integer.parseInt(commandLine.getOptionValue('p', "9999"));
+        final int fsPort = Integer.parseInt(commandLine.getOptionValue('q', "9998"));
 
-        final Path lzyRoot = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
+        final Path lzyRoot = Path.of(commandLine.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
         Runtime.getRuntime().exec("umount " + lzyRoot);
-        final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
+        final String host = commandLine.getOptionValue('h', LzyFS.lineCmd("hostname"));
         final LzyAgentConfig.LzyAgentConfigBuilder builder = LzyAgentConfig.builder()
             .serverAddress(URI.create(serverAddress))
-            .whiteboardAddress(URI.create(parse.getOptionValue("w")))
+            .whiteboardAddress(URI.create(commandLine.getOptionValue("w")))
             .user(System.getenv("USER"))
             .agentHost(host)
             .agentPort(port)
@@ -69,7 +65,8 @@ public class Terminal implements LzyCommand {
             builder.user(localCmd.getOptionValue("u", System.getenv("USER")));
             builder.token(localCmd.getOptionValue("t", ""));
         } else {
-            final Path privateKeyPath = Paths.get(parse.getOptionValue('k', System.getenv("HOME") + "/.ssh/id_rsa"));
+            final Path privateKeyPath = Paths.get(
+                commandLine.getOptionValue('k', System.getenv("HOME") + "/.ssh/id_rsa"));
             if (Files.exists(privateKeyPath)) {
                 try (FileReader keyReader = new FileReader(String.valueOf(privateKeyPath))) {
                     String token = JwtCredentials.buildJWT(System.getenv("USER"), keyReader);
@@ -81,10 +78,13 @@ public class Terminal implements LzyCommand {
         }
 
         final LzyAgentConfig agentConfig = builder.build();
-        final LzyAgent terminal = direct ? new LzyInternalTerminal(agentConfig) : new LzyTerminal(agentConfig);
-
-        terminal.start();
-        terminal.awaitTermination();
+        if (direct) {
+            final LzyInternalTerminal terminal = new LzyInternalTerminal(agentConfig);
+            terminal.awaitTermination();
+        } else {
+            final LzyTerminal terminal = new LzyTerminal(agentConfig);
+            terminal.awaitTermination();
+        }
         return 0;
     }
 }

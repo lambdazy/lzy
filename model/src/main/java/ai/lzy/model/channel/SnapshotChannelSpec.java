@@ -1,21 +1,27 @@
 package ai.lzy.model.channel;
 
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.v1.IAM;
+import java.net.URI;
 
 public class SnapshotChannelSpec implements ChannelSpec {
     private final String name;
     private final DataSchema contentType;
     private final String snapshotId;
     private final String entryId;
-    private final IAM.Auth auth;
+    private final URI whiteboardAddress;
 
-    public SnapshotChannelSpec(String name, DataSchema contentType, String snapshotId, String entryId, IAM.Auth auth) {
+    public SnapshotChannelSpec(
+        String name,
+        DataSchema contentType,
+        String snapshotId,
+        String entryId,
+        URI whiteboardAddress
+    ) {
         this.name = name;
         this.contentType = contentType;
         this.snapshotId = snapshotId;
         this.entryId = entryId;
-        this.auth = auth;
+        this.whiteboardAddress = whiteboardAddress;
     }
 
     @Override
@@ -36,7 +42,7 @@ public class SnapshotChannelSpec implements ChannelSpec {
         return entryId;
     }
 
-    public IAM.Auth auth() {
-        return auth;
+    public URI getWhiteboardAddress() {
+        return whiteboardAddress;
     }
 }

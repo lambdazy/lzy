@@ -1,71 +1,70 @@
-package ai.lzy.server.local;
+package ai.lzy.channelmanager.channel;
 
-import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import static ai.lzy.model.GrpcConverter.to;
+
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Slot;
+import ai.lzy.model.SlotConnectionManager;
+import ai.lzy.model.SlotInstance;
 import ai.lzy.model.SlotStatus;
-import ai.lzy.server.channel.Endpoint;
 import ai.lzy.v1.LzyFsApi;
-import ai.lzy.v1.LzyFsGrpc.LzyFsBlockingStub;
-
+import ai.lzy.v1.LzyFsGrpc;
+import io.grpc.StatusRuntimeException;
 import java.net.URI;
-import java.nio.file.Path;
-import java.util.Objects;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-public class ServantEndpoint implements Endpoint {
-    private static final Logger LOG = LogManager.getLogger(ServantEndpoint.class);
+public class SlotEndpoint implements Endpoint {
+    private static final Logger LOG = LogManager.getLogger(SlotEndpoint.class);
+    private static final Map<SlotInstance, SlotEndpoint> ENDPOINTS_CACHE = new ConcurrentHashMap<>();
+    private static final SlotConnectionManager SLOT_CONNECTION_MANAGER = new SlotConnectionManager();
 
-    private final Slot slot;
-    private final URI slotUri;
-    private final String sessionId;
-    private final LzyFsBlockingStub fs;
-    private final String tid;
+    private final SlotInstance slot;
+    private final LzyFsGrpc.LzyFsBlockingStub fs;
     private boolean invalid = false;
 
-    public ServantEndpoint(Slot slot, URI slotUri, String sessionId, LzyFsBlockingStub fs) {
+    private SlotEndpoint(SlotInstance slot) {
+        LOG.info("Creating new SlotEndpoint for slot {} with uri {}", slot.name(), slot.uri());
         this.slot = slot;
-        this.slotUri = slotUri;
-        this.sessionId = sessionId;
-        this.fs = fs;
-        // [TODO] in case of terminal slot uri this will cause invalid tid assignment (terminal has no tids)
-        this.tid = Path.of(slotUri.getPath()).getName(0).toString();
+        this.fs = SLOT_CONNECTION_MANAGER.getOrCreate(slot.uri());
     }
 
+    public static synchronized SlotEndpoint getInstance(SlotInstance slotInstance) {
+        final SlotEndpoint slotEndpoint = ENDPOINTS_CACHE.get(slotInstance);
+        if (slotEndpoint == null) {
+            final SlotEndpoint endpoint = new SlotEndpoint(slotInstance);
+            ENDPOINTS_CACHE.put(slotInstance, endpoint);
+            return endpoint;
+        }
+        return slotEndpoint;
+    }
+
+    @Override
     public URI uri() {
-        return slotUri;
+        return slot.uri();
     }
 
-    public Slot slot() {
+    @Override
+    public Slot slotSpec() {
+        return slot.spec();
+    }
+
+    @Override
+    public SlotInstance slotInstance() {
         return slot;
     }
 
     @Override
-    public String sessionId() {
-        return sessionId;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        final ServantEndpoint endpoint = (ServantEndpoint) o;
-        return slotUri.equals(endpoint.slotUri);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(slotUri);
+    public String taskId() {
+        return slot.taskId();
     }
 
     @Override
     public String toString() {
-        return "(endpoint) {" + slotUri + "}";
+        return "(endpoint) {" + uri() + "}";
     }
 
     @Override
@@ -76,10 +75,14 @@ public class ServantEndpoint implements Endpoint {
     @Override
     public void invalidate() {
         invalid = true;
+//        SLOT_CONNECTION_MANAGER.shutdownConnection(slot.uri());
+        synchronized (SlotEndpoint.class) {
+            ENDPOINTS_CACHE.remove(slotInstance());
+        }
     }
 
     @Override
-    public int connect(URI endpoint) {
+    public int connect(SlotInstance slotInstance) {
         if (isInvalid()) {
             LOG.warn("Attempt to connect to invalid endpoint " + this);
             return 1;
@@ -87,22 +90,22 @@ public class ServantEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.connectSlot(
                 LzyFsApi.ConnectSlotRequest.newBuilder()
-                    .setSlotName(slot().name())
-                    .setTaskId(tid)
-                    .setSlotUri(endpoint.toString())
-                    .build()
+                    .setFrom(to(slotInstance()))
+                    .setTo(to(slotInstance))
+                .build()
             );
             if (rc.hasRc() && rc.getRc().getCodeValue() != 0) {
                 LOG.warn("Slot connection failed: " + rc.getRc().getDescription());
             }
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
-            LOG.error("Unable to connect from: {} to {}\nCause:\n ", this, endpoint, sre);
+            LOG.error("Unable to connect from: {} to {}\nCause:\n ", this, slotInstance, sre);
             return 1;
         }
     }
 
     @Override
+    @Nullable
     public SlotStatus status() {
         if (isInvalid()) {
             LOG.warn("Attempt to get status of invalid endpoint " + this);
@@ -111,8 +114,7 @@ public class ServantEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus slotCommandStatus = fs.statusSlot(
                 LzyFsApi.StatusSlotRequest.newBuilder()
-                    .setTaskId(tid)
-                    .setSlotName(slot().name())
+                    .setSlotInstance(to(slotInstance()))
                     .build());
             return GrpcConverter.from(slotCommandStatus.getStatus());
         } catch (StatusRuntimeException e) {
@@ -128,9 +130,8 @@ public class ServantEndpoint implements Endpoint {
         }
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.disconnectSlot(
-                 LzyFsApi.DisconnectSlotRequest.newBuilder()
-                    .setTaskId(tid)
-                    .setSlotName(slot().name())
+                LzyFsApi.DisconnectSlotRequest.newBuilder()
+                    .setSlotInstance(to(slotInstance()))
                     .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
@@ -141,15 +142,14 @@ public class ServantEndpoint implements Endpoint {
 
     @Override
     public int destroy() {
-        LOG.info("Destroying slot " + slot().name() + " for servant " + uri());
+        LOG.info("Destroying slot " + slotSpec().name() + " for servant " + uri());
         if (isInvalid()) { // skip invalid connections
             return 0;
         }
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.destroySlot(
                 LzyFsApi.DestroySlotRequest.newBuilder()
-                    .setTaskId(tid)
-                    .setSlotName(slot().name())
+                    .setSlotInstance(to(slotInstance()))
                     .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {

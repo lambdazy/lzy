@@ -4,6 +4,7 @@ import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
 import static ai.lzy.v1.Operations.SlotStatus.State.PREPARING;
 import static ai.lzy.v1.Operations.SlotStatus.State.UNBOUND;
 
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -30,7 +31,6 @@ import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.FileContents;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
@@ -40,19 +40,10 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);
     public static final int PAGE_SIZE = 4096;
     private final Path storage;
-    private final String tid;
     private final CompletableFuture<Supplier<FileChannel>> channelSupplier = new CompletableFuture<>();
 
-    protected OutFileSlot(String tid, Slot definition, Path storage) {
-        super(definition);
-        this.tid = tid;
-        this.storage = storage;
-    }
-
-    public OutFileSlot(String tid, Slot definition)
-        throws IOException {
-        super(definition);
-        this.tid = tid;
+    public OutFileSlot(SlotInstance instance) throws IOException {
+        super(instance);
         this.storage = Files.createTempFile("lzy", "file-slot");
     }
 
@@ -161,13 +152,11 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
 
     @Override
     public Operations.SlotStatus status() {
-        final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
+        return Operations.SlotStatus.newBuilder()
             .setState(state())
-            .setDeclaration(GrpcConverter.to(definition()));
-        if (tid != null) {
-            builder.setTaskId(tid);
-        }
-        return builder.build();
+            .setDeclaration(GrpcConverter.to(definition()))
+            .setTaskId(taskId())
+            .build();
     }
 
     @Override

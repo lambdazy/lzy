@@ -2,11 +2,21 @@ package ai.lzy.fs.commands.builtin;
 
 import static ai.lzy.model.GrpcConverter.to;
 
+import ai.lzy.fs.commands.LzyCommand;
+import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.priv.v1.ChannelManager;
+import ai.lzy.priv.v1.Channels;
+import ai.lzy.priv.v1.IAM;
+import ai.lzy.priv.v1.LzyChannelManagerGrpc;
+import ai.lzy.priv.v1.LzyKharonGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.io.File;
+import java.net.URI;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.cli.*;
@@ -15,10 +25,6 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.v1.Channels;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyKharonGrpc;
-import ai.lzy.v1.LzyServerGrpc;
 
 import java.net.URI;
 import java.util.Base64;
@@ -36,6 +42,7 @@ public final class Channel implements LzyCommand {
      */
 
     static {
+        options.addOption("w", "workflow-id", true, "Workflow id");
         options.addOption("c", "content-type", true, "Content type");
         options.addOption("t", "channel-type", true, "Channel type (direct or snapshot)");
         options.addOption("s", "snapshot-id", true, "Snapshot id. Must be set if channel type is `snapshot`");
@@ -48,39 +55,41 @@ public final class Channel implements LzyCommand {
             //noinspection CheckStyle
             throw new IllegalArgumentException(
                 "Invalid call format. Expected: "
-              + "channel <common-opts> cmd [name] [-c content-type] [-t channel-type] [-s snapshot-id] [-e entry-id]");
+              + "channel <common-opts> cmd "
+                    + "[name|channel-id] "
+                    + "[-w workflow-id] "
+                    + "[-c content-type] "
+                    + "[-t channel-type] "
+                    + "[-s snapshot-id] "
+                    + "[-e entry-id]");
         }
 
-        final CommandLine localCmd;
-        final HelpFormatter cliHelp = new HelpFormatter();
-        try {
-            localCmd = new DefaultParser().parse(options, command.getArgs(), false);
-        } catch (ParseException e) {
-            cliHelp.printHelp("channel", options);
+        final CommandLine localCmd = parse(command, options);
+        if (localCmd == null) {
             return -1;
         }
 
         final String channelCommand = command.getArgList().get(1);
         String channelName = command.getArgList().size() > 2 ? command.getArgList().get(2) : null;
 
-        final URI serverAddress = URI.create("grpc://" + command.getOptionValue('z'));
+        final URI channelManagerAddress = URI.create("grpc://" + command.getOptionValue("channel-manager"));
+        // FIXME(d-kruchinin) new format of working with auth
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
 
-        final ManagedChannel serverCh = ChannelBuilder
-            .forAddress(serverAddress.getHost(), serverAddress.getPort())
+        final ManagedChannel channelManagerChannel = ChannelBuilder
+            .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
 
-        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
+        final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager =
+            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel);
 
         switch (channelCommand) {
-            case "create": {
+            case "create" -> {
                 if (channelName == null) {
                     channelName = UUID.randomUUID().toString();
                 }
-
-                final Channels.ChannelCreate.Builder createCommandBuilder = Channels.ChannelCreate.newBuilder();
 
                 DataSchema data = null;
                 if (localCmd.hasOption('c')) {
@@ -97,79 +106,70 @@ public final class Channel implements LzyCommand {
                     data = DataSchema.plain;
                 }
 
-                createCommandBuilder.setContentType(to(data));
+                final Channels.ChannelSpec.Builder channelSpecBuilder = Channels.ChannelSpec.newBuilder();
+                channelSpecBuilder.setContentType(to(data));
+                channelSpecBuilder.setChannelName(channelName);
 
                 if ("snapshot".equals(localCmd.getOptionValue('t'))) {
-                    createCommandBuilder.setSnapshot(
-                        Channels.SnapshotChannelSpec.newBuilder()
+                    channelSpecBuilder.setSnapshot(
+                        Channels.SnapshotChannelType.newBuilder()
                             .setSnapshotId(localCmd.getOptionValue('s'))
                             .setEntryId(localCmd.getOptionValue('e'))
                             .build());
                 } else {
-                    createCommandBuilder.setDirect(Channels.DirectChannelSpec.newBuilder().build());
+                    channelSpecBuilder.setDirect(Channels.DirectChannelType.newBuilder().build());
                 }
 
-                final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
-                    .setAuth(auth)
-                    .setChannelName(channelName)
-                    .setCreate(createCommandBuilder.build())
-                    .build();
+                String workflowId = localCmd.getOptionValue('w');
+                if (workflowId == null) {
+                    // FIXME(d-kruchinin): when workflows will be done
+                    workflowId = "unknown_workflow";
+                }
+                final ChannelManager.ChannelCreateResponse channelCreateResponse = channelManager.create(
+                    ChannelManager.ChannelCreateRequest.newBuilder()
+                        .setWorkflowId(workflowId)
+                        .setChannelSpec(channelSpecBuilder.build())
+                        .build());
 
-                final Channels.ChannelStatus channel = server.channel(channelReq);
-                System.out.println(channel.getChannel().getChannelId());
-
-                break;
+                System.out.println(channelCreateResponse);
             }
-
-            case "status": {
+            case "status" -> {
                 if (channelName == null) {
-                    throw new IllegalArgumentException("Specify a channel name");
+                    throw new IllegalArgumentException("Specify a channel id");
                 }
-
-                final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
-                    .setAuth(auth)
-                    .setChannelName(channelName)
-                    .setState(Channels.ChannelState.newBuilder().build())
-                    .build();
 
                 try {
-                    final Channels.ChannelStatus channelStatus = server.channel(channelReq);
+                    final ChannelManager.ChannelStatus channelStatus = channelManager.status(
+                        ChannelManager.ChannelStatusRequest.newBuilder()
+                            .setChannelId(channelName)
+                            .build()
+                    );
                     System.out.println(JsonFormat.printer().print(channelStatus));
                 } catch (StatusRuntimeException e) {
                     System.out.println(
                         "Got exception while channel status (status_code=" + e.getStatus().getCode() + ")");
                     return -1;
                 }
-
-                break;
             }
-
-            case "destroy": {
+            case "destroy" -> {
                 if (channelName == null) {
-                    throw new IllegalArgumentException("Specify a channel name");
+                    throw new IllegalArgumentException("Specify a channel id");
                 }
 
-                final Channels.ChannelCommand channelReq = Channels.ChannelCommand.newBuilder()
-                    .setAuth(auth)
-                    .setChannelName(channelName)
-                    .setDestroy(Channels.ChannelDestroy.newBuilder().build())
-                    .build();
-
                 try {
-                    final Channels.ChannelStatus channelStatus = server.channel(channelReq);
-                    System.out.println(JsonFormat.printer().print(channelStatus));
+                    final ChannelManager.ChannelDestroyResponse destroyResponse = channelManager.destroy(
+                        ChannelManager.ChannelDestroyRequest.newBuilder()
+                            .setChannelId(channelName)
+                            .build());
+                    System.out.println(JsonFormat.printer().print(destroyResponse));
                     System.out.println("Channel destroyed");
                 } catch (StatusRuntimeException e) {
                     System.out.println(
                         "Got exception while channel destroy (status_code=" + e.getStatus().getCode() + ")");
                     return -1;
                 }
-
-                break;
             }
-
-            default:
-                throw new IllegalStateException("Unknown channel command: " + channelCommand);
+            default -> throw new IllegalStateException("Unknown channel command: " + channelCommand);
         }
 
         return 0;

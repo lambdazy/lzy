@@ -36,6 +36,7 @@ public class ServerThreadContext implements LzyServerTestContext {
         super();
         appProperties.putAll(Map.of(
             "server.server-uri", "http://localhost:" + Config.SERVER_PORT,
+            "server.channel-manager-uri", "http://localhost:" + Config.CHANNEL_MANAGER_PORT,
             "storage.amazon.endpoint", "http://localhost:" + Config.S3_PORT,
             "server.whiteboardUri", "http://localhost:" + Config.WHITEBOARD_PORT,
             "storage.amazon.enabled", "true",
@@ -112,7 +113,6 @@ public class ServerThreadContext implements LzyServerTestContext {
                 channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
                 lzyServer.shutdownNow();
                 lzyServer.awaitTermination();
-                impl.close();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

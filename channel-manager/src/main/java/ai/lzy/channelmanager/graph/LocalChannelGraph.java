@@ -1,10 +1,7 @@
-package ai.lzy.server.local;
+package ai.lzy.channelmanager.graph;
 
-import ai.lzy.server.channel.Channel;
-import ai.lzy.server.channel.ChannelException;
-import ai.lzy.server.channel.ChannelGraph;
-import ai.lzy.server.channel.ChannelGraphException;
-import ai.lzy.server.channel.Endpoint;
+import ai.lzy.channelmanager.channel.ChannelException;
+import ai.lzy.channelmanager.channel.Endpoint;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.ForkJoinPool;
@@ -13,6 +10,7 @@ import javax.validation.constraints.NotNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.Slot;
+import ai.lzy.channelmanager.channel.Channel;
 
 public class LocalChannelGraph implements ChannelGraph {
     private static final Logger LOG = LogManager.getLogger(LocalChannelGraph.class);
@@ -26,14 +24,14 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     private static void checkConsistency(Endpoint sender, Endpoint receiver) {
-        if (sender.slot().direction() != Slot.Direction.OUTPUT) {
+        if (sender.slotSpec().direction() != Slot.Direction.OUTPUT) {
             throw new ChannelGraphException(
-                "Endpoint input: " + sender + " was passed as sender but has direction " + sender.slot().direction()
+                "Endpoint input: " + sender + " was passed as sender but has direction " + sender.slotSpec().direction()
             );
         }
-        if (receiver.slot().direction() != Slot.Direction.INPUT) {
+        if (receiver.slotSpec().direction() != Slot.Direction.INPUT) {
             throw new ChannelGraphException(
-                "Endpoint output: " + receiver + " was passed as receiver but has direction " + receiver.slot()
+                "Endpoint output: " + receiver + " was passed as receiver but has direction " + receiver.slotSpec()
                     .direction()
             );
         }
@@ -71,12 +69,12 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public void link(@NotNull Endpoint sender, @NotNull Endpoint receiver) {
+    public void link(@NotNull Endpoint sender, @NotNull Endpoint receiver) throws ChannelException {
         LOG.info("Linking sender " + sender + " to receiver " + receiver);
 
         checkConsistency(sender, receiver);
 
-        final int rc = receiver.connect(sender.uri());
+        final int rc = receiver.connect(sender.slotInstance());
         if (rc != 0) {
             throw new ChannelException(MessageFormat.format(
                 "Failure rc:{2} while connecting sender:{0} to receiver:{1}",
@@ -100,7 +98,7 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public void removeSender(@NotNull Endpoint sender) {
+    public void removeSender(@NotNull Endpoint sender) throws ChannelException {
         LOG.info("Removing sender " + sender);
 
         if (!senders.contains(sender)) {
@@ -121,7 +119,7 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public void removeReceiver(@NotNull Endpoint receiver) {
+    public void removeReceiver(@NotNull Endpoint receiver) throws ChannelException {
         LOG.info("Removing receiver " + receiver);
 
         if (!receivers.contains(receiver)) {
@@ -139,11 +137,9 @@ public class LocalChannelGraph implements ChannelGraph {
             adjacent.remove(receiver);
             if (adjacent.isEmpty()) {
                 LOG.info("No connections from sender: " + adjSender + " disconnecting it");
-                ForkJoinPool.commonPool().execute(() -> {
-                    if (adjSender.disconnect() != 0) {
-                        LOG.warn("Failed to disconnect sender: " + adjSender);
-                    }
-                });
+                if (adjSender.disconnect() != 0) {
+                    LOG.warn("Failed to disconnect sender: " + adjSender);
+                }
             }
         }
         receivers.remove(receiver);

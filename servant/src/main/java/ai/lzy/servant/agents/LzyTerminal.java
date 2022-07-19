@@ -1,65 +1,54 @@
 package ai.lzy.servant.agents;
 
-import static ai.lzy.model.UriScheme.LzyTerminal;
-
-import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.netty.NettyServerBuilder;
-import io.grpc.stub.StreamObserver;
-import java.io.Closeable;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.UUID;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
+import ai.lzy.model.SlotInstance;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Kharon;
-import ai.lzy.v1.Kharon.AttachTerminal;
-import ai.lzy.v1.Kharon.ServerCommand;
 import ai.lzy.v1.Kharon.TerminalCommand;
+import ai.lzy.v1.Kharon.TerminalProgress;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsApi.SlotCommandStatus.RC;
 import ai.lzy.v1.LzyKharonGrpc;
 import ai.lzy.v1.LzyServantGrpc;
 import ai.lzy.v1.LzyServerGrpc;
 import ai.lzy.v1.Servant;
+import io.grpc.Context;
+import io.grpc.ManagedChannel;
+import io.grpc.stub.StreamObserver;
+import java.io.Closeable;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-public class LzyTerminal extends LzyAgent implements Closeable {
+public class LzyTerminal implements Closeable {
 
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
 
-    private final URI agentUri;
-    private final Server agentServer;
+    private final LzyAgent agent;
+    private final LzyFsServer lzyFs;
+    private final LzyContext context;
     private final ManagedChannel channel;
     private final LzyKharonGrpc.LzyKharonStub kharon;
     private final LzyServerGrpc.LzyServerBlockingStub server;
-    private CommandHandler commandHandler;
-    private LzyContext context;
+    private final CommandHandler commandHandler;
 
-    public LzyTerminal(LzyAgentConfig config) throws URISyntaxException, IOException {
-        super(LzyAgentConfig.updateServantId(config, "term_" + UUID.randomUUID()));
-
-        agentUri = new URI(LzyTerminal.scheme(), null, config.getAgentHost(), config.getAgentPort(), null, null, null);
-
-        agentServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(new Impl())
-            .build();
-
+    public LzyTerminal(LzyAgentConfig config)
+        throws URISyntaxException, IOException, InvocationTargetException, NoSuchMethodException,
+        InstantiationException, IllegalAccessException {
         channel = ChannelBuilder
             .forAddress(config.getServerAddress().getHost(), config.getServerAddress().getPort())
             .usePlaintext()
@@ -67,33 +56,15 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             .build();
         kharon = LzyKharonGrpc.newStub(channel);
         server = LzyServerGrpc.newBlockingStub(channel);
-    }
 
-    @Override
-    protected LzyContext context() {
-        if (context == null) {
-            throw new RuntimeException("Context is not yet defined (who knows what that mean!)");
-        }
-        return context;
-    }
-
-    @Override
-    public URI serverUri() {
-        return agentUri;
-    }
-
-    @Override
-    protected Server server() {
-        return agentServer;
-    }
-
-    @Override
-    protected void onStartUp() {
         commandHandler = new CommandHandler();
-        status.set(AgentStatus.PREPARING_EXECUTION);
-
-        context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(), lzyFs.getMountPoint().toString());
-        status.set(AgentStatus.EXECUTING);
+        config = LzyAgentConfig.updateAgentId(config, commandHandler.workflowId());
+        agent = new LzyAgent(config, new Impl());
+        agent.updateStatus(AgentStatus.REGISTERED);
+        agent.publishTools(server.zygotes(agent.auth()));
+        lzyFs = agent.fs();
+        context = agent.context();
+        agent.updateStatus(AgentStatus.EXECUTING);
 
         Context.current().addListener(context -> {
             LOG.info("Terminal session terminated from server ");
@@ -101,32 +72,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         }, Runnable::run);
 
         context.onProgress(progress -> {
-            LOG.info("LzyTerminal::progress {} {}", agentUri, JsonUtils.printRequest(progress));
-            if (progress.hasAttach()) {
-                final ServerCommand terminalState = ServerCommand.newBuilder()
-                    .setAttach(progress.getAttach())
-                    .build();
-                commandHandler.onNext(terminalState);
-            } else if (progress.hasDetach()) {
-                final ServerCommand terminalState = ServerCommand.newBuilder()
-                    .setDetach(progress.getDetach())
-                    .build();
-                commandHandler.onNext(terminalState);
-            } else {
-                LOG.info("Skipping to send progress from terminal to server :" + JsonUtils
-                    .printRequest(progress));
-            }
-
+            LOG.info("LzyTerminal::progress {} {}", agent.uri(), JsonUtils.printRequest(progress));
             if (progress.hasConcluded()) {
-                LOG.info("LzyTerminal::exit {}", agentUri);
+                LOG.info("LzyTerminal::exit {}", agent.uri());
                 commandHandler.onCompleted();
             }
         });
-    }
-
-    @Override
-    protected LzyServerGrpc.LzyServerBlockingStub serverApi() {
-        return server;
     }
 
     @Override
@@ -135,22 +86,22 @@ public class LzyTerminal extends LzyAgent implements Closeable {
         try {
             commandHandler.onCompleted();
             channel.shutdown();
-            agentServer.shutdown();
         } finally {
-            super.close();
+            agent.close();
         }
     }
 
-    @Override
-    public void awaitTermination() throws InterruptedException {
-        agentServer.awaitTermination();
+    public void awaitTermination() throws InterruptedException, IOException {
+        channel.awaitTermination();
+        agent.awaitTermination();
     }
 
     private class CommandHandler {
 
-        private final StreamObserver<ServerCommand> responseObserver;
+        private final StreamObserver<TerminalProgress> responseObserver;
         private final TerminalSlotSender slotSender = new TerminalSlotSender(kharon);
         private boolean invalidated = false;
+        private final CompletableFuture<String> workflowId = new CompletableFuture<>();
 
         CommandHandler() {
             StreamObserver<TerminalCommand> supplier = new StreamObserver<>() {
@@ -161,30 +112,38 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                     final String commandId = terminalCommand.getCommandId();
 
                     switch (terminalCommand.getCommandCase()) {
-                        case CONNECTSLOT -> {
-                            var cmd = terminalCommand.getConnectSlot();
-                            LOG.info("ConnectSlot command received: {}", cmd);
+                        case TERMINALATTACHRESPONSE -> {
+                            var terminalAttachResponse = terminalCommand.getTerminalAttachResponse();
+                            LOG.info("TerminalAttachResponse received: {}", terminalAttachResponse);
+                            workflowId.complete(terminalAttachResponse.getWorkflowId());
+                        }
 
-                            final LzySlot slot = context.slot(cmd.getTaskId(), cmd.getSlotName());
+                        case CONNECTSLOT -> {
+                            var connectSlotRequest = terminalCommand.getConnectSlot();
+                            LOG.info("ConnectSlot command received: {}", connectSlotRequest);
+
+                            final SlotInstance fromSlot = GrpcConverter.from(connectSlotRequest.getFrom());
+                            final LzySlot slot = context.slot(fromSlot.taskId(), fromSlot.name());
                             if (slot == null) {
                                 reply(commandId, RC.Code.ERROR,
-                                        "Slot " + cmd.getSlotName() + " not found in ns: " + cmd.getTaskId());
+                                      "Slot " + fromSlot.name() + " not found in ns: " + fromSlot.taskId());
                                 return;
                             }
 
-                            final URI slotUri = URI.create(cmd.getSlotUri());
+                            final SlotInstance toSlot = GrpcConverter.from(connectSlotRequest.getTo());
+                            final URI slotUri = toSlot.uri();
 
                             ForkJoinPool.commonPool().execute(() -> {
                                 try {
                                     if (slot instanceof LzyOutputSlot) {
-                                        slotSender.connect((LzyOutputSlot) slot, slotUri);
+                                        slotSender.connect((LzyOutputSlot) slot, toSlot);
                                     } else if (slot instanceof LzyInputSlot inputSlot) {
                                         if (UriScheme.SlotS3.match(slotUri) || UriScheme.SlotAzure.match(slotUri)) {
                                             inputSlot.connect(slotUri,
                                                 lzyFs.getSlotConnectionManager().connectToS3(slotUri, 0));
                                         } else {
                                             inputSlot.connect(slotUri,
-                                                lzyFs.getSlotConnectionManager().connectToSlot(slotUri, 0));
+                                                lzyFs.getSlotConnectionManager().connectToSlot(toSlot, 0));
                                         }
                                     }
 
@@ -200,7 +159,9 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                             var cmd = terminalCommand.getDisconnectSlot();
                             LOG.info("DisconnectSlot command received: {}", cmd);
 
-                            final LzySlot slot = context.slot(cmd.getTaskId(), cmd.getSlotName());
+                            final SlotInstance slotInstance = GrpcConverter.from(cmd.getSlotInstance());
+
+                            final LzySlot slot = context.slot(slotInstance.taskId(), slotInstance.name());
                             if (slot == null) {
                                 reply(commandId, RC.Code.SUCCESS, "");
                                 return;
@@ -212,11 +173,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                         case STATUSSLOT -> {
                             var cmd = terminalCommand.getStatusSlot();
                             LOG.info("StatusSlot command received: {}", cmd);
+                            final SlotInstance slotInstance = GrpcConverter.from(cmd.getSlotInstance());
 
-                            final LzySlot slot = context.slot(cmd.getTaskId(), cmd.getSlotName());
+                            final LzySlot slot = context.slot(slotInstance.taskId(), slotInstance.name());
                             if (slot == null) {
                                 reply(commandId, RC.Code.ERROR,
-                                        "Slot " + cmd.getSlotName() + " not found in ns: " + cmd.getTaskId());
+                                        "Slot " + slotInstance.name() + " not found in ns: " + slotInstance.taskId());
                                 return;
                             }
 
@@ -226,8 +188,9 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                         case DESTROYSLOT -> {
                             var cmd = terminalCommand.getDestroySlot();
                             LOG.info("DestroySlot command received: {}", cmd);
+                            final SlotInstance slotInstance = GrpcConverter.from(cmd.getSlotInstance());
 
-                            final LzySlot slot = context.slot(cmd.getTaskId(), cmd.getSlotName());
+                            final LzySlot slot = context.slot(slotInstance.taskId(), slotInstance.name());
                             if (slot == null) {
                                 reply(commandId, RC.Code.SUCCESS, "");
                                 return;
@@ -263,7 +226,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
                 }
 
                 private void reply(String commandId, LzyFsApi.SlotCommandStatus status) {
-                    var terminalState = ServerCommand.newBuilder()
+                    var terminalState = TerminalProgress.newBuilder()
                         .setTerminalResponse(Kharon.TerminalResponse.newBuilder()
                             .setCommandId(commandId)
                             .setSlotStatus(status)
@@ -275,17 +238,17 @@ public class LzyTerminal extends LzyAgent implements Closeable {
             };
 
             responseObserver = kharon.attachTerminal(supplier);
-
-            status.set(AgentStatus.REGISTERING);
-            responseObserver.onNext(ServerCommand.newBuilder()
-                .setAttachTerminal(AttachTerminal.newBuilder()
-                    .setAuth(auth.getUser())
-                    .build())
-                .build());
-            status.set(AgentStatus.REGISTERED);
         }
 
-        public synchronized void onNext(ServerCommand serverCommand) {
+        public String workflowId() {
+            try {
+                return workflowId.get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new IllegalStateException("Unable to get workflowId from kharon", e);
+            }
+        }
+
+        public synchronized void onNext(TerminalProgress serverCommand) {
             if (invalidated) {
                 throw new IllegalStateException("Command handler was invalidated, but got onNext command");
             }
@@ -311,12 +274,12 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
         @Override
         public void update(IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
-            LzyTerminal.this.update(request, responseObserver);
+            agent.update(server.zygotes(request), responseObserver);
         }
 
         @Override
         public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
-            LzyTerminal.this.status(request, responseObserver);
+            agent.status(request, responseObserver);
         }
     }
 }

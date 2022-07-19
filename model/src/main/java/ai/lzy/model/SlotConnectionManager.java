@@ -1,21 +1,20 @@
-package ai.lzy.kharon;
+package ai.lzy.model;
 
-import io.grpc.ManagedChannel;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
-import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 import ai.lzy.v1.LzyFsGrpc;
-
+import io.grpc.ManagedChannel;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
+import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 
-public class ServantConnectionManager {
+public class SlotConnectionManager {
 
-    private static final Logger LOG = LogManager.getLogger(ServantConnectionManager.class);
+    private static final Logger LOG = LogManager.getLogger(SlotConnectionManager.class);
     private final Map<URI, Connection> connectionMap = new HashMap<>();
     private final LockManager lockManager = new LocalLockManager();
 

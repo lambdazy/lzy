@@ -24,33 +24,32 @@ public class Start implements LzyCommand {
     }
 
     @Override
-    public int execute(CommandLine parse) throws Exception {
-        if (!parse.hasOption('z')) {
+    public int execute(CommandLine commandLine) throws Exception {
+        if (!commandLine.hasOption('z')) {
             throw new RuntimeException("Provide lzy server address with -z option to start a task.");
         }
-        String serverAddress = parse.getOptionValue('z');
+        String serverAddress = commandLine.getOptionValue('z');
         if (!serverAddress.contains("//")) {
             serverAddress = "http://" + serverAddress;
         }
 
-        final CommandLine localCmd;
-        final HelpFormatter cliHelp = new HelpFormatter();
-        try {
-            localCmd = new DefaultParser().parse(options, parse.getArgs(), false);
-        } catch (ParseException e) {
-            cliHelp.printHelp("channel", options);
+        final CommandLine localCmd = parse(commandLine, options);
+        if (localCmd == null) {
             return -1;
         }
 
-        final int agentPort = Integer.parseInt(parse.getOptionValue('p', "9999"));
-        final int fsPort = parse.hasOption('q') ? Integer.parseInt(parse.getOptionValue('q')) : agentPort + 1;
+        final int agentPort = Integer.parseInt(commandLine.getOptionValue('p', "9999"));
+        final int fsPort = commandLine.hasOption('q')
+            ? Integer.parseInt(commandLine.getOptionValue('q'))
+            : agentPort + 1;
 
-        final Path path = Path.of(parse.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
-        final String host = parse.getOptionValue('h', LzyFS.lineCmd("hostname"));
-        final LzyAgent agent = new LzyServant(
+        final Path path = Path.of(commandLine.getOptionValue('m', System.getenv("HOME") + "/.lzy"));
+        final String host = commandLine.getOptionValue('h', LzyFS.lineCmd("hostname"));
+        final LzyServant servant = new LzyServant(
             LzyAgentConfig.builder()
                 .serverAddress(URI.create(serverAddress))
-                .whiteboardAddress(URI.create(parse.getOptionValue('w')))
+                .whiteboardAddress(URI.create(commandLine.getOptionValue('w')))
+                .channelManagerAddress(URI.create(commandLine.getOptionValue("channel-manager")))
                 .servantId(localCmd.getOptionValue('s'))
                 .token(localCmd.getOptionValue('o'))
                 .bucket(localCmd.getOptionValue('b'))
@@ -58,14 +57,10 @@ public class Start implements LzyCommand {
                 .agentPort(agentPort)
                 .fsPort(fsPort)
                 .root(path)
+                .scheme(UriScheme.LzyServant.scheme())
                 .build()
         );
-
-        LOG.info("Starting servant at {}://{}:{}/{} with fs at {}:{}",
-            UriScheme.LzyServant.scheme(), host, agent, path, host, fsPort);
-
-        agent.start();
-        agent.awaitTermination();
+        servant.close();
         return 0;
     }
 }

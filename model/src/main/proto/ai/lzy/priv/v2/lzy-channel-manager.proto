@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package ai.lzy.priv.v2;
+
+import "ai/lzy/priv/v2/lzy-channel.proto";
+import "ai/lzy/priv/v2/lzy-fs.proto";
+import "ai/lzy/priv/v2/lzy-zygote.proto";
+
+option java_outer_classname = "ChannelManager";
+option java_package = "ai.lzy.priv.v2";
+
+service LzyChannelManager {
+  rpc Create (ChannelCreateRequest) returns (ChannelCreateResponse);
+  rpc Destroy (ChannelDestroyRequest) returns (ChannelDestroyResponse);
+  rpc Status (ChannelStatusRequest) returns (ChannelStatus);
+  rpc ChannelsStatus (ChannelsStatusRequest) returns (ChannelStatusList);
+  rpc Bind (SlotAttach) returns (SlotAttachStatus);
+  rpc Unbind (SlotDetach) returns (SlotDetachStatus);
+}
+
+message ChannelCreateRequest {
+  ChannelSpec channelSpec = 1;
+  string workflowId = 2;
+}
+
+message ChannelCreateResponse {
+  string channelId = 1;
+}
+
+message ChannelDestroyRequest {
+  string channelId = 1;
+}
+
+message ChannelDestroyResponse {}
+
+message ChannelStatusRequest {
+  string channelId = 1;
+}
+
+message ChannelStatus {
+  ChannelSpec channelSpec = 1;
+  repeated SlotStatus connected = 2;
+  string channelId = 3;
+}
+
+message ChannelsStatusRequest {}
+
+message ChannelStatusList {
+  repeated ChannelStatus statuses = 1;
+}
+
+message SlotAttach {
+  SlotInstance slotInstance = 1;
+}
+
+message SlotAttachStatus {}
+
+message SlotDetach {
+  SlotInstance slotInstance = 1;
+}
+
+message SlotDetachStatus {}

@@ -1,5 +1,9 @@
 package ai.lzy.fs.slots;
 
+import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.SlotInstance;
+import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import java.io.EOFException;
 import java.io.IOException;
@@ -14,22 +18,16 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.slots.TextLinesOutSlot;
-import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.v1.Operations;
 
 public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);
 
-    private final String tid;
     private final CompletableFuture<LineNumberReader> reader = new CompletableFuture<>();
     private long offset = 0;
 
-    public LineReaderSlot(String tid, TextLinesOutSlot definition) {
-        super(definition);
+    public LineReaderSlot(SlotInstance instance) {
+        super(instance);
         state(Operations.SlotStatus.State.OPEN);
-        this.tid = tid;
     }
 
     public void setStream(LineNumberReader lnr) {
@@ -42,7 +40,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
             .setState(state())
             .setPointer(offset)
             .setDeclaration(GrpcConverter.to(definition()))
-            .setTaskId(tid)
+            .setTaskId(taskId())
             .build();
     }
 

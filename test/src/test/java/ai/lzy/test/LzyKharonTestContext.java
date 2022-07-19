@@ -9,6 +9,8 @@ public interface LzyKharonTestContext {
 
     String servantFsAddress();
 
+    String channelManagerProxyAddress();
+
     LzyKharonGrpc.LzyKharonBlockingStub client();
 
     void init();

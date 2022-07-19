@@ -1,5 +1,6 @@
 package ai.lzy.fs.slots;
 
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -30,14 +31,14 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private final Path storage;
     private final OutputStream outputStream;
 
-    public InFileSlot(String tid, Slot definition) throws IOException {
-        this(tid, definition, Files.createTempFile("lzy", "file-slot"));
-    }
-
-    public InFileSlot(String tid, Slot definition, Path storage) throws IOException {
-        super(tid, definition);
+    public InFileSlot(SlotInstance instance, Path storage) throws IOException {
+        super(instance);
         this.storage = storage;
         outputStream = Files.newOutputStream(storage);
+    }
+
+    public InFileSlot(SlotInstance instance) throws IOException {
+        this(instance, Files.createTempFile("lzy", "file-slot"));
     }
 
     @Override

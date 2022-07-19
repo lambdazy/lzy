@@ -1,4 +1,8 @@
-package ai.lzy.server.channel;
+package ai.lzy.channelmanager.graph;
+
+import ai.lzy.channelmanager.channel.Channel;
+import ai.lzy.channelmanager.channel.ChannelException;
+import ai.lzy.channelmanager.channel.Endpoint;
 
 import java.util.Set;
 import javax.validation.constraints.NotNull;
@@ -19,9 +23,9 @@ public interface ChannelGraph {
     void addSender(@NotNull Endpoint sender);
     void addReceiver(@NotNull Endpoint receiver);
 
-    void link(@NotNull Endpoint from, @NotNull Endpoint to);
-    void removeSender(@NotNull Endpoint sender);
-    void removeReceiver(@NotNull Endpoint receiver);
+    void link(@NotNull Endpoint from, @NotNull Endpoint to) throws ChannelException;
+    void removeSender(@NotNull Endpoint sender) throws ChannelException;
+    void removeReceiver(@NotNull Endpoint receiver) throws ChannelException;
 
     boolean hasBound(@NotNull Endpoint endpoint);
 }

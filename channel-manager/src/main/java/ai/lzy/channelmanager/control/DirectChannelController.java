@@ -1,9 +1,8 @@
-package ai.lzy.server.channel.control;
+package ai.lzy.channelmanager.control;
 
-import ai.lzy.server.channel.ChannelController;
-import ai.lzy.server.channel.ChannelException;
-import ai.lzy.server.channel.ChannelGraph;
-import ai.lzy.server.channel.Endpoint;
+import ai.lzy.channelmanager.channel.ChannelException;
+import ai.lzy.channelmanager.channel.Endpoint;
+import ai.lzy.channelmanager.graph.ChannelGraph;
 import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
@@ -17,16 +16,15 @@ public class DirectChannelController implements ChannelController {
         LOG.info("DirectChannelController::executeBind, slot: {} to {}",
             endpoint.uri(), channelGraph.owner().name());
 
-        switch (endpoint.slot().direction()) {
-            case INPUT: { // Receiver
+        switch (endpoint.slotSpec().direction()) {
+            case INPUT -> { // Receiver
                 if (!channelGraph.senders().isEmpty()) {
                     channelGraph.link(channelGraph.firstSender(), endpoint);
                 } else {
                     channelGraph.addReceiver(endpoint);
                 }
-                break;
             }
-            case OUTPUT: { // Sender
+            case OUTPUT -> { // Sender
                 final Set<Endpoint> inputs = channelGraph.senders();
                 if (!inputs.isEmpty() && !inputs.contains(endpoint)) {
                     throw new ChannelException("Direct channel can not have two senders");
@@ -37,10 +35,8 @@ public class DirectChannelController implements ChannelController {
                 } else {
                     channelGraph.addSender(endpoint);
                 }
-                break;
             }
-            default:
-                throw new IllegalStateException("Unexpected value: " + endpoint.slot().direction());
+            default -> throw new IllegalStateException("Unexpected slot direction: " + endpoint.slotSpec().direction());
         }
     }
 
@@ -49,22 +45,15 @@ public class DirectChannelController implements ChannelController {
         LOG.info("DirectChannelController::executeUnbind, slot: {} from: {}",
             endpoint.uri(), channelGraph.owner().name());
 
-        switch (endpoint.slot().direction()) {
-            case INPUT: { // Receiver
-                channelGraph.removeReceiver(endpoint);
-                break;
-            }
-            case OUTPUT: { // Sender
-                channelGraph.removeSender(endpoint);
-                break;
-            }
-            default:
-                throw new IllegalStateException("Unexpected value: " + endpoint.slot().direction());
+        switch (endpoint.slotSpec().direction()) {
+            case INPUT -> channelGraph.removeReceiver(endpoint);
+            case OUTPUT -> channelGraph.removeSender(endpoint);
+            default -> throw new IllegalStateException("Unexpected slot direction: " + endpoint.slotSpec().direction());
         }
     }
 
     @Override
-    public void executeDestroy(ChannelGraph channelGraph) throws ChannelException {
+    public void executeDestroy(ChannelGraph channelGraph) {
         LOG.info("destroying " + channelGraph.owner().name());
 
         channelGraph.receivers().forEach(Endpoint::destroy);

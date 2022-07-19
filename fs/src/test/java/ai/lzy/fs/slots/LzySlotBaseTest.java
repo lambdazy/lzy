@@ -1,5 +1,8 @@
 package ai.lzy.fs.slots;
 
+import ai.lzy.model.SlotInstance;
+import java.net.URI;
+import java.net.URISyntaxException;
 import org.junit.Ignore;
 import org.junit.Test;
 import ai.lzy.fs.fs.LzySlot;
@@ -18,7 +21,7 @@ public class LzySlotBaseTest {
 
     @Test
     public void obsoleteActions() throws InterruptedException {
-        var lzySlot = new LzySlotBase(new LzySlotImpl()) {};
+        var lzySlot = new LzySlotBase(getSlotInstance()) {};
 
         final AtomicInteger counter = new AtomicInteger();
         final CountDownLatch latch = new CountDownLatch(1);
@@ -38,7 +41,7 @@ public class LzySlotBaseTest {
 
     @Test
     public void actionsOrder() throws InterruptedException {
-        var lzySlot = new LzySlotBase(new LzySlotImpl()) {};
+        var lzySlot = new LzySlotBase(getSlotInstance()) {};
 
         final AtomicInteger openCounter = new AtomicInteger();
         final AtomicInteger suspendCounter = new AtomicInteger();
@@ -81,7 +84,7 @@ public class LzySlotBaseTest {
 
     @Test
     public void failedAction() throws InterruptedException {
-        var lzySlot = new LzySlotBase(new LzySlotImpl()) {};
+        var lzySlot = new LzySlotBase(getSlotInstance()) {};
 
         final AtomicInteger counter = new AtomicInteger();
         final CountDownLatch latch = new CountDownLatch(1);
@@ -115,7 +118,7 @@ public class LzySlotBaseTest {
     @Test
     @Ignore
     public void failTest() {
-        var lzySlot = new LzySlotBase(new LzySlotImpl()) {};
+        var lzySlot = new LzySlotBase(getSlotInstance()) {};
 
         lzySlot.onState(State.OPEN, () -> {
             throw new RuntimeException("Hi there!");
@@ -126,25 +129,34 @@ public class LzySlotBaseTest {
         fail("should not happen");
     }
 
-    private static class LzySlotImpl implements Slot {
-        @Override
-        public String name() {
-            return "test-slot";
-        }
+    private static SlotInstance getSlotInstance() {
+        try {
+            return new SlotInstance(
+                    new Slot() {
+                        @Override
+                        public String name() {
+                            return "test-slot";
+                        }
 
-        @Override
-        public Media media() {
-            return Media.FILE;
-        }
+                        @Override
+                        public Media media() {
+                            return Media.FILE;
+                        }
 
-        @Override
-        public Direction direction() {
-            return Direction.INPUT;
-        }
+                        @Override
+                        public Direction direction() {
+                            return Direction.INPUT;
+                        }
 
-        @Override
-        public DataSchema contentType() {
-            return DataSchema.plain;
+                        @Override
+                        public DataSchema contentType() {
+                            return DataSchema.plain;
+                        }
+                    },
+                    "taskId", "channelId", new URI("slot://", "host", null, 100, null, null, null)
+            );
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
         }
     }
 }

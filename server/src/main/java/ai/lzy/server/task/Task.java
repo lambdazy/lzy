@@ -17,8 +17,6 @@ public interface Task {
 
     Zygote workload();
 
-    Stream<Slot> slots();
-    Slot slot(String slotName);
     SlotStatus slotStatus(Slot slot) throws TaskException;
 
     State state();

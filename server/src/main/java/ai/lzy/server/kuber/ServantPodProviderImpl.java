@@ -184,6 +184,8 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         ).addEnvItem(
             new V1EnvVar().name("LZYWHITEBOARD").value(serverConfig.getWhiteboardUri().toString())
         ).addEnvItem(
+            new V1EnvVar().name("CHANNEL_MANAGER_URI").value(serverConfig.getChannelManagerUri().toString())
+        ).addEnvItem(
             new V1EnvVar().name("BUCKET_NAME").value(bucketName)
         ).addEnvItem(
             new V1EnvVar().name("BASE_ENV_DEFAULT_IMAGE").value(serverConfig.getBaseEnvDefaultImage())

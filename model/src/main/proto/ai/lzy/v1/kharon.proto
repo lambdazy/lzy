@@ -12,22 +12,15 @@ option java_package = "ai.lzy.v1";
 
 service LzyKharon {
   // API for terminal
-  rpc AttachTerminal (stream ServerCommand) returns (stream TerminalCommand);
+  rpc AttachTerminal (stream TerminalProgress) returns (stream TerminalCommand);
   rpc WriteToInputSlot(stream SendSlotDataMessage) returns (ReceivedDataStatus);
   rpc OpenOutputSlot (SlotRequest) returns (stream Message);
 }
 
-message ServerCommand {
+message TerminalProgress {
   oneof progress {
-    AttachTerminal attachTerminal = 1;
-    SlotAttach attach = 2;
-    SlotDetach detach = 3;
-    TerminalResponse terminalResponse = 4;
+    TerminalResponse terminalResponse = 1;
   }
-}
-
-message AttachTerminal {
-  UserCredentials auth = 1;
 }
 
 message TerminalResponse {
@@ -40,12 +33,17 @@ message TerminalResponse {
 message TerminalCommand {
   string commandId = 1;
   oneof command {
+    TerminalAttachResponse terminalAttachResponse = 2;
     CreateSlotRequest createSlot = 3;
     ConnectSlotRequest connectSlot = 4;
     DisconnectSlotRequest disconnectSlot = 5;
     StatusSlotRequest statusSlot = 6;
     DestroySlotRequest destroySlot = 7;
   }
+}
+
+message TerminalAttachResponse {
+  string workflowId = 1;
 }
 
 message SendSlotDataMessage {

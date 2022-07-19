@@ -6,40 +6,38 @@ import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
 import static ai.lzy.v1.Tasks.TaskProgress.Status.QUEUE;
 import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
 
-import ai.lzy.model.Constants;
-import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
 import ai.lzy.model.Slot;
-import ai.lzy.model.SlotStatus;
 import ai.lzy.model.StorageCredentials;
 import ai.lzy.model.Zygote;
-import ai.lzy.model.channel.ChannelSpec;
-import ai.lzy.model.channel.DirectChannelSpec;
-import ai.lzy.model.channel.SnapshotChannelSpec;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEventLogger;
-import ai.lzy.model.utils.SessionIdInterceptor;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.IAM.Auth;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.Lzy.GetSessionsRequest;
+import ai.lzy.v1.Lzy.GetSessionsResponse;
+import ai.lzy.v1.Lzy.GetSessionsResponse.Builder;
+import ai.lzy.v1.Lzy.SessionDescription;
+import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Tasks;
+import ai.lzy.v1.Tasks.TaskSignal;
 import ai.lzy.server.configs.StorageConfigs;
-import ai.lzy.server.local.ServantEndpoint;
 import ai.lzy.server.mem.ZygoteRepositoryImpl;
 import ai.lzy.server.storage.StorageCredentialsProvider;
 import ai.lzy.server.task.Task;
 import ai.lzy.server.task.TaskException;
 import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.Metadata;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import io.grpc.ServerInterceptors;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
-import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -50,10 +48,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -64,30 +59,11 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import ai.lzy.v1.Channels;
-import ai.lzy.v1.Channels.ChannelCreate;
-import ai.lzy.v1.Channels.ChannelStatus;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.IAM.Auth;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.Lzy.GetSessionsRequest;
-import ai.lzy.v1.Lzy.GetSessionsResponse;
-import ai.lzy.v1.Lzy.GetSessionsResponse.Builder;
-import ai.lzy.v1.Lzy.SessionDescription;
-import ai.lzy.v1.LzyFsApi;
-import ai.lzy.v1.LzyFsGrpc;
-import ai.lzy.v1.LzyServantGrpc;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Servant;
-import ai.lzy.v1.Tasks;
-import ai.lzy.v1.Tasks.TaskSignal;
 
 public class LzyServer {
 
@@ -140,7 +116,7 @@ public class LzyServer {
             ServerBuilder<?> builder = NettyServerBuilder.forPort(port)
                 .permitKeepAliveWithoutCalls(true)
                 .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-                .addService(ServerInterceptors.intercept(impl, new SessionIdInterceptor()));
+                .addService(impl);
             try {
                 BackOfficeService backoffice = context.getBean(BackOfficeService.class);
                 builder.addService(backoffice);
@@ -152,23 +128,16 @@ public class LzyServer {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("gRPC server is shutting down!");
                 server.shutdown();
-                impl.close();
             }));
             server.awaitTermination();
         }
     }
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
-
-        public static final ThreadGroup TERMINAL_THREADS = new ThreadGroup("Terminal threads");
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
-        private final Set<Thread> terminalThreads = new HashSet<>();
 
         @Inject
-        private ChannelsManager channels;
-
-        @Inject
-        private TasksManager tasks;
+        private TasksManager tasksManager;
 
         @Inject
         private ServantsAllocator.Ex servantsAllocator;
@@ -271,7 +240,7 @@ public class LzyServer {
             switch (request.getCommandCase()) {
                 case STATE:
                 case SIGNAL: {
-                    task = tasks.task(request.getTid());
+                    task = tasksManager.task(request.getTid());
                     final TaskSignal signal = request.getSignal();
                     if (task == null) {
                         responseObserver.onError(Status.NOT_FOUND.asException());
@@ -292,7 +261,7 @@ public class LzyServer {
                     throw new IllegalStateException("Unexpected value: " + request.getCommandCase());
             }
             if (task != null) {
-                responseObserver.onNext(taskStatus(task, tasks));
+                responseObserver.onNext(taskStatus(task, tasksManager));
                 responseObserver.onCompleted();
             } else {
                 responseObserver.onError(new IllegalArgumentException());
@@ -321,7 +290,7 @@ public class LzyServer {
             final SessionManager.Session session = resolveSession(request.getAuth());
             final AtomicBoolean concluded = new AtomicBoolean(false);
             // [TODO] session per user is too simple
-            final Task task = tasks.start(uid, parent, workload, assignments, auth);
+            final Task task = tasksManager.start(uid, parent, workload, assignments, auth);
             task.onProgress(progress -> {
                 if (concluded.get()) {
                     return;
@@ -376,92 +345,9 @@ public class LzyServer {
 
             final String user = resolveUser(auth);
             final Tasks.TasksList.Builder builder = Tasks.TasksList.newBuilder();
-            tasks.ps()
+            tasksManager.tasks()
                 .filter(t -> this.auth.canAccess(t, user))
-                .map(t -> taskStatus(t, tasks)).forEach(builder::addTasks);
-            responseObserver.onNext(builder.build());
-            responseObserver.onCompleted();
-        }
-
-        @Override
-        public void channel(Channels.ChannelCommand request, StreamObserver<Channels.ChannelStatus> responseObserver) {
-            LOG.info("Server::channel " + JsonUtils.printRequest(request));
-            final IAM.Auth auth = request.getAuth();
-            if (!checkAuth(auth, responseObserver)) {
-                responseObserver.onError(Status.PERMISSION_DENIED.asException());
-                return;
-            }
-
-            ChannelSpec channel;
-            switch (request.getCommandCase()) {
-                case CREATE: {
-                    final ChannelCreate create = request.getCreate();
-                    final ChannelSpec spec;
-                    switch (create.getTypeCase()) {
-                        case SNAPSHOT: {
-                            spec = new SnapshotChannelSpec(
-                                request.getChannelName(),
-                                GrpcConverter.contentTypeFrom(create.getContentType()),
-                                create.getSnapshot().getSnapshotId(),
-                                create.getSnapshot().getEntryId(),
-                                request.getAuth()
-                            );
-                            break;
-
-                        }
-                        case DIRECT: {
-                            spec = new DirectChannelSpec(request.getChannelName(),
-                                GrpcConverter.contentTypeFrom(create.getContentType()));
-                            break;
-                        }
-                        default:
-                            throw new NotImplementedException();
-                    }
-                    channel = tasks.createChannel(
-                        resolveUser(auth),
-                        resolveTask(auth),
-                        spec
-                    );
-                    if (channel == null) {
-                        channel = channels.get(request.getChannelName());
-                    }
-                    break;
-                }
-                case DESTROY: {
-                    channel = channels.get(request.getChannelName());
-                    if (channel != null) {
-                        channels.destroy(channel);
-                        final ChannelStatus status = channelStatus(channel);
-                        responseObserver.onNext(status);
-                        responseObserver.onCompleted();
-                        return;
-                    }
-                    break;
-                }
-                case STATE: {
-                    channel = channels.get(request.getChannelName());
-                    break;
-                }
-                default:
-                    throw new IllegalStateException("Unexpected value: " + request.getCommandCase());
-            }
-            if (channel != null) {
-                responseObserver.onNext(channelStatus(channel));
-                responseObserver.onCompleted();
-            } else {
-                responseObserver.onError(Status.NOT_FOUND.asException());
-            }
-        }
-
-        @Override
-        public void channelsStatus(IAM.Auth auth, StreamObserver<Channels.ChannelStatusList> responseObserver) {
-            if (!checkAuth(auth, responseObserver)) {
-                responseObserver.onError(Status.PERMISSION_DENIED.asException());
-                return;
-            }
-
-            final Channels.ChannelStatusList.Builder builder = Channels.ChannelStatusList.newBuilder();
-            tasks.cs().forEach(channel -> builder.addStatuses(channelStatus(channel)));
+                .map(t -> taskStatus(t, tasksManager)).forEach(builder::addTasks);
             responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
         }
@@ -504,45 +390,11 @@ public class LzyServer {
                 final String servantId = auth.getTask().getServantId();
                 servantsAllocator.register(servantId, servantUri, fsUri);
             } else {
-                final Thread terminalThread = new Thread(
-                    TERMINAL_THREADS,
-                    () -> {
-                        final String sessionId = request.getServantId();
-                        Context.current().addListener(ctxt -> Thread.currentThread().interrupt(), Runnable::run);
-
-                        final ManagedChannel servantChannel = ChannelBuilder
-                            .forAddress(servantUri.getHost(), servantUri.getPort())
-                            .usePlaintext()
-                            .enableRetry(LzyServantGrpc.SERVICE_NAME)
-                            .build();
-
-                        final ManagedChannel fsChannel = ChannelBuilder
-                            .forAddress(fsUri.getHost(), fsUri.getPort())
-                            .usePlaintext()
-                            .enableRetry(LzyFsGrpc.SERVICE_NAME)
-                            .build();
-
-                        final Metadata metadata = new Metadata();
-                        metadata.put(Constants.SESSION_ID_METADATA_KEY, sessionId);
-
-                        final LzyServantGrpc.LzyServantBlockingStub servant = MetadataUtils
-                            .attachHeaders(LzyServantGrpc.newBlockingStub(servantChannel), metadata);
-                        final LzyFsGrpc.LzyFsBlockingStub fs = MetadataUtils
-                            .attachHeaders(LzyFsGrpc.newBlockingStub(fsChannel), metadata);
-
-                        try {
-                            runTerminal(auth, servant, fs, sessionId);
-                        } finally {
-                            servantChannel.shutdownNow();
-                            fsChannel.shutdownNow();
-                            terminalThreads.remove(Thread.currentThread());
-                        }
-                    },
-                    "Terminal " + request.getServantId() + " for user " + auth.getUser().getUserId()
+                responseObserver.onError(
+                    Status.UNIMPLEMENTED
+                        .withDescription("Auth with user credentials for servant is not allowed")
+                        .asRuntimeException()
                 );
-                terminalThread.setDaemon(true);
-                terminalThread.start();
-                terminalThreads.add(terminalThread);
             }
             responseObserver.onNext(Lzy.AttachStatus.newBuilder().build());
             responseObserver.onCompleted();
@@ -635,82 +487,6 @@ public class LzyServer {
             responseObserver.onCompleted();
         }
 
-        /**
-         * [TODO] support interruption
-         */
-        private void runTerminal(IAM.Auth auth, LzyServantGrpc.LzyServantBlockingStub terminalServant,
-                                 LzyFsGrpc.LzyFsBlockingStub terminalFs, String sessionId) {
-            final String user = auth.getUser().getUserId();
-            servantsAllocator.registerSession(user, sessionId, this.auth.bucketForUser(user));
-
-            final Iterator<Servant.ServantProgress> start = terminalServant.start(IAM.Empty.newBuilder().build());
-
-            tasks.slots(user).forEach((slot, channel) -> {
-                var createSlotRequest = LzyFsApi.CreateSlotRequest.newBuilder()
-                    .setTaskId(auth.hasTask() ? auth.getTask().getTaskId() : "terminal-" + auth.getUser().getUserId())
-                    .setSlot(GrpcConverter.to(slot))
-                    .setChannelId(channel.name())
-                    .build();
-                final LzyFsApi.SlotCommandStatus status = terminalFs.createSlot(createSlotRequest);
-
-                if (status.hasRc() && status.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {
-                    LOG.error("Unable to configure terminal servant slot. session: {}, slot: {}, error: {}",
-                        sessionId, slot, status.getRc().toString());
-                }
-            });
-
-            try {
-                start.forEachRemaining(progress -> {
-                    LOG.info("LzyServer::terminalProgress " + JsonUtils.printRequest(progress));
-                    if (progress.hasAttach()) {
-                        final Servant.SlotAttach attach = progress.getAttach();
-                        final Slot slot = from(attach.getSlot());
-                        final URI slotUri = URI.create(attach.getUri());
-                        final String channelName = attach.getChannel();
-                        tasks.addUserSlot(user, slot, channels.get(channelName));
-                        this.channels.bind(channels.get(channelName),
-                            new ServantEndpoint(slot, slotUri, sessionId, terminalFs));
-                    } else if (progress.hasDetach()) {
-                        final Servant.SlotDetach detach = progress.getDetach();
-                        final Slot slot = from(detach.getSlot());
-                        final URI slotUri = URI.create(detach.getUri());
-                        tasks.removeUserSlot(user, slot);
-                        final ServantEndpoint endpoint = new ServantEndpoint(slot, slotUri, sessionId, terminalFs);
-                        final ChannelSpec bound = channels.bound(endpoint);
-                        if (bound != null) {
-                            channels.unbind(bound, endpoint);
-                        }
-                    }
-                });
-                LOG.info("Terminal for " + user + " disconnected");
-            } catch (StatusRuntimeException th) {
-                LOG.error("Terminal execution terminated ", th);
-            } finally {
-                LOG.info("unbindAll from runTerminal");
-                //Clean up slots if terminal did not send detach
-                tasks.slots(user).keySet().forEach(slot -> tasks.removeUserSlot(user, slot));
-                channels.unbindAll(sessionId);
-                tasks.destroyUserChannels(user); // o_O
-                servantsAllocator.deleteSession(sessionId);
-            }
-        }
-
-        private Channels.ChannelStatus channelStatus(ChannelSpec channel) {
-            final Channels.ChannelStatus.Builder slotStatus = Channels.ChannelStatus.newBuilder();
-            slotStatus.setChannel(to(channel));
-            for (SlotStatus state : tasks.connected(channel)) {
-                final Operations.SlotStatus.Builder builder = slotStatus.addConnectedBuilder();
-                builder.setTaskId(state.tid());
-
-                builder.setConnectedTo(channel.name())
-                    .setDeclaration(to(state.slot()))
-                    .setPointer(state.pointer())
-                    .setState(Operations.SlotStatus.State.valueOf(state.state().toString()))
-                    .build();
-            }
-            return slotStatus.build();
-        }
-
         @SuppressWarnings("BooleanMethodIsAlwaysInverted")
         private boolean checkAuth(IAM.Auth auth, StreamObserver<?> responseObserver) {
             if (auth == null) {
@@ -736,7 +512,7 @@ public class LzyServer {
         }
 
         private Task resolveTask(IAM.Auth auth) {
-            return auth.hasTask() ? tasks.task(auth.getTask().getTaskId()) : null;
+            return auth.hasTask() ? tasksManager.task(auth.getTask().getTaskId()) : null;
         }
 
         private SessionManager.Session resolveSession(IAM.Auth auth) {
@@ -745,10 +521,6 @@ public class LzyServer {
             } else {
                 return servantsAllocator.userSession(auth.getUser().getUserId());
             }
-        }
-
-        public void close() {
-            terminalThreads.forEach(Thread::interrupt);
         }
     }
 }

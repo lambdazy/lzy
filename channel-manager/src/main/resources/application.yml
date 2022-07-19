@@ -1,0 +1,3 @@
+channel-manager:
+  port: 8122
+  whiteboard-address: 'localhost:8999'

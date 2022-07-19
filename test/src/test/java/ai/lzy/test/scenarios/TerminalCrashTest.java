@@ -38,10 +38,10 @@ public class TerminalCrashTest extends LocalScenario {
             port,
             fsPort,
             kharonContext.serverAddress(),
+            kharonContext.channelManagerProxyAddress(),
             debugPort,
             LzyTerminalTestContext.TEST_USER,
-            null
-        );
+            null);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
             Config.TIMEOUT_SEC,

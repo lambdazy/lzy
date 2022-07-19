@@ -1,31 +1,31 @@
 package ai.lzy.server.task;
 
+import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
+import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
+
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.Slot;
+import ai.lzy.model.Zygote;
+import ai.lzy.server.Authenticator;
+import ai.lzy.server.TasksManager;
 import ai.lzy.model.Signal;
 import ai.lzy.server.configs.ServerConfig;
 import jakarta.inject.Singleton;
 import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.JsonUtils;
-import ai.lzy.model.Slot;
-import ai.lzy.model.SlotStatus;
-import ai.lzy.model.Zygote;
-import ai.lzy.model.channel.ChannelSpec;
-import ai.lzy.server.Authenticator;
-import ai.lzy.server.ChannelsManager;
-import ai.lzy.server.TasksManager;
-
-import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
-import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
 
 @Singleton
 public class InMemTasksManager implements TasksManager {
     private static final Logger LOG = LogManager.getLogger(InMemTasksManager.class);
     protected final URI serverURI;
-    private final ChannelsManager channels;
     private final Map<String, Task> tasks = new ConcurrentHashMap<>();
 
     private final Map<String, List<Task>> userTasks = new ConcurrentHashMap<>();
@@ -33,33 +33,8 @@ public class InMemTasksManager implements TasksManager {
     private final Map<Task, String> owners = new ConcurrentHashMap<>();
     private final Map<Task, List<Task>> children = new ConcurrentHashMap<>();
 
-    private final Map<Task, List<ChannelSpec>> taskChannels = new ConcurrentHashMap<>();
-    private final Map<String, List<ChannelSpec>> userChannels = new ConcurrentHashMap<>();
-
-    private final Map<String, Map<Slot, ChannelSpec>> userSlots = new ConcurrentHashMap<>();
-
-    public InMemTasksManager(ServerConfig serverConfig, ChannelsManager channels) {
+    public InMemTasksManager(ServerConfig serverConfig) {
         this.serverURI = serverConfig.getServerUri();
-        this.channels = channels;
-    }
-
-    @Override
-    public ChannelSpec createChannel(String uid, Task parent, ChannelSpec channelSpec) {
-        final ChannelSpec channel = channels.create(channelSpec);
-        if (channel == null) {
-            return null;
-        }
-        if (parent != null) {
-            taskChannels.computeIfAbsent(parent, task -> new ArrayList<>()).add(channel);
-        } else {
-            userChannels.computeIfAbsent(uid, user -> new ArrayList<>()).add(channel);
-        }
-        return channel;
-    }
-
-    @Override
-    public SlotStatus[] connected(ChannelSpec channel) {
-        return channels.connected(channel);
     }
 
     @Override
@@ -68,36 +43,9 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Map<Slot, ChannelSpec> slots(String user) {
-        return userSlots.getOrDefault(user, Map.of());
-    }
-
-    @Override
-    public void addUserSlot(String user, Slot slot, ChannelSpec channel) {
-        userSlots.computeIfAbsent(user, u -> new ConcurrentHashMap<>()).put(slot, channel);
-    }
-
-    @Override
-    public boolean removeUserSlot(String user, Slot slot) {
-        return userSlots.getOrDefault(user, Map.of()).remove(slot) != null;
-    }
-
-    @Override
-    public void destroyUserChannels(String user) {
-        userChannels.getOrDefault(user, List.of()).forEach(channels::destroy);
-        userChannels.remove(user);
-    }
-
-    @Override
-    public Stream<ChannelSpec> cs() {
-        return channels.channels();
-    }
-
-    @Override
     public Task start(String uid, Task parent, Zygote workload, Map<Slot, String> assignments, Authenticator auth) {
         final Task task = new TaskImpl(
-            uid, "task_" + UUID.randomUUID(), workload, assignments,
-            channels, serverURI
+            uid, "task_" + UUID.randomUUID(), workload, assignments, serverURI
         );
         tasks.put(task.tid(), task);
         if (parent != null) {
@@ -119,8 +67,6 @@ public class InMemTasksManager implements TasksManager {
             if (removedTask != null) {
                 children.getOrDefault(removedTask, new ArrayList<>()).remove(task);
             }
-            taskChannels.getOrDefault(task, List.of()).forEach(channels::destroy);
-            taskChannels.remove(task);
             userTasks.getOrDefault(owners.remove(task), List.of()).remove(task);
         });
         return task;
@@ -133,12 +79,7 @@ public class InMemTasksManager implements TasksManager {
     }
 
     @Override
-    public Stream<Task> ps() {
+    public Stream<Task> tasks() {
         return tasks.values().stream();
-    }
-
-    @Override
-    public ChannelSpec channel(String chName) {
-        return channels.channels().filter(ch -> ch.name().equals(chName)).findFirst().orElse(null);
     }
 }

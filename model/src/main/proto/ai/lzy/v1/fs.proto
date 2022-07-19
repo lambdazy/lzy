@@ -21,28 +21,23 @@ message CreateSlotRequest {
   string taskId = 1;
   Slot slot = 2;
   string channelId = 3;
-  bool isPipe = 4;
 }
 
 message ConnectSlotRequest {
-  string taskId = 1;
-  string slotName = 2;
-  string slotUri = 3;
+  SlotInstance from = 1;
+  SlotInstance to = 2;
 }
 
 message DisconnectSlotRequest {
-  string taskId = 1;
-  string slotName = 2;
+  SlotInstance slotInstance = 1;
 }
 
 message StatusSlotRequest {
-  string taskId = 1;
-  string slotName = 2;
+  SlotInstance slotInstance = 1;
 }
 
 message DestroySlotRequest {
-  string taskId = 1;
-  string slotName = 2;
+  SlotInstance slotInstance = 1;
 }
 
 message SnapshotCommand {
@@ -67,8 +62,15 @@ message SlotCommandStatus {
   }
 }
 
+message SlotInstance {
+  string taskId = 1;
+  Slot slot = 2;
+  string slotUri = 3;
+  string channelId = 4;
+}
+
 message SlotRequest {
-  string slotUri = 1;
+  SlotInstance slotInstance = 1;
   int64 offset = 2;
 }
 

@@ -33,7 +33,7 @@ public class Snapshot implements LzyCommand {
             .build();
         final SnapshotApiGrpc.SnapshotApiBlockingStub server = SnapshotApiGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
-            case "create": {
+            case "create" -> {
                 Instant time = Instant.now();
                 Timestamp timestamp = Timestamp.newBuilder().setSeconds(time.getEpochSecond()).build();
                 final LzyWhiteboard.Snapshot snapshotId = server
@@ -47,7 +47,7 @@ public class Snapshot implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(snapshotId));
                 break;
             }
-            case "finalize": {
+            case "finalize" -> {
                 final LzyWhiteboard.OperationStatus operationStatus = server
                     .finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand
                         .newBuilder()
@@ -58,7 +58,7 @@ public class Snapshot implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(operationStatus));
                 break;
             }
-            case "last": {
+            case "last" -> {
                 LzyWhiteboard.Snapshot snapshot = server.lastSnapshot(
                     LzyWhiteboard.LastSnapshotCommand.newBuilder()
                         .setAuth(auth)
@@ -68,8 +68,7 @@ public class Snapshot implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(snapshot));
                 break;
             }
-            default:
-                throw new IllegalStateException("Unexpected value: " + command.getArgs()[1]);
+            default -> throw new IllegalStateException("Unexpected value: " + command.getArgs()[1]);
         }
         return 0;
     }

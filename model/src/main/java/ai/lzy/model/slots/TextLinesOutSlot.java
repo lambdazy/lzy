@@ -3,17 +3,7 @@ package ai.lzy.model.slots;
 import ai.lzy.model.Slot;
 import ai.lzy.model.data.DataSchema;
 
-public class TextLinesOutSlot implements Slot {
-    private final String name;
-
-    public TextLinesOutSlot(String name) {
-        this.name = name;
-    }
-
-    @Override
-    public String name() {
-        return name;
-    }
+public record TextLinesOutSlot(String name) implements Slot {
 
     @Override
     public Media media() {

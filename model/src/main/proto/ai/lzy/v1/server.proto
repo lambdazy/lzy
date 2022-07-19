@@ -3,7 +3,6 @@ syntax = "proto3";
 import "ai/lzy/v1/zygote.proto";
 import "ai/lzy/v1/task.proto";
 import "ai/lzy/v1/channel.proto";
-import "ai/lzy/v1/auth.proto";
 
 package ai.lzy.v1;
 
@@ -17,10 +16,7 @@ service LzyServer {
   rpc Task (TaskCommand) returns (TaskStatus);
   rpc Start (TaskSpec) returns (stream TaskProgress);
 
-  rpc Channel (ChannelCommand) returns (ChannelStatus);
-
   rpc TasksStatus (Auth) returns (TasksList);
-  rpc ChannelsStatus (Auth) returns (ChannelStatusList);
 
   rpc RegisterServant (AttachServant) returns (AttachStatus);
 

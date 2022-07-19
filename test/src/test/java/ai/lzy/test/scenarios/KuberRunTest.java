@@ -22,15 +22,16 @@ public class KuberRunTest extends LzyBaseTest {
     @Before
     public void setUp() {
         super.setUp();
+        final String kharonDomain = System.getProperty(KHARON_DOMAIN_PROPERTY, Config.KHARON_DOMAIN);
         terminal = terminalContext.startTerminalAtPathAndPort(
             Config.LZY_MOUNT,
             Config.SERVANT_PORT,
             Config.SERVANT_FS_PORT,
-            String.format("http://%s:8899", System.getProperty(KHARON_DOMAIN_PROPERTY, Config.KHARON_DOMAIN)),
+            String.format("http://%s:%d", kharonDomain, Config.KHARON_PORT),
+            String.format("http://%s:%d", kharonDomain, Config.CHANNEL_MANAGER_PORT),
             Config.DEBUG_PORT,
             Config.USER,
-            Config.USER_KEY_PATH
-        );
+            Config.USER_KEY_PATH);
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
             Config.TIMEOUT_SEC,

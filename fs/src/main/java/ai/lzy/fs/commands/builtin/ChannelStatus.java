@@ -1,5 +1,7 @@
 package ai.lzy.fs.commands.builtin;
 
+import ai.lzy.priv.v2.ChannelManager;
+import ai.lzy.priv.v2.LzyChannelManagerGrpc;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;
@@ -11,24 +13,37 @@ import ai.lzy.v1.LzyServerGrpc;
 
 import java.net.URI;
 import java.util.Base64;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 public final class ChannelStatus implements LzyCommand {
+    private static final Options options = new Options();
 
     @Override
     public int execute(CommandLine command) throws Exception {
-        final URI serverAddr = URI.create("grpc://" + command.getOptionValue('z'));
+        final CommandLine localCmd = parse(command, options);
+        if (localCmd == null) {
+            return -1;
+        }
+        final URI channelManagerAddress = URI.create("grpc://" + localCmd.getOptionValue("channel-manager"));
+        // FIXME(d-kruchinin): fix auth to new format
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
 
-        final ManagedChannel serverCh = ChannelBuilder
-            .forAddress(serverAddr.getHost(), serverAddr.getPort())
+        final ManagedChannel channelManagerChannel = ChannelBuilder
+            .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
             .usePlaintext()
-            .enableRetry(LzyServerGrpc.SERVICE_NAME)
+            .enableRetry(LzyChannelManagerGrpc.SERVICE_NAME)
             .build();
 
-        final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
-        final Channels.ChannelStatusList statusList = server.channelsStatus(auth);
+        final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager =
+            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel);
 
-        for (final Channels.ChannelStatus status : statusList.getStatusesList()) {
+        final ChannelManager.ChannelStatusList channelStatusList = channelManager.channelsStatus(
+            ChannelManager.ChannelsStatusRequest.newBuilder().build());
+
+        for (var status : channelStatusList.getStatusesList()) {
             System.out.println(JsonFormat.printer().print(status));
         }
 

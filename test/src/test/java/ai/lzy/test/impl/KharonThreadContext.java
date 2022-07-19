@@ -26,19 +26,27 @@ public class KharonThreadContext implements LzyKharonTestContext {
     private static final int LZY_KHARON_PORT = 8899;
     private static final int LZY_KHARON_SERVANT_PROXY_PORT = 8900;
     private static final int LZY_KHARON_SERVANT_FS_PROXY_PORT = 8901;
+    private static final int LZY_KHARON_CHANNEL_MANAGER_PROXY_PORT = 8123;
 
     private final String serverAddress;
     private final String whiteboardAddress;
+    private final String channelManagerAddress;
+    private final String channelManagerProxyAddress;
     private final String iamAddress;
     private LzyKharon kharon;
     private ManagedChannel channel;
     private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
-    public KharonThreadContext(String serverAddress, String whiteboardAddress, HostAndPort iamAddress) {
+    public KharonThreadContext(String serverAddress, String whiteboardAddress, String channelManagerAddress, HostAndPort iamAddress) {
         var sa = URI.create(serverAddress);
         var wa = URI.create(whiteboardAddress);
+        var parsedChannelManagerAddress = URI.create(channelManagerAddress);
         this.serverAddress = sa.getHost() + ":" + sa.getPort();
         this.whiteboardAddress = wa.getHost() + ":" + wa.getPort();
+        this.channelManagerAddress = parsedChannelManagerAddress.getHost() + ":" +
+            parsedChannelManagerAddress.getPort();
+        channelManagerProxyAddress = "ch-man://" + parsedChannelManagerAddress.getHost() + ":" +
+            LZY_KHARON_CHANNEL_MANAGER_PROXY_PORT;
         this.iamAddress = iamAddress.toString();
     }
 
@@ -50,6 +58,11 @@ public class KharonThreadContext implements LzyKharonTestContext {
     @Override
     public String servantAddress() {
         return UriScheme.LzyServant.scheme() + "localhost:" + LZY_KHARON_SERVANT_PROXY_PORT;
+    }
+
+    @Override
+    public String channelManagerProxyAddress() {
+        return channelManagerProxyAddress;
     }
 
     @Override
@@ -71,8 +84,10 @@ public class KharonThreadContext implements LzyKharonTestContext {
         props.put("kharon.server-address", serverAddress);
         props.put("kharon.whiteboard-address", whiteboardAddress);
         props.put("kharon.snapshot-address", whiteboardAddress);
+        props.put("kharon.channel-manager-address", channelManagerAddress);
         props.put("kharon.servant-proxy-port", LZY_KHARON_SERVANT_PROXY_PORT);
         props.put("kharon.servant-fs-proxy-port", LZY_KHARON_SERVANT_FS_PROXY_PORT);
+        props.put("kharon.channel-manager-proxy-port", LZY_KHARON_CHANNEL_MANAGER_PROXY_PORT);
 
         props.put("kharon.iam.address", iamAddress);
         props.put("kharon.storage.address", "localhost:" + StorageThreadContext.STORAGE_PORT);

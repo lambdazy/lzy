@@ -13,13 +13,15 @@ import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 
 public class Utils {
     public static class Defaults {
-        public static final int    TIMEOUT_SEC     = 30;
-        public static final int    SERVANT_PORT    = 9999;
-        public static final int    S3_PORT         = 8001;
-        public static final int    WHITEBOARD_PORT = 8999;
-        public static final int    SERVANT_FS_PORT = 9998;
-        public static final int    DEBUG_PORT      = 5006;
-        public static final String LZY_MOUNT       = "/tmp/lzy";
+        public static final int    TIMEOUT_SEC          = 30;
+        public static final int    SERVANT_PORT         = 9999;
+        public static final int    KHARON_PORT          = 8899;
+        public static final int    S3_PORT              = 8001;
+        public static final int    WHITEBOARD_PORT      = 8999;
+        public static final int    SERVANT_FS_PORT      = 9998;
+        public static final int    CHANNEL_MANAGER_PORT = 8122;
+        public static final int    DEBUG_PORT           = 5006;
+        public static final String LZY_MOUNT            = "/tmp/lzy";
     }
 
     public static boolean waitFlagUp(Supplier<Boolean> supplier, long timeout, TimeUnit unit) {

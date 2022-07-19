@@ -38,7 +38,7 @@ public class DataCarrier {
                 switch (slotDataMessage.getWriteCommandCase()) {
                     case REQUEST: {
                         final SlotRequest request = slotDataMessage.getRequest();
-                        final URI slotUri = URI.create(request.getSlotUri());
+                        final URI slotUri = URI.create(request.getSlotInstance().getSlotUri());
                         StreamObserver<LzyFsApi.Message> messageStream = openDataConnections.get(slotUri);
                         if (messageStream == null) {
                             StatusRuntimeException exception = Status.RESOURCE_EXHAUSTED

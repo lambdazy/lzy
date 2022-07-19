@@ -15,8 +15,6 @@ import ai.lzy.v1.LzyServerGrpc;
 
 public class Storage implements LzyCommand {
 
-    private static final Options options = new Options();
-
     @Override
     public int execute(CommandLine command) throws Exception {
         IAM.Auth auth = IAM.Auth
@@ -35,7 +33,7 @@ public class Storage implements LzyCommand {
         final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
 
         switch (command.getArgs()[1]) {
-            case "s3": {
+            case "s3" -> {
                 if (command.getArgs().length < 3) {
                     throw new IllegalArgumentException("Please specify bucket name");
                 }
@@ -48,7 +46,7 @@ public class Storage implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
             }
-            case "bucket": {
+            case "bucket" -> {
                 Lzy.GetBucketRequest.Builder builder = Lzy.GetBucketRequest
                     .newBuilder()
                     .setAuth(auth);
@@ -57,7 +55,7 @@ public class Storage implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
             }
-            default: {
+            default -> {
                 throw new IllegalArgumentException("Wrong storage type: " + command.getArgs()[1]);
             }
         }

@@ -1,19 +1,20 @@
 package ai.lzy.fs.commands.builtin;
 
-import com.google.protobuf.util.JsonFormat;
-import io.grpc.ManagedChannel;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.fs.fs.LzyFSManager;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.v1.*;
-
-import java.net.URI;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.LzyFsGrpc;
+import ai.lzy.v1.Operations;
+import com.google.protobuf.util.JsonFormat;
+import io.grpc.ManagedChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 
 public final class Touch implements LzyCommand {
 
@@ -33,11 +34,11 @@ public final class Touch implements LzyCommand {
     public int execute(CommandLine command) throws Exception {
         if (command.getArgList().size() < 5 || !command.getArgList().get(3).equals("--slot")) {
             throw new IllegalArgumentException(
-                "Invalid call format. Expected `touch <common-opts> slot-path channel-name --slot slot-description`.");
+                "Invalid call format. Expected `touch <common-opts> slot-path channel-id --slot slot-description`.");
         }
 
         final String slotPath = command.getArgList().get(1);
-        final String channelName = command.getArgList().get(2);
+        final String channelId = command.getArgList().get(2);
         final String slotDescr = command.getArgList().get(4);
 
         final Path lzyFsRoot = Path.of(command.getOptionValue('m'));
@@ -61,24 +62,6 @@ public final class Touch implements LzyCommand {
             JsonFormat.parser().merge(slotDescr, slotBuilder);
         } else {
             // direct command
-            final URI lzyServerAddress = URI.create("grpc://" + command.getOptionValue('z'));
-            final IAM.Auth lzyServerAuth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
-
-            final ManagedChannel lzyServerChannel = ChannelBuilder
-                .forAddress(lzyServerAddress.getHost(), lzyServerAddress.getPort())
-                .usePlaintext()
-                .enableRetry(LzyServerGrpc.SERVICE_NAME)
-                .build();
-            final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(lzyServerChannel);
-
-            final Channels.ChannelCommand channelCommand = Channels.ChannelCommand.newBuilder()
-                .setAuth(lzyServerAuth)
-                .setChannelName(channelName)
-                .setState(Channels.ChannelState.newBuilder().build())
-                .build();
-            final Channels.ChannelStatus channelStatus = server.channel(channelCommand);
-
-            slotBuilder.setContentType(channelStatus.getChannel().getContentType());
             switch (slotDescr) {
                 case "input", "inpipe" -> {
                     slotBuilder.setMedia(Operations.Slot.Media.PIPE);
@@ -101,11 +84,12 @@ public final class Touch implements LzyCommand {
         }
 
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
+        final String agentId = command.getOptionValue("agent-id");
 
         var request = LzyFsApi.CreateSlotRequest.newBuilder()
-            .setTaskId(auth.hasTask() ? auth.getTask().getTaskId() : "user-" + auth.getUser().getUserId())
+            .setTaskId(auth.hasTask() ? auth.getTask().getTaskId() : agentId)
             .setSlot(slotBuilder.build())
-            .setChannelId(channelName)
+            .setChannelId(channelId)
             .build();
 
         final LzyFsApi.SlotCommandStatus status = lzyFs.createSlot(request);

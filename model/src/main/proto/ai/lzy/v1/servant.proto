@@ -20,17 +20,10 @@ service LzyServant {
   rpc Stop (Empty) returns (Empty);
 }
 
-message SlotSpec {
-  Slot slot = 1;
-  string channelId = 2;
-}
-
 message ServantProgress {
   oneof status {
     Started start = 1;
     StateChanged changed = 2;
-    SlotAttach attach = 3;
-    SlotDetach detach = 4;
     ExecutionStarted executeStart = 5;
     ExecutionConcluded executeStop = 6;
     CommunicationCompleted communicationCompleted = 7;
@@ -69,16 +62,6 @@ message StateChanged {
     FINISHED = 4;
     DESTROYED = 5;
   }
-}
-message SlotAttach {
-  Slot slot = 1;
-  string uri = 2;
-  string channel = 3;
-}
-
-message SlotDetach {
-  Slot slot = 1;
-  string uri = 2;
 }
 
 message ExecutionConcluded {

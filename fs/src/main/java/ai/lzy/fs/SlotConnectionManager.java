@@ -1,5 +1,8 @@
 package ai.lzy.fs;
 
+import static ai.lzy.model.GrpcConverter.to;
+
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import ai.lzy.model.UriScheme;
@@ -28,8 +31,7 @@ public class SlotConnectionManager {
     private final Map<String, Transmitter> transmitters = new HashMap<>();
     private final Snapshooter snapshooter;
 
-    public SlotConnectionManager(Lzy.GetS3CredentialsResponse credentials, IAM.Auth auth, URI wb, String bucket,
-                                 String sessionId) {
+    public SlotConnectionManager(Lzy.GetS3CredentialsResponse credentials, IAM.Auth auth, URI wb, String bucket) {
         final StorageClient client = StorageClient.create(credentials);
         final String endpoint;
         if (credentials.hasAmazon()) {
@@ -51,20 +53,21 @@ public class SlotConnectionManager {
                 .build();
             final SnapshotApiGrpc.SnapshotApiBlockingStub api = SnapshotApiGrpc.newBlockingStub(channelWb);
             this.snapshooter = new SnapshooterImpl(auth, api, new SlotSnapshotProvider.Cached(slot ->
-                new SlotSnapshotImpl(sessionId, bucket, slot, client)
+                new SlotSnapshotImpl(bucket, slot, client)
             ));
         } else {
             this.snapshooter = null;
         }
     }
 
-    public static Stream<ByteString> connectToSlot(URI slotUri, long offset) {
+    public static Stream<ByteString> connectToSlot(SlotInstance slotInstance, long offset) {
         final Iterator<LzyFsApi.Message> msgIter;
         final ManagedChannel channel;
 
+        final URI slotUri = slotInstance.uri();
         final LzyFsApi.SlotRequest request = LzyFsApi.SlotRequest.newBuilder()
             .setOffset(offset)
-            .setSlotUri(slotUri.toString())
+            .setSlotInstance(to(slotInstance))
             .build();
 
         if (UriScheme.LzyKharon.match(slotUri)) {

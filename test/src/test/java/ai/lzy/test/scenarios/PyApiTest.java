@@ -13,17 +13,18 @@ public class PyApiTest extends LocalScenario {
     public void setUp() {
         super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
-                Config.LZY_MOUNT,
-                FreePortFinder.find(20000, 21000),
-                FreePortFinder.find(21000, 22000),
-                kharonContext.serverAddress(),
-                FreePortFinder.find(22000, 23000),
-                "testUser",
-                null);
+            Config.LZY_MOUNT,
+            FreePortFinder.find(20000, 21000),
+            FreePortFinder.find(21000, 22000),
+            kharonContext.serverAddress(),
+            kharonContext.channelManagerProxyAddress(),
+            FreePortFinder.find(22000, 23000),
+            "testUser",
+            null);
         terminal.waitForStatus(
-                AgentStatus.EXECUTING,
-                Config.TIMEOUT_SEC,
-                TimeUnit.SECONDS
+            AgentStatus.EXECUTING,
+            Config.TIMEOUT_SEC,
+            TimeUnit.SECONDS
         );
     }
 
