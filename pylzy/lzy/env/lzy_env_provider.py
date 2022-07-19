@@ -56,7 +56,9 @@ class LzyEnvProvider(EnvProvider):
         self._local_modules_paths = local_modules_paths
         self._image_name = image_name
         if image_pull_policy != ImagePullPolicy.ALWAYS:
-            self._log.warning(f"Only ImagePullPolicy.ALWAYS supported, ignoring ImagePullPolicy {image_pull_policy}")
+            self._log.warning(
+                f"Only ImagePullPolicy.ALWAYS is supported now, ignore ImagePullPolicy {image_pull_policy}"
+            )
         self._image_pull_policy = ImagePullPolicy.ALWAYS
 
     def provide(self, namespace: Optional[Dict[str, Any]] = None) -> EnvSpec:

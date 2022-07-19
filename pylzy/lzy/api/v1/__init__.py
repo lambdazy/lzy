@@ -28,15 +28,15 @@ logging.root.addHandler(handler)
 
 
 # pylint: disable=[invalid-name]
-def op(func: Callable = None, *, gpu: Gpu = None, output_type=None, image_name : Optional[str] = None):
+def op(func: Callable = None, *, gpu: Gpu = None, output_type=None, docker_image: Optional[str] = None):
     provisioning = Provisioning(gpu)
     if func is None:
-        return op_(provisioning, output_type=output_type, image_name=image_name)
-    return op_(provisioning, output_type=output_type, image_name=image_name)(func)
+        return op_(provisioning, output_type=output_type, docker_image=docker_image)
+    return op_(provisioning, output_type=output_type, docker_image=docker_image)(func)
 
 
 # pylint: disable=unused-argument
-def op_(provisioning: Provisioning, *, output_type: Type = None, image_name: Optional[str] = None):
+def op_(provisioning: Provisioning, *, output_type: Type = None, docker_image: Optional[str] = None):
     def deco(f):
         output_types: Sequence[Type]
         if output_type is None:
@@ -68,7 +68,7 @@ def op_(provisioning: Provisioning, *, output_type: Type = None, image_name: Opt
                     raise RuntimeError("Cannot find servant")
                 id_generator = UUIDEntryIdGenerator(current_workflow.snapshot_id())
 
-                base_env = current_workflow.base_env(image_name)
+                base_env = current_workflow.base_env(docker_image)
                 # we need specify globals() for caller site to find all
                 # required modules
                 caller_globals = inspect.stack()[1].frame.f_globals

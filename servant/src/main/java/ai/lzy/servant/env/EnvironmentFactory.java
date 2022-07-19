@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
     private static Supplier<Environment> envForTests = null;
+    private static boolean IS_DOCKER_SUPPORTED = true;
 
     public static Environment create(Env env, StorageClient storage) throws EnvironmentInstallationException {
         //to mock environment in tests
@@ -22,12 +23,9 @@ public class EnvironmentFactory {
         }
 
         final String resourcesPathStr = "/tmp/resources/";
-        final boolean dockerSupported = Boolean.parseBoolean(
-                System.getProperty("servant.dockerSupport.enabled", "true")
-        );
 
         final BaseEnvironment baseEnv;
-        if (dockerSupported && env.baseEnv() != null) {
+        if (IS_DOCKER_SUPPORTED && env.baseEnv() != null) {
             LOG.info("Docker baseEnv provided, using DockerEnvironment");
             BaseEnvConfig config = BaseEnvConfig.newBuilder()
                     .image(env.baseEnv().name())
@@ -37,7 +35,7 @@ public class EnvironmentFactory {
         } else {
             if (env.baseEnv() == null) {
                 LOG.info("No baseEnv provided, using ProcessEnvironment");
-            } else if (!dockerSupported) {
+            } else if (IS_DOCKER_SUPPORTED) {
                 LOG.info("Docker support disabled, using ProcessEnvironment");
             }
             baseEnv = new ProcessEnvironment();
@@ -55,5 +53,10 @@ public class EnvironmentFactory {
     @VisibleForTesting
     public static void envForTests(Supplier<Environment> env) {
         envForTests = env;
+    }
+
+    @VisibleForTesting
+    public static void disableDockers() {
+        IS_DOCKER_SUPPORTED = false;
     }
 }

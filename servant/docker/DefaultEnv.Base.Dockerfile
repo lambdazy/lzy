@@ -1,5 +1,7 @@
 FROM nvidia/cuda:11.2.0-devel-ubuntu20.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 ### conda setup
 ENV PATH="/root/miniconda3/bin:$PATH"
 ARG PATH="/root/miniconda3/bin:$PATH"
