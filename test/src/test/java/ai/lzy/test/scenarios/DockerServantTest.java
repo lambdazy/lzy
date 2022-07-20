@@ -65,7 +65,7 @@ public class DockerServantTest extends LocalScenario {
 
     @Test
     public void testPythonApi() {
-        evalAndAssertScenarioResult(terminal, "catboost_integration_cpu");
+        evalAndAssertScenarioResult(terminal, "custom-image");
     }
 
 }
