@@ -31,9 +31,3 @@ if __name__ == "__main__":
         model = train_custom_env(data, labels)
         result = model.predict(np.array([0, 3]))
         print("Prediction: " + str(result))
-
-
-    with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, image_name="lzydock/default-env:master"):
-        model = train_default_env(data, labels)
-        result = model.predict(np.array([8, 1]))
-        print("Prediction: " + str(result))
