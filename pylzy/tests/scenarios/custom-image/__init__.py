@@ -4,18 +4,20 @@ import numpy as np
 from lzy.api.v1 import Gpu, LzyRemoteEnv, op
 
 
-@op(gpu=Gpu.any())
 def train(data: np.ndarray, target: np.ndarray) -> CatBoostClassifier:
     cb_model = CatBoostClassifier(iterations=1000, task_type="GPU", devices="0:1", train_dir="/tmp/catboost")
     cb_model.fit(data, target, verbose=True)
     return cb_model
 
 
+@op(gpu=Gpu.any())
+def train_default_env(data: np.ndarray, target: np.ndarray) -> CatBoostClassifier:
+    return train(data, target)
+
+
 @op(gpu=Gpu.any(), docker_image="lzydock/default-env:for-tests")
 def train_custom_env(data: np.ndarray, target: np.ndarray) -> CatBoostClassifier:
-    cb_model = CatBoostClassifier(iterations=1000, task_type="GPU", devices="0:1", train_dir="/tmp/catboost")
-    cb_model.fit(data, target, verbose=True)
-    return cb_model
+    return train(data, target)
 
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
@@ -32,6 +34,6 @@ if __name__ == "__main__":
 
 
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, image_name="lzydock/default-env:master"):
-        model = train(data, labels)
+        model = train_default_env(data, labels)
         result = model.predict(np.array([8, 1]))
         print("Prediction: " + str(result))
