@@ -35,8 +35,9 @@ public class EnvironmentFactory {
         } else {
             if (env.baseEnv() == null) {
                 LOG.info("No baseEnv provided, using ProcessEnvironment");
-            } else if (IS_DOCKER_SUPPORTED) {
-                LOG.info("Docker support disabled, using ProcessEnvironment");
+            } else if (!IS_DOCKER_SUPPORTED) {
+                LOG.info("Docker support disabled, using ProcessEnvironment, " +
+                         "baseEnv {} ignored", env.baseEnv().name());
             }
             baseEnv = new ProcessEnvironment();
         }
