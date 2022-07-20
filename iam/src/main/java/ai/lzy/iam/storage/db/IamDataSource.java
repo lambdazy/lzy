@@ -1,7 +1,7 @@
 package ai.lzy.iam.storage.db;
 
 import ai.lzy.iam.configs.DbConfig;
-import ai.lzy.iam.storage.Storage;
+import ai.lzy.model.db.Storage;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -17,14 +17,14 @@ import java.sql.SQLException;
 @Requires(property = "iam.database.url")
 @Requires(property = "iam.database.username")
 @Requires(property = "iam.database.password")
-public class DbStorage implements Storage {
-    private static final Logger LOG = LogManager.getLogger(DbStorage.class);
+public class IamDataSource implements Storage {
+    private static final Logger LOG = LogManager.getLogger(IamDataSource.class);
     private static final String VALIDATION_QUERY_SQL = "select 1";
 
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public DbStorage(DbConfig dbConfig) {
+    public IamDataSource(DbConfig dbConfig) {
         Flyway flyway = Flyway.configure()
                 .dataSource(dbConfig.getUrl(), dbConfig.getUsername(), dbConfig.getPassword())
                 .locations("classpath:db/iam/migrations")

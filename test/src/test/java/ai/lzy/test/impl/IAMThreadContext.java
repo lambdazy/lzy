@@ -1,7 +1,6 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.iam.LzyIAM;
-import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.priv.v1.LzyAccessServiceGrpc;
 import ai.lzy.priv.v1.LzySubjectServiceGrpc;
@@ -13,11 +12,18 @@ import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.env.PropertySource;
+import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import org.apache.logging.log4j.LogManager;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -26,8 +32,8 @@ public class IAMThreadContext implements LzyIAMTestContext {
 
     private static final Duration IAM_STARTUP_TIME = Duration.ofSeconds(10);
     private static final Duration CHANNEL_SHUTDOWN_TIME = Duration.ofSeconds(5);
-    private static final int IAM_PORT = 8443;
-    private static final int USER_LIMIT = 60;
+
+    public static final int IAM_PORT = 8443;
 
     private LzyAccessServiceGrpc.LzyAccessServiceBlockingStub lzyAccessServiceClient;
     private LzySubjectServiceGrpc.LzySubjectServiceBlockingStub lzySubjectServiceClient;
@@ -63,13 +69,28 @@ public class IAMThreadContext implements LzyIAMTestContext {
 
     @Override
     public void init() {
-        final ServiceConfig serviceConfig = new ServiceConfig();
-        serviceConfig.setServerPort(IAM_PORT);
-        serviceConfig.setUserLimit(USER_LIMIT);
-        Map<String, Object> appProperties = Map.of(
-                "serviceConfig", serviceConfig
-        );
-        try (ApplicationContext context = ApplicationContext.run(appProperties)) {
+        Map<String, Object> props = null;
+        try {
+            final String[] files = {
+                "../iam/src/main/resources/application-test.yml",
+                "./iam/src/main/resources/application-test.yml"
+            };
+
+            for (var file: files) {
+                if (Files.exists(Path.of(file))) {
+                    props = new YamlPropertySourceLoader().read("iam", new FileInputStream(file));
+                    break;
+                }
+            }
+
+            Objects.requireNonNull(props);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        props.put("iam.server-port", IAM_PORT);
+
+        try (ApplicationContext context = ApplicationContext.run(PropertySource.of(props))) {
             var logger = LogManager.getLogger(SnapshotApi.class);
             logger.info("Starting LzyIAM on port {}...", IAM_PORT);
 

@@ -1,5 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -9,7 +10,6 @@ import org.junit.Test;
 import ai.lzy.iam.authorization.exceptions.AuthBadRequestException;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.storage.Storage;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -22,12 +22,12 @@ public class DbSubjectServiceTest {
 
     private ApplicationContext ctx;
     private DbSubjectService subjectService;
-    private Storage storage;
+    private IamDataSource storage;
 
     @Before
     public void setUp() {
         ctx = ApplicationContext.run();
-        storage = ctx.getBean(Storage.class);
+        storage = ctx.getBean(IamDataSource.class);
         subjectService = ctx.getBean(DbSubjectService.class);
     }
 

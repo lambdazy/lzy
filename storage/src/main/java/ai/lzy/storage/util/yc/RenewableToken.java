@@ -1,6 +1,6 @@
-package ai.lzy.server.utils.yc;
+package ai.lzy.storage.util.yc;
 
-import ai.lzy.server.configs.ServerConfig;
+import ai.lzy.storage.StorageConfig;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.context.annotation.Requires;
 import java.io.IOException;
@@ -10,17 +10,22 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 
 @Context  //To make static initialization
-@Requires(property = "server.yc.enabled", value = "true")
+@Requires(property = "storage.yc.enabled", value = "true")
 public class RenewableToken {
-    private static RenewableTokenInstance instance;
+    private static final AtomicReference<RenewableTokenInstance> instance = new AtomicReference<>();
 
-    public RenewableToken(ServerConfig serverConfig) {
+    public RenewableToken(StorageConfig.YcCredentials yc) {
+        assert yc.enabled();
+
         PemObject privateKeyPem;
-        try (PemReader reader = new PemReader(new StringReader(serverConfig.getYc().getPrivateKey()))) {
+        try (PemReader reader = new PemReader(new StringReader(yc.privateKey()))) {
             privateKeyPem = reader.readPemObject();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -35,18 +40,15 @@ public class RenewableToken {
         }
 
         TokenSupplier supplier = new TokenSupplier(
-            serverConfig.getYc().getServiceAccountId(),
-            serverConfig.getYc().getKeyId(),
+            yc.serviceAccountId(),
+            yc.keyId(),
             privateKey
         );
 
-        instance = new RenewableTokenInstance(supplier);
+        instance.set(new RenewableTokenInstance(supplier));
     }
 
-
     public static String getToken() {
-        synchronized (instance) {
-            return instance.get();
-        }
+        return Objects.requireNonNull(instance.get()).get();
     }
 }

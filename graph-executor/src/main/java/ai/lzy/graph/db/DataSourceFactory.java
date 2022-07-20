@@ -4,6 +4,7 @@ import ai.lzy.graph.config.DbConfig;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import javax.sql.DataSource;
 
@@ -12,7 +13,8 @@ public class DataSourceFactory {
     private static final String VALIDATION_QUERY_SQL = "select 1";
 
     @Singleton
-    @Requires(property = "database.enabled", value = "true")
+    @Requires(property = "graph-executor.database.enabled", value = "true")
+    @Named("GraphExecutorDataSourceNative")
     DataSource dataSource(DbConfig dbConfig) {
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
         dataSource.setJdbcUrl(dbConfig.getUrl());

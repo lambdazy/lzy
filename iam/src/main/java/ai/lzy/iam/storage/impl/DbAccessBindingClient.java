@@ -1,5 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -10,7 +11,6 @@ import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AccessBindingDelta.AccessBindingAction;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.subjects.User;
-import ai.lzy.iam.storage.Storage;
 import ai.lzy.iam.storage.db.ResourceBinding;
 
 import java.sql.Connection;
@@ -22,11 +22,11 @@ import java.util.List;
 import java.util.stream.Stream;
 
 @Singleton
-@Requires(beans = Storage.class)
+@Requires(beans = IamDataSource.class)
 public class DbAccessBindingClient {
 
     @Inject
-    private Storage storage;
+    private IamDataSource storage;
 
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         List<AccessBinding> bindings = new ArrayList<>();

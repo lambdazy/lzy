@@ -27,7 +27,7 @@ import java.util.UUID;
 
 @Singleton
 public class GraphExecutionDaoImpl implements GraphExecutionDao {
-    private final Storage storage;
+    private final GraphExecutorDataSource storage;
 
     private static final String GRAPH_FIELDS_LIST = """
         workflow_id, workflow_name, id,
@@ -36,7 +36,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
         current_execution_group_json, last_updated, acquired""";
 
     @Inject
-    public GraphExecutionDaoImpl(Storage storage) {
+    public GraphExecutionDaoImpl(GraphExecutorDataSource storage) {
         this.storage = storage;
     }
 

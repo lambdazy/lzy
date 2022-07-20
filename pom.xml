@@ -29,5 +29,6 @@
         <module>graph-executor</module>
         <module>jupyter-kernel</module>
         <module>scheduler</module>
+        <module>storage</module>
     </modules>
 </project>

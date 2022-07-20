@@ -1,5 +1,6 @@
 package ai.lzy.model.grpc;
 
+import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
@@ -59,6 +60,11 @@ public class ChannelBuilder {
         var host = hostPort.substring(0, delimPos);
         var port = Integer.parseInt(hostPort.substring(delimPos + 1));
         return forAddress(host, port);
+    }
+
+    @SuppressWarnings("UnstableApiUsage")
+    public static ChannelBuilder forAddress(HostAndPort hostAndPort) {
+        return new ChannelBuilder(hostAndPort.getHost(), hostAndPort.getPort());
     }
 
     public ChannelBuilder usePlaintext() {

@@ -1,12 +1,9 @@
 package ai.lzy.test;
 
-import ai.lzy.test.impl.IAMThreadContext;
+import ai.lzy.test.impl.*;
 import io.findify.s3mock.S3Mock;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import ai.lzy.test.impl.KharonThreadContext;
-import ai.lzy.test.impl.ServerThreadContext;
-import ai.lzy.test.impl.SnapshotThreadContext;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,7 +16,9 @@ import java.util.concurrent.locks.LockSupport;
  *   - iam port:           8443
  *   - snapshot port:      8999
  *   - whiteboard port:    8999
- *   - s3 port:            8001
+ *   - s3 (legacy) port:   8001
+ *   - storage port:       7780
+ *   - storage s3 port:    18081
  *   - kharon port (opt):  8899
  *
  * Client terminal:
@@ -45,11 +44,14 @@ public class LocalRunner {
         createFolder(Path.of("/tmp/resources/"));
         createFolder(Path.of("/tmp/servant/lzy/"));
 
-        var serverContext = new ServerThreadContext(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR);
-        serverContext.init();
-
         var iamContext = new IAMThreadContext();
         iamContext.init();
+
+        var storageContext = new StorageThreadContext();
+        storageContext.init();
+
+        var serverContext = new ServerThreadContext(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR);
+        serverContext.init();
 
         var whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
@@ -77,6 +79,7 @@ public class LocalRunner {
                 kharonContext.close();
             }
             serverContext.close();
+            storageContext.close();
             iamContext.close();
             whiteboardContext.close();
         }));
