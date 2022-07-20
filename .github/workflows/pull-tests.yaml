@@ -34,6 +34,16 @@ jobs:
         timeout-minutes: 15
         run: mvn clean install -DskipTests
 
+      - name: 'RunTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'PyApiTest'
+        timeout-minutes: 15
+        run: |
+          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
       - name: 'build servant image'
         timeout-minutes: 15
         run: |
@@ -44,16 +54,36 @@ jobs:
           docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
 
       - name: 'DockerServantTest'
-        timeout-minutes: 115
+        timeout-minutes: 45
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           DEFAULT_ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh default-env $BRANCH dev)
-          eval "$(conda shell.bash hook)" && conda activate py39 && cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$DEFAULT_ENV_IMAGE" && cd ..
+          cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$DEFAULT_ENV_IMAGE" && cd ..
+
+      - name: 'LzyDryStartupTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'LzyStartupWithAvailableZygotesTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'MultiSessionTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'SnapshotTest'
         timeout-minutes: 5
         run: |
           cd test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'TerminalCrashTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'ServantCrashTest'
         timeout-minutes: 5

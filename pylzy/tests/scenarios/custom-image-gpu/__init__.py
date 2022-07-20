@@ -1,10 +1,9 @@
 from catboost import CatBoostClassifier
 import uuid
 import numpy as np
-import time
 from lzy.api.v1 import Gpu, LzyRemoteEnv, op
 
-@op
+
 def train(data: np.ndarray, target: np.ndarray) -> CatBoostClassifier:
     cb_model = CatBoostClassifier(iterations=1000, devices="0:1", train_dir="/tmp/catboost")
     cb_model.fit(data, target, verbose=True)
@@ -29,8 +28,11 @@ if __name__ == "__main__":
     labels = np.array([0, 0, 1, 1])
 
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
-        model = train(data, labels)
-        print("Waiting...")
-        time.sleep(120)
+        model = train_custom_env(data, labels)
         result = model.predict(np.array([0, 3]))
+        print("Prediction: " + str(result))
+
+    with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
+        model = train_default_env(data, labels)
+        result = model.predict(np.array([9, 1]))
         print("Prediction: " + str(result))
