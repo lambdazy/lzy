@@ -1,17 +1,27 @@
 kharon:
-  #address: 'localhost:8899'
-  #external-host: 'api.lzy.ai'
-  #iam-address: 'localhost:7778'
-  #server-address: 'localhost:7777'
-  #whiteboard-address: 'localhost:8999'
-  #snapshot-address: 'localhost:8999'
+  address: 'localhost:8899'
+  external-host: 'api.lzy.ai'
+  server-address: 'localhost:7777'
+  whiteboard-address: 'localhost:8999'
+  snapshot-address: 'localhost:8999'
   servant-proxy-port: 8900
   servant-fs-proxy-port: 8901
 
   workflow:
-    database:
-      #url: 'jdbc:postgresql://localhost:5432/lzy_db'
-      #username: 'lzy_user'
-      #password: 'q'
-      min-pool-size: 1
-      max-pool-size: 5
+    enabled: false
+
+  database:
+    url: 'jdbc:postgresql://localhost:5432/lzy_kharon_db'
+    username: 'lzy_user'
+    password: 'q'
+    min-pool-size: 1
+    max-pool-size: 5
+
+  storage:
+    address: 'localhost:7780'
+
+  iam:
+    address: 'localhost:8443'
+    internal:
+      user-name: "lzy-internal-user"
+      credential-private-key: ""

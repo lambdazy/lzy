@@ -1,6 +1,5 @@
-package ai.lzy.kharon.workflow.storage;
+package ai.lzy.kharon;
 
-import ai.lzy.kharon.workflow.configs.WorkflowDatabaseConfig;
 import ai.lzy.model.db.Storage;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
@@ -12,14 +11,14 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 @Singleton
-@Requires(property = "kharon.workflow.database.url")
-public class WorkflowDataSource implements Storage {
+@Requires(property = "kharon.database.url")
+public class KharonDataSource implements Storage {
     private static final String VALIDATION_QUERY_SQL = "select 1";
 
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public WorkflowDataSource(WorkflowDatabaseConfig dbConfig) {
+    public KharonDataSource(KharonConfig.DatabaseConfig dbConfig) {
         this.dataSource = new ComboPooledDataSource();
         dataSource.setJdbcUrl(dbConfig.url());
         dataSource.setUser(dbConfig.username());
@@ -33,7 +32,7 @@ public class WorkflowDataSource implements Storage {
 
         var flyway = Flyway.configure()
                 .dataSource(dataSource)
-                .locations("classpath:db/workflow/migrations")
+                .locations("classpath:db/kharon/migrations")
                 .load();
         flyway.migrate();
     }

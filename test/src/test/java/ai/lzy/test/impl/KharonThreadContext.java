@@ -64,18 +64,19 @@ public class KharonThreadContext implements LzyKharonTestContext {
 
     @Override
     public void init() {
-        Map<String, Object> appProperties = Map.of(
-                "kharon.address", "localhost:" + LZY_KHARON_PORT,
-                "kharon.external-host", "localhost",
-                "kharon.server-address", serverAddress,
-                "kharon.iam-address", iamAddress,
-                "kharon.whiteboard-address", whiteboardAddress,
-                "kharon.snapshot-address", whiteboardAddress,
-                "kharon.servant-proxy-port", LZY_KHARON_SERVANT_PROXY_PORT,
-                "kharon.servant-fs-proxy-port", LZY_KHARON_SERVANT_FS_PROXY_PORT
-                //"kharon.workflow", null
-        );
-        try (ApplicationContext context = ApplicationContext.run(PropertySource.of(appProperties))) {
+        var props = Utils.loadModuleTestProperties("kharon");
+
+        props.put("kharon.address", "localhost:" + LZY_KHARON_PORT);
+        props.put("kharon.external-host", "localhost");
+        props.put("kharon.server-address", serverAddress);
+        props.put("kharon.iam.address", iamAddress);
+        props.put("kharon.whiteboard-address", whiteboardAddress);
+        props.put("kharon.snapshot-address", whiteboardAddress);
+        props.put("kharon.servant-proxy-port", LZY_KHARON_SERVANT_PROXY_PORT);
+        props.put("kharon.servant-fs-proxy-port", LZY_KHARON_SERVANT_FS_PROXY_PORT);
+        props.put("kharon.workflow.enabled", "false");
+
+        try (ApplicationContext context = ApplicationContext.run(PropertySource.of(props))) {
             var logger = LogManager.getLogger(SnapshotApi.class);
             logger.info("Starting LzyKharon on port {}...", LZY_KHARON_PORT);
 

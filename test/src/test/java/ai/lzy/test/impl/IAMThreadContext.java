@@ -69,24 +69,7 @@ public class IAMThreadContext implements LzyIAMTestContext {
 
     @Override
     public void init() {
-        Map<String, Object> props = null;
-        try {
-            final String[] files = {
-                "../iam/src/main/resources/application-test.yml",
-                "./iam/src/main/resources/application-test.yml"
-            };
-
-            for (var file: files) {
-                if (Files.exists(Path.of(file))) {
-                    props = new YamlPropertySourceLoader().read("iam", new FileInputStream(file));
-                    break;
-                }
-            }
-
-            Objects.requireNonNull(props);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        var props = Utils.loadModuleTestProperties("iam");
 
         props.put("iam.server-port", IAM_PORT);
 

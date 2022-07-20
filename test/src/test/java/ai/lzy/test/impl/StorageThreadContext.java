@@ -69,24 +69,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
 
     @Override
     public void init() {
-        Map<String, Object> props = null;
-        try {
-            final String[] files = {
-                "../storage/src/main/resources/application-test.yml",
-                "./storage/src/main/resources/application-test.yml"
-            };
-
-            for (var file: files) {
-                if (Files.exists(Path.of(file))) {
-                    props = new YamlPropertySourceLoader().read("storage", new FileInputStream(file));
-                    break;
-                }
-            }
-
-            Objects.requireNonNull(props);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        var props = Utils.loadModuleTestProperties("storage");
 
         props.put("storage.address", "localhost:" + STORAGE_PORT);
         props.put("storage.iam.address", "localhost:" + IAMThreadContext.IAM_PORT);
