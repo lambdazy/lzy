@@ -34,6 +34,7 @@ public class DockerServantTest extends LocalScenario {
     }
 
     @Test
+    @Ignore
     public void testCustomEnvEcho42() {
         testEcho42("custom-env", "lzydock/default-env:for-tests");
     }
@@ -63,7 +64,6 @@ public class DockerServantTest extends LocalScenario {
     }
 
     @Test
-    @Ignore
     public void testPythonApi() {
         evalAndAssertScenarioResult(terminal, "custom-image");
     }

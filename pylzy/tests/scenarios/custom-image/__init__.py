@@ -3,9 +3,9 @@ import uuid
 import numpy as np
 from lzy.api.v1 import Gpu, LzyRemoteEnv, op
 
-
+@op
 def train(data: np.ndarray, target: np.ndarray) -> CatBoostClassifier:
-    cb_model = CatBoostClassifier(iterations=1000, task_type="GPU", devices="0:1", train_dir="/tmp/catboost")
+    cb_model = CatBoostClassifier(iterations=1000, devices="0:1", train_dir="/tmp/catboost")
     cb_model.fit(data, target, verbose=True)
     return cb_model
 
@@ -28,6 +28,6 @@ if __name__ == "__main__":
     labels = np.array([0, 0, 1, 1])
 
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
-        model = train_custom_env(data, labels)
+        model = train(data, labels)
         result = model.predict(np.array([0, 3]))
         print("Prediction: " + str(result))

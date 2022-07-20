@@ -31,11 +31,11 @@ jobs:
           eval "$(conda shell.bash hook)" && conda activate py39 && cd pylzy/ && pip install . && cd ..
 
       - name: 'java unit tests and install'
-        timeout-minutes: 10
-        run: mvn clean install
+        timeout-minutes: 15
+        run: mvn clean install -DskipTests
 
       - name: 'build servant image'
-        timeout-minutes: 15
+        timeout-minutes: 115
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)
