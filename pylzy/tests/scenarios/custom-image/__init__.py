@@ -1,6 +1,7 @@
 from catboost import CatBoostClassifier
 import uuid
 import numpy as np
+import time
 from lzy.api.v1 import Gpu, LzyRemoteEnv, op
 
 @op
@@ -29,5 +30,7 @@ if __name__ == "__main__":
 
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
         model = train(data, labels)
+        print("Waiting...")
+        time.sleep(120)
         result = model.predict(np.array([0, 3]))
         print("Prediction: " + str(result))

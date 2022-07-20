@@ -37,7 +37,7 @@ import ai.lzy.model.exceptions.EnvironmentInstallationException;
 
 public class DockerEnvironment implements BaseEnvironment {
 
-    private static final Logger LOG = LogManager.getLogger(BaseEnvironment.class);
+    private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
 
     public final CreateContainerResponse container;

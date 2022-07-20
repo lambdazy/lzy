@@ -35,7 +35,7 @@ jobs:
         run: mvn clean install -DskipTests
 
       - name: 'build servant image'
-        timeout-minutes: 115
+        timeout-minutes: 15
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)
@@ -44,7 +44,7 @@ jobs:
           docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
 
       - name: 'DockerServantTest'
-        timeout-minutes: 15
+        timeout-minutes: 115
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           DEFAULT_ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh default-env $BRANCH dev)
