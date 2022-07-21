@@ -47,7 +47,7 @@ public class LocalRunner {
         var iamContext = new IAMThreadContext();
         iamContext.init();
 
-        var storageContext = new StorageThreadContext();
+        var storageContext = new StorageThreadContext(iamContext.address());
         storageContext.init();
 
         var serverContext = new ServerThreadContext(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR);
