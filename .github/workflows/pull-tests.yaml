@@ -32,17 +32,7 @@ jobs:
 
       - name: 'java unit tests and install'
         timeout-minutes: 15
-        run: mvn clean install
-
-      - name: 'RunTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'PyApiTest'
-        timeout-minutes: 15
-        run: |
-          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+        run: mvn clean install -DskipTests
 
       - name: 'build servant image'
         timeout-minutes: 15

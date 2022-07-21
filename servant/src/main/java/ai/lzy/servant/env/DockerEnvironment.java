@@ -109,11 +109,7 @@ public class DockerEnvironment implements BaseEnvironment {
                     .withCmd(command)
                     .withAttachStdout(true)
                     .withAttachStderr(true);
-                if (envp != null && envp.length > 0) {
-                    final List<String> containerEnv = execCmd.getEnv();
-                    containerEnv.addAll(List.of(envp));
-                    execCmd.withEnv(containerEnv);
-                }
+                // TODO undo
                 final ExecCreateCmdResponse exec = execCmd.exec();
                 LOG.info("Executing cmd {}", String.join(" ", command));
                 DOCKER.execStartCmd(exec.getId())
