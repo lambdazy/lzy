@@ -58,4 +58,12 @@ public class KuberRunTest extends LzyBaseTest {
          */
         evalAndAssertScenarioResult(terminal, "whiteboards");
     }
+
+    @Test
+    public void testFile() {
+        /* This scenario checks for:
+                1. File as an argument/return value/whiteboard field
+         */
+        evalAndAssertScenarioResult(terminal, "file_test");
+    }
 }

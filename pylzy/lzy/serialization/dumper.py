@@ -1,14 +1,10 @@
 import os
 import tempfile
 import uuid
-from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import IO, Type, TypeVar, Generic, Iterable
+from typing import IO, Type, TypeVar
 
-import cloudpickle
-
-from lzy.api.v1.utils import File
-from lzy.serialization.api import FileSerializer, Dumper
+from lzy.serialization.api import Dumper
+from lzy.serialization.types import File
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
