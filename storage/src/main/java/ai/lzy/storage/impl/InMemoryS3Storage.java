@@ -1,8 +1,8 @@
 package ai.lzy.storage.impl;
 
-import ai.lzy.priv.v2.Lzy;
-import ai.lzy.priv.v2.LzyStorageApi.*;
-import ai.lzy.priv.v2.LzyStorageGrpc;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.LzyStorageApi.*;
+import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.storage.StorageConfig;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;

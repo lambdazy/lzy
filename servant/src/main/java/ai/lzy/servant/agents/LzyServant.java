@@ -24,7 +24,7 @@ import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEventLogger;
-import ai.lzy.priv.v2.*;
+import ai.lzy.v1.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

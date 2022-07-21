@@ -18,9 +18,9 @@ import jakarta.inject.Singleton;
 import ai.lzy.backoffice.configs.CredentialsProvider;
 import ai.lzy.backoffice.configs.GrpcConfig;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.BackOffice;
-import ai.lzy.priv.v2.LzyBackofficeGrpc;
-import ai.lzy.priv.v2.WbApiGrpc;
+import ai.lzy.v1.BackOffice;
+import ai.lzy.v1.LzyBackofficeGrpc;
+import ai.lzy.v1.WbApiGrpc;
 
 
 @Singleton

@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package ai.lzy.priv.v2;
+package ai.lzy.v1;
 
-import "ai/lzy/priv/v2/lzy-server.proto";
+import "ai/lzy/v1/server.proto";
 
 option java_outer_classname = "LzyStorageApi";
-option java_package = "ai.lzy.priv.v2";
+option java_package = "ai.lzy.v1";
 
 service LzyStorage {
   rpc CreateS3Bucket (CreateS3BucketRequest) returns (CreateS3BucketResponse);

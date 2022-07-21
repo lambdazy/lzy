@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.test.mocks;
 
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.*;
+import ai.lzy.v1.*;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;

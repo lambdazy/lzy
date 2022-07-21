@@ -23,10 +23,10 @@ import ai.lzy.server.hibernate.models.BackofficeSessionModel;
 import ai.lzy.server.hibernate.models.PublicKeyModel;
 import ai.lzy.server.hibernate.models.UserModel;
 import ai.lzy.server.hibernate.models.UserRoleModel;
-import ai.lzy.priv.v2.BackOffice;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.LzyBackofficeGrpc;
-import ai.lzy.priv.v2.Tasks;
+import ai.lzy.v1.BackOffice;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyBackofficeGrpc;
+import ai.lzy.v1.Tasks;
 
 @Requires(beans = DbStorage.class)
 public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {

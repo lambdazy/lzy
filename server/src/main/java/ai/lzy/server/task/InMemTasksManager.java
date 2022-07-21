@@ -18,8 +18,8 @@ import ai.lzy.server.Authenticator;
 import ai.lzy.server.ChannelsManager;
 import ai.lzy.server.TasksManager;
 
-import static ai.lzy.priv.v2.Tasks.TaskProgress.Status.ERROR;
-import static ai.lzy.priv.v2.Tasks.TaskProgress.Status.SUCCESS;
+import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
+import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
 
 @Singleton
 public class InMemTasksManager implements TasksManager {

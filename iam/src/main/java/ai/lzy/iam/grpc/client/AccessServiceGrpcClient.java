@@ -16,8 +16,8 @@ import ai.lzy.iam.utils.GrpcConverter;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.priv.v1.LAS;
-import ai.lzy.priv.v1.LzyAccessServiceGrpc;
+import ai.lzy.v1.iam.LACS;
+import ai.lzy.v1.iam.LzyAccessServiceGrpc;
 
 import java.util.function.Supplier;
 
@@ -59,7 +59,7 @@ public class AccessServiceGrpcClient implements AccessClient {
             AuthResource resource,
             AuthPermission permission) throws AuthException {
         try {
-            var subj = accessService.authorize(LAS.AuthorizeRequest.newBuilder()
+            var subj = accessService.authorize(LACS.AuthorizeRequest.newBuilder()
                     .setSubject(GrpcConverter.from(subject))
                     .setPermission(permission.permission())
                     .setResource(GrpcConverter.from(resource))

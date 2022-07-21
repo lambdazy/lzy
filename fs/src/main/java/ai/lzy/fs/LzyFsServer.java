@@ -23,7 +23,7 @@ import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.utils.SessionIdInterceptor;
-import ai.lzy.priv.v2.*;
+import ai.lzy.v1.*;
 
 import javax.annotation.Nullable;
 import java.io.IOException;

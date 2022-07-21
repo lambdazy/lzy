@@ -6,7 +6,7 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.model.Slot;
 import ai.lzy.model.slots.TextLinesOutSlot;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.logging.log4j.LogManager;

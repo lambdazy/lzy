@@ -1,6 +1,6 @@
 package ai.lzy.test;
 
-import ai.lzy.priv.v2.LzyKharonGrpc;
+import ai.lzy.v1.LzyKharonGrpc;
 
 public interface LzyKharonTestContext {
     String serverAddress();

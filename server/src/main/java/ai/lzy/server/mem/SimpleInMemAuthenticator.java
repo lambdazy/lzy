@@ -11,7 +11,7 @@ import java.util.UUID;
 import ai.lzy.model.utils.Permissions;
 import ai.lzy.server.Authenticator;
 import ai.lzy.server.task.Task;
-import ai.lzy.priv.v2.Lzy;
+import ai.lzy.v1.Lzy;
 
 @Singleton
 @Requires(property = "database.enabled", value = "false", defaultValue = "false")

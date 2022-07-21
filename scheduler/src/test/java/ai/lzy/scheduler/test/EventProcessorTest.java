@@ -3,7 +3,7 @@ package ai.lzy.scheduler.test;
 import ai.lzy.model.Slot;
 import ai.lzy.model.graph.*;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Operations;
 import ai.lzy.scheduler.configs.ProcessorConfigBuilder;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.db.DaoException;

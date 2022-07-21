@@ -9,7 +9,7 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.LzyInputSlot;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Operations;
 
 import javax.annotation.Nullable;
 

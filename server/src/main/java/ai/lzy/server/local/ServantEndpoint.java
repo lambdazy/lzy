@@ -7,8 +7,8 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotStatus;
 import ai.lzy.server.channel.Endpoint;
-import ai.lzy.priv.v2.LzyFsApi;
-import ai.lzy.priv.v2.LzyFsGrpc.LzyFsBlockingStub;
+import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.LzyFsGrpc.LzyFsBlockingStub;
 
 import java.net.URI;
 import java.nio.file.Path;

@@ -1,9 +1,8 @@
 package ai.lzy.server;
 
-import ai.lzy.server.task.Task;
-import java.util.UUID;
 import ai.lzy.model.utils.Permissions;
-import ai.lzy.priv.v2.Lzy;
+import ai.lzy.server.task.Task;
+import ai.lzy.v1.Lzy;
 
 public interface Authenticator {
     boolean checkUser(String userId, String token);

@@ -3,8 +3,8 @@ package ai.lzy.backoffice.models.tasks;
 import io.micronaut.core.annotation.Introspected;
 import java.util.List;
 import java.util.stream.Collectors;
-import ai.lzy.priv.v2.Operations;
-import ai.lzy.priv.v2.Tasks;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Tasks;
 
 @Introspected
 public class TaskStatus {

@@ -14,9 +14,9 @@ import ai.lzy.iam.utils.GrpcConverter;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LAS;
-import ai.lzy.v1.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.iam.IAM;
+import ai.lzy.v1.iam.LAS;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 
 @Singleton
 public class AuthenticateServiceGrpcClient implements AuthenticateService {

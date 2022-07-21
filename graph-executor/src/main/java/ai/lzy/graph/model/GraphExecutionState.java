@@ -1,10 +1,10 @@
 package ai.lzy.graph.model;
 
-import ai.lzy.priv.v2.graph.GraphExecutorApi;
-import ai.lzy.priv.v2.graph.GraphExecutorApi.GraphExecutionStatus.Completed;
-import ai.lzy.priv.v2.graph.GraphExecutorApi.GraphExecutionStatus.Executing;
-import ai.lzy.priv.v2.graph.GraphExecutorApi.GraphExecutionStatus.Failed;
-import ai.lzy.priv.v2.graph.GraphExecutorApi.GraphExecutionStatus.Waiting;
+import ai.lzy.v1.graph.GraphExecutorApi;
+import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Completed;
+import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Executing;
+import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Failed;
+import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Waiting;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;

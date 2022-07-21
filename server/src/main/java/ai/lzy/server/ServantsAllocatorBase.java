@@ -10,10 +10,10 @@ import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.LzyFsGrpc;
-import ai.lzy.priv.v2.LzyServantGrpc;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyFsGrpc;
+import ai.lzy.v1.LzyServantGrpc;
+import ai.lzy.v1.Servant;
 
 import java.net.URI;
 import java.time.Instant;

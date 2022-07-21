@@ -3,17 +3,17 @@ package ai.lzy.fs.snapshot;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.LzyWhiteboard;
-import ai.lzy.priv.v2.SnapshotApiGrpc;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyWhiteboard;
+import ai.lzy.v1.SnapshotApiGrpc;
 
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 
-import static ai.lzy.priv.v2.LzyWhiteboard.OperationStatus.Status.FAILED;
-import static ai.lzy.priv.v2.Operations.SlotStatus.State.*;
-import static ai.lzy.priv.v2.Operations.SlotStatus.State.OPEN;
+import static ai.lzy.v1.LzyWhiteboard.OperationStatus.Status.FAILED;
+import static ai.lzy.v1.Operations.SlotStatus.State.*;
+import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
 
 public class SnapshooterImpl implements Snapshooter {
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;

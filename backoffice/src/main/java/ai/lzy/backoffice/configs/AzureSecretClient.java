@@ -13,7 +13,7 @@ import java.io.StringReader;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import ai.lzy.model.utils.JwtCredentials;
-import ai.lzy.priv.v2.IAM;
+import ai.lzy.v1.IAM;
 
 
 @Requires(property = "azure-providers", value = "true")

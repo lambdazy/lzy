@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package ai.lzy.v1.iam;
+
+import "ai/lzy/v1/iam/iam.proto";
+
+option java_outer_classname = "LAS";
+option java_package = "ai.lzy.v1.iam";
+
+service LzyAuthenticateService {
+  rpc Authenticate (AuthenticateRequest) returns (ai.lzy.v1.iam.Subject);
+}
+
+message AuthenticateRequest {
+}

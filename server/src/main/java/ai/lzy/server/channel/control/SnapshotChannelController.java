@@ -11,9 +11,9 @@ import java.net.URI;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.LzyWhiteboard;
-import ai.lzy.priv.v2.SnapshotApiGrpc;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyWhiteboard;
+import ai.lzy.v1.SnapshotApiGrpc;
 
 public class SnapshotChannelController implements ChannelController {
 

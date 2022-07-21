@@ -12,7 +12,7 @@ import ai.lzy.fs.LzyFsServer;
 import ai.lzy.kharon.LzyKharon;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.LzyKharonGrpc;
+import ai.lzy.v1.LzyKharonGrpc;
 
 @Deprecated
 public class KharonProcessContext implements LzyKharonTestContext {

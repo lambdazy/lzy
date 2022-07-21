@@ -5,7 +5,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Operations;
 
 import java.io.IOException;
 import java.util.*;
@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static java.util.Collections.*;
-import static ai.lzy.priv.v2.Operations.SlotStatus.State.*;
+import static ai.lzy.v1.Operations.SlotStatus.State.*;
 
 public class LzySlotBase implements LzySlot {
     private static final Logger LOG = LogManager.getLogger(LzySlotBase.class);

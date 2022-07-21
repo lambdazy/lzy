@@ -4,8 +4,8 @@ import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
 import ai.lzy.servant.agents.AgentStatus;
-import ai.lzy.priv.v2.Lzy;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.Operations;
 
 import java.nio.file.Paths;
 import java.util.List;

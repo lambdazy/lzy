@@ -4,7 +4,7 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.Servant;
 
 import java.net.URI;
 import java.net.URISyntaxException;

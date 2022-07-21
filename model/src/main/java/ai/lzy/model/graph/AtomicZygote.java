@@ -2,7 +2,7 @@ package ai.lzy.model.graph;
 
 
 import ai.lzy.model.Zygote;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Operations;
 
 public interface AtomicZygote extends Zygote {
     Env env();

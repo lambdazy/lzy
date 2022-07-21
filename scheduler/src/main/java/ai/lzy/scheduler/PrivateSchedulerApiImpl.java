@@ -2,8 +2,8 @@ package ai.lzy.scheduler;
 
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.ReturnCodes;
-import ai.lzy.priv.v2.lzy.SchedulerPrivateApi;
-import ai.lzy.priv.v2.lzy.SchedulerPrivateGrpc;
+import ai.lzy.v1.lzy.SchedulerPrivateApi;
+import ai.lzy.v1.lzy.SchedulerPrivateGrpc;
 import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.grpc.RemoteAddressContext;

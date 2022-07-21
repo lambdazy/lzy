@@ -1,7 +1,7 @@
 package ai.lzy.servant.portal;
 
 import ai.lzy.model.JsonUtils;
-import ai.lzy.priv.v2.*;
+import ai.lzy.v1.*;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
 import org.junit.After;

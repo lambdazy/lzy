@@ -5,10 +5,10 @@ import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.LzyServantGrpc;
-import ai.lzy.priv.v2.Operations;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyServantGrpc;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Servant;
 
 public class TerminalStatus implements LzyCommand {
 

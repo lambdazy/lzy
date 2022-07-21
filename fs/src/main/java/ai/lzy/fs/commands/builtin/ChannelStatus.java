@@ -5,9 +5,9 @@ import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.Channels;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.v1.Channels;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyServerGrpc;
 
 import java.net.URI;
 import java.util.Base64;

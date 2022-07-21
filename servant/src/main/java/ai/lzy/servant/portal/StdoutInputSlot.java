@@ -2,7 +2,7 @@ package ai.lzy.servant.portal;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.model.Slot;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

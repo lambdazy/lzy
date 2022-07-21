@@ -1,14 +1,14 @@
 syntax = "proto3";
 
-import "ai/lzy/priv/v2/lzy-zygote.proto";
-import "ai/lzy/priv/v2/lzy-task.proto";
-import "ai/lzy/priv/v2/lzy-channel.proto";
-import "ai/lzy/priv/v2/lzy-auth.proto";
+import "ai/lzy/v1/zygote.proto";
+import "ai/lzy/v1/task.proto";
+import "ai/lzy/v1/channel.proto";
+import "ai/lzy/v1/auth.proto";
 
-package ai.lzy.priv.v2;
+package ai.lzy.v1;
 
 option java_outer_classname = "Lzy";
-option java_package = "ai.lzy.priv.v2";
+option java_package = "ai.lzy.v1";
 
 service LzyServer {
   rpc Publish (PublishRequest) returns (PublishResponse);

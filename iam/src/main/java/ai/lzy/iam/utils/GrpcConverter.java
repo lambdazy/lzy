@@ -8,7 +8,7 @@ import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.User;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.iam.IAM;
 
 public class GrpcConverter {
 

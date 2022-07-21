@@ -9,8 +9,8 @@ import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.server.mocks.AllocatedServantMock;
 import ai.lzy.server.mocks.ServantAllocatorMock;
-import ai.lzy.priv.v2.Operations;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Servant;
 
 import java.io.IOException;
 import java.net.URI;

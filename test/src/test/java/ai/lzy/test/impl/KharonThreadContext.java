@@ -11,7 +11,7 @@ import ai.lzy.kharon.LzyKharon;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.whiteboard.api.SnapshotApi;
-import ai.lzy.priv.v2.LzyKharonGrpc;
+import ai.lzy.v1.LzyKharonGrpc;
 
 import java.io.IOException;
 import java.net.URI;
