@@ -37,7 +37,7 @@ import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
 import ai.lzy.whiteboard.hibernate.DbSnapshotRepository;
 import ai.lzy.whiteboard.hibernate.DbWhiteboardRepository;
-import ai.lzy.priv.v2.LzyWhiteboard;
+import ai.lzy.v1.LzyWhiteboard;
 
 public class DbSnapshotRepositoryTest {
 

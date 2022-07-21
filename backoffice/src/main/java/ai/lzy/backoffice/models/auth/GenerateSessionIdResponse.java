@@ -2,7 +2,7 @@ package ai.lzy.backoffice.models.auth;
 
 
 import io.micronaut.core.annotation.Introspected;
-import ai.lzy.priv.v2.BackOffice;
+import ai.lzy.v1.BackOffice;
 
 @Introspected
 public class GenerateSessionIdResponse {

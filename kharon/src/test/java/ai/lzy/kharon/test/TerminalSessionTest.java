@@ -5,8 +5,8 @@ import ai.lzy.kharon.UriResolver;
 import io.grpc.stub.StreamObserver;
 import org.junit.Assert;
 import org.junit.Test;
-import ai.lzy.priv.v2.Operations;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Servant;
 
 import java.net.URI;
 import java.net.URISyntaxException;

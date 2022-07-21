@@ -11,7 +11,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.server.LzyServer;
-import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.v1.LzyServerGrpc;
 
 @Deprecated
 public class ServerProcessContext implements LzyServerTestContext {

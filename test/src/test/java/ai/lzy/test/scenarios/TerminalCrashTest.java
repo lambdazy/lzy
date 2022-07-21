@@ -1,7 +1,7 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.priv.v2.Tasks;
+import ai.lzy.v1.Tasks;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.test.LzyTerminalTestContext;
 import ai.lzy.test.impl.Utils;

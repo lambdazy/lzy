@@ -36,7 +36,7 @@ import javax.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ai.lzy.model.utils.AuthProviders;
-import ai.lzy.priv.v2.BackOffice;
+import ai.lzy.v1.BackOffice;
 
 @ExecuteOn(TaskExecutors.IO)
 @Controller("auth")

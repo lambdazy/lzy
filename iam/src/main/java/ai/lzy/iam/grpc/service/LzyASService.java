@@ -14,9 +14,9 @@ import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.storage.impl.DbAccessClient;
 import ai.lzy.iam.utils.GrpcConverter;
-import ai.lzy.v1.IAM.Subject;
-import ai.lzy.priv.v1.LAS.AuthorizeRequest;
-import ai.lzy.priv.v1.LzyAccessServiceGrpc;
+import ai.lzy.v1.iam.IAM.Subject;
+import ai.lzy.v1.iam.LACS.AuthorizeRequest;
+import ai.lzy.v1.iam.LzyAccessServiceGrpc;
 
 import java.util.Objects;
 

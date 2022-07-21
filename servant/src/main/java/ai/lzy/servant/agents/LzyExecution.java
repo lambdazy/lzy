@@ -9,7 +9,7 @@ import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEventLogger;
 import ai.lzy.servant.env.Environment;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.Servant;
 
 import java.util.ArrayList;
 import java.util.List;

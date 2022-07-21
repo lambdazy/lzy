@@ -1,8 +1,8 @@
 package ai.lzy.fs.slots;
 
-import static ai.lzy.priv.v2.Operations.SlotStatus.State.OPEN;
-import static ai.lzy.priv.v2.Operations.SlotStatus.State.PREPARING;
-import static ai.lzy.priv.v2.Operations.SlotStatus.State.UNBOUND;
+import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
+import static ai.lzy.v1.Operations.SlotStatus.State.PREPARING;
+import static ai.lzy.v1.Operations.SlotStatus.State.UNBOUND;
 
 import com.google.protobuf.ByteString;
 import java.io.FileInputStream;
@@ -34,7 +34,7 @@ import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.FileContents;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Operations;
 
 public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);

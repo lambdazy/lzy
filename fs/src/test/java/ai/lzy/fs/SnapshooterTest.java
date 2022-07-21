@@ -10,7 +10,7 @@ import ai.lzy.fs.mock.OutputSlotMock;
 import ai.lzy.fs.mock.ServiceMock;
 import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.Snapshooter;
-import ai.lzy.priv.v2.*;
+import ai.lzy.v1.*;
 
 import java.io.IOException;
 import java.net.URI;

@@ -4,7 +4,7 @@ import ai.lzy.iam.authorization.credentials.JwtCredentials;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.priv.v2.LzyStorageGrpc;
+import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.storage.LzyStorage;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.test.LzyStorageTestContext;

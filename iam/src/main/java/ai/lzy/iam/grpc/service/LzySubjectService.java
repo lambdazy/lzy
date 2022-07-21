@@ -14,9 +14,9 @@ import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.storage.impl.DbAccessClient;
 import ai.lzy.iam.storage.impl.DbSubjectService;
 import ai.lzy.iam.utils.GrpcConverter;
-import ai.lzy.v1.IAM;
-import ai.lzy.priv.v1.LSS;
-import ai.lzy.priv.v1.LzySubjectServiceGrpc;
+import ai.lzy.v1.iam.IAM;
+import ai.lzy.v1.iam.LSS;
+import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 
 import java.util.Objects;
 

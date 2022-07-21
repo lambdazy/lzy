@@ -9,11 +9,11 @@ import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.Lzy;
-import ai.lzy.priv.v2.LzyKharonGrpc;
-import ai.lzy.priv.v2.LzyServerGrpc;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.LzyKharonGrpc;
+import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.Operations;
 
 public class Publish implements LzyCommand {
 

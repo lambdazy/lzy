@@ -15,8 +15,8 @@ import ai.lzy.iam.utils.GrpcConverter;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.v1.LABS;
-import ai.lzy.v1.LzyAccessBindingServiceGrpc;
+import ai.lzy.v1.iam.LABS;
+import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
 
 import java.util.List;
 import java.util.function.Supplier;

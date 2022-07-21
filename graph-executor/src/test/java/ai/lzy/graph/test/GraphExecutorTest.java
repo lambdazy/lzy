@@ -11,7 +11,7 @@ import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.graph.test.mocks.GraphDaoMock;
 import ai.lzy.graph.test.mocks.SchedulerApiMock;
-import ai.lzy.priv.v2.SchedulerApi.TaskStatus;
+import ai.lzy.v1.SchedulerApi.TaskStatus;
 import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
 import java.util.ArrayList;
@@ -36,8 +36,8 @@ import org.junit.rules.Timeout;
 
 import java.util.stream.Collectors;
 
-import static ai.lzy.priv.v2.SchedulerApi.TaskStatus.StatusCase.ERROR;
-import static ai.lzy.priv.v2.SchedulerApi.TaskStatus.StatusCase.QUEUE;
+import static ai.lzy.v1.SchedulerApi.TaskStatus.StatusCase.ERROR;
+import static ai.lzy.v1.SchedulerApi.TaskStatus.StatusCase.QUEUE;
 
 @MicronautTest
 public class GraphExecutorTest {

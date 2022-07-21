@@ -23,8 +23,8 @@ import ai.lzy.server.channel.control.EmptyController;
 import ai.lzy.server.channel.control.SnapshotChannelController;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
 import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.SnapshotApiGrpc;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.SnapshotApiGrpc;
 
 import javax.annotation.Nullable;
 import java.net.URI;

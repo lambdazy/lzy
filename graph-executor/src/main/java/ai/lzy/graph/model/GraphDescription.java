@@ -1,9 +1,9 @@
 package ai.lzy.graph.model;
 
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.priv.v2.graph.GraphExecutorApi;
-import ai.lzy.priv.v2.graph.GraphExecutorApi.ChannelDesc;
-import ai.lzy.priv.v2.graph.GraphExecutorApi.TaskDesc;
+import ai.lzy.v1.graph.GraphExecutorApi;
+import ai.lzy.v1.graph.GraphExecutorApi.ChannelDesc;
+import ai.lzy.v1.graph.GraphExecutorApi.TaskDesc;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;

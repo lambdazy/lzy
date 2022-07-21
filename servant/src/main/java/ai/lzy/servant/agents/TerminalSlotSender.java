@@ -7,10 +7,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.priv.v2.Kharon.ReceivedDataStatus;
-import ai.lzy.priv.v2.Kharon.SendSlotDataMessage;
-import ai.lzy.priv.v2.LzyFsApi;
-import ai.lzy.priv.v2.LzyKharonGrpc;
+import ai.lzy.v1.Kharon.ReceivedDataStatus;
+import ai.lzy.v1.Kharon.SendSlotDataMessage;
+import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.LzyKharonGrpc;
 
 
 public class TerminalSlotSender {

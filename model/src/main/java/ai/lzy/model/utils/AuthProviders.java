@@ -1,6 +1,6 @@
 package ai.lzy.model.utils;
 
-import ai.lzy.priv.v2.BackOffice;
+import ai.lzy.v1.BackOffice;
 
 public enum AuthProviders {
     GITHUB("github");

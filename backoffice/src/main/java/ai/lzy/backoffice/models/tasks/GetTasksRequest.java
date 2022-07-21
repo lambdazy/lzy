@@ -2,8 +2,8 @@ package ai.lzy.backoffice.models.tasks;
 
 import io.micronaut.core.annotation.Introspected;
 import ai.lzy.backoffice.models.UserCredentials;
-import ai.lzy.priv.v2.BackOffice;
-import ai.lzy.priv.v2.IAM;
+import ai.lzy.v1.BackOffice;
+import ai.lzy.v1.IAM;
 
 @Introspected
 public class GetTasksRequest {

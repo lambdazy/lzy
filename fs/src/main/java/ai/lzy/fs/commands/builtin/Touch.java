@@ -7,7 +7,7 @@ import org.apache.commons.cli.Options;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.fs.fs.LzyFSManager;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.*;
+import ai.lzy.v1.*;
 
 import java.net.URI;
 import java.nio.file.Files;

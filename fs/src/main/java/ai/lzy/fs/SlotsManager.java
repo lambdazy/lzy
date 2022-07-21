@@ -12,7 +12,7 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.Slot;
 import ai.lzy.model.slots.TextLinesOutSlot;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.Servant;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -24,8 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static ai.lzy.priv.v2.Operations.SlotStatus.State.DESTROYED;
-import static ai.lzy.priv.v2.Operations.SlotStatus.State.SUSPENDED;
+import static ai.lzy.v1.Operations.SlotStatus.State.DESTROYED;
+import static ai.lzy.v1.Operations.SlotStatus.State.SUSPENDED;
 
 public class SlotsManager implements AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(SlotsManager.class);

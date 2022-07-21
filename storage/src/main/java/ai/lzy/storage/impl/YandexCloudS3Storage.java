@@ -2,9 +2,9 @@ package ai.lzy.storage.impl;
 
 import ai.lzy.model.db.DaoException;
 import ai.lzy.model.db.Transaction;
-import ai.lzy.priv.v2.Lzy;
-import ai.lzy.priv.v2.LzyStorageApi.*;
-import ai.lzy.priv.v2.LzyStorageGrpc;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.LzyStorageApi.*;
+import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.storage.StorageDataSource;
 import ai.lzy.storage.util.yc.RenewableToken;

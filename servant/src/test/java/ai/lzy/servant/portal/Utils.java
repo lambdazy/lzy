@@ -1,9 +1,9 @@
 package ai.lzy.servant.portal;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.priv.v2.Channels;
-import ai.lzy.priv.v2.LzyPortalApi;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Channels;
+import ai.lzy.v1.LzyPortalApi;
+import ai.lzy.v1.Operations;
 import io.grpc.stub.StreamObserver;
 import org.junit.Assert;
 

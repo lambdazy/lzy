@@ -31,28 +31,28 @@ import ai.lzy.model.utils.Permissions;
 import ai.lzy.whiteboard.auth.SimpleAuthenticator;
 import ai.lzy.whiteboard.config.ServiceConfig;
 import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
-import ai.lzy.priv.v2.IAM.Auth;
+import ai.lzy.v1.IAM.Auth;
 
-import ai.lzy.priv.v2.Lzy;
-import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.LzyServerGrpc;
 
-import ai.lzy.priv.v2.LzyWhiteboard;
-import ai.lzy.priv.v2.LzyWhiteboard.AbortCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.CommitCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.CreateEntryCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.CreateSnapshotCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.EntryStatusCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.EntryStatusResponse;
-import ai.lzy.priv.v2.LzyWhiteboard.ExecutionDescription;
-import ai.lzy.priv.v2.LzyWhiteboard.FinalizeSnapshotCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.LastSnapshotCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.OperationStatus;
-import ai.lzy.priv.v2.LzyWhiteboard.PrepareCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.ResolveExecutionCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.ResolveExecutionResponse;
-import ai.lzy.priv.v2.LzyWhiteboard.SaveExecutionCommand;
-import ai.lzy.priv.v2.LzyWhiteboard.SaveExecutionResponse;
-import ai.lzy.priv.v2.SnapshotApiGrpc;
+import ai.lzy.v1.LzyWhiteboard;
+import ai.lzy.v1.LzyWhiteboard.AbortCommand;
+import ai.lzy.v1.LzyWhiteboard.CommitCommand;
+import ai.lzy.v1.LzyWhiteboard.CreateEntryCommand;
+import ai.lzy.v1.LzyWhiteboard.CreateSnapshotCommand;
+import ai.lzy.v1.LzyWhiteboard.EntryStatusCommand;
+import ai.lzy.v1.LzyWhiteboard.EntryStatusResponse;
+import ai.lzy.v1.LzyWhiteboard.ExecutionDescription;
+import ai.lzy.v1.LzyWhiteboard.FinalizeSnapshotCommand;
+import ai.lzy.v1.LzyWhiteboard.LastSnapshotCommand;
+import ai.lzy.v1.LzyWhiteboard.OperationStatus;
+import ai.lzy.v1.LzyWhiteboard.PrepareCommand;
+import ai.lzy.v1.LzyWhiteboard.ResolveExecutionCommand;
+import ai.lzy.v1.LzyWhiteboard.ResolveExecutionResponse;
+import ai.lzy.v1.LzyWhiteboard.SaveExecutionCommand;
+import ai.lzy.v1.LzyWhiteboard.SaveExecutionResponse;
+import ai.lzy.v1.SnapshotApiGrpc;
 
 @Singleton
 @Requires(property = "service.server-uri")

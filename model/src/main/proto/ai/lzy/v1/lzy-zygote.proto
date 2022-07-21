@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package ai.lzy.priv.v2;
+package ai.lzy.v1;
 
 option java_outer_classname = "Operations";
-option java_package = "ai.lzy.priv.v2";
+option java_package = "ai.lzy.v1";
 
 message Zygote {
   // TODO: return uri back

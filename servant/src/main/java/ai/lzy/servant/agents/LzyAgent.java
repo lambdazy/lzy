@@ -11,10 +11,10 @@ import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.servant.BashApi;
 import ai.lzy.servant.commands.ServantCommandHolder;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.LzyServerGrpc;
-import ai.lzy.priv.v2.Operations;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Servant;
 
 import java.io.Closeable;
 import java.io.IOException;

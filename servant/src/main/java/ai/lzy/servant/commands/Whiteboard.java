@@ -16,9 +16,9 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.LzyWhiteboard;
-import ai.lzy.priv.v2.WbApiGrpc;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyWhiteboard;
+import ai.lzy.v1.WbApiGrpc;
 
 public class Whiteboard implements LzyCommand {
 

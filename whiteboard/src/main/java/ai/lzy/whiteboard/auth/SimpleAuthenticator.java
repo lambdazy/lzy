@@ -1,9 +1,9 @@
 package ai.lzy.whiteboard.auth;
 
 import ai.lzy.model.utils.Permissions;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.Lzy;
-import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.LzyServerGrpc;
 
 public class SimpleAuthenticator implements Authenticator {
 

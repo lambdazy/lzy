@@ -9,9 +9,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.authorization.exceptions.AuthException;
 import ai.lzy.iam.utils.GrpcConverter;
-import ai.lzy.v1.IAM.Subject;
-import ai.lzy.v1.LAS.AuthenticateRequest;
-import ai.lzy.v1.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.iam.IAM.Subject;
+import ai.lzy.v1.iam.LAS.AuthenticateRequest;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 
 import java.util.Objects;
 

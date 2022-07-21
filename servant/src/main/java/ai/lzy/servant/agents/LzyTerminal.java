@@ -24,17 +24,17 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.Kharon;
-import ai.lzy.priv.v2.Kharon.AttachTerminal;
-import ai.lzy.priv.v2.Kharon.ServerCommand;
-import ai.lzy.priv.v2.Kharon.TerminalCommand;
-import ai.lzy.priv.v2.LzyFsApi;
-import ai.lzy.priv.v2.LzyFsApi.SlotCommandStatus.RC;
-import ai.lzy.priv.v2.LzyKharonGrpc;
-import ai.lzy.priv.v2.LzyServantGrpc;
-import ai.lzy.priv.v2.LzyServerGrpc;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.Kharon;
+import ai.lzy.v1.Kharon.AttachTerminal;
+import ai.lzy.v1.Kharon.ServerCommand;
+import ai.lzy.v1.Kharon.TerminalCommand;
+import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.LzyFsApi.SlotCommandStatus.RC;
+import ai.lzy.v1.LzyKharonGrpc;
+import ai.lzy.v1.LzyServantGrpc;
+import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.Servant;
 
 public class LzyTerminal extends LzyAgent implements Closeable {
 

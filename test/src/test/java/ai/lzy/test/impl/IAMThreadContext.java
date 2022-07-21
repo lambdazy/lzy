@@ -2,11 +2,11 @@ package ai.lzy.test.impl;
 
 import ai.lzy.iam.LzyIAM;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v1.LzyAccessServiceGrpc;
-import ai.lzy.priv.v1.LzySubjectServiceGrpc;
+import ai.lzy.v1.iam.LzyAccessServiceGrpc;
+import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import ai.lzy.test.LzyIAMTestContext;
-import ai.lzy.v1.LzyAccessBindingServiceGrpc;
-import ai.lzy.v1.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.whiteboard.api.SnapshotApi;
 import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;

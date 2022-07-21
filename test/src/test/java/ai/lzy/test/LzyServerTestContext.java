@@ -1,6 +1,6 @@
 package ai.lzy.test;
 
-import ai.lzy.priv.v2.LzyServerGrpc;
+import ai.lzy.v1.LzyServerGrpc;
 
 public interface LzyServerTestContext extends AutoCloseable {
     String address();

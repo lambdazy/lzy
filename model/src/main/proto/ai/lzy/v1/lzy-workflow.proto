@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-import "ai/lzy/priv/v2/lzy-server.proto";
+import "ai/lzy/v1/lzy-server.proto";
 
-package ai.lzy.priv.v2;
+package ai.lzy.v1;
 
 option java_outer_classname = "LzyWorkflowApi";
-option java_package = "ai.lzy.priv.v2";
+option java_package = "ai.lzy.v1";
 
 
 service LzyWorkflow {

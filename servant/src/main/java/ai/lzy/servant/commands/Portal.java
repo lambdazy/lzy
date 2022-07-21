@@ -2,7 +2,7 @@ package ai.lzy.servant.commands;
 
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.*;
+import ai.lzy.v1.*;
 import com.google.protobuf.Empty;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;

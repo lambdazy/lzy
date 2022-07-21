@@ -17,7 +17,7 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.slots.TextLinesOutSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Operations;
 
 public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);

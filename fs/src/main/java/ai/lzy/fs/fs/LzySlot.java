@@ -2,7 +2,7 @@ package ai.lzy.fs.fs;
 
 import com.google.protobuf.ByteString;
 import ai.lzy.model.Slot;
-import ai.lzy.priv.v2.Operations;
+import ai.lzy.v1.Operations;
 
 import java.util.Set;
 import java.util.function.Consumer;

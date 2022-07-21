@@ -2,9 +2,9 @@ package ai.lzy.server;
 
 import static ai.lzy.model.GrpcConverter.from;
 import static ai.lzy.model.GrpcConverter.to;
-import static ai.lzy.priv.v2.Tasks.TaskProgress.Status.ERROR;
-import static ai.lzy.priv.v2.Tasks.TaskProgress.Status.QUEUE;
-import static ai.lzy.priv.v2.Tasks.TaskProgress.Status.SUCCESS;
+import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
+import static ai.lzy.v1.Tasks.TaskProgress.Status.QUEUE;
+import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
 
 import ai.lzy.model.Constants;
 import ai.lzy.model.GrpcConverter;
@@ -70,24 +70,24 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import ai.lzy.priv.v2.Channels;
-import ai.lzy.priv.v2.Channels.ChannelCreate;
-import ai.lzy.priv.v2.Channels.ChannelStatus;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.IAM.Auth;
-import ai.lzy.priv.v2.Lzy;
-import ai.lzy.priv.v2.Lzy.GetSessionsRequest;
-import ai.lzy.priv.v2.Lzy.GetSessionsResponse;
-import ai.lzy.priv.v2.Lzy.GetSessionsResponse.Builder;
-import ai.lzy.priv.v2.Lzy.SessionDescription;
-import ai.lzy.priv.v2.LzyFsApi;
-import ai.lzy.priv.v2.LzyFsGrpc;
-import ai.lzy.priv.v2.LzyServantGrpc;
-import ai.lzy.priv.v2.LzyServerGrpc;
-import ai.lzy.priv.v2.Operations;
-import ai.lzy.priv.v2.Servant;
-import ai.lzy.priv.v2.Tasks;
-import ai.lzy.priv.v2.Tasks.TaskSignal;
+import ai.lzy.v1.Channels;
+import ai.lzy.v1.Channels.ChannelCreate;
+import ai.lzy.v1.Channels.ChannelStatus;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.IAM.Auth;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.Lzy.GetSessionsRequest;
+import ai.lzy.v1.Lzy.GetSessionsResponse;
+import ai.lzy.v1.Lzy.GetSessionsResponse.Builder;
+import ai.lzy.v1.Lzy.SessionDescription;
+import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.LzyFsGrpc;
+import ai.lzy.v1.LzyServantGrpc;
+import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Servant;
+import ai.lzy.v1.Tasks;
+import ai.lzy.v1.Tasks.TaskSignal;
 
 public class LzyServer {
 

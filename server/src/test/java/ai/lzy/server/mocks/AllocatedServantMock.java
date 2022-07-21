@@ -1,10 +1,10 @@
 package ai.lzy.server.mocks;
 
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.IAM;
-import ai.lzy.priv.v2.LzyServantGrpc;
-import ai.lzy.priv.v2.Operations;
-import ai.lzy.priv.v2.Servant;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.LzyServantGrpc;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Servant;
 import io.grpc.Server;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;

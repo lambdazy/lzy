@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package ai.lzy.priv.v2.scheduler;
+package ai.lzy.v1.scheduler;
 
 option java_outer_classname = "SchedulerPrivateApi";
-option java_package = "ai.lzy.priv.v2.lzy";
+option java_package = "ai.lzy.v1.lzy";
 
 service SchedulerPrivate {
   rpc RegisterServant (RegisterServantRequest) returns (RegisterServantResponse);

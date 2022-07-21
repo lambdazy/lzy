@@ -4,7 +4,7 @@ import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.SlotSnapshotImpl;
 import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.model.Slot;
-import ai.lzy.priv.v2.SnapshotApiGrpc;
+import ai.lzy.v1.SnapshotApiGrpc;
 
 import java.net.URI;
 import java.util.HashMap;

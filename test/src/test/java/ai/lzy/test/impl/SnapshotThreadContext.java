@@ -11,8 +11,8 @@ import org.apache.logging.log4j.LogManager;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.whiteboard.api.SnapshotApi;
 import ai.lzy.whiteboard.api.WhiteboardApi;
-import ai.lzy.priv.v2.SnapshotApiGrpc;
-import ai.lzy.priv.v2.WbApiGrpc;
+import ai.lzy.v1.SnapshotApiGrpc;
+import ai.lzy.v1.WbApiGrpc;
 
 import java.io.IOException;
 import java.util.Map;

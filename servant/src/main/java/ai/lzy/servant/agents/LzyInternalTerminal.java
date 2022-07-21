@@ -9,7 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.*;
+import ai.lzy.v1.*;
 
 import java.io.Closeable;
 import java.io.IOException;

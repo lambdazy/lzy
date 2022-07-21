@@ -11,9 +11,9 @@ import java.util.concurrent.ExecutionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.JsonUtils;
-import ai.lzy.priv.v2.Kharon;
-import ai.lzy.priv.v2.LzyFsApi;
-import ai.lzy.priv.v2.LzyFsApi.SlotRequest;
+import ai.lzy.v1.Kharon;
+import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.LzyFsApi.SlotRequest;
 
 public class DataCarrier {
 
