@@ -20,11 +20,13 @@ public class DockerServantTest extends LocalScenario {
     }
 
     @Test
+    @Ignore
     public void testSingleDockerEcho42() {
         testEcho42("docker-single", null);
     }
 
     @Test
+    @Ignore
     public void testDefaultEnvEcho42() {
         testEcho42("default-env", "default");
     }
@@ -59,6 +61,7 @@ public class DockerServantTest extends LocalScenario {
         Assert.assertEquals("42\n", result.stdout());
     }
 
+    @Test
     public void customImageTest() {
         evalAndAssertScenarioResult(terminal, "custom-image-cpu");
     }

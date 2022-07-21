@@ -51,10 +51,13 @@ public class ServerThreadContext implements LzyServerTestContext {
                 ));
                 EnvironmentFactory.disableDockers();
             }
-            case DOCKER_ALLOCATOR -> appProperties.putAll(Map.of(
-                "server.dockerAllocator.enabled", "true",
-                "server.baseEnvDefaultImage", "lzydock/default-env:master"
-            ));
+            case DOCKER_ALLOCATOR -> {
+                final String envImage = System.getProperty("server.baseEnvDefaultImage", "lzydock/test-env:master");
+                appProperties.putAll(Map.of(
+                    "server.dockerAllocator.enabled", "true",
+                    "server.baseEnvDefaultImage", envImage
+                ));
+            }
         }
     }
 
