@@ -47,7 +47,7 @@ class LzyEnvProvider(EnvProvider):
         self,
         conda_yaml_path: Optional[Path] = None,
         local_modules_paths: Optional[List[str]] = None,
-        image_name: Optional[str] = "default",
+        image_name: str = "default",
         image_pull_policy: ImagePullPolicy = ImagePullPolicy.ALWAYS,
     ):
         self._log = logging.getLogger(str(self.__class__))

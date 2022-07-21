@@ -12,7 +12,7 @@ from pure_protobuf.dataclasses_ import Message, load  # type: ignore
 from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.servant.channel_manager import ChannelManager
 from lzy.api.v1.servant.model.channel import Binding, Bindings
-from lzy.api.v1.servant.model.env import Env, BaseEnv, PyEnv
+from lzy.api.v1.servant.model.env import Env, BaseEnv, AuxEnv
 from lzy.api.v1.servant.model.execution import (
     Execution,
     ExecutionDescription,
@@ -140,12 +140,12 @@ class LzyRemoteOp(LzyOp):
         hasher: Hasher,
         provisioning: Optional[Provisioning] = None,
         base_env: Optional[BaseEnv] = None,
-        env: Optional[PyEnv] = None,
+        pyenv: Optional[AuxEnv] = None,
         deployed: bool = False,
         channel_manager: Optional[ChannelManager] = None,
         cache_policy: CachePolicy = CachePolicy.IGNORE,
     ):
-        if (not provisioning or not env) and not deployed:
+        if (not provisioning or not pyenv) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
 
         self._hasher = hasher
@@ -153,7 +153,7 @@ class LzyRemoteOp(LzyOp):
         self._file_serializer = file_serializer
         self._deployed = deployed
         self._servant = servant
-        self._env = env
+        self._pyenv = pyenv
         self._snapshot_id: str = snapshot_id
         self._cache_policy = cache_policy
 
@@ -172,7 +172,7 @@ class LzyRemoteOp(LzyOp):
                 setattr(output_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
 
         self._zygote = ZygotePythonFunc(
-            mem_serializer, signature.func, Env(base_env=base_env, aux_env=env), provisioning
+            mem_serializer, signature.func, Env(base_env=base_env, aux_env=pyenv), provisioning
         )
 
         self._entry_id_generator = entry_id_generator
