@@ -178,7 +178,8 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, String[] envp) {
         LOG.info("Executing command " + command);
-        String[] bashCmd = new String[] {"bash", "-c", "eval \"$(conda shell.bash hook)\" && conda activate "
+        String[] bashCmd = new String[] {"bash", "-c",
+            "echo 42 && echo $(which conda) && echo 42 && eval \"$(conda shell.bash hook)\" && conda activate "
                 + pythonEnv.name() + " && " + command};
         return baseEnv.runProcess(bashCmd, envp);
     }
