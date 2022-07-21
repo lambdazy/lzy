@@ -139,7 +139,7 @@ class LzyRemoteOp(LzyOp):
         file_serializer: FileSerializer,
         hasher: Hasher,
         provisioning: Optional[Provisioning] = None,
-        base_env: BaseEnv = BaseEnv("default"),
+        base_env: Optional[BaseEnv] = None,
         env: Optional[PyEnv] = None,
         deployed: bool = False,
         channel_manager: Optional[ChannelManager] = None,

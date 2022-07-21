@@ -393,7 +393,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         conda_yaml_path: Optional[Path] = None,
         local_module_paths: Optional[List[str]] = None,
         cache_policy: CachePolicy = CachePolicy.IGNORE,
-        image_name: str = 'default',
+        image_name: Optional[str] = None,
         eager: bool = False,
         whiteboard: Any = None,
         buses: Optional[BusList] = None,
@@ -458,8 +458,12 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
     def hasher(self) -> Hasher:
         return self._hasher
 
-    def base_env(self, image_name: Optional[str]) -> BaseEnv:
-        return BaseEnv(self._image_name if image_name is None else image_name)
+    def base_env(self, image_name: Optional[str]) -> Optional[BaseEnv]:
+        if image_name is not None:
+            return BaseEnv(image_name)
+        if self._image_name is not None:
+            return BaseEnv(self._image_name)
+        return None
 
     def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._py_env is not None:

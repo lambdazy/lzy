@@ -4,7 +4,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 ### conda setup
 ENV PATH="/root/miniconda3/bin:$PATH"
-ARG PATH="/root/miniconda3/bin:$PATH"
 RUN apt-get update && \
     apt-get install -y wget && \
     apt-get install -y libsndfile1 ffmpeg
