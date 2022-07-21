@@ -1,12 +1,11 @@
-FROM nvidia/cuda:11.2.0-devel-ubuntu20.04
+FROM ubuntu:xenial
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 ### conda setup
 ENV PATH="/root/miniconda3/bin:$PATH"
 RUN apt-get update && \
-    apt-get install -y wget && \
-    apt-get install -y libsndfile1 ffmpeg
+    apt-get install -y wget
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && mkdir /root/.conda \
     && bash Miniconda3-latest-Linux-x86_64.sh -b \
@@ -19,4 +18,4 @@ RUN conda init bash
 
 COPY servant/docker/requirements.txt /
 COPY --chmod=a+rx servant/docker/conda_prepare.sh /
-RUN ./conda_prepare.sh init
+RUN ./conda_prepare.sh create_env "default" "3.9.7"

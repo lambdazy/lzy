@@ -260,7 +260,7 @@ class LzyRemoteEnv(LzyEnvBase):
         buses: Optional[BusList] = None,
         conda_yaml_path: Optional[Path] = None,
         local_module_paths: Optional[List[str]] = None,
-        image_name: Optional[str] = None,
+        docker_image: Optional[str] = None,
     ):
         return LzyRemoteWorkflow(
             name=name,
@@ -270,7 +270,7 @@ class LzyRemoteEnv(LzyEnvBase):
             conda_yaml_path=conda_yaml_path,
             local_module_paths=local_module_paths,
             cache_policy=cache_policy,
-            image_name=image_name,
+            docker_image=docker_image,
             eager=eager,
             whiteboard=whiteboard,
             buses=buses,
@@ -393,7 +393,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         conda_yaml_path: Optional[Path] = None,
         local_module_paths: Optional[List[str]] = None,
         cache_policy: CachePolicy = CachePolicy.IGNORE,
-        image_name: Optional[str] = None,
+        docker_image: Optional[str] = None,
         eager: bool = False,
         whiteboard: Any = None,
         buses: Optional[BusList] = None,
@@ -405,7 +405,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         self._restart_policy = cache_policy
         self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._py_env: Optional[PyEnv] = None
-        self._image_name: Optional[str] = image_name
+        self._image_name: Optional[str] = docker_image
 
         bucket = self._servant_client.get_bucket()
         self._bucket = bucket

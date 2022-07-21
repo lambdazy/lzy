@@ -50,6 +50,5 @@ SHELL ["/bin/bash", "-c"]
 RUN conda init bash
 
 COPY servant/docker/requirements.txt /
-COPY servant/docker/conda_prepare.sh /
-RUN chmod a+rx /conda_prepare.sh
+COPY --chmod=a+rx servant/docker/conda_prepare.sh /
 RUN ./conda_prepare.sh init

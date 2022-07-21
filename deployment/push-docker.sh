@@ -26,9 +26,9 @@ for ARG in "$@"; do
   esac
 done
 
-IMAGES="lzy-servant default-env lzy-server lzy-kharon lzy-whiteboard lzy-iam"
+IMAGES="lzy-servant default-env test-env lzy-server lzy-kharon lzy-whiteboard lzy-iam"
 if [[ $BASE = true ]]; then
-  IMAGES="lzy-servant-base default-env-base $IMAGES"
+  IMAGES="lzy-servant-base default-env-base test-env-base $IMAGES"
 fi
 BRANCH=$(echo "$1" | awk '{print tolower($0)}')
 CUSTOM_TAG=$2
@@ -39,6 +39,8 @@ if [[ $REBUILD = true ]]; then
     SERVANT_BASE_TAG="local"
     docker build -t default-env-base -t lzydock/default-env-base:local -f servant/docker/DefaultEnv.Base.Dockerfile .
     DEFAULT_ENV_BASE_TAG="local"
+    docker build -t test-env-base    -t lzydock/test-env-base:local    -f servant/docker/TestEnv.Base.Dockerfile .
+    TEST_ENV_BASE_TAG="local"
   else
     SERVANT_BASE="$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)"
     docker pull "$SERVANT_BASE"
@@ -47,11 +49,16 @@ if [[ $REBUILD = true ]]; then
     DEFAULT_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh default-env-base $BRANCH dev)"
     docker pull "$DEFAULT_ENV_BASE"
     DEFAULT_ENV_BASE_TAG="$(echo $DEFAULT_ENV_BASE | awk -F: '{print $2}')"
+
+    TEST_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh test-env-base $BRANCH dev)"
+    docker pull "$TEST_ENV_BASE"
+    TEST_ENV_BASE_TAG="$(echo $TEST_ENV_BASE_TAG | awk -F: '{print $2}')"
   fi
   mvn clean install -DskipTests
 
   docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG"         -t lzy-servant -f servant/docker/System.Dockerfile .
   docker build --build-arg "DEFAULT_ENV_BASE_TAG=$DEFAULT_ENV_BASE_TAG" -t default-env -f servant/docker/DefaultEnv.Dockerfile .
+  docker build --build-arg "TEST_ENV_BASE_TAG=$TEST_ENV_BASE_TAG"       -t test-env    -f servant/docker/TestEnv.Dockerfile .
 
   docker build -t lzy-server -f server/Dockerfile server
   docker build -t lzy-whiteboard -f whiteboard/Dockerfile whiteboard
