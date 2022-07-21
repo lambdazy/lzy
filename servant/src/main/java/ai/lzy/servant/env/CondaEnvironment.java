@@ -202,7 +202,7 @@ public class CondaEnvironment implements AuxEnvironment {
 
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) {
-        List<String> envList = getEnvironmentVariables();
+        List<String> envList = new ArrayList<>();
         envList.add("LOCAL_MODULES=" + localModulesDirectoryAbsolutePath());
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
