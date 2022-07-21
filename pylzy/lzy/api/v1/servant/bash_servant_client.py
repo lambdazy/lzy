@@ -1,4 +1,3 @@
-import base64
 import codecs
 import json
 import logging
@@ -9,11 +8,9 @@ import tempfile
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 
-import cloudpickle
-
-from lzy.api.v1.servant.model.channel import Bindings, Channel, SnapshotChannelSpec
+from lzy.api.v1.servant.model.channel import Bindings, Channel, DataSchema, SnapshotChannelSpec, DirectChannelSpec
 from lzy.api.v1.servant.model.encoding import ENCODING as encoding
 from lzy.api.v1.servant.model.execution import (
     Execution,
@@ -159,35 +156,43 @@ class BashServantClient(ServantClient):
     def get_slot_path(self, slot: Slot) -> Path:
         return self.mount().joinpath(slot.name.lstrip(os.path.sep))
 
-    def create_channel(self, channel: Channel):
-        self._log.info(f"Creating channel {channel.name}")
-        command = [f"{self.mount()}/sbin/channel", "create", channel.name]
-        if isinstance(channel.spec, SnapshotChannelSpec):
+    def create_channel(
+        self,
+        name: str,
+        data_schema: DataSchema,
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+    ) -> Channel:
+        self._log.info(f"Creating channel {name}")
+        command = [f"{self.mount()}/sbin/channel", "create", name]
+        if isinstance(spec, SnapshotChannelSpec):
             command.extend(
                 [
                     "-t",
                     "snapshot",
                     "-s",
-                    channel.spec.snapshot_id,
+                    spec.snapshot_id,
                     "-e",
-                    channel.spec.entry_id,
+                    spec.entry_id,
                 ]
             )
         else:
             command.extend(["-t", "direct"])
 
-        datascheme_file = tempfile.mktemp(
+        data_scheme_file = tempfile.mktemp(
             prefix="channel_datascheme_", suffix=".json", dir="/tmp/"
         )
-        with open(datascheme_file, "w", encoding=encoding) as file:
-            file.write(channel.data_scheme.to_json())
-        command.extend(["-c", datascheme_file])
+        with open(data_scheme_file, "w", encoding=encoding) as file:
+            file.write(data_schema.to_json())
+        command.extend(["-c", data_scheme_file])
 
-        return exec_bash(*command)
+        result = exec_bash(*command)
+        channel_id = json.loads(result)['id']
+
+        return Channel(channel_id, name, data_schema, spec)
 
     def destroy_channel(self, channel: Channel):
         self._log.info(f"Destroying channel {channel.name}")
-        return exec_bash(f"{self.mount()}/sbin/channel", "destroy", channel.name)
+        return exec_bash(f"{self.mount()}/sbin/channel", "destroy", channel.id)
 
     def touch(self, slot: Slot, channel: Channel):
         self._log.info(
@@ -203,7 +208,7 @@ class BashServantClient(ServantClient):
         result = exec_bash(
             f"{self.mount()}/sbin/touch",
             str(self.get_slot_path(slot)),
-            channel.name,
+            channel.id,
             "--slot",
             slot_description_file,
         )
@@ -253,7 +258,7 @@ class BashServantClient(ServantClient):
         )
         with open(slots_mapping_file, "w", encoding=encoding) as file:
             json_bindings = {
-                binding.slot.name: binding.channel.name for binding in bindings
+                binding.slot.name: binding.channel.id for binding in bindings
             }
             json.dump(json_bindings, file, indent=3)
 
