@@ -17,6 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: 'Clear before tests'
+        run: |
+          sudo umount -f /tmp/lzy*
+          sudo umount -f /tmp/term*
+          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
+
       - name: 'python-test'
         timeout-minutes: 5
         run: |
@@ -91,5 +97,11 @@ jobs:
 
       - name: 'Clear after tests'
         if: always()
-        run: sudo umount -f /tmp/lzy* || sudo umount -f /tmp/term* || sudo rm -rf /tmp/lzy /tmp/lzy? /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
+        run: |
+          SHA=${{ github.sha }}
+          sudo mkdir -p /old-logs
+          tar -czvf old-logs/$SHA/logs.tar.gz /tmp/lzy-log
+          sudo umount -f /tmp/lzy*
+          sudo umount -f /tmp/term*
+          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
   #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
