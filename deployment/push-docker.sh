@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+DOCKER_BUILDKIT=1
 MAJOR=1
 
 if [[ $# -lt 2 ]]; then
