@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/lzy-server.proto";
+import "ai/lzy/v1/server.proto";
 
 package ai.lzy.v1;
 

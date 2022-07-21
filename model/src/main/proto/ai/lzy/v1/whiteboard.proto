@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/lzy-auth.proto";
-import "ai/lzy/v1/lzy-backoffice.proto";
-import "ai/lzy/v1/lzy-zygote.proto";
+import "ai/lzy/v1/auth.proto";
+import "ai/lzy/v1/backoffice.proto";
+import "ai/lzy/v1/zygote.proto";
 import "google/protobuf/timestamp.proto";
 
 package ai.lzy.v1;

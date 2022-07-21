@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
-import "ai/lzy/v1/lzy-zygote.proto";
+import "ai/lzy/v1/zygote.proto";
 import "google/protobuf/empty.proto";
 
 

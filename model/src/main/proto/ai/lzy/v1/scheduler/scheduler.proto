@@ -5,7 +5,7 @@ package ai.lzy.v1.scheduler;
 option java_outer_classname = "SchedulerApi";
 option java_package = "ai.lzy.v1";
 
-import "ai/lzy/v1/lzy-zygote.proto";
+import "ai/lzy/v1/zygote.proto";
 service Scheduler {
   rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
   rpc Status (TaskStatusRequest) returns (TaskStatusResponse);

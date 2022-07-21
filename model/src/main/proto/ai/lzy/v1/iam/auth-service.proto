@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1.iam;
 
-import "ai/lzy/v1/iam/lzy-iam.proto";
+import "ai/lzy/v1/iam/iam.proto";
 
 option java_outer_classname = "LAS";
 option java_package = "ai.lzy.v1.iam";
