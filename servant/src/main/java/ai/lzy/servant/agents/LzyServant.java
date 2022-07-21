@@ -132,9 +132,10 @@ public class LzyServant extends LzyAgent {
         commandBuilder.setServantURI(agentAddress.toString());
         commandBuilder.setFsURI(lzyFs.getUri().toString());
         commandBuilder.setServantId(config.getServantId());
+
+        status.set(AgentStatus.REGISTERED);
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
-        status.set(AgentStatus.REGISTERED);
 
         context = new LzyContext(config.getServantId(), lzyFs.getSlotsManager(), lzyFs.getMountPoint().toString());
 
