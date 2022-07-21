@@ -31,68 +31,71 @@ public class Portal implements LzyCommand {
             .build();
         var portal = LzyPortalGrpc.newBlockingStub(portalChannel);
 
-        var serverAddr = URI.create(command.getOptionValue('z'));
+        var channelManagerAddress = URI.create(command.getOptionValue("channel-manager"));
         var auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
-        var serverChannel = ChannelBuilder
-            .forAddress(serverAddr.getHost(), serverAddr.getPort())
+        var channelManagerChannel = ChannelBuilder
+            .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        var server = LzyServerGrpc.newBlockingStub(serverChannel);
+        var channelManager = LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             portalChannel.shutdown();
-            serverChannel.shutdown();
+            channelManagerChannel.shutdown();
         }));
 
         return switch (command.getArgs()[0]) {
-            case "start" -> startPortal(portal, server, auth);
+            case "start" -> startPortal(portal, channelManager, auth);
             case "stop" -> stopPortal(portal);
             default -> statusPortal(portal);
         };
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private int startPortal(LzyPortalGrpc.LzyPortalBlockingStub portal, LzyServerGrpc.LzyServerBlockingStub server,
-                            IAM.Auth auth) {
+    private int startPortal(
+        LzyPortalGrpc.LzyPortalBlockingStub portal,
+        LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager,
+        IAM.Auth auth
+    ) {
         System.out.println("Starting portal...");
 
+        final String stdoutChannelId;
         try {
-            server.channel(Channels.ChannelCommand.newBuilder()
-                .setAuth(auth)
-                .setChannelName("portal:stdout")
-                .setCreate(Channels.ChannelCreate.newBuilder()
+            stdoutChannelId = channelManager.create(ChannelManager.ChannelCreateRequest.newBuilder()
+                .setWorkflowId("unknown workflow id")
+                .setChannelSpec(Channels.ChannelSpec.newBuilder()
+                    .setChannelName("portal:stdout")
                     .setContentType(Operations.DataScheme.newBuilder()
                         .setSchemeType(Operations.SchemeType.plain)
                         .build())
-                    .setDirect(Channels.DirectChannelSpec.getDefaultInstance())
+                    .setDirect(Channels.DirectChannelType.getDefaultInstance())
                     .build())
-                .build());
+                .build()).getChannelId();
         } catch (StatusRuntimeException e) {
-            System.err.println("Failed to create stdout channel: " + e.getStatus());
-            e.printStackTrace(System.err);
+            throw new RuntimeException("Failed to create stdout channel: " + e.getStatus());
         }
 
+        final String stderrChannelId;
         try {
-            server.channel(Channels.ChannelCommand.newBuilder()
-                .setAuth(auth)
-                .setChannelName("portal:stderr")
-                .setCreate(Channels.ChannelCreate.newBuilder()
+            stderrChannelId = channelManager.create(ChannelManager.ChannelCreateRequest.newBuilder()
+                .setWorkflowId("unknown workflow id")
+                .setChannelSpec(Channels.ChannelSpec.newBuilder()
+                    .setChannelName("portal:stderr")
                     .setContentType(Operations.DataScheme.newBuilder()
                         .setSchemeType(Operations.SchemeType.plain)
                         .build())
-                    .setDirect(Channels.DirectChannelSpec.getDefaultInstance())
+                    .setDirect(Channels.DirectChannelType.getDefaultInstance())
                     .build())
-                .build());
+                .build()).getChannelId();
         } catch (StatusRuntimeException e) {
-            System.err.println("Failed to create stderr channel: " + e.getStatus());
-            e.printStackTrace(System.err);
+            throw new RuntimeException("Failed to create stderr channel: " + e.getStatus());
         }
 
         try {
             portal.start(LzyPortalApi.StartPortalRequest.newBuilder()
-                .setStdoutChannelId("portal:stdout")
-                .setStderrChannelId("portal:stderr")
+                .setStdoutChannelId(stdoutChannelId)
+                .setStderrChannelId(stderrChannelId)
                 .build());
             System.out.println("Portal started.");
             return 0;

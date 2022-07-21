@@ -59,7 +59,7 @@ public class LzyTerminal implements Closeable {
 
         commandHandler = new CommandHandler();
         config = LzyAgentConfig.updateAgentId(config, commandHandler.workflowId());
-        agent = new LzyAgent(config, new Impl());
+        agent = new LzyAgent(config, "LzyTerminal", new Impl());
         agent.updateStatus(AgentStatus.REGISTERED);
         agent.publishTools(server.zygotes(agent.auth()));
         lzyFs = agent.fs();

@@ -75,7 +75,7 @@ public class SlotEndpoint implements Endpoint {
     @Override
     public void invalidate() {
         invalid = true;
-//        SLOT_CONNECTION_MANAGER.shutdownConnection(slot.uri());
+        SLOT_CONNECTION_MANAGER.shutdownConnection(slot.uri());
         synchronized (SlotEndpoint.class) {
             ENDPOINTS_CACHE.remove(slotInstance());
         }

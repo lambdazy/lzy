@@ -98,7 +98,14 @@ public class LocalChannelStorage implements ChannelStorage {
     }
 
     private static class SnapshotChannelImpl extends ChannelImpl {
-        SnapshotChannelImpl(String id, String workflowId, ChannelSpec channelSpec, String snapshotId, String entryId, URI whiteboardAddress) {
+        SnapshotChannelImpl(
+            String id,
+            String workflowId,
+            ChannelSpec channelSpec,
+            String snapshotId,
+            String entryId,
+            URI whiteboardAddress
+        ) {
             super(id, workflowId, channelSpec, new SnapshotChannelController(entryId, snapshotId, whiteboardAddress));
         }
     }

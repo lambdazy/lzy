@@ -88,7 +88,7 @@ public class SlotsManager implements AutoCloseable {
     }
 
     public synchronized LzySlot getOrCreateSlot(String taskId, Slot spec, final String channelId) {
-        LOG.info("getOrCreateSlot, taskId: {}, spec: {}, binding: {}", taskId, spec.name(), binding);
+        LOG.info("getOrCreateSlot, taskId: {}, spec: {}, binding: {}", taskId, spec.name(), channelId);
 
         final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(taskId, t -> new HashMap<>());
         final LzySlot existing = taskSlots.get(spec.name());
@@ -97,40 +97,35 @@ public class SlotsManager implements AutoCloseable {
         }
 
         try {
-            final LzySlot slot = createSlot(spec, binding);
+            final LzySlot slot = createSlot(taskId, spec, channelId);
 
             if (slot.state() == DESTROYED) {
                 final String msg = MessageFormat.format("Unable to create slot. Task: {}, spec: {}, binding: {}",
-                        taskId, spec.name(), binding);
+                        taskId, spec.name(), channelId);
                 LOG.error(msg);
                 throw new RuntimeException(msg);
             }
 
-            if (binding != null && binding.startsWith("channel:")) {
-                binding = binding.substring("channel:".length());
-            }
-
-            return registerSlot(taskId, slot, binding);
+            registerSlot(slot);
+            return slot;
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
     }
 
-    public synchronized LzySlot registerSlot(String taskId, LzySlot slot, @Nullable String channelId) {
+    public synchronized void registerSlot(LzySlot slot) {
+        final String taskId = slot.taskId();
         final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(taskId, t -> new HashMap<>());
         if (taskSlots.containsKey(slot.name())) {
-            throw new RuntimeException("Slot already exists");
+            throw new RuntimeException("Slot is already registered");
         }
 
-        var spec = slot.definition();
-        var slotUri = resolveSlotUri(taskId, spec.name());
+        final var spec = slot.definition();
+        final var slotUri = slot.instance().uri();
+        final var channelId = slot.instance().channelId();
 
         if (slot.state() != DESTROYED) {
-            if (spec.name().startsWith("local://")) { // No scheme in slot name
-                taskSlots.put(spec.name().substring("local://".length()), slot);
-            } else {
-                taskSlots.put(spec.name(), slot);
-            }
+            taskSlots.put(spec.name(), slot);
         } else {
             var msg = MessageFormat.format("Unable to create slot. Task: {}, spec: {}", taskId, spec.name());
             LOG.error(msg);
@@ -143,12 +138,7 @@ public class SlotsManager implements AutoCloseable {
                 try {
                     final ChannelManager.SlotDetachStatus unbindResult = channelManager.unbind(
                         ChannelManager.SlotDetach.newBuilder()
-                            .setSlotInstance(LzyFsApi.SlotInstance.newBuilder()
-                                .setSlot(to(spec))
-                                .setTaskId(taskId)
-                                .setChannelId(channelId)
-                                .setSlotUri(slotUri.toString())
-                                .build())
+                            .setSlotInstance(to(slot.instance()))
                             .build()
                     );
                     LOG.info(JsonUtils.printRequest(unbindResult));
@@ -180,10 +170,10 @@ public class SlotsManager implements AutoCloseable {
                 .build());
         LOG.info(JsonUtils.printRequest(slotAttachStatus));
         LOG.info("Slot `{}` configured.", slotUri);
-        return slot;
     }
 
-    private LzySlot createSlot(String taskId, Slot spec, String channelId, URI slotUri) throws IOException {
+    private LzySlot createSlot(String taskId, Slot spec, String channelId) throws IOException {
+        final URI slotUri = resolveSlotUri(taskId, spec.name());
         final SlotInstance slotInstance = new SlotInstance(spec, taskId, channelId, slotUri);
         if (Slot.STDIN.equals(spec)) {
             throw new AssertionError();

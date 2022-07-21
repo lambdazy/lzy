@@ -1,47 +1,48 @@
 package ai.lzy.servant.agents;
 
 import ai.lzy.fs.LzyFsServer;
-import ai.lzy.model.logs.UserEvent.UserEventType;
-import ai.lzy.servant.portal.Portal;
-import com.google.protobuf.Empty;
-import io.grpc.*;
-import io.grpc.netty.NettyServerBuilder;
-import io.grpc.stub.StreamObserver;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.storage.StorageClient;
-import ai.lzy.model.Context;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.ReturnCodes;
-import ai.lzy.model.UriScheme;
 import ai.lzy.model.Signal;
+import ai.lzy.model.UriScheme;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.logs.UserEvent;
+import ai.lzy.model.logs.UserEvent.UserEventType;
 import ai.lzy.model.logs.UserEventLogger;
-import ai.lzy.v1.*;
-
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.LzyPortalApi;
+import ai.lzy.v1.LzyPortalGrpc;
+import ai.lzy.v1.LzyServantGrpc;
+import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Servant;
+import ai.lzy.v1.Tasks;
+import ai.lzy.servant.portal.Portal;
+import com.google.protobuf.Empty;
+import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.stub.StreamObserver;
+import java.io.Closeable;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.model.UriScheme.LzyServant;
 
@@ -57,9 +58,8 @@ public class LzyServant implements Closeable {
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();
 
     public LzyServant(LzyAgentConfig config)
-        throws URISyntaxException, IOException, InvocationTargetException, NoSuchMethodException,
-        InstantiationException, IllegalAccessException {
-        agent = new LzyAgent(config, new ServantImpl(), new PortalImpl());
+        throws URISyntaxException, IOException {
+        agent = new LzyAgent(config, "LzyServant", new ServantImpl(), new PortalImpl());
         LOG.info("Starting servant at {}://{}:{}/{} with fs at {}:{}",
             UriScheme.LzyServant.scheme(),
             config.getAgentHost(),
@@ -143,11 +143,11 @@ public class LzyServant implements Closeable {
     }
 
     private void forceStop(Throwable th) {
-        LOG.error("Force terminate servant {}: {}", config.getServantId(), th);
+        LOG.error("Force terminate servant {}: {}", agent.id(), th);
         try {
             portal.stop();
             cleanupExecution();
-            agent.shutdownNow();
+            agent.shutdown();
         } finally {
             lzyFs.stop();
         }
@@ -161,11 +161,20 @@ public class LzyServant implements Closeable {
         }
     }
 
+    public void awaitTermination() throws InterruptedException, IOException {
+        agent.awaitTermination();
+    }
+
+    @Override
+    public void close() throws IOException {
+        agent.close();
+    }
+
     private class ServantImpl extends LzyServantGrpc.LzyServantImplBase {
 
         @Override
         public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
-            if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
+            if (portal.isActive() || agent.getStatus() != AgentStatus.REGISTERED) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
@@ -174,7 +183,7 @@ public class LzyServant implements Closeable {
             UserEventLogger.log(new UserEvent(
                 "Servant execution preparing",
                 Map.of(
-                    "servant_id", config.getServantId()
+                    "servant_id", agent.id()
                 ),
                 UserEvent.UserEventType.ExecutionPreparing
             ));
@@ -206,7 +215,7 @@ public class LzyServant implements Closeable {
 
         @Override
         public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
-            if (portal.isActive() || status.get().getValue() != AgentStatus.REGISTERED.getValue()) {
+            if (portal.isActive() || agent.getStatus() != AgentStatus.REGISTERED) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
@@ -338,11 +347,10 @@ public class LzyServant implements Closeable {
                     UserEvent.UserEventType.TaskStop
                 ));
                 portal.stop();
-                agentServer.shutdown();
             } catch (Exception e) {
                 LOG.error("Error during agent server shutdown", e);
             } finally {
-                lzyFs.stop();
+                agent.shutdown();
             }
         }
 

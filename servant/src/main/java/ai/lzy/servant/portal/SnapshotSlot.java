@@ -1,6 +1,7 @@
 package ai.lzy.servant.portal;
 
 import ai.lzy.model.Slot;
+import ai.lzy.model.SlotInstance;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,9 +26,9 @@ class SnapshotSlot {
         this.storageFile = Files.createTempFile("lzy", "snapshot_" + snapshotId + "_storage");
     }
 
-    SnapshotInputSlot setInputSlot(String taskId, Slot slot) throws IOException {
-        assert slot.direction() == Slot.Direction.INPUT;
-        var inputSlot = new SnapshotInputSlot(taskId, slot, storageFile);
+    SnapshotInputSlot setInputSlot(SlotInstance slotInstance) throws IOException {
+        assert slotInstance.spec().direction() == Slot.Direction.INPUT;
+        var inputSlot = new SnapshotInputSlot(slotInstance, storageFile);
         if (!this.inputSlot.compareAndSet(null, inputSlot)) {
             LOG.error("InputSlot already set for snapshot " + snapshotId);
             throw new RuntimeException("InputSlot already set for snapshot " + snapshotId);
@@ -53,10 +54,10 @@ class SnapshotSlot {
         return outputSlots.values();
     }
 
-    SnapshotOutputSlot addOutputSlot(String taskId, Slot slot) {
-        assert slot.direction() == Slot.Direction.OUTPUT;
-        var outputSlot = new SnapshotOutputSlot(slot, storageFile);
-        var prev = outputSlots.putIfAbsent(slot.name(), outputSlot);
+    SnapshotOutputSlot addOutputSlot(SlotInstance slotInstance) {
+        assert slotInstance.spec().direction() == Slot.Direction.OUTPUT;
+        var outputSlot = new SnapshotOutputSlot(slotInstance, storageFile);
+        var prev = outputSlots.putIfAbsent(slotInstance.name(), outputSlot);
         assert prev == null;
         return outputSlot;
     }

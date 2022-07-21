@@ -82,7 +82,6 @@ public class ChannelManager {
             .map(slotStatus ->
                 Operations.SlotStatus.newBuilder()
                     .setTaskId(slotStatus.tid())
-                    .setUser(slotStatus.user())
                     .setConnectedTo(channel.id())
                     .setDeclaration(to(slotStatus.slot()))
                     .setPointer(slotStatus.pointer())

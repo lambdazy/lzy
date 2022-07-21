@@ -256,7 +256,7 @@ public final class LzyFsServer {
         }
 
         final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());
-        status.setTaskId(request.getTaskId());
+        status.setTaskId(slotInstance.taskId());
 
         return LzyFsApi.SlotCommandStatus.newBuilder()
             .setStatus(status.build())

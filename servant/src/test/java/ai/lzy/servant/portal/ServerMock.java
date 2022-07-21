@@ -1,33 +1,42 @@
 package ai.lzy.servant.portal;
 
+import static java.util.Objects.requireNonNull;
+
+import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
+import ai.lzy.model.SlotInstance;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.model.utils.SessionIdInterceptor;
-import ai.lzy.v1.*;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.Lzy;
+import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.LzyFsGrpc;
+import ai.lzy.v1.LzyPortalApi;
+import ai.lzy.v1.LzyPortalGrpc;
+import ai.lzy.v1.LzyServantGrpc;
+import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.Operations;
 import ai.lzy.v1.Operations.SlotStatus;
+import ai.lzy.v1.Servant;
+import ai.lzy.v1.Tasks;
 import com.google.protobuf.Empty;
-import io.grpc.*;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerInterceptors;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
-import org.junit.Assert;
-
 import java.io.IOException;
-import java.net.URI;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
-
-import static ai.lzy.servant.portal.Utils.makePlainTextDataScheme;
-import static io.grpc.Status.INVALID_ARGUMENT;
-import static java.util.Objects.requireNonNull;
+import org.junit.Assert;
 
 @SuppressWarnings({"ResultOfMethodCallIgnored", "SameParameterValue"})
 class ServerMock extends LzyServerGrpc.LzyServerImplBase {
@@ -36,19 +45,6 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
     final Server server;
     final Map<String, ServantHandler> servantHandlers = new ConcurrentHashMap<>();
 
-    static class DirectChannelInfo {
-        final AtomicReference<String> inputSlotServantId = new AtomicReference<>(null);
-        final AtomicReference<String> outputSlotServantId = new AtomicReference<>(null);
-        final AtomicReference<Servant.SlotAttach> inputSlot = new AtomicReference<>(null);
-        final AtomicReference<Servant.SlotAttach> outputSlot = new AtomicReference<>(null);
-
-        boolean isCompleted() {
-            return inputSlot.get() != null && outputSlot.get() != null;
-        }
-    }
-
-    final Map<String, DirectChannelInfo> directChannels = new ConcurrentHashMap<>(); // channelId -> ...
-
     ServerMock() {
         this.port = Utils.rollPort();
         Map<String, Object> properties = Map.of("server.server-uri", "grpc://localhost:" + port);
@@ -56,7 +52,7 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         this.server = NettyServerBuilder.forPort(port)
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(this, new SessionIdInterceptor()))
+            .addService(ServerInterceptors.intercept(this))
             .build();
     }
 
@@ -117,68 +113,6 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         responseObserver.onCompleted();
     }
 
-    @Override
-    public void channel(Channels.ChannelCommand request, StreamObserver<Channels.ChannelStatus> response) {
-        switch (request.getCommandCase()) {
-            case CREATE -> {
-                var cmd = request.getCreate();
-                if (!cmd.hasDirect()) {
-                    response.onError(INVALID_ARGUMENT.withDescription("Not direct channel").asException());
-                    return;
-                }
-
-                var channelName = request.getChannelName();
-                if (directChannels.putIfAbsent(channelName, new DirectChannelInfo()) != null) {
-                    response.onError(Status.ALREADY_EXISTS.asException());
-                    return;
-                }
-
-                response.onNext(Channels.ChannelStatus.newBuilder()
-                    .setChannel(Channels.Channel.newBuilder()
-                        .setChannelId(channelName)
-                        .setContentType(cmd.getContentType())
-                        .build())
-                    .build());
-                response.onCompleted();
-            }
-
-            case DESTROY -> {
-                var channel = directChannels.get(request.getChannelName());
-                if (channel == null) {
-                    response.onError(Status.NOT_FOUND.asException());
-                    return;
-                }
-
-                if (channel.inputSlotServantId.get() != null) {
-                    var servant = requireNonNull(servantHandlers.get(channel.inputSlotServantId.get()));
-
-                    servant.servantFsStub.destroySlot(LzyFsApi.DestroySlotRequest.newBuilder()
-                        .setTaskId(Optional.ofNullable(servant.taskId).orElse(""))
-                        .setSlotName(channel.inputSlot.get().getSlot().getName())
-                        .build());
-                }
-
-                if (channel.outputSlotServantId.get() != null) {
-                    var servant = requireNonNull(servantHandlers.get(channel.outputSlotServantId.get()));
-
-                    servant.servantFsStub.destroySlot(LzyFsApi.DestroySlotRequest.newBuilder()
-                        .setTaskId(Optional.ofNullable(servant.taskId).orElse(""))
-                        .setSlotName(channel.outputSlot.get().getSlot().getName())
-                        .build());
-                }
-
-                response.onNext(Channels.ChannelStatus.newBuilder()
-                    .setChannel(Channels.Channel.newBuilder()
-                        .setChannelId(request.getChannelName())
-                        .setContentType(makePlainTextDataScheme())
-                        .build())
-                    .build());
-                response.onCompleted();
-            }
-            //case STATE -> {}
-            default -> response.onError(INVALID_ARGUMENT.withDescription("Unknown command").asException());
-        }
-    }
     // --- SERVER GRPC API  ---
 
     void start(String servantId, Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> response) {
@@ -229,65 +163,8 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         portal().waitPortalCompleted();
     }
 
-    private void attachSlot(String servantId, Servant.SlotAttach attach) {
-        String channelName = attach.getChannel();
-        if (attach.getSlot().getName().startsWith("/dev/std")) {
-            // Assert.assertTrue(JsonUtils.printSingleLine(attach), attach.getChannel().isEmpty());
-
-            var uri = URI.create(attach.getUri());
-            var taskId = uri.getPath().substring(1, uri.getPath().length() - attach.getSlot().getName().length());
-            channelName = taskId + ":" + attach.getSlot().getName().substring("/dev/".length());
-        }
-
-        var channel = requireNonNull(directChannels.get(channelName));
-        switch (attach.getSlot().getDirection()) {
-            case INPUT -> {
-                if (!channel.inputSlot.compareAndSet(null, attach)) {
-                    throw new RuntimeException("INPUT slot already set."
-                        + " Existing: " + JsonUtils.printSingleLine(channel.inputSlot.get())
-                        + ", new: " + JsonUtils.printSingleLine(attach));
-                }
-                channel.inputSlotServantId.set(servantId);
-            }
-            case OUTPUT -> {
-                if (!channel.outputSlot.compareAndSet(null, attach)) {
-                    throw new RuntimeException("OUTPUT slot already set."
-                        + " Existing: " + JsonUtils.printSingleLine(channel.outputSlot.get())
-                        + ", new: " + JsonUtils.printSingleLine(attach));
-                }
-                channel.outputSlotServantId.set(servantId);
-            }
-            default -> throw new RuntimeException("zzz");
-        }
-
-        if (channel.isCompleted()) {
-            var inputServant = requireNonNull(servantHandlers.get(channel.inputSlotServantId.get()));
-            var inputSlot = requireNonNull(channel.inputSlot.get());
-            var outputSlot = requireNonNull(channel.outputSlot.get());
-
-            System.out.println("Connecting channel '" + channelName + "' slots, input='"
-                + inputSlot.getSlot().getName() + "', output='" + outputSlot.getSlot().getName() + "'...");
-
-            var status = inputServant.servantFsStub.connectSlot(LzyFsApi.ConnectSlotRequest.newBuilder()
-                .setTaskId(Optional.ofNullable(inputServant.taskId).orElse(""))
-                .setSlotName(inputSlot.getSlot().getName())
-                .setSlotUri(outputSlot.getUri())
-                .build());
-
-            if (status.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {
-                throw new RuntimeException("slot connect failed: " + JsonUtils.printSingleLine(status));
-            }
-        }
-    }
-
-    @SuppressWarnings("unused")
-    private void detachSlot(String servantId, Servant.SlotDetach detach) {
-    }
-
-    class ServantHandler extends Thread {
+    static class ServantHandler extends Thread {
         private final String servantId;
-        //private final String servantUri;
-        //private final String servantFsUri;
         private final LzyServantGrpc.LzyServantBlockingStub servantStub;
         private final LzyFsGrpc.LzyFsBlockingStub servantFsStub;
         private final LzyPortalGrpc.LzyPortalBlockingStub portalStub;
@@ -412,10 +289,10 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
             }
         }
 
-        public Iterator<LzyFsApi.Message> openOutputSlot(String slotUri) {
+        public Iterator<LzyFsApi.Message> openOutputSlot(SlotInstance slot) {
             return servantFsStub.openOutputSlot(
                 LzyFsApi.SlotRequest.newBuilder()
-                    .setSlotUri(slotUri)
+                    .setSlotInstance(GrpcConverter.to(slot))
                     .setOffset(0)
                     .build());
         }
@@ -429,10 +306,6 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
                     System.out.println("--> Servant '" + servantId + "': " + JsonUtils.printSingleLine(action));
                     if (action.hasStart()) {
                         started.complete(null);
-                    } else if (action.hasAttach()) {
-                        ServerMock.this.attachSlot(servantId, action.getAttach());
-                    } else if (action.hasDetach()) {
-                        ServerMock.this.detachSlot(servantId, action.getDetach());
                     } else if (action.hasExecuteStop()) {
                         tasks.get(taskId).complete(action.getExecuteStop());
                     } else if (action.hasCommunicationCompleted()) {

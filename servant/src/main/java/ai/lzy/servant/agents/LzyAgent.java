@@ -4,16 +4,11 @@ import static ai.lzy.model.Constants.LOGS_DIR;
 import static ai.lzy.model.UriScheme.LzyFs;
 
 import ai.lzy.fs.LzyFsServer;
-import ai.lzy.fs.storage.StorageClient;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
-import ai.lzy.model.graph.AtomicZygote;
-import ai.lzy.model.graph.Env;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Lzy;
-import ai.lzy.v1.LzyServantGrpc;
 import ai.lzy.v1.LzyServerGrpc;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.Servant;
@@ -27,7 +22,6 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -40,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,7 +50,7 @@ public class LzyAgent implements Closeable {
     private final LzyFsServer lzyFs;
     private final LzyContext context;
 
-    protected LzyAgent(LzyAgentConfig config, LzyServantGrpc.LzyServantImplBase servantImpl)
+    protected LzyAgent(LzyAgentConfig config, String agentName, BindableService... agentServices)
         throws URISyntaxException, IOException {
         final long start = System.currentTimeMillis();
 
@@ -65,7 +58,7 @@ public class LzyAgent implements Closeable {
         this.auth = getAuth(config);
 
         LOG.info("Starting agent {} at {}://{}:{}/{} with fs at {}:{}",
-            servantImpl.getClass().getName(),
+            agentName,
             config.getScheme(),
             config.getAgentHost(),
             config.getAgentPort(),
@@ -75,12 +68,14 @@ public class LzyAgent implements Closeable {
 
         serverUri = new URI(config.getScheme(), null, config.getAgentHost(), config.getAgentPort(), null, null, null);
 
-        server = NettyServerBuilder
+        final NettyServerBuilder nettyServerBuilder = NettyServerBuilder
             .forAddress(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()))
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(servantImpl)
-            .build();
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
+        for (var service: agentServices) {
+            nettyServerBuilder.addService(service);
+        }
+        server = nettyServerBuilder.build();
         server.start();
 
         status.set(AgentStatus.PREPARING_EXECUTION);
@@ -268,12 +263,6 @@ public class LzyAgent implements Closeable {
         do {
             oldValue = status.get();
         } while (!status.compareAndSet(oldValue, newStatus));
-    }
-
-    public void forceStop(String reason, Throwable th) {
-        LOG.error("Force terminate servant {}: {}", config.getAgentId(), reason, th);
-        server.shutdownNow();
-        lzyFs.forceStop();
     }
 
     public void register(LzyServerGrpc.LzyServerBlockingStub server) {

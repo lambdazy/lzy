@@ -134,7 +134,7 @@ public class TerminalCrashTest extends LocalScenario {
             throw new RuntimeException(e);
         }
 
-        final String cs = terminal2.cs();
+        final String cs = terminal2.channelsStatus();
         Assert.assertEquals("", cs);
     }
 
@@ -245,7 +245,7 @@ public class TerminalCrashTest extends LocalScenario {
         terminal.publish(cat);
 
         //Act
-        String csBefore = terminal.cs();
+        String csBefore = terminal.channelsStatus();
         ForkJoinPool.commonPool().execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
         ForkJoinPool.commonPool().execute(() -> terminal.run(
             cat.name(),
@@ -268,7 +268,7 @@ public class TerminalCrashTest extends LocalScenario {
         );
         terminal.shutdownNow();
         terminal.waitForShutdown();
-        String csAfter = terminal2.cs();
+        String csAfter = terminal2.channelsStatus();
 
         //Assert
         Assert.assertNotEquals("", csBefore);

@@ -1,12 +1,9 @@
 package ai.lzy.test;
 
-import ai.lzy.priv.v2.ChannelManager;
-import com.amazonaws.util.StringInputStream;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
@@ -173,6 +170,11 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                 "-e", entryId
             ).stdout();
             return parseChannelIdFromCreateChannelResponse(response);
+        }
+
+        default String channelsStatus() {
+            final ExecutionResult execute = executeLzyCommand(BuiltinCommandHolder.cs);
+            return execute.stdout();
         }
 
         default String getWhiteboard(String wbId) {

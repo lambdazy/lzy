@@ -60,6 +60,7 @@ public class Start implements LzyCommand {
                 .scheme(UriScheme.LzyServant.scheme())
                 .build()
         );
+        servant.awaitTermination();
         servant.close();
         return 0;
     }

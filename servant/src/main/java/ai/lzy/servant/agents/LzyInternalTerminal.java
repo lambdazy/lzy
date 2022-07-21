@@ -29,9 +29,9 @@ public class LzyInternalTerminal implements Closeable {
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();
 
     public LzyInternalTerminal(LzyAgentConfig config)
-        throws URISyntaxException, IOException, InvocationTargetException, NoSuchMethodException,
-        InstantiationException, IllegalAccessException {
-        agent = new LzyAgent(LzyAgentConfig.updateAgentId(config, "iterm_" + config.getUser()), new Impl());
+        throws URISyntaxException, IOException {
+        agent = new LzyAgent(LzyAgentConfig.updateAgentId(config, "iterm_" + config.getUser()),
+            "LzyInternalTerminal", new Impl());
 
         LOG.info("Starting InternalTerminal at {}://{}:{}/{} with fs at {}:{}",
             UriScheme.LzyTerminal.scheme(),

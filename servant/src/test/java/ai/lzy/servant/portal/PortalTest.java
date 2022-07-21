@@ -1,5 +1,6 @@
 package ai.lzy.servant.portal;
 
+import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.v1.*;
 import ai.lzy.servant.agents.LzyAgentConfig;
@@ -24,6 +25,7 @@ import static ai.lzy.servant.portal.Utils.*;
 
 public class PortalTest {
     private ServerMock server;
+    private ChannelManagerMock channelManager;
     private Map<String, LzyServant> servants;
 
     @Before
@@ -35,7 +37,7 @@ public class PortalTest {
     }
 
     @After
-    public void after() throws InterruptedException {
+    public void after() throws InterruptedException, IOException {
         server.stop();
         for (var servant : servants.values()) {
             servant.close();
@@ -433,22 +435,21 @@ public class PortalTest {
                 .fsPort(rollPort())
                 .root(Path.of("/tmp/lzy_" + servantId + "/"))
                 .build());
-        servant.start();
         servants.put(servantId, servant);
     }
 
     private void createChannel(String name) {
-        server.channel(makeCreateDirectChannelCommand(name), SuccessStreamObserver.wrap(
+        channelManager.create(makeCreateDirectChannelCommand(name), SuccessStreamObserver.wrap(
             status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
     }
 
     private void destroyChannel(String name) {
-        server.channel(makeDestroyChannelCommand(name), SuccessStreamObserver.wrap(
+        channelManager.destroy(makeDestroyChannelCommand(name), SuccessStreamObserver.wrap(
             status -> System.out.println("Channel '" + name + "' removed: " + JsonUtils.printSingleLine(status))));
     }
 
-    private ArrayBlockingQueue<Object> readPortalSlot(String channel) {
-        var outputSlotRef = server.directChannels.get(channel).outputSlot;
+    private ArrayBlockingQueue<Object> readPortalSlot(String channelName) {
+        var outputSlotRef = Objects.requireNonNull(channelManager.get(channelName)).outputSlot;
         var portalSlot = outputSlotRef.get();
         int n = 100;
         while (portalSlot == null && n-- > 0) {
@@ -458,7 +459,7 @@ public class PortalTest {
 
         Assert.assertNotNull(portalSlot);
 
-        var iter = server.portal().openOutputSlot(portalSlot.getUri());
+        var iter = server.portal().openOutputSlot(GrpcConverter.from(portalSlot.getSlotInstance()));
 
         var values = new ArrayBlockingQueue<>(100);
 

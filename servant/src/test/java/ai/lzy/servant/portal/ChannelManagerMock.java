@@ -1,0 +1,195 @@
+package ai.lzy.servant.portal;
+
+import static io.grpc.Status.INVALID_ARGUMENT;
+import static java.util.Objects.requireNonNull;
+
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.SlotInstance;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.priv.v2.ChannelManager;
+import ai.lzy.priv.v2.LzyChannelManagerGrpc;
+import ai.lzy.priv.v2.LzyFsApi;
+import ai.lzy.priv.v2.LzyFsGrpc;
+import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.stub.StreamObserver;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
+
+public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
+    private static class Endpoint implements Closeable {
+        private final LzyFsGrpc.LzyFsBlockingStub fs;
+        private final ManagedChannel channel;
+        private final SlotInstance slotInstance;
+
+        private Endpoint(SlotInstance slotInstance) {
+            this.slotInstance = slotInstance;
+            channel = ChannelBuilder.forAddress(slotInstance.uri().toString().substring("fs://".length()))
+                .usePlaintext()
+                .enableRetry(LzyFsGrpc.SERVICE_NAME)
+                .build();
+            fs = LzyFsGrpc.newBlockingStub(channel);
+        }
+
+        LzyFsApi.SlotCommandStatus connect(SlotInstance to) {
+            return fs.connectSlot(LzyFsApi.ConnectSlotRequest.newBuilder()
+                .setFrom(GrpcConverter.to(slotInstance))
+                .setTo(GrpcConverter.to(to))
+                .build()
+            );
+        }
+
+        @SuppressWarnings("ResultOfMethodCallIgnored")
+        void destroy() {
+            fs.destroySlot(LzyFsApi.DestroySlotRequest.newBuilder()
+                .setSlotInstance(GrpcConverter.to(slotInstance))
+                .build());
+        }
+
+        @Override
+        public void close() throws IOException {
+            channel.shutdown();
+        }
+    }
+
+    static class DirectChannelInfo implements Closeable {
+        final AtomicReference<Endpoint> inputEndpoint = new AtomicReference<>(null);
+        final AtomicReference<Endpoint> outputEndpoint = new AtomicReference<>(null);
+        final AtomicReference<ChannelManager.SlotAttach> inputSlot = new AtomicReference<>(null);
+        final AtomicReference<ChannelManager.SlotAttach> outputSlot = new AtomicReference<>(null);
+
+        boolean isCompleted() {
+            return inputSlot.get() != null && outputSlot.get() != null;
+        }
+
+        @Override
+        public void close() throws IOException {
+            final Endpoint inputEnd = inputEndpoint.get();
+            if (inputEnd != null) {
+                inputEnd.close();
+            }
+            final Endpoint outputEnd = outputEndpoint.get();
+            if (outputEnd != null) {
+                outputEnd.close();
+            }
+        }
+    }
+
+    final Map<String, DirectChannelInfo> directChannels = new ConcurrentHashMap<>(); // channelId -> ...
+
+    @Nullable
+    public DirectChannelInfo get(String channelId) {
+        return directChannels.get(channelId);
+    }
+
+    @Override
+    public void create(ChannelManager.ChannelCreateRequest request,
+                       StreamObserver<ChannelManager.ChannelCreateResponse> response) {
+        if (!request.getChannelSpec().hasDirect()) {
+            response.onError(INVALID_ARGUMENT.withDescription("Not direct channel").asException());
+            return;
+        }
+
+        var channelName = request.getChannelSpec().getChannelName();
+        if (directChannels.putIfAbsent(channelName, new DirectChannelInfo()) != null) {
+            response.onError(Status.ALREADY_EXISTS.asException());
+            return;
+        }
+
+        response.onNext(
+            ChannelManager.ChannelCreateResponse.newBuilder()
+                .setChannelId(channelName)
+                .build()
+        );
+        response.onCompleted();
+    }
+
+    @Override
+    public void destroy(ChannelManager.ChannelDestroyRequest request,
+                        StreamObserver<ChannelManager.ChannelDestroyResponse> response) {
+        var channel = directChannels.get(request.getChannelId());
+        if (channel == null) {
+            response.onError(Status.NOT_FOUND.asException());
+            return;
+        }
+
+        final Endpoint inputEndpoint = channel.inputEndpoint.get();
+        if (inputEndpoint != null) {
+            inputEndpoint.destroy();
+        }
+
+        final Endpoint outputEndpoint = channel.outputEndpoint.get();
+        if (outputEndpoint != null) {
+            outputEndpoint.destroy();
+        }
+
+        response.onNext(ChannelManager.ChannelDestroyResponse.getDefaultInstance());
+        response.onCompleted();
+    }
+
+    @Override
+    public void status(ChannelManager.ChannelStatusRequest request,
+                       StreamObserver<ChannelManager.ChannelStatus> response) {
+        response.onError(INVALID_ARGUMENT.withDescription("Unknown command").asException());
+    }
+
+    @Override
+    public void channelsStatus(ChannelManager.ChannelsStatusRequest request,
+                               StreamObserver<ChannelManager.ChannelStatusList> responseObserver) {
+        super.channelsStatus(request, responseObserver);
+    }
+
+    @Override
+    public void bind(ChannelManager.SlotAttach request,
+                     StreamObserver<ChannelManager.SlotAttachStatus> responseObserver) {
+        final String channelName = request.getSlotInstance().getChannelId();
+        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+
+        var channel = requireNonNull(directChannels.get(channelName));
+        switch (slotInstance.spec().direction()) {
+            case INPUT -> {
+                if (!channel.inputSlot.compareAndSet(null, request)) {
+                    throw new RuntimeException("INPUT slot already set."
+                        + " Existing: " + JsonUtils.printSingleLine(channel.inputSlot.get())
+                        + ", new: " + JsonUtils.printSingleLine(request));
+                }
+                channel.inputEndpoint.set(new Endpoint(slotInstance));
+            }
+            case OUTPUT -> {
+                if (!channel.outputSlot.compareAndSet(null, request)) {
+                    throw new RuntimeException("OUTPUT slot already set."
+                        + " Existing: " + JsonUtils.printSingleLine(channel.outputSlot.get())
+                        + ", new: " + JsonUtils.printSingleLine(request));
+                }
+                channel.outputEndpoint.set(new Endpoint(slotInstance));
+            }
+            default -> throw new RuntimeException("zzz");
+        }
+
+        if (channel.isCompleted()) {
+            var inputSlot = requireNonNull(channel.inputSlot.get());
+            var outputSlot = requireNonNull(channel.outputSlot.get());
+
+            System.out.println("Connecting channel '" + channelName + "' slots, input='"
+                + inputSlot.getSlotInstance().getSlot().getName()
+                + "', output='" + outputSlot.getSlotInstance().getSlot().getName() + "'...");
+
+            var status = channel.inputEndpoint.get().connect(channel.outputEndpoint.get().slotInstance);
+
+            if (status.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {
+                throw new RuntimeException("slot connect failed: " + JsonUtils.printSingleLine(status));
+            }
+        }
+    }
+
+    @Override
+    public void unbind(ChannelManager.SlotDetach request,
+                       StreamObserver<ChannelManager.SlotDetachStatus> response) {
+        response.onError(INVALID_ARGUMENT.withDescription("Unknown command").asException());
+    }
+}

@@ -44,7 +44,7 @@ public class Run implements LzyCommand {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final CountDownLatch communicationLatch = new CountDownLatch(2);
-    private final List<String> channels = new ArrayList<>();
+    private final List<ChannelDescription> channels = new ArrayList<>();
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager;
     private IAM.Auth auth;
     private Map<String, Map<String, String>> pipesConfig;
