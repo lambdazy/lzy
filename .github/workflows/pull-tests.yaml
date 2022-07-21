@@ -32,7 +32,7 @@ jobs:
 
       - name: 'java unit tests and install'
         timeout-minutes: 15
-        run: mvn clean install -DskipTests
+        run: mvn clean install
 
       - name: 'RunTest'
         timeout-minutes: 5
