@@ -4,7 +4,6 @@ import os
 import uuid
 from io import BytesIO
 from itertools import chain
-from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -14,7 +13,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    get_type_hints, IO, Iterable, Sequence,
+    get_type_hints, Sequence,
 )
 from zipfile import ZipFile
 
@@ -152,22 +151,3 @@ class LzyExecutionException(Exception):
             " please send the following trace files: /tmp/lzy-log/"
         )
         super().__init__(message, *args)
-
-
-class File:
-
-    def __init__(self, path: str):
-        self.__path = Path(path)
-        if not self.__path.exists() or not self.__path.is_file():
-            raise ValueError("File path must points to file")
-
-    @property
-    def path(self) -> Path:
-        return self.__path
-
-    def copy(self) -> 'File':
-        return File(str(self.__path))
-
-    def open(self, *args, **kwargs) -> IO:
-        return cast(IO, self.__path.open(*args, **kwargs))
-

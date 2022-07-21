@@ -18,20 +18,14 @@ import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
-import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import org.apache.logging.log4j.LogManager;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -44,8 +38,13 @@ public class StorageThreadContext implements LzyStorageTestContext {
     public static final int STORAGE_PORT = 7780;
     public static final int S3_PORT = 18081;
 
+    private final HostAndPort iamAddress;
     private LzyStorage storage;
     private LzyStorageGrpc.LzyStorageBlockingStub client;
+
+    public StorageThreadContext(HostAndPort iamAddress) {
+        this.iamAddress = iamAddress;
+    }
 
     @Override
     public HostAndPort address() {
@@ -69,27 +68,10 @@ public class StorageThreadContext implements LzyStorageTestContext {
 
     @Override
     public void init() {
-        Map<String, Object> props = null;
-        try {
-            final String[] files = {
-                "../storage/src/main/resources/application-test.yml",
-                "./storage/src/main/resources/application-test.yml"
-            };
-
-            for (var file: files) {
-                if (Files.exists(Path.of(file))) {
-                    props = new YamlPropertySourceLoader().read("storage", new FileInputStream(file));
-                    break;
-                }
-            }
-
-            Objects.requireNonNull(props);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        var props = Utils.loadModuleTestProperties("storage");
 
         props.put("storage.address", "localhost:" + STORAGE_PORT);
-        props.put("storage.iam.address", "localhost:" + IAMThreadContext.IAM_PORT);
+        props.put("storage.iam.address", iamAddress.toString());
         props.put("storage.s3.memory.enabled", "true");
         props.put("storage.s3.memory.port", S3_PORT);
 

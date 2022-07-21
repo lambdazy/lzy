@@ -94,13 +94,13 @@ public class LzyKharon {
 
         var servantProxyAddress = new URI(LzyServant.scheme(), null, selfAddress.getHost(), config.servantProxyPort(),
             null, null, null);
-        var servantProxyFsAddress = new URI(LzyFs.scheme(), null, selfAddress.getHost(), config.servantFsProxyPort(),
+        var servantFsProxyAddress = new URI(LzyFs.scheme(), null, selfAddress.getHost(), config.servantFsProxyPort(),
             null, null, null);
 
         sessionManager = new TerminalSessionManager();
-        uriResolver = new UriResolver(externalAddress, servantProxyFsAddress);
+        uriResolver = new UriResolver(externalAddress, servantFsProxyAddress);
         serverControllerFactory = new ServerControllerFactory(server, uriResolver, servantProxyAddress,
-                servantProxyFsAddress);
+                servantFsProxyAddress);
 
         var sessionIdInterceptor = new SessionIdInterceptor();
 
@@ -114,12 +114,15 @@ public class LzyKharon {
             .addService(ServerInterceptors.intercept(new WhiteboardService(), sessionIdInterceptor))
             .addService(ServerInterceptors.intercept(new ServerService(), sessionIdInterceptor));
 
-        if (config.workflow() != null && config.workflow().serverAddress() != null) {
+        if (config.workflow().enabled()) {
             var authInterceptor = new AuthServerInterceptor(
-                    new AuthenticateServiceGrpcClient(GrpcConfig.from(config.iamAddress())));
-            var workflowService = ctx.getBean(WorkflowService.class);
-            kharonServerBuilder.addService(ServerInterceptors.intercept(workflowService, authInterceptor));
+                new AuthenticateServiceGrpcClient(GrpcConfig.from(config.iam().address())));
+
+            kharonServerBuilder.addService(ServerInterceptors.intercept(
+                ctx.getBean(WorkflowService.class),
+                authInterceptor));
         }
+
         kharonServer = kharonServerBuilder.build();
 
         kharonServantProxy = NettyServerBuilder.forPort(config.servantProxyPort())
@@ -167,14 +170,14 @@ public class LzyKharon {
 
             p.put("kharon.address", host + ":" + port);
             p.put("kharon.external-host", externalHost);
-            p.put("kharon.iam-address", iamAddress.getHost() + ":" + iamAddress.getPort());
             p.put("kharon.server-address", serverAddress.getHost() + ":" + serverAddress.getPort());
             p.put("kharon.whiteboard-address", whiteboardAddress.getHost() + ":" + whiteboardAddress.getPort());
             p.put("kharon.snapshot-address", snapshotAddress.getHost() + ":" + snapshotAddress.getPort());
             p.put("kharon.servant-proxy-port", servantPort);
-            p.put("kharon.servant-proxy-fs-port", servantFsPort);
+            p.put("kharon.servant-fs-proxy-port", servantFsPort);
 
-            // p.put("kharon.workflow", null);
+            p.put("kharon.iam.address", iamAddress.getHost() + ":" + iamAddress.getPort());
+            p.put("kharon.workflow.enabled", "false");
         }
 
         try (ApplicationContext context = ApplicationContext.run(PropertySource.of("cli", p))) {

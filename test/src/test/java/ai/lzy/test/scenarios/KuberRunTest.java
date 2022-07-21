@@ -60,6 +60,14 @@ public class KuberRunTest extends LzyBaseTest {
     }
 
     @Test
+    public void testFile() {
+        /* This scenario checks for:
+                1. File as an argument/return value/whiteboard field
+         */
+        evalAndAssertScenarioResult(terminal, "file_test");
+    }
+
+    @Test
     public void testCustomImage() {
         evalAndAssertScenarioResult(terminal, "custom-image-gpu");
     }

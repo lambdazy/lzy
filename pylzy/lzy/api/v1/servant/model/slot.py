@@ -7,7 +7,7 @@ from typing import Dict, cast, Any
 
 import cloudpickle
 
-from lzy.api.v1.utils import File
+from lzy.serialization.types import File
 
 
 def pickle_type(type_: type) -> str:

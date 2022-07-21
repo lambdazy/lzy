@@ -39,19 +39,16 @@ public class PyApiTest extends LocalScenario {
 
     @Test
     public void testExecFail() {
-        //Arrange
         evalAndAssertScenarioResult(terminal, "exec_fail");
     }
 
     @Test
     public void testEnvFail() {
-        //Arrange
         evalAndAssertScenarioResult(terminal, "env_fail");
     }
 
     @Test
     public void testCache() {
-        //Arrange
         evalAndAssertScenarioResult(terminal, "test_cache");
     }
 
@@ -60,8 +57,6 @@ public class PyApiTest extends LocalScenario {
         /* This scenario checks for:
                 1. Importing local file package 
          */
-
-        //Arrange
         evalAndAssertScenarioResult(terminal, "import");
     }
 
@@ -80,13 +75,14 @@ public class PyApiTest extends LocalScenario {
         /* This scenario checks for:
                 1. Whiteboards/Views machinery
          */
-        //Arrange
         evalAndAssertScenarioResult(terminal, "whiteboards");
     }
 
     @Test
     public void testFile() {
-        //Arrange
+        /* This scenario checks for:
+                1. File as an argument/return value/whiteboard field
+         */
         evalAndAssertScenarioResult(terminal, "file_test");
     }
 }

@@ -41,7 +41,7 @@ public abstract class LocalScenario extends LzyBaseTest {
         iamContext = new IAMThreadContext();
         iamContext.init();
 
-        storageContext = new StorageThreadContext();
+        storageContext = new StorageThreadContext(iamContext.address());
         storageContext.init();
 
         serverContext = new ServerThreadContext(servantAllocatorType);

@@ -1,11 +1,9 @@
 import dataclasses
 from typing import Optional
 
-from lzy.api.v1.whiteboard import whiteboard
-
-import lzy
-from lzy.api.v1.utils import File
 from lzy.api.v1 import LzyRemoteEnv, op
+from lzy.api.v1.whiteboard import whiteboard
+from lzy.serialization.types import File
 
 
 @op
