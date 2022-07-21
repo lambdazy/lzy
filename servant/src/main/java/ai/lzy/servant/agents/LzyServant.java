@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static ai.lzy.model.UriScheme.LzyServant;
 
 public class LzyServant extends LzyAgent {
+
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
@@ -133,6 +134,13 @@ public class LzyServant extends LzyAgent {
         commandBuilder.setFsURI(lzyFs.getUri().toString());
         commandBuilder.setServantId(config.getServantId());
 
+        /*
+         * set status BEFORE actual register call to avoid race between:
+         * 1. setting status
+         * 2. `start` call from server
+         *
+         * This solution is valid here because if `register` method fails, servant crashes
+         */
         status.set(AgentStatus.REGISTERED);
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
@@ -396,6 +404,7 @@ public class LzyServant extends LzyAgent {
     }
 
     private class PortalImpl extends LzyPortalGrpc.LzyPortalImplBase {
+
         @Override
         public void start(LzyPortalApi.StartPortalRequest request,
             StreamObserver<LzyPortalApi.StartPortalResponse> responseObserver) {
@@ -443,7 +452,7 @@ public class LzyServant extends LzyAgent {
 
         @Override
         public void openSlots(LzyPortalApi.OpenSlotsRequest request,
-                              StreamObserver<LzyPortalApi.OpenSlotsResponse> responseObserver) {
+            StreamObserver<LzyPortalApi.OpenSlotsResponse> responseObserver) {
             if (currentExecution.get() != null) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
