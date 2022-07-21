@@ -110,7 +110,7 @@ jobs:
         run: |
           SHA=${{ github.sha }}
           sudo mkdir -p /old-logs
-          tar -czvf old-logs/$SHA/logs.tar.gz /tmp/lzy-log
+          tar -czvf /old-logs/$SHA/logs.tar.gz /tmp/lzy-log
           sudo umount -f /tmp/lzy*
           sudo umount -f /tmp/term*
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*

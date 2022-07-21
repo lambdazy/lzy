@@ -20,13 +20,11 @@ public class DockerServantTest extends LocalScenario {
     }
 
     @Test
-    @Ignore
     public void testSingleDockerEcho42() {
         testEcho42("docker-single", null);
     }
 
     @Test
-    @Ignore
     public void testDefaultEnvEcho42() {
         testEcho42("default-env", "default");
     }
