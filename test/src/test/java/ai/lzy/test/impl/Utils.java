@@ -1,12 +1,15 @@
 package ai.lzy.test.impl;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import ai.lzy.model.Slot;
 import ai.lzy.model.data.DataSchema;
+import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 
 public class Utils {
     public static class Defaults {
@@ -111,4 +114,24 @@ public class Utils {
         return split[split.length - 1];
     }
 
+    public static Map<String, Object> loadModuleTestProperties(String module) {
+        Map<String, Object> props = null;
+        try {
+            final String[] files = {
+                "../" + module + "/src/main/resources/application-test.yml",
+                "./" + module + "/src/main/resources/application-test.yml"
+            };
+
+            for (var file: files) {
+                if (Files.exists(Path.of(file))) {
+                    props = new YamlPropertySourceLoader().read(module, new FileInputStream(file));
+                    break;
+                }
+            }
+
+            return Objects.requireNonNull(props);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

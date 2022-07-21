@@ -1,7 +1,6 @@
 package ai.lzy.kharon;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
-import ai.lzy.kharon.workflow.configs.WorkflowServiceConfig;
 
 import javax.annotation.Nullable;
 
@@ -11,12 +10,45 @@ public record KharonConfig(
     String address,
     @Nullable
     String externalHost,
-    String iamAddress,
     String serverAddress,
     String whiteboardAddress,
     String snapshotAddress,
     int servantProxyPort,
     int servantFsProxyPort,
-    @Nullable
-    WorkflowServiceConfig workflow
-) {}
+    DatabaseConfig database,
+    IamConfig iam,
+    StorageConfig storage,
+    WorkflowConfig workflow
+) {
+
+    @ConfigurationProperties("database")
+    public record DatabaseConfig(
+        String url,
+        String username,
+        String password,
+        int minPoolSize,
+        int maxPoolSize
+    ) {}
+
+    @ConfigurationProperties("iam")
+    public record IamConfig(
+        String address,
+        IamInternal internal
+    ) {}
+
+    @ConfigurationProperties("iam.internal")
+    public record IamInternal(
+        String userName,
+        String credentialPrivateKey
+    ) {}
+
+    @ConfigurationProperties("storage")
+    public record StorageConfig(
+        String address
+    ) {}
+
+    @ConfigurationProperties("workflow")
+    public record WorkflowConfig(
+        boolean enabled
+    ) {}
+}
