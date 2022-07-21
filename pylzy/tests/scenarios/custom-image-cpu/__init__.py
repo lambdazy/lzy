@@ -20,8 +20,8 @@ if __name__ == "__main__":
 
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
         result = check_env_var_custom_image()
-        print("Custom env: " + result)
+        print("Custom env: " + str(result))
 
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, docker_image="lzydock/test-env:custom"):
         result = check_env_var_default_image()
-        print("Custom env: " + result)
+        print("Custom env: " + str(result))
