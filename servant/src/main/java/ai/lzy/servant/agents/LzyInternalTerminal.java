@@ -4,6 +4,7 @@ import ai.lzy.model.JsonUtils;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.IAM;
+import ai.lzy.v1.Lzy;
 import ai.lzy.v1.LzyServantGrpc;
 import ai.lzy.v1.LzyServerGrpc;
 import ai.lzy.v1.Servant;
@@ -48,7 +49,15 @@ public class LzyInternalTerminal implements Closeable {
             .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
 
-        agent.register(server);
+        agent.updateStatus(AgentStatus.REGISTERING);
+        final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
+        commandBuilder.setAuth(agent.auth());
+        commandBuilder.setServantURI(agent.uri().toString());
+        commandBuilder.setFsURI(agent.fsUri().toString());
+        commandBuilder.setServantId(config.getAgentId());
+        //noinspection ResultOfMethodCallIgnored
+        server.registerServant(commandBuilder.build());
+        agent.updateStatus(AgentStatus.REGISTERED);
 
         Context.current().addListener(context -> {
             LOG.info("LzyInternalTerminal session terminated from server ");

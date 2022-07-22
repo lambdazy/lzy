@@ -98,12 +98,12 @@ public class LzyServant implements Closeable {
             ),
             UserEvent.UserEventType.TaskStartUp
         ));
-        status.set(AgentStatus.REGISTERING);
+        agent.updateStatus(AgentStatus.REGISTERING);
         final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
-        commandBuilder.setAuth(auth);
-        commandBuilder.setServantURI(agentAddress.toString());
-        commandBuilder.setFsURI(lzyFs.getUri().toString());
-        commandBuilder.setServantId(config.getServantId());
+        commandBuilder.setAuth(agent.auth());
+        commandBuilder.setServantURI(agent.uri().toString());
+        commandBuilder.setFsURI(agent.fsUri().toString());
+        commandBuilder.setServantId(config.getAgentId());
 
         /*
          * set status BEFORE actual register call to avoid race between:
@@ -112,7 +112,7 @@ public class LzyServant implements Closeable {
          *
          * This solution is valid here because if `register` method fails, servant crashes
          */
-        status.set(AgentStatus.REGISTERED);
+        agent.updateStatus(AgentStatus.REGISTERED);
         //noinspection ResultOfMethodCallIgnored
         server.registerServant(commandBuilder.build());
 

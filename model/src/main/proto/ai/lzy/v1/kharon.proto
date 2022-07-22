@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/auth.proto";
-import "ai/lzy/v1/servant.proto";
 import "ai/lzy/v1/fs.proto";
 
 package ai.lzy.v1;

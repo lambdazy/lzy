@@ -265,18 +265,6 @@ public class LzyAgent implements Closeable {
         } while (!status.compareAndSet(oldValue, newStatus));
     }
 
-    public void register(LzyServerGrpc.LzyServerBlockingStub server) {
-        updateStatus(AgentStatus.REGISTERING);
-        final Lzy.AttachServant.Builder commandBuilder = Lzy.AttachServant.newBuilder();
-        commandBuilder.setAuth(auth());
-        commandBuilder.setServantURI(uri().toString());
-        commandBuilder.setFsURI(fsUri().toString());
-        commandBuilder.setServantId(config.getAgentId());
-        //noinspection ResultOfMethodCallIgnored
-        server.registerServant(commandBuilder.build());
-        updateStatus(AgentStatus.REGISTERED);
-    }
-
     public AgentStatus getStatus() {
         return status.get();
     }

@@ -1,7 +1,7 @@
 package ai.lzy.fs.commands.builtin;
 
-import ai.lzy.priv.v2.ChannelManager;
-import ai.lzy.priv.v2.LzyChannelManagerGrpc;
+import ai.lzy.v1.ChannelManager;
+import ai.lzy.v1.LzyChannelManagerGrpc;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;

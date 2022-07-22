@@ -1,8 +1,8 @@
 syntax = "proto3";
 
+import "ai/lzy/v1/auth.proto";
 import "ai/lzy/v1/zygote.proto";
 import "ai/lzy/v1/task.proto";
-import "ai/lzy/v1/channel.proto";
 
 package ai.lzy.v1;
 

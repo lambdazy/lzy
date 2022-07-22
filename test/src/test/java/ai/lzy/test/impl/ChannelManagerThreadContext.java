@@ -2,8 +2,8 @@ package ai.lzy.test.impl;
 
 import ai.lzy.channelmanager.ChannelManager;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.priv.v2.LzyChannelManagerGrpc;
-import ai.lzy.priv.v2.LzyKharonGrpc;
+import ai.lzy.v1.LzyChannelManagerGrpc;
+import ai.lzy.v1.LzyKharonGrpc;
 import ai.lzy.test.ChannelManagerContext;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
