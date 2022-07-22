@@ -10,12 +10,12 @@ print_cmd_exit() {
 }
 
 run() {
-    cmd_name=$1
-    type=$2
+    type=$1
+    cmd_name=$2
 
     println "Calling $type: $cmd_name"
 
-    $cmd_name .
+    $cmd_name lzy/ tests/
     _ex=$?
     print_cmd_exit $_ex $cmd_name
 
@@ -29,12 +29,11 @@ _t="typechecker"
 
 rc=0
 
-run black                                           $_f
-run isort                                           $_f
-run "mypy --install-types --non-interactive"        $_t
-
-# run pyright $_t
+run $_f black
+run $_f isort
+run $_t "mypy --install-types --non-interactive"
+# run $_t pyright
 
 print_cmd_exit $rc "Whole pipeline"
-[ $rc -eq 0 ]
-exit $?
+
+exit $rc

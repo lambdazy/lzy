@@ -83,6 +83,9 @@ setuptools.setup(
         "lzy/cli",
         "lzy/serialization",
         "lzy/injections",
+        "ai/",
+        "ai/lzy",
+        "ai/lzy/v1",
     ],
     python_requires=">=3.7",
     cmdclass={
