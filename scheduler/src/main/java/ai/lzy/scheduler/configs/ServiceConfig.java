@@ -17,10 +17,15 @@ public record ServiceConfig(
         ThreadAllocator threadAllocator,
         DockerAllocator dockerAllocator
 ) {
-    @ConfigurationProperties("threadAllocator")
-    public record ThreadAllocator(boolean enabled, String filePath, String servantClassName) {}
+    @ConfigurationProperties("thread-allocator")
+    public record ThreadAllocator(
+        boolean enabled,
+        String filePath,
+        String servantClassName
+    ) {}
 
-    @ConfigurationProperties("dockerAllocator")
-    public record DockerAllocator(boolean enabled) {}
-
+    @ConfigurationProperties("docker-allocator")
+    public record DockerAllocator(
+        boolean enabled
+    ) {}
 }

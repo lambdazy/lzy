@@ -1,8 +1,8 @@
 package ai.lzy.scheduler.test;
 
+import ai.lzy.model.db.DaoException;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
-import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantDao.AcquireException;
 import ai.lzy.scheduler.models.ServantState;

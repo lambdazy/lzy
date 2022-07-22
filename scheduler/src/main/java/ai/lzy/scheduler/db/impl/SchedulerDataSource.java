@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.db.impl;
 
+import ai.lzy.model.db.Storage;
 import ai.lzy.scheduler.configs.DbConfig;
-import ai.lzy.scheduler.db.Storage;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.flywaydb.core.Flyway;
@@ -11,12 +11,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 @Singleton
-public class DbStorage implements Storage {
+public class SchedulerDataSource implements Storage {
     private final DataSource dataSource;
     private final DbConfig config;
 
     @Inject
-    public DbStorage(DataSource dataSource, DbConfig config) {
+    public SchedulerDataSource(DataSource dataSource, DbConfig config) {
         this.config = config;
         var flyway = Flyway.configure()
             .dataSource(config.getUrl(), config.getUsername(), config.getPassword())

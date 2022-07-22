@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.db;
 
+import ai.lzy.model.db.DaoException;
 import ai.lzy.scheduler.models.TaskDesc;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.scheduler.task.Task;

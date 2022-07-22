@@ -1,9 +1,9 @@
 package ai.lzy.scheduler.test;
 
+import ai.lzy.model.db.DaoException;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.configs.ProcessorConfigBuilder;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.db.TaskDao;
