@@ -187,13 +187,6 @@ public class CondaEnvironment implements AuxEnvironment {
         return execInEnv(command, null);
     }
 
-    private List<String> getEnvironmentVariables() {
-        Map<String, String> envMap = System.getenv();
-        return envMap.entrySet().stream()
-            .map(entry -> entry.getKey() + "=" + entry.getValue())
-            .collect(Collectors.toList());
-    }
-
     @Override
     public LzyProcess runProcess(String... command) {
         return runProcess(command, null);
@@ -201,7 +194,7 @@ public class CondaEnvironment implements AuxEnvironment {
 
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) {
-        List<String> envList = getEnvironmentVariables();
+        List<String> envList = new ArrayList<>();
         envList.add("LOCAL_MODULES=" + localModulesDirectoryAbsolutePath());
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));

@@ -33,6 +33,7 @@ eval "$(conda shell.bash hook)";
 
 case "$command" in
   "pylzy_install") lzy_python="$2" && install_lzy_in_every_env "$lzy_python";;
+  "create_env") create_env "$2" "$3";;
   "init") create_envs;;
   *) echo "Invalid prepare command" && exit 1;;
 esac

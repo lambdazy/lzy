@@ -3,6 +3,8 @@ package ai.lzy.servant.env;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class ProcessEnvironment implements BaseEnvironment {
 
@@ -13,6 +15,9 @@ public class ProcessEnvironment implements BaseEnvironment {
 
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) {
+        if (envp != null) {
+            envp = inheritEnvp(envp);
+        }
         try {
             final Process exec = Runtime.getRuntime().exec(command, envp);
             return new LzyProcess() {
@@ -56,5 +61,14 @@ public class ProcessEnvironment implements BaseEnvironment {
 
     @Override
     public void close() throws Exception {
+    }
+
+    private String[] inheritEnvp(String[] envp) {
+        List<String> systemEnvs = System.getenv().entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(Collectors.toList());
+        systemEnvs.addAll(List.of(envp));
+        return systemEnvs.toArray(String[]::new);
+
     }
 }

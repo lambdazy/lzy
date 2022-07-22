@@ -2,10 +2,8 @@ package ai.lzy.test.scenarios;
 
 import ai.lzy.test.LzyServerTestContext;
 import ai.lzy.test.LzyTerminalTestContext;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Map;
 import org.junit.Assert;
@@ -32,8 +30,9 @@ public class DockerServantTest extends LocalScenario {
     }
 
     @Test
+    @Ignore
     public void testCustomEnvEcho42() {
-        testEcho42("custom-env", "lzydock/default-env:for-cpu-tests");
+        testEcho42("custom-env", "lzydock/default-env:for-tests");
     }
 
     private void testEcho42(String operationName, String baseEnv) {
@@ -61,9 +60,8 @@ public class DockerServantTest extends LocalScenario {
     }
 
     @Test
-    @Ignore
-    public void testDefaultEnvPython() {
-        // TODO (lindvv) python api
+    public void customImageTest() {
+        evalAndAssertScenarioResult(terminal, "custom-image-cpu");
     }
 
 }

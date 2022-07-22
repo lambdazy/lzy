@@ -37,7 +37,7 @@ import ai.lzy.model.exceptions.EnvironmentInstallationException;
 
 public class DockerEnvironment implements BaseEnvironment {
 
-    private static final Logger LOG = LogManager.getLogger(BaseEnvironment.class);
+    private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
 
     public final CreateContainerResponse container;
@@ -110,7 +110,7 @@ public class DockerEnvironment implements BaseEnvironment {
                     .withAttachStdout(true)
                     .withAttachStderr(true);
                 if (envp != null && envp.length > 0) {
-                    execCmd.withEnv(Arrays.asList(envp));
+                    execCmd.withEnv(List.of(envp));
                 }
                 final ExecCreateCmdResponse exec = execCmd.exec();
                 LOG.info("Executing cmd {}", String.join(" ", command));

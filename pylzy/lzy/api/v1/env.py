@@ -20,7 +20,7 @@ from lzy.api.v1.servant.channel_manager import (
     ServantChannelManager,
 )
 from lzy.api.v1.servant.model.encoding import ENCODING as encoding
-from lzy.api.v1.servant.model.env import PyEnv
+from lzy.api.v1.servant.model.env import BaseEnv, PyEnv
 from lzy.api.v1.servant.servant_client import (
     CredentialsTypes,
     ServantClient,
@@ -260,6 +260,7 @@ class LzyRemoteEnv(LzyEnvBase):
         buses: Optional[BusList] = None,
         conda_yaml_path: Optional[Path] = None,
         local_module_paths: Optional[List[str]] = None,
+        docker_image: Optional[str] = None,
     ):
         return LzyRemoteWorkflow(
             name=name,
@@ -269,6 +270,7 @@ class LzyRemoteEnv(LzyEnvBase):
             conda_yaml_path=conda_yaml_path,
             local_module_paths=local_module_paths,
             cache_policy=cache_policy,
+            docker_image=docker_image,
             eager=eager,
             whiteboard=whiteboard,
             buses=buses,
@@ -391,6 +393,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         conda_yaml_path: Optional[Path] = None,
         local_module_paths: Optional[List[str]] = None,
         cache_policy: CachePolicy = CachePolicy.IGNORE,
+        docker_image: Optional[str] = None,
         eager: bool = False,
         whiteboard: Any = None,
         buses: Optional[BusList] = None,
@@ -402,6 +405,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         self._restart_policy = cache_policy
         self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._py_env: Optional[PyEnv] = None
+        self._image_name: Optional[str] = docker_image
 
         bucket = self._servant_client.get_bucket()
         self._bucket = bucket
@@ -453,6 +457,13 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
 
     def hasher(self) -> Hasher:
         return self._hasher
+
+    def base_env(self, image_name: Optional[str]) -> Optional[BaseEnv]:
+        if image_name is not None:
+            return BaseEnv(image_name)
+        if self._image_name is not None:
+            return BaseEnv(self._image_name)
+        return None
 
     def py_env(self, namespace: Optional[Dict[str, Any]] = None) -> PyEnv:
         if self._py_env is not None:

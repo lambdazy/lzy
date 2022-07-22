@@ -1,10 +1,16 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import List, Optional, Union
+
+
+class ImagePullPolicy(Enum):
+    ALWAYS = "ALWAYS"                # Always pull the newest version of image
+    IF_NOT_EXISTS = "IF_NOT_EXISTS"  # Pull image once and cache it for next executions
 
 
 @dataclass
 class BaseEnv:
-    base_docker_image: str
+    name: str
 
 
 @dataclass
@@ -15,6 +21,6 @@ class AuxEnv:
 
 
 @dataclass
-class Env:
-    base_env: BaseEnv = BaseEnv("default")
-    aux_env: Optional[AuxEnv] = None
+class EnvSpec:
+    base_env: BaseEnv
+    aux_env: AuxEnv

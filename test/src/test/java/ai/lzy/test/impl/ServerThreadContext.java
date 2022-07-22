@@ -1,5 +1,6 @@
 package ai.lzy.test.impl;
 
+import ai.lzy.servant.env.EnvironmentFactory;
 import ai.lzy.test.LzyServerTestContext;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
@@ -26,7 +27,7 @@ public class ServerThreadContext implements LzyServerTestContext {
     }
 
     protected LzyServerGrpc.LzyServerBlockingStub lzyServerClient;
-    private Map<String, Object> appProperties = new HashMap<>();
+    private final Map<String, Object> appProperties = new HashMap<>();
     private Server lzyServer;
     private ManagedChannel channel;
     private LzyServer.Impl impl;
@@ -43,16 +44,20 @@ public class ServerThreadContext implements LzyServerTestContext {
             "storage.amazon.secretToken", "secret-key"
         ));
         switch (allocatorType) {
-            case THREAD_ALLOCATOR -> appProperties.putAll(Map.of(
-                "server.threadAllocator.enabled", "true",
-                "server.threadAllocator.filePath", "servant/target/classes/ai/lzy/servant/BashApi.class",
-                "servant.dockerSupport.enabled", "false"
-            ));
-            case DOCKER_ALLOCATOR -> appProperties.putAll(Map.of(
-                "server.dockerAllocator.enabled", "true",
-                "servant.dockerSupport.enabled", "true",
-                "server.baseEnvDefaultImage", "lzydock/default-env:master"
-            ));
+            case THREAD_ALLOCATOR -> {
+                appProperties.putAll(Map.of(
+                    "server.threadAllocator.enabled", "true",
+                    "server.threadAllocator.filePath", "servant/target/classes/ai/lzy/servant/BashApi.class"
+                ));
+                EnvironmentFactory.disableDockers();
+            }
+            case DOCKER_ALLOCATOR -> {
+                final String envImage = System.getProperty("server.baseEnvDefaultImage", "lzydock/test-env:master");
+                appProperties.putAll(Map.of(
+                    "server.dockerAllocator.enabled", "true",
+                    "server.baseEnvDefaultImage", envImage
+                ));
+            }
         }
     }
 
@@ -91,7 +96,6 @@ public class ServerThreadContext implements LzyServerTestContext {
             lzyServerClient = LzyServerGrpc.newBlockingStub(channel)
                     .withWaitForReady()
                     .withDeadlineAfter(Config.SERVER_STARTUP_TIMEOUT_SEC, TimeUnit.SECONDS);
-
             while (channel.getState(true) != ConnectivityState.READY) {
                 LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
             }
