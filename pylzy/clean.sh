@@ -15,4 +15,4 @@ rm -rvf _build/
 rm -rvf target/ 
 
 # generated proto files
-rm -rvf "$proto_out"
+rm -rvf "$proto_out/priv" "$proto_out/v1" "ai/"

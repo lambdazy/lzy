@@ -20,7 +20,7 @@ pkgs.mkShell {
       alias exs="find . -maxdepth 1 -executable -type f"
 
       # proto paths
-      export proto_out="$(pwd)/lzy/proto"
+      export proto_out="$(pwd)/ai/lzy/v1"
       export proto_path="$(pwd)/../model/src/main/proto/"
     '';
 }

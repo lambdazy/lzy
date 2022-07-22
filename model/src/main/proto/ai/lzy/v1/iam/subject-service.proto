@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ai.lzy.priv.v1.iam;
+package ai.lzy.v1.iam;
 
 import "ai/lzy/v1/iam/iam.proto";
 

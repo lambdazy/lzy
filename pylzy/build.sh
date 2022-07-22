@@ -9,7 +9,6 @@ cp ../servant/target/servant-1.0-SNAPSHOT.jar lzy/lzy-servant.jar
 [ $? -ne 0 ] && print_red "Failed to copy lzy-servant jar" && exit 1
 
 ./gen_proto.sh
-./gen_better_proto.sh
 
 # instead of
 # python -m build
