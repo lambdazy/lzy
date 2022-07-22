@@ -17,6 +17,7 @@ import ai.lzy.scheduler.servant.impl.ServantsPoolImpl;
 import ai.lzy.scheduler.test.EventProcessorTest.AllocationRequest;
 import ai.lzy.scheduler.test.mocks.*;
 import io.micronaut.context.ApplicationContext;
+import java.util.Objects;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.junit.After;
 import org.junit.Before;
@@ -33,6 +34,7 @@ import java.util.function.Function;
 import static ai.lzy.scheduler.test.EventProcessorTest.buildZygote;
 
 public class SchedulerTest {
+
     public static final ApplicationContext context = ApplicationContext.run();
 
     public static final ServantEventDao events = context.getBean(ServantEventDao.class);
@@ -60,7 +62,7 @@ public class SchedulerTest {
             servantDao.invalidate(servant, "destroy");
             events.removeAll(servant.id());
         }
-        for (var task: tasks.list(workflowId)) {
+        for (var task : tasks.list(workflowId)) {
             task.notifyExecutionCompleted(1, "End of test");
         }
     }
@@ -73,27 +75,30 @@ public class SchedulerTest {
             .setIdleTimeout(100)
             .build();
 
-        ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks, manager);
+        ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks,
+            manager);
         SchedulerImpl scheduler = new SchedulerImpl(servantDao, tasks, pool, config);
         scheduler.start();
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
-        var task1 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
+
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 1
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
-        final BlockingQueue<String> env = new LinkedBlockingQueue<>(),
-                exec = new LinkedBlockingQueue<>(),
-                stop = new LinkedBlockingQueue<>();
-        final var mock = new AllocatedServantMock.ServantBuilder(port)
-                .setOnEnv(() -> env.add(""))
-                .setOnExec(() -> exec.add(""))
-                .setOnStop(() -> stop.add(""))
-                .build();
+        final BlockingQueue<String> env = new LinkedBlockingQueue<>();
+        final BlockingQueue<String> exec = new LinkedBlockingQueue<>();
+        //noinspection MismatchedQueryAndUpdateOfCollection
+        final BlockingQueue<String> stop = new LinkedBlockingQueue<>();
+        new AllocatedServantMock.ServantBuilder(port)
+            .setOnEnv(() -> env.add(""))
+            .setOnExec(() -> exec.add(""))
+            .setOnStop(() -> stop.add(""))
+            .build();
         final HostAndPort servantUri = HostAndPort.fromParts("localhost", port);
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
         var servant = servantDao.get(req.workflowId(), req.servantId());
-        servant.notifyConnected(servantUri);
+        Objects.requireNonNull(servant).notifyConnected(servantUri);
 
         env.take();
         servant.notifyConfigured(0, "Ok");
@@ -101,8 +106,8 @@ public class SchedulerTest {
         exec.take();
         servant.notifyExecutionCompleted(0, "Ok");
 
-        var task2 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
-        var task3 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 2
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 3
 
         env.take();
         servant.notifyConfigured(0, "OK");
@@ -128,27 +133,29 @@ public class SchedulerTest {
     @Test
     public void testParallel() throws Exception {
         ServiceConfig config = new ServiceConfig(1234, /*maxServantsPerWorkflow*/2, Map.of(),
-                /*maxDefaultServant*/ 2, URI.create("http://localhost:1000"),
-                URI.create("http://localhost:1000"), "", null, null);
+            /*maxDefaultServant*/ 2, URI.create("http://localhost:1000"),
+            URI.create("http://localhost:1000"), "", null, null);
         var processorConfig = new ProcessorConfigBuilder()
             .setIdleTimeout(100)
             .build();
 
         final BlockingQueue<AllocationRequest> requests = new LinkedBlockingQueue<>();
-        ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks, manager);
+        ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks,
+            manager);
         SchedulerImpl scheduler = new SchedulerImpl(servantDao, tasks, pool, config);
         scheduler.start();
 
         allocator.onAllocationRequested(((a, b, c) -> requests.add(new AllocationRequest(a, b, c))));
 
-        var task1 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
-        var task2 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 1
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 2
 
         final var port1 = FreePortFinder.find(1000, 2000);
-        final CountDownLatch env1 = new CountDownLatch(1),
-            exec1 = new CountDownLatch(1),
-            stop1 = new CountDownLatch(1);
-        final var mock1 = new AllocatedServantMock.ServantBuilder(port1)
+        final CountDownLatch env1 = new CountDownLatch(1);
+        final CountDownLatch exec1 = new CountDownLatch(1);
+        final CountDownLatch stop1 = new CountDownLatch(1);
+
+        new AllocatedServantMock.ServantBuilder(port1)
             .setOnEnv(env1::countDown)
             .setOnExec(exec1::countDown)
             .setOnStop(stop1::countDown)
@@ -156,10 +163,11 @@ public class SchedulerTest {
         final HostAndPort servantUri1 = HostAndPort.fromParts("localhost", port1);
 
         final var port2 = FreePortFinder.find(1000, 2000);
-        final CountDownLatch env2 = new CountDownLatch(1),
-            exec2 = new CountDownLatch(1),
-            stop2 = new CountDownLatch(1);
-        final var mock2 = new AllocatedServantMock.ServantBuilder(port2)
+        final CountDownLatch env2 = new CountDownLatch(1);
+        final CountDownLatch exec2 = new CountDownLatch(1);
+        final CountDownLatch stop2 = new CountDownLatch(1);
+
+        new AllocatedServantMock.ServantBuilder(port2)
             .setOnEnv(env2::countDown)
             .setOnExec(exec2::countDown)
             .setOnStop(stop2::countDown)
@@ -168,11 +176,11 @@ public class SchedulerTest {
 
         var r1 = requests.take();
         var servant1 = servantDao.get(r1.workflowId(), r1.servantId());
-        servant1.notifyConnected(servantUri1);
+        Objects.requireNonNull(servant1).notifyConnected(servantUri1);
 
         var r2 = requests.take();
         var servant2 = servantDao.get(r2.workflowId(), r2.servantId());
-        servant2.notifyConnected(servantUri2);
+        Objects.requireNonNull(servant2).notifyConnected(servantUri2);
 
         env1.await();
         env2.await();
@@ -199,12 +207,13 @@ public class SchedulerTest {
     @Test
     public void testRestart() throws Exception {
         ServiceConfig config = new ServiceConfig(1234, 1, Map.of(), 1, URI.create("http://localhost:1000"),
-                URI.create("http://localhost:1000"), "", null, null);
+            URI.create("http://localhost:1000"), "", null, null);
         var processorConfig = new ProcessorConfigBuilder()
             .setIdleTimeout(100)
             .build();
 
-        ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks, manager);
+        ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks,
+            manager);
         SchedulerImpl scheduler = new SchedulerImpl(servantDao, tasks, pool, config);
         scheduler.start();
 
@@ -223,22 +232,24 @@ public class SchedulerTest {
 
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
-        var task1 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 1
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
-        final BlockingQueue<String> env = new LinkedBlockingQueue<>(),
-                exec = new LinkedBlockingQueue<>(),
-                stop = new LinkedBlockingQueue<>();
-        final var mock = new AllocatedServantMock.ServantBuilder(port)
-                .setOnEnv(() -> env.add(""))
-                .setOnExec(() -> exec.add(""))
-                .setOnStop(() -> stop.add(""))
-                .build();
+        final BlockingQueue<String> env = new LinkedBlockingQueue<>();
+        final BlockingQueue<String> exec = new LinkedBlockingQueue<>();
+        //noinspection MismatchedQueryAndUpdateOfCollection
+        final BlockingQueue<String> stop = new LinkedBlockingQueue<>();
+
+        new AllocatedServantMock.ServantBuilder(port)
+            .setOnEnv(() -> env.add(""))
+            .setOnExec(() -> exec.add(""))
+            .setOnStop(() -> stop.add(""))
+            .build();
         final HostAndPort servantUri = HostAndPort.fromParts("localhost", port);
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
         var servant = servantDao.get(req.workflowId(), req.servantId());
-        servant.notifyConnected(servantUri);
+        Objects.requireNonNull(servant).notifyConnected(servantUri);
 
         env.take();
 
@@ -251,11 +262,11 @@ public class SchedulerTest {
 
         scheduler = restart.apply(scheduler);
 
-        var task2 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 2
 
         scheduler = restart.apply(scheduler);
 
-        var task3 = scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of()));
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 3
 
         env.take();
         servant.notifyConfigured(0, "OK");
@@ -285,13 +296,14 @@ public class SchedulerTest {
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.STOPPING);
         servant.notifyStopped(0, "Stopped");
 
+        //noinspection UnusedAssignment
         scheduler = restart.apply(scheduler);
 
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
     }
 
     public void awaitState(String workflowId, String servantId,
-                           ServantState.Status status) throws InterruptedException, DaoException {
+        ServantState.Status status) throws InterruptedException, DaoException {
         ServantState.Status s = null;
         var servant = servantDao.get(workflowId, servantId);
         if (servant != null) {

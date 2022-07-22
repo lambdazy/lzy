@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SchedulerApiMock implements SchedulerApi {
-    final private Map<String, TaskStatus> statusByTaskId = new ConcurrentHashMap<>();
+    private final Map<String, TaskStatus> statusByTaskId = new ConcurrentHashMap<>();
     private final OnExecute callback;
 
     public SchedulerApiMock(OnExecute callback) {
@@ -43,13 +43,13 @@ public class SchedulerApiMock implements SchedulerApi {
         statusByTaskId.put(taskId, status);
     }
 
-    public final static TaskStatus QUEUE = TaskStatus.newBuilder()
+    public static final TaskStatus QUEUE = TaskStatus.newBuilder()
         .setQueue(TaskStatus.Queue.newBuilder().build()).build();
-    public final static TaskStatus EXECUTING = TaskStatus.newBuilder()
+    public static final TaskStatus EXECUTING = TaskStatus.newBuilder()
         .setExecuting(TaskStatus.Executing.newBuilder().build()).build();
-    public final static TaskStatus ERROR = TaskStatus.newBuilder()
+    public static final TaskStatus ERROR = TaskStatus.newBuilder()
             .setError(TaskStatus.Error.newBuilder().build()).build();
-    public final static TaskStatus COMPLETED = TaskStatus.newBuilder()
+    public static final TaskStatus COMPLETED = TaskStatus.newBuilder()
             .setSuccess(TaskStatus.Success.newBuilder().build()).build();
 
     public interface OnExecute {

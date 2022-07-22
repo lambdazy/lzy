@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 public class EventProcessorTest {
+
     private static final Logger LOG = LogManager.getLogger(EventProcessorTest.class);
     public static final ApplicationContext context = ApplicationContext.run();
 
@@ -64,7 +65,7 @@ public class EventProcessorTest {
             servantDao.invalidate(servant, "destroy");
             events.removeAll(servant.id());
         }
-        for (var task: tasks.list(workflowId)) {
+        for (var task : tasks.list(workflowId)) {
             task.notifyExecutionCompleted(1, "End of test");
         }
     }
@@ -91,12 +92,13 @@ public class EventProcessorTest {
         var config = new ProcessorConfigBuilder()
             .setIdleTimeout(100)
             .build();
-        try(var processor = new ProcessorContext(config)) {
+        try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
-            final var alloc = allocationRequested.get();
+            allocationRequested.get();
             processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
@@ -107,16 +109,16 @@ public class EventProcessorTest {
             final var newTask = tasks.get(task.taskId());
             Assert.assertNotNull(newTask);
             Assert.assertEquals("Ok", newTask.errorDescription());
-            Assert.assertEquals(0, newTask.rc().intValue());
+            Assert.assertEquals(0, Objects.requireNonNull(newTask.rc()).intValue());
             final var servant = servantDao.get(processor.servant.workflowName(), processor.servant.id());
-            Assert.assertNull(servant.taskId());
+            Assert.assertNull(Objects.requireNonNull(servant).taskId());
 
             processor.servant.notifyCommunicationCompleted();
             awaitState(processor.servant.workflowName(), processor.servant.id(), ServantState.Status.IDLE);
             processor.stop.await(); // Idle timeout
             processor.servant.notifyStopped(0, "Ok");
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed after stop
+                processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed after stop
         }
     }
 
@@ -129,7 +131,7 @@ public class EventProcessorTest {
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);
+                processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
@@ -142,17 +144,18 @@ public class EventProcessorTest {
             .build();
         try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
-            final var alloc = allocationRequested.get();
+            allocationRequested.get();
             processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
             processor.servant.notifyExecutionCompleted(0, "Ok");
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);
+                processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
@@ -165,13 +168,14 @@ public class EventProcessorTest {
             .build();
         try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
-            final var alloc = allocationRequested.get();
+            allocationRequested.get();
             processor.getServant().notifyConnected(processor.generateServant());
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);
+                processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
@@ -181,18 +185,19 @@ public class EventProcessorTest {
             .setIdleTimeout(100)
             .setServantStopTimeout(100)
             .build();
-        try(var processor = new ProcessorContext(config)) {
+        try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
-            final var alloc = allocationRequested.get();
+            allocationRequested.get();
             processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
             processor.servant.stop("Test");
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);
+                processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
@@ -201,12 +206,13 @@ public class EventProcessorTest {
         var config = new ProcessorConfigBuilder()
             .setExecutingHeartbeatPeriod(100)
             .build();
-        try(var processor = new ProcessorContext(config)) {
+        try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
-            final var alloc = allocationRequested.get();
+            allocationRequested.get();
             processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
@@ -221,7 +227,7 @@ public class EventProcessorTest {
             Thread.sleep(50);
             processor.servant.executingHeartbeat();
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);
+                processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
@@ -232,10 +238,11 @@ public class EventProcessorTest {
             .build();
         try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
-            final var alloc = allocationRequested.get();
+            allocationRequested.get();
             processor.getServant().notifyConnected(processor.generateServant());
             processor.env.await();
             processor.servant.notifyConfigured(0, "Ok");
@@ -250,7 +257,7 @@ public class EventProcessorTest {
             Thread.sleep(50);
             processor.servant.idleHeartbeat();
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);
+                processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
@@ -260,9 +267,10 @@ public class EventProcessorTest {
             .setIdleTimeout(100)
             .setServantStopTimeout(100)
             .build();
-        try(var processor = new ProcessorContext(config)) {
+        try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             allocationRequested.get();
@@ -270,7 +278,7 @@ public class EventProcessorTest {
             processor.getServant().notifyConnected(servantURI);
             processor.env.await();
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);
+                processor.servant.id(), ServantState.Status.DESTROYED);
         }
     }
 
@@ -280,9 +288,10 @@ public class EventProcessorTest {
             .setIdleTimeout(100)
             .setServantStopTimeout(100)
             .build();
-        try(var processor = new ProcessorContext(config)) {
+        try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             allocationRequested.get();
@@ -292,7 +301,7 @@ public class EventProcessorTest {
             processor.servant.notifyConfigured(0, "Ok");
             processor.exec.await();
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed by timeout
+                processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed by timeout
         }
     }
 
@@ -302,9 +311,10 @@ public class EventProcessorTest {
             .setIdleTimeout(100)
             .setServantStopTimeout(100)
             .build();
-        try(var processor = new ProcessorContext(config)) {
+        try (var processor = new ProcessorContext(config)) {
             final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
             allocationRequested.get();
@@ -319,7 +329,7 @@ public class EventProcessorTest {
             processor.servant.notifyCommunicationCompleted();
             awaitState(processor.servant.workflowName(), processor.servant.id(), ServantState.Status.IDLE);
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed by timeout
+                processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed by timeout
         }
     }
 
@@ -331,59 +341,63 @@ public class EventProcessorTest {
         String servantId;
         final CompletableFuture<AllocationRequest> allocationRequested;
 
-        try(var processor = new ProcessorContext(config)) {
+        try (var processor = new ProcessorContext(config)) {
             servantId = processor.servant.id();
             allocationRequested = new CompletableFuture<>();
-            allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+            allocator.onAllocationRequested(
+                ((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
             final var task = processor.generateTask();
             processor.getServant().setTask(task);
         }
 
         final var port = FreePortFinder.find(1000, 2000);
-        final CountDownLatch env = new CountDownLatch(1),
-                exec = new CountDownLatch(1),
-                stop = new CountDownLatch(1);
-        final var mock = new AllocatedServantMock.ServantBuilder(port)
-                .setOnEnv(env::countDown)
-                .setOnExec(exec::countDown)
-                .setOnStop(stop::countDown)
-                .build();
+        final CountDownLatch env = new CountDownLatch(1);
+        final CountDownLatch exec = new CountDownLatch(1);
+        final CountDownLatch stop = new CountDownLatch(1);
 
-        try(var processor = new ProcessorContext(servantId, config)) {
-            final var alloc = allocationRequested.get();
+        final var mock = new AllocatedServantMock.ServantBuilder(port)
+            .setOnEnv(env::countDown)
+            .setOnExec(exec::countDown)
+            .setOnStop(stop::countDown)
+            .build();
+
+        try (var processor = new ProcessorContext(servantId, config)) {
+            allocationRequested.get();
             awaitState(processor.servant.workflowName(), processor.servant.id(),
-                    ServantState.Status.CONNECTING);
+                ServantState.Status.CONNECTING);
             processor.servant.notifyConnected(HostAndPort.fromParts("localhost", port));
         }
 
-        try(var processor = new ProcessorContext(servantId, config)) {
+        try (var processor = new ProcessorContext(servantId, config)) {
             env.await();
             processor.servant.notifyConfigured(0, "Ok");
         }
-        try(var processor = new ProcessorContext(servantId, config)) {
+        try (var processor = new ProcessorContext(servantId, config)) {
             exec.await();
             processor.servant.notifyExecutionCompleted(0, "Ok");
         }
-        try(var processor = new ProcessorContext(servantId, config)) {
+        try (var processor = new ProcessorContext(servantId, config)) {
             awaitState(processor.servant.workflowName(), processor.servant.id(), ServantState.Status.RUNNING);
             processor.servant.notifyCommunicationCompleted();
         }
-        try(var processor = new ProcessorContext(servantId, config)) {
+        try (var processor = new ProcessorContext(servantId, config)) {
             awaitState(processor.servant.workflowName(), processor.servant.id(), ServantState.Status.IDLE);
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.STOPPING);  // Idle timeout
+                processor.servant.id(), ServantState.Status.STOPPING);  // Idle timeout
             processor.servant.notifyStopped(0, "Ok");
         }
-        try(var processor = new ProcessorContext(servantId, config)) {
+        try (var processor = new ProcessorContext(servantId, config)) {
             awaitState(processor.servant.workflowName(),
-                    processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed after stop
+                processor.servant.id(), ServantState.Status.DESTROYED);  //  Destroyed after stop
         }
 
         mock.close();
     }
 
 
-    record AllocationRequest(String workflowId, String servantId, String token) {}
+    record AllocationRequest(String workflowId, String servantId, String token) {
+
+    }
 
     public static AtomicZygote buildZygote(String... tags) {
         return new AtomicZygote() {
@@ -438,39 +452,39 @@ public class EventProcessorTest {
             }
 
             @Override
-            public void run() {}
+            public void run() {
+            }
         };
     }
 
     public class ProcessorContext implements AutoCloseable {
+
         private final Servant servant;
         private final ServantEventProcessor processor;
         private final CountDownLatch latch = new CountDownLatch(1);
         private final String[] tags;
-        final private CountDownLatch env = new CountDownLatch(1),
-            exec = new CountDownLatch(1),
-            stop = new CountDownLatch(1);
+        private final CountDownLatch env = new CountDownLatch(1);
+        private final CountDownLatch exec = new CountDownLatch(1);
+        private final CountDownLatch stop = new CountDownLatch(1);
         private AllocatedServantMock mock;
 
         public ProcessorContext(ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
             servant = servantDao.create(workflowId, () -> Arrays.stream(provisioningTags).collect(Collectors.toSet()));
             processor = new ServantEventProcessor(workflowId, servant.id(), config, allocator, tasks, events,
-                servantDao, manager, (a, b) -> latch.countDown(), (a, b) -> {});
+                servantDao, manager, (a, b) -> latch.countDown(), (a, b) -> {
+            });
             processor.start();
             tags = provisioningTags;
         }
 
         public ProcessorContext(String servantId,
-                                ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
+            ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
             servant = Objects.requireNonNull(servantDao.get(workflowId, servantId));
             processor = new ServantEventProcessor(workflowId, servantId, config, allocator, tasks, events,
-                    servantDao, manager, (a, b) -> latch.countDown(), (a, b) -> {});
+                servantDao, manager, (a, b) -> latch.countDown(), (a, b) -> {
+            });
             processor.start();
             tags = provisioningTags;
-        }
-
-        public void awaitForReady() throws InterruptedException {
-            latch.await();
         }
 
         public Task generateTask() throws DaoException {
@@ -521,7 +535,7 @@ public class EventProcessorTest {
     }
 
     public void awaitState(String workflowId, String servantId,
-                                   ServantState.Status status) throws InterruptedException, DaoException {
+        ServantState.Status status) throws InterruptedException, DaoException {
         ServantState.Status s = null;
         var servant = servantDao.get(workflowId, servantId);
         if (servant != null) {

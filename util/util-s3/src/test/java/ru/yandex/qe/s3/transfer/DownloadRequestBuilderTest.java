@@ -43,7 +43,7 @@ public class DownloadRequestBuilderTest {
         Assert.assertThat(request.getKey(), Is.is("key"));
         Assert.assertThat(request.getBucket(), Is.is("bucket"));
         Assert.assertThat(request.getMaxConcurrencyLevel(), Is.is(3));
-        assertEquals(request.getStart(), 10l);
-        assertEquals(request.getEnd(), 20l);
+        assertEquals(request.getStart(), 10L);
+        assertEquals(request.getEnd(), 20L);
     }
 }

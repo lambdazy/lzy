@@ -222,7 +222,8 @@ public class GraphExecutorTest {
             .addEdge("10", "8")
             .build();
 
-        final String workflowId, graphId;
+        final String workflowId;
+        final String graphId;
 
         try (var tester = new GraphTester(graph)) {
             workflowId = tester.state.workflowId();
