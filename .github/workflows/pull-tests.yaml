@@ -60,7 +60,7 @@ jobs:
           docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
 
       - name: 'DockerServantTest'
-        timeout-minutes: 45
+        timeout-minutes: 15
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH dev)
