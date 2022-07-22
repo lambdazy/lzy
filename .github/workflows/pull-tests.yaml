@@ -36,7 +36,7 @@ jobs:
         run: |
           cd pylzy/
           ./gen_proto.sh && ./gen_bet_proto.sh
-          eval "$(conda shell.bash hook)" && conda activate py39 && pip install .
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
           cd ..
 
       - name: 'java unit tests and install'
