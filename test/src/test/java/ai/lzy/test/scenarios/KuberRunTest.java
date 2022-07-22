@@ -66,4 +66,10 @@ public class KuberRunTest extends LzyBaseTest {
          */
         evalAndAssertScenarioResult(terminal, "file_test");
     }
+
+    @Test
+    public void testCustomImage() {
+        evalAndAssertScenarioResult(terminal, "custom-image-gpu");
+    }
+
 }
