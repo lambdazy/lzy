@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+import "ai/lzy/v1/auth.proto";
+import "ai/lzy/v1/zygote.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+package ai.lzy.v1.wb; //TODO: remove wb suffix
+
+option java_outer_classname = "LzyWhiteboardV2";
+option java_package = "ai.lzy.v1";
+
+service WhiteboardService {
+  rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
+  rpc LinkWhiteboardField (LinkFieldCommand) returns (google.protobuf.Empty);
+  rpc FinalizeWhiteboard (FinalizeWhiteboardCommand) returns (google.protobuf.Empty);
+
+  rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
+  rpc QueryWhiteboards (QueryWhiteboardsCommand) returns (QueryWhiteboardsResponse);
+}
+
+message Whiteboard {
+  string id = 1;
+  repeated WhiteboardField fields = 2;
+  Storage storage = 3;
+  WhiteboardStatus status = 4;
+  repeated string tags = 5;
+  string namespace = 6;
+  google.protobuf.Timestamp createdAtTimestampUTC = 7;
+
+  enum WhiteboardStatus {
+    UNKNOWN = 0;
+    CREATED = 1;
+    FINALIZED = 2;
+  }
+}
+
+message WhiteboardField {
+  string fieldName = 1;
+  DataScheme scheme = 2;
+  Status status = 3;
+  string storageUri = 4;
+
+  enum Status {
+    UNKNOWN = 0;
+    CREATED = 1;
+    LINKED = 2;
+  }
+}
+
+message Storage {
+  string name = 1;
+  string description = 2;
+}
+
+message CreateWhiteboardCommand {
+  Auth auth = 1;
+  repeated string fieldNames = 2;
+  Storage storage = 3;
+  repeated string tags = 4;
+  string namespace = 5;
+}
+
+message LinkFieldCommand {
+  Auth auth = 1;
+  string whiteboardId = 2;
+  string fieldName = 3;
+  string storageUri = 4;
+  DataScheme scheme = 5;
+}
+
+message FinalizeWhiteboardCommand {
+  Auth auth = 1;
+  string whiteboardId = 2;
+}
+
+message GetWhiteboardCommand {
+  Auth auth = 1;
+  string whiteboardId = 2;
+}
+
+message QueryWhiteboardsCommand {
+  Auth auth = 1;
+  oneof query {
+    DateTimeQuery dateTimeQuery = 2;
+    //more query types
+  }
+}
+
+message DateTimeQuery {
+  google.protobuf.Timestamp fromTimestampUTC = 1;
+  google.protobuf.Timestamp toTimestampUTC = 2;
+}
+
+message QueryWhiteboardsResponse {
+  repeated Whiteboard whiteboards = 1;
+}
+
+
