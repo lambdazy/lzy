@@ -1,9 +1,8 @@
 package ai.lzy.scheduler.db.impl;
 
-import ai.lzy.scheduler.db.DaoException;
+import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.Transaction;
 import ai.lzy.scheduler.db.ServantEventDao;
-import ai.lzy.scheduler.db.Storage;
-import ai.lzy.scheduler.db.Utils;
 import ai.lzy.scheduler.models.ServantEvent;
 import jakarta.inject.Singleton;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
@@ -19,12 +18,12 @@ import java.util.List;
 
 @Singleton
 public class ServantEventDaoImpl implements ServantEventDao {
-    private final Storage storage;
+    private final SchedulerDataSource storage;
 
     private static final String FIELDS = " id, \"time\", servant_id, workflow_name, \"type\","
         + " description, rc, task_id, servant_url ";
 
-    public ServantEventDaoImpl(Storage storage) {
+    public ServantEventDaoImpl(SchedulerDataSource storage) {
         this.storage = storage;
     }
 
@@ -59,7 +58,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
     public ServantEvent take(String servantId) throws InterruptedException {
         final ServantEvent[] event = new ServantEvent[1];
         try {
-            Utils.executeInTransaction(storage, con -> {
+            Transaction.execute(storage, con -> {
                 try (var ps = con.prepareStatement(
                     "SELECT" + FIELDS + """
                      FROM servant_event
@@ -71,7 +70,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
                     try (var rs = ps.executeQuery()) {
                         if (!rs.isBeforeFirst()) {
                             event[0] = null;
-                            return;
+                            return true;
                         }
                         rs.next();
                         event[0] = readEvent(rs);
@@ -83,6 +82,8 @@ public class ServantEventDaoImpl implements ServantEventDao {
                     ps.setString(1, event[0].id());
                     ps.execute();
                 }
+
+                return true;
             });
         } catch (DaoException e) {
             if (e.getCause() instanceof InterruptedException) {

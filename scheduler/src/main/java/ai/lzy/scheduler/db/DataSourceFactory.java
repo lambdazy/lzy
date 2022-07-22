@@ -6,6 +6,7 @@ import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 
+import javax.inject.Named;
 import javax.sql.DataSource;
 
 @Factory
@@ -13,7 +14,7 @@ public class DataSourceFactory {
     private static final String VALIDATION_QUERY_SQL = "select 1";
 
     @Singleton
-    @Requires(property = "database.enabled", value = "true")
+    @Requires(property = "scheduler.database.enabled", value = "true")
     DataSource dataSource(DbConfig dbConfig) {
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
         dataSource.setJdbcUrl(dbConfig.getUrl());

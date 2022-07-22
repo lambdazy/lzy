@@ -1,13 +1,8 @@
 package ai.lzy.scheduler.allocator.impl.kuber;
 
-import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
-import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
-import ai.lzy.scheduler.db.DaoException;
-import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.scheduler.servant.Servant;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -29,7 +24,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Singleton

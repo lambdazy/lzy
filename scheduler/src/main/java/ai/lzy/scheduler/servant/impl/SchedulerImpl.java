@@ -2,8 +2,8 @@ package ai.lzy.scheduler.servant.impl;
 
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Slot;
+import ai.lzy.model.db.DaoException;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.TaskDesc;

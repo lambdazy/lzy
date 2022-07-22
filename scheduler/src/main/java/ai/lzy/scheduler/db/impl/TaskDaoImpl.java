@@ -1,7 +1,6 @@
 package ai.lzy.scheduler.db.impl;
 
-import ai.lzy.scheduler.db.DaoException;
-import ai.lzy.scheduler.db.Storage;
+import ai.lzy.model.db.DaoException;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.TaskDesc;
 import ai.lzy.scheduler.models.TaskState;
@@ -26,9 +25,9 @@ public class TaskDaoImpl implements TaskDao {
         id, workflow_id, workflow_name, task_description_json, status,
         rc, error_description, servant_id""";
 
-    private final Storage storage;
+    private final SchedulerDataSource storage;
 
-    public TaskDaoImpl(Storage storage) {
+    public TaskDaoImpl(SchedulerDataSource storage) {
         this.storage = storage;
     }
 

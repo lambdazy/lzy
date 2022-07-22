@@ -1,11 +1,10 @@
 package ai.lzy.scheduler.db.impl;
 
+import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.Transaction;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
-import ai.lzy.scheduler.db.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.scheduler.db.Storage;
-import ai.lzy.scheduler.db.Utils;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.models.ServantState.ServantStateBuilder;
 import ai.lzy.scheduler.servant.Servant;
@@ -30,14 +29,14 @@ import java.util.stream.Collectors;
 @Singleton
 public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
 
-    private final Storage storage;
+    private final SchedulerDataSource storage;
     private final EventQueueManager queue;
 
     private static final String FIELDS = "id, workflow_name, status, provisioning,"
             + " error_description, task_id, servant_url";
 
     @Inject
-    public ServantDaoImpl(Storage storage, EventQueueManager queue) {
+    public ServantDaoImpl(SchedulerDataSource storage, EventQueueManager queue) {
         this.storage = storage;
         this.queue = queue;
     }
@@ -148,7 +147,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
     @Override
     public void acquireForTask(String workflowName, String servantId) throws DaoException, AcquireException {
         AtomicBoolean failed = new AtomicBoolean(false);
-        Utils.executeInTransaction(storage, con -> {
+        Transaction.execute(storage, con -> {
             final ServantState state;
             try (var ps = con.prepareStatement(
                 "SELECT " + FIELDS + " FROM servant " + """
@@ -160,7 +159,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
                 try (var rs = ps.executeQuery()) {
                     if (!rs.isBeforeFirst()) {
                         failed.set(true);
-                        return;
+                        return true;
                     }
                     rs.next();
                     state = readServantState(rs);
@@ -175,6 +174,8 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
                 ps.setString(2, state.id());
                 ps.executeUpdate();
             }
+
+            return true;
         });
         if (failed.get()) {
             throw new AcquireException();

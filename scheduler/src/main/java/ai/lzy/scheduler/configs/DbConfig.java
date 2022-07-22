@@ -2,7 +2,7 @@ package ai.lzy.scheduler.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 
-@ConfigurationProperties("database")
+@ConfigurationProperties("scheduler.database")
 public class DbConfig {
     private String url;
     private String username;
