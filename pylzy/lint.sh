@@ -16,7 +16,10 @@ run() {
     println "Calling $type: $cmd_name"
 
     $cmd_name lzy/ tests/
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2db51cc7 (Fully working py stub generation scripts)
     _ex=$?
     print_cmd_exit $_ex $cmd_name
 
