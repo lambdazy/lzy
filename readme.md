@@ -14,6 +14,8 @@ The system is based on the following principle: a computing cluster is represent
 
 ## Quick start
 
+[![Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1Z7CERGqTU-ZTu3dwbeZxD9zJ6L8oQBbN?usp=sharing)
+
 ʎzy allows running any python functions in the Cloud by annotating them with `@op` decorator:
 
 ```python
