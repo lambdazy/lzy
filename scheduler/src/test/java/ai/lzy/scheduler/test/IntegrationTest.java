@@ -30,6 +30,7 @@ import org.junit.Test;
 import java.util.concurrent.*;
 
 public class IntegrationTest {
+
     private SchedulerApi api;
     private AllocatorMock allocator;
     private SchedulerGrpc.SchedulerBlockingStub stub;
@@ -51,8 +52,8 @@ public class IntegrationTest {
             .build();
         stub = SchedulerGrpc.newBlockingStub(chan);
         privateChan = ChannelBuilder.forAddress("localhost", 2392)
-                .usePlaintext()
-                .build();
+            .usePlaintext()
+            .build();
         privateStub = SchedulerPrivateGrpc.newBlockingStub(privateChan);
         Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
     }
@@ -71,10 +72,11 @@ public class IntegrationTest {
     public void testSimple() throws Exception {
         CompletableFuture<String> a = new CompletableFuture<>();
         var latch = new CountDownLatch(1);
-        allocator.onAllocationRequested(((workflowId, servantId, token) -> {a.complete(servantId);}));
+        allocator.onAllocationRequested(((workflowId, servantId, token) -> a.complete(servantId)));
         allocator.onDestroyRequested((workflow, servant) -> latch.countDown());
 
-        var taskStatus = stub.schedule(TaskScheduleRequest.newBuilder()
+        //noinspection ResultOfMethodCallIgnored
+        stub.schedule(TaskScheduleRequest.newBuilder()
             .setWorkflowId("wfid")
             .setWorkflowName("wf")
             .setTask(TaskDesc.newBuilder()
@@ -90,15 +92,17 @@ public class IntegrationTest {
         var id = a.get();
 
         final var port = FreePortFinder.find(1000, 2000);
-        final BlockingQueue<String> env = new LinkedBlockingQueue<>(),
-            exec = new LinkedBlockingQueue<>(),
-            stop = new LinkedBlockingQueue<>();
-        final var mock = new AllocatedServantMock.ServantBuilder(port)
+        final BlockingQueue<String> env = new LinkedBlockingQueue<>();
+        final BlockingQueue<String> exec = new LinkedBlockingQueue<>();
+        final BlockingQueue<String> stop = new LinkedBlockingQueue<>();
+
+        new AllocatedServantMock.ServantBuilder(port)
             .setOnEnv(() -> env.add(""))
             .setOnExec(() -> exec.add(""))
             .setOnStop(() -> stop.add(""))
             .build();
 
+        //noinspection ResultOfMethodCallIgnored
         privateStub.registerServant(RegisterServantRequest.newBuilder()
             .setWorkflowName("wf")
             .setServantId(id)
@@ -106,6 +110,7 @@ public class IntegrationTest {
             .build());
         env.take();
 
+        //noinspection ResultOfMethodCallIgnored
         privateStub.servantProgress(ServantProgressRequest.newBuilder()
             .setServantId(id)
             .setWorkflowName("wf")
@@ -119,6 +124,7 @@ public class IntegrationTest {
 
         exec.take();
 
+        //noinspection ResultOfMethodCallIgnored
         privateStub.servantProgress(ServantProgressRequest.newBuilder()
             .setServantId(id)
             .setWorkflowName("wf")
@@ -133,6 +139,7 @@ public class IntegrationTest {
 
         stop.take();
 
+        //noinspection ResultOfMethodCallIgnored
         privateStub.servantProgress(ServantProgressRequest.newBuilder()
             .setServantId(id)
             .setWorkflowName("wf")

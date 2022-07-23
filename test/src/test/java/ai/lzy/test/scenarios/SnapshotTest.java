@@ -32,6 +32,7 @@ import java.util.concurrent.ForkJoinPool;
 import static ai.lzy.fs.commands.BuiltinCommandHolder.cat;
 
 public class SnapshotTest extends LocalScenario {
+
     @Before
     public void setUp() {
         super.setUp();
@@ -52,7 +53,7 @@ public class SnapshotTest extends LocalScenario {
     }
 
     private List<LzyWhiteboard.Whiteboard> getWhiteboardsList(String namespace, List<String> tags,
-                                                              Long fromDateLocalTimezone, Long toDateLocalTimezone)
+        Long fromDateLocalTimezone, Long toDateLocalTimezone)
         throws InvalidProtocolBufferException {
         String whiteboardsJson = terminal.whiteboards(namespace, tags, fromDateLocalTimezone, toDateLocalTimezone);
         LzyWhiteboard.WhiteboardsResponse.Builder builder = LzyWhiteboard.WhiteboardsResponse.newBuilder();
@@ -116,7 +117,8 @@ public class SnapshotTest extends LocalScenario {
                 )
             ));
 
-        final LzyTerminalTestContext.Terminal.ExecutionResult result1 = terminal.executeLzyCommand(cat, localFileOutName);
+        final LzyTerminalTestContext.Terminal.ExecutionResult result1 = terminal.executeLzyCommand(cat,
+            localFileOutName);
 
         //Assert
         Assert.assertEquals(0, result.get().exitCode());
@@ -166,10 +168,10 @@ public class SnapshotTest extends LocalScenario {
         Assert.assertEquals(LzyWhiteboard.WhiteboardStatus.COMPLETED, wb.getStatus());
 
         Assert.assertTrue(
-            (localFileName.equals(fieldsList.get(0).getFieldName()) &&
-                localFileOutName.equals(fieldsList.get(1).getFieldName())) ||
-                (localFileName.equals(fieldsList.get(1).getFieldName()) &&
-                    localFileOutName.equals(fieldsList.get(0).getFieldName()))
+            (localFileName.equals(fieldsList.get(0).getFieldName())
+                && localFileOutName.equals(fieldsList.get(1).getFieldName()))
+                || (localFileName.equals(fieldsList.get(1).getFieldName())
+                && localFileOutName.equals(fieldsList.get(0).getFieldName()))
         );
 
         Assert.assertTrue(fieldsList.get(0).getStorageUri().length() > 0);
@@ -178,8 +180,8 @@ public class SnapshotTest extends LocalScenario {
         final List<String> tagsList = wb.getTagsList();
         Assert.assertEquals(2, tagsList.size());
         Assert.assertTrue(
-            (firstTag.equals(tagsList.get(0)) && secondTag.equals(tagsList.get(1))) ||
-                (firstTag.equals(tagsList.get(1)) && secondTag.equals(tagsList.get(0)))
+            (firstTag.equals(tagsList.get(0)) && secondTag.equals(tagsList.get(1)))
+                || (firstTag.equals(tagsList.get(1)) && secondTag.equals(tagsList.get(0)))
         );
     }
 }

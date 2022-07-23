@@ -23,7 +23,7 @@ public class AllocatedServantMock {
             boolean failEnv,
             Consumer<AllocatedServantMock> onStop,
             int port
-        ) throws IOException {
+    ) throws IOException {
         this.impl = new ServantImpl();
         server = NettyServerBuilder.forPort(port)
             .permitKeepAliveWithoutCalls(true)

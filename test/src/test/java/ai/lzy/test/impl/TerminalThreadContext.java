@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 
 public class TerminalThreadContext implements LzyTerminalTestContext {
 
-    final private Map<String, LzyTerminal> terminals = new HashMap<>();
+    private final Map<String, LzyTerminal> terminals = new HashMap<>();
 
     @Override
     public Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress, int debugPort,

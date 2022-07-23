@@ -13,6 +13,7 @@ import ai.lzy.model.slots.TextLinesOutSlot;
 import ai.lzy.v1.Operations;
 
 class FileIOOperation implements AtomicZygote {
+
     private final String operationName;
     private final List<TextLinesInSlot> inputs;
     private final List<TextLinesOutSlot> outputs;
@@ -23,7 +24,8 @@ class FileIOOperation implements AtomicZygote {
         this(operationName, inputFiles, outputFiles, command, null);
     }
 
-    FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command, String baseEnv) {
+    FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command,
+        String baseEnv) {
         this.operationName = operationName;
         inputs = new ArrayList<>();
         outputs = new ArrayList<>();

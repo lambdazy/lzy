@@ -14,7 +14,9 @@ import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.servant.agents.AgentStatus;
 
 public class MultiSessionTest extends LocalScenario {
-    private LzyTerminalTestContext.Terminal createTerminal(int port, int fsPort, int debugPort, String user, String mount) {
+
+    private LzyTerminalTestContext.Terminal createTerminal(int port, int fsPort, int debugPort, String user,
+        String mount) {
         final LzyTerminalTestContext.Terminal terminal = terminalContext.startTerminalAtPathAndPort(
             mount,
             port,
@@ -30,6 +32,7 @@ public class MultiSessionTest extends LocalScenario {
         );
         return terminal;
     }
+
     private static final Logger LOG = LogManager.getLogger(MultiSessionTest.class);
 
     @Test
@@ -42,8 +45,8 @@ public class MultiSessionTest extends LocalScenario {
             FreePortFinder.find(21000, 22000),
             FreePortFinder.find(23000, 24000),
             "user1",
-                custom_mnt1
-            );
+            custom_mnt1
+        );
         final CompletableFuture<LzyTerminalTestContext.Terminal.ExecutionResult> result1 = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> result1.complete(
             evalScenario(terminal1, scenarioName, List.of("catboost"), custom_mnt1)

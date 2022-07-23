@@ -400,7 +400,8 @@ public class ServantAllocatorBaseTest {
             new URI("dummy://foo"));
         try {
             feature.get(30, TimeUnit.SECONDS);
-        } catch (ExecutionException | TimeoutException ignored) {
+        } catch (ExecutionException | TimeoutException e) {
+            e.printStackTrace();
         }
         boolean completedExceptionally = feature.isCompletedExceptionally();
 

@@ -23,8 +23,8 @@ public abstract class LzyBaseTest {
     private static final Logger LOG = LogManager.getLogger(LzyBaseTest.class);
 
     protected static Path scenarios = Paths.get("../pylzy/tests/scenarios/");
-    protected static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && " +
-            "conda activate py39 && ";
+    protected static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && "
+        + "conda activate py39 && ";
 
     protected LzyTerminalTestContext terminalContext;
 
@@ -38,36 +38,41 @@ public abstract class LzyBaseTest {
         terminalContext.close();
     }
 
-    public static LzyTerminalTestContext.Terminal.ExecutionResult execInCondaEnv(LzyTerminalTestContext.Terminal term, Map<String, String> env, String cmd) {
+    public static LzyTerminalTestContext.Terminal.ExecutionResult execInCondaEnv(LzyTerminalTestContext.Terminal term,
+        Map<String, String> env, String cmd) {
         return term.execute(env, "bash", "-c", condaPrefix + cmd);
     }
 
-    public static LzyTerminalTestContext.Terminal.ExecutionResult execInCondaEnv(LzyTerminalTestContext.Terminal term, String cmd) {
+    public static LzyTerminalTestContext.Terminal.ExecutionResult execInCondaEnv(LzyTerminalTestContext.Terminal term,
+        String cmd) {
         return execInCondaEnv(term, Map.of(), cmd);
     }
 
     public static void forEachLineInFile(File file, Consumer<String> action) throws IOException {
-        LineIterator out_it = FileUtils.lineIterator(file, "UTF-8");
+        LineIterator outIt = FileUtils.lineIterator(file, "UTF-8");
         try {
-            while (out_it.hasNext()) {
-                action.accept(out_it.nextLine().stripTrailing());
+            while (outIt.hasNext()) {
+                action.accept(outIt.nextLine().stripTrailing());
             }
         } finally {
-            out_it.close();
+            outIt.close();
         }
     }
 
-    public static LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(LzyTerminalTestContext.Terminal term, String scenario,
-                                                                               List<String> extraPyLibs, String customMnt) {
+    public static LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(LzyTerminalTestContext.Terminal term,
+        String scenario,
+        List<String> extraPyLibs, String customMnt) {
         return evalScenario(term, Map.of("LZY_MOUNT", customMnt), scenario, extraPyLibs);
     }
 
-    public static LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(LzyTerminalTestContext.Terminal term, String scenarioName) {
+    public static LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(LzyTerminalTestContext.Terminal term,
+        String scenarioName) {
         return evalScenario(term, Map.of(), scenarioName, List.of());
     }
 
-    public static LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(LzyTerminalTestContext.Terminal term, Map<String, String> env,
-                                                                               String scenario, List<String> extraPyLibs) {
+    public static LzyTerminalTestContext.Terminal.ExecutionResult evalScenario(LzyTerminalTestContext.Terminal term,
+        Map<String, String> env,
+        String scenario, List<String> extraPyLibs) {
         final Path scenarioPath = scenarios.resolve(scenario);
         if (!scenarioPath.toFile().exists()) {
             LOG.error("THERE IS NO SUCH SCENARIO: {}", scenario);
@@ -117,8 +122,10 @@ public abstract class LzyBaseTest {
         evalAndAssertScenarioResult(term, scenarioName, List.of());
     }
 
-    public static void evalAndAssertScenarioResult(LzyTerminalTestContext.Terminal term, String scenarioName, List<String> extraPyLibs) {
-        LzyTerminalTestContext.Terminal.ExecutionResult result = evalScenario(term, Map.of(), scenarioName, extraPyLibs);
+    public static void evalAndAssertScenarioResult(LzyTerminalTestContext.Terminal term, String scenarioName,
+        List<String> extraPyLibs) {
+        LzyTerminalTestContext.Terminal.ExecutionResult result = evalScenario(term, Map.of(), scenarioName,
+            extraPyLibs);
         LOG.info(scenarioName + ": STDOUT: {}", result.stdout());
         LOG.info(scenarioName + ": STDERR: {}", result.stderr());
         assertWithExpected(scenarioName, result);

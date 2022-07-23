@@ -95,32 +95,19 @@
     <plugins>
       <plugin>
         <artifactId>maven-checkstyle-plugin</artifactId>
-        <configuration>
-          <configLocation>${project.basedir}/../../.idea/codeStyles/LzyCheckStyle.xml
-          </configLocation>
-          <consoleOutput>true</consoleOutput>
-          <encoding>UTF-8</encoding>
-          <failsOnError>true</failsOnError>
-          <linkXRef>false</linkXRef>
-          <violationSeverity>warning</violationSeverity>
-        </configuration>
-        <dependencies>
-          <dependency>
-            <artifactId>checkstyle</artifactId>
-            <groupId>com.puppycrawl.tools</groupId>
-            <version>${checkstyle.version}</version>
-          </dependency>
-        </dependencies>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-            <phase>install</phase>
-          </execution>
-        </executions>
         <groupId>org.apache.maven.plugins</groupId>
-        <version>${checkstyle-maven-plugin.version}</version>
+        <configuration>
+          <configLocation>${project.basedir}/../../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
+          <encoding>UTF-8</encoding>
+          <consoleOutput>true</consoleOutput>
+          <failsOnError>true</failsOnError>
+          <violationSeverity>warning</violationSeverity>
+          <linkXRef>false</linkXRef>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
