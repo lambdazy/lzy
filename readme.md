@@ -1,4 +1,4 @@
-[![Tests](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml/badge.svg)](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml)
+[![Tests](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml/badge.svg?branch=dev)](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml)
 
 # ʎzy
 
