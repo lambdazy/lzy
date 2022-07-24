@@ -105,9 +105,6 @@ jobs:
           docker image prune -f
           docker volume prune -f
 
-      - uses: scacap/action-surefire-report@v1
-        if: always()
-
       - name: 'Clear after tests'
         if: always()
         run: |
@@ -118,3 +115,7 @@ jobs:
           sudo umount -f /tmp/term*
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
   #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
+
+      - name: 'Publish Test Report'
+        if: always()
+        uses: scacap/action-surefire-report@v1
