@@ -9,23 +9,25 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 from lzy.api.v2.servant.model.slot import file_slot_t
-from lzy.proto.bet.priv.v2.__init__ import Zygote, Slot, SlotDirection, Provisioning, EnvSpec, ExecutionDescription
+
+from ai.lzy.v1 import (
+    EnvSpec,
+    ExecutionDescription,
+    Provisioning,
+    Slot,
+    SlotDirection,
+    Zygote,
+)
 
 
-def create_slots(signature: FuncSignature[T]) -> Tuple[List[Slot], Slot]:
+def send_local_slots_to_s3(signature: FuncSignature[T]) -> Tuple[List[Slot], Slot]:
     arg_slots: List[Slot] = [
-        file_slot_t(
-            Path(signature.name) / name,
-            SlotDirection.INPUT,
-            type_
-        )
+        file_slot_t(Path(signature.name) / name, SlotDirection.INPUT, type_)
         for name, type_ in signature.input_types.items()
     ]
 
     return_slot: Slot = file_slot_t(
-        Path("fnc_name") / "return",
-        SlotDirection.OUTPUT,
-        signature.output_type
+        Path("fnc_name") / "return", SlotDirection.OUTPUT, signature.output_type
     )
     return arg_slots, return_slot
 
@@ -47,7 +49,9 @@ def generate_fuze(
         ]
     )
     serialized_func = to_base64(serializer.serialize_to_string(signature))
-    serialized_execution_description = to_base64(serializer.serialize_to_string(execution))
+    serialized_execution_description = to_base64(
+        serializer.serialize_to_string(execution)
+    )
     return _com + serialized_func + " " + serialized_execution_description
 
 

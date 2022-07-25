@@ -3,6 +3,17 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 
+# from ai.lzy.v1 import Provisioning
+
+
+from enum import Enum
+
+
+class Tag(Enum):
+    GPU = 1
+    GPU_ANY = 2
+
+
 class Tag(ABC):
     @abstractmethod
     def tag(self) -> str:
