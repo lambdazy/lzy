@@ -43,68 +43,68 @@ jobs:
         timeout-minutes: 15
         run: mvn clean install
 
-#      - name: 'RunTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'PyApiTest'
-#        timeout-minutes: 15
-#        run: |
-#          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'build servant image'
-#        timeout-minutes: 15
-#        run: |
-#          BRANCH=${{ (github.head_ref || github.ref_name) }}
-#          SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)
-#          docker pull $SERVANT_BASE_IMAGE
-#          SERVANT_BASE_TAG="$(echo $SERVANT_BASE_IMAGE | awk -F: '{print $2}')"
-#          docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
-#
-#      - name: 'DockerServantTest'
-#        timeout-minutes: 15
-#        run: |
-#          BRANCH=${{ (github.head_ref || github.ref_name) }}
-#          ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH dev)
-#          cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
-#
-#      - name: 'LzyDryStartupTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'LzyStartupWithAvailableZygotesTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'MultiSessionTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'SnapshotTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'TerminalCrashTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'ServantCrashTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=ServantCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'Clean docker files'
-#        run: |
-#          docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
-#          docker image prune -f
-#          docker volume prune -f
-#
+      - name: 'RunTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'PyApiTest'
+        timeout-minutes: 15
+        run: |
+          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'build servant image'
+        timeout-minutes: 15
+        run: |
+          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)
+          docker pull $SERVANT_BASE_IMAGE
+          SERVANT_BASE_TAG="$(echo $SERVANT_BASE_IMAGE | awk -F: '{print $2}')"
+          docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
+
+      - name: 'DockerServantTest'
+        timeout-minutes: 15
+        run: |
+          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH dev)
+          cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
+
+      - name: 'LzyDryStartupTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'LzyStartupWithAvailableZygotesTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'MultiSessionTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'SnapshotTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'TerminalCrashTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'ServantCrashTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=ServantCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'Clean docker files'
+        run: |
+          docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
+          docker image prune -f
+          docker volume prune -f
+
       - name: 'Clear after tests'
         if: always()
         run: |
@@ -114,7 +114,7 @@ jobs:
           sudo umount -f /tmp/lzy*
           sudo umount -f /tmp/term*
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
-#  #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
+      #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
 
       - name: 'Publish Test Report'
         uses: EnricoMi/publish-unit-test-result-action@v1
