@@ -3,8 +3,11 @@ package ai.lzy.fs.commands.builtin;
 import static ai.lzy.model.GrpcConverter.to;
 
 import ai.lzy.fs.commands.LzyCommand;
+import ai.lzy.model.JsonUtils;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.grpc.ClientHeaderInterceptor;
+import ai.lzy.model.grpc.GrpcHeaders;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.IAM;
@@ -19,16 +22,11 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.commons.cli.*;
+import java.util.UUID;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.grpc.ChannelBuilder;
-
-import java.net.URI;
-import java.util.Base64;
-import java.util.UUID;
 
 public final class Channel implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Channel.class);
@@ -73,8 +71,8 @@ public final class Channel implements LzyCommand {
         String channelName = command.getArgList().size() > 2 ? command.getArgList().get(2) : null;
 
         final URI channelManagerAddress = URI.create("grpc://" + command.getOptionValue("channel-manager"));
-        // FIXME(d-kruchinin) new format of working with auth
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
+        LOG.info("Auth {}", JsonUtils.printRequest(auth));
 
         final ManagedChannel channelManagerChannel = ChannelBuilder
             .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
@@ -83,7 +81,12 @@ public final class Channel implements LzyCommand {
             .build();
 
         final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager =
-            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel);
+            LzyChannelManagerGrpc
+                .newBlockingStub(channelManagerChannel)
+                .withInterceptors(ClientHeaderInterceptor.header(
+                    GrpcHeaders.AUTHORIZATION,
+                    auth.getUser()::getToken
+                ));
 
         switch (channelCommand) {
             case "create" -> {

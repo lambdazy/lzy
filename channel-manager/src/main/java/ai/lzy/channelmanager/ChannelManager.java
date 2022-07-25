@@ -7,6 +7,9 @@ import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.channel.SlotEndpoint;
+import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.SlotInstance;
@@ -29,6 +32,9 @@ import ai.lzy.v1.ChannelManager.SlotDetachStatus;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.Operations;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import com.google.common.net.HostAndPort;
+import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
@@ -37,6 +43,7 @@ import io.micronaut.context.ApplicationContext;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -61,13 +68,20 @@ public class ChannelManager {
     private final ChannelStorage channelStorage;
     private final Server channelManagerServer;
     private final URI whiteboardAddress;
+    private final ManagedChannel iamChannel;
 
     public ChannelManager(ApplicationContext ctx) {
         var config = ctx.getBean(ChannelManagerConfig.class);
         channelStorage = new LocalChannelStorage();
+        final HostAndPort iamAddress = HostAndPort.fromString(config.iam().address());
+        iamChannel = ChannelBuilder.forAddress(iamAddress)
+            .usePlaintext()
+            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
+            .build();
         channelManagerServer = NettyServerBuilder.forPort(config.port())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
             .addService(new ChannelManagerService())
             .build();
         whiteboardAddress = URI.create(config.whiteboardAddress());
@@ -98,6 +112,7 @@ public class ChannelManager {
             LOG.info("ChannelManager create channel {}: {}",
                 request.getChannelSpec().getChannelName(),
                 JsonUtils.printRequest(request));
+            final AuthenticationContext authenticationContext = AuthenticationContext.current();
 
             final Channels.ChannelSpec channelSpec = request.getChannelSpec();
             final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
@@ -114,7 +129,10 @@ public class ChannelManager {
                 );
                 default -> throw new NotImplementedException("Only snapshot and direct channels are supported");
             };
-            final Channel channel = channelStorage.create(spec, request.getWorkflowId());
+            final Channel channel = channelStorage.create(
+                spec,
+                new Workflow(request.getWorkflowId(), Objects.requireNonNull(authenticationContext).getSubject().id())
+            );
             responseObserver.onNext(
                 ChannelCreateResponse.newBuilder()
                     .setChannelId(channel.id())
@@ -293,15 +311,17 @@ public class ChannelManager {
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("gRPC server is shutting down!");
-            channelManagerServer.shutdown();
+            close();
         }));
     }
 
     public void awaitTermination() throws InterruptedException {
         channelManagerServer.awaitTermination();
+        iamChannel.awaitTermination(10, TimeUnit.SECONDS);
     }
 
     public void close() {
         channelManagerServer.shutdownNow();
+        iamChannel.shutdown();
     }
 }

@@ -1,7 +1,12 @@
 package ai.lzy.test.impl;
 
+import ai.lzy.fs.BashApi;
+import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.test.LzyTerminalTestContext;
 import java.lang.reflect.InvocationTargetException;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.SystemUtils;
 import ai.lzy.model.utils.JwtCredentials;

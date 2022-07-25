@@ -5,6 +5,7 @@ import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.LzyKharonGrpc;
 import ai.lzy.test.ChannelManagerContext;
+import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
@@ -16,6 +17,7 @@ import java.util.concurrent.locks.LockSupport;
 
 public class ChannelManagerThreadContext implements ChannelManagerContext {
     private final String whiteboardAddress;
+    private final HostAndPort iamAddress;
     private ChannelManager channelManager;
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client;
     private ManagedChannel channel;
@@ -25,8 +27,9 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
         private static final int PORT = 8122;
     }
 
-    public ChannelManagerThreadContext(String whiteboardAddress) {
+    public ChannelManagerThreadContext(String whiteboardAddress, HostAndPort iamAddress) {
         this.whiteboardAddress = whiteboardAddress;
+        this.iamAddress = iamAddress;
     }
 
     @Override
@@ -43,7 +46,8 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
     public void init() {
         Map<String, Object> appProperties = Map.of(
             "channel-manager.port", Config.PORT,
-            "channel-manager.whiteboard-address", whiteboardAddress
+            "channel-manager.whiteboard-address", whiteboardAddress,
+            "channel-manager.iam.address", iamAddress
         );
         try (ApplicationContext context = ApplicationContext.run(PropertySource.of(appProperties))) {
             channelManager = new ChannelManager(context);

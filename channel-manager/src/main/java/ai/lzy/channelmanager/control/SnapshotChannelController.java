@@ -5,6 +5,7 @@ import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.v1.IAM;
 import ai.lzy.v1.LzyWhiteboard;
 import ai.lzy.v1.SnapshotApiGrpc;
 import io.grpc.Channel;
@@ -21,12 +22,14 @@ public class SnapshotChannelController implements ChannelController {
 
     private final String entryId;
     private final String snapshotId;
+    private final IAM.Auth userCredentials;
     private Status status = Status.UNBOUND;
     private URI storageURI;
 
     public SnapshotChannelController(
         String entryId,
         String snapshotId,
+        String userId,
         URI snapshotAddress
     ) {
         LOG.info("Creating SnapshotChannelController: entryId={}, snapshotId={}", entryId, snapshotId);
@@ -41,10 +44,16 @@ public class SnapshotChannelController implements ChannelController {
         }
         this.entryId = entryId;
         this.snapshotId = snapshotId;
+        this.userCredentials = IAM.Auth.newBuilder().setUser(
+                IAM.UserCredentials.newBuilder()
+                    .setUserId(userId)
+                    .build())
+            .build();
         try {
             //noinspection ResultOfMethodCallIgnored
             SNAPSHOT_API.createEntry(
                 LzyWhiteboard.CreateEntryCommand.newBuilder()
+                    .setAuth(userCredentials)
                     .setSnapshotId(snapshotId)
                     .setEntryId(entryId)
                     .build()
@@ -128,8 +137,10 @@ public class SnapshotChannelController implements ChannelController {
         }
         if (status == Status.IN_PROGRESS || status == Status.ERRORED) {
             status = Status.ERRORED;
+            //noinspection ResultOfMethodCallIgnored
             SNAPSHOT_API.abort(
                 LzyWhiteboard.AbortCommand.newBuilder()
+                    .setAuth(userCredentials)
                     .setSnapshotId(snapshotId)
                     .setEntryId(entryId)
                     .build()
@@ -145,6 +156,7 @@ public class SnapshotChannelController implements ChannelController {
         }
         LzyWhiteboard.EntryStatusResponse status = SNAPSHOT_API.entryStatus(
             LzyWhiteboard.EntryStatusCommand.newBuilder()
+                .setAuth(userCredentials)
                 .setSnapshotId(snapshotId)
                 .setEntryId(entryId)
                 .build());

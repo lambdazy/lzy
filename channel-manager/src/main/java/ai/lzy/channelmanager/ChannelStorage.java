@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 public interface ChannelStorage {
-    Channel create(ChannelSpec spec, String workflowId);
+    Channel create(ChannelSpec spec, Workflow workflow);
 
     @Nullable
     Channel get(String channelId);

@@ -15,13 +15,6 @@ public class SimpleAuthenticator implements Authenticator {
 
     @Override
     public boolean checkPermissions(IAM.Auth auth, Permissions permissions) {
-        Lzy.CheckUserPermissionsResponse response = server.checkUserPermissions(
-            Lzy.CheckUserPermissionsRequest
-                .newBuilder()
-                .setAuth(auth)
-                .addPermissions(permissions.name)
-                .build()
-        );
-        return response.getIsOk();
+        return true;
     }
 }

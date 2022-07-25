@@ -1,6 +1,7 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.fs.LzyFsServer;
+import ai.lzy.model.utils.JwtCredentials;
 import ai.lzy.test.*;
 import ai.lzy.test.impl.*;
 import io.findify.s3mock.S3Mock;
@@ -50,7 +51,7 @@ public abstract class LocalScenario extends LzyBaseTest {
 
         whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
-        channelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address());
+        channelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address(), iamContext.address());
         channelManagerContext.init();
         kharonContext = new KharonThreadContext(
             serverContext.address(),
@@ -82,6 +83,12 @@ public abstract class LocalScenario extends LzyBaseTest {
     }
 
     public void startTerminalWithDefaultConfig() {
+        final JwtCredentials.Keys keys;
+        try {
+            keys = JwtCredentials.generateRsaKeys();
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         terminal = terminalContext.startTerminalAtPathAndPort(
             Config.LZY_MOUNT,
             Config.SERVANT_PORT,
@@ -90,7 +97,7 @@ public abstract class LocalScenario extends LzyBaseTest {
             kharonContext.channelManagerProxyAddress(),
             Config.DEBUG_PORT,
             terminalContext.TEST_USER,
-            null);
+            keys.privateKeyPath().toString());
         Assert.assertTrue(terminal.waitForStatus(
             AgentStatus.EXECUTING,
             Config.TIMEOUT_SEC,

@@ -33,13 +33,13 @@ public class LocalChannelStorage implements ChannelStorage {
     }
 
     @Override
-    public Channel create(ChannelSpec spec, String workflowId) {
+    public Channel create(ChannelSpec spec, Workflow workflow) {
         final String id = UUID.randomUUID().toString();
         final String name = spec.name() == null ? "unnamed_channel_" + UUID.randomUUID() : spec.name();
         if (spec instanceof DirectChannelSpec) {
             final Channel channel = new ChannelImpl(
                 id,
-                workflowId,
+                workflow.id(),
                 spec,
                 new DirectChannelController()
             );
@@ -49,10 +49,11 @@ public class LocalChannelStorage implements ChannelStorage {
         if (spec instanceof SnapshotChannelSpec snapshotSpec) {
             final Channel channel = new SnapshotChannelImpl(
                 name,
-                workflowId,
+                workflow.id(),
                 spec,
                 snapshotSpec.snapshotId(),
                 snapshotSpec.entryId(),
+                workflow.userId(),
                 snapshotSpec.getWhiteboardAddress()
             );
             channels.put(id, channel);
@@ -104,9 +105,14 @@ public class LocalChannelStorage implements ChannelStorage {
             ChannelSpec channelSpec,
             String snapshotId,
             String entryId,
+            String userId,
             URI whiteboardAddress
         ) {
-            super(id, workflowId, channelSpec, new SnapshotChannelController(entryId, snapshotId, whiteboardAddress));
+            super(
+                id,
+                workflowId,
+                channelSpec,
+                new SnapshotChannelController(entryId, snapshotId, userId, whiteboardAddress));
         }
     }
 }

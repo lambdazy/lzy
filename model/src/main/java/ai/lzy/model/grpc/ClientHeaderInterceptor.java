@@ -3,8 +3,11 @@ package ai.lzy.model.grpc;
 import io.grpc.*;
 
 import java.util.function.Supplier;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class ClientHeaderInterceptor<T> implements ClientInterceptor {
+    private static final Logger LOG = LogManager.getLogger(ClientHeaderInterceptor.class);
     private final Metadata.Key<T> key;
     private final Supplier<T> value;
 
@@ -18,6 +21,7 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
     public ClientHeaderInterceptor(Metadata.Key<T> key, Supplier<T> value) {
         this.key = key;
         this.value = value;
+        LOG.info("Constructor key={} value={}", key, value.get());
     }
 
     @Override
@@ -26,6 +30,7 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
                                                                Channel channel) {
         return new ForwardingClientCall.SimpleForwardingClientCall<>(channel.newCall(methodDescriptor, callOptions)) {
             public void start(Listener<RespT> responseListener, Metadata headers) {
+                LOG.info("start key={} value={}", key, value.get());
                 T v = ClientHeaderInterceptor.this.value.get();
                 if (v != null) {
                     headers.put(ClientHeaderInterceptor.this.key, v);
