@@ -182,13 +182,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <dependencies>
-          <dependency>
-            <artifactId>log4j-maven-shade-plugin-extensions</artifactId>
-            <groupId>io.github.edwgiz</groupId>
-            <version>2.17.1</version>
-          </dependency>
-        </dependencies>
         <executions>
           <execution>
             <configuration>
