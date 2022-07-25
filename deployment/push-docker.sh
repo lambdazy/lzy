@@ -55,6 +55,7 @@ if [[ $REBUILD = true ]]; then
     docker pull "$TEST_ENV_BASE"
     TEST_ENV_BASE_TAG="$(echo $TEST_ENV_BASE_TAG | awk -F: '{print $2}')"
   fi
+  cd pylzy/ && ./gen_proto.sh && ./gen_bet_proto.sh && cd ..
   mvn clean install -DskipTests
 
   docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG"         -t lzy-servant -f servant/docker/System.Dockerfile .
