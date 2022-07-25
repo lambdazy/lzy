@@ -23,6 +23,8 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
             throw new RuntimeException("SERVANT_ID env is null. Logging configuration failed.");
         }
 
+        System.out.println("ConfigurationFactory:: Configuring kafka appender");
+
         return new KafkaLogsConfiguration(
             loggerContext,
             configurationSource,

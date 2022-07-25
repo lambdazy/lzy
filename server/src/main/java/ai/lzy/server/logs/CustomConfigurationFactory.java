@@ -17,6 +17,7 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
     public static final String[] SUFFIXES = new String[] {".yaml", ".yml", "*"};
 
     public Configuration getConfiguration(LoggerContext loggerContext, ConfigurationSource configurationSource) {
+        System.out.println("ConfigurationFactory:: Configuring kafka appender");
         return new KafkaLogsConfiguration(
             loggerContext,
             configurationSource,

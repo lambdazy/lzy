@@ -22,6 +22,11 @@ public class KafkaLogsConfiguration extends YamlConfiguration {
         this.serverHost = host;
         this.kafkaEnabled = enabled;
         this.topic = topic;
+        System.out.println("KafkaLogsConfiguration::constructor "
+                           + "pattern=" + pattern + ", "
+                           + "serverHost=" + host + ", "
+                           + "kafkaEnabled=" + enabled + ", "
+                           + "topic=" + topic);
     }
 
     @Override
@@ -50,6 +55,8 @@ public class KafkaLogsConfiguration extends YamlConfiguration {
                 // Without it server will fall with exception.
                 // You must call LoggerContext().reconfigure() after this exception to enable kafka logs.
                 System.out.println("NPE while configuring kafka logs");
+            } catch (Exception e) {
+                System.out.println("Exception while configuring kafka logs");
             }
         }
     }
