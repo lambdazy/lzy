@@ -845,11 +845,28 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>${maven-compiler-plugin.version}</version>
         <configuration>
           <source>${java.version}</source>
           <target>${java.version}</target>
           <forceJavacCompilerUse>true</forceJavacCompilerUse>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>io.micronaut</groupId>
+              <artifactId>micronaut-inject-java</artifactId>
+              <version>${micronaut.version}</version>
+            </path>
+            <path>
+              <groupId>io.micronaut</groupId>
+              <artifactId>micronaut-validation</artifactId>
+              <version>${micronaut.version}</version>
+            </path>
+            <path>
+              <groupId>org.apache.logging.log4j</groupId>
+              <artifactId>log4j-core</artifactId>
+              <version>${log4j.version}</version>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
     </plugins>
@@ -896,6 +913,13 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
           <version>${maven-shade-plugin.version}</version>
+          <dependencies>
+            <dependency>
+              <artifactId>log4j-maven-shade-plugin-extensions</artifactId>
+              <groupId>io.github.edwgiz</groupId>
+              <version>${log4j.version}</version>
+            </dependency>
+          </dependencies>
         </plugin>
         <plugin>
           <groupId>org.flywaydb</groupId>
@@ -953,25 +977,6 @@
           <artifactId>micronaut-maven-plugin</artifactId>
           <version>${micronaut-maven-plugin.version}</version>
           <extensions>true</extensions>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>${maven-compiler-plugin.version}</version>
-          <configuration>
-            <annotationProcessorPaths>
-              <path>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-inject-java</artifactId>
-                <version>${micronaut.version}</version>
-              </path>
-              <path>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-validation</artifactId>
-                <version>${micronaut.version}</version>
-              </path>
-            </annotationProcessorPaths>
-          </configuration>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
