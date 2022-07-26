@@ -3,4 +3,4 @@
 
 coverage run --source=./lzy -m unittest discover ./tests | tee ./test_output
 coverage report
-coverage-badge -o coverage.svg
+coverage-badge -o coverage.svg -f

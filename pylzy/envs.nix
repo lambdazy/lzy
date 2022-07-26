@@ -28,7 +28,7 @@ let
   python-lzy = python.withPackages(ps: with ps; [
     (lzy ps)
     coverage
-    "coverage-badge"
+    coverage-badge
   ]);
 
   python-publish = python.withPackages(ps: with ps; [
