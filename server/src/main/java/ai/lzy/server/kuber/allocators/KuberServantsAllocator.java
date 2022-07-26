@@ -93,7 +93,9 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
             if (lockPods.getItems().size() < servantPods.getItems().size()) {
                 lockNewNodePerSession(sessionId, servantId, provisioning);
             }
+a            // TODO: think also about deleting excess lock pods (shrink to fit)
         }
+        // TODO: research +- optimal algorithm for locking nodes per user
     }
 
     private void lockNewNodePerSession(String sessionId, String servantId, Provisioning provisioning) {
