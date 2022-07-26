@@ -1,6 +1,5 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/auth.proto";
 import "ai/lzy/v1/zygote.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
@@ -11,12 +10,12 @@ option java_outer_classname = "LzyWhiteboardV2";
 option java_package = "ai.lzy.v1";
 
 service WhiteboardService {
-  rpc CreateWhiteboard (CreateWhiteboardCommand) returns (Whiteboard);
-  rpc LinkWhiteboardField (LinkFieldCommand) returns (google.protobuf.Empty);
-  rpc FinalizeWhiteboard (FinalizeWhiteboardCommand) returns (google.protobuf.Empty);
+  rpc CreateWhiteboard (CreateWhiteboardRequest) returns (Whiteboard);
+  rpc LinkWhiteboardField (LinkFieldRequest) returns (google.protobuf.Empty);
+  rpc FinalizeWhiteboard (FinalizeWhiteboardRequest) returns (google.protobuf.Empty);
 
-  rpc GetWhiteboard (GetWhiteboardCommand) returns (Whiteboard);
-  rpc QueryWhiteboards (QueryWhiteboardsCommand) returns (QueryWhiteboardsResponse);
+  rpc GetWhiteboard (GetWhiteboardRequest) returns (Whiteboard);
+  rpc QueryWhiteboards (QueryWhiteboardsRequest) returns (QueryWhiteboardsResponse);
 }
 
 message Whiteboard {
@@ -26,10 +25,10 @@ message Whiteboard {
   WhiteboardStatus status = 4;
   repeated string tags = 5;
   string namespace = 6;
-  google.protobuf.Timestamp createdAtTimestampUTC = 7;
+  google.protobuf.Timestamp createdAt = 7;
 
   enum WhiteboardStatus {
-    UNKNOWN = 0;
+    UNSPECIFIED = 0;
     CREATED = 1;
     FINALIZED = 2;
   }
@@ -53,34 +52,30 @@ message Storage {
   string description = 2;
 }
 
-message CreateWhiteboardCommand {
-  Auth auth = 1;
-  repeated string fieldNames = 2;
-  Storage storage = 3;
-  repeated string tags = 4;
-  string namespace = 5;
+message CreateWhiteboardRequest {
+  repeated string fieldNames = 1;
+  Storage storage = 2;
+  repeated string tags = 3;
+  string namespace = 4;
 }
 
-message LinkFieldCommand {
-  Auth auth = 1;
-  string whiteboardId = 2;
-  string fieldName = 3;
-  string storageUri = 4;
-  DataScheme scheme = 5;
+message LinkFieldRequest {
+  string whiteboardId = 1;
+  string fieldName = 2;
+  string storageUri = 3;
+  DataScheme scheme = 4;
 }
 
-message FinalizeWhiteboardCommand {
-  Auth auth = 1;
-  string whiteboardId = 2;
+message FinalizeWhiteboardRequest {
+  string whiteboardId = 1;
 }
 
-message GetWhiteboardCommand {
-  Auth auth = 1;
-  string whiteboardId = 2;
+message GetWhiteboardRequest {
+  string whiteboardId = 1;
 }
 
-message QueryWhiteboardsCommand {
-  Auth auth = 1;
+message QueryWhiteboardsRequest {
+  repeated string tags = 1;
   oneof query {
     DateTimeQuery dateTimeQuery = 2;
     //more query types
@@ -88,8 +83,8 @@ message QueryWhiteboardsCommand {
 }
 
 message DateTimeQuery {
-  google.protobuf.Timestamp fromTimestampUTC = 1;
-  google.protobuf.Timestamp toTimestampUTC = 2;
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
 }
 
 message QueryWhiteboardsResponse {
