@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Any, List, Optional
 from uuid import uuid4
 
-from lzy.api.v2.api import LzyCall
 from lzy.api.v2.grpc.graph_executor_client import prepare_tasks_and_channels
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
 from lzy.env.env_provider import EnvProvider
 
 if TYPE_CHECKING:
+    from lzy.api.v2.api import LzyCall
     from lzy.api.v2.api.lzy import Lzy
 
 

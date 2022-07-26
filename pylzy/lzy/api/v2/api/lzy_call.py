@@ -8,8 +8,7 @@ from lzy.env.env import EnvSpec
 from lzy.api.v2.api.provisioning import Provisioning
 from lzy.api.v2.servant.model.signatures import CallSignature
 
-if typing.TYPE_CHECKING:
-    from lzy.api.v2.api.lzy_workflow import LzyWorkflow
+from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

@@ -70,14 +70,16 @@ class GraphExecutorClient:
 
         return await self.stub.Execute(request)
 
-    def status(self, workflow_id: str, graph_id: str) -> GraphExecutionStatus:
+    async def status(self, workflow_id: str, graph_id: str) -> GraphExecutionStatus:
         request = GraphStatusRequest(
             workflow_id,
             graph_id,
         )
         return await self.stub.Status(request)
 
-    def stop(self, workflow_id: str, graph_id: str, issue: str) -> GraphExecutionStatus:
+    async def stop(
+        self, workflow_id: str, graph_id: str, issue: str
+    ) -> GraphExecutionStatus:
         request = GraphStopRequest(
             workflow_id,
             graph_id,
@@ -85,6 +87,6 @@ class GraphExecutorClient:
         )
         return await self.stub.Stop(request)
 
-    def list(self, workflow_id: str) -> List[GraphExecutionStatus]:
+    async def list(self, workflow_id: str) -> List[GraphExecutionStatus]:
         request = GraphListRequest(workflow_id)
         return (await self.stub.List(request)).graphs
