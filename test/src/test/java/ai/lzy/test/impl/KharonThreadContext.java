@@ -37,16 +37,19 @@ public class KharonThreadContext implements LzyKharonTestContext {
     private ManagedChannel channel;
     private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
-    public KharonThreadContext(String serverAddress, String whiteboardAddress, String channelManagerAddress, HostAndPort iamAddress) {
+    public KharonThreadContext(String serverAddress,
+                               String whiteboardAddress,
+                               String channelManagerAddress,
+                               HostAndPort iamAddress) {
         var sa = URI.create(serverAddress);
         var wa = URI.create(whiteboardAddress);
         var parsedChannelManagerAddress = URI.create(channelManagerAddress);
         this.serverAddress = sa.getHost() + ":" + sa.getPort();
         this.whiteboardAddress = wa.getHost() + ":" + wa.getPort();
-        this.channelManagerAddress = parsedChannelManagerAddress.getHost() + ":" +
-            parsedChannelManagerAddress.getPort();
-        channelManagerProxyAddress = "ch-man://" + parsedChannelManagerAddress.getHost() + ":" +
-            LZY_KHARON_CHANNEL_MANAGER_PROXY_PORT;
+        this.channelManagerAddress = parsedChannelManagerAddress.getHost()
+            + ":" + parsedChannelManagerAddress.getPort();
+        channelManagerProxyAddress = "ch-man://" + parsedChannelManagerAddress.getHost()
+            + ":" + LZY_KHARON_CHANNEL_MANAGER_PROXY_PORT;
         this.iamAddress = iamAddress.toString();
     }
 
