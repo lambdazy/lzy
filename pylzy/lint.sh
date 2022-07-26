@@ -16,6 +16,7 @@ run() {
     println "Calling $type: $cmd_name"
 
     $cmd_name lzy/ tests/
+
     _ex=$?
     print_cmd_exit $_ex $cmd_name
 
