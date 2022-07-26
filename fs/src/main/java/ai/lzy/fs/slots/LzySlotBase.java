@@ -2,8 +2,10 @@ package ai.lzy.fs.slots;
 
 import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.Slot;
@@ -53,16 +55,15 @@ public class LzySlotBase implements LzySlot {
             }
 
             final Operations.SlotStatus.State finalNewState = newState;
-            actions.getOrDefault(newState, List.of()).forEach(
-                action -> {
-                    LOG.info("Running action for slot {} with state {}", name(), finalNewState);
-                    try {
-                        action.run();
-                    } catch (Throwable e) {
-                        action.onError(e);
-                    }
+            for (var action: actions.getOrDefault(newState, List.of())) {
+                LOG.info("Running action for slot {} with state {}", name(), finalNewState);
+                try {
+                    action.run();
+                } catch (Throwable e) {
+                    action.onError(e);
+                    break;
                 }
-            );
+            }
         } while (newState != DESTROYED);
     }
 
