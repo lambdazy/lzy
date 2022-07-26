@@ -72,7 +72,6 @@ def op(
             f,
             output_type,
             provisioning,
-            lambda: LzyWorkflow.get_active(),
         )
 
     provisioning = Provisioning(gpu)
@@ -87,11 +86,10 @@ def create_lazy_constructor(
     f: Callable[..., Any],
     output_type: type,
     provisioning: Provisioning,
-    wflow_get: Callable[[], Optional[LzyWorkflow]],
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
-        wflow_ = wflow_get()
+        wflow_ = LzyWorkflow.get_active()
         # TODO: defaults?
         if wflow_ is None:
             return f(*args, **kwargs)
