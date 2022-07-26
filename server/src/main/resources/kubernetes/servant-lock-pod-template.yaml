@@ -10,7 +10,8 @@ metadata:
 spec:
   containers:
     - name: lzy-servant-lock
-      image: hello-world
+      image: alpine
+      command: ["/bin/sh", "-c", "while :; do sleep 60 ; done"]
       imagePullPolicy: Always
   restartPolicy: Never
   affinity:
