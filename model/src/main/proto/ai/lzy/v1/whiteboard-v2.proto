@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+import "ai/lzy/v1/zygote.proto";
+import "google/protobuf/timestamp.proto";
+
+package ai.lzy.v1.wb; //TODO: remove wb suffix
+
+option java_outer_classname = "LzyWhiteboardV2";
+option java_package = "ai.lzy.v1";
+
+service WhiteboardService {
+  rpc CreateWhiteboard (CreateWhiteboardRequest) returns (Whiteboard);
+  rpc LinkWhiteboardField (LinkFieldRequest) returns (LinkFieldResponse);
+  rpc FinalizeWhiteboard (FinalizeWhiteboardRequest) returns (FinalizeWhiteboardResponse);
+
+  rpc GetWhiteboard (GetWhiteboardRequest) returns (Whiteboard);
+  rpc QueryWhiteboards (QueryWhiteboardsRequest) returns (QueryWhiteboardsResponse);
+}
+
+message Whiteboard {
+  string id = 1;
+  repeated WhiteboardField fields = 2;
+  Storage storage = 3;
+  WhiteboardStatus status = 4;
+  repeated string tags = 5;
+  string namespace = 6;
+  google.protobuf.Timestamp createdAt = 7;
+
+  enum WhiteboardStatus {
+    UNSPECIFIED = 0;
+    CREATED = 1;
+    FINALIZED = 2;
+  }
+}
+
+message WhiteboardField {
+  string fieldName = 1;
+  DataScheme scheme = 2;
+  Status status = 3;
+  string storageUri = 4;
+
+  enum Status {
+    UNKNOWN = 0;
+    CREATED = 1;
+    LINKED = 2;
+  }
+}
+
+message Storage {
+  string name = 1;
+  string description = 2;
+}
+
+message CreateWhiteboardRequest {
+  repeated string fieldNames = 1;
+  Storage storage = 2;
+  repeated string tags = 3;
+  string namespace = 4;
+}
+
+message LinkFieldRequest {
+  string whiteboardId = 1;
+  string fieldName = 2;
+  string storageUri = 3;
+  DataScheme scheme = 4;
+}
+
+message LinkFieldResponse {
+}
+
+message FinalizeWhiteboardRequest {
+  string whiteboardId = 1;
+}
+
+message FinalizeWhiteboardResponse {
+}
+
+message GetWhiteboardRequest {
+  string whiteboardId = 1;
+}
+
+message QueryWhiteboardsRequest {
+  repeated string tags = 1;
+  oneof query {
+    DateTimeQuery dateTimeQuery = 2;
+    //more query types
+  }
+}
+
+message DateTimeQuery {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+}
+
+message QueryWhiteboardsResponse {
+  repeated Whiteboard whiteboards = 1;
+}
+
+
