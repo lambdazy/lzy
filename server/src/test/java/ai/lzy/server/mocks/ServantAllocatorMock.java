@@ -36,7 +36,9 @@ public class ServantAllocatorMock extends ServantsAllocatorBase {
     }
 
     @Override
-    protected void requestAllocation(String sessionId, String servantId, String servantToken, Provisioning provisioning, String bucket) {
+    protected void requestAllocation(
+            String sessionId, String servantId, String servantToken, Provisioning provisioning, String bucket
+    ) {
         allocationRequests.add(new AllocationRequest(servantId, servantToken, provisioning, bucket));
         allocationLatch.countDown();
     }
