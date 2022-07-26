@@ -143,7 +143,7 @@ public class LzyTerminal extends LzyAgent implements Closeable {
 
     @Override
     public void awaitTermination() throws InterruptedException {
-        channel.awaitTermination(10, TimeUnit.SECONDS);
+        agentServer.awaitTermination();
     }
 
     private class CommandHandler {
