@@ -108,6 +108,7 @@
         <dependency>
             <groupId>ai.lzy.iam</groupId>
             <artifactId>iam</artifactId>
+            <version>0.1</version>
         </dependency>
     </dependencies>
     <build>
