@@ -82,6 +82,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         final String podName = "servant-lock-" + kuberValidName(servantId);
         metadata.setName(podName);
         metadata.putLabelsItem("session-id", kuberValidName(sessionId));
+        metadata.putLabelsItem("lock-session-id", kuberValidName(sessionId));
 
         final String typeLabelValue;
         if (isNeedGpu(provisioning)) {
@@ -139,6 +140,8 @@ public class ServantPodProviderImpl implements ServantPodProvider {
 
         final String podName = "lzy-servant-" + kuberValidName(servantId);
         metadata.setName(podName);
+        metadata.putLabelsItem("session-id", kuberValidName(sessionId));
+        metadata.putLabelsItem("servant-session-id", kuberValidName(sessionId));
 
         final String typeLabelValue;
         if (isNeedGpu(provisioning)) {
@@ -157,7 +160,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
                 new V1PodAffinity().addRequiredDuringSchedulingIgnoredDuringExecutionItem(
                         new V1PodAffinityTerm().labelSelector(
                                 new V1LabelSelector().addMatchExpressionsItem(
-                                        new V1LabelSelectorRequirement().key("session-id")
+                                        new V1LabelSelectorRequirement().key("lock-session-id")
                                                 .operator("In")
                                                 .values(List.of(kuberValidName(sessionId)))
                                 )
