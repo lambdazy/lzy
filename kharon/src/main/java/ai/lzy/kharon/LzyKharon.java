@@ -5,13 +5,17 @@ import static ai.lzy.model.UriScheme.LzyKharon;
 import static ai.lzy.model.UriScheme.SlotAzure;
 import static ai.lzy.model.UriScheme.SlotS3;
 
+import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.kharon.workflow.WorkflowService;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.SlotConnectionManager;
 import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.grpc.ProxyClientHeaderInterceptor;
+import ai.lzy.model.grpc.ProxyServerHeaderInterceptor;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Kharon;
@@ -156,12 +160,16 @@ public class LzyKharon {
             .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
             .usePlaintext()
             .build();
-        channelManager = LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel);
+        channelManager = LzyChannelManagerGrpc
+            .newBlockingStub(channelManagerChannel)
+            .withInterceptors(new ProxyClientHeaderInterceptor());
 
         channelManagerProxy = NettyServerBuilder.forPort(config.channelManagerProxyPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(new ChannelManagerProxyService()))
+            .addService(ServerInterceptors.intercept(
+                new ChannelManagerProxyService(),
+                new ProxyServerHeaderInterceptor()))
             .build();
     }
 

@@ -7,7 +7,7 @@ import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.channel.SlotEndpoint;
-import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.GrpcConverter;
@@ -81,7 +81,7 @@ public class ChannelManager {
         channelManagerServer = NettyServerBuilder.forPort(config.port())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
+            .intercept(new AuthServerInterceptor(new AuthenticateServiceStub()))
             .addService(new ChannelManagerService())
             .build();
         whiteboardAddress = URI.create(config.whiteboardAddress());

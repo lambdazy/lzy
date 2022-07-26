@@ -1,5 +1,6 @@
 package ai.lzy.test;
 
+import ai.lzy.v1.ChannelManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -146,8 +147,13 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         }
 
         default String parseChannelIdFromCreateChannelResponse(String response) {
-            int startPos = "\"channelId: \"".length() - 1;
-            return response.substring(startPos, response.length() - 3);
+            var builder = ChannelManager.ChannelCreateResponse.newBuilder();
+            try {
+                JsonFormat.parser().merge(response, builder);
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+            }
+            return builder.build().getChannelId();
         }
 
         default String createChannel(String channelName) {

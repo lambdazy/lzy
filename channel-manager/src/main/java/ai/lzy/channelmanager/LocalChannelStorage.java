@@ -34,8 +34,7 @@ public class LocalChannelStorage implements ChannelStorage {
 
     @Override
     public Channel create(ChannelSpec spec, Workflow workflow) {
-        final String id = UUID.randomUUID().toString();
-        final String name = spec.name() == null ? "unnamed_channel_" + UUID.randomUUID() : spec.name();
+        final String id = spec.name() == null ? "unnamed_channel_" + UUID.randomUUID() : spec.name();
         if (spec instanceof DirectChannelSpec) {
             final Channel channel = new ChannelImpl(
                 id,
@@ -48,7 +47,7 @@ public class LocalChannelStorage implements ChannelStorage {
         }
         if (spec instanceof SnapshotChannelSpec snapshotSpec) {
             final Channel channel = new SnapshotChannelImpl(
-                name,
+                id,
                 workflow.id(),
                 spec,
                 snapshotSpec.snapshotId(),

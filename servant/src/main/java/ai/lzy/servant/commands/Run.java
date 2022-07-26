@@ -1,6 +1,8 @@
 package ai.lzy.servant.commands;
 
 import ai.lzy.model.JsonUtils;
+import ai.lzy.model.grpc.ClientHeaderInterceptor;
+import ai.lzy.model.grpc.GrpcHeaders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -95,7 +97,12 @@ public class Run implements LzyCommand {
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        channelManager = LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel);
+        channelManager = LzyChannelManagerGrpc
+            .newBlockingStub(channelManagerChannel)
+            .withInterceptors(ClientHeaderInterceptor.header(
+                GrpcHeaders.AUTHORIZATION,
+                auth.getUser()::getToken
+            ));
 
         final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
         JsonFormat.parser().merge(System.getenv("ZYGOTE"), builder);

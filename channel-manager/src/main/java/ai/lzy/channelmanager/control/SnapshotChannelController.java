@@ -93,7 +93,13 @@ public class SnapshotChannelController implements ChannelController {
                     return;
                 }
                 if (status == Status.COMPLETED) {
-                    slot.connect(new SlotInstance(null, null, channelGraph.owner().id(), storageURI));
+                    final SlotInstance slotInstance = slot.slotInstance();
+                    slot.connect(new SlotInstance(
+                        slotInstance.spec(),
+                        "unknown_snapshot_task_id",
+                        channelGraph.owner().id(),
+                        storageURI)
+                    );
                 }
                 channelGraph.addReceiver(slot);
             }
@@ -116,7 +122,11 @@ public class SnapshotChannelController implements ChannelController {
             case OUTPUT -> {
                 if (status == Status.COMPLETED) {
                     channelGraph.receivers().forEach(
-                        s -> s.connect(new SlotInstance(null, null, channelGraph.owner().id(), storageURI))
+                        s -> s.connect(new SlotInstance(
+                            slot.slotSpec(),
+                            "unknown_snapshot_task_id",
+                            channelGraph.owner().id(),
+                            storageURI))
                     );
                     channelGraph.removeSender(slot);
                 } else {  // Some error in sender, entry is not finished, destroying all receivers

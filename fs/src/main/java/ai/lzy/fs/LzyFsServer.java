@@ -1,9 +1,15 @@
 package ai.lzy.fs;
 
 import ai.lzy.model.*;
+import ai.lzy.model.grpc.ClientHeaderInterceptor;
+import ai.lzy.model.grpc.GrpcHeaders;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.jsonwebtoken.Jwts;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.SystemUtils;
@@ -90,7 +96,14 @@ public final class LzyFsServer {
             .enableRetry(LzyChannelManagerGrpc.SERVICE_NAME)
             .build();
         slotsManager = new SlotsManager(
-            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),
+            LzyChannelManagerGrpc
+                .newBlockingStub(channelManagerChannel)
+                .withInterceptors(ClientHeaderInterceptor.header(
+                    GrpcHeaders.AUTHORIZATION,
+                    () -> auth.hasUser()
+                        ? auth.getUser().getToken()
+                        : generateJwtServantToken(auth.getTask().getServantId())
+                )),
             selfUri
         );
 
@@ -121,6 +134,16 @@ public final class LzyFsServer {
         }
 
         LOG.info("LzyFs started on {}.", selfUri);
+    }
+
+    private String generateJwtServantToken(String servantId) {
+        final Instant now = Instant.now();
+        return Jwts.builder()
+            .setIssuedAt(Date.from(now))
+            .setNotBefore(Date.from(now))
+            .setExpiration(Date.from(now.plusSeconds(Duration.ofDays(7).toSeconds())))
+            .setIssuer(servantId)
+            .compact();
     }
 
     public Path getMountPoint() {

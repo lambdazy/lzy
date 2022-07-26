@@ -134,7 +134,7 @@ public final class Channel implements LzyCommand {
                         .setChannelSpec(channelSpecBuilder.build())
                         .build());
 
-                System.out.println(channelCreateResponse);
+                System.out.println(JsonUtils.printRequest(channelCreateResponse));
             }
             case "status" -> {
                 if (channelName == null) {

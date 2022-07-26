@@ -8,7 +8,7 @@ public class TokenParser {
 
     private static final Pattern JWT_HEADER_PATTERN = Pattern.compile("^Bearer +[^ ]");
     private static final Pattern JWT_TOKEN_PATTERN = Pattern.compile(
-            "^[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+");
+            "^[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]*");
     private static final Pattern INTERNAL_HEADER_PATTERN = Pattern.compile("^Internal +[^ ]");
     private static final Pattern INTERNAL_TOKEN_PATTERN = Pattern.compile(
             "^[A-Za-z0-9-._~+\\/]+");

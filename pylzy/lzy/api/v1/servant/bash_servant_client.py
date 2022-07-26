@@ -186,7 +186,7 @@ class BashServantClient(ServantClient):
         command.extend(["-c", data_scheme_file])
 
         result = exec_bash(*command)
-        channel_id = json.loads(result)['id']
+        channel_id = json.loads(result)['channelId']
 
         return Channel(channel_id, name, data_schema, spec)
 

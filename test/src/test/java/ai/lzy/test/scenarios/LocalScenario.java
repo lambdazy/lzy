@@ -30,6 +30,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected ChannelManagerContext channelManagerContext;
     protected S3Mock s3Mock;
     protected LzyTerminalTestContext.Terminal terminal;
+    protected JwtCredentials.Keys terminalKeys;
 
     @Before
     public void setUp() {
@@ -39,6 +40,12 @@ public abstract class LocalScenario extends LzyBaseTest {
     public void setUp(LzyServerTestContext.LocalServantAllocatorType servantAllocatorType) {
         createResourcesFolder();
         createServantLzyFolder();
+
+        try {
+            terminalKeys = JwtCredentials.generateRsaKeys();
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
         iamContext = new IAMThreadContext();
         iamContext.init();
@@ -83,12 +90,6 @@ public abstract class LocalScenario extends LzyBaseTest {
     }
 
     public void startTerminalWithDefaultConfig() {
-        final JwtCredentials.Keys keys;
-        try {
-            keys = JwtCredentials.generateRsaKeys();
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
         terminal = terminalContext.startTerminalAtPathAndPort(
             Config.LZY_MOUNT,
             Config.SERVANT_PORT,
@@ -97,7 +98,7 @@ public abstract class LocalScenario extends LzyBaseTest {
             kharonContext.channelManagerProxyAddress(),
             Config.DEBUG_PORT,
             terminalContext.TEST_USER,
-            keys.privateKeyPath().toString());
+            terminalKeys.privateKeyPath().toString());
         Assert.assertTrue(terminal.waitForStatus(
             AgentStatus.EXECUTING,
             Config.TIMEOUT_SEC,

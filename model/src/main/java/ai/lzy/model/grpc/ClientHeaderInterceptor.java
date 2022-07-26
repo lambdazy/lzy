@@ -21,7 +21,6 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
     public ClientHeaderInterceptor(Metadata.Key<T> key, Supplier<T> value) {
         this.key = key;
         this.value = value;
-        LOG.info("Constructor key={} value={}", key, value.get());
     }
 
     @Override

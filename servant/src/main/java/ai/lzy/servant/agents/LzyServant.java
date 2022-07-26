@@ -215,12 +215,12 @@ public class LzyServant implements Closeable {
 
         @Override
         public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
+            waitForStart();
             if (portal.isActive() || agent.getStatus() != AgentStatus.REGISTERED) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
 
-            waitForStart();
             context.onProgress(progress -> {
                 responseObserver.onNext(progress);
                 if (progress.getStatusCase() == Servant.ServantProgress.StatusCase.CONCLUDED) {
@@ -265,12 +265,7 @@ public class LzyServant implements Closeable {
                     entry -> {
                         LzySlot slot = context.getOrCreateSlot(tid, entry.slot(), entry.binding());
                         // TODO: It will be removed after creating Portal
-                        final String channelName;
-                        if (entry.binding().startsWith("channel:")) {
-                            channelName = entry.binding().substring("channel:".length());
-                        } else {
-                            channelName = entry.binding();
-                        }
+                        final String channelName = entry.binding();
                         if (channelName.startsWith("snapshot://") && slot instanceof LzyOutputSlot) {
                             final URI channelUri = URI.create(channelName);
                             String snapshotId = "snapshot://" + channelUri.getHost();
