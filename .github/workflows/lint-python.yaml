@@ -9,6 +9,9 @@ on:
 jobs:
   mypy:
     runs-on: self-hosted
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
         with:
