@@ -49,7 +49,9 @@ public class KafkaLogsConfiguration extends YamlConfiguration {
                 // This catch is to avoid this bug in log4j: https://issues.apache.org/jira/browse/LOG4J2-2375
                 // Without it server will fall with exception.
                 // You must call LoggerContext().reconfigure() after this exception to enable kafka logs.
-                System.out.println("NPE while configuring kafka logs");
+                System.err.println("NPE while configuring kafka logs");
+            } catch (Exception e) {
+                System.err.println("Exception while configuring kafka logs");
             }
         }
     }
