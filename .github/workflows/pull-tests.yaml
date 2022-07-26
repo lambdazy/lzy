@@ -26,7 +26,7 @@ jobs:
       - name: 'python-test'
         timeout-minutes: 5
         run: |
-          cd pylzy/ && ./gen_proto.sh && ./gen_bet_proto.sh && ./run_tests.sh && ./clean.sh && cd ..
+          cd pylzy/ && ./gen_proto.sh && ./run_tests.sh && ./clean.sh && cd ..
 
       - name: 'install python requirements'
         run: |
@@ -35,7 +35,7 @@ jobs:
       - name: 'install pylzy'
         run: |
           cd pylzy/
-          ./gen_proto.sh && ./gen_bet_proto.sh
+          ./gen_proto.sh
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
           cd ..
 
