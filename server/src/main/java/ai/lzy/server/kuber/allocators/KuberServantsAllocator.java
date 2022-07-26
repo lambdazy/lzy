@@ -18,12 +18,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.graph.Provisioning;
 
+import javax.print.attribute.standard.MediaSize;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static ai.lzy.server.kuber.KuberUtils.kuberValidName;
+import static ai.lzy.server.kuber.KuberUtils.listPods;
 
 @Singleton
 @Requires(property = "server.kuberAllocator.enabled", value = "true")
@@ -77,51 +79,19 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         }
         LOG.info("Created servant pod in Kuber: {}", createdServantPod);
         servantPods.put(servantId, createdServantPod);
-
         Objects.requireNonNull(createdServantPod.getMetadata());
         String servantPodName = createdServantPod.getMetadata().getName();
-        int tryCount = 0;
-        boolean createdLockPod = false;
-        while (true) {
-            final V1PodList listNamespacedPod;
-            try {
-                listNamespacedPod = api.listNamespacedPod(
-                    NAMESPACE,
-                    null,
-                    null,
-                    null,
-                    null,
-                    "app=lzy-servant",
-                    Integer.MAX_VALUE,
-                    null,
-                    null,
-                    null,
-                    Boolean.FALSE
-                );
-            } catch (ApiException e) {
-                throw new RuntimeException(String.format(
-                    "Exception while listing pod in kuber "
-                            + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
-                    e,
-                    e.getMessage(),
-                    e.getCode(),
-                    e.getResponseBody(),
-                    Arrays.stream(e.getStackTrace())
-                        .map(StackTraceElement::toString)
-                        .collect(Collectors.joining(","))
-                ));
-            }
-            createdServantPod = KuberUtils.findPodByName(listNamespacedPod, servantPodName).orElseThrow(
-                    () -> new RuntimeException("Didn't find requested servant pod in kuber: " + servantPodName)
-            );
-            if (!"Pending".equals(Objects.requireNonNull(createdServantPod.getStatus()).getPhase())) {
-                break;
-            } else {
-                tryCount++;
-                if (tryCount > 5 && !createdLockPod) {
-                    lockNewNodePerSession(sessionId, servantId, provisioning);
-                    createdLockPod = true;
-                }
+
+        var servantPods = listPods(api, NAMESPACE, "app=lzy-servant");
+        createdServantPod = KuberUtils.findPodByName(servantPods, servantPodName).orElseThrow(
+                () -> new RuntimeException("Didn't find requested servant pod in kuber: " + servantPodName)
+        );
+        if ("Pending".equals(Objects.requireNonNull(createdServantPod.getStatus()).getPhase())) {
+            // TODO: think about order of these requests
+            servantPods = listPods(api, NAMESPACE, "app=lzy-servant");
+            var lockPods = listPods(api, NAMESPACE, "app=servant-lock");
+            if (servantPods.getItems().size() < lockPods.getItems().size()) {
+                lockNewNodePerSession(sessionId, servantId, provisioning);
             }
         }
     }
@@ -169,8 +139,9 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         } catch (ApiException e) {
             throw new RuntimeException(
                 String.format(
-                    "Exception while listing servant lock pods in kuber "
+                    "Exception while listing servant lock pods for session %s in kuber "
                         + "exception=%s, message=%s, errorCode=%d, responseBody=%s, stackTrace=%s",
+                    sessionId,
                     e,
                     e.getMessage(),
                     e.getCode(),
