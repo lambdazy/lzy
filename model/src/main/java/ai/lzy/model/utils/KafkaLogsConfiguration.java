@@ -1,5 +1,7 @@
 package ai.lzy.model.utils;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.mom.kafka.KafkaAppender;
@@ -10,6 +12,8 @@ import org.apache.logging.log4j.core.config.yaml.YamlConfiguration;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 
 public class KafkaLogsConfiguration extends YamlConfiguration {
+    private static final Logger LOG = LogManager.getLogger(KafkaLogsConfiguration.class);
+
     private final boolean kafkaEnabled;
     private final String serverHost;
     private final String pattern;
@@ -22,7 +26,8 @@ public class KafkaLogsConfiguration extends YamlConfiguration {
         this.serverHost = host;
         this.kafkaEnabled = enabled;
         this.topic = topic;
-        System.out.println("KafkaLogsConfiguration::constructor "
+
+        LOG.info("KafkaLogsConfiguration::constructor "
                            + "pattern=" + pattern + ", "
                            + "serverHost=" + host + ", "
                            + "kafkaEnabled=" + enabled + ", "
@@ -54,9 +59,9 @@ public class KafkaLogsConfiguration extends YamlConfiguration {
                 // This catch is to avoid this bug in log4j: https://issues.apache.org/jira/browse/LOG4J2-2375
                 // Without it server will fall with exception.
                 // You must call LoggerContext().reconfigure() after this exception to enable kafka logs.
-                System.out.println("NPE while configuring kafka logs");
+                LOG.error("NPE while configuring kafka logs");
             } catch (Exception e) {
-                System.out.println("Exception while configuring kafka logs");
+                LOG.error("Exception while configuring kafka logs");
             }
         }
     }
