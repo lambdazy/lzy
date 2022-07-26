@@ -5,6 +5,7 @@ import ai.lzy.servant.agents.AgentStatus;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class PyApiTest extends LocalScenario {
@@ -46,6 +47,7 @@ public class PyApiTest extends LocalScenario {
         evalAndAssertScenarioResult(terminal, "env_fail");
     }
 
+    @Ignore
     @Test
     public void testCache() {
         evalAndAssertScenarioResult(terminal, "test_cache");
