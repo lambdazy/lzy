@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, List, Type
 
-from lzy.proto.bet.priv.v2 import Whiteboard
+from ai.lzy.v1.whiteboard_pb2 import Whiteboard
 
 
 # class WhiteboardFieldStatus(Enum):

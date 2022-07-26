@@ -10,24 +10,18 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 from lzy.api.v2.servant.model.slot import file_slot_t
 
-from ai.lzy.v1 import (
-    EnvSpec,
-    ExecutionDescription,
-    Provisioning,
-    Slot,
-    SlotDirection,
-    Zygote,
-)
+from ai.lzy.v1.zygote_pb2 import EnvSpec, Provisioning, Slot, _SLOT_DIRECTION, Zygote
+from ai.lzy.v1.whiteboard_pb2 import ExecutionDescription
 
 
 def send_local_slots_to_s3(signature: FuncSignature[T]) -> Tuple[List[Slot], Slot]:
     arg_slots: List[Slot] = [
-        file_slot_t(Path(signature.name) / name, SlotDirection.INPUT, type_)
+        file_slot_t(Path(signature.name) / name, _SLOT_DIRECTION.INPUT, type_)
         for name, type_ in signature.input_types.items()
     ]
 
     return_slot: Slot = file_slot_t(
-        Path("fnc_name") / "return", SlotDirection.OUTPUT, signature.output_type
+        Path("fnc_name") / "return", _SLOT_DIRECTION.OUTPUT, signature.output_type
     )
     return arg_slots, return_slot
 
@@ -63,7 +57,10 @@ def python_func_zygote(
     execution: Optional[ExecutionDescription] = None,
 ) -> Zygote:
     fuze = generate_fuze(sign, serializer, execution)
-    arg_slots, return_slot = create_slots(sign)
+    # TODO[ottergottaott]: Create slots properly
+    # arg_slots, return_slot = create_slots(sign)
+    raise NotImplementedError("")
+    arg_slots, return_slot = (), None
     return Zygote(
         env=env,
         provisioning=provisioning,

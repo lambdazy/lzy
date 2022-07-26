@@ -3,7 +3,10 @@ from typing import List
 from google.protobuf.empty_pb2 import Empty
 from grpclib.client import Channel
 
-from ai.lzy.v1 import (
+
+from ai.lzy.v1.portal_grpc import LzyPortalStub
+from ai.lzy.v1.zygote_pb2 import Slot
+from ai.lzy.v1.portal_pb2 import (
     OpenSlotsRequest,
     OpenSlotsResponse,
     PortalSlotDesc,
@@ -12,9 +15,7 @@ from ai.lzy.v1 import (
     SaveSnapshotSlotResponse,
     StartPortalRequest,
     StartPortalResponse,
-    Slot,
 )
-from ai.lzy.v1.portal_grpc import LzyPortalStub
 
 
 class Portal:
@@ -25,12 +26,13 @@ class Portal:
         self,
         stdout_channel_id: str,
         stderr_channel_id: str,
-    ):
-        start_request = StartPortalRequest(
-            stdout_channel_id,
-            stderr_channel_id,
+    ) -> StartPortalResponse:
+        return await self.stub.Start(
+            StartPortalRequest(
+                stdoutChannelId=stdout_channel_id,
+                stderrChannelId=stderr_channel_id,
+            )
         )
-        return await self.stub.Start(start_request)
 
     async def stop(self):
         await self.stub.Stop(Empty)
@@ -39,7 +41,7 @@ class Portal:
         return await self.stub.Status(Empty)
 
     async def open_slots(self, slots: List[PortalSlotDesc]):
-        return await self.stub.OpenSlots(OpenSlotsRequest(slots))
+        return await self.stub.OpenSlots(OpenSlotsRequest(slots=slots))
 
     async def save_snapshot_slot(
         self, save_request: SaveSnapshotSlotRequest

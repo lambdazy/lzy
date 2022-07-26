@@ -15,6 +15,7 @@ from typing import (
     Union,
     cast,
     get_type_hints,
+    TYPE_CHECKING,
 )
 from zipfile import ZipFile
 
@@ -22,7 +23,10 @@ from zipfile import ZipFile
 from lzy._proxy import proxy
 from lzy._proxy.result import Just, Nothing, Result
 from lzy.api.v2.servant.model.signatures import CallSignature, FuncSignature
-from lzy.api.v2.api import LzyWorkflow, LzyCall
+from lzy.api.v2.proxy_adapter import is_lzy_proxy
+
+if TYPE_CHECKING:
+    from lzy.api.v2.api import LzyWorkflow, LzyCall
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -89,7 +93,7 @@ def infer_call_signature(
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
         types_mapping[name] = (
-            arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
+            arg.lzy_call._op.output_type if is_lzy_proxy(arg) else type(arg)
         )
 
     generated_names = []
@@ -98,7 +102,7 @@ def infer_call_signature(
         generated_names.append(name)
         # noinspection PyProtectedMember
         types_mapping[name] = (
-            arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
+            arg.lzy_call._op.output_type if is_lzy_proxy(arg) else type(arg)
         )
 
     arg_names = tuple(argspec.args[: len(args)] + generated_names)

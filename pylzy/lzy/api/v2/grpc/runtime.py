@@ -5,28 +5,24 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from lzy.api.v2.api import LzyCall
-from lzy.api.v2.api.graph import Graph
 from lzy.api.v2.api.runtime.runtime import Runtime
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
-from lzy.api.v2.grpc.channel_manager import ChannelManager
 from lzy.api.v2.grpc.graph_executor_client import GraphExecutorClient
-from lzy.api.v2.grpc.graph_executor_client import (
-    GrpcGraphExecutorClient,
-)
 
-from lzy.proto.bet.priv.v2.__init__ import (
-    Binding,
-    SlotDirection,
-    Slot,
-)
-
-from lzy.api.v2.utils import is_lazy_proxy, materialized, unwrap
+from lzy.api.v2.utils import unwrap
+from lzy.api.v2.proxy_adapter import is_lzy_proxy, materialized
 from lzy.serialization.serializer import Serializer
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient, from_credentials
 
+from lzy.api.v2.servant.model.slot import file_slot_t
 
-from lzy.proto.bet.priv.v2.__init__ import TaskSpec, BaseEnv, Env, AuxEnv
+
+# model
+from ai.lzy.v1.channel_pb2 import Binding
+from ai.lzy.v1.task_pb2 import TaskSpec
+from ai.lzy.v1.zygote_pb2 import Slot, _SLOT_DIRECTION
+from ai.lzy.v1.zygote_pb2 import EnvSpec, AuxEnv, BaseEnv
 
 
 def _generate_channel_name(call_id: str):
@@ -42,7 +38,7 @@ def _get_slot_path(slot: Slot) -> Path:
 def _get_or_generate_call_ids(call) -> Dict[str, str]:
     arg_name_to_call_id = {}
     for name, arg in call.named_arguments():
-        if is_lazy_proxy(arg):
+        if is_lzy_proxy(arg):
             arg_name_to_call_id[name] = arg.lzy_call.id
         else:
             arg_name_to_call_id[name] = str(uuid.uuid4())
@@ -54,12 +50,10 @@ class GrpcRuntime(Runtime):
         self,
         storage_client: StorageClient,
         bucket: str,
-        channel_manager: ChannelManager,
-        graph_executor_client: GraphExecutorClient = GrpcGraphExecutorClient(),
+        graph_executor_client: GraphExecutorClient,
     ):
         self._storage_client = storage_client
         self._bucket = bucket
-        self._channel_manager = channel_manager
         self._graph_executor_client = graph_executor_client
 
     @classmethod
@@ -77,16 +71,16 @@ class GrpcRuntime(Runtime):
                 uri = self._storage_client.write(self._bucket, entry_id, read_file)
                 # TODO: make a call to snapshot component to store entry_id and uri
 
-    def _load_args(self, graph: Graph, serializer: Serializer):
+    def _load_args(self, graph: List[LzyCall], serializer: Serializer):
         for call in graph.calls():
             for name, arg in call.named_arguments():
-                if not is_lazy_proxy(arg):
+                if not is_lzy_proxy(arg):
                     entry_id = str(uuid.uuid4())
                     self._load_arg(entry_id, arg, serializer)
 
-    def _env(self, call: LzyCall) -> Env:
+    def _env(self, call: LzyCall) -> EnvSpec:
         base_env: BaseEnv = unwrap(call.op.env.base_env)
-        env = Env(base_env=base_env)
+        env = EnvSpec(baseEnv=base_env)
         aux_env: Optional[AuxEnv] = unwrap(call.op.env.aux_env)
         if aux_env is not None:
             env.aux_env = aux_env
@@ -127,12 +121,12 @@ class GrpcRuntime(Runtime):
         serializer: Serializer,
     ):
         for name, arg in call.named_arguments():
-            if is_lazy_proxy(arg):
-                continue
+            if is_lzy_proxy(arg):
+                continu
             call_id = arg_name_to_call_id[name]
-            slot = create_slot(
+            slot = file_slot_t(
                 os.path.sep.join(("tasks", "snapshot", snapshot_id, call_id)),
-                SlotDirection.OUTPUT,
+                _SLOT_DIRECTION.OUTPUT,
             )
             self._channel_manager.touch(
                 slot, self._channel_manager.snapshot_channel(snapshot_id, call_id)
@@ -158,15 +152,15 @@ class GrpcRuntime(Runtime):
     ):
         bindings: List[Binding] = []
         for name, arg in call.named_arguments():
-            slot: Slot = zygote.slot(name)
-            if is_lazy_proxy(arg) and not materialized(arg):
+            # slot: Slot = zygote.slot(name)
+            if is_lzy_proxy(arg) and not materialized(arg):
                 call_id = arg.lzy_call.id
             else:
                 call_id = arg_name_to_call_id[name]
             channel = self._channel_manager.snapshot_channel(
                 snapshot_id, _generate_channel_name(call_id)
             )
-            bindings.append(Binding(slot, channel))
+            # bindings.append(Binding(slot, channel))
         return bindings
 
     def _task_spec(
@@ -181,7 +175,7 @@ class GrpcRuntime(Runtime):
         return TaskSpec(call.id, zygote, bindings)
 
     def exec(
-        self, graph: Graph, snapshot: Snapshot, progress: Callable[[], None]
+        self, graph: List[LzyCall], snapshot: Snapshot, progress: Callable[[], None]
     ) -> None:
         raise NotImplementedError()
         # TODO[ottergottaott]: write this part up

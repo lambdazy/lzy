@@ -28,7 +28,7 @@ class LzyWorkflow:
         self._snapshot = self._owner.snapshot_provider.get(
             lzy_mount, self._owner._serializer
         )
-        self._call_queue: List[LzyCall] = []
+        self._call_queue: List["LzyCall"] = []
 
         self._id = str(uuid4())
 
@@ -39,7 +39,7 @@ class LzyWorkflow:
     def snapshot(self) -> Snapshot:
         return self._snapshot
 
-    def register_call(self, call: LzyCall) -> Any:
+    def register_call(self, call: "LzyCall") -> Any:
         self._call_queue.append(call)
         if self._eager:
             self.barrier()

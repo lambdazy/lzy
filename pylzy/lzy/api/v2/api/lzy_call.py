@@ -68,7 +68,7 @@ class LzyCall(Generic[T]):
     def named_arguments(self) -> Iterator[Tuple[str, Any]]:
         return chain(
             # positional arguments
-            zip(self._sign.func.param_names, self._args),
+            zip(self._sign.func.param_names, self._sign.args),
             # named arguments
             self._kwargs.items(),
         )
