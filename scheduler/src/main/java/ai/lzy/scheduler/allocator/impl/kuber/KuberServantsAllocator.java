@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Singleton
-@Requires(property = "scheduler.kuberAllocator.enabled", value = "true")
+@Requires(property = "scheduler.kuber-allocator.enabled", value = "true")
 public class KuberServantsAllocator implements ServantsAllocator {
     private static final Logger LOG = LogManager.getLogger(KuberServantsAllocator.class);
     private static final String NAMESPACE = "default";
