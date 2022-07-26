@@ -36,7 +36,7 @@ public class OutputSlotMock implements LzyOutputSlot {
     @Override
     public SlotInstance instance() {
         try {
-            return new SlotInstance(definition(), "taskId", "channelId", new URI("scheme://", "host", "path", null));
+            return new SlotInstance(definition(), "taskId", "channelId", new URI("scheme", "host", "/path", null));
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }

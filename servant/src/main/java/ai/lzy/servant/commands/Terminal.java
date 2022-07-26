@@ -54,6 +54,7 @@ public class Terminal implements LzyCommand {
             .serverAddress(URI.create(serverAddress))
             .whiteboardAddress(URI.create(commandLine.getOptionValue("w")))
             .user(System.getenv("USER"))
+            .scheme("terminal")
             .agentHost(host)
             .agentPort(port)
             .fsPort(fsPort)

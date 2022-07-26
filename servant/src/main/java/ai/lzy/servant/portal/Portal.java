@@ -110,11 +110,17 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
 
             final Slot slot = GrpcConverter.from(slotDesc.getSlot());
+            final String taskId = switch (slotDesc.getKindCase()) {
+                case STDERR -> slotDesc.getStderr().getTaskId();
+                case STDOUT -> slotDesc.getStdout().getTaskId();
+                case SNAPSHOT -> portalTaskId;
+                default -> throw new RuntimeException("unknown slot kind");
+            };
             final SlotInstance slotInstance = new SlotInstance(
                 slot,
-                portalTaskId,
+                taskId,
                 slotDesc.getChannelId(),
-                fs.getSlotsManager().resolveSlotUri(portalTaskId, slot.name())
+                fs.getSlotsManager().resolveSlotUri(taskId, slot.name())
             );
 
             if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot)
@@ -173,7 +179,6 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
                 case STDOUT, STDERR -> {
                     final boolean stdout = slotDesc.getKindCase() == PortalSlotDesc.KindCase.STDOUT;
-                    var taskId = stdout ? slotDesc.getStdout().getTaskId() : slotDesc.getStderr().getTaskId();
                     var lzySlot = (stdout ? stdoutSlot : stderrSlot).attach(slotInstance);
                     if (lzySlot == null) {
                         return replyError.apply("Slot " + slot.name() + " from task " + taskId + " already exists");
@@ -246,7 +251,6 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
         LOG.info("Connect portal slot, taskId: {}, slotName: {}, remoteSlotUri: {}",
             from.taskId(), from.name(), to.uri());
 
-        assert from.taskId().isEmpty() : from.taskId();
         var slotName = from.name();
         var remoteSlotUri = to.uri();
 
@@ -440,8 +444,6 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                                          StreamObserver<LzyFsApi.SlotCommandStatus> response) {
         final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
         LOG.info("Destroy portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
-
-        assert slotInstance.taskId().isEmpty() : slotInstance.taskId();
         var slotName = slotInstance.name();
 
         boolean done = false;

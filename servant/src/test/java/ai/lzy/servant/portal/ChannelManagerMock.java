@@ -7,21 +7,55 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.servant.agents.LzyServant;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsGrpc;
 import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerInterceptors;
 import io.grpc.Status;
+import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.context.ApplicationContext;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
+    private static final Logger LOG = LogManager.getLogger(ChannelManagerMock.class);
+
+    final int port;
+    final ApplicationContext ctx;
+    final Server server;
+
+    public ChannelManagerMock() {
+        port = Utils.rollPort();
+        Map<String, Object> properties = Map.of("channel-manager.port", port);
+        ctx = ApplicationContext.run(properties);
+        server = NettyServerBuilder.forPort(port)
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .addService(ServerInterceptors.intercept(this))
+            .build();
+    }
+
+    public void start() throws IOException {
+        server.start();
+    }
+
+    public void stop() throws InterruptedException {
+        server.shutdown();
+        server.awaitTermination();
+    }
+
     private static class Endpoint implements Closeable {
         private final LzyFsGrpc.LzyFsBlockingStub fs;
         private final ManagedChannel channel;
@@ -29,7 +63,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
 
         private Endpoint(SlotInstance slotInstance) {
             this.slotInstance = slotInstance;
-            channel = ChannelBuilder.forAddress(slotInstance.uri().toString().substring("fs://".length()))
+            channel = ChannelBuilder.forAddress(slotInstance.uri().getHost() + ":" + slotInstance.uri().getPort())
                 .usePlaintext()
                 .enableRetry(LzyFsGrpc.SERVICE_NAME)
                 .build();
@@ -90,6 +124,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     @Override
     public void create(ChannelManager.ChannelCreateRequest request,
                        StreamObserver<ChannelManager.ChannelCreateResponse> response) {
+        LOG.info("create {}", JsonUtils.printRequest(request));
         if (!request.getChannelSpec().hasDirect()) {
             response.onError(INVALID_ARGUMENT.withDescription("Not direct channel").asException());
             return;
@@ -112,6 +147,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     @Override
     public void destroy(ChannelManager.ChannelDestroyRequest request,
                         StreamObserver<ChannelManager.ChannelDestroyResponse> response) {
+        LOG.info("destroy {}", JsonUtils.printRequest(request));
         var channel = directChannels.get(request.getChannelId());
         if (channel == null) {
             response.onError(Status.NOT_FOUND.asException());
@@ -147,6 +183,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     @Override
     public void bind(ChannelManager.SlotAttach request,
                      StreamObserver<ChannelManager.SlotAttachStatus> responseObserver) {
+        LOG.info("bind {}", JsonUtils.printRequest(request));
         final String channelName = request.getSlotInstance().getChannelId();
         final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
 
@@ -185,11 +222,18 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
                 throw new RuntimeException("slot connect failed: " + JsonUtils.printSingleLine(status));
             }
         }
+
+        responseObserver.onNext(ChannelManager.SlotAttachStatus.getDefaultInstance());
+        responseObserver.onCompleted();
     }
 
     @Override
     public void unbind(ChannelManager.SlotDetach request,
                        StreamObserver<ChannelManager.SlotDetachStatus> response) {
         response.onError(INVALID_ARGUMENT.withDescription("Unknown command").asException());
+    }
+
+    public int port() {
+        return port;
     }
 }

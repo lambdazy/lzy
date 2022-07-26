@@ -71,6 +71,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             .whiteboardAddress(URI.create(serverAddress))
             .channelManagerAddress(URI.create(channelManagerAddress))
             .user(user)
+            .scheme("terminal")
             .agentHost("localhost")
             .agentPort(port)
             .fsPort(fsPort)

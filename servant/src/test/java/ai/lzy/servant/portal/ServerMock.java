@@ -98,11 +98,11 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
     public void registerServant(Lzy.AttachServant request, StreamObserver<Lzy.AttachStatus> responseObserver) {
         System.out.println("register servant: " + JsonUtils.printSingleLine(request));
 
-        responseObserver.onNext(Lzy.AttachStatus.getDefaultInstance());
-        responseObserver.onCompleted();
-
         var servantHandler = new ServantHandler(request);
         servantHandlers.put(request.getServantId(), servantHandler);
+
+        responseObserver.onNext(Lzy.AttachStatus.getDefaultInstance());
+        responseObserver.onCompleted();
 
         servantHandler.start();
     }

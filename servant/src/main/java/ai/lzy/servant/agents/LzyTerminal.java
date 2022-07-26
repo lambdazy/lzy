@@ -92,8 +92,8 @@ public class LzyTerminal implements Closeable {
     }
 
     public void awaitTermination() throws InterruptedException, IOException {
-        channel.awaitTermination();
         agent.awaitTermination();
+        channel.awaitTermination(10, TimeUnit.SECONDS);
     }
 
     private class CommandHandler {
