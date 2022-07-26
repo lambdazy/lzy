@@ -2,13 +2,14 @@ import functools
 import inspect
 import sys
 import uuid
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, Optional
 
 from lzy._proxy.result import Nothing
+from lzy.env.env import Env
 from lzy.api.v2.api.lzy_call import LzyCall
 from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 from lzy.api.v2.api.provisioning import Gpu, Provisioning
-from lzy.api.v2.utils import infer_call_signature, infer_return_type\
+from lzy.api.v2.utils import infer_call_signature, infer_return_type
 from lzy.api.v2.proxy_adapter import lzy_proxy
 from lzy.api.v2.servant.model.zygote import python_func_zygote
 from lzy.api.v2.api.lzy import Lzy
@@ -19,6 +20,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 import logging
 
 
+# TODO[ottergottaott]:
 def handlers():
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
@@ -41,7 +43,12 @@ init_logger()
 
 
 # pylint: disable=[invalid-name]
-def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
+def op(
+    func: Callable = None,
+    *,
+    gpu: Gpu = None,
+    output_type=None,
+):
     def deco(f):
         """
         Decorator which will try to infer return type of function
@@ -61,7 +68,12 @@ def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
 
         # yep, create lazy constructor and return it
         # instead of function
-        return create_lazy_constructor(f, output_type, provisioning)
+        return create_lazy_constructor(
+            f,
+            output_type,
+            provisioning,
+            LzyWorkflow.get_active(),
+        )
 
     provisioning = Provisioning(gpu)
 
@@ -72,12 +84,14 @@ def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
 
 
 def create_lazy_constructor(
-    f: Callable[..., Any], output_type: type, provisioning: Provisioning
+    f: Callable[..., Any],
+    output_type: type,
+    provisioning: Provisioning,
+    active_wflow: Optional[LzyWorkflow],
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
         # TODO: defaults?
-        active_wflow = LzyWorkflow.get_active()
         if active_wflow is None:
             return f(*args, **kwargs)
 
@@ -87,19 +101,18 @@ def create_lazy_constructor(
         # required modules
         caller_globals = inspect.stack()[1].frame.f_globals
 
-        zygote = python_func_zygote(
-            active_wflow.owner._serializer,
-            signature.func,
-            active_wflow._env_provider.for_op(caller_globals),
-            provisioning,
-        )
+        # form env to recreate remotely
+        env: Env = active_wflow._env_provider.for_op(caller_globals)
 
+        # create
         lzy_call = LzyCall(
-            zygote,
             active_wflow,
             signature,
+            provisioning,
+            env,
             str(uuid.uuid4()),
         )
+        # and register LzyCall
         active_wflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return
@@ -115,8 +128,8 @@ def create_lazy_constructor(
         # >>> False
         if issubclass(output_type, type(None)):
             return None
-        else:
-            return lzy_proxy(lzy_call)
+
+        return lzy_proxy(lzy_call)
 
     return lazy
 

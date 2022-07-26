@@ -183,6 +183,15 @@ class GrpcRuntime(Runtime):
     def exec(
         self, graph: Graph, snapshot: Snapshot, progress: Callable[[], None]
     ) -> None:
+        raise NotImplementedError()
+        # TODO[ottergottaott]: write this part up
+        # zygote = python_func_zygote(
+        #     active_wflow.owner._serializer,
+        #     signature.func,
+        #     active_wflow._env_provider.for_op(caller_globals),
+        #     provisioning,
+        # )
+
         try:
             task_specs: List[TaskSpec] = []
             for call in graph.calls():

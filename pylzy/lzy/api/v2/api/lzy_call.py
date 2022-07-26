@@ -4,8 +4,9 @@ import typing
 from itertools import chain
 from typing import Any, Dict, Generic, Iterator, Tuple, TypeVar
 
+from lzy.env.env import Env
+from lzy.api.v2.api.provisioning import Provisioning
 from lzy.api.v2.servant.model.signatures import CallSignature
-from lzy.proto.bet.priv.v2 import Zygote
 
 if typing.TYPE_CHECKING:
     from lzy.api.v2.api.lzy_workflow import LzyWorkflow
@@ -16,20 +17,21 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 class LzyCall(Generic[T]):
     def __init__(
         self,
-        zygote: Zygote,
         parent_wflow: LzyWorkflow,
         sign: CallSignature[T],
+        provisioning: Provisioning,
+        env: Env,
         entry_id: str,
     ):
         self._id = str(uuid.uuid4())
-        self._zygote = zygote
-        self._sign = sign
-        self._entry_id = entry_id
         self._wflow = parent_wflow
+        self._sign = sign
+        self._provisioning = provisioning
+        self._entry_id = entry_id
 
     @property
-    def zygote(self) -> Zygote:
-        return self._zygote
+    def provisioning(self) -> Provisioning:
+        return self._provisioning
 
     @property
     def parent_wflow(self) -> LzyWorkflow:
