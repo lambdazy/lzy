@@ -1,20 +1,16 @@
 package ai.lzy.scheduler.test.mocks;
 
-import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
-import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
-import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
-import ai.lzy.scheduler.db.ServantDao;
+import io.micronaut.context.annotation.Primary;
 
-import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.function.BiConsumer;
 
 @Singleton
+@Primary // for tests only
 public class AllocatorMock implements ServantsAllocator {
     private final List<OnAllocatedRequest> onAllocate = new ArrayList<>();
     private final List<BiConsumer<String, String>> onDestroy = new ArrayList<>();

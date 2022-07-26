@@ -8,14 +8,15 @@ scheduler:
   provisioning-limits:
     a: 1
     b: 10
+    portal: 1000
 
-  whiteboard-uri: localhost:1234
-  scheduler-uri: localhost:1234
+  whiteboard-address: localhost:1234
+  scheduler-address: localhost:2392  # ???
 
   thread-allocator:
-    enabled: false
-    file-path: ""
-    servant-class-name: ""
+    enabled: true
+    servant-jar-file: ""
+    servant-class-name: "ai.lzy.servant.BashApi"
 
   docker-allocator:
     enabled: false

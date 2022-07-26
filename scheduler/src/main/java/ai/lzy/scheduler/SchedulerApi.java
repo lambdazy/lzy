@@ -35,6 +35,8 @@ public class SchedulerApi {
         server = builder.build();
 
 
+        LOG.info("Starting scheduler on port {}...", config.port());
+
         try {
             server.start();
         } catch (IOException e) {
@@ -44,6 +46,7 @@ public class SchedulerApi {
     }
 
     public void close() {
+        LOG.info("Shutdown scheduler...");
         server.shutdown();
         impl.close();
     }

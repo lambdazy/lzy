@@ -108,9 +108,9 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         ).addEnvItem(
             new V1EnvVar().name("SERVANT_TOKEN").value(token)
         ).addEnvItem(
-            new V1EnvVar().name("LZY_SERVER_URI").value(serverConfig.schedulerUri().toString())
+            new V1EnvVar().name("LZY_SERVER_URI").value("http://" + serverConfig.schedulerAddress())
         ).addEnvItem(
-            new V1EnvVar().name("LZYWHITEBOARD").value(serverConfig.whiteboardUri().toString())
+            new V1EnvVar().name("LZYWHITEBOARD").value("http://" + serverConfig.whiteboardAddress())
         ).addEnvItem(
             new V1EnvVar().name("BASE_ENV_DEFAULT_IMAGE").value(serverConfig.baseEnvDefaultImage())
         ).addEnvItem(

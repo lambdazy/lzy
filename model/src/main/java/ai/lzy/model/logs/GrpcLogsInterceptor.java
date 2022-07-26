@@ -1,5 +1,7 @@
 package ai.lzy.model.logs;
 
+import ai.lzy.model.JsonUtils;
+import com.google.protobuf.MessageOrBuilder;
 import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -27,7 +29,8 @@ public class GrpcLogsInterceptor implements ServerInterceptor {
         return new GrpcForwardingServerCallListener<>(call.getMethodDescriptor(), listener) {
             @Override
             public void onMessage(M message) {
-                logger.info("{}::<{}>, request: {}", methodName, callId, message);
+                logger.info("{}::<{}>, request: {}", methodName, callId,
+                    message instanceof MessageOrBuilder msg ? JsonUtils.printSingleLine(msg) : message.toString());
                 super.onMessage(message);
             }
         };
