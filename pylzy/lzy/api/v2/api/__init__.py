@@ -5,7 +5,7 @@ import uuid
 from typing import Any, Callable, TypeVar, Optional
 
 from lzy._proxy.result import Nothing
-from lzy.env.env import Env
+from lzy.env.env import EnvSpec
 from lzy.api.v2.api.lzy_call import LzyCall
 from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 from lzy.api.v2.api.provisioning import Gpu, Provisioning
@@ -102,7 +102,7 @@ def create_lazy_constructor(
         caller_globals = inspect.stack()[1].frame.f_globals
 
         # form env to recreate remotely
-        env: Env = active_wflow._env_provider.for_op(caller_globals)
+        env: EnvSpec = active_wflow._env_provider.for_op(caller_globals)
 
         # create
         lzy_call = LzyCall(
