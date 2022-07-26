@@ -6,7 +6,7 @@ import yaml
 import logging
 from yaml import safe_load
 
-from lzy.api.v2.servant.model.encoding import ENCODING as encoding
+from lzy.api.v2.servant.model import ENCODING as encoding
 from lzy.env.env import *
 from lzy.env.env_provider import EnvProvider
 from lzy.pkg_info import (
@@ -79,7 +79,7 @@ class LzyEnvProvider(EnvProvider):
                 base_env=BaseEnv(name=self._image_name),
                 aux_env=AuxEnv(
                     name=name, conda_yaml=yaml, local_modules_paths=local_modules_paths
-                )
+                ),
             )
 
         # TODO: as usually not good idea to read whole file into memory
@@ -93,5 +93,5 @@ class LzyEnvProvider(EnvProvider):
                     name=data.get("name", name),
                     conda_yaml=yaml_str,
                     local_modules_paths=[],
-                )
+                ),
             )

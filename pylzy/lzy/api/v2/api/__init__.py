@@ -72,7 +72,7 @@ def op(
             f,
             output_type,
             provisioning,
-            LzyWorkflow.get_active(),
+            lambda: LzyWorkflow.get_active(),
         )
 
     provisioning = Provisioning(gpu)
@@ -87,13 +87,15 @@ def create_lazy_constructor(
     f: Callable[..., Any],
     output_type: type,
     provisioning: Provisioning,
-    active_wflow: Optional[LzyWorkflow],
+    wflow_get: Callable[[], Optional[LzyWorkflow]],
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
+        wflow_ = wflow_get()
         # TODO: defaults?
-        if active_wflow is None:
+        if wflow_ is None:
             return f(*args, **kwargs)
+        active_wflow: LzyWorkflow = wflow_
 
         signature = infer_call_signature(f, output_type, *args, **kwargs)
 
@@ -102,7 +104,7 @@ def create_lazy_constructor(
         caller_globals = inspect.stack()[1].frame.f_globals
 
         # form env to recreate remotely
-        env: EnvSpec = active_wflow._env_provider.for_op(caller_globals)
+        env: EnvSpec = active_wflow._env_provider.provide(caller_globals)
 
         # create
         lzy_call = LzyCall(

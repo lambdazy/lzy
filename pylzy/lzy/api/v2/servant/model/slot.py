@@ -3,20 +3,27 @@ from pathlib import Path
 
 import cloudpickle
 
-from lzy.proto.bet.priv.v2 import SlotDirection, DataScheme, Slot, SlotMedia, SchemeType
+
+from ai.lzy.v1.zygote_pb2 import (
+    Slot,
+    DataScheme,
+    _SLOT_MEDIA,
+    _SLOT_DIRECTION,
+    _DATASCHEME,
+)
 
 
-def opposite(direction: SlotDirection):
+def opposite(direction: _SLOT_DIRECTION):
     map_to_opposite = {
-        SlotDirection.INPUT: SlotDirection.OUTPUT,
-        SlotDirection.OUTPUT: SlotDirection.INPUT,
+        _SLOT_DIRECTION.INPUT: _SLOT_DIRECTION.OUTPUT,
+        _SLOT_DIRECTION.OUTPUT: _SLOT_DIRECTION.INPUT,
     }
     return map_to_opposite[direction]
 
 
 def file_slot_t(
     name: Path,
-    direction: SlotDirection,
+    direction: _SLOT_DIRECTION,
     type_: type,
 ) -> Slot:
     return file_slot(name, direction, dump_type(type_))
@@ -24,14 +31,14 @@ def file_slot_t(
 
 def file_slot(
     name: Path,
-    direction: SlotDirection,
-    data_schema: DataScheme,
+    direction: _SLOT_DIRECTION,
+    data_schema: _DATASCHEME,
 ) -> Slot:
     return Slot(
         name=str(name),
-        media=SlotMedia.FILE,
+        media=_SLOT_MEDIA.FILE,
         direction=direction,
-        content_type=data_schema,
+        contentType=data_schema,
     )
 
 
@@ -46,5 +53,5 @@ def unpickle_type(base64_str: str) -> type:
 def dump_type(type_: type) -> DataScheme:
     return DataScheme(
         type=pickle_type(type_),
-        scheme_type=SchemeType.cloudpickle,
+        schemeType=_DATASCHEME.cloudpickle,
     )

@@ -1,8 +1,10 @@
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from lzy.api.v2.api.lzy_call import LzyCall
+if TYPE_CHECKING:
+    from lzy.api.v2.api.lzy_call import LzyCall
 
 from lzy._proxy.automagic import proxy
+
 
 ____lzy_proxied = "__lzy_proxied__"
 
@@ -16,7 +18,7 @@ def materialized(obj: Any) -> bool:
     return obj.__lzy_materialized__  # type: ignore
 
 
-def lzy_proxy(lzy_call: LzyCall):
+def lzy_proxy(lzy_call: "LzyCall"):
     def materialize():
         wflow = lzy_call.parent_wflow
         value = wflow.snapshot().get(lzy_call.entry_id)

@@ -3,24 +3,31 @@ from typing import List, Optional, TYPE_CHECKING, Tuple
 from grpclib.client import Channel
 from uuid import uuid4
 
-from ai.lzy.v1 import SlotToChannelAssignment
-from ai.lzy.v1.graph import (
+
+from lzy.api.v2.proxy_adapter import is_lzy_proxy
+
+from ai.lzy.v1.graph.graph_executor_grpc import GraphExecutorStub
+from ai.lzy.v1.graph.graph_executor_pb2 import (
     ChannelDesc,
     GraphExecutionStatus,
     GraphExecuteRequest,
+    GraphExecuteResponse,
     GraphListRequest,
+    GraphListResponse,
     TaskDesc,
     GraphStatusRequest,
+    GraphStatusResponse,
     GraphStopRequest,
+    GraphStopResponse,
+    SlotToChannelAssignment,
 )
-from ai.lzy.v1.graph.graph_executor_grpc import GraphExecutorStub
+
 
 if TYPE_CHECKING:
     from lzy.api.v2.api.lzy_call import LzyCall
-    from lzy.api.v2.proxy_adapter import is_lzy_proxy
 
 
-def prepare_task(call: LzyCall) -> TaskDesc:
+def prepare_task(call: "LzyCall") -> TaskDesc:
     loc_args, non_loc_args = [], []
     for name, arg in call.named_arguments():
         slot_name = f"{call.description}:{name}"
@@ -41,7 +48,7 @@ def prepare_task(call: LzyCall) -> TaskDesc:
 
 def prepare_tasks_and_channels(
     wflow_id: str,
-    tasks: List[LzyCall],
+    tasks: List["LzyCall"],
 ) -> Tuple[List[TaskDesc], List[ChannelDesc]]:
     tasks = [prepare_task(task) for task in tasks]
     channels = []

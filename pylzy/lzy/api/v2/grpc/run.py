@@ -3,15 +3,11 @@ from typing import Tuple
 import dataclass
 from grpclib.client import Channel
 
-from lzy.proto.bet.priv.v2.__init__ import (
-    Auth,
-    SlotAssignment,
-    TaskProgress,
-    TaskSpec,
-    Zygote,
-)
-from lzy.proto.priv.v2.lzy_fs_grpc import LzyFsStub
-from lzy.proto.priv.v2.lzy_server_grpc import LzyServerStub
+from ai.lzy.v1.auth_pb2 import Auth
+from ai.lzy.v1.task_pb2 import TaskSpec, TaskProgress, SlotAssignment
+from ai.lzy.v1.zygote_pb2 import Zygote
+from ai.lzy.v1.fs_grpc import LzyFsStub
+from ai.lzy.v1.server_grpc import LzyServerStub
 
 
 @dataclass.dataclass
