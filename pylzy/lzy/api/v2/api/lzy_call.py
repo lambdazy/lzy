@@ -4,7 +4,7 @@ import typing
 from itertools import chain
 from typing import Any, Dict, Generic, Iterator, Tuple, TypeVar
 
-from lzy.env.env import Env
+from lzy.env.env import EnvSpec
 from lzy.api.v2.api.provisioning import Provisioning
 from lzy.api.v2.servant.model.signatures import CallSignature
 
@@ -20,18 +20,23 @@ class LzyCall(Generic[T]):
         parent_wflow: LzyWorkflow,
         sign: CallSignature[T],
         provisioning: Provisioning,
-        env: Env,
+        env: EnvSpec,
         entry_id: str,
     ):
         self._id = str(uuid.uuid4())
         self._wflow = parent_wflow
         self._sign = sign
         self._provisioning = provisioning
+        self._env = env
         self._entry_id = entry_id
 
     @property
     def provisioning(self) -> Provisioning:
         return self._provisioning
+
+    @property
+    def env(self) -> EnvSpec:
+        return self._env
 
     @property
     def parent_wflow(self) -> LzyWorkflow:
