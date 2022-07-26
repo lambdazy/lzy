@@ -82,18 +82,20 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         Objects.requireNonNull(createdServantPod.getMetadata());
         String servantPodName = createdServantPod.getMetadata().getName();
 
-        var servantPods = listPods(api, NAMESPACE, "app=lzy-servant,session-id=" + kuberValidName(sessionId));
+        String labelSelector = "session-id=" + kuberValidName(sessionId) + ",type="
+                + Objects.requireNonNull(createdServantPod.getMetadata().getLabels()).get("type");
+        var servantPods = listPods(api, NAMESPACE, "app=lzy-servant," + labelSelector);
         createdServantPod = KuberUtils.findPodByName(servantPods, servantPodName).orElseThrow(
                 () -> new RuntimeException("Didn't find requested servant pod in kuber: " + servantPodName)
         );
         if ("Pending".equals(Objects.requireNonNull(createdServantPod.getStatus()).getPhase())) {
             // TODO: think about order of these requests
-            servantPods = listPods(api, NAMESPACE, "app=lzy-servant,session-id=" + kuberValidName(sessionId));
-            var lockPods = listPods(api, NAMESPACE, "app=servant-lock,session-id=" + kuberValidName(sessionId));
+            servantPods = listPods(api, NAMESPACE, "app=lzy-servant," + labelSelector);
+            var lockPods = listPods(api, NAMESPACE, "app=servant-lock," + labelSelector);
             if (lockPods.getItems().size() < servantPods.getItems().size()) {
                 lockNewNodePerSession(sessionId, servantId, provisioning);
             }
-a            // TODO: think also about deleting excess lock pods (shrink to fit)
+            // TODO: think also about deleting excess lock pods (shrink to fit)
         }
         // TODO: research +- optimal algorithm for locking nodes per user
     }
