@@ -51,7 +51,7 @@ public class SlotSnapshotTest {
         s3Mock.shutdown();
     }
 
-    private SlotInstance slotForName(String name) {
+    private SlotInstance slotForName(String name, String taskId) {
         try {
             return new SlotInstance(new Slot() {
                 @Override
@@ -73,7 +73,7 @@ public class SlotSnapshotTest {
                 public DataSchema contentType() {
                     return null;
                 }
-            }, name + "-task-id", "channelId", new URI("scheme://", "host", "path", null));
+            }, taskId, "channelId", new URI("scheme", "host", "/path", null));
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
@@ -94,11 +94,11 @@ public class SlotSnapshotTest {
     @Test
     public void testMultipleSnapshots() throws IOException {
 
-        final var firstSlot = slotForName("first");
-        final var secondSlot = slotForName("second");
-        final var thirdSlot = slotForName("third");
-        final var fourthSlot = slotForName("fourth");
-        final var fifthSlot = slotForName("fifth");
+        final var firstSlot = slotForName("first", "first-task-id");
+        final var secondSlot = slotForName("second", "first-task-id");
+        final var thirdSlot = slotForName("third", "second-task-id");
+        final var fourthSlot = slotForName("fourth", "second-task-id");
+        final var fifthSlot = slotForName("fifth", "third-task-id");
 
         final SlotSnapshot first = new SlotSnapshotImpl(BUCKET, firstSlot, storage);
         final SlotSnapshot second = new SlotSnapshotImpl(BUCKET, secondSlot, storage);
@@ -151,7 +151,7 @@ public class SlotSnapshotTest {
     public void testWriteAndFinishFromVariousThreads() throws InterruptedException {
         for (int i = 0; i < 10; i++) {
             //Arrange
-            final SlotInstance slot = slotForName("test-slot");
+            final SlotInstance slot = slotForName("test-slot", "test-slot-task-id");
             final SlotSnapshot slotSnapshot = new SlotSnapshotImpl(BUCKET, slot, storage);
             final CountDownLatch writeLatch = new CountDownLatch(1);
             final CountDownLatch finishLatch = new CountDownLatch(1);
