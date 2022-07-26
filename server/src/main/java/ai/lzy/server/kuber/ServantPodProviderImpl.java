@@ -93,6 +93,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         }
         final Map<String, String> nodeSelector = Map.of("type", typeLabelValue);
         podSpec.setNodeSelector(nodeSelector);
+        metadata.putLabelsItem("type", typeLabelValue);
 
         return pod;
     }
@@ -153,6 +154,7 @@ public class ServantPodProviderImpl implements ServantPodProvider {
         }
         final Map<String, String> nodeSelector = Map.of("type", typeLabelValue);
         podSpec.setNodeSelector(nodeSelector);
+        metadata.putLabelsItem("type", typeLabelValue);
 
         V1Affinity affinity = podSpec.getAffinity();
         Objects.requireNonNull(affinity);
