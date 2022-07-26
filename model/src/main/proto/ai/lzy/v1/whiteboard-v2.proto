@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 import "ai/lzy/v1/zygote.proto";
-import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 package ai.lzy.v1.wb; //TODO: remove wb suffix
@@ -11,8 +10,8 @@ option java_package = "ai.lzy.v1";
 
 service WhiteboardService {
   rpc CreateWhiteboard (CreateWhiteboardRequest) returns (Whiteboard);
-  rpc LinkWhiteboardField (LinkFieldRequest) returns (google.protobuf.Empty);
-  rpc FinalizeWhiteboard (FinalizeWhiteboardRequest) returns (google.protobuf.Empty);
+  rpc LinkWhiteboardField (LinkFieldRequest) returns (LinkFieldResponse);
+  rpc FinalizeWhiteboard (FinalizeWhiteboardRequest) returns (FinalizeWhiteboardResponse);
 
   rpc GetWhiteboard (GetWhiteboardRequest) returns (Whiteboard);
   rpc QueryWhiteboards (QueryWhiteboardsRequest) returns (QueryWhiteboardsResponse);
@@ -66,8 +65,14 @@ message LinkFieldRequest {
   DataScheme scheme = 4;
 }
 
+message LinkFieldResponse {
+}
+
 message FinalizeWhiteboardRequest {
   string whiteboardId = 1;
+}
+
+message FinalizeWhiteboardResponse {
 }
 
 message GetWhiteboardRequest {
