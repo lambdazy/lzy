@@ -1,8 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING, Tuple
 
 from grpclib.client import Channel
+from uuid import uuid4
 
+from ai.lzy.v1 import SlotToChannelAssignment
 from ai.lzy.v1.graph import (
+    ChannelDesc,
     GraphExecutionStatus,
     GraphExecuteRequest,
     GraphListRequest,
@@ -12,6 +15,38 @@ from ai.lzy.v1.graph import (
 )
 from ai.lzy.v1.graph.graph_executor_grpc import GraphExecutorStub
 
+if TYPE_CHECKING:
+    from lzy.api.v2.api.lzy_call import LzyCall
+    from lzy.api.v2.proxy_adapter import is_lzy_proxy
+
+
+def prepare_task(call: LzyCall) -> TaskDesc:
+    loc_args, non_loc_args = [], []
+    for name, arg in call.named_arguments():
+        slot_name = f"{call.description}:{name}"
+        if is_lzy_proxy(arg):
+            non_loc_args.append(slot_name)
+        else:
+            loc_args.append(slot_name)
+
+    slot_assignments = [
+        SlotToChannelAssignment(s_name, str(uuid4())) for s_name in non_loc_args
+    ]
+    return TaskDesc(
+        str(uuid4()),
+        call.zygote,
+        slot_assignments=slot_assignments,
+    )
+
+
+def prepare_tasks_and_channels(
+    wflow_id: str,
+    tasks: List[LzyCall],
+) -> Tuple[List[TaskDesc], List[ChannelDesc]]:
+    tasks = [prepare_task(task) for task in tasks]
+    channels = []
+    return tasks, channels
+
 
 class GraphExecutorClient:
     def __init__(self, channel: Channel):
@@ -19,16 +54,18 @@ class GraphExecutorClient:
 
     async def execute(
         self,
-        workflow_id: str,
+        wflow_id: str,
+        wflow_name: str,
         tasks: List[TaskDesc],
+        channels: List[ChannelDesc],
         parent_graph_id: Optional[str] = None,
     ) -> GraphExecutionStatus:
         request = GraphExecuteRequest(
-            workflow_id,
-            workflow_id,
+            wflow_id,
+            wflow_name,
             tasks,
             parent_graph_id,
-            None,
+            channels,
         )
 
         return await self.stub.Execute(request)

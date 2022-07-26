@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, List, Optional
 from uuid import uuid4
 
 from lzy.api.v2.api import LzyCall
-from lzy.api.v2.api.graph import build_graph_execute_request
+from lzy.api.v2.grpc.graph_executor_client import prepare_tasks_and_channels
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
 from lzy.env.env_provider import EnvProvider
 
@@ -45,7 +45,7 @@ class LzyWorkflow:
             self.barrier()
 
     def barrier(self) -> None:
-        graph = build_graph_execute_request(self._id, self._call_queue)
+        graph = prepare_tasks_and_channels(self._id, self._call_queue)
         self._runtime.exec(graph, self._snapshot, lambda: print("progress"))
         self._call_queue = []
 
