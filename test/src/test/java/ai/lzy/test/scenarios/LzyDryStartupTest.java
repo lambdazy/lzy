@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class LzyDryStartupTest extends LocalScenario {
@@ -28,6 +29,7 @@ public class LzyDryStartupTest extends LocalScenario {
         Assert.assertTrue(terminal.pathExists(Paths.get(Config.LZY_MOUNT + "/dev")));
     }
 
+    @Ignore
     @Test
     public void testTerminalDiesAfterServerDied() {
         serverContext.close();

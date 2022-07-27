@@ -147,7 +147,7 @@ public class LzyServant implements Closeable {
         try {
             portal.stop();
             cleanupExecution();
-            agent.shutdown();
+            agent.shutdownNow();
         } finally {
             lzyFs.stop();
         }
@@ -342,10 +342,11 @@ public class LzyServant implements Closeable {
                     UserEvent.UserEventType.TaskStop
                 ));
                 portal.stop();
+                agent.shutdown();
             } catch (Exception e) {
                 LOG.error("Error during agent server shutdown", e);
             } finally {
-                agent.shutdown();
+                lzyFs.stop();
             }
         }
 

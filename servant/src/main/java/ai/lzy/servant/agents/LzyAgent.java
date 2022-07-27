@@ -8,8 +8,6 @@ import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.v1.IAM;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.LzyServerGrpc;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.Servant;
 import ai.lzy.servant.BashApi;
@@ -78,8 +76,6 @@ public class LzyAgent implements Closeable {
         server = nettyServerBuilder.build();
         server.start();
 
-        status.set(AgentStatus.PREPARING_EXECUTION);
-
         lzyFs = new LzyFsServer(
             config.getAgentId(),
             config.getRoot().toString(),
@@ -91,7 +87,6 @@ public class LzyAgent implements Closeable {
         context = new LzyContext(config.getAgentId(),
             lzyFs.getSlotsManager(),
             lzyFs.getMountPoint().toString());
-        status.set(AgentStatus.EXECUTING);
 
         Runtime.getRuntime().addShutdownHook(new Thread(SHUTDOWN_HOOK_TG, () -> {
             LOG.info("Shutdown hook in lzy-agent {}", serverUri);
@@ -151,24 +146,13 @@ public class LzyAgent implements Closeable {
 
     public void awaitTermination() throws InterruptedException, IOException {
         server.awaitTermination();
-        lzyFs.awaitTermination();
-    }
-
-    public void closeSlots() {
-        LOG.info("LzyAgent::closeSlots");
-        context.slots().forEach(slot -> {
-            LOG.info("  suspending slot {} ({})...", slot.name(), slot.status().getState());
-            slot.suspend();
-        });
     }
 
     @Override
     public void close() {
         LOG.info("LzyAgent::close {}", serverUri);
         try {
-            context.close();
             lzyFs.stop();
-            server.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -282,7 +266,10 @@ public class LzyAgent implements Closeable {
     }
 
     public void shutdown() {
-        lzyFs.stop();
         server.shutdown();
+    }
+
+    public void shutdownNow() {
+        server.shutdownNow();
     }
 }

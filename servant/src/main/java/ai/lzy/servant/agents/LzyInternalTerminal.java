@@ -77,7 +77,11 @@ public class LzyInternalTerminal implements Closeable {
     @Override
     public void close() {
         LOG.info("Close internal terminal...");
-        agent.closeSlots();
+        agent.context().slots().forEach(slot -> {
+            LOG.info("  suspending slot {} ({})...", slot.name(), slot.status().getState());
+            slot.suspend();
+        });
+        agent.context().close();
         serverChannel.shutdown();
     }
 

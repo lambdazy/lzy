@@ -24,7 +24,8 @@ public class MultiSessionTest extends LocalScenario {
             kharonContext.serverAddress(),
             kharonContext.channelManagerProxyAddress(),
             debugPort,
-            user, null);
+            user,
+            terminalKeys.privateKeyPath().toString());
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
             Config.TIMEOUT_SEC,

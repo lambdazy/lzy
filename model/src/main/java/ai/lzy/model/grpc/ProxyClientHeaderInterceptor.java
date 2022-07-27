@@ -23,7 +23,6 @@ public class ProxyClientHeaderInterceptor implements ClientInterceptor {
                 final ProxyHeaderContext proxyHeaderContext = ProxyHeaderContext.current();
                 if (proxyHeaderContext != null) {
                     final Metadata currentHeaders = proxyHeaderContext.headers();
-                    LOG.info("Constructor headers={}", currentHeaders);
                     headers.merge(currentHeaders);
                 }
                 super.start(responseListener, headers);
