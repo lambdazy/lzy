@@ -41,7 +41,7 @@ public class TerminalCrashTest extends LocalScenario {
             kharonContext.channelManagerProxyAddress(),
             debugPort,
             LzyTerminalTestContext.TEST_USER,
-            null);
+            terminalKeys.privateKeyPath().toString());
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
             Config.TIMEOUT_SEC,

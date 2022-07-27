@@ -1,5 +1,7 @@
 package ai.lzy.fs.commands.builtin;
 
+import ai.lzy.model.grpc.ClientHeaderInterceptor;
+import ai.lzy.model.grpc.GrpcHeaders;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import com.google.protobuf.util.JsonFormat;
@@ -19,16 +21,9 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 public final class ChannelStatus implements LzyCommand {
-    private static final Options options = new Options();
-
     @Override
     public int execute(CommandLine command) throws Exception {
-        final CommandLine localCmd = parse(command, options);
-        if (localCmd == null) {
-            return -1;
-        }
-        final URI channelManagerAddress = URI.create("grpc://" + localCmd.getOptionValue("channel-manager"));
-        // FIXME(d-kruchinin): fix auth to new format
+        final URI channelManagerAddress = URI.create("grpc://" + command.getOptionValue("channel-manager"));
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
 
         final ManagedChannel channelManagerChannel = ChannelBuilder
@@ -38,7 +33,11 @@ public final class ChannelStatus implements LzyCommand {
             .build();
 
         final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager =
-            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel);
+            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel)
+                .withInterceptors(ClientHeaderInterceptor.header(
+                    GrpcHeaders.AUTHORIZATION,
+                    auth.getUser()::getToken
+                ));
 
         final ChannelManager.ChannelStatusList channelStatusList = channelManager.channelsStatus(
             ChannelManager.ChannelsStatusRequest.newBuilder().build());
