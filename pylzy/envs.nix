@@ -47,6 +47,7 @@ let
     pyright
 
     # type stubs:
+    grpclib
     types-setuptools
     types-requests
     types-protobuf
