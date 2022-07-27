@@ -15,6 +15,6 @@ Configuration:
 
   Loggers:
     Root:
-      level: info
+      level: all
       AppenderRef:
         - ref: LogFile
