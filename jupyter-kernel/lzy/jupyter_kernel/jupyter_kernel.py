@@ -161,6 +161,7 @@ class JupyterKernel(IPythonKernel):
         reply_content: Dict[str, Any] = {}
         try:
             self._state = opa(code, self._state)
+            assert self._workflow is not None, "workflow is None"
             self._workflow.run()
 
             reply_content['status'] = 'ok'
