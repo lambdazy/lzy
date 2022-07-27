@@ -72,6 +72,8 @@ let
     betterproto = self.callPackage ./betterproto.nix {
       inherit grpclib;
     };
+
+    coverage-badge = self.callPackage ./coverage-badge.nix { };
   };
 in pkgs.python39.override {
   inherit packageOverrides;
