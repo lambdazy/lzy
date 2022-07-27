@@ -1,16 +1,12 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Optional
 
-
-@dataclass
-class SnapshotDescription:
-    snapshot_id: str
+from ai.lzy.v1.whiteboard_pb2 import Snapshot
 
 
 class SnapshotApi(ABC):
     @abstractmethod
-    def create(self, workflow_name: str) -> SnapshotDescription:
+    def create(self, workflow_name: str) -> Snapshot:
         pass
 
     @abstractmethod
@@ -18,7 +14,7 @@ class SnapshotApi(ABC):
         pass
 
     @abstractmethod
-    def last(self, workflow_name: str) -> Optional[SnapshotDescription]:
+    def last(self, workflow_name: str) -> Optional[Snapshot]:
         pass
 
     @abstractmethod

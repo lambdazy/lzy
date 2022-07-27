@@ -1,5 +1,5 @@
 import uuid
-from unittest import TestCase
+from unittest import TestCase, skip
 
 from lzy.api.v2.api import op
 from lzy.api.v2.api.lzy import Lzy
@@ -39,6 +39,7 @@ class LzyWorkflowTests(TestCase):
         self._WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
         self._lzy = Lzy()
 
+    @skip("WIP")
     def test_barrier(self):
         with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
             f = foo()
@@ -50,6 +51,7 @@ class LzyWorkflowTests(TestCase):
             self.assertEqual("Foo: Bar:", snapshot.get(entry_id(b)))
             self.assertEqual("Foo: Bar: Foo: Baz(3): Boo", snapshot.get(entry_id(o)))
 
+    @skip("WIP")
     def test_iteration(self):
         with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
             snapshot = workflow.snapshot()
@@ -64,6 +66,7 @@ class LzyWorkflowTests(TestCase):
             for i in range(6):
                 self.assertEqual(i + 1, snapshot.get(entries[i]))
 
+    @skip("WIP")
     def test_already_materialized_calls_when_barrier_called(self):
         with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
             snapshot = workflow.snapshot()
@@ -80,6 +83,7 @@ class LzyWorkflowTests(TestCase):
             workflow.barrier()
             self.assertEqual("Foo: Bar: Foo: Baz(3): Boo", snapshot.get(entry_id(o)))
 
+    @skip("WIP")
     def test_simultaneous_workflows_are_not_supported(self):
         with self.assertRaises(RuntimeError) as context:
             with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow1:

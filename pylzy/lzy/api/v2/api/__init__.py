@@ -2,16 +2,17 @@ import functools
 import inspect
 import sys
 import uuid
-from typing import Any, Callable, TypeVar
-
-import yaml
+from typing import Any, Callable, TypeVar, Optional
 
 from lzy._proxy.result import Nothing
+from lzy.env.env import EnvSpec
 from lzy.api.v2.api.lzy_call import LzyCall
-from lzy.api.v2.api.lzy_op import LzyOp
 from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 from lzy.api.v2.api.provisioning import Gpu, Provisioning
-from lzy.api.v2.utils import infer_call_signature, infer_return_type, lazy_proxy
+from lzy.api.v2.utils import infer_call_signature, infer_return_type
+from lzy.api.v2.proxy_adapter import lzy_proxy
+from lzy.api.v2.servant.model.zygote import python_func_zygote
+from lzy.api.v2.api.lzy import Lzy
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -19,6 +20,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 import logging
 
 
+# TODO[ottergottaott]:
 def handlers():
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
@@ -41,7 +43,12 @@ init_logger()
 
 
 # pylint: disable=[invalid-name]
-def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
+def op(
+    func: Callable = None,
+    *,
+    gpu: Gpu = None,
+    output_type=None,
+):
     def deco(f):
         """
         Decorator which will try to infer return type of function
@@ -61,7 +68,11 @@ def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
 
         # yep, create lazy constructor and return it
         # instead of function
-        return create_lazy_constructor(f, output_type, provisioning)
+        return create_lazy_constructor(
+            f,
+            output_type,
+            provisioning,
+        )
 
     provisioning = Provisioning(gpu)
 
@@ -72,35 +83,37 @@ def op(func: Callable = None, *, gpu: Gpu = None, output_type=None):
 
 
 def create_lazy_constructor(
-    f: Callable[..., Any], output_type: type, provisioning: Provisioning
+    f: Callable[..., Any],
+    output_type: type,
+    provisioning: Provisioning,
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
+        wflow_ = LzyWorkflow.get_active()
         # TODO: defaults?
-        current_workflow = LzyWorkflow.get_active()
-        if current_workflow is None:
+        if wflow_ is None:
             return f(*args, **kwargs)
+        active_wflow: LzyWorkflow = wflow_
 
         signature = infer_call_signature(f, output_type, *args, **kwargs)
-        env_provider = current_workflow._env_provider
 
         # we need specify globals() for caller site to find all
         # required modules
         caller_globals = inspect.stack()[1].frame.f_globals
 
-        lzy_op = LzyOp(
-            env_provider.for_op(caller_globals),
+        # form env to recreate remotely
+        env: EnvSpec = active_wflow._env_provider.provide(caller_globals)
+
+        # create
+        lzy_call = LzyCall(
+            active_wflow,
+            signature,
             provisioning,
-            signature.func.callable,
-            signature.func.input_types,
-            signature.func.output_type,
-            signature.func.arg_names,
-            signature.func.kwarg_names,
+            env,
+            str(uuid.uuid4()),
         )
-
-        lzy_call = LzyCall(lzy_op, args, kwargs, str(uuid.uuid4()))
-
-        current_workflow.call(lzy_call)
+        # and register LzyCall
+        active_wflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return
         # the real None. LzyEnv later will materialize it anyway.
@@ -115,16 +128,8 @@ def create_lazy_constructor(
         # >>> False
         if issubclass(output_type, type(None)):
             return None
-        else:
 
-            def materialize():
-                value = current_workflow.snapshot().get(lzy_call.entry_id)
-                if value is not None:
-                    return value
-                current_workflow.barrier()
-                return current_workflow.snapshot().get(lzy_call.entry_id)
-
-            return lazy_proxy(materialize, output_type, {"lzy_call": lzy_call})
+        return lzy_proxy(lzy_call)
 
     return lazy
 

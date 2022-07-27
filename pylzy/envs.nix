@@ -1,10 +1,8 @@
 { pkgs }:
 let
   python = pkgs.callPackage ./nix/python.nix {};
-
   lzy = ps: ps.callPackage ./nix/lzy.nix {};
-
-  python-dev = python.withPackages(ps: with ps; [
+  python_dev_deps = ps: with ps; [
     boto3
     cloudpickle
     pyyaml
@@ -23,14 +21,14 @@ let
     grpclib
     betterproto
     mypy-protobuf
-  ]);
-
-  python-lzy = python.withPackages(ps: with ps; [
+  ];
+  python_lzy_deps = ps: (python_dev_deps ps) ++ (with ps; [
     (lzy ps)
     coverage
     coverage-badge
   ]);
-
+  python-dev = python.withPackages(python_dev_deps);
+  python-lzy = python.withPackages(python_lzy_deps);
   python-publish = python.withPackages(ps: with ps; [
     wheel
     build

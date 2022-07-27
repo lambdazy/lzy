@@ -21,6 +21,9 @@ jobs:
         run: |
           cd pylzy
           ./lint.sh
+
+      - name: Clean up
+        run: |
           ./clean.sh
           cd ..
 
@@ -28,5 +31,7 @@ jobs:
         run: |
           cd jupyter-kernel
           ../pylzy/lint.sh
+
+      - name: Clean up
           ../pylzy/clean.sh
           cd ..

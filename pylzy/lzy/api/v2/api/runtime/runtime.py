@@ -1,12 +1,21 @@
-from typing import Callable
+from dataclasses import dataclass
+from typing import Callable, List
 
-from lzy.api.v2.api.graph import Graph
+from lzy.api.v2.api.lzy_call import LzyCall
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
+
+
+@dataclass
+class ProgressStep:
+    pass
 
 
 class Runtime:
     def exec(
-        self, graph: Graph, snapshot: Snapshot, progress: Callable[[], None]
+        self,
+        graph: List[LzyCall],
+        snapshot: Snapshot,
+        progress: Callable[[ProgressStep], None],
     ) -> None:
         pass
 

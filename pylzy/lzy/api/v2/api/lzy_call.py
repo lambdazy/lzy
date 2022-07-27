@@ -1,33 +1,57 @@
 import uuid
+import typing
+
 from itertools import chain
 from typing import Any, Dict, Generic, Iterator, Tuple, TypeVar
 
-from lzy.api.v2.api.lzy_op import LzyOp
+from lzy.env.env import EnvSpec
+from lzy.api.v2.api.provisioning import Provisioning
+from lzy.api.v2.servant.model.signatures import CallSignature
+
+from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class LzyCall(Generic[T]):
     def __init__(
-        self, op: LzyOp, args: Tuple[Any, ...], kwargs: Dict[str, Any], entry_id: str
+        self,
+        parent_wflow: LzyWorkflow,
+        sign: CallSignature[T],
+        provisioning: Provisioning,
+        env: EnvSpec,
+        entry_id: str,
     ):
         self._id = str(uuid.uuid4())
-        self._op = op
-        self._args = args
-        self._kwargs = kwargs
+        self._wflow = parent_wflow
+        self._sign = sign
+        self._provisioning = provisioning
+        self._env = env
         self._entry_id = entry_id
+
+    @property
+    def provisioning(self) -> Provisioning:
+        return self._provisioning
+
+    @property
+    def env(self) -> EnvSpec:
+        return self._env
+
+    @property
+    def parent_wflow(self) -> LzyWorkflow:
+        return self._wflow
+
+    @property
+    def signature(self) -> CallSignature[T]:
+        return self._sign
 
     @property
     def id(self) -> str:
         return self._id
 
     @property
-    def op(self) -> LzyOp:
-        return self._op
-
-    @property
     def operation_name(self) -> str:
-        return self._op.name
+        return self._sign.func.name
 
     @property
     def entry_id(self) -> str:
@@ -35,15 +59,20 @@ class LzyCall(Generic[T]):
 
     @property
     def args(self) -> Tuple[Any, ...]:
-        return self._args
+        return self._sign.args
 
     @property
     def kwargs(self) -> Dict[str, Any]:
-        return self._kwargs
+        return self._sign.kwargs
 
     def named_arguments(self) -> Iterator[Tuple[str, Any]]:
-        return chain(zip(self._op.arg_names, self._args), self._kwargs.items())
+        return chain(
+            # positional arguments
+            zip(self._sign.func.param_names, self._sign.args),
+            # named arguments
+            self._kwargs.items(),
+        )
 
     @property
     def description(self) -> str:
-        return self._op.description  # TODO(artolord) Add arguments description here
+        return self._sign.description  # TODO(artolord) Add arguments description here

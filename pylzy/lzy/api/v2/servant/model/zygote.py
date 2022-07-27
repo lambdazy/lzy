@@ -1,63 +1,74 @@
-import json
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Generic, List, Optional, TypeVar
+import base64
+from typing import List, Optional, TypeVar, Tuple
+from pathlib import Path
 
-from lzy.api.v2.servant.model.env import Env
-from lzy.api.v2.servant.model.provisioning import Provisioning
 from lzy.api.v2.servant.model.signatures import FuncSignature
-from lzy.api.v2.servant.model.slot import Slot
+from lzy.serialization.serializer import MemBytesSerializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-# Zygote should've been just marked as
-# @dataclass(frozen=True)
-# but mypy is broken here a bit, so workaround with mixin is needed:
-# https://stackoverflow.com/questions/69330256/how-to-get-an-abstract-dataclass-to-pass-mypy
-# https://github.com/python/mypy/issues/5374#issuecomment-568335302
-@dataclass
-class ZygoteDataclassMixin(Generic[T]):
-    signature: FuncSignature[T]
-    arg_slots: List[Slot]
-    return_slot: Slot
-    env: Env
-    provisioning: Optional[Provisioning]
+from lzy.api.v2.servant.model.slot import file_slot_t
+
+from ai.lzy.v1.zygote_pb2 import EnvSpec, Provisioning, Slot, _SLOT_DIRECTION, Zygote
+from ai.lzy.v1.whiteboard_pb2 import ExecutionDescription
 
 
-class Zygote(ZygoteDataclassMixin[T], ABC):
-    @property
-    def slots(self) -> List[Slot]:
-        return self.arg_slots + [self.return_slot]
+def send_local_slots_to_s3(signature: FuncSignature[T]) -> Tuple[List[Slot], Slot]:
+    arg_slots: List[Slot] = [
+        file_slot_t(Path(signature.name) / name, _SLOT_DIRECTION.INPUT, type_)
+        for name, type_ in signature.input_types.items()
+    ]
 
-    @property
-    def name(self) -> str:
-        return self.signature.name
+    return_slot: Slot = file_slot_t(
+        Path("fnc_name") / "return", _SLOT_DIRECTION.OUTPUT, signature.output_type
+    )
+    return arg_slots, return_slot
 
-    @property
-    def description(self) -> str:
-        return self.name
 
-    @property
-    @abstractmethod
-    def command(self) -> str:
-        pass
+def to_base64(inp: bytes) -> str:
+    return base64.b64encode(inp).decode("ascii")
 
-    def to_json(self) -> str:
-        env = self.env
-        provisioning = self.provisioning
-        return json.dumps(
-            {
-                # tried to serialize env as json and it didn't work,
-                # so build dict here instead for env
-                "env": env.as_dct(),
-                "fuze": self.command,
-                "provisioning": {"tags": [{"tag": tag} for tag in provisioning.tags()]}
-                if provisioning
-                else {},
-                "slots": [slot.to_dict() for slot in self.slots],
-                "description": self.description,
-            },
-            sort_keys=True,
-            indent=3,
-        )
+
+def generate_fuze(
+    signature: FuncSignature[T],
+    serializer: MemBytesSerializer,
+    execution: Optional[ExecutionDescription] = None,
+) -> str:
+    _com = "".join(
+        [
+            "python ",
+            "$(python -c 'import site; print(site.getsitepackages()[0])')",
+            "/lzy/api/v1/startup.py ",
+        ]
+    )
+    serialized_func = to_base64(serializer.serialize_to_string(signature))
+    serialized_execution_description = to_base64(
+        serializer.serialize_to_string(execution)
+    )
+    return _com + serialized_func + " " + serialized_execution_description
+
+
+def python_func_zygote(
+    serializer: MemBytesSerializer,
+    sign: FuncSignature[T],
+    env: EnvSpec,
+    provisioning: Provisioning = "",
+    execution: Optional[ExecutionDescription] = None,
+) -> Zygote:
+    fuze = generate_fuze(sign, serializer, execution)
+    # TODO[ottergottaott]: Create slots properly
+    # arg_slots, return_slot = create_slots(sign)
+    raise NotImplementedError("")
+    arg_slots, return_slot = (), None
+    return Zygote(
+        env=env,
+        provisioning=provisioning,
+        fuze=fuze,
+        slots=[
+            *arg_slots,
+            return_slot,
+        ],
+        description=sign.description,
+        name=sign.name,
+    )

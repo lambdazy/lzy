@@ -1,10 +1,12 @@
 from typing import TYPE_CHECKING, Any, List, Optional
+from uuid import uuid4
 
-from lzy.api.v2.api import LzyCall
-from lzy.api.v2.api.lzy_workflow_splitter import LzyWorkflowSplitter
+from lzy.api.v2.grpc.graph_executor_client import prepare_tasks_and_channels
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
+from lzy.env.env_provider import EnvProvider
 
 if TYPE_CHECKING:
+    from lzy.api.v2.api import LzyCall
     from lzy.api.v2.api.lzy import Lzy
 
 
@@ -20,29 +22,32 @@ class LzyWorkflow:
         self._name = name
         self._eager = eager
         self._owner = owner
-        self._env_provider = self._owner.env_provider
+        self._env_provider: EnvProvider = self._owner.env_provider
         self._lzy_mount = lzy_mount
-        self._ops: List[LzyCall] = []
         self._runtime = self._owner.runtime
         self._snapshot = self._owner.snapshot_provider.get(
             lzy_mount, self._owner._serializer
         )
-        self._splitter = LzyWorkflowSplitter()
+        self._call_queue: List["LzyCall"] = []
 
+        self._id = str(uuid4())
+
+    @property
     def owner(self) -> "Lzy":
         return self._owner
 
     def snapshot(self) -> Snapshot:
         return self._snapshot
 
-    def call(self, call: LzyCall) -> Any:
-        self._splitter.call(call)
+    def register_call(self, call: "LzyCall") -> Any:
+        self._call_queue.append(call)
         if self._eager:
             self.barrier()
 
     def barrier(self) -> None:
-        graph = self._splitter.barrier()
+        graph = prepare_tasks_and_channels(self._id, self._call_queue)
         self._runtime.exec(graph, self._snapshot, lambda: print("progress"))
+        self._call_queue = []
 
     def __enter__(self) -> "LzyWorkflow":
         if type(self).instance is not None:

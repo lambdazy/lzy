@@ -15,6 +15,7 @@ from typing import (
     Union,
     cast,
     get_type_hints,
+    TYPE_CHECKING,
 )
 from zipfile import ZipFile
 
@@ -22,6 +23,10 @@ from zipfile import ZipFile
 from lzy._proxy import proxy
 from lzy._proxy.result import Just, Nothing, Result
 from lzy.api.v2.servant.model.signatures import CallSignature, FuncSignature
+from lzy.api.v2.proxy_adapter import is_lzy_proxy
+
+if TYPE_CHECKING:
+    from lzy.api.v2.api import LzyWorkflow, LzyCall
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -53,34 +58,6 @@ def infer_return_type(func: Callable) -> TypeInferResult:
     return Nothing()
 
 
-def is_lazy_proxy(obj: Any) -> bool:
-    cls = type(obj)
-    return hasattr(cls, "__lzy_proxied__") and cls.__lzy_proxied__
-
-
-def materialized(obj: Any) -> bool:
-    return obj.__lzy_materialized__  # type: ignore
-
-
-def lazy_proxy(
-    materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]
-) -> Any:
-    return proxy(
-        materialization,
-        return_type,
-        cls_attrs={"__lzy_proxied__": True},
-        obj_attrs=obj_attrs,
-    )
-
-
-def is_wrapped_local_value(obj: Any) -> bool:
-    return hasattr(obj, "__lzy_local_value__") and obj.__lzy_local_value__
-
-
-def wrap_local_value(obj: Any):
-    obj.__lzy_local_value__ = True
-
-
 def check_message_field(obj: Any) -> bool:
     if obj is None:
         return False
@@ -94,7 +71,7 @@ def zipdir(path: str, zipfile: ZipFile):
 
 
 def fileobj_hash(fileobj: BytesIO) -> str:
-    buf_size = 65536  # 64kb
+    buf_size = 65_536  # 64kb
 
     md5 = hashlib.md5()
 
@@ -116,7 +93,7 @@ def infer_call_signature(
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
         types_mapping[name] = (
-            arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
+            arg.lzy_call._op.output_type if is_lzy_proxy(arg) else type(arg)
         )
 
     generated_names = []
@@ -125,7 +102,7 @@ def infer_call_signature(
         generated_names.append(name)
         # noinspection PyProtectedMember
         types_mapping[name] = (
-            arg.lzy_call._op.output_type if is_lazy_proxy(arg) else type(arg)
+            arg.lzy_call._op.output_type if is_lzy_proxy(arg) else type(arg)
         )
 
     arg_names = tuple(argspec.args[: len(args)] + generated_names)

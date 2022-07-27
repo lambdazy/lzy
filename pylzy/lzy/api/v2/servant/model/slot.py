@@ -1,82 +1,57 @@
-import json
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from enum import Enum
+import base64
+from pathlib import Path
+
+import cloudpickle
 
 
-class Media(Enum):
-    FILE = 1
-    PIPE = 2
-    ARG = 3
-
-    def to_json(self) -> str:
-        return self.name
-
-
-class Direction(Enum):
-    INPUT = 1
-    OUTPUT = 2
-
-    def to_json(self) -> str:
-        return str(self.value)
-
-    @staticmethod
-    def opposite(direction):
-        map_to_opposite = {
-            Direction.INPUT: Direction.OUTPUT,
-            Direction.OUTPUT: Direction.INPUT,
-        }
-        return map_to_opposite[direction]
+from ai.lzy.v1.zygote_pb2 import (
+    Slot,
+    DataScheme,
+    _SLOT_MEDIA,
+    _SLOT_DIRECTION,
+    _DATASCHEME,
+)
 
 
-class DataSchema:
-    # noinspection PyMethodMayBeStatic
-    # pylint: disable=no-self-use
-    def to_json(self) -> str:
-        return "not implemented yet"
+def opposite(direction: _SLOT_DIRECTION):
+    map_to_opposite = {
+        _SLOT_DIRECTION.INPUT: _SLOT_DIRECTION.OUTPUT,
+        _SLOT_DIRECTION.OUTPUT: _SLOT_DIRECTION.INPUT,
+    }
+    return map_to_opposite[direction]
 
 
-# actually Slot should be just marked as
-# @dataclass(frozen=True)
-# but mypy is broken here a bit, so workaround with mixin is needed:
-# https://stackoverflow.com/questions/69330256/how-to-get-an-abstract-dataclass-to-pass-mypy
-# https://github.com/python/mypy/issues/5374#issuecomment-568335302
-@dataclass(frozen=True)
-class SlotDataclassMixin:
-    name: str
+def file_slot_t(
+    name: Path,
+    direction: _SLOT_DIRECTION,
+    type_: type,
+) -> Slot:
+    return file_slot(name, direction, dump_type(type_))
 
 
-class Slot(SlotDataclassMixin, ABC):
-    @property
-    @abstractmethod
-    def direction(self) -> Direction:
-        pass
+def file_slot(
+    name: Path,
+    direction: _SLOT_DIRECTION,
+    data_schema: _DATASCHEME,
+) -> Slot:
+    return Slot(
+        name=str(name),
+        media=_SLOT_MEDIA.FILE,
+        direction=direction,
+        contentType=data_schema,
+    )
 
-    @property
-    @abstractmethod
-    def media(self) -> Media:
-        pass
 
-    @property
-    def content_type(self) -> DataSchema:
-        return DataSchema()
+def pickle_type(type_: type) -> str:
+    return base64.b64encode(cloudpickle.dumps(type_)).decode("ascii")
 
-    def to_dict(self):
-        return {
-            "name": self.name,
-            "media": self.media.to_json(),
-            "direction": self.direction.to_json(),
-            "contentType": self.content_type.to_json(),
-        }
 
-    def to_json(self):
-        return json.dumps(
-            {
-                # "name": "",  # FIXME: this is for touch
-                "media": self.media.to_json(),
-                "direction": self.direction.to_json(),
-                "contentType": self.content_type.to_json(),
-            },
-            sort_keys=True,
-            indent=3,
-        )
+def unpickle_type(base64_str: str) -> type:
+    return cloudpickle.loads(base64.b64decode(base64_str))
+
+
+def dump_type(type_: type) -> DataScheme:
+    return DataScheme(
+        type=pickle_type(type_),
+        schemeType=_DATASCHEME.cloudpickle,
+    )
