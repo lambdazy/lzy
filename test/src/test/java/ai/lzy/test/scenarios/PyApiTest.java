@@ -8,7 +8,6 @@ import ai.lzy.servant.agents.AgentStatus;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-
 public class PyApiTest extends LocalScenario {
     @Before
     public void setUp() {

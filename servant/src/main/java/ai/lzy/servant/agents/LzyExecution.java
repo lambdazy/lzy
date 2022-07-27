@@ -69,7 +69,6 @@ public class LzyExecution {
                 UserEvent.UserEventType.ExecutionStart
             ));
 
-
         } finally {
             envExecFinishMillis = System.currentTimeMillis();
             MetricEventLogger.log(

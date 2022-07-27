@@ -305,7 +305,6 @@ public class LzyKharon {
             ProxyCall.exec(whiteboard::whiteboardsList, request, responseObserver);
         }
 
-
         @Override
         public void link(LzyWhiteboard.LinkCommand request,
                          StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
@@ -454,7 +453,6 @@ public class LzyKharon {
             ProxyCall.exec(server::getSessions, request, responseObserver);
         }
     }
-
 
     private class KharonServantProxyService extends LzyServantGrpc.LzyServantImplBase {
 

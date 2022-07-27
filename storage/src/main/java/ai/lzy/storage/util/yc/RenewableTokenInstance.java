@@ -3,7 +3,6 @@ package ai.lzy.storage.util.yc;
 import java.util.Date;
 import java.util.function.Supplier;
 
-
 public class RenewableTokenInstance implements Supplier<String> {
     private static final long HOUR = 60 * 60 * 1000;
     private final Supplier<String> tokenSupplier;

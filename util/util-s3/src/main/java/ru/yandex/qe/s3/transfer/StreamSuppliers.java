@@ -67,7 +67,6 @@ public class StreamSuppliers {
         private final ExecutorService executorService;
         private final int pipedChunkSize;
 
-
         public OutputConsumerStreamSupplier(ThrowingConsumer<OutputStream> consumer, ExecutorService executorService,
             int pipedChunkSize) {
             this.consumer = consumer;

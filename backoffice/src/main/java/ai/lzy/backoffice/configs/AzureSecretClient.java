@@ -15,7 +15,6 @@ import java.security.spec.InvalidKeySpecException;
 import ai.lzy.model.utils.JwtCredentials;
 import ai.lzy.v1.IAM;
 
-
 @Requires(property = "azure-providers", value = "true")
 @Singleton
 public class AzureSecretClient implements CredentialsProvider {

@@ -9,7 +9,6 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 import ai.lzy.model.snapshot.WhiteboardStatus;
 
-
 @Entity
 @Table(name = "whiteboard")
 public class WhiteboardModel {

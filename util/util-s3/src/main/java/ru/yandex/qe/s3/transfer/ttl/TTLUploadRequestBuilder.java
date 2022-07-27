@@ -9,7 +9,6 @@ import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 
-
 /**
  * Established by terry on 14.07.15.
  */

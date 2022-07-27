@@ -51,7 +51,6 @@ public class LocalChannelsManager implements ChannelsManager {
         this.config = config;
     }
 
-
     @Override
     public ChannelSpec get(String cid) {
         return cid == null ? null : channels.get(cid);

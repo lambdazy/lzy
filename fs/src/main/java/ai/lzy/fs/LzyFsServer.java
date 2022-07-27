@@ -385,7 +385,6 @@ public final class LzyFsServer {
         }
     }
 
-
     private record LzyScriptImpl(
         Path location,
         CharSequence scriptText,
@@ -397,7 +396,6 @@ public final class LzyFsServer {
             return GrpcConverter.from(zygote);
         }
     }
-
 
     private final class Impl extends LzyFsGrpc.LzyFsImplBase {
         private interface SlotFn<R> {

@@ -30,7 +30,6 @@ public class ExecutionModel {
     @Column(name = "snapshot_id")
     private String snapshotId;
 
-
     @Column(name = "name", nullable = false)
     private String name;
 

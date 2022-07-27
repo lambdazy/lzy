@@ -1,6 +1,5 @@
 package ai.lzy.backoffice.models.auth;
 
-
 import io.micronaut.core.annotation.Introspected;
 import ai.lzy.v1.BackOffice;
 

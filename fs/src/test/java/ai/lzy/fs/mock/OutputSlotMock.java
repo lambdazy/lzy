@@ -120,7 +120,6 @@ public class OutputSlotMock implements LzyOutputSlot {
         consumers.forEach(t -> t.accept(string));
     }
 
-
     public static class OutputSlotMockBuilder {
         private String name;
         private Runnable onSuspend;

@@ -1,6 +1,5 @@
 package ai.lzy.server.configs;
 
-
 import io.micronaut.context.annotation.ConfigurationProperties;
 
 @ConfigurationProperties("database")

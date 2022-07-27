@@ -2,7 +2,6 @@ package ai.lzy.graph.exec;
 
 import ai.lzy.graph.model.GraphExecutionState;
 
-
 /**
  * Class to encapsulate logic of executing graph by steps
  */

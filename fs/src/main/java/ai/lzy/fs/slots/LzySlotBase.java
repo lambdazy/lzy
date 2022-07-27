@@ -24,7 +24,6 @@ public class LzySlotBase implements LzySlot {
     private final List<Consumer<ByteString>> trafficTrackers = new CopyOnWriteArrayList<>();
     private final AtomicReference<Operations.SlotStatus.State> state = new AtomicReference<>(UNBOUND);
 
-
     protected LzySlotBase(Slot definition) {
         this.definition = definition;
     }

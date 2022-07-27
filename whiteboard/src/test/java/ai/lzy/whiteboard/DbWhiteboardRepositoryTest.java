@@ -65,7 +65,6 @@ public class DbWhiteboardRepositoryTest {
         return Date.from(LocalDateTime.of(year, month, day, hour, minute).toInstant(ZoneOffset.UTC));
     }
 
-
     @Before
     public void setUp() {
         ctx = ApplicationContext.run();

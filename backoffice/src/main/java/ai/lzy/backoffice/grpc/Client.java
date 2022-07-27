@@ -22,7 +22,6 @@ import ai.lzy.v1.BackOffice;
 import ai.lzy.v1.LzyBackofficeGrpc;
 import ai.lzy.v1.WbApiGrpc;
 
-
 @Singleton
 public class Client {
 

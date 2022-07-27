@@ -16,7 +16,6 @@ public class AllocatedServantMock {
     private final Runnable onEnv;
     private final Runnable onExec;
 
-
     public AllocatedServantMock(int port, Runnable onStop, Runnable onSignal,
                                 Runnable onEnv, Runnable onExec) throws IOException {
         this.onStop = onStop;
@@ -102,6 +101,5 @@ public class AllocatedServantMock {
             return new AllocatedServantMock(port, onStop, onSignal, onEnv, onExec);
         }
     }
-
 
 }

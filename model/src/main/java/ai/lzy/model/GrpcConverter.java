@@ -419,7 +419,6 @@ public abstract class GrpcConverter {
         }
     }
 
-
     private static class SlotAdapter implements Slot {
 
         private final Operations.Slot s;

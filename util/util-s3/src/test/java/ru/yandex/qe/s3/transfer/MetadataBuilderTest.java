@@ -6,7 +6,6 @@ import org.testng.annotations.Test;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
 
-
 /**
  * Established by terry on 19.01.16.
  */

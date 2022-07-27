@@ -4,7 +4,6 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 
 import javax.annotation.Nullable;
 
-
 @ConfigurationProperties("kharon")
 public record KharonConfig(
     String address,

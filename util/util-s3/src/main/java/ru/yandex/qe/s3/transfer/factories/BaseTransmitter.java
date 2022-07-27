@@ -64,7 +64,6 @@ public abstract class BaseTransmitter implements Transmitter {
             create(request, progressListener, notifyExecutor, byteBufferPool, chunksExecutor));
     }
 
-
     @Override
     public <T> ListenableFuture<DownloadResult<T>> downloadF(@Nonnull DownloadRequest request,
         @Nonnull ThrowingFunction<MetaAndStream, T> processor) {

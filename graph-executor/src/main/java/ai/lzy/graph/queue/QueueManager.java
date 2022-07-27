@@ -205,7 +205,6 @@ public class QueueManager extends Thread {
         eventDao.removeAllAcquired();
     }
 
-
     private void putIntoQueue(GraphExecutionKey key) {
         boolean res = queue.offer(key);
         if (!res) {

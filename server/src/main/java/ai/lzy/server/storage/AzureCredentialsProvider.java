@@ -13,7 +13,6 @@ public class AzureCredentialsProvider implements StorageCredentialsProvider {
     @Inject
     StorageConfigs storageConfigs;
 
-
     @Override
     public StorageCredentials storageCredentials() {
         StorageUtils.createBucketIfNotExists(storageConfigs.credentials(), storageConfigs.getBucket());

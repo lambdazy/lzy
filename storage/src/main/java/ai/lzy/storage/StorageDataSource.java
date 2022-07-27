@@ -9,7 +9,6 @@ import org.flywaydb.core.Flyway;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-
 @Singleton
 public class StorageDataSource implements Storage {
     private static final String VALIDATION_QUERY_SQL = "select 1";

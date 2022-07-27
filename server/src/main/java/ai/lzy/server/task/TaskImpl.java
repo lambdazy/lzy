@@ -1,6 +1,5 @@
 package ai.lzy.server.task;
 
-
 import static ai.lzy.server.task.Task.State.ERROR;
 import static ai.lzy.server.task.Task.State.EXECUTING;
 import static ai.lzy.server.task.Task.State.SUCCESS;
@@ -237,7 +236,6 @@ public class TaskImpl implements Task {
         //noinspection ResultOfMethodCallIgnored
         connection.control().execute(taskSpecBuilder.build());
     }
-
 
     private void progress(Tasks.TaskProgress progress) {
         listeners.forEach(l -> l.accept(progress));

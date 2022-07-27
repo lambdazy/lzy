@@ -38,7 +38,6 @@ public class SlotsManager implements AutoCloseable {
     private final List<Consumer<Servant.ServantProgress>> listeners = new ArrayList<>();
     private boolean closed = false;
 
-
     public SlotsManager(String contextId, URI localLzyFsUri) {
         this.contextId = contextId;
         this.localLzyFsUri = localLzyFsUri;

@@ -46,14 +46,12 @@ public class Metadata {
         return Collections.unmodifiableList(aclObjects);
     }
 
-
     /**
      * @return length source object, return -1 if length not defined
      */
     public long getObjectContentLength() {
         return objectContentLength;
     }
-
 
     @SuppressWarnings({"CloneDoesntCallSuperClone", "CloneDoesntDeclareCloneNotSupportedException"})
     @Override

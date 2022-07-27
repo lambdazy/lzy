@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-
 @Singleton
 @Requires(property = "database.enabled", value = "true", defaultValue = "false")
 public class DbAuthenticator implements Authenticator {

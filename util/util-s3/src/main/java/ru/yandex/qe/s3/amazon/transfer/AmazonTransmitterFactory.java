@@ -89,7 +89,6 @@ public class AmazonTransmitterFactory extends BaseTransmitterFactory {
         };
     }
 
-
     public DownloadTransmitter sameThreadDownloadTransmitter(RetryPolicy streamReadFailRetryPolicy) {
         final long poolNumber = POOL_NUMBER.incrementAndGet();
         return create(streamReadFailRetryPolicy, createByteBufferPool("download", byteBufferSizeType, 1),
@@ -126,7 +125,6 @@ public class AmazonTransmitterFactory extends BaseTransmitterFactory {
         return fixedPoolsDownloadTransmitter(transmitterName, downloadsPoolSize, chunksPoolSize,
             PredefinedRetryPolicies.DEFAULT_MAX_ERROR_RETRY);
     }
-
 
     public Transmitter sameThreadTransmitter(RetryPolicy streamReadFailRetryPolicy) {
         final long poolNumber = POOL_NUMBER.incrementAndGet();

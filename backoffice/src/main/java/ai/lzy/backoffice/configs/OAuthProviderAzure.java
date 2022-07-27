@@ -1,6 +1,5 @@
 package ai.lzy.backoffice.configs;
 
-
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

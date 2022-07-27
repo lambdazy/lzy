@@ -1,6 +1,5 @@
 package ai.lzy.server.logs;
 
-
 import java.util.Objects;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
