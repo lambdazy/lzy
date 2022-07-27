@@ -1,13 +1,11 @@
 package ai.lzy.scheduler.allocator.impl;
 
-import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
-import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.db.ServantDao;
+import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.apache.commons.io.IOUtils;
@@ -23,12 +21,13 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
 @Singleton
-@Requires(property = "scheduler.threadAllocator.enabled", value = "true")
+@Requires(property = "scheduler.thread-allocator.enabled", value = "true")
 public class ThreadServantsAllocator implements ServantsAllocator {
     private static final Logger LOG = LogManager.getLogger(ThreadServantsAllocator.class);
 
@@ -43,13 +42,18 @@ public class ThreadServantsAllocator implements ServantsAllocator {
         this.metaStorage = metaStorage;
         this.serverConfig = serverConfig;
         try {
-            final File servantJar = new File(serverConfig.threadAllocator().filePath());
-            final URLClassLoader classLoader = new URLClassLoader(new URL[] {servantJar.toURI().toURL()},
-                ClassLoader.getSystemClassLoader());
-            final Class<?> servantClass = Class.forName(serverConfig.threadAllocator().servantClassName(),
-                true, classLoader);
-            servantMain = servantClass.getDeclaredMethod("execute", String[].class);
+            Class<?> servantClass;
 
+            if (!serverConfig.threadAllocator().servantJarFile().isEmpty()) {
+                final File servantJar = new File(serverConfig.threadAllocator().servantJarFile());
+                final URLClassLoader classLoader = new URLClassLoader(new URL[]{servantJar.toURI().toURL()},
+                    ClassLoader.getSystemClassLoader());
+                servantClass = Class.forName(serverConfig.threadAllocator().servantClassName(), true, classLoader);
+            } else {
+                servantClass = Class.forName("ai.lzy.servant.BashApi");
+            }
+
+            servantMain = servantClass.getDeclaredMethod("execute", String[].class);
         } catch (MalformedURLException | ClassNotFoundException | NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
@@ -66,10 +70,10 @@ public class ThreadServantsAllocator implements ServantsAllocator {
             public void run() {
                 try {
                     servantMain.invoke(null, (Object) new String[]{
-                        "--lzy-address", serverConfig.schedulerUri().toString(),
-                        "--lzy-whiteboard", serverConfig.whiteboardUri().toString(),
+                        "--lzy-address", "http://" + serverConfig.schedulerAddress(),
+                        "--lzy-whiteboard", "http://" + serverConfig.whiteboardAddress(),
                         "--lzy-mount", "/tmp/lzy" + servantNumber,
-                        "--host", serverConfig.schedulerUri().getHost(),
+                        "--host", HostAndPort.fromString(serverConfig.schedulerAddress()).getHost(),
                         "--port", Integer.toString(port),
                         "--fs-port", Integer.toString(FreePortFinder.find(11000, 12000)),
                         "start",
@@ -94,7 +98,8 @@ public class ThreadServantsAllocator implements ServantsAllocator {
 
     @Override
     public void allocate(String workflowId, String servantId, Provisioning provisioning) {
-        requestAllocation(workflowId, servantId, "");  // TODO(artolord) add token
+        // TODO(artolord) add token
+        requestAllocation(workflowId, servantId, UUID.randomUUID().toString());
     }
 
     @Override
@@ -120,6 +125,7 @@ public class ThreadServantsAllocator implements ServantsAllocator {
 
         private void stop() {
             try {
+                //noinspection removal
                 thread.stop();
             } finally {
                 try {

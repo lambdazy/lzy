@@ -1,29 +1,28 @@
 package ai.lzy.scheduler.allocator.impl;
 
-import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
-import ai.lzy.scheduler.allocator.ServantsAllocatorBase;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.db.ServantDao;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DockerClientBuilder;
+import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import java.util.UUID;
 
 import static ai.lzy.model.Constants.LOGS_DIR;
 
 @Singleton
-@Requires(property = "scheduler.dockerAllocator.enabled", value = "true")
+@Requires(property = "scheduler.docker-allocator.enabled", value = "true")
 public class DockerServantsAllocator implements ServantsAllocator {
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
     private static final Logger LOG = LogManager.getLogger(DockerServantsAllocator.class);
@@ -74,10 +73,10 @@ public class DockerServantsAllocator implements ServantsAllocator {
             .withExposedPorts(ExposedPort.tcp(debugPort), ExposedPort.tcp(servantPort), ExposedPort.tcp(fsPort))
             .withHostConfig(hostConfig)
             .withCmd(
-                "--lzy-address", config.schedulerUri().toString(),
-                "--lzy-whiteboard", config.whiteboardUri().toString(),
+                "--lzy-address", "http://" + config.schedulerAddress(),
+                "--lzy-whiteboard", "http://" + config.whiteboardAddress(),
                 "--lzy-mount", "/tmp/lzy",
-                "--host", config.schedulerUri().getHost(),
+                "--host", HostAndPort.fromString(config.schedulerAddress()).getHost(),
                 "--port", Integer.toString(servantPort),
                 "--fs-port", Integer.toString(fsPort),
                 "start",

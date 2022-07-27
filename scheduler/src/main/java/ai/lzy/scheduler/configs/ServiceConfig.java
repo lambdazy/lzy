@@ -2,7 +2,6 @@ package ai.lzy.scheduler.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 
-import java.net.URI;
 import java.util.Map;
 
 @ConfigurationProperties("scheduler")
@@ -11,8 +10,8 @@ public record ServiceConfig(
         int maxServantsPerWorkflow,
         Map<String, Integer> provisioningLimits,
         Integer defaultProvisioningLimit,
-        URI schedulerUri,
-        URI whiteboardUri,
+        String schedulerAddress,
+        String whiteboardAddress,
         String baseEnvDefaultImage,
         ThreadAllocator threadAllocator,
         DockerAllocator dockerAllocator
@@ -20,7 +19,7 @@ public record ServiceConfig(
     @ConfigurationProperties("thread-allocator")
     public record ThreadAllocator(
         boolean enabled,
-        String filePath,
+        String servantJarFile,
         String servantClassName
     ) {}
 
