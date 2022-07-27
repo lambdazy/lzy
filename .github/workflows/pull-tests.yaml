@@ -26,7 +26,13 @@ jobs:
       - name: 'python-test'
         timeout-minutes: 5
         run: |
-          cd pylzy/ && ./gen_proto.sh && ./run_tests.sh && ./clean.sh && cd ..
+          cd pylzy/
+          ./gen_proto.sh && ./run_tests.sh
+
+      - name: 'clean after python-test'
+        run: |
+          ./clean.sh
+          cd ..
 
       - name: 'upload coverage badge'
         uses: actions/upload-artifact@v3
