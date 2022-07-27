@@ -12,7 +12,6 @@ import ai.lzy.v1.Kharon.SendSlotDataMessage;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyKharonGrpc;
 
-
 public class TerminalSlotSender {
 
     private static final Logger LOG = LogManager.getLogger(TerminalSlotSender.class);

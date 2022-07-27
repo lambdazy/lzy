@@ -38,5 +38,4 @@ public class PublicKeyController {
         return HttpResponse.ok(ListKeysResponse.fromModel(client.listTokens(request)));
     }
 
-
 }

@@ -43,7 +43,6 @@ public class AmazonS3Repository<T> extends S3Repository<T> {
         this.amazonS3 = amazonS3;
     }
 
-
     @Override
     public void createBucket(String bucket) {
         if (!amazonS3.doesBucketExist(bucket)) {

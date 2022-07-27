@@ -4,7 +4,6 @@ import io.micronaut.core.annotation.Introspected;
 import java.util.List;
 import ai.lzy.v1.BackOffice;
 
-
 @Introspected
 public class ListKeysResponse {
 

@@ -5,7 +5,6 @@ import ai.lzy.backoffice.models.UserCredentials;
 import ai.lzy.v1.BackOffice;
 import ai.lzy.v1.IAM;
 
-
 @Introspected
 public class CheckPermissionRequest {
 

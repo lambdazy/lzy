@@ -35,7 +35,6 @@ public class AmazonDownloadProcessingLoop<T> extends DownloadProcessingLoop<T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AmazonDownloadProcessingLoop.class);
 
-
     private final AmazonS3 amazonS3;
     private final RetryPolicy streamReadFailRetryPolicy;
 
@@ -48,7 +47,6 @@ public class AmazonDownloadProcessingLoop<T> extends DownloadProcessingLoop<T> {
         this.amazonS3 = amazonS3;
         this.streamReadFailRetryPolicy = streamReadFailRetryPolicy;
     }
-
 
     @Override
     protected void consumeContent(String bucket, String key, long rangeStart, long rangeEnd, int partNumber,

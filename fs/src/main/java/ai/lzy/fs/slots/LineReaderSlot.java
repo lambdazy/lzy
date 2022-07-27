@@ -46,7 +46,6 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
             .build();
     }
 
-
     @Override
     public void close() {
         super.close();

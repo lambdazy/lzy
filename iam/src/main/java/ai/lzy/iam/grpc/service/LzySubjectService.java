@@ -24,7 +24,6 @@ import java.util.Objects;
 public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceImplBase {
     public static final Logger LOG = LogManager.getLogger(LzySubjectService.class);
 
-
     @Inject
     private DbSubjectService subjectService;
     @Inject

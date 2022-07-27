@@ -135,7 +135,6 @@ public class EventProcessorTest {
         }
     }
 
-
     @Test
     public void testIdleTimeout() throws Exception {
         var config = new ProcessorConfigBuilder()
@@ -393,7 +392,6 @@ public class EventProcessorTest {
 
         mock.close();
     }
-
 
     record AllocationRequest(String workflowId, String servantId, String token) {
 

@@ -38,7 +38,6 @@ public class SlotSnapshotTest {
         .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
         .build();
 
-
     @Before
     public void setUp() {
         s3Mock.start();

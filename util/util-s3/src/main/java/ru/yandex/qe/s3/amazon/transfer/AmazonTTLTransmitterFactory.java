@@ -38,7 +38,6 @@ public class AmazonTTLTransmitterFactory extends AmazonTransmitterFactory {
     private final TTLRegister ttlRegister;
     private final String s3Endpoint;
 
-
     public AmazonTTLTransmitterFactory(@Nonnull AmazonS3 amazonS3, String s3Endpoint,
         @Nonnull TTLRegister ttlRegister) {
         super(ByteBufferSizeType._8_MB, amazonS3);

@@ -1,6 +1,5 @@
 package ai.lzy.model.slots;
 
-
 import java.nio.file.Path;
 import ai.lzy.model.Slot;
 

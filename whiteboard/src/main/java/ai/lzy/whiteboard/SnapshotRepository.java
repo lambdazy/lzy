@@ -13,7 +13,6 @@ import ai.lzy.model.snapshot.SnapshotEntryStatus;
 import ai.lzy.model.snapshot.SnapshotStatus;
 import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 
-
 public interface SnapshotRepository {
 
     @NotNull

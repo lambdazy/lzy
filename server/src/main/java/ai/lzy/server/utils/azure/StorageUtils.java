@@ -49,7 +49,6 @@ public class StorageUtils {
         );
     }
 
-
     public static void createBucketIfNotExists(StorageCredentials credentials, String bucket) {
         switch (credentials.type()) {
             case Azure: {

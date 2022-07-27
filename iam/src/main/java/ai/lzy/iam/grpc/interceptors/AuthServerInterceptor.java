@@ -19,7 +19,6 @@ import java.util.function.Function;
 
 import static ai.lzy.model.grpc.GrpcHeaders.AUTHORIZATION;
 
-
 public class AuthServerInterceptor implements ServerInterceptor {
     public static final Logger LOG = LogManager.getLogger(AuthServerInterceptor.class);
 

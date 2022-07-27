@@ -85,7 +85,6 @@ public class SnapshooterTest {
 
         Snapshooter snapshooter = new SnapshooterImpl(IAM.Auth.newBuilder().build(), stub, provider);
 
-
         // Action
         snapshooter.registerSlot(mock, "a", "b");
         mock.chunk(ByteString.copyFromUtf8("aaa"));

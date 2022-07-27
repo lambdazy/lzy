@@ -25,7 +25,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-
 @Singleton
 @Requires(property = "scheduler.thread-allocator.enabled", value = "true")
 public class ThreadServantsAllocator implements ServantsAllocator {

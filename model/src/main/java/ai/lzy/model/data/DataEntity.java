@@ -1,6 +1,5 @@
 package ai.lzy.model.data;
 
-
 import java.net.URI;
 import ai.lzy.model.Slot;
 

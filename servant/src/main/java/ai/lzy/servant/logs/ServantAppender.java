@@ -1,6 +1,5 @@
 package ai.lzy.servant.logs;
 
-
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.sql.Connection;

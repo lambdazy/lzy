@@ -11,7 +11,6 @@ import jakarta.inject.Inject;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-
 public class GraphDaoMock extends GraphExecutionDaoImpl {
     @Inject
     public GraphDaoMock(GraphExecutorDataSource storage) {

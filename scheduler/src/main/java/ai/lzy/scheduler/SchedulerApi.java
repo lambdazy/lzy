@@ -34,7 +34,6 @@ public class SchedulerApi {
         builder.addService(ServerInterceptors.intercept(privateApi, new GrpcLogsInterceptor()));
         server = builder.build();
 
-
         LOG.info("Starting scheduler on port {}...", config.port());
 
         try {

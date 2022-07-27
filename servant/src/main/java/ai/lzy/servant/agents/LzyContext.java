@@ -100,7 +100,6 @@ public class LzyContext implements AutoCloseable {
         return execution;
     }
 
-
     public void onProgress(Consumer<ServantProgress> listener) {
         slotsManager.onProgress(listener);
     }

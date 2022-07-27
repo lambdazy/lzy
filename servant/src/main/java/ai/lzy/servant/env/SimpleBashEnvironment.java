@@ -22,7 +22,6 @@ public class SimpleBashEnvironment implements AuxEnvironment {
         return baseEnv.runProcess(bashCmd, envp);
     }
 
-
     @Override
     public LzyProcess runProcess(String... command) {
         return runProcess(command, null);

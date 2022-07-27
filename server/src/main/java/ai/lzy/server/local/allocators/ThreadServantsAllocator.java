@@ -23,7 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-
 @Singleton
 @Requires(property = "server.threadAllocator.enabled", value = "true")
 public class ThreadServantsAllocator extends ServantsAllocatorBase {
