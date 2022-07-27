@@ -22,11 +22,11 @@ let
     betterproto
     mypy-protobuf
   ];
-  python_lzy_deps = ps: (python_dev_deps ps) ++ [
+  python_lzy_deps = ps: (python_dev_deps ps) ++ (with ps; [
     (lzy ps)
     coverage
     coverage-badge
-  ];
+  ]);
   python-dev = python.withPackages(python_dev_deps);
   python-lzy = python.withPackages(python_lzy_deps);
   python-publish = python.withPackages(ps: with ps; [
