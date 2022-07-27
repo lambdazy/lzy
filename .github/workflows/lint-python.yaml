@@ -20,6 +20,7 @@ jobs:
       - name: Run mypy
         run: |
           cd pylzy
+          ./gen_proto.sh
           ./lint.sh
 
       - name: Clean up
