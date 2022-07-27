@@ -33,5 +33,6 @@ jobs:
           ../pylzy/lint.sh
 
       - name: Clean up
+        run: |
           ../pylzy/clean.sh
           cd ..
