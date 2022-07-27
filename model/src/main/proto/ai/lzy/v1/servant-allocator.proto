@@ -88,41 +88,25 @@ message ServantProgress {
   message Started {
   }
 
-  // new task was accepted and configured
-  message TaskConfigured {
+  // start new task configuration and execution
+  message StartTask {
     string taskId = 1;
-
-    message Success {
-    }
-    message Failure {
-      string description = 1;
-    }
-    oneof result {
-      Success success = 2;
-      Failure failure = 3;
-    }
   }
 
-  // task is running
-  message ExecutingTask {
+  // servant runs task
+  message ExecuteTask {
     string taskId = 1;
   }
 
   // task execution was completed
-  message TaskCompleted {
+  message FinishTask {
     string taskId = 1;
-    // task process return code
-    int32 returnCode = 2;
-    // task process stderr
-    string description = 3;
-  }
-
-  // all output slots are flushed
-  message XXX {
   }
 
   // just a hearth-bit when the servant is idle
   message Idle {
+    // `true` if servant has not flushed output slots
+    bool hasDirtySlots = 1;
   }
 
   // servant terminated
@@ -130,13 +114,12 @@ message ServantProgress {
   }
 
   oneof status {
-    Started started = 1;
-    TaskConfigured taskConfigured = 2;
-    ExecutingTask executingTask = 3;
-    TaskConfigured taskCompleted = 4;
-    // XXX xxx = 5;
-    Idle idle = 6;
-    Finished finished = 7;
+    Started servantStarted = 1;
+    StartTask startTask = 2;
+    ExecuteTask executeTask = 3;
+    FinishTask finishTask = 4;
+    Idle idle = 5;
+    Finished finished = 6;
   }
 }
 
