@@ -17,7 +17,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run mypy
+      - name: Run lint.sh on pylzy
         run: |
           cd pylzy
           ./gen_proto.sh
@@ -28,10 +28,10 @@ jobs:
           ./clean.sh
           cd ..
 
-      - name: Run mypy on DS
+      - name: Run lint.sh on jupyter-kernel
         run: |
           cd jupyter-kernel
-          ../pylzy/lint.sh
+          ./lint.sh
 
       - name: Clean up
         run: |
