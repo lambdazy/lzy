@@ -8,8 +8,8 @@ from lzy.api.v2.api.query import Query
 from lzy.api.v2.api.runtime.runtime import Runtime
 from lzy.api.v2.api.snapshot.snapshot_provider import SnapshotProvider
 from lzy.api.v2.api.storage_spec import StorageSpec
-from lzy.env.lzy_env_provider import LzyEnvProvider
 from lzy.env.env_provider import EnvProvider
+from lzy.env.lzy_env_provider import LzyEnvProvider
 from lzy.serialization.dumper import Dumper
 from lzy.serialization.serializer import DefaultSerializer
 

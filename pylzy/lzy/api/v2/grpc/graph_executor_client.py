@@ -1,27 +1,24 @@
-from typing import List, Optional, TYPE_CHECKING, Tuple
-
-from grpclib.client import Channel
+from typing import TYPE_CHECKING, List, Optional, Tuple
 from uuid import uuid4
 
-
-from lzy.api.v2.proxy_adapter import is_lzy_proxy
+from grpclib.client import Channel
 
 from ai.lzy.v1.graph.graph_executor_grpc import GraphExecutorStub
 from ai.lzy.v1.graph.graph_executor_pb2 import (
     ChannelDesc,
-    GraphExecutionStatus,
     GraphExecuteRequest,
     GraphExecuteResponse,
+    GraphExecutionStatus,
     GraphListRequest,
     GraphListResponse,
-    TaskDesc,
     GraphStatusRequest,
     GraphStatusResponse,
     GraphStopRequest,
     GraphStopResponse,
     SlotToChannelAssignment,
+    TaskDesc,
 )
-
+from lzy.api.v2.proxy_adapter import is_lzy_proxy
 
 if TYPE_CHECKING:
     from lzy.api.v2.api.lzy_call import LzyCall

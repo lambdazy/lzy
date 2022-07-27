@@ -20,7 +20,11 @@ class FileSerializerImpl(FileSerializer):
                 self._registry[dumper.typ()] = dumper
 
     def serialize_to_file(self, obj: Any, file: IO) -> None:
-        typ = type(obj) if not hasattr(obj, "__lzy_origin__") else type(obj.__lzy_origin__)
+        typ = (
+            type(obj)
+            if not hasattr(obj, "__lzy_origin__")
+            else type(obj.__lzy_origin__)
+        )
         if typ in self._registry:
             dumper = self._registry[typ]
             dumper.dump(obj, file)

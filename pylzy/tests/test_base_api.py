@@ -216,7 +216,6 @@ class BaseApiTests(TestCase):
         self.assertEqual(s, ["str", "str", "str", "str"])
 
     def test_many_output(self):
-
         @op
         def foo() -> (str, int):
             return "Lol", 239

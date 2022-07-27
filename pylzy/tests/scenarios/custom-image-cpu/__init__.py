@@ -1,5 +1,6 @@
 import os
 import uuid
+
 from lzy.api.v1 import LzyRemoteEnv, op
 
 
@@ -22,6 +23,8 @@ if __name__ == "__main__":
         result = check_env_var_custom_image()
         print("Custom env: " + str(result))
 
-    with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, docker_image="lzydock/test-env:custom"):
+    with LzyRemoteEnv().workflow(
+        name=WORKFLOW_NAME, docker_image="lzydock/test-env:custom"
+    ):
         result = check_env_var_default_image()
         print("Custom env: " + str(result))

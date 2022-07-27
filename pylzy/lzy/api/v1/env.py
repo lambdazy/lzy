@@ -97,7 +97,9 @@ class LzyEnvBase(ABC):
 
         dcls = dataclasses.make_dataclass(
             cls_name=f"WB{wb_description.id}",
-            fields=[(name, unwrap(f.data_schema).real_type) for name, f in fields_.items()],
+            fields=[
+                (name, unwrap(f.data_schema).real_type) for name, f in fields_.items()
+            ],
             init=False,
             namespace={"__getattribute__": __getattribute__},
         )

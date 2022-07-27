@@ -4,25 +4,20 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+# model
+from ai.lzy.v1.channel_pb2 import Binding
+from ai.lzy.v1.task_pb2 import TaskSpec
+from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION, AuxEnv, BaseEnv, EnvSpec, Slot
 from lzy.api.v2.api import LzyCall
 from lzy.api.v2.api.runtime.runtime import Runtime
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
 from lzy.api.v2.grpc.graph_executor_client import GraphExecutorClient
-
-from lzy.api.v2.utils import unwrap
 from lzy.api.v2.proxy_adapter import is_lzy_proxy, materialized
+from lzy.api.v2.servant.model.slot import file_slot_t
+from lzy.api.v2.utils import unwrap
 from lzy.serialization.serializer import Serializer
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient, from_credentials
-
-from lzy.api.v2.servant.model.slot import file_slot_t
-
-
-# model
-from ai.lzy.v1.channel_pb2 import Binding
-from ai.lzy.v1.task_pb2 import TaskSpec
-from ai.lzy.v1.zygote_pb2 import Slot, _SLOT_DIRECTION
-from ai.lzy.v1.zygote_pb2 import EnvSpec, AuxEnv, BaseEnv
 
 
 def _generate_channel_name(call_id: str):

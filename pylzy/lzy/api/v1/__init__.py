@@ -2,7 +2,7 @@ import functools
 import inspect
 import logging
 import sys
-from typing import Callable, Type, Sequence, Optional
+from typing import Callable, Optional, Sequence, Type
 
 from lzy._proxy.result import Nothing
 from lzy.api.v1.cache_policy import CachePolicy
@@ -28,7 +28,13 @@ logging.root.addHandler(handler)
 
 
 # pylint: disable=[invalid-name]
-def op(func: Callable = None, *, gpu: Gpu = None, output_type=None, docker_image: Optional[str] = None):
+def op(
+    func: Callable = None,
+    *,
+    gpu: Gpu = None,
+    output_type=None,
+    docker_image: Optional[str] = None,
+):
     provisioning = Provisioning(gpu)
     if func is None:
         return op_(provisioning, output_type=output_type, docker_image=docker_image)
@@ -36,7 +42,12 @@ def op(func: Callable = None, *, gpu: Gpu = None, output_type=None, docker_image
 
 
 # pylint: disable=unused-argument
-def op_(provisioning: Provisioning, *, output_type: Type = None, docker_image: Optional[str] = None):
+def op_(
+    provisioning: Provisioning,
+    *,
+    output_type: Type = None,
+    docker_image: Optional[str] = None,
+):
     def deco(f):
         output_types: Sequence[Type]
         if output_type is None:
@@ -50,7 +61,7 @@ def op_(provisioning: Provisioning, *, output_type: Type = None, docker_image: O
             else:
                 output_types = infer_result.value
         else:
-            output_types = tuple((output_type, ))
+            output_types = tuple((output_type,))
 
         @functools.wraps(f)
         def lazy(*args, **kwargs):

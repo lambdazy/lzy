@@ -10,7 +10,7 @@ from inspect import Signature
 from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, cast
 from urllib import parse
 
-from lzy.api.v1.servant.model.slot import Slot, DataSchema
+from lzy.api.v1.servant.model.slot import DataSchema, Slot
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

@@ -1,6 +1,6 @@
 import base64
-from typing import List, Optional, TypeVar, Tuple
 from pathlib import Path
+from typing import List, Optional, Tuple, TypeVar
 
 from lzy.api.v2.servant.model.signatures import FuncSignature
 from lzy.serialization.serializer import MemBytesSerializer
@@ -8,10 +8,9 @@ from lzy.serialization.serializer import MemBytesSerializer
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-from lzy.api.v2.servant.model.slot import file_slot_t
-
-from ai.lzy.v1.zygote_pb2 import EnvSpec, Provisioning, Slot, _SLOT_DIRECTION, Zygote
 from ai.lzy.v1.whiteboard_pb2 import ExecutionDescription
+from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION, EnvSpec, Provisioning, Slot, Zygote
+from lzy.api.v2.servant.model.slot import file_slot_t
 
 
 def send_local_slots_to_s3(signature: FuncSignature[T]) -> Tuple[List[Slot], Slot]:

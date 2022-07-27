@@ -8,12 +8,13 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Sequence,
     Tuple,
     Type,
     TypeVar,
     Union,
     cast,
-    get_type_hints, Sequence,
+    get_type_hints,
 )
 from zipfile import ZipFile
 
@@ -56,9 +57,7 @@ def infer_return_type(func: Callable) -> TypeInferResult:
 def infer_arg_types(*args) -> Tuple[type, ...]:
     # noinspection PyProtectedMember
     # pylint: disable=protected-access
-    return tuple(
-        arg._op.type if is_lazy_proxy(arg) else type(arg) for arg in args
-    )
+    return tuple(arg._op.type if is_lazy_proxy(arg) else type(arg) for arg in args)
 
 
 def is_lazy_proxy(obj: Any) -> bool:
@@ -122,18 +121,14 @@ def infer_call_signature(
     # pylint: disable=protected-access
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
-        types_mapping[name] = (
-            arg._op.type if is_lazy_proxy(arg) else type(arg)
-        )
+        types_mapping[name] = arg._op.type if is_lazy_proxy(arg) else type(arg)
 
     generated_names = []
     for arg in args[len(argspec.args) :]:
         name = str(uuid.uuid4())
         generated_names.append(name)
         # noinspection PyProtectedMember
-        types_mapping[name] = (
-            arg._op.type if is_lazy_proxy(arg) else type(arg)
-        )
+        types_mapping[name] = arg._op.type if is_lazy_proxy(arg) else type(arg)
 
     arg_names = tuple(argspec.args[: len(args)] + generated_names)
     kwarg_names = tuple(kwargs.keys())

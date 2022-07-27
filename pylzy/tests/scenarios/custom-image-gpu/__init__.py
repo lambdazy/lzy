@@ -1,11 +1,15 @@
-from catboost import CatBoostClassifier
 import uuid
+
 import numpy as np
+from catboost import CatBoostClassifier
+
 from lzy.api.v1 import Gpu, LzyRemoteEnv, op
 
 
 def train(data: np.ndarray, target: np.ndarray) -> CatBoostClassifier:
-    cb_model = CatBoostClassifier(iterations=1000, devices="0:1", train_dir="/tmp/catboost")
+    cb_model = CatBoostClassifier(
+        iterations=1000, devices="0:1", train_dir="/tmp/catboost"
+    )
     cb_model.fit(data, target, verbose=True)
     return cb_model
 

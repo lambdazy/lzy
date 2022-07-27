@@ -3,13 +3,12 @@ from pathlib import Path
 
 import cloudpickle
 
-
 from ai.lzy.v1.zygote_pb2 import (
-    Slot,
-    DataScheme,
-    _SLOT_MEDIA,
-    _SLOT_DIRECTION,
     _DATASCHEME,
+    _SLOT_DIRECTION,
+    _SLOT_MEDIA,
+    DataScheme,
+    Slot,
 )
 
 

@@ -12,7 +12,7 @@ class File:
     def path(self) -> Path:
         return self.__path
 
-    def copy(self) -> 'File':
+    def copy(self) -> "File":
         return File(str(self.__path))
 
     def open(self, *args, **kwargs) -> IO:

@@ -4,10 +4,10 @@ import dataclass
 from grpclib.client import Channel
 
 from ai.lzy.v1.auth_pb2 import Auth
-from ai.lzy.v1.task_pb2 import TaskSpec, TaskProgress, SlotAssignment
-from ai.lzy.v1.zygote_pb2 import Zygote
 from ai.lzy.v1.fs_grpc import LzyFsStub
 from ai.lzy.v1.server_grpc import LzyServerStub
+from ai.lzy.v1.task_pb2 import SlotAssignment, TaskProgress, TaskSpec
+from ai.lzy.v1.zygote_pb2 import Zygote
 
 
 @dataclass.dataclass
