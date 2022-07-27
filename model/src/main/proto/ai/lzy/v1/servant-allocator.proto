@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package ai.lzy.v1.scheduler;
+
+option java_outer_classname = "ServantAllocatorApi";
+option java_package = "ai.lzy.v1";
+
+import "ai/lzy/v1/zygote.proto";
+
+//
+// Public Servant Allocator API.
+//
+// Auth requirements: IAM Internal User
+//
+service ServantAllocator {
+  rpc AllocateServant (AllocateServantRequest) returns (AllocateServantResponse);
+}
+
+//
+// Private Servant Allocator API.
+//
+// !!! Only for requests from servants !!!
+//
+// Auth requirements:
+//  - RegisterServant: servant_id/one-time-token from bootstrap
+//  - ServantProgress: servant_id/short-live-iam-token (from ServantAuth)
+//
+service ServantAllocatorPrivate {
+  rpc RegisterServant (RegisterServantRequest) returns (RegisterServantResponse);
+  rpc ServantProgress (ServantProgressRequest) returns (ServantProgressResponse);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+message AllocateServantRequest {
+  string userId = 1;
+  string workflowName = 2;
+  string executionId = 3;
+  Provisioning provisioning = 4;
+
+  // throws `RESOURCE_EXHAUSTED` on timeout
+  // `0` - no time limit
+  int32 timeoutSec = 5;
+}
+
+message AllocateServantResponse {
+  // unique servant id
+  string servantId = 1;
+
+  // servant API address in `host:port` format
+  string servantAddress = 2;
+
+  // servant FS API (Slot API) address in `host:port` format
+  string servantFsAddress = 3;
+
+  // some key-value metadata
+  // as-is from `RegisterServant` call
+  // servant may fill this meta with any servant-specific data
+  map<string, string> meta = 4;
+}
+
+message RegisterServantRequest {
+  // servantId, taken from bootstrap request
+  string servantId = 1;
+
+  // servant API address in `host:port` format
+  string servantAddress = 2;
+
+  // servant FS API (Slot API) address in `host:port` format
+  string servantFsAddress = 3;
+
+  // some key-value metadata
+  // servant may fill this meta with any servant-specific data
+  map<string, string> meta = 4;
+}
+
+message ServantAuth {
+  // all requests from a servant must be signed with this token
+  string iamToken = 1;
+}
+
+message RegisterServantResponse {
+  ServantAuth auth = 1;
+}
+
+message ServantProgress {
+  // servant pod was successfully started
+  message Started {
+  }
+
+  // new task was accepted and configured
+  message TaskConfigured {
+    string taskId = 1;
+
+    message Success {
+    }
+    message Failure {
+      string description = 1;
+    }
+    oneof result {
+      Success success = 2;
+      Failure failure = 3;
+    }
+  }
+
+  // task is running
+  message ExecutingTask {
+    string taskId = 1;
+  }
+
+  // task execution was completed
+  message TaskCompleted {
+    string taskId = 1;
+    // task process return code
+    int32 returnCode = 2;
+    // task process stderr
+    string description = 3;
+  }
+
+  // all output slots are flushed
+  message XXX {
+  }
+
+  // just a hearth-bit when the servant is idle
+  message Idle {
+  }
+
+  // servant terminated
+  message Finished {
+  }
+
+  oneof status {
+    Started started = 1;
+    TaskConfigured taskConfigured = 2;
+    ExecutingTask executingTask = 3;
+    TaskConfigured taskCompleted = 4;
+    // XXX xxx = 5;
+    Idle idle = 6;
+    Finished finished = 7;
+  }
+}
+
+message ServantProgressRequest {
+  string servantId = 1;
+  ServantProgress progress = 2;
+}
+
+message ServantProgressResponse {
+  // auth update
+  /* optional */ ServantAuth auth = 1;
+}
