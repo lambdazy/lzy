@@ -1,9 +1,9 @@
 package ai.lzy.disk.dao;
 
-import ai.lzy.disk.common.db.DataSourceStorage;
 import ai.lzy.disk.Disk;
 import ai.lzy.disk.DiskSpec;
 import ai.lzy.disk.DiskType;
+import ai.lzy.model.db.Storage;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
@@ -22,19 +22,19 @@ public class DbDiskDao implements DiskDao {
 
     private static final Logger LOG = LogManager.getLogger(DbDiskDao.class);
 
-    private final DataSourceStorage connector;
+    private final Storage storage;
     private final ObjectMapper objectMapper;
 
     @Inject
-    public DbDiskDao(DataSourceStorage connector, ObjectMapper objectMapper) {
-        this.connector = connector;
+    public DbDiskDao(Storage storage, ObjectMapper objectMapper) {
+        this.storage = storage;
         this.objectMapper = objectMapper;
     }
 
     @Override
     public void insert(String userId, Disk disk) {
         try (
-            final Connection connection = connector.connect();
+            final Connection connection = storage.connect();
             final PreparedStatement st = connection.prepareStatement("""
                 INSERT INTO disks(
                     disk_id,
@@ -64,8 +64,7 @@ public class DbDiskDao implements DiskDao {
     @Override
     public Disk find(String userId, String diskId) {
         try (
-
-            final Connection connection = connector.connect();
+            final Connection connection = storage.connect();
             final PreparedStatement st = connection.prepareStatement("""
                 SELECT user_id, disk_id, disk_provider, disk_spec_json
                 FROM disks WHERE disk_id = ? AND user_id = ?
@@ -89,10 +88,12 @@ public class DbDiskDao implements DiskDao {
 
     @Override
     public void delete(String userId, String diskId) {
-        try {
-            final PreparedStatement st = connector.connect().prepareStatement(
+        try (
+            final Connection connection = storage.connect();
+            final PreparedStatement st = connection.prepareStatement(
                 "DELETE FROM disks WHERE disk_id = ? AND user_id = ?"
-            );
+            )
+        ) {
             int index = 0;
             st.setString(++index, diskId);
             st.setString(++index, userId);

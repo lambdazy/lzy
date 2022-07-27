@@ -2,18 +2,22 @@ package ai.lzy.kharon.env.manager;
 
 import ai.lzy.disk.Disk;
 import ai.lzy.disk.DiskType;
+import ai.lzy.disk.common.GrpcConverter;
 import ai.lzy.disk.dao.DiskDao;
-import ai.lzy.disk.manager.DiskManager;
 import ai.lzy.kharon.env.CachedEnv;
 import ai.lzy.kharon.env.CachedEnvStatus;
 import ai.lzy.kharon.env.dao.CachedEnvDao;
+import ai.lzy.model.disk.DiskClient;
+import ai.lzy.v1.disk.LD;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,30 +32,31 @@ public class CachedEnvManagerImpl implements CachedEnvManager {
     @Inject
     private CachedEnvDao cachedEnvDao;
     @Inject
-    private DiskManager diskManager;
+    private DiskClient diskClient;
 
     @Override
     public CachedEnv saveEnvConfig(
+        String userId,
         String workflowName,
         String dockerImage,
-        String yamlConfig,
+        String condaYaml,
         DiskType diskType
     ) {
-        CachedEnv existedEnv = findConfigRelatedEnv(workflowName, dockerImage, yamlConfig, diskType);
+        final CachedEnv existedEnv = findConfigRelatedEnv(userId, workflowName, dockerImage, condaYaml, diskType);
         if (existedEnv != null) {
             return existedEnv;
         }
 
-        clearWorkflowEnvs(workflowName);
+        clearWorkflowEnvs(userId, workflowName);
 
-        CachedEnv newEnv = createCachedEnv(workflowName, dockerImage, yamlConfig, diskType);
+        final CachedEnv newEnv = createCachedEnv(userId, workflowName, dockerImage, condaYaml, diskType);
 
         return newEnv;
     }
 
     @Override
-    public void markEnvReady(String workflowName, String diskId) {
-        final var envInfo = cachedEnvDao.findEnv(workflowName, diskId);
+    public void markEnvReady(String userId, String workflowName, String diskId) {
+        final var envInfo = cachedEnvDao.findEnv(userId, workflowName, diskId);
         if (envInfo == null) {
             String errorMessage = String.format(
                 "Failed to mark env ready, env (workflowName=%s, diskId=%s) not found",
@@ -64,15 +69,20 @@ public class CachedEnvManagerImpl implements CachedEnvManager {
     }
 
     private @Nullable CachedEnv findConfigRelatedEnv(
+        String userId,
         String workflowName,
         String dockerImage,
         String yamlConfig,
         DiskType diskType
     ) {
-        final List<CachedEnvDao.CachedEnvInfo> configRelatedEnvs = cachedEnvDao.listEnvs(workflowName,
-                diskType)
+        final Map<String, Disk> userDisks = diskClient.listUserDisks(userId).stream()
+            .collect(Collectors.toMap(LD.Disk::getId, disk -> GrpcConverter.from(disk)));
+
+        final List<CachedEnvDao.CachedEnvInfo> configRelatedEnvs = cachedEnvDao.listEnvs(userId, workflowName)
             .filter(env -> env.dockerImage().equals(dockerImage))
             .filter(env -> env.yamlConfig().equals(yamlConfig))
+            .filter(env -> userDisks.containsKey(env.diskId()))
+            .filter(env -> diskType.equals(userDisks.get(env.diskId()).type()))
             .toList();
 
         if (configRelatedEnvs.isEmpty()) {
@@ -88,23 +98,18 @@ public class CachedEnvManagerImpl implements CachedEnvManager {
             );
         }
 
-        Disk disk = diskManager.findDisk(envInfo.diskId());
-        if (disk == null) {
-            return null;
-        }
-
-        return new CachedEnv(envInfo, disk);
+        return new CachedEnv(envInfo, userDisks.get(envInfo.diskId()));
     }
 
-    private void clearWorkflowEnvs(String workflowName) {
-        final List<CachedEnvDao.CachedEnvInfo> workflowEnvs = cachedEnvDao.listEnvs(workflowName).toList();
-        cachedEnvDao.deleteWorkflowEnvs(workflowName);
+    private void clearWorkflowEnvs(String userId, String workflowName) {
+        final List<CachedEnvDao.CachedEnvInfo> workflowEnvs = cachedEnvDao.listEnvs(userId, workflowName).toList();
+        cachedEnvDao.deleteWorkflowEnvs(userId, workflowName);
 
         final List<String> aliveDisks = new ArrayList<>();
         AtomicReference<RuntimeException> failedDiskDeletion = new AtomicReference<>();
         workflowEnvs.forEach(env -> {
             try {
-                diskManager.deleteDisk(env.diskId());
+                diskClient.deleteDisk(userId, env.diskId());
             } catch (RuntimeException e) {
                 aliveDisks.add(env.diskId());
                 failedDiskDeletion.set(e);
@@ -117,15 +122,18 @@ public class CachedEnvManagerImpl implements CachedEnvManager {
     }
 
     private CachedEnv createCachedEnv(
+        String userId,
         String workflowName,
         String dockerImage,
         String yamlConfig,
         DiskType diskType
     ) {
-        String envId = "env-" + UUID.randomUUID();
-        Disk disk = diskManager.createDisk("env-disk", diskType, 0);
+        final String envId = "env-" + UUID.randomUUID();
+        final Disk disk = GrpcConverter.from(diskClient.createDisk(
+            userId,"env-disk", GrpcConverter.to(diskType), 0
+        ));
         final CachedEnvDao.CachedEnvInfo envInfo = new CachedEnvDao.CachedEnvInfo(
-            envId, workflowName, disk.id(), CachedEnvStatus.PREPARING, dockerImage, yamlConfig
+            envId, userId, workflowName, disk.id(), CachedEnvStatus.PREPARING, dockerImage, yamlConfig
         );
         cachedEnvDao.insertEnv(envInfo);
         return new CachedEnv(envInfo, disk);

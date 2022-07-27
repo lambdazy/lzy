@@ -6,13 +6,15 @@ import ai.lzy.kharon.env.CachedEnv;
 public interface CachedEnvManager {
 
     CachedEnv saveEnvConfig(
+        String userId,
         String workflowName,
         String dockerImage,
-        String yamlConfig,
+        String condaYaml,
         DiskType diskType
     );
 
     void markEnvReady(
+        String userId,
         String workflowName,
         String diskId
     );

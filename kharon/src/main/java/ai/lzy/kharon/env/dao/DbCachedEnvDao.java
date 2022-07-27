@@ -1,11 +1,12 @@
 package ai.lzy.kharon.env.dao;
 
-import ai.lzy.common.db.DbConnector;
 import ai.lzy.disk.DiskType;
 import ai.lzy.kharon.env.CachedEnvStatus;
+import ai.lzy.model.db.Storage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -22,33 +23,37 @@ public class DbCachedEnvDao implements CachedEnvDao {
 
     private static final Logger LOG = LogManager.getLogger(DbCachedEnvDao.class);
 
-    private final DbConnector connector;
+    private final Storage storage;
     private final ObjectMapper objectMapper;
 
     @Inject
-    public DbCachedEnvDao(DbConnector connector, ObjectMapper objectMapper) {
-        this.connector = connector;
+    public DbCachedEnvDao(Storage storage, ObjectMapper objectMapper) {
+        this.storage = storage;
         this.objectMapper = objectMapper;
     }
 
     @Override
     public void insertEnv(CachedEnvInfo cachedEnv) {
-        try {
-            final PreparedStatement st = connector.connect().prepareStatement("""
+        try (
+            final Connection connection = storage.connect();
+            final PreparedStatement st = connection.prepareStatement("""
                 INSERT INTO cached_envs(
                     env_id,
+                    user_id,
                     workflow_name,
                     disk_id,
                     created_at,
                     status,
                     docker_image,
-                    yaml_config,
+                    conda_yaml,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?::disk_status_type, ?, ?, ?);
-                """);
+                ) VALUES (?, ?, ?, ?, ?, ?::disk_status_type, ?, ?, ?);
+                """)
+        ) {
             final Instant createdAt = Instant.now();
             int index = 0;
             st.setString(++index, cachedEnv.envId());
+            st.setString(++index, cachedEnv.userId());
             st.setString(++index, cachedEnv.workflowName());
             st.setString(++index, cachedEnv.diskId());
             st.setTimestamp(++index, Timestamp.from(createdAt));
@@ -66,12 +71,14 @@ public class DbCachedEnvDao implements CachedEnvDao {
 
     @Override
     public CachedEnvInfo setEnvStatus(String envId, CachedEnvStatus status) {
-        try {
-            final PreparedStatement st = connector.connect().prepareStatement("""
-               UPDATE cached_envs
-               SET status = ?, updated_at = ?
-               WHERE env_id = ?
-               """);
+        try (
+            final Connection connection = storage.connect();
+            final PreparedStatement st = connection.prepareStatement("""
+                UPDATE cached_envs
+                SET status = ?, updated_at = ?
+                WHERE env_id = ?
+                """)
+        ) {
             final Instant updatedAt = Instant.now();
             int index = 0;
             st.setString(++index, status.name());
@@ -100,17 +107,20 @@ public class DbCachedEnvDao implements CachedEnvDao {
     @Nullable
     @Override
     public CachedEnvInfo findEnv(String envId) {
-        try {
-            final PreparedStatement st = connector.connect().prepareStatement("""
-                SELECT 
+        try (
+            final Connection connection = storage.connect();
+            final PreparedStatement st = connection.prepareStatement("""
+                SELECT
                     env_id,
+                    user_id,
                     workflow_name,
                     disk_id,
                     status,
                     docker_image,
-                    yaml_config
+                    conda_yaml
                 FROM cached_envs WHERE env_id = ?
-                """);
+                """)
+        ) {
             int index = 0;
             st.setString(++index, envId);
             ResultSet rs = st.executeQuery();
@@ -127,19 +137,23 @@ public class DbCachedEnvDao implements CachedEnvDao {
 
     @Nullable
     @Override
-    public CachedEnvInfo findEnv(String workflowName, String diskId) {
-        try {
-            final PreparedStatement st = connector.connect().prepareStatement("""
+    public CachedEnvInfo findEnv(String userId, String workflowName, String diskId) {
+        try (
+            final Connection connection = storage.connect();
+            final PreparedStatement st = connection.prepareStatement("""
                 SELECT
                     env_id,
+                    user_id,
                     workflow_name,
                     disk_id,
                     status,
                     docker_image,
-                    yaml_config
-                FROM cached_envs WHERE workflow_name = ? AND disk_id = ?
-                """);
+                    conda_yaml
+                FROM cached_envs WHERE user_id = ? AND workflow_name = ? AND disk_id = ?
+                """)
+        ) {
             int index = 0;
+            st.setString(++index, userId);
             st.setString(++index, workflowName);
             st.setString(++index, diskId);
             ResultSet rs = st.executeQuery();
@@ -158,19 +172,23 @@ public class DbCachedEnvDao implements CachedEnvDao {
     }
 
     @Override
-    public Stream<CachedEnvInfo> listEnvs(String workflowName) {
-        try {
-            final PreparedStatement st = connector.connect().prepareStatement("""
+    public Stream<CachedEnvInfo> listEnvs(String userId, String workflowName) {
+        try (
+            final Connection connection = storage.connect();
+            final PreparedStatement st = connection.prepareStatement("""
                 SELECT
                     env_id,
+                    user_id,
                     workflow_name,
                     disk_id,
                     status,
                     docker_image,
-                    yaml_config
-                FROM cached_envs WHERE workflow_name = ?
+                    conda_yaml
+                FROM cached_envs WHERE user_id = ? AND workflow_name = ?
                 """);
+        ) {
             int index = 0;
+            st.setString(++index, userId);
             st.setString(++index, workflowName);
             ResultSet rs = st.executeQuery();
             List<CachedEnvInfo> cachedEnvs = new ArrayList<>();
@@ -186,44 +204,13 @@ public class DbCachedEnvDao implements CachedEnvDao {
     }
 
     @Override
-    public Stream<CachedEnvInfo> listEnvs(String workflowName, DiskType diskType) {
-        try {
-            final PreparedStatement st = connector.connect().prepareStatement("""
-                SELECT 
-                    env_id,
-                    workflow_name,
-                    cached_envs.disk_id,
-                    status,
-                    docker_image,
-                    yaml_config
-                FROM cached_envs INNER JOIN disks ON cached_envs.disk_id = disks.disk_id
-                WHERE workflow_name = ? AND disk_provider = ?::disk_provider_type
-                """);
-            int index = 0;
-            st.setString(++index, workflowName);
-            st.setString(++index, diskType.name());
-            ResultSet rs = st.executeQuery();
-            List<CachedEnvInfo> cachedEnvs = new ArrayList<>();
-            while (rs.next()) {
-                cachedEnvs.add(parseCachedEnv(rs));
-            }
-            return cachedEnvs.stream();
-        } catch (IOException | SQLException e) {
-            String errorMessage = String.format(
-                "Failed to get list of cached env (workflowName=%s, diskType=%s)",
-                workflowName, diskType
-            );
-            LOG.error(errorMessage);
-            throw new RuntimeException(errorMessage, e);
-        }
-    }
-
-    @Override
     public void deleteEnv(String envId) {
-        try {
-            final PreparedStatement st = connector.connect().prepareStatement(
+        try (
+            final Connection connection = storage.connect();
+            final PreparedStatement st = connection.prepareStatement(
                 "DELETE FROM cached_envs WHERE env_id = ?"
-            );
+            )
+        ) {
             int index = 0;
             st.setString(++index, envId);
             st.execute();
@@ -235,12 +222,15 @@ public class DbCachedEnvDao implements CachedEnvDao {
     }
 
     @Override
-    public void deleteWorkflowEnvs(String workflowName) {
-        try {
-            final PreparedStatement st = connector.connect().prepareStatement(
-                "DELETE FROM cached_envs WHERE workflow_name = ?"
+    public void deleteWorkflowEnvs(String userId, String workflowName) {
+        try (
+            final Connection connection = storage.connect();
+            final PreparedStatement st = connection.prepareStatement(
+                "DELETE FROM cached_envs WHERE user_id = ? AND workflow_name = ?"
             );
+        ) {
             int index = 0;
+            st.setString(++index, userId);
             st.setString(++index, workflowName);
             st.execute();
         } catch (SQLException e) {
@@ -253,11 +243,12 @@ public class DbCachedEnvDao implements CachedEnvDao {
     private CachedEnvInfo parseCachedEnv(ResultSet rs) throws SQLException, IOException  {
         return new CachedEnvInfo(
             rs.getString("env_id"),
+            rs.getString("user_id"),
             rs.getString("workflow_name"),
             rs.getString("disk_id"),
             CachedEnvStatus.valueOf(rs.getString("status")),
             rs.getString("docker_image"),
-            rs.getString("yaml_config")
+            rs.getString("conda_yaml")
         );
     }
 }

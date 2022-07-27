@@ -13,6 +13,25 @@ public class GrpcConverter {
 
     private static final Logger LOG = LogManager.getLogger(GrpcConverter.class);
 
+    public static Disk from(LD.Disk disk) {
+        return new Disk(disk.getId(), from(disk.getSpec()));
+    }
+
+    public static DiskSpec from(LD.DiskSpec diskSpec) {
+        return switch (diskSpec.getSpecCase()) {
+            case LOCAL_DIR_SPEC -> new LocalDirSpec(
+                diskSpec.getLocalDirSpec().getSizeGb(),
+                diskSpec.getLocalDirSpec().getFullPath(),
+                diskSpec.getLocalDirSpec().getFolderName()
+            );
+            case S3_STORAGE_SPEC -> new S3StorageSpec(
+                diskSpec.getS3StorageSpec().getSizeGb(),
+                diskSpec.getS3StorageSpec().getBucket()
+            );
+            default -> throw new RuntimeException("invalid disk spec case");
+        };
+    }
+
     public static DiskType from(LD.DiskType diskType) {
         return switch (diskType) {
             case UNSPECIFIED -> {
@@ -58,6 +77,5 @@ public class GrpcConverter {
     public static LD.DiskType to(DiskType diskType) {
         return LD.DiskType.valueOf(diskType.name());
     }
-
 
 }

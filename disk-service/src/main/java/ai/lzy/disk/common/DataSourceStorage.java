@@ -1,6 +1,7 @@
-package ai.lzy.disk.common.db;
+package ai.lzy.disk.common;
 
 import ai.lzy.disk.configs.DbConfig;
+import ai.lzy.model.db.Storage;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

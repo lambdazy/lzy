@@ -5,6 +5,7 @@ import ai.lzy.v1.disk.LDS;
 import ai.lzy.v1.disk.LzyDiskServiceGrpc;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -58,6 +59,7 @@ public class DiskGrpcClient implements DiskClient {
     @Override
     public LD.Disk deleteDisk(String userId, String diskId) {
         final LDS.DeleteDiskRequest request = LDS.DeleteDiskRequest.newBuilder()
+            .setUserId(userId)
             .setDiskId(diskId)
             .build();
         LOG.debug("Send delete disk request {}", request);
@@ -69,5 +71,21 @@ public class DiskGrpcClient implements DiskClient {
             throw new RuntimeException(e.getCause());
         }
         return response.getDisk();
+    }
+
+    @Override
+    public List<LD.Disk> listUserDisks(String userId) {
+        final LDS.ListUserDisksRequest request = LDS.ListUserDisksRequest.newBuilder()
+            .setUserId(userId)
+            .build();
+        LOG.debug("Send list user disks request {}", request);
+        final LDS.ListUserDisksResponse response;
+        try {
+            response = diskService.listUserDisks(request);
+        } catch (StatusRuntimeException e) {
+            LOG.error("Failed to list user disks: {}", e.getStatus().toString(), e);
+            throw new RuntimeException(e.getCause());
+        }
+        return response.getDiskList();
     }
 }
