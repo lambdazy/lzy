@@ -78,6 +78,7 @@ public class DockerServantsAllocator extends ServantsAllocatorBase {
             .withCmd(
                 "--lzy-address", serverConfig.getServerUri().toString(),
                 "--lzy-whiteboard", serverConfig.getWhiteboardUri().toString(),
+                "--channel-manager", serverConfig.getChannelManagerUri().toString(),
                 "--lzy-mount", "/tmp/lzy",
                 "--host", serverConfig.getServerUri().getHost(),
                 "--port", Integer.toString(servantPort),
