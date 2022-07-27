@@ -1,7 +1,7 @@
 #!/usr/bin/env nix-shell
 #! nix-shell build.nix -A shell-lint -i bash
 
-set -ux
+set -u
 
 source ./util.sh
 
