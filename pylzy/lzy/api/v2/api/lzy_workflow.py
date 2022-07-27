@@ -45,8 +45,12 @@ class LzyWorkflow:
             self.barrier()
 
     def barrier(self) -> None:
-        graph = prepare_tasks_and_channels(self._id, self._call_queue)
-        self._runtime.exec(graph, self._snapshot, lambda: print("progress"))
+        # TODO[ottergottaott]: prepare tasks before?
+        # seems it's better to prepare them inside of runtime
+        # graph = prepare_tasks_and_channels(self._id, self._call_queue)
+        self._runtime.exec(
+            self._call_queue, self._snapshot, lambda x: print("progress")
+        )
         self._call_queue = []
 
     def __enter__(self) -> "LzyWorkflow":

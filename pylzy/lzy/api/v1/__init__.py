@@ -13,7 +13,7 @@ from lzy.api.v1.env import (
     LzyRemoteWorkflow,
     LzyWorkflowBase,
 )
-from lzy.api.v1.lazy_op import LzyLocalOp, LzyRemoteOp
+from lzy.api.v1.lazy_op import LzyLocalOp, LzyOp, LzyRemoteOp
 from lzy.api.v1.servant.model.zygote import Gpu, Provisioning
 from lzy.api.v1.utils import infer_call_signature, infer_return_type, lazy_proxy
 from lzy.api.v1.whiteboard import view, whiteboard
@@ -67,10 +67,12 @@ def op_(
         def lazy(*args, **kwargs):
             # TODO: defaults?
             current_workflow = LzyWorkflowBase.get_active()
-            if current_workflow is None:
-                return f(*args, **kwargs)
+            # statement is unreachable
+            # if current_workflow is None:
+            #    return f(*args, **kwargs)
 
             signature = infer_call_signature(f, output_types, *args, **kwargs)
+            lzy_op: LzyOp
             if isinstance(current_workflow, LzyLocalWorkflow):
                 lzy_op = LzyLocalOp(signature)
             elif isinstance(current_workflow, LzyRemoteWorkflow):

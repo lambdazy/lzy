@@ -89,11 +89,8 @@ def create_lazy_constructor(
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
-        wflow_ = LzyWorkflow.get_active()
         # TODO: defaults?
-        if wflow_ is None:
-            return f(*args, **kwargs)
-        active_wflow: LzyWorkflow = wflow_
+        active_wflow: LzyWorkflow = LzyWorkflow.get_active()
 
         signature = infer_call_signature(f, output_type, *args, **kwargs)
 

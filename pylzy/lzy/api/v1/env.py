@@ -91,7 +91,10 @@ class LzyEnvBase(ABC):
                 return super(type(self), self).__getattribute__(item)
             except AttributeError:
                 field_: WhiteboardFieldDescription = fields_[item]
-                value = wb_api.resolve(field_.uri, unwrap(field_.data_schema).real_type)
+                value: Any = wb_api.resolve(
+                    unwrap(field_.uri),
+                    unwrap(field_.data_schema).real_type,
+                )
                 setattr(self, item, value)
                 return value
 

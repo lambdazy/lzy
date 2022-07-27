@@ -9,8 +9,11 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 from ai.lzy.v1.whiteboard_pb2 import ExecutionDescription
-from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION, EnvSpec, Provisioning, Slot, Zygote
+from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
+from ai.lzy.v1.zygote_pb2 import Slot, Zygote
+from lzy.api.v2.api.provisioning import Provisioning
 from lzy.api.v2.servant.model.slot import file_slot_t
+from lzy.env.env import EnvSpec
 
 
 def send_local_slots_to_s3(signature: FuncSignature[T]) -> Tuple[List[Slot], Slot]:
@@ -52,22 +55,24 @@ def python_func_zygote(
     serializer: MemBytesSerializer,
     sign: FuncSignature[T],
     env: EnvSpec,
-    provisioning: Provisioning = "",
+    provisioning: Provisioning,
     execution: Optional[ExecutionDescription] = None,
 ) -> Zygote:
     fuze = generate_fuze(sign, serializer, execution)
     # TODO[ottergottaott]: Create slots properly
+    # ! use lzy/api/v2/servant/model/converter.py here
+    #
     # arg_slots, return_slot = create_slots(sign)
     raise NotImplementedError("")
-    arg_slots, return_slot = (), None
-    return Zygote(
-        env=env,
-        provisioning=provisioning,
-        fuze=fuze,
-        slots=[
-            *arg_slots,
-            return_slot,
-        ],
-        description=sign.description,
-        name=sign.name,
-    )
+    # arg_slots, return_slot = (), None
+    # return Zygote(
+    #     env=env,
+    #     provisioning=provisioning,
+    #     fuze=fuze,
+    #     slots=[
+    #         *arg_slots,
+    #         return_slot,
+    #     ],
+    #     description=sign.description,
+    #     name=sign.name,
+    # )

@@ -143,7 +143,7 @@ class LzyLocalOp(LzyOp):
     def execute(self):
         if self._executed:
             return
-        self._materialization: T = self.signature.exec()
+        self._materialization: Tuple = self.signature.exec()
         self._materialized = True
 
 
@@ -299,9 +299,10 @@ class LzyRemoteOp(LzyOp):
             if len(executions) >= 1:
                 values = {v.name: v.entry_id for v in executions[0].outputs}
                 for num, return_value in enumerate(self.return_values()):
-                    return_value.change_entry_id(
-                        values[os.path.join("return", str(num))]
-                    )
+                    value = values.get(os.path.join("return", str(num)))
+                    if value is None:
+                        raise ValueError("")
+                    return_value.change_entry_id(value)
                 return
 
         description = (

@@ -1,15 +1,13 @@
 import base64
 from pathlib import Path
+from typing import cast
 
 import cloudpickle
 
-from ai.lzy.v1.zygote_pb2 import (
-    _DATASCHEME,
-    _SLOT_DIRECTION,
-    _SLOT_MEDIA,
-    DataScheme,
-    Slot,
-)
+from ai.lzy.v1.zygote_pb2 import _DATASCHEME  # type: ignore
+from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
+from ai.lzy.v1.zygote_pb2 import _SLOT_MEDIA  # type: ignore
+from ai.lzy.v1.zygote_pb2 import DataScheme, Slot
 
 
 def opposite(direction: _SLOT_DIRECTION):
@@ -46,7 +44,10 @@ def pickle_type(type_: type) -> str:
 
 
 def unpickle_type(base64_str: str) -> type:
-    return cloudpickle.loads(base64.b64decode(base64_str))
+    t_ = cloudpickle.loads(base64.b64decode(base64_str))
+    if not isinstance(t_, type):
+        raise TypeError(f"cannot upickle type from {base64_str}")
+    return cast(type, t_)
 
 
 def dump_type(type_: type) -> DataScheme:
