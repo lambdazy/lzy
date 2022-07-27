@@ -136,12 +136,12 @@ message ServantStatus {
   }
 }
 
-message ServantProgressRequest {
+message ServantStatusRequest {
   string servantId = 1;
   ServantStatus status = 2;
 }
 
-message ServantProgressResponse {
+message ServantStatusResponse {
   // auth update
   /* optional */ ServantAuth auth = 1;
 }
