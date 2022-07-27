@@ -14,6 +14,8 @@ import "ai/lzy/v1/zygote.proto";
 //
 service ServantAllocator {
   rpc AllocateServant (AllocateServantRequest) returns (AllocateServantResponse);
+
+  // explicit `DeallocateServant` call is not required, because `LzyServant` has a `Stop()` call
 }
 
 //
@@ -29,6 +31,17 @@ service ServantAllocatorPrivate {
   rpc RegisterServant (RegisterServantRequest) returns (RegisterServantResponse);
   rpc ServantProgress (ServantProgressRequest) returns (ServantProgressResponse);
 }
+
+//
+// Administration/Configuration API
+//
+// Auth requirements: IAM admin user
+//
+//service ServantAllocatorAdmin {
+//  rpc ListAllocatedServants (filter) returns (list-of-servants);
+//  ...
+//}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -105,8 +118,8 @@ message ServantProgress {
 
   // just a hearth-bit when the servant is idle
   message Idle {
-    // `true` if servant has not flushed output slots
-    bool hasDirtySlots = 1;
+    // list of not flushed output slots
+    repeated Slot dirtySlots = 1;
   }
 
   // servant terminated
