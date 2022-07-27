@@ -25,11 +25,11 @@ service ServantAllocator {
 //
 // Auth requirements:
 //  - RegisterServant: servant_id/one-time-token from bootstrap
-//  - ServantProgress: servant_id/short-live-iam-token (from ServantAuth)
+//  - ServantStatus: servant_id/short-live-iam-token (from ServantAuth)
 //
 service ServantAllocatorPrivate {
   rpc RegisterServant (RegisterServantRequest) returns (RegisterServantResponse);
-  rpc ServantProgress (ServantProgressRequest) returns (ServantProgressResponse);
+  rpc ServantStatus (ServantStatusRequest) returns (ServantStatusResponse);
 }
 
 //
@@ -96,7 +96,7 @@ message RegisterServantResponse {
   ServantAuth auth = 1;
 }
 
-message ServantProgress {
+message ServantStatus {
   // servant pod was successfully started
   message Started {
   }
@@ -138,7 +138,7 @@ message ServantProgress {
 
 message ServantProgressRequest {
   string servantId = 1;
-  ServantProgress progress = 2;
+  ServantStatus status = 2;
 }
 
 message ServantProgressResponse {
