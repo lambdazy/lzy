@@ -1,9 +1,9 @@
 name: Publish dev pylzy-nightly package
 
 on:
-  schedule:
-    - cron: '59 20 * * *' # run everyday on 23:59 Moscow Time: UTC+3
   workflow_dispatch:
+  #schedule:
+  #  - cron: '59 20 * * *' # run everyday on 23:59 Moscow Time: UTC+3
 
 jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml

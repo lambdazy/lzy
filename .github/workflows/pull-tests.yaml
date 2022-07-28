@@ -1,7 +1,7 @@
 name: Test on pull request
 on:
   push:
-    branches: [ master, dev ]
+    branches: [ master ]
   pull_request:
   workflow_dispatch:
 
@@ -70,7 +70,7 @@ jobs:
         timeout-minutes: 15
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
-          SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)
+          SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH master)
           docker pull $SERVANT_BASE_IMAGE
           SERVANT_BASE_TAG="$(echo $SERVANT_BASE_IMAGE | awk -F: '{print $2}')"
           docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
@@ -79,7 +79,7 @@ jobs:
         timeout-minutes: 15
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
-          ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH dev)
+          ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH master)
           cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
 
       - name: 'LzyDryStartupTest'
