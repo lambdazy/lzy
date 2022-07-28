@@ -5,6 +5,7 @@ NC='\033[0m' # No Color
 _f="formatter"
 _t="typechecker"
 
+# all functions below work with variables _ex, type, cmd
 print_cmd_exit() {
     [ "$_ex" -eq 0 ] && pr=print_green || pr=print_red
 
@@ -34,13 +35,13 @@ upd_rc() {
 }
 
 print_red() {
-    printf "${RED}%s${NC}\n" "$1"
+    printf "${RED}%s${NC}\n" "$@"
 }
 
 print_green() {
-    printf "${GREEN}%s${NC}\n" "$1"
+    printf "${GREEN}%s${NC}\n" "$@"
 }
 
 println() {
-    printf "%s\n" "$1"
+    printf "%s\n" "$@"
 }
