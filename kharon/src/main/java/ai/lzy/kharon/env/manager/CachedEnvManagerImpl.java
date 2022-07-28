@@ -7,6 +7,7 @@ import ai.lzy.kharon.env.CachedEnvStatus;
 import ai.lzy.kharon.env.dao.CachedEnvDao;
 import ai.lzy.model.disk.grpc.DiskClient;
 import ai.lzy.model.disk.grpc.GrpcConverter;
+import ai.lzy.model.exceptions.EntityNotFoundException;
 import ai.lzy.v1.disk.LD;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -109,6 +110,8 @@ public class CachedEnvManagerImpl implements CachedEnvManager {
         workflowEnvs.forEach(env -> {
             try {
                 diskClient.deleteDisk(userId, env.diskId());
+            } catch (EntityNotFoundException e) {
+                LOG.warn("Disk {} of env {} not found", env.diskId(), env.envId());
             } catch (RuntimeException e) {
                 aliveDisks.add(env.diskId());
                 failedDiskDeletion.set(e);
