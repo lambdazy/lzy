@@ -26,6 +26,9 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v3
 
+      - name: "qq"
+        run: echo ${{github.head_ref}}
+
       - name: 'Clear before tests'
         run: |
           sudo umount -f /tmp/lzy*
