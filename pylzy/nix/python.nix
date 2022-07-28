@@ -74,6 +74,8 @@ let
     };
 
     coverage-badge = self.callPackage ./coverage-badge.nix { };
+    types-six = self.callPackage ./types-six.nix {};
+    types-chardet = self.callPackage ./types-chardet.nix {};
   };
 in pkgs.python39.override {
   inherit packageOverrides;

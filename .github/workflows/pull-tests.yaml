@@ -27,7 +27,8 @@ jobs:
         timeout-minutes: 5
         run: |
           cd pylzy/
-          ./gen_proto.sh && ./run_tests.sh
+          ./gen_proto.sh
+          ./run_tests.sh
 
       - name: 'clean after python-test'
         run: |
