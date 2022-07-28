@@ -15,6 +15,7 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v3
         with:
+          ref: /lzy
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
