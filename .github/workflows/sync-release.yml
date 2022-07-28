@@ -12,13 +12,14 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 60
     steps:
-      - run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+      - name: "Chown for checkout"
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
 
       - name: "Checkout"
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          ref: ${{ github.ref_name }}
 
       # https://github.com/marketplace/actions/github-pull-request-action
       - name: "Create pull request"
