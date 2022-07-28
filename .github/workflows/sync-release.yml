@@ -33,7 +33,7 @@ jobs:
           pr_reviewer: "lindlind"
           pr_assignee: "lindlind"
 
-      - run: echo "${{ steps.create-pr.outputs.pr_number }}"
+      - run: echo "${{ steps.create-pr.outputs }}"
 
       # https://github.com/marketplace/actions/enable-pull-request-automerge
       - name: "Enable automerge"
