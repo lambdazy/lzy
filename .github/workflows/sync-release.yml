@@ -12,10 +12,11 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 60
     steps:
+      - run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+
       - name: "Checkout"
         uses: actions/checkout@v3
         with:
-          ref: /lzy
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
