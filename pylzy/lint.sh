@@ -12,4 +12,4 @@ run $_t "mypy --install-types --non-interactive --check-untyped-defs --show-erro
 # run $_t pyright
 
 print_pipeline_exit
-exit $rc;
+exit $rc

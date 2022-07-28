@@ -11,6 +11,6 @@ rc=0
 run $_t "mypy --install-types --non-interactive --check-untyped-defs --show-error-codes --pretty -p lzy"
 # run $_t pyright
 
-print_cmd_exit $rc "Whole pipeline"
+print_pipeline_exit
 
 exit $rc
