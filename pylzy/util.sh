@@ -6,9 +6,11 @@ _f="formatter"
 _t="typechecker"
 
 print_cmd_exit() {
-    _ex=$1
-    msg="$2 exited with code: $_ex"
-    [ $_ex -eq 0 ] && print_green "$msg" || print_red "$msg"
+    [ "$_ex" -eq 0 ] && pr=print_green || pr=print_red
+
+    $pr "$type run"
+    [ -v cmd ] && $pr "$ $cmd"
+    $pr "exited with code: $_ex"
 }
 
 print_pipeline_exit() {
@@ -21,11 +23,8 @@ run() {
 
 _isolate_run() {
     println "Calling $type:" "$ $cmd"
-
     $cmd_name
-
     _ex=$?
-
     print_cmd_exit
 }
 
