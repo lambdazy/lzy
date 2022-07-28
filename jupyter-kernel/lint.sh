@@ -13,4 +13,5 @@ run $_t "mypy --install-types --non-interactive --check-untyped-defs --show-erro
 
 print_pipeline_exit
 
+
 exit $rc
