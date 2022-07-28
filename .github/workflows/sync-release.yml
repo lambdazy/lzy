@@ -42,6 +42,9 @@ jobs:
           pull-request-number: ${{ steps.create-pr.outputs.pr_number }}
           merge-method: squash
 
+    outputs:
+      branch_ref: ${{ steps.create-pr.outputs.pr_url }}
+
 
   echo:
     runs-on: self-hosted
@@ -49,14 +52,10 @@ jobs:
     needs: pull-request-from-release-branch
     steps:
       - name: output-url
-        run: echo ${{needs.pull-request-from-release-branch.steps.create-pr.outputs.pr_url}}
-      - name: output-number
-        run: echo ${{needs.pull-request-from-release-branch.steps.create-pr.outputs.pr_number}}
-      - name: output-has-changed-files
-        run: echo ${{needs.pull-request-from-release-branch.steps.create-pr.outputs.has_changed_files}}
+        run: echo ${{needs.pull-request-from-release-branch.outputs.pr_url}}
 
   unit-tests:
-    if: needs.pull-request-from-release-branch.steps.create-pr.outputs.pr_number != ''
+    if: needs.pull-request-from-release-branch.outputs.pr_number != ''
     needs: pull-request-from-release-branch
     uses: ./.github/workflows/pull-tests.yaml
     with:
