@@ -12,7 +12,11 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v2 # TODO: should it run in master or in dev?
+      - name: "Chown for checkout"
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+
+      - name: "Checkout"
+        uses: actions/checkout@v3 # TODO: should it run in master or in dev?
         with:
           fetch-depth: 0
 
