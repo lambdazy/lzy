@@ -6,14 +6,22 @@ from typing import Any, Callable, Dict, List, Optional
 
 # model
 from ai.lzy.v1.channel_pb2 import Binding
+from ai.lzy.v1.graph.graph_executor_pb2 import TaskDesc
 from ai.lzy.v1.task_pb2 import TaskSpec
-from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION, AuxEnv, BaseEnv, EnvSpec, Slot
+from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
+from ai.lzy.v1.zygote_pb2 import AuxEnv, BaseEnv, EnvSpec, Slot, Zygote
 from lzy.api.v2.api import LzyCall
-from lzy.api.v2.api.runtime.runtime import Runtime
+from lzy.api.v2.api.runtime.runtime import ProgressStep, Runtime
 from lzy.api.v2.api.snapshot.snapshot import Snapshot
-from lzy.api.v2.grpc.graph_executor_client import GraphExecutorClient
+from lzy.api.v2.grpc.graph_executor_client import (
+    GraphExecutorClient,
+    TaskDesc,
+    prepare_task,
+)
 from lzy.api.v2.proxy_adapter import is_lzy_proxy, materialized
+from lzy.api.v2.servant.model.converter import to
 from lzy.api.v2.servant.model.slot import file_slot_t
+from lzy.api.v2.servant.model.zygote import python_func_zygote
 from lzy.api.v2.utils import unwrap
 from lzy.serialization.serializer import Serializer
 from lzy.storage.credentials import StorageCredentials
@@ -53,9 +61,16 @@ class GrpcRuntime(Runtime):
 
     @classmethod
     def from_credentials(
-        cls, credentials: StorageCredentials, bucket: str
+        cls,
+        credentials: StorageCredentials,
+        bucket: str,
+        graph_executor_client: GraphExecutorClient,
     ) -> "GrpcRuntime":
-        return cls(from_credentials(credentials), bucket)
+        return cls(
+            from_credentials(credentials),
+            bucket,
+            graph_executor_client,
+        )
 
     def _load_arg(self, entry_id: str, data: Any, serializer: Serializer):
         with tempfile.NamedTemporaryFile("wb", delete=True) as write_file:
@@ -67,19 +82,14 @@ class GrpcRuntime(Runtime):
                 # TODO: make a call to snapshot component to store entry_id and uri
 
     def _load_args(self, graph: List[LzyCall], serializer: Serializer):
-        for call in graph.calls():
+        for call in graph:
             for name, arg in call.named_arguments():
                 if not is_lzy_proxy(arg):
                     entry_id = str(uuid.uuid4())
                     self._load_arg(entry_id, arg, serializer)
 
     def _env(self, call: LzyCall) -> EnvSpec:
-        base_env: BaseEnv = unwrap(call.op.env.base_env)
-        env = EnvSpec(baseEnv=base_env)
-        aux_env: Optional[AuxEnv] = unwrap(call.op.env.aux_env)
-        if aux_env is not None:
-            env.aux_env = aux_env
-        return env
+        return to(call.env)
 
         # local_modules_uploaded = []
         # for local_module in aux_env.local_modules_paths:
@@ -115,18 +125,20 @@ class GrpcRuntime(Runtime):
         snapshot_id: str,
         serializer: Serializer,
     ):
+        fnc = call.signature.func
         for name, arg in call.named_arguments():
             if is_lzy_proxy(arg):
-                continu
+                continue
             call_id = arg_name_to_call_id[name]
             slot = file_slot_t(
-                os.path.sep.join(("tasks", "snapshot", snapshot_id, call_id)),
+                Path("tasks") / "snapshot" / snapshot_id / call_id,
                 _SLOT_DIRECTION.OUTPUT,
+                fnc.input_types[name],
             )
-            self._channel_manager.touch(
-                slot, self._channel_manager.snapshot_channel(snapshot_id, call_id)
-            )
-            path = _get_slot_path(slot)
+            # self._channel_manager.touch(
+            #     slot, self._channel_manager.snapshot_channel(snapshot_id, call_id)
+            # )
+            # path = _get_slot_path(slot)
             # with path.open('wb') as handle:
             #     serializer.serialize_to_file(arg, handle)
             #     handle.flush()
@@ -142,6 +154,7 @@ class GrpcRuntime(Runtime):
     def _bindings(
         self,
         call: LzyCall,
+        zygote: Zygote,
         snapshot_id: str,
         arg_name_to_call_id: Dict[str, str],
     ):
@@ -152,25 +165,29 @@ class GrpcRuntime(Runtime):
                 call_id = arg.lzy_call.id
             else:
                 call_id = arg_name_to_call_id[name]
-            channel = self._channel_manager.snapshot_channel(
-                snapshot_id, _generate_channel_name(call_id)
-            )
+            # channel = self._channel_manager.snapshot_channel(
+            #     snapshot_id, _generate_channel_name(call_id)
+            # )
             # bindings.append(Binding(slot, channel))
         return bindings
 
     def _task_spec(
         self, call: LzyCall, snapshot_id: str, serializer: Serializer
-    ) -> TaskSpec:
-        zygote = call.zygote
-        arg_name_to_call_id: Dict[str, str] = _get_or_generate_call_ids(call)
-        bindings: List[Binding] = self._bindings(
-            call, zygote, snapshot_id, arg_name_to_call_id
-        )
-        self._dump_arguments(call, arg_name_to_call_id, snapshot_id, serializer)
-        return TaskSpec(call.id, zygote, bindings)
+    ) -> TaskDesc:
+        # zygote = python_func_zygote(call)
+        # arg_name_to_call_id: Dict[str, str] = _get_or_generate_call_ids(call)
+        # bindings: List[Binding] = self._bindings(
+        #     call, zygote, snapshot_id, arg_name_to_call_id
+        # )
+        # self._dump_arguments(call, arg_name_to_call_id, snapshot_id, serializer)
+        # TODO[ottergottaott]: what to do with prepare_task?
+        return prepare_task(call)
 
     def exec(
-        self, graph: List[LzyCall], snapshot: Snapshot, progress: Callable[[], None]
+        self,
+        graph: List[LzyCall],
+        snapshot: Snapshot,
+        progress: Callable[[ProgressStep], None],
     ) -> None:
         raise NotImplementedError()
         # TODO[ottergottaott]: write this part up
@@ -181,16 +198,17 @@ class GrpcRuntime(Runtime):
         #     provisioning,
         # )
 
-        try:
-            task_specs: List[TaskSpec] = []
-            for call in graph.calls():
-                task_specs.append(
-                    self._task_spec(call, snapshot.id(), snapshot.serializer())
-                )
-            # here workflow_id == snapshot_id is assumed, but need to make it separate later
-            self._graph_executor_client.execute(snapshot.id(), task_specs)
-        finally:
-            self._channel_manager.destroy()
+        # try:
+        #     task_specs: List[TaskSpec] = []
+        #     for call in graph.calls():
+        #         task_specs.append(
+        #             self._task_spec(call, snapshot.id(), snapshot.serializer())
+        #         )
+        #     # here workflow_id == snapshot_id is assumed, but need to make it separate later
+        #     self._graph_executor_client.execute(snapshot.id(), task_specs)
+        # finally:
+        #     self._channel_manager.destroy()
 
     def destroy(self) -> None:
-        self._channel_manager.destroy()
+        # self._channel_manager.destroy()
+        pass
