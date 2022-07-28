@@ -32,6 +32,8 @@ jobs:
           pr_reviewer: "lindlind"
           pr_assignee: "lindlind"
 
+      - run: echo "${{ secrets.PERSONAL_ACCESS_TOKEN }}"
+
       # https://github.com/marketplace/actions/enable-pull-request-automerge
       - name: "Enable automerge"
         uses: peter-evans/enable-pull-request-automerge@v2
