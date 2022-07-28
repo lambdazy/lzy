@@ -1,5 +1,6 @@
 package ai.lzy.model.disk.grpc;
 
+import ai.lzy.model.exceptions.EntityNotFoundException;
 import ai.lzy.v1.disk.LD;
 import ai.lzy.v1.disk.LDS;
 import ai.lzy.v1.disk.LzyDiskServiceGrpc;
@@ -34,13 +35,16 @@ public class DiskGrpcClient implements DiskClient {
             response = diskService.createDisk(request);
         } catch (StatusRuntimeException e) {
             LOG.error("Failed to create disk: {}", e.getStatus().toString(), e);
-            throw new RuntimeException(e.getCause());
+            switch (e.getStatus().getCode()) {
+                case INVALID_ARGUMENT -> throw new IllegalArgumentException(e);
+                default -> throw new RuntimeException(e);
+            }
         }
         return response.getDisk();
     }
 
     @Override
-    public LD.Disk getDisk(String userId, String diskId) {
+    public LD.Disk getDisk(String userId, String diskId) throws EntityNotFoundException {
         final LDS.GetDiskRequest request = LDS.GetDiskRequest.newBuilder()
             .setUserId(userId)
             .setDiskId(diskId)
@@ -51,13 +55,17 @@ public class DiskGrpcClient implements DiskClient {
             response = diskService.getDisk(request);
         } catch (StatusRuntimeException e) {
             LOG.error("Failed to get disk: {}", e.getStatus().toString(), e);
-            throw new RuntimeException(e.getCause());
+            switch (e.getStatus().getCode()) {
+                case NOT_FOUND -> throw new EntityNotFoundException(e);
+                case INVALID_ARGUMENT -> throw new IllegalArgumentException(e);
+                default -> throw new RuntimeException(e);
+            }
         }
         return response.getDisk();
     }
 
     @Override
-    public LD.Disk deleteDisk(String userId, String diskId) {
+    public LD.Disk deleteDisk(String userId, String diskId) throws EntityNotFoundException {
         final LDS.DeleteDiskRequest request = LDS.DeleteDiskRequest.newBuilder()
             .setUserId(userId)
             .setDiskId(diskId)
@@ -68,7 +76,11 @@ public class DiskGrpcClient implements DiskClient {
             response = diskService.deleteDisk(request);
         } catch (StatusRuntimeException e) {
             LOG.error("Failed to delete disk: {}", e.getStatus().toString(), e);
-            throw new RuntimeException(e.getCause());
+            switch (e.getStatus().getCode()) {
+                case NOT_FOUND -> throw new EntityNotFoundException(e);
+                case INVALID_ARGUMENT -> throw new IllegalArgumentException(e);
+                default -> throw new RuntimeException(e);
+            }
         }
         return response.getDisk();
     }
@@ -84,8 +96,12 @@ public class DiskGrpcClient implements DiskClient {
             response = diskService.listUserDisks(request);
         } catch (StatusRuntimeException e) {
             LOG.error("Failed to list user disks: {}", e.getStatus().toString(), e);
-            throw new RuntimeException(e.getCause());
+            switch (e.getStatus().getCode()) {
+                case INVALID_ARGUMENT -> throw new IllegalArgumentException(e);
+                default -> throw new RuntimeException(e);
+            }
         }
         return response.getDiskList();
     }
+
 }
