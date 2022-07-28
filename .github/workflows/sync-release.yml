@@ -46,8 +46,8 @@ jobs:
   echo:
     runs-on: self-hosted
     timeout-minutes: 5
-    if: pull-request-from-release-branch.steps.create-pr.outputs.pr_number != ''
     needs: pull-request-from-release-branch
+    if: needs.pull-request-from-release-branch.outputs.pr_number != ''
     steps:
       - name: output-url
         run: echo ${{needs.pull-request-from-release-branch.outputs.pr_url}}
@@ -61,4 +61,4 @@ jobs:
     needs: pull-request-from-release-branch
     uses: ./.github/workflows/pull-tests.yaml
     with:
-      ref_name: ${{needs.pull-request-from-release-branch.outputs.pr_url}}
+      branch_ref: ${{needs.pull-request-from-release-branch.outputs.pr_url}}
