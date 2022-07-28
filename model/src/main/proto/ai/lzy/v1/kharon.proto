@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "ai/lzy/v1/fs.proto";
+import "ai/lzy/v1/auth.proto";
 
 package ai.lzy.v1;
 
@@ -16,9 +17,14 @@ service LzyKharon {
 }
 
 message TerminalProgress {
+  UserCredentials auth = 1;
   oneof progress {
-    TerminalResponse terminalResponse = 1;
+    Attach attach = 2;
+    TerminalResponse terminalResponse = 3;
   }
+}
+
+message Attach {
 }
 
 message TerminalResponse {

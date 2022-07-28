@@ -1,6 +1,7 @@
 package ai.lzy.servant.agents;
 
 import ai.lzy.fs.LzyFsServer;
+import ai.lzy.fs.SlotConnectionManager;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
@@ -10,9 +11,10 @@ import ai.lzy.model.SlotInstance;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.IAM;
-import ai.lzy.v1.Kharon;
+import ai.lzy.v1.Kharon.Attach;
 import ai.lzy.v1.Kharon.TerminalCommand;
 import ai.lzy.v1.Kharon.TerminalProgress;
+import ai.lzy.v1.Kharon.TerminalResponse;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsApi.SlotCommandStatus.RC;
 import ai.lzy.v1.LzyKharonGrpc;
@@ -30,7 +32,6 @@ import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -65,6 +66,7 @@ public class LzyTerminal implements Closeable {
         lzyFs = agent.fs();
         context = agent.context();
         agent.updateStatus(AgentStatus.EXECUTING);
+        commandHandler.start();
 
         Context.current().addListener(context -> {
             LOG.info("Terminal session terminated from server ");
@@ -126,7 +128,7 @@ public class LzyTerminal implements Closeable {
                             final LzySlot slot = context.slot(fromSlot.taskId(), fromSlot.name());
                             if (slot == null) {
                                 reply(commandId, RC.Code.ERROR,
-                                      "Slot " + fromSlot.name() + " not found in ns: " + fromSlot.taskId());
+                                    "Slot " + fromSlot.name() + " not found in ns: " + fromSlot.taskId());
                                 return;
                             }
 
@@ -143,7 +145,7 @@ public class LzyTerminal implements Closeable {
                                                 lzyFs.getSlotConnectionManager().connectToS3(slotUri, 0));
                                         } else {
                                             inputSlot.connect(slotUri,
-                                                lzyFs.getSlotConnectionManager().connectToSlot(toSlot, 0));
+                                                SlotConnectionManager.connectToSlot(toSlot, 0));
                                         }
                                     }
 
@@ -178,7 +180,7 @@ public class LzyTerminal implements Closeable {
                             final LzySlot slot = context.slot(slotInstance.taskId(), slotInstance.name());
                             if (slot == null) {
                                 reply(commandId, RC.Code.ERROR,
-                                        "Slot " + slotInstance.name() + " not found in ns: " + slotInstance.taskId());
+                                    "Slot " + slotInstance.name() + " not found in ns: " + slotInstance.taskId());
                                 return;
                             }
 
@@ -200,7 +202,7 @@ public class LzyTerminal implements Closeable {
                         }
 
                         default -> reply(commandId, RC.Code.ERROR,
-                                         "Invalid terminal command: " + terminalCommand.getCommandCase());
+                            "Invalid terminal command: " + terminalCommand.getCommandCase());
                     }
                 }
 
@@ -227,7 +229,8 @@ public class LzyTerminal implements Closeable {
 
                 private void reply(String commandId, LzyFsApi.SlotCommandStatus status) {
                     var terminalState = TerminalProgress.newBuilder()
-                        .setTerminalResponse(Kharon.TerminalResponse.newBuilder()
+                        .setAuth(agent.auth().getUser())
+                        .setTerminalResponse(TerminalResponse.newBuilder()
                             .setCommandId(commandId)
                             .setSlotStatus(status)
                             .build())
@@ -238,6 +241,12 @@ public class LzyTerminal implements Closeable {
             };
 
             responseObserver = kharon.attachTerminal(supplier);
+        }
+
+        void start() {
+            responseObserver.onNext(
+                TerminalProgress.newBuilder().setAuth(agent.auth().getUser()).setAttach(Attach.newBuilder().build())
+                    .build());
         }
 
         public String workflowId() {

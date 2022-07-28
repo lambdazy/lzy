@@ -23,7 +23,11 @@ import ai.lzy.v1.Lzy;
 import ai.lzy.v1.Lzy.GetSessionsRequest;
 import ai.lzy.v1.Lzy.GetSessionsResponse;
 import ai.lzy.v1.Lzy.GetSessionsResponse.Builder;
+import ai.lzy.v1.Lzy.RegisterSessionRequest;
+import ai.lzy.v1.Lzy.RegisterSessionResponse;
 import ai.lzy.v1.Lzy.SessionDescription;
+import ai.lzy.v1.Lzy.UnregisterSessionRequest;
+import ai.lzy.v1.Lzy.UnregisterSessionResponse;
 import ai.lzy.v1.LzyServerGrpc;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.Tasks;
@@ -134,6 +138,7 @@ public class LzyServer {
     }
 
     public static class Impl extends LzyServerGrpc.LzyServerImplBase {
+
         private final ZygoteRepository operations = new ZygoteRepositoryImpl();
 
         @Inject
@@ -354,7 +359,7 @@ public class LzyServer {
 
         @Override
         public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request,
-                                         StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
+            StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
             LOG.info("Server::checkPermissions " + JsonUtils.printRequest(request));
             IAM.Auth requestAuth = request.getAuth();
             if (!checkAuth(requestAuth, responseObserver)) {
@@ -402,7 +407,7 @@ public class LzyServer {
 
         @Override
         public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
-                                     StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+            StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
             LOG.info("Server::getS3Credentials " + JsonUtils.printRequest(request));
             final IAM.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
@@ -438,8 +443,32 @@ public class LzyServer {
         }
 
         @Override
+        public void registerSession(RegisterSessionRequest request,
+            StreamObserver<RegisterSessionResponse> responseObserver) {
+            final String userId = request.getAuth().getUserId();
+            if (!auth.checkUser(userId, request.getAuth().getToken())) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            }
+            servantsAllocator.registerSession(userId, request.getSessionId(), this.auth.bucketForUser(userId));
+            responseObserver.onNext(RegisterSessionResponse.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void unregisterSession(UnregisterSessionRequest request,
+            StreamObserver<UnregisterSessionResponse> responseObserver) {
+            final String userId = request.getAuth().getUserId();
+            if (!auth.checkUser(userId, request.getAuth().getToken())) {
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            }
+            servantsAllocator.deleteSession(request.getSessionId());
+            responseObserver.onNext(UnregisterSessionResponse.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
         public void getSessions(GetSessionsRequest request,
-                                StreamObserver<GetSessionsResponse> responseObserver) {
+            StreamObserver<GetSessionsResponse> responseObserver) {
             final String userId = request.getAuth().getUserId();
             if (!auth.checkUser(userId, request.getAuth().getToken())) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
@@ -471,7 +500,7 @@ public class LzyServer {
 
         @Override
         public void getUser(Lzy.GetUserRequest request,
-                            StreamObserver<Lzy.GetUserResponse> responseObserver) {
+            StreamObserver<Lzy.GetUserResponse> responseObserver) {
             final Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());

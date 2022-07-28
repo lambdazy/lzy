@@ -1,5 +1,6 @@
 package ai.lzy.kharon;
 
+import ai.lzy.v1.LzyServerGrpc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,9 +15,10 @@ public class TerminalSessionManager {
 
     public TerminalSession createSession(
         String sessionId,
-        TerminalController terminalController
+        TerminalController terminalController,
+        LzyServerGrpc.LzyServerBlockingStub server
     ) {
-        final TerminalSession terminalSession = new TerminalSession(sessionId, terminalController);
+        final TerminalSession terminalSession = new TerminalSession(sessionId, terminalController, server);
         sessions.put(terminalSession.sessionId(), terminalSession);
         return terminalSession;
     }

@@ -5,9 +5,7 @@ import static ai.lzy.model.UriScheme.LzyKharon;
 import static ai.lzy.model.UriScheme.SlotAzure;
 import static ai.lzy.model.UriScheme.SlotS3;
 
-import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.kharon.workflow.WorkflowService;
@@ -366,7 +364,8 @@ public class LzyKharon {
             final String sessionId = "terminal_" + UUID.randomUUID();
             final TerminalSession session = sessionManager.createSession(
                 sessionId,
-                new TerminalController(responseObserver)
+                new TerminalController(responseObserver),
+                server
             );
             responseObserver.onNext(
                 Kharon.TerminalCommand.newBuilder()
@@ -375,10 +374,7 @@ public class LzyKharon {
                         .setWorkflowId(sessionId)
                         .build())
                     .build());
-            Context.current().addListener(context -> {
-                session.onTerminalDisconnect();
-                sessionManager.deleteSession(sessionId);
-            }, Runnable::run);
+            Context.current().addListener(context -> sessionManager.deleteSession(sessionId), Runnable::run);
             return session.terminalProgressHandler();
         }
 

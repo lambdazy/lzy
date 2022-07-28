@@ -18,6 +18,7 @@ import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEvent.UserEventType;
 import ai.lzy.model.logs.UserEventLogger;
+import ai.lzy.servant.portal.Portal;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Lzy;
 import ai.lzy.v1.LzyPortalApi;
@@ -27,7 +28,6 @@ import ai.lzy.v1.LzyServerGrpc;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.Servant;
 import ai.lzy.v1.Tasks;
-import ai.lzy.servant.portal.Portal;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -44,9 +44,8 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import static ai.lzy.model.UriScheme.LzyServant;
-
 public class LzyServant implements Closeable {
+
     private static final Logger LOG = LogManager.getLogger(LzyServant.class);
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
@@ -174,43 +173,47 @@ public class LzyServant implements Closeable {
 
         @Override
         public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
-            if (portal.isActive() || agent.getStatus() != AgentStatus.REGISTERED) {
-                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-                return;
-            }
+            try {
+                if (portal.isActive() || agent.getStatus() != AgentStatus.REGISTERED) {
+                    responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                    return;
+                }
 
-            LOG.info("Servant::prepare " + JsonUtils.printRequest(request));
-            UserEventLogger.log(new UserEvent(
-                "Servant execution preparing",
-                Map.of(
-                    "servant_id", agent.id()
-                ),
-                UserEvent.UserEventType.ExecutionPreparing
-            ));
-            // TODO (lindvv): logs without lambda
-            MetricEventLogger.timeIt(
-                "time of context preparing",
-                Map.of("metric_type", "system_metric"),
-                () -> {
-                    final Servant.EnvResult.Builder result = Servant.EnvResult.newBuilder();
-                    try {
-                        final String bucket = server.getBucket(Lzy.GetBucketRequest
-                            .newBuilder().setAuth(agent.auth()).build()).getBucket();
-                        final Lzy.GetS3CredentialsResponse credentials = server.getS3Credentials(
-                            Lzy.GetS3CredentialsRequest.newBuilder()
-                                .setBucket(bucket)
-                                .setAuth(agent.auth())
-                                .build()
-                        );
-                        context.prepare(GrpcConverter.from(request), StorageClient.create(credentials));
-                    } catch (EnvironmentInstallationException e) {
-                        LOG.error("Unable to install environment", e);
-                        result.setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc());
-                        result.setDescription(e.getMessage());
-                    }
-                    responseObserver.onNext(result.build());
-                    responseObserver.onCompleted();
-                });
+                LOG.info("Servant::prepare " + JsonUtils.printRequest(request));
+                UserEventLogger.log(new UserEvent(
+                    "Servant execution preparing",
+                    Map.of(
+                        "servant_id", agent.id()
+                    ),
+                    UserEvent.UserEventType.ExecutionPreparing
+                ));
+                // TODO (lindvv): logs without lambda
+                MetricEventLogger.timeIt(
+                    "time of context preparing",
+                    Map.of("metric_type", "system_metric"),
+                    () -> {
+                        final Servant.EnvResult.Builder result = Servant.EnvResult.newBuilder();
+                        try {
+                            final String bucket = server.getBucket(Lzy.GetBucketRequest
+                                .newBuilder().setAuth(agent.auth()).build()).getBucket();
+                            final Lzy.GetS3CredentialsResponse credentials = server.getS3Credentials(
+                                Lzy.GetS3CredentialsRequest.newBuilder()
+                                    .setBucket(bucket)
+                                    .setAuth(agent.auth())
+                                    .build()
+                            );
+                            context.prepare(GrpcConverter.from(request), StorageClient.create(credentials));
+                        } catch (EnvironmentInstallationException e) {
+                            LOG.error("Unable to install environment", e);
+                            result.setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc());
+                            result.setDescription(e.getMessage());
+                        }
+                        responseObserver.onNext(result.build());
+                        responseObserver.onCompleted();
+                    });
+            } catch (Exception e) {
+                forceStop(e);
+            }
         }
 
         @Override

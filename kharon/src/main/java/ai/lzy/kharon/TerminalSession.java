@@ -1,37 +1,56 @@
 package ai.lzy.kharon;
 
 import ai.lzy.model.JsonUtils;
+import ai.lzy.v1.IAM.UserCredentials;
 import ai.lzy.v1.Kharon;
+import ai.lzy.v1.Kharon.TerminalProgress.ProgressCase;
+import ai.lzy.v1.Lzy.RegisterSessionRequest;
+import ai.lzy.v1.Lzy.UnregisterSessionRequest;
+import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.LzyServerGrpc.LzyServerBlockingStub;
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class TerminalSession {
+
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
 
     private TerminalSessionState state = TerminalSessionState.UNBOUND;
 
     private final TerminalController terminalController;
+    private final LzyServerBlockingStub server;
     private final TerminalProgressHandler terminalProgressHandler;
+    private final AtomicReference<UserCredentials> creds = new AtomicReference<>();
 
     private final String sessionId;
 
     public TerminalSession(
         String sessionId,
-        TerminalController terminalController
+        TerminalController terminalController,
+        LzyServerGrpc.LzyServerBlockingStub server
     ) {
         this.sessionId = sessionId;
         this.terminalController = terminalController;
+        this.server = server;
         this.terminalProgressHandler = new TerminalProgressHandler();
     }
 
     public class TerminalProgressHandler implements StreamObserver<Kharon.TerminalProgress> {
+
         @Override
         public void onNext(Kharon.TerminalProgress terminalState) {
             LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:"
                 + JsonUtils.printRequest(terminalState));
-
-            if (terminalState.getProgressCase() == Kharon.TerminalProgress.ProgressCase.TERMINALRESPONSE) {
+            if (terminalState.getProgressCase() == ProgressCase.ATTACH) {
+                creds.set(terminalState.getAuth());
+                //noinspection ResultOfMethodCallIgnored
+                server.registerSession(
+                    RegisterSessionRequest.newBuilder().setAuth(terminalState.getAuth().toBuilder().build())
+                        .setSessionId(sessionId)
+                        .build());
+            } else if (terminalState.getProgressCase() == Kharon.TerminalProgress.ProgressCase.TERMINALRESPONSE) {
                 terminalController.handleTerminalResponse(terminalState.getTerminalResponse());
             } else {
                 throw new IllegalStateException("Unexpected value: " + terminalState.getProgressCase());
@@ -40,14 +59,23 @@ public class TerminalSession {
 
         @Override
         public void onError(Throwable throwable) {
-            LOG.error("Terminal connection with sessionId={} terminated, exception = {} ", sessionId, throwable);
-            updateState(TerminalSessionState.ERRORED);
+            try {
+                LOG.error("Terminal connection with sessionId={} terminated, exception = {} ", sessionId, throwable);
+                updateState(TerminalSessionState.ERRORED);
+                onTerminalDisconnect();
+            } finally {
+                unregister();
+            }
         }
 
         @Override
         public void onCompleted() {
-            LOG.info("Terminal connection with sessionId={} completed", sessionId);
-            updateState(TerminalSessionState.COMPLETED);
+            try {
+                LOG.info("Terminal connection with sessionId={} completed", sessionId);
+                updateState(TerminalSessionState.COMPLETED);
+            } finally {
+                unregister();
+            }
         }
     }
 
@@ -84,5 +112,14 @@ public class TerminalSession {
         LOG.info("Terminal DISCONNECTED for sessionId = {}", sessionId);
         updateState(TerminalSessionState.COMPLETED);
         terminalController.onDisconnect();
+    }
+
+    private void unregister() {
+        final UserCredentials userCredentials = creds.get();
+        if (userCredentials != null) {
+            //noinspection ResultOfMethodCallIgnored
+            server.unregisterSession(
+                UnregisterSessionRequest.newBuilder().setAuth(userCredentials).setSessionId(sessionId).build());
+        }
     }
 }

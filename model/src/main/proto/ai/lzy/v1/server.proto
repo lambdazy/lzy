@@ -16,6 +16,10 @@ service LzyServer {
   rpc Task (TaskCommand) returns (TaskStatus);
   rpc Start (TaskSpec) returns (stream TaskProgress);
 
+  rpc RegisterSession (RegisterSessionRequest) returns (RegisterSessionResponse);
+  rpc GetSessions (GetSessionsRequest) returns (GetSessionsResponse);
+  rpc UnregisterSession (UnregisterSessionRequest) returns (UnregisterSessionResponse);
+
   rpc TasksStatus (Auth) returns (TasksList);
 
   rpc RegisterServant (AttachServant) returns (AttachStatus);
@@ -25,8 +29,6 @@ service LzyServer {
   rpc GetS3Credentials (GetS3CredentialsRequest) returns (GetS3CredentialsResponse);
 
   rpc GetBucket (GetBucketRequest) returns (GetBucketResponse);
-
-  rpc GetSessions (GetSessionsRequest) returns (GetSessionsResponse);
 
   rpc GetUser (GetUserRequest) returns (GetUserResponse);
 }
@@ -105,6 +107,23 @@ message SessionDescription {
 message GetSessionsResponse {
   repeated SessionDescription sessions = 1;
 }
+
+message RegisterSessionRequest {
+  UserCredentials auth = 1;
+  string session_id = 2;
+}
+
+message RegisterSessionResponse {
+}
+
+message UnregisterSessionRequest {
+  UserCredentials auth = 1;
+  string session_id = 2;
+}
+
+message UnregisterSessionResponse {
+}
+
 message GetBucketRequest {
   Auth auth = 1;
 }
