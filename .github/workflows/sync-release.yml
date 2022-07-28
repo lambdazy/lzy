@@ -46,17 +46,19 @@ jobs:
   echo:
     runs-on: self-hosted
     timeout-minutes: 5
+    if: pull-request-from-release-branch.steps.create-pr.outputs.pr_number != ''
+    needs: pull-request-from-release-branch
     steps:
       - name: output-url
-        run: echo ${{steps.create-pr.outputs.pr_url}}
+        run: echo ${{outputs.pr_url}}
       - name: output-number
-        run: echo ${{steps.create-pr.outputs.pr_number}}
+        run: echo ${{outputs.pr_number}}
       - name: output-has-changed-files
-        run: echo ${{steps.create-pr.outputs.has_changed_files}}
+        run: echo ${{outputs.has_changed_files}}
 
   unit-tests:
     if: pull-request-from-release-branch.steps.create-pr.outputs.pr_number != ''
     needs: pull-request-from-release-branch
     uses: ./.github/workflows/pull-tests.yaml
     with:
-      ref_name: ${{pull-request-from-release-branch.steps.open-pr.outputs.pr_url}}
+      ref_name: ${{outputs.pr_url}}
