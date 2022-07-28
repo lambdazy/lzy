@@ -1,6 +1,5 @@
 package ai.lzy.kharon.env.dao;
 
-import ai.lzy.disk.DiskType;
 import ai.lzy.kharon.env.CachedEnvStatus;
 import ai.lzy.model.db.Storage;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -1,7 +1,7 @@
 package ai.lzy.disk.providers;
 
-import ai.lzy.disk.DiskSpec;
-import ai.lzy.disk.DiskType;
+import ai.lzy.model.disk.DiskSpec;
+import ai.lzy.model.disk.DiskType;
 
 public interface DiskStorageProvider {
 

@@ -1,8 +1,8 @@
 package ai.lzy.disk.manager;
 
-import ai.lzy.disk.Disk;
-import ai.lzy.disk.DiskSpec;
-import ai.lzy.disk.DiskType;
+import ai.lzy.model.disk.Disk;
+import ai.lzy.model.disk.DiskSpec;
+import ai.lzy.model.disk.DiskType;
 import ai.lzy.disk.providers.DiskStorageProviderResolver;
 import ai.lzy.disk.dao.DiskDao;
 import jakarta.inject.Inject;

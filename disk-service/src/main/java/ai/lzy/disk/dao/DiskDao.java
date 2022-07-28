@@ -1,7 +1,7 @@
 package ai.lzy.disk.dao;
 
 import javax.annotation.Nullable;
-import ai.lzy.disk.Disk;
+import ai.lzy.model.disk.Disk;
 
 public interface DiskDao {
 

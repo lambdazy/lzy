@@ -1,7 +1,7 @@
 package ai.lzy.disk.manager;
 
-import ai.lzy.disk.Disk;
-import ai.lzy.disk.DiskType;
+import ai.lzy.model.disk.Disk;
+import ai.lzy.model.disk.DiskType;
 import javax.annotation.Nullable;
 
 public interface DiskManager {

@@ -1,8 +1,10 @@
 package ai.lzy.disk.providers;
 
-import ai.lzy.disk.DiskSpec;
-import ai.lzy.disk.DiskType;
-import ai.lzy.disk.LocalDirSpec;
+import ai.lzy.model.disk.DiskSpec;
+import ai.lzy.model.disk.DiskType;
+import ai.lzy.model.disk.LocalDirSpec;
+import ai.lzy.disk.configs.LocalStorageProviderConfig;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,11 +13,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Singleton
-public class LocalDirProvider implements DiskStorageProvider {
+public class LocalStorageProvider implements DiskStorageProvider {
 
-    private static final Logger LOG = LogManager.getLogger(LocalDirProvider.class);
+    private static final Logger LOG = LogManager.getLogger(LocalStorageProvider.class);
     private static final DiskType PROVIDER_TYPE = DiskType.LOCAL_DIR;
-    private static final String DISKS_LOCATION = "/tmp/lzy-disk/";
+
+    private final LocalStorageProviderConfig config;
+
+    @Inject
+    LocalStorageProvider(LocalStorageProviderConfig config) {
+        this.config = config;
+    }
+
 
     @Override
     public DiskType getType() {
@@ -25,7 +34,7 @@ public class LocalDirProvider implements DiskStorageProvider {
     @Override
     public LocalDirSpec createDisk(String label, String diskId, int diskSizeGb) {
         String folderName = genFolderName(label, diskId);
-        Path diskLocation = Path.of(DISKS_LOCATION, folderName);
+        Path diskLocation = Path.of(config.disksLocation(), folderName);
         if (!Files.exists(diskLocation)) {
             try {
                 Files.createDirectories(diskLocation);

@@ -1,4 +1,4 @@
-package ai.lzy.disk.common.objectMapper;
+package ai.lzy.disk;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule;

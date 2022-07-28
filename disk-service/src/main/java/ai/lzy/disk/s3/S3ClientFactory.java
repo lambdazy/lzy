@@ -1,4 +1,4 @@
-package ai.lzy.disk.common.s3;
+package ai.lzy.disk.s3;
 
 import ai.lzy.disk.configs.S3Config;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;

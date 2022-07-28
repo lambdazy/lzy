@@ -1,6 +1,6 @@
 package ai.lzy.disk.providers;
 
-import ai.lzy.disk.DiskType;
+import ai.lzy.model.disk.DiskType;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import io.micronaut.context.annotation.Requires;
@@ -9,8 +9,8 @@ import jakarta.inject.Singleton;
 import java.util.function.Supplier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.disk.DiskSpec;
-import ai.lzy.disk.S3StorageSpec;
+import ai.lzy.model.disk.DiskSpec;
+import ai.lzy.model.disk.S3StorageSpec;
 
 @Singleton
 @Requires(beans = AmazonS3.class)

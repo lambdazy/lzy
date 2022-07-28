@@ -1,4 +1,4 @@
-package ai.lzy.model.disk;
+package ai.lzy.model.disk.grpc;
 
 import ai.lzy.v1.disk.LD;
 import java.util.List;

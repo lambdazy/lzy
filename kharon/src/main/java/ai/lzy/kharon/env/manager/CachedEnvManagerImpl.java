@@ -1,13 +1,12 @@
 package ai.lzy.kharon.env.manager;
 
-import ai.lzy.disk.Disk;
-import ai.lzy.disk.DiskType;
-import ai.lzy.disk.common.GrpcConverter;
-import ai.lzy.disk.dao.DiskDao;
+import ai.lzy.model.disk.Disk;
+import ai.lzy.model.disk.DiskType;
 import ai.lzy.kharon.env.CachedEnv;
 import ai.lzy.kharon.env.CachedEnvStatus;
 import ai.lzy.kharon.env.dao.CachedEnvDao;
-import ai.lzy.model.disk.DiskClient;
+import ai.lzy.model.disk.grpc.DiskClient;
+import ai.lzy.model.disk.grpc.GrpcConverter;
 import ai.lzy.v1.disk.LD;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -23,7 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Singleton
-@Requires(beans = DiskDao.class)
+@Requires(beans = DiskClient.class)
 @Requires(beans = CachedEnvDao.class)
 public class CachedEnvManagerImpl implements CachedEnvManager {
 
@@ -130,7 +129,7 @@ public class CachedEnvManagerImpl implements CachedEnvManager {
     ) {
         final String envId = "env-" + UUID.randomUUID();
         final Disk disk = GrpcConverter.from(diskClient.createDisk(
-            userId,"env-disk", GrpcConverter.to(diskType), 0
+            userId, "env-disk", GrpcConverter.to(diskType), 0
         ));
         final CachedEnvDao.CachedEnvInfo envInfo = new CachedEnvDao.CachedEnvInfo(
             envId, userId, workflowName, disk.id(), CachedEnvStatus.PREPARING, dockerImage, yamlConfig

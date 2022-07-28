@@ -1,4 +1,4 @@
-package ai.lzy.disk;
+package ai.lzy.model.disk;
 
 public record S3StorageSpec(int sizeGb, String bucket) implements DiskSpec {
 

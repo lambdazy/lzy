@@ -1,4 +1,4 @@
-package ai.lzy.disk.common;
+package ai.lzy.disk.dao;
 
 import ai.lzy.disk.configs.DbConfig;
 import ai.lzy.model.db.Storage;

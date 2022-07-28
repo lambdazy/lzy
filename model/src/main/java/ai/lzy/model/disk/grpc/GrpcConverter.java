@@ -1,10 +1,10 @@
-package ai.lzy.disk.common;
+package ai.lzy.model.disk.grpc;
 
-import ai.lzy.disk.Disk;
-import ai.lzy.disk.DiskSpec;
-import ai.lzy.disk.DiskType;
-import ai.lzy.disk.LocalDirSpec;
-import ai.lzy.disk.S3StorageSpec;
+import ai.lzy.model.disk.Disk;
+import ai.lzy.model.disk.DiskSpec;
+import ai.lzy.model.disk.DiskType;
+import ai.lzy.model.disk.LocalDirSpec;
+import ai.lzy.model.disk.S3StorageSpec;
 import ai.lzy.v1.disk.LD;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

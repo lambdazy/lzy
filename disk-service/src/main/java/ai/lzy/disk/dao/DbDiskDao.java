@@ -1,8 +1,8 @@
 package ai.lzy.disk.dao;
 
-import ai.lzy.disk.Disk;
-import ai.lzy.disk.DiskSpec;
-import ai.lzy.disk.DiskType;
+import ai.lzy.model.disk.Disk;
+import ai.lzy.model.disk.DiskSpec;
+import ai.lzy.model.disk.DiskType;
 import ai.lzy.model.db.Storage;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
