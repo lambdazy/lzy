@@ -110,10 +110,6 @@ public class TerminalController {
         }
     }
 
-    public void onDisconnect() {
-        invalidated.compareAndSet(false, true);
-    }
-
     public static class TerminalControllerResetException extends Exception {
         public TerminalControllerResetException(Throwable th) {
             super(th);

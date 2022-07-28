@@ -374,7 +374,10 @@ public class LzyKharon {
                         .setWorkflowId(sessionId)
                         .build())
                     .build());
-            Context.current().addListener(context -> sessionManager.deleteSession(sessionId), Runnable::run);
+            Context.current().addListener(context -> {
+                session.onTerminalDisconnect(context.cancellationCause());
+                sessionManager.deleteSession(sessionId);
+            }, Runnable::run);
             return session.terminalProgressHandler();
         }
 

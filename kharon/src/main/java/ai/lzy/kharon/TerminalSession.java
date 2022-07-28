@@ -10,6 +10,7 @@ import ai.lzy.v1.LzyServerGrpc;
 import ai.lzy.v1.LzyServerGrpc.LzyServerBlockingStub;
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -59,23 +60,16 @@ public class TerminalSession {
 
         @Override
         public void onError(Throwable throwable) {
-            try {
-                LOG.error("Terminal connection with sessionId={} terminated, exception = {} ", sessionId, throwable);
-                updateState(TerminalSessionState.ERRORED);
-                onTerminalDisconnect();
-            } finally {
-                unregister();
-            }
+            LOG.error("Terminal connection with sessionId={} terminated, exception = {} ", sessionId, throwable);
+            updateState(TerminalSessionState.ERRORED);
+            terminalController.terminate(throwable);
         }
 
         @Override
         public void onCompleted() {
-            try {
-                LOG.info("Terminal connection with sessionId={} completed", sessionId);
-                updateState(TerminalSessionState.COMPLETED);
-            } finally {
-                unregister();
-            }
+            LOG.info("Terminal connection with sessionId={} completed", sessionId);
+            updateState(TerminalSessionState.COMPLETED);
+            terminalController.complete();
         }
     }
 
@@ -108,18 +102,21 @@ public class TerminalSession {
         return terminalController;
     }
 
-    public synchronized void onTerminalDisconnect() {
-        LOG.info("Terminal DISCONNECTED for sessionId = {}", sessionId);
-        updateState(TerminalSessionState.COMPLETED);
-        terminalController.onDisconnect();
-    }
-
-    private void unregister() {
-        final UserCredentials userCredentials = creds.get();
-        if (userCredentials != null) {
-            //noinspection ResultOfMethodCallIgnored
-            server.unregisterSession(
-                UnregisterSessionRequest.newBuilder().setAuth(userCredentials).setSessionId(sessionId).build());
+    public synchronized void onTerminalDisconnect(@Nullable Throwable cause) {
+        try {
+            LOG.info("Terminal DISCONNECTED for sessionId = {}, cause = {}", sessionId, cause);
+            if (cause == null) {
+                updateState(TerminalSessionState.COMPLETED);
+            } else {
+                updateState(TerminalSessionState.ERRORED);
+            }
+        } finally {
+            final UserCredentials userCredentials = creds.get();
+            if (userCredentials != null) {
+                //noinspection ResultOfMethodCallIgnored
+                server.unregisterSession(
+                    UnregisterSessionRequest.newBuilder().setAuth(userCredentials).setSessionId(sessionId).build());
+            }
         }
     }
 }
