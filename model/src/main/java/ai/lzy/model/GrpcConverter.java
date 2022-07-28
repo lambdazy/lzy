@@ -44,7 +44,7 @@ import ai.lzy.v1.Tasks.SlotAssignment;
 
 public abstract class GrpcConverter {
 
-    public static Zygote from(Operations.Zygote grpcOperation) {
+    public static AtomicZygote from(Operations.Zygote grpcOperation) {
         return new AtomicZygoteAdapter(grpcOperation);
     }
 

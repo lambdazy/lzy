@@ -30,5 +30,6 @@
         <module>jupyter-kernel</module>
         <module>scheduler</module>
         <module>storage</module>
+        <module>disk-service</module>
     </modules>
 </project>
