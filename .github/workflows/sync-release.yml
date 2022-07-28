@@ -55,8 +55,8 @@ jobs:
         run: echo ${{steps.create-pr.outputs.has_changed_files}}
 
   unit-tests:
-    if: steps.create-pr.outputs.pr_number != ''
+    if: pull-request-from-release-branch.steps.create-pr.outputs.pr_number != ''
     needs: pull-request-from-release-branch
     uses: ./.github/workflows/pull-tests.yaml
     with:
-      ref_name: ${{steps.open-pr.outputs.pr_url}}
+      ref_name: ${{pull-request-from-release-branch.steps.open-pr.outputs.pr_url}}
