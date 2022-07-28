@@ -1,11 +1,16 @@
 package ai.lzy.kharon;
 
 import ai.lzy.model.JsonUtils;
+import ai.lzy.model.grpc.ClientHeaderInterceptor;
+import ai.lzy.model.grpc.GrpcHeaders;
+import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
 import ai.lzy.v1.IAM.UserCredentials;
 import ai.lzy.v1.Kharon;
 import ai.lzy.v1.Kharon.TerminalProgress.ProgressCase;
 import ai.lzy.v1.Lzy.RegisterSessionRequest;
 import ai.lzy.v1.Lzy.UnregisterSessionRequest;
+import ai.lzy.v1.LzyChannelManagerGrpc;
+import ai.lzy.v1.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
 import ai.lzy.v1.LzyServerGrpc;
 import ai.lzy.v1.LzyServerGrpc.LzyServerBlockingStub;
 import io.grpc.stub.StreamObserver;
@@ -19,6 +24,7 @@ public class TerminalSession {
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
 
     private TerminalSessionState state = TerminalSessionState.UNBOUND;
+    private LzyChannelManagerBlockingStub channelManager;
 
     private final TerminalController terminalController;
     private final LzyServerBlockingStub server;
@@ -30,11 +36,13 @@ public class TerminalSession {
     public TerminalSession(
         String sessionId,
         TerminalController terminalController,
-        LzyServerGrpc.LzyServerBlockingStub server
+        LzyServerGrpc.LzyServerBlockingStub server,
+        LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager
     ) {
         this.sessionId = sessionId;
         this.terminalController = terminalController;
         this.server = server;
+        this.channelManager = channelManager;
         this.terminalProgressHandler = new TerminalProgressHandler();
     }
 
@@ -45,6 +53,12 @@ public class TerminalSession {
             LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:"
                 + JsonUtils.printRequest(terminalState));
             if (terminalState.getProgressCase() == ProgressCase.ATTACH) {
+                channelManager = LzyChannelManagerGrpc
+                    .newBlockingStub(channelManager.getChannel())
+                    .withInterceptors(ClientHeaderInterceptor.header(
+                        GrpcHeaders.AUTHORIZATION,
+                        terminalState.getAuth()::getToken
+                    ));
                 creds.set(terminalState.getAuth());
                 //noinspection ResultOfMethodCallIgnored
                 server.registerSession(
@@ -102,7 +116,7 @@ public class TerminalSession {
         return terminalController;
     }
 
-    public synchronized void onTerminalDisconnect(@Nullable Throwable cause) {
+    public void onTerminalDisconnect(@Nullable Throwable cause) {
         try {
             LOG.info("Terminal DISCONNECTED for sessionId = {}, cause = {}", sessionId, cause);
             if (cause == null) {
@@ -111,6 +125,8 @@ public class TerminalSession {
                 updateState(TerminalSessionState.ERRORED);
             }
         } finally {
+            //noinspection ResultOfMethodCallIgnored
+            channelManager.destroyAll(ChannelDestroyAllRequest.newBuilder().setWorkflowId(sessionId).build());
             final UserCredentials userCredentials = creds.get();
             if (userCredentials != null) {
                 //noinspection ResultOfMethodCallIgnored

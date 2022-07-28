@@ -2,10 +2,8 @@ package ai.lzy.fs.slots;
 
 import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.Slot;
@@ -24,9 +22,8 @@ import static ai.lzy.v1.Operations.SlotStatus.State.*;
 public class LzySlotBase implements LzySlot {
     private static final Logger LOG = LogManager.getLogger(LzySlotBase.class);
 
-    private static final int NUM_EXECUTORS = 8;
-    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(NUM_EXECUTORS);
-
+    @SuppressWarnings("FieldCanBeLocal")
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final SlotInstance slotInstance;
     private final List<Consumer<ByteString>> trafficTrackers = new CopyOnWriteArrayList<>();
     private final AtomicReference<Operations.SlotStatus.State> state = new AtomicReference<>(UNBOUND);
@@ -36,7 +33,7 @@ public class LzySlotBase implements LzySlot {
 
     protected LzySlotBase(SlotInstance slotInstance) {
         this.slotInstance = slotInstance;
-        EXECUTOR.execute(this::stateWatchingThread);
+        executor.execute(this::stateWatchingThread);
     }
 
     private void stateWatchingThread() {
@@ -96,7 +93,7 @@ public class LzySlotBase implements LzySlot {
 
         synchronized (changeStateQueue) {
             changeStateQueue.add(newState);
-            changeStateQueue.notify();
+            changeStateQueue.notifyAll();
         }
 
         notifyAll();

@@ -12,6 +12,7 @@ option java_package = "ai.lzy.v1";
 service LzyChannelManager {
   rpc Create (ChannelCreateRequest) returns (ChannelCreateResponse);
   rpc Destroy (ChannelDestroyRequest) returns (ChannelDestroyResponse);
+  rpc DestroyAll (ChannelDestroyAllRequest) returns (ChannelDestroyAllResponse);
   rpc Status (ChannelStatusRequest) returns (ChannelStatus);
   rpc ChannelsStatus (ChannelsStatusRequest) returns (ChannelStatusList);
   rpc Bind (SlotAttach) returns (SlotAttachStatus);
@@ -32,6 +33,12 @@ message ChannelDestroyRequest {
 }
 
 message ChannelDestroyResponse {}
+
+message ChannelDestroyAllRequest {
+  string workflow_id = 1;
+}
+
+message ChannelDestroyAllResponse {}
 
 message ChannelStatusRequest {
   string channelId = 1;

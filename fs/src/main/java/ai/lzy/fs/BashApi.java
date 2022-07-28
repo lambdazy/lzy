@@ -16,7 +16,7 @@ public class BashApi {
         options.addRequiredOption("m", "lzy-mount", true, "Lzy FS mount point");
         options.addRequiredOption("a", "auth", true, "Enforce auth");
         options.addRequiredOption("p", "lzy-fs-port", true, "LzyFs port");
-        options.addRequiredOption("ai", "agent-id", true, "Agent id (system option)");
+        options.addRequiredOption("i", "agent-id", true, "Agent id (system option)");
         options.addOption(new Option("k", "private-key", true, "Path to private key for user auth"));
         options.addOption(new Option("w", "lzy-whiteboard", true, "Lzy whiteboard address [host:port]"));
     }

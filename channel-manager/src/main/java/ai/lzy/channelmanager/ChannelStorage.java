@@ -8,15 +8,14 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 public interface ChannelStorage {
-    Channel create(ChannelSpec spec, Workflow workflow);
-
+    Channel create(ChannelSpec spec, String workflowId, String userId);
     @Nullable
     Channel get(String channelId);
-
-    void destroy(String channelId) throws ChannelException;
+    void destroy(String channelId);
 
     @Nullable
     Channel bound(Endpoint endpoint) throws ChannelException;
 
     Stream<Channel> channels();
+    Stream<Channel> channels(String workflowId);
 }

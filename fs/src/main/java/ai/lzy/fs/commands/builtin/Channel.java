@@ -29,6 +29,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public final class Channel implements LzyCommand {
+
     private static final Logger LOG = LogManager.getLogger(Channel.class);
     private static final Options options = new Options();
 
@@ -40,7 +41,6 @@ public final class Channel implements LzyCommand {
      */
 
     static {
-        options.addOption("w", "workflow-id", true, "Workflow id");
         options.addOption("c", "content-type", true, "Content type");
         options.addOption("t", "channel-type", true, "Channel type (direct or snapshot)");
         options.addOption("s", "snapshot-id", true, "Snapshot id. Must be set if channel type is `snapshot`");
@@ -53,7 +53,7 @@ public final class Channel implements LzyCommand {
             //noinspection CheckStyle
             throw new IllegalArgumentException(
                 "Invalid call format. Expected: "
-              + "channel <common-opts> cmd "
+                    + "channel <common-opts> cmd "
                     + "[name|channel-id] "
                     + "[-w workflow-id] "
                     + "[-c content-type] "
@@ -94,12 +94,13 @@ public final class Channel implements LzyCommand {
                     channelName = UUID.randomUUID().toString();
                 }
 
-                DataSchema data = null;
+                DataSchema data;
                 if (localCmd.hasOption('c')) {
                     final String mappingFile = localCmd.getOptionValue('c');
                     // TODO(aleksZubakov): drop this ugly stuff when already fully switched to grpc api
-                    final Map<String, String> bindings = new HashMap<>();
-                    bindings.putAll(objectMapper.readValue(new File(mappingFile), Map.class));
+                    //noinspection unchecked
+                    final Map<String, String> bindings = new HashMap<String, String>(
+                        objectMapper.readValue(new File(mappingFile), Map.class));
 
                     String dataSchemeType = bindings.get("schemeType");
                     String contentType = bindings.getOrDefault("type", "");
@@ -123,11 +124,7 @@ public final class Channel implements LzyCommand {
                     channelSpecBuilder.setDirect(Channels.DirectChannelType.newBuilder().build());
                 }
 
-                String workflowId = localCmd.getOptionValue('w');
-                if (workflowId == null) {
-                    // FIXME(d-kruchinin): when workflows will be done
-                    workflowId = "unknown_workflow";
-                }
+                String workflowId = command.getOptionValue('i');
                 final ChannelManager.ChannelCreateResponse channelCreateResponse = channelManager.create(
                     ChannelManager.ChannelCreateRequest.newBuilder()
                         .setWorkflowId(workflowId)

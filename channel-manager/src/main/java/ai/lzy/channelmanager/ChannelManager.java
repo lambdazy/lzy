@@ -19,6 +19,8 @@ import ai.lzy.model.channel.SnapshotChannelSpec;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
 import ai.lzy.v1.ChannelManager.ChannelCreateResponse;
+import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
+import ai.lzy.v1.ChannelManager.ChannelDestroyAllResponse;
 import ai.lzy.v1.ChannelManager.ChannelDestroyRequest;
 import ai.lzy.v1.ChannelManager.ChannelDestroyResponse;
 import ai.lzy.v1.ChannelManager.ChannelStatus;
@@ -73,6 +75,7 @@ public class ChannelManager {
     public ChannelManager(ApplicationContext ctx) {
         var config = ctx.getBean(ChannelManagerConfig.class);
         channelStorage = new LocalChannelStorage();
+        //noinspection UnstableApiUsage
         final HostAndPort iamAddress = HostAndPort.fromString(config.iam().address());
         iamChannel = ChannelBuilder.forAddress(iamAddress)
             .usePlaintext()
@@ -106,9 +109,10 @@ public class ChannelManager {
     }
 
     private class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
+
         @Override
         public void create(ChannelCreateRequest request,
-                           StreamObserver<ChannelCreateResponse> responseObserver) {
+            StreamObserver<ChannelCreateResponse> responseObserver) {
             LOG.info("ChannelManager create channel {}: {}",
                 request.getChannelSpec().getChannelName(),
                 JsonUtils.printRequest(request));
@@ -131,7 +135,7 @@ public class ChannelManager {
             };
             final Channel channel = channelStorage.create(
                 spec,
-                new Workflow(request.getWorkflowId(), Objects.requireNonNull(authenticationContext).getSubject().id())
+                request.getWorkflowId(), Objects.requireNonNull(authenticationContext).getSubject().id()
             );
             responseObserver.onNext(
                 ChannelCreateResponse.newBuilder()
@@ -145,12 +149,43 @@ public class ChannelManager {
         public void destroy(ChannelDestroyRequest request, StreamObserver<ChannelDestroyResponse> responseObserver) {
             LOG.info("ChannelManager destroy channel {}", request.getChannelId());
             try {
+                final Channel channel = channelStorage.get(request.getChannelId());
+                if (channel != null) {
+                    channel.bound().forEach(endpoint -> {
+                        try {
+                            channel.unbind(endpoint);
+                        } catch (ChannelException e) {
+                            LOG.warn("Failed to unbind channel {} from endpoint {}", channel, endpoint, e);
+                        }
+                    });
+                }
+            } finally {
                 channelStorage.destroy(request.getChannelId());
                 responseObserver.onNext(ChannelDestroyResponse.getDefaultInstance());
                 responseObserver.onCompleted();
-            } catch (ChannelException e) {
-                responseObserver.onError(Status.NOT_FOUND.withCause(e).asRuntimeException());
             }
+        }
+
+        @Override
+        public void destroyAll(ChannelDestroyAllRequest request,
+            StreamObserver<ChannelDestroyAllResponse> responseObserver) {
+            LOG.info("Destroying all channels for workflow {}", request.getWorkflowId());
+            channelStorage.channels(request.getWorkflowId()).forEach(channel -> {
+                try {
+                    channel.bound().forEach(endpoint -> {
+                        try {
+                            channel.unbind(endpoint);
+                            LOG.info("Unbinded slot: {}", endpoint.slotSpec().name());
+                        } catch (ChannelException e) {
+                            LOG.warn("Failed to unbind channel {} from endpoint {}", channel, endpoint, e);
+                        }
+                    });
+                } finally {
+                    channelStorage.destroy(channel.id());
+                }
+            });
+            responseObserver.onNext(ChannelDestroyAllResponse.getDefaultInstance());
+            responseObserver.onCompleted();
         }
 
         @Override
@@ -243,43 +278,6 @@ public class ChannelManager {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
             }
         }
-
-        //    @Override
-        //    public void unbindAll(UUID sessionId) {
-        //        LOG.info("LocalChannelsRepository::unbindAll sessionId=" + sessionId);
-        //        for (Channel channel : channels.values()) {
-        //            final Lock lock = lockManager.getOrCreate(channel.name());
-        //            lock.lock();
-        //            try {
-        //                //unbind receivers
-        //                channel
-        //                    .bound()
-        //                    .filter(endpoint -> endpoint.taskId().equals(sessionId))
-        //                    .filter(endpoint -> endpoint.slot().direction() == Direction.INPUT)
-        //                    .forEach(endpoint -> {
-        //                        try {
-        //                            channel.unbind(endpoint);
-        //                        } catch (ChannelException e) {
-        //                            LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);
-        //                        }
-        //                    });
-        //                //unbind senders
-        //                channel
-        //                    .bound()
-        //                    .filter(endpoint -> endpoint.taskId().equals(sessionId))
-        //                    .filter(endpoint -> endpoint.slot().direction() == Direction.OUTPUT)
-        //                    .forEach(endpoint -> {
-        //                        try {
-        //                            channel.unbind(endpoint);
-        //                        } catch (ChannelException e) {
-        //                            LOG.warn("Fail to unbind " + endpoint + " from channel " + channel);
-        //                        }
-        //                    });
-        //            } finally {
-        //                lock.unlock();
-        //            }
-        //        }
-        //    }
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {

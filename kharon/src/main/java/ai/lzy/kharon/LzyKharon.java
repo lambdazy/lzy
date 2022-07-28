@@ -365,7 +365,8 @@ public class LzyKharon {
             final TerminalSession session = sessionManager.createSession(
                 sessionId,
                 new TerminalController(responseObserver),
-                server
+                server,
+                channelManager
             );
             responseObserver.onNext(
                 Kharon.TerminalCommand.newBuilder()
@@ -375,7 +376,7 @@ public class LzyKharon {
                         .build())
                     .build());
             Context.current().addListener(context -> {
-                session.onTerminalDisconnect(context.cancellationCause());
+                context.fork().run(() -> session.onTerminalDisconnect(context.cancellationCause()));
                 sessionManager.deleteSession(sessionId);
             }, Runnable::run);
             return session.terminalProgressHandler();

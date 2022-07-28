@@ -337,6 +337,7 @@ public class Run implements LzyCommand {
                     .setContentType(GrpcConverter.to(slot.contentType()))
                     .setDirect(Channels.DirectChannelType.newBuilder().build())
                     .build())
+                .setWorkflowId(agentId)
                 .build()
         );
         return channelCreateResponse.getChannelId();

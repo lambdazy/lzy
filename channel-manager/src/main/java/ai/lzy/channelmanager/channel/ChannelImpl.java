@@ -14,14 +14,12 @@ import org.apache.logging.log4j.Logger;
 public class ChannelImpl implements Channel {
     private static final Logger LOG = LogManager.getLogger(ChannelImpl.class);
     private final String id;
-    private final String workflowId;
     private final ChannelGraph channelGraph;
     private final ChannelSpec spec;
     private final ChannelController controller; // pluggable channel logic
 
-    public ChannelImpl(String id, String workflowId, ChannelSpec spec, ChannelController controller) {
+    public ChannelImpl(String id, ChannelSpec spec, ChannelController controller) {
         this.id = id;
-        this.workflowId = workflowId;
         this.spec = spec;
         this.controller = controller;
         this.channelGraph = new LocalChannelGraph(this);
@@ -39,11 +37,6 @@ public class ChannelImpl implements Channel {
         } catch (ChannelException e) {
             LOG.warn("Exception during channel " + spec.name() + " destruction", e);
         }
-    }
-
-    @Override
-    public String workflowId() {
-        return workflowId;
     }
 
     @Override
@@ -71,11 +64,6 @@ public class ChannelImpl implements Channel {
             return;
         }
         controller.executeUnBind(channelGraph, endpoint);
-    }
-
-    @Override
-    public ChannelController controller() {
-        return controller;
     }
 
     @Override

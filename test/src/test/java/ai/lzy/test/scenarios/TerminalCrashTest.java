@@ -268,10 +268,12 @@ public class TerminalCrashTest extends LocalScenario {
         );
         terminal.shutdownNow();
         terminal.waitForShutdown();
-        String csAfter = terminal2.channelsStatus();
+
+        final boolean flagUp = Utils.waitFlagUp(() -> terminal2.channelsStatus().equals(""), Config.TIMEOUT_SEC,
+            TimeUnit.SECONDS);
 
         //Assert
         Assert.assertNotEquals("", csBefore);
-        Assert.assertEquals("", csAfter);
+        Assert.assertTrue(flagUp);
     }
 }

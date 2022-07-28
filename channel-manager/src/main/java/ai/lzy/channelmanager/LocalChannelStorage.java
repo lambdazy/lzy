@@ -10,6 +10,7 @@ import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,8 +25,10 @@ public class LocalChannelStorage implements ChannelStorage {
 
     private final LockManager lockManager = new LocalLockManager();
     private final Map<String, Channel> channels = new ConcurrentHashMap<>();
+    private final Map<String, List<Channel>> channelsByWorkflow = new ConcurrentHashMap<>();
 
-    public LocalChannelStorage() {}
+    public LocalChannelStorage() {
+    }
 
     @Override
     public Channel get(String channelId) {
@@ -33,45 +36,43 @@ public class LocalChannelStorage implements ChannelStorage {
     }
 
     @Override
-    public Channel create(ChannelSpec spec, Workflow workflow) {
+    public Channel create(ChannelSpec spec, String workflowId, String userId) {
         final String id = spec.name() == null ? "unnamed_channel_" + UUID.randomUUID() : spec.name();
+        final Channel channel;
         if (spec instanceof DirectChannelSpec) {
-            final Channel channel = new ChannelImpl(
+            channel = new ChannelImpl(
                 id,
-                workflow.id(),
                 spec,
                 new DirectChannelController()
             );
-            channels.put(id, channel);
-            return channel;
-        }
-        if (spec instanceof SnapshotChannelSpec snapshotSpec) {
-            final Channel channel = new SnapshotChannelImpl(
+        } else if (spec instanceof SnapshotChannelSpec snapshotSpec) {
+            channel = new SnapshotChannelImpl(
                 id,
-                workflow.id(),
                 spec,
                 snapshotSpec.snapshotId(),
                 snapshotSpec.entryId(),
-                workflow.userId(),
+                userId,
                 snapshotSpec.getWhiteboardAddress()
             );
-            channels.put(id, channel);
-            return channel;
+        } else {
+            throw new RuntimeException("Wrong type of channel spec");
         }
-        throw new RuntimeException("Wrong type of channel spec");
+        channels.put(id, channel);
+        channelsByWorkflow.putIfAbsent(workflowId, new ArrayList<>());
+        channelsByWorkflow.get(workflowId).add(channel);
+        return channel;
     }
 
     @Override
-    public void destroy(String channelId) throws ChannelException {
+    public void destroy(String channelId) {
         final Lock lock = lockManager.getOrCreate(channelId);
         lock.lock();
         try {
             final Channel channel = channels.remove(channelId);
             if (channel != null) {
                 channel.close();
-            } else {
-                throw new ChannelException("Channel not found");
             }
+            channelsByWorkflow.values().forEach(channels -> channels.remove(channel));
         } finally {
             lock.unlock();
         }
@@ -97,10 +98,19 @@ public class LocalChannelStorage implements ChannelStorage {
         return channels.values().stream();
     }
 
+    @Override
+    public Stream<Channel> channels(String workflowId) {
+        final List<Channel> channels = channelsByWorkflow.get(workflowId);
+        if (channels != null) {
+            return new ArrayList<>(channels).stream();
+        }
+        return Stream.empty();
+    }
+
     private static class SnapshotChannelImpl extends ChannelImpl {
+
         SnapshotChannelImpl(
             String id,
-            String workflowId,
             ChannelSpec channelSpec,
             String snapshotId,
             String entryId,
@@ -109,7 +119,6 @@ public class LocalChannelStorage implements ChannelStorage {
         ) {
             super(
                 id,
-                workflowId,
                 channelSpec,
                 new SnapshotChannelController(entryId, snapshotId, userId, whiteboardAddress));
         }
