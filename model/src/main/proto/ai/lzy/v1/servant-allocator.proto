@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package ai.lzy.v1.scheduler;
+package ai.lzy.v1.exp;
 
 option java_outer_classname = "ServantAllocatorApi";
-option java_package = "ai.lzy.v1";
+option java_package = "ai.lzy.v1.exp";
 
 import "ai/lzy/v1/zygote.proto";
 
