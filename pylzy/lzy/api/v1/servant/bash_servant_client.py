@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import Any, Dict, Iterable, List, Optional
+from typing import IO, Any, BinaryIO, Dict, Iterable, List, Optional
 
 import cloudpickle
 
@@ -111,12 +111,18 @@ class BashExecution(Execution):
 
     def write_to_stderr(self):
         dec = codecs.getincrementaldecoder("utf8")()
-        for c in iter(lambda: self._process.stderr.read(1), b""):
+        if self._process is None or self._process.stderr is None:
+            raise ValueError("")
+        stderr: IO[Any] = self._process.stderr
+        for c in iter(lambda: stderr.read(1), b""):  # type: ignore[no-any-return]
             sys.stderr.write(dec.decode(c))
 
     def write_to_stdout(self):
         dec = codecs.getincrementaldecoder("utf8")()
-        for c in iter(lambda: self._process.stdout.read(1), b""):
+        if self._process is None or self._process.stdout is None:
+            raise ValueError("")
+        stdout: IO[Any] = self._process.stdout
+        for c in iter(lambda: stdout.read(1), b""):  # type: ignore[no-any-return]
             sys.stdout.write(dec.decode(c))
 
     def wait_for(self) -> ExecutionResult:

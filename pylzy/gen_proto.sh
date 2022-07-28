@@ -25,6 +25,10 @@ find . -iname "*.proto" -type f \
                     --grpclib_python_out="$OLDPWD" \
                     --proto_path="$proto_path" \
                     '{}' +
+cd "$OLDPWD"
+
+find "ai" -type d \
+        -exec touch '{}/__init__.py' \;
 
 print_green "Generated next proto stubs:"
 println "$proto_out"

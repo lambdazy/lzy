@@ -61,7 +61,15 @@ setuptools.setup(
     version=read_version(),
     author="ʎzy developers",
     include_package_data=True,
-    package_data={"lzy": ["lzy/lzy-servant.jar"]},
+    package_data={
+        "lzy": [
+            "lzy/lzy-servant.jar",
+        ],
+        "ai/lzy/v1": [
+            "**/*.pyi",
+            "*.pyi",
+        ],
+    },
     install_requires=read_requirements(),
     packages=[
         "lzy",

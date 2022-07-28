@@ -1,14 +1,12 @@
-import uuid
 import typing
-
+import uuid
 from itertools import chain
 from typing import Any, Dict, Generic, Iterator, Tuple, TypeVar
 
-from lzy.env.env import EnvSpec
+from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 from lzy.api.v2.api.provisioning import Provisioning
 from lzy.api.v2.servant.model.signatures import CallSignature
-
-from lzy.api.v2.api.lzy_workflow import LzyWorkflow
+from lzy.env.env import EnvSpec
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -68,9 +66,9 @@ class LzyCall(Generic[T]):
     def named_arguments(self) -> Iterator[Tuple[str, Any]]:
         return chain(
             # positional arguments
-            zip(self._sign.func.param_names, self._sign.args),
+            zip(self._sign.func.param_names, self.args),
             # named arguments
-            self._kwargs.items(),
+            self.kwargs.items(),
         )
 
     @property

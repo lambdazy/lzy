@@ -51,7 +51,6 @@ class CatboostPoolDumper(Dumper):
 
 
 class LzyFileDumper(Dumper[File]):
-
     def dump(self, obj: File, dest: IO) -> None:
         with obj.path.open("rb") as f:
             data = f.read(4096)

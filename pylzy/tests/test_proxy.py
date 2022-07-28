@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from typing import Any, List
 from unittest import TestCase
 
-# noinspection PyProtectedMember
-from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
 from lzy._proxy import proxy
 from lzy.api.v1.lazy_op import LzyOp
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.utils import infer_real_type, is_lazy_proxy, lazy_proxy
+
+# noinspection PyProtectedMember
+from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
 
 
 class ProxyTests(TestCase):

@@ -1,10 +1,9 @@
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from lzy.api.v2.api.lzy_call import LzyCall
 
 from lzy._proxy.automagic import proxy
-
 
 ____lzy_proxied = "__lzy_proxied__"
 

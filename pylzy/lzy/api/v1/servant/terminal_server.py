@@ -4,7 +4,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TextIO
 
 # noinspection PyUnresolvedReferences
 import lzy.api  # needed to instantiate logging #  pylint: disable=unused-import
@@ -41,8 +41,8 @@ class TerminalServer:
         self._config = config
         self._log_file = custom_log_file
         self._terminal_log_path = terminal_log_path
-        self._terminal_log = None
-        self._pcs = None
+        self._terminal_log: Optional[TextIO] = None
+        self._pcs: Optional[subprocess.Popen[bytes]] = None
         self._already_started = False
         self._log = logging.getLogger(str(self.__class__))
 
@@ -54,7 +54,7 @@ class TerminalServer:
             self._log.info("Using already started servant")
             return
 
-        private_key_path = "null"
+        private_key_path: Path = Path("/dev/null")
         if self._config.private_key_path is not None:
             private_key_path = Path(self._config.private_key_path).expanduser()
             if not private_key_path.resolve().exists():
@@ -85,14 +85,14 @@ class TerminalServer:
             terminal_args.extend(
                 (
                     "--port",
-                    self._config.port,
+                    str(self._config.port),
                 )
             )
         if self._config.fs_port is not None:
             terminal_args.extend(
                 (
                     "--fs-port",
-                    self._config.fs_port,
+                    str(self._config.fs_port),
                 )
             )
 
@@ -100,7 +100,7 @@ class TerminalServer:
             terminal_args.extend(
                 (
                     "--private-key",
-                    private_key_path,
+                    str(private_key_path),
                 )
             )
         terminal_args.append("terminal")
