@@ -23,17 +23,17 @@ jobs:
           ./gen_proto.sh
           ./lint.sh
 
-      - name: Clean up
+      - name: Clean pylzy/ up
         run: |
+          cd pylzy
           ./clean.sh
-          cd ..
 
       - name: Run lint.sh on jupyter-kernel
         run: |
           cd jupyter-kernel
           ./lint.sh
 
-      - name: Clean up
+      - name: Clean jupyter-kernel/ up
         run: |
+          cd jupyter-kernel
           ../pylzy/clean.sh
-          cd ..
