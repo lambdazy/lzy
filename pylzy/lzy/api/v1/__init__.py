@@ -2,7 +2,7 @@ import functools
 import inspect
 import logging
 import sys
-from typing import Callable, Type, Sequence, Optional
+from typing import Callable, Optional, Sequence, Type
 
 from lzy._proxy.result import Nothing
 from lzy.api.v1.cache_policy import CachePolicy
@@ -13,7 +13,7 @@ from lzy.api.v1.env import (
     LzyRemoteWorkflow,
     LzyWorkflowBase,
 )
-from lzy.api.v1.lazy_op import LzyLocalOp, LzyRemoteOp
+from lzy.api.v1.lazy_op import LzyLocalOp, LzyOp, LzyRemoteOp
 from lzy.api.v1.servant.model.zygote import Gpu, Provisioning
 from lzy.api.v1.utils import infer_call_signature, infer_return_type, lazy_proxy
 from lzy.api.v1.whiteboard import view, whiteboard
@@ -28,7 +28,13 @@ logging.root.addHandler(handler)
 
 
 # pylint: disable=[invalid-name]
-def op(func: Callable = None, *, gpu: Gpu = None, output_type=None, docker_image: Optional[str] = None):
+def op(
+    func: Callable = None,
+    *,
+    gpu: Gpu = None,
+    output_type=None,
+    docker_image: Optional[str] = None,
+):
     provisioning = Provisioning(gpu)
     if func is None:
         return op_(provisioning, output_type=output_type, docker_image=docker_image)
@@ -36,7 +42,12 @@ def op(func: Callable = None, *, gpu: Gpu = None, output_type=None, docker_image
 
 
 # pylint: disable=unused-argument
-def op_(provisioning: Provisioning, *, output_type: Type = None, docker_image: Optional[str] = None):
+def op_(
+    provisioning: Provisioning,
+    *,
+    output_type: Type = None,
+    docker_image: Optional[str] = None,
+):
     def deco(f):
         output_types: Sequence[Type]
         if output_type is None:
@@ -50,16 +61,18 @@ def op_(provisioning: Provisioning, *, output_type: Type = None, docker_image: O
             else:
                 output_types = infer_result.value
         else:
-            output_types = tuple((output_type, ))
+            output_types = tuple((output_type,))
 
         @functools.wraps(f)
         def lazy(*args, **kwargs):
             # TODO: defaults?
             current_workflow = LzyWorkflowBase.get_active()
-            if current_workflow is None:
-                return f(*args, **kwargs)
+            # statement is unreachable
+            # if current_workflow is None:
+            #    return f(*args, **kwargs)
 
             signature = infer_call_signature(f, output_types, *args, **kwargs)
+            lzy_op: LzyOp
             if isinstance(current_workflow, LzyLocalWorkflow):
                 lzy_op = LzyLocalOp(signature)
             elif isinstance(current_workflow, LzyRemoteWorkflow):

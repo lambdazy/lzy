@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, IO, Type, TypeVar, Generic
+from typing import IO, Any, Generic, Type, TypeVar
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

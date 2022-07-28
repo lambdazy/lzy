@@ -78,16 +78,20 @@ _cache: Dict[Tuple[type, Callable[..., type]], type] = {}
 
 
 def create_and_cache(proxy_cls, callback):
-    if not hasattr(proxy_cls, "_origin") and not hasattr(proxy_cls, "_exception"):
+    if not hasattr(proxy_cls, "_origin") and not hasattr(proxy_cls, "_exception"):  # type: ignore[attr-defined]
         try:
-            proxy_cls._origin = callback()  # pylint: disable=protected-access
+            proxy_cls._origin = (
+                callback()
+            )  # pylint: disable=protected-access # type: ignore[attr-defined]
         except Exception as e:
             proxy_cls._exception = e
             raise e
     # noinspection PyProtectedMember
     if hasattr(proxy_cls, "_exception"):
         raise proxy_cls._exception  # pylint: disable=protected-access
-    return proxy_cls._origin  # pylint: disable=protected-access
+    return (
+        proxy_cls._origin
+    )  # pylint: disable=protected-access # type: ignore[attr-defined]
 
 
 class Proxifier(type):
@@ -189,7 +193,8 @@ def proxy(
             if item == "__lzy_origin__":
                 create_and_cache(type(self), constructor)
                 # noinspection PyProtectedMember
-                return type(self)._origin  # pylint: disable=protected-access
+                # pylint: disable=protected-access
+                return type(self)._origin  # type: ignore[attr-defined]
             elif item == "__lzy_materialized__":
                 return hasattr(type(self), "_origin")
 

@@ -1,9 +1,9 @@
+import logging
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
-import logging
 from yaml import safe_load
 
 from lzy.api.v2.servant.model import ENCODING as encoding

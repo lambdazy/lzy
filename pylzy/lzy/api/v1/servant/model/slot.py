@@ -3,7 +3,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, cast, Any
+from typing import Any, Dict, cast
 
 import cloudpickle
 
@@ -76,7 +76,7 @@ class DataSchema:
         return json.dumps(self.to_dict(), sort_keys=True)
 
     @staticmethod
-    def generate_schema(typ: type) -> 'DataSchema':
+    def generate_schema(typ: type) -> "DataSchema":
         if typ == File:
             return DataSchema(FILE_TYPE, PLAINTEXT_SCHEME_TYPE)
         return DataSchema(pickle_type(typ), CLOUDPICKLE_SCHEME_TYPE)

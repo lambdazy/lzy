@@ -3,9 +3,7 @@ from typing import List
 from google.protobuf.empty_pb2 import Empty
 from grpclib.client import Channel
 
-
 from ai.lzy.v1.portal_grpc import LzyPortalStub
-from ai.lzy.v1.zygote_pb2 import Slot
 from ai.lzy.v1.portal_pb2 import (
     OpenSlotsRequest,
     OpenSlotsResponse,
@@ -16,6 +14,7 @@ from ai.lzy.v1.portal_pb2 import (
     StartPortalRequest,
     StartPortalResponse,
 )
+from ai.lzy.v1.zygote_pb2 import Slot
 
 
 class Portal:

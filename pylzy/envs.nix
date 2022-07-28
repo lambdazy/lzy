@@ -47,9 +47,12 @@ let
     pyright
 
     # type stubs:
+    grpclib
     types-setuptools
     types-requests
     types-protobuf
+    types-six
+    types-chardet
 
     # custom
     boto3-stubs

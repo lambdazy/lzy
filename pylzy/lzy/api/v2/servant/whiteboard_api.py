@@ -4,7 +4,6 @@ from typing import Any, List, Type
 
 from ai.lzy.v1.whiteboard_pb2 import Whiteboard
 
-
 # class WhiteboardFieldStatus(Enum):
 #     UNKNOWN = "UNKNOWN"
 #     CREATED = "CREATED"

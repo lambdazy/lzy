@@ -8,10 +8,10 @@ from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, cast
 
 # noinspection PyProtectedMember
 import cloudpickle
-from lzy.api.v1.servant.model.slot import DataSchema
 
 from lzy._proxy import proxy_optional
 from lzy.api.v1.servant.bash_servant_client import exec_bash
+from lzy.api.v1.servant.model.slot import DataSchema
 from lzy.api.v1.servant.servant_client import CredentialsTypes, ServantClient
 from lzy.api.v1.servant.whiteboard_storage import WhiteboardStorage
 from lzy.api.v1.utils import infer_real_type
@@ -151,7 +151,9 @@ class WhiteboardBashApi(WhiteboardApi):
             data_schema = None
             uri = None
             if "scheme" in field:
-                data_schema = DataSchema(field["scheme"]["type"], field["scheme"].get("schemeType", "plain"))
+                data_schema = DataSchema(
+                    field["scheme"]["type"], field["scheme"].get("schemeType", "plain")
+                )
                 uri = field["storageUri"]
 
             fields.append(

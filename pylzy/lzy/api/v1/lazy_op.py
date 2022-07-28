@@ -5,14 +5,25 @@ import os
 import time
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Generic, Iterable, List, Optional, Tuple, TypeVar, Union, Type, cast
+from typing import (
+    Any,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from pure_protobuf.dataclasses_ import Message, load  # type: ignore
 
 from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.servant.channel_manager import ChannelManager
 from lzy.api.v1.servant.model.channel import Binding, Bindings
-from lzy.api.v1.servant.model.env import Env, BaseEnv, AuxEnv
+from lzy.api.v1.servant.model.env import AuxEnv, BaseEnv, Env
 from lzy.api.v1.servant.model.execution import (
     Execution,
     ExecutionDescription,
@@ -37,7 +48,8 @@ class LzyReturnValue(Generic[T]):
     """
     Class that represents return value of LzyOp
     """
-    def __init__(self, op: 'LzyOp', index: int, entry_id: str, typ: Type[T]):
+
+    def __init__(self, op: "LzyOp", index: int, entry_id: str, typ: Type[T]):
         self.__op = op
         self.__entry_id = entry_id
         self.__type = typ
@@ -59,7 +71,7 @@ class LzyReturnValue(Generic[T]):
         return self.__type
 
     @property
-    def op(self) -> 'LzyOp':
+    def op(self) -> "LzyOp":
         return self.__op
 
     def change_entry_id(self, entry_id: str):
@@ -67,7 +79,9 @@ class LzyReturnValue(Generic[T]):
 
 
 class LzyOp(ABC):
-    def __init__(self, signature: CallSignature[Tuple], entry_id_generator: EntryIdGenerator):
+    def __init__(
+        self, signature: CallSignature[Tuple], entry_id_generator: EntryIdGenerator
+    ):
         super().__init__()
         self._sign: CallSignature[Tuple] = signature
         self._materialized: bool = False
@@ -75,7 +89,12 @@ class LzyOp(ABC):
         self._materialization: Optional[Tuple] = None
         self._log: logging.Logger = logging.getLogger(str(self.__class__))
         self._return_values = tuple(
-            LzyReturnValue(self, num, entry_id_generator.generate(os.path.join("return", str(num))), typ)
+            LzyReturnValue(
+                self,
+                num,
+                entry_id_generator.generate(os.path.join("return", str(num))),
+                typ,
+            )
             for num, typ in enumerate(signature.func.output_types)
         )
 
@@ -124,7 +143,7 @@ class LzyLocalOp(LzyOp):
     def execute(self):
         if self._executed:
             return
-        self._materialization: T = self.signature.exec()
+        self._materialization: Tuple = self.signature.exec()
         self._materialized = True
 
 
@@ -172,14 +191,15 @@ class LzyRemoteOp(LzyOp):
                 setattr(output_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
 
         self._zygote = ZygotePythonFunc(
-            mem_serializer, signature.func, Env(base_env=base_env, aux_env=pyenv), provisioning
+            mem_serializer,
+            signature.func,
+            Env(base_env=base_env, aux_env=pyenv),
+            provisioning,
         )
 
         self._entry_id_generator = entry_id_generator
 
-        super().__init__(
-            signature, entry_id_generator
-        )
+        super().__init__(signature, entry_id_generator)
 
     @property
     def zygote(self) -> Zygote:
@@ -256,30 +276,33 @@ class LzyRemoteOp(LzyOp):
                 hash_ = self._hasher.hash(data)
                 write_later.append((entry_id, data))
 
-            channel = self._channel_manager.channel(entry_id, DataSchema.generate_schema(out_type))
+            channel = self._channel_manager.channel(
+                entry_id, DataSchema.generate_schema(out_type)
+            )
             bindings.append(Binding(slot, channel))
             inputs.append(InputExecutionValue(name, entry_id, hash_))
 
         for return_slot, val in zip(self.zygote.return_slots, self.return_values()):
             bindings.append(
-            Binding(
-                return_slot,
-                self._channel_manager.channel(
-                    val.entry_id, DataSchema.generate_schema(val.type)
-                ),
+                Binding(
+                    return_slot,
+                    self._channel_manager.channel(
+                        val.entry_id, DataSchema.generate_schema(val.type)
+                    ),
+                )
             )
-        )
 
         if self._cache_policy.restore():
             executions = self._servant.resolve_executions(
                 self.signature.func.name, self._snapshot_id, inputs
             )
             if len(executions) >= 1:
-                values = {
-                    v.name: v.entry_id for v in executions[0].outputs
-                }
+                values = {v.name: v.entry_id for v in executions[0].outputs}
                 for num, return_value in enumerate(self.return_values()):
-                    return_value.change_entry_id(values[os.path.join("return", str(num))])
+                    value = values.get(os.path.join("return", str(num)))
+                    if value is None:
+                        raise ValueError("")
+                    return_value.change_entry_id(value)
                 return
 
         description = (
@@ -337,9 +360,7 @@ class LzyRemoteOp(LzyOp):
             materialization: List[Any] = []
             for val in self.return_values():
                 output_data_scheme = DataSchema.generate_schema(val.type)
-                path = self._channel_manager.in_slot(
-                    val.entry_id, output_data_scheme
-                )
+                path = self._channel_manager.in_slot(val.entry_id, output_data_scheme)
                 try:
                     with path.open("rb") as handle:
                         # Wait for slot to become open
