@@ -57,6 +57,6 @@ jobs:
   unit-tests:
     if: steps.create-pr.outputs.pr_number != ''
     needs: pull-request-from-release-branch
-    uses: ./lzy/.github/workflows/pull-tests.yaml
+    uses: ./.github/workflows/pull-tests.yaml
     with:
       ref_name: ${{steps.open-pr.outputs.pr_url}}

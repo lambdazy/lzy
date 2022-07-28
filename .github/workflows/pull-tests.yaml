@@ -4,6 +4,11 @@ on:
     branches: [ master ]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      branch_ref:
+        type: string
+        required: true
 
 jobs:
 
@@ -73,7 +78,7 @@ jobs:
       - name: 'build servant image'
         timeout-minutes: 15
         run: |
-          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          BRANCH=${{ (inputs.branch_ref || github.head_ref || github.ref_name) }}
           SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH master)
           docker pull $SERVANT_BASE_IMAGE
           SERVANT_BASE_TAG="$(echo $SERVANT_BASE_IMAGE | awk -F: '{print $2}')"
@@ -82,7 +87,7 @@ jobs:
       - name: 'DockerServantTest'
         timeout-minutes: 15
         run: |
-          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          BRANCH=${{ (inputs.branch_ref || github.head_ref || github.ref_name) }}
           ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH master)
           cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
 
