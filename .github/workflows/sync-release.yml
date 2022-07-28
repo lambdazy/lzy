@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'release-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+      - 'release-test'
   workflow_dispatch:
 
 jobs:
@@ -22,7 +23,7 @@ jobs:
         uses: repo-sync/pull-request@v2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          destination_branch: dev # TODO: ${{ github.event.repository.default_branch }}
+          destination_branch: "deploy-improvement" # TODO: ${{ github.event.repository.default_branch }}
           pr_title: "[Automated] Apply fixes from ${{ github.ref_name }}" # TODO: ${{ github.event.repository.default_branch }}"
           pr_body: "Automated Pull Request"
           pr_reviewer: "lindlind"
