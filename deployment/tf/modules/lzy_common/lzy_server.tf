@@ -4,6 +4,7 @@ locals {
     "app.kubernetes.io/name"    = "lzy-server"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "server"
+    "lzy.ai/role"               = "system"
   }
   server-port     = 8888
   server-k8s-name = "lzy-server"

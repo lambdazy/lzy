@@ -4,6 +4,7 @@ locals {
     "app.kubernetes.io/name"    = "lzy-grafana"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "grafana"
+    "lzy.ai/role"               = "system"
   }
   grafana-port     = 3000
   grafana-k8s-name = "grafana"

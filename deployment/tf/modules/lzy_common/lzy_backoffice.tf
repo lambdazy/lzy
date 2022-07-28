@@ -4,6 +4,7 @@ locals {
     "app.kubernetes.io/name"    = "lzy-backoffice"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "backoffice"
+    "lzy.ai/role"               = "system"
   }
   backoffice-frontend-port     = 80
   backoffice-frontend-tls-port = 443

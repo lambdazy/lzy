@@ -4,6 +4,7 @@ locals {
     "app.kubernetes.io/name"    = "lzy-clickhouse"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "clickhouse"
+    "lzy.ai/role"               = "system"
   }
   clickhouse-port     = 8123
   clickhouse-k8s-name = "clickhouse"

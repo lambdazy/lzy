@@ -11,9 +11,14 @@ import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.apis.NetworkingV1Api;
+import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.Config;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+
+import java.util.*;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,6 +41,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     private final ServantPodProvider provider;
     private final ConcurrentHashMap<String, V1Pod> servantPods = new ConcurrentHashMap<>();
     private final CoreV1Api api;
+    private final NetworkingV1Api networkingApi;
 
     public KuberServantsAllocator(Authenticator auth, ServantPodProvider provider) {
         super(auth, 10, 3600);
@@ -43,6 +49,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         try {
             Configuration.setDefaultApiClient(Config.defaultClient());
             api = new CoreV1Api();
+            networkingApi = new NetworkingV1Api();
         } catch (IOException e) {
             throw new RuntimeException("Cannot init KuberServantsAllocator: ", e);
         }
@@ -130,13 +137,58 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
     }
 
     @Override
+    public synchronized Session registerSession(String userId, String sessionId, String bucket) {
+        var session = super.registerSession(userId, sessionId, bucket);
+
+        V1NetworkPolicy networkPolicy = new V1NetworkPolicy().metadata(
+                new V1ObjectMeta().name(kuberValidName("servants-network-policy-" + sessionId))
+        ).spec(
+                new V1NetworkPolicySpec().policyTypes(List.of("Ingress", "Egress"))
+                        .addIngressItem(
+                                new V1NetworkPolicyIngressRule().from(
+                                        List.of(
+                                                new V1NetworkPolicyPeer().podSelector(
+                                                        new V1LabelSelector().matchLabels(
+                                                                Map.of(
+                                                                        "servant-session-id", kuberValidName(sessionId),
+                                                                        "lzy.ai/role", "system"
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                )
+                        ).addEgressItem(
+                                new V1NetworkPolicyEgressRule().to(
+                                        List.of(
+                                                new V1NetworkPolicyPeer().podSelector(
+                                                        new V1LabelSelector().matchLabels(
+                                                                Map.of(
+                                                                        "servant-session-id", kuberValidName(sessionId),
+                                                                        "lzy.ai/role", "system"
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                )
+                        )
+        );
+        try {
+            networkingApi.createNamespacedNetworkPolicy(NAMESPACE, networkPolicy, null, null, null, null);
+        } catch (ApiException e) {
+            throw new RuntimeException("Cannot create network policy for session " + sessionId, e);
+        }
+
+        return session;
+    }
+
+    @Override
     public synchronized void deleteSession(String sessionId) {
         super.deleteSession(sessionId);
         // TODO delete or drain all locked nodes
         try {
             api.deleteCollectionNamespacedPod(
                 NAMESPACE, null, null, null, null, 1,
-                "session-id=" + kuberValidName(sessionId), Integer.MAX_VALUE,
+                "lock-session-id=" + kuberValidName(sessionId), Integer.MAX_VALUE,
                 null, null, null, null,
                 Integer.MAX_VALUE, null
             );

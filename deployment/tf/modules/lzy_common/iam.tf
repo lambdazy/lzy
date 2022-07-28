@@ -4,6 +4,7 @@ locals {
     "app.kubernetes.io/name"    = "iam"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "iam"
+    "lzy.ai/role"               = "system"
   }
   iam-port     = 8443
   iam-k8s-name = "iam"

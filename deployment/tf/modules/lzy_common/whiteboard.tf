@@ -4,6 +4,7 @@ locals {
     "app.kubernetes.io/name"    = "lzy-whiteboard"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "whiteboard"
+    "lzy.ai/role"               = "system"
   }
   whiteboard-port     = 8999
   whiteboard-k8s-name = "whiteboard"

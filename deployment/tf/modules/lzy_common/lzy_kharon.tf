@@ -4,6 +4,7 @@ locals {
     "app.kubernetes.io/name"    = "lzy-kharon"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "kharon"
+    "lzy.ai/role"               = "system"
   }
   kharon-port                  = 8899
   kharon-servant-proxy-port    = 8900
