@@ -34,10 +34,10 @@ class Portal:
         )
 
     async def stop(self):
-        await self.stub.Stop(Empty)
+        await self.stub.Stop(Empty())
 
     async def status(self) -> PortalStatus:
-        return await self.stub.Status(Empty)
+        return await self.stub.Status(Empty())
 
     async def open_slots(self, slots: List[PortalSlotDesc]):
         return await self.stub.OpenSlots(OpenSlotsRequest(slots=slots))
