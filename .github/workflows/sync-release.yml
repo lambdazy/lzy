@@ -33,12 +33,13 @@ jobs:
           pr_reviewer: "lindlind"
           pr_assignee: "lindlind"
 
-      - run: echo "${{ steps.create-pr.outputs }}"
+      - run: echo "${{ steps.create-pr.outputs.pr_number }}"
 
       # https://github.com/marketplace/actions/enable-pull-request-automerge
       - name: "Enable automerge"
         if: steps.create-pr.outputs.pr_number != ''
         uses: peter-evans/enable-pull-request-automerge@v2
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           pull-request-number: ${{ steps.create-pr.outputs.pr_number }}
           merge-method: squash
