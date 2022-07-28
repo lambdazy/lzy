@@ -5,25 +5,31 @@ NC='\033[0m' # No Color
 _f="formatter"
 _t="typechecker"
 
-rc=0
-
 print_cmd_exit() {
     _ex=$1
     msg="$2 exited with code: $_ex"
     [ $_ex -eq 0 ] && print_green "$msg" || print_red "$msg"
 }
 
-run() {
-    type=$1
-    cmd_name=$2
+print_pipeline_exit() {
+    (_ex=$rc; type="Whole pipeline"; print_cmd_exit;)
+}
 
-    println "Calling $type: $cmd_name"
+run() {
+    (type="$1"; cmd="$2"; _isolate_run; upd_rc;)
+}
+
+_isolate_run() {
+    println "Calling $type:" "$ $cmd"
 
     $cmd_name
 
     _ex=$?
-    print_cmd_exit $_ex $cmd_name
 
+    print_cmd_exit
+}
+
+upd_rc() {
     [ $rc -eq 0 ] && [ $_ex -eq 0 ]
     rc=$?
 }
