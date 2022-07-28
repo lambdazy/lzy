@@ -23,6 +23,7 @@ jobs:
 
       # https://github.com/marketplace/actions/github-pull-request-action
       - name: "Create pull request"
+        id: create-pr
         uses: repo-sync/pull-request@v2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -36,8 +37,9 @@ jobs:
 
       # https://github.com/marketplace/actions/enable-pull-request-automerge
       - name: "Enable automerge"
+        if: steps.create-pr.outputs.pr_number != ''
         uses: peter-evans/enable-pull-request-automerge@v2
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          pull-request-number: ${{ steps.open-pr.outputs.pr_number }}
+          pull-request-number: ${{ steps.create-pr.outputs.pr_number }}
           merge-method: squash
