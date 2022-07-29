@@ -87,6 +87,9 @@ public class LzyAgent implements Closeable {
         context = new LzyContext(config.getAgentId(),
             lzyFs.getSlotsManager(),
             lzyFs.getMountPoint().toString());
+        for (ServantCommandHolder command : ServantCommandHolder.values()) {
+            publishTool(null, Paths.get(command.name()), command.name());
+        }
 
         Runtime.getRuntime().addShutdownHook(new Thread(SHUTDOWN_HOOK_TG, () -> {
             LOG.info("Shutdown hook in lzy-agent {}", serverUri);
@@ -114,9 +117,6 @@ public class LzyAgent implements Closeable {
     }
 
     public void publishTools(Operations.ZygoteList zygotes) {
-        for (ServantCommandHolder command : ServantCommandHolder.values()) {
-            publishTool(null, Paths.get(command.name()), command.name());
-        }
         for (Operations.Zygote zygote : zygotes.getZygoteList()) {
             publishTool(
                 zygote,

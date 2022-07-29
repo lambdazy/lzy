@@ -47,7 +47,6 @@ public class PyApiTest extends LocalScenario {
         evalAndAssertScenarioResult(terminal, "env_fail");
     }
 
-    @Ignore
     @Test
     public void testCache() {
         evalAndAssertScenarioResult(terminal, "test_cache");
