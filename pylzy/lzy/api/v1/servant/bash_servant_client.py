@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import IO, Any, BinaryIO, Dict, Iterable, List, Optional
+from typing import IO, Any, Union, Dict, Iterable, List, Optional
 
 from lzy.api.v1.servant.model.channel import Bindings, Channel, DataSchema, SnapshotChannelSpec, DirectChannelSpec
 from lzy.api.v1.servant.model.encoding import ENCODING as encoding
