@@ -143,7 +143,15 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         V1NetworkPolicy networkPolicy = new V1NetworkPolicy().metadata(
                 new V1ObjectMeta().name(kuberValidName("servants-network-policy-" + sessionId))
         ).spec(
-                new V1NetworkPolicySpec().policyTypes(List.of("Ingress", "Egress"))
+                new V1NetworkPolicySpec()
+                        .podSelector(
+                                new V1LabelSelector().matchLabels(
+                                        Map.of(
+                                                "servant-session-id", kuberValidName(sessionId)
+                                        )
+                                )
+                        )
+                        .policyTypes(List.of("Ingress", "Egress"))
                         .addIngressItem(
                                 new V1NetworkPolicyIngressRule().from(
                                         List.of(
