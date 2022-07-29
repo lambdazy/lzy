@@ -1,46 +1,61 @@
-package ai.lzy.server.channel.control;
+package ai.lzy.channelmanager.control;
 
-import ai.lzy.server.channel.ChannelController;
-import ai.lzy.server.channel.ChannelException;
-import ai.lzy.server.channel.ChannelGraph;
-import ai.lzy.server.channel.Endpoint;
-import io.grpc.StatusRuntimeException;
-
-import java.net.URI;
-
-import org.apache.commons.lang.NotImplementedException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import ai.lzy.channelmanager.graph.ChannelGraph;
+import ai.lzy.channelmanager.channel.ChannelException;
+import ai.lzy.channelmanager.channel.Endpoint;
+import ai.lzy.model.SlotInstance;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.LzyWhiteboard;
 import ai.lzy.v1.SnapshotApiGrpc;
+import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
+import java.net.URI;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class SnapshotChannelController implements ChannelController {
 
     private static final Logger LOG = LogManager.getLogger(SnapshotChannelController.class);
+    private static SnapshotApiGrpc.SnapshotApiBlockingStub SNAPSHOT_API;
+
     private final String entryId;
     private final String snapshotId;
-    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
-    private final IAM.Auth auth;
+    private final IAM.Auth userCredentials;
     private Status status = Status.UNBOUND;
     private URI storageURI;
 
-    public SnapshotChannelController(String entryId,
+    public SnapshotChannelController(
+        String entryId,
         String snapshotId,
-        SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
-        IAM.Auth auth
+        String userId,
+        URI snapshotAddress
     ) {
         LOG.info("Creating SnapshotChannelController: entryId={}, snapshotId={}", entryId, snapshotId);
+        synchronized (SnapshotChannelController.class) {
+            if (SNAPSHOT_API == null) {
+                Channel channel = ChannelBuilder.forAddress(snapshotAddress.getHost(), snapshotAddress.getPort())
+                    .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
+                    .usePlaintext()
+                    .build();
+                SNAPSHOT_API = SnapshotApiGrpc.newBlockingStub(channel);
+            }
+        }
         this.entryId = entryId;
         this.snapshotId = snapshotId;
-        this.snapshotApi = snapshotApi;
-        this.auth = auth;
+        this.userCredentials = IAM.Auth.newBuilder().setUser(
+                IAM.UserCredentials.newBuilder()
+                    .setUserId(userId)
+                    .build())
+            .build();
         try {
-            snapshotApi.createEntry(
+            //noinspection ResultOfMethodCallIgnored
+            SNAPSHOT_API.createEntry(
                 LzyWhiteboard.CreateEntryCommand.newBuilder()
+                    .setAuth(userCredentials)
                     .setSnapshotId(snapshotId)
                     .setEntryId(entryId)
-                    .setAuth(auth)
                     .build()
             );
         } catch (StatusRuntimeException e) {
@@ -63,29 +78,32 @@ public class SnapshotChannelController implements ChannelController {
             executeDestroy(channelGraph);
             throw e;
         }
-        switch (slot.slot().direction()) {
-            case OUTPUT: {
+        switch (slot.slotSpec().direction()) {
+            case OUTPUT -> {
                 if (channelGraph.senders().size() != 0) {
                     slot.destroy();  // TODO(artolord) Think about response to servant design
                     throw new ChannelException("Cannot write to already bound entry. Destroying slot " + slot);
                 }
                 channelGraph.addSender(slot);
-                return;
             }
-            case INPUT: {
+            case INPUT -> {
                 if (status == Status.ERRORED) {
                     LOG.info("Entry is errored. Destroying slot {}", slot);
                     slot.destroy();
                     return;
                 }
                 if (status == Status.COMPLETED) {
-                    slot.connect(storageURI);
+                    final SlotInstance slotInstance = slot.slotInstance();
+                    slot.connect(new SlotInstance(
+                        slotInstance.spec(),
+                        "unknown_snapshot_task_id",
+                        channelGraph.owner().id(),
+                        storageURI)
+                    );
                 }
                 channelGraph.addReceiver(slot);
-                return;
             }
-            default:
-                throw new NotImplementedException();
+            default -> throw new NotImplementedException("ExecuteBind got unexpected slot direction type");
         }
     }
 
@@ -99,27 +117,28 @@ public class SnapshotChannelController implements ChannelController {
             executeDestroy(channelGraph);
             throw e;
         }
-        switch (slot.slot().direction()) {
-            case INPUT: {
-                channelGraph.removeReceiver(slot);
-                return;
-            }
-            case OUTPUT: {
+        switch (slot.slotSpec().direction()) {
+            case INPUT -> channelGraph.removeReceiver(slot);
+            case OUTPUT -> {
                 if (status == Status.COMPLETED) {
-                    channelGraph.receivers().forEach(s -> s.connect(storageURI));
+                    channelGraph.receivers().forEach(
+                        s -> s.connect(new SlotInstance(
+                            slot.slotSpec(),
+                            "unknown_snapshot_task_id",
+                            channelGraph.owner().id(),
+                            storageURI))
+                    );
                     channelGraph.removeSender(slot);
                 } else {  // Some error in sender, entry is not finished, destroying all receivers
                     executeDestroy(channelGraph);
                 }
-                return;
             }
-            default:
-                throw new NotImplementedException();
+            default -> throw new NotImplementedException("ExecuteUnBind got unexpected slot direction type");
         }
     }
 
     @Override
-    public synchronized void executeDestroy(ChannelGraph channelGraph) throws ChannelException {
+    public synchronized void executeDestroy(ChannelGraph channelGraph) {
         LOG.info("SnapshotChannelController::executeDestroy, entryId={}", entryId);
         try {
             syncEntryState();
@@ -128,9 +147,10 @@ public class SnapshotChannelController implements ChannelController {
         }
         if (status == Status.IN_PROGRESS || status == Status.ERRORED) {
             status = Status.ERRORED;
-            snapshotApi.abort(
+            //noinspection ResultOfMethodCallIgnored
+            SNAPSHOT_API.abort(
                 LzyWhiteboard.AbortCommand.newBuilder()
-                    .setAuth(auth)
+                    .setAuth(userCredentials)
                     .setSnapshotId(snapshotId)
                     .setEntryId(entryId)
                     .build()
@@ -144,46 +164,38 @@ public class SnapshotChannelController implements ChannelController {
         if (status == Status.ERRORED) {
             return;
         }
-        LzyWhiteboard.EntryStatusResponse status = snapshotApi.entryStatus(
+        LzyWhiteboard.EntryStatusResponse status = SNAPSHOT_API.entryStatus(
             LzyWhiteboard.EntryStatusCommand.newBuilder()
+                .setAuth(userCredentials)
                 .setSnapshotId(snapshotId)
                 .setEntryId(entryId)
-                .setAuth(auth)
                 .build());
         switch (status.getStatus()) {
-            case FINISHED: {
+            case FINISHED -> {
                 if (this.status == Status.ERRORED) {
                     throw new IllegalStateException(
-                            "Entry already FINISHED, but ChannelController is in illegal state ERRORED");
+                        "Entry already FINISHED, but ChannelController is in illegal state ERRORED");
                 }
                 this.status = Status.COMPLETED;
                 storageURI = URI.create(status.getStorageUri());
-                break;
             }
-            case ERRORED: {
+            case ERRORED -> {
                 if (this.status == Status.COMPLETED) {
                     this.status = Status.ERRORED;
                     throw new IllegalStateException(
-                            "Entry ERRORED, but ChannelController is in illegal state COMPLETED");
+                        "Entry ERRORED, but ChannelController is in illegal state COMPLETED");
                 }
                 this.status = Status.ERRORED;
-                break;
             }
-            case IN_PROGRESS: {
-                this.status = Status.IN_PROGRESS;
-                break;
-            }
-            case CREATED: {
+            case IN_PROGRESS -> this.status = Status.IN_PROGRESS;
+            case CREATED -> {
                 if (this.status == Status.COMPLETED || this.status == Status.ERRORED) {
                     this.status = Status.ERRORED;
                     throw new IllegalStateException(
-                            "Entry CREATED, but ChannelController is already " + this.status.name());
+                        "Entry CREATED, but ChannelController is already " + this.status.name());
                 }
-                break;
             }
-            default: {
-                throw new RuntimeException("Unknown entry status: " + status.getStatus());
-            }
+            default -> throw new RuntimeException("Unknown entry status: " + status.getStatus());
         }
     }
 

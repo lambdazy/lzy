@@ -17,6 +17,7 @@ class DirectChannelSpec:
 
 @dataclass
 class Channel:
+    id: str
     name: str
     data_scheme: DataSchema
     spec: Union[SnapshotChannelSpec, DirectChannelSpec]

@@ -1,8 +1,7 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/auth.proto";
-import "ai/lzy/v1/servant.proto";
 import "ai/lzy/v1/fs.proto";
+import "ai/lzy/v1/auth.proto";
 
 package ai.lzy.v1;
 
@@ -12,22 +11,20 @@ option java_package = "ai.lzy.v1";
 
 service LzyKharon {
   // API for terminal
-  rpc AttachTerminal (stream ServerCommand) returns (stream TerminalCommand);
+  rpc AttachTerminal (stream TerminalProgress) returns (stream TerminalCommand);
   rpc WriteToInputSlot(stream SendSlotDataMessage) returns (ReceivedDataStatus);
   rpc OpenOutputSlot (SlotRequest) returns (stream Message);
 }
 
-message ServerCommand {
+message TerminalProgress {
+  UserCredentials auth = 1;
   oneof progress {
-    AttachTerminal attachTerminal = 1;
-    SlotAttach attach = 2;
-    SlotDetach detach = 3;
-    TerminalResponse terminalResponse = 4;
+    Attach attach = 2;
+    TerminalResponse terminalResponse = 3;
   }
 }
 
-message AttachTerminal {
-  UserCredentials auth = 1;
+message Attach {
 }
 
 message TerminalResponse {
@@ -40,12 +37,17 @@ message TerminalResponse {
 message TerminalCommand {
   string commandId = 1;
   oneof command {
+    TerminalAttachResponse terminalAttachResponse = 2;
     CreateSlotRequest createSlot = 3;
     ConnectSlotRequest connectSlot = 4;
     DisconnectSlotRequest disconnectSlot = 5;
     StatusSlotRequest statusSlot = 6;
     DestroySlotRequest destroySlot = 7;
   }
+}
+
+message TerminalAttachResponse {
+  string workflowId = 1;
 }
 
 message SendSlotDataMessage {

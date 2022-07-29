@@ -1,10 +1,10 @@
 package ai.lzy.kharon;
 
+import ai.lzy.v1.LzyChannelManagerGrpc;
+import ai.lzy.v1.LzyServerGrpc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.Constants;
 
-import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,25 +17,16 @@ public class TerminalSessionManager {
     public TerminalSession createSession(
         String sessionId,
         TerminalController terminalController,
-        ServerControllerFactory serverControllerFactory
+        LzyServerGrpc.LzyServerBlockingStub server,
+        LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager
     ) {
-        final TerminalSession terminalSession =
-                new TerminalSession(sessionId, terminalController, serverControllerFactory);
+        final TerminalSession terminalSession = new TerminalSession(sessionId, terminalController, server,
+            channelManager);
         sessions.put(terminalSession.sessionId(), terminalSession);
         return terminalSession;
     }
 
-    public TerminalSession getSessionFromGrpcContext() throws InvalidSessionRequestException {
-        final String sessionId = Constants.SESSION_ID_CTX_KEY.get();
-        return safeGetSession(sessionId);
-    }
-
-    public TerminalSession getSessionFromSlotUri(String slotUri) throws InvalidSessionRequestException {
-        final String sessionIdFromUri = UriResolver.parseSessionIdFromSlotUri(URI.create(slotUri));
-        return safeGetSession(sessionIdFromUri);
-    }
-
-    private TerminalSession safeGetSession(String sessionId) throws InvalidSessionRequestException {
+    public TerminalSession get(String sessionId) throws InvalidSessionRequestException {
         final TerminalSession session = sessions.get(sessionId);
         if (session == null) {
             LOG.error("Got request with unknown sessionId {}", sessionId);

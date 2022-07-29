@@ -5,9 +5,11 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.model.Slot;
+import ai.lzy.model.SlotInstance;
 import ai.lzy.model.slots.TextLinesOutSlot;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
+import java.net.URI;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,8 +29,8 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     private final CircularFifoQueue<String> buffer = new CircularFifoQueue<>(1024);
     private final AtomicBoolean finished = new AtomicBoolean(false);
 
-    public StdoutSlot(String kind) {
-        super(new TextLinesOutSlot("/portal:" + kind));
+    public StdoutSlot(String name, String portalTaskId, String channelId, URI slotUri) {
+        super(new SlotInstance(new TextLinesOutSlot(name), portalTaskId, channelId, slotUri));
         state(Operations.SlotStatus.State.OPEN);
 
         onState(Operations.SlotStatus.State.DESTROYED, () -> {
@@ -40,16 +42,17 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     }
 
     @Nullable
-    public synchronized LzySlot attach(String taskId, Slot slot) {
+    public synchronized LzySlot attach(SlotInstance slotInstance) {
+        final String taskId = slotInstance.taskId();
         if (task2slot.containsKey(taskId)) {
             return null;
         }
 
-        LOG.info("attach slot " + slot + ", task " + taskId);
+        LOG.info("attach slot " + slotInstance.spec() + ", task " + taskId);
 
-        slot2task.put(slot.name(), taskId);
+        slot2task.put(slotInstance.name(), taskId);
 
-        var lzySlot = new StdoutInputSlot(taskId, slot, this);
+        var lzySlot = new StdoutInputSlot(slotInstance, this);
         task2slot.put(taskId, lzySlot);
 
         notify();

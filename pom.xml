@@ -28,6 +28,7 @@
         <module>iam</module>
         <module>graph-executor</module>
         <module>jupyter-kernel</module>
+        <module>channel-manager</module>
         <module>scheduler</module>
         <module>storage</module>
         <module>disk-service</module>

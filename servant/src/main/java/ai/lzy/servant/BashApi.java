@@ -15,10 +15,12 @@ public class BashApi {
         options.addOption("q", "fs-port", true, "LzyFs gRPC port.");
         options.addOption("a", "auth", true, "Enforce auth");
         options.addOption("z", "lzy-address", true, "Lzy server address [host:port]");
+        options.addOption("ch", "channel-manager", true, "Channel manager address [host:port]");
         options.addOption("w", "lzy-whiteboard", true, "Lzy whiteboard address [host:port]");
         options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
         options.addOption("h", "host", true, "Servant and FS host name");
         options.addOption("k", "private-key", true, "Path to private key for user auth");
+        options.addOption("i", "agent-id", true, "Agent id (private option, passed automatically");
     }
 
     public static void main(String[] args) {

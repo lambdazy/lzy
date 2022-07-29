@@ -4,6 +4,8 @@ kharon:
   server-address: 'localhost:7777'
   whiteboard-address: 'localhost:8999'
   snapshot-address: 'localhost:8999'
+  channel-manager-address: 'localhost:8122'
+  channel-manager-proxy-port: 8123
   servant-proxy-port: 8900
   servant-fs-proxy-port: 8901
 

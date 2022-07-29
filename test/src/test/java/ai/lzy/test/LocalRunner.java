@@ -56,12 +56,17 @@ public class LocalRunner {
         var whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
 
+        var channelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address(), iamContext.address());
+        channelManagerContext.init();
+
         final KharonThreadContext kharonContext;
         if (args.length > 1 && args[1].equals("--no-kharon")) {
             System.out.println("Run without Kharon...");
             kharonContext = null;
         } else {
-            kharonContext = new KharonThreadContext(serverContext.address(), whiteboardContext.address(),
+            kharonContext = new KharonThreadContext(serverContext.address(),
+                whiteboardContext.address(),
+                channelManagerContext.address(),
                 iamContext.address());
             kharonContext.init();
         }

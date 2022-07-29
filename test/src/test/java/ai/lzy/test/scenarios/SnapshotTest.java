@@ -86,10 +86,10 @@ public class SnapshotTest extends LocalScenario {
         final String channelName = spId + "//" + channelEntryId;
         final String channelOutName = spId + "//" + channelOutEntryId;
 
-        terminal.createChannel(channelName, spId, channelName);
-        terminal.createSlot(localFileName, channelName, Utils.outFileSlot());
-        terminal.createChannel(channelOutName, spId, channelOutName);
-        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
+        final String channelId = terminal.createChannel(channelName, spId, channelName);
+        terminal.createSlot(localFileName, channelId, Utils.outFileSlot());
+        final String channelOutId = terminal.createChannel(channelOutName, spId, channelOutName);
+        terminal.createSlot(localFileOutName, channelOutId, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
             .execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
@@ -111,8 +111,8 @@ public class SnapshotTest extends LocalScenario {
                     cat_to_file.name(),
                     "",
                     Map.of(
-                        fileName.substring("/tmp/lzy1".length()), channelName,
-                        fileOutName.substring("/tmp/lzy1".length()), channelOutName
+                        fileName.substring("/tmp/lzy1".length()), channelId,
+                        fileOutName.substring("/tmp/lzy1".length()), channelOutId
                     )
                 )
             ));
@@ -124,8 +124,8 @@ public class SnapshotTest extends LocalScenario {
         Assert.assertEquals(0, result.get().exitCode());
         Assert.assertEquals(fileContent + "\n", result1.stdout());
 
-        terminal.destroyChannel(channelName);
-        terminal.destroyChannel(channelOutName);
+        terminal.destroyChannel(channelId);
+        terminal.destroyChannel(channelOutId);
 
         final AmazonS3 client = AmazonS3ClientBuilder
             .standard()
@@ -151,8 +151,8 @@ public class SnapshotTest extends LocalScenario {
             Assert.assertEquals(fileContent + "\n", content);
         }
 
-        terminal.link(wbId, localFileName, channelName);
-        terminal.link(wbId, localFileOutName, channelOutName);
+        terminal.link(wbId, localFileName, channelId);
+        terminal.link(wbId, localFileOutName, channelOutId);
 
         terminal.finalizeSnapshot(spId);
         String whiteboard = terminal.getWhiteboard(wbId);

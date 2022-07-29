@@ -4,6 +4,7 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.Slot;
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
@@ -16,8 +17,8 @@ import java.util.stream.Stream;
 public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
     private final Path storage;
 
-    public SnapshotOutputSlot(Slot definition, Path storage) {
-        super(definition);
+    public SnapshotOutputSlot(SlotInstance slotInstance, Path storage) {
+        super(slotInstance);
         this.storage = storage;
         assert Files.exists(storage);
     }

@@ -8,6 +8,7 @@ import java.net.URI;
 public class ServerConfig {
     private URI serverUri;
     private URI whiteboardUri;
+    private URI channelManagerUri;
     private URI iamUri;
     private String baseEnvDefaultImage;
 
@@ -16,6 +17,14 @@ public class ServerConfig {
     private ThreadAllocator threadAllocator;
     private KuberAllocator kuberAllocator;
     private DockerAllocator dockerAllocator;
+
+    public void setChannelManagerUri(URI channelManagerUri) {
+        this.channelManagerUri = channelManagerUri;
+    }
+
+    public URI getChannelManagerUri() {
+        return channelManagerUri;
+    }
 
     public String getBaseEnvDefaultImage() {
         return baseEnvDefaultImage;

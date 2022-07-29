@@ -1,9 +1,15 @@
 package ai.lzy.fs;
 
 import ai.lzy.model.*;
+import ai.lzy.model.grpc.ClientHeaderInterceptor;
+import ai.lzy.model.grpc.GrpcHeaders;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.jsonwebtoken.Jwts;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.SystemUtils;
@@ -19,10 +25,12 @@ import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.Slot;
+import ai.lzy.model.Zygote;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
-import ai.lzy.model.utils.SessionIdInterceptor;
 import ai.lzy.v1.*;
 
 import javax.annotation.Nullable;
@@ -30,12 +38,12 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.model.Constants.LOGS_DIR;
+import static ai.lzy.model.GrpcConverter.from;
 import static ai.lzy.model.UriScheme.*;
 
 public final class LzyFsServer {
@@ -47,24 +55,26 @@ public final class LzyFsServer {
     public static final String DEFAULT_HOST = "localhost";
     public static final int DEFAULT_PORT = 8901;
 
-    private final String sessionId;
+    private final String agentId;
     private final Path mountPoint;
     private final LzyFSManager fs;
     private final URI selfUri;
     private final URI lzyServerUri;
+    private final URI channelManagerUri;
     private final IAM.Auth auth;
     private final SlotsManager slotsManager;
     private final ManagedChannel lzyServerChannel;
+    private final ManagedChannel channelManagerChannel;
     private final SlotConnectionManager slotConnectionManager;
     private final Server localServer;
     private final AtomicBoolean stopped = new AtomicBoolean(false);
     private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
 
-    public LzyFsServer(String sessionId, String mountPoint, URI selfUri, URI lzyServerUri, URI lzyWhiteboardUri,
-                       IAM.Auth auth) throws IOException {
+    public LzyFsServer(String agentId, String mountPoint, URI selfUri, URI lzyServerUri, URI lzyWhiteboardUri,
+                       URI channelManagerUri, IAM.Auth auth) throws IOException {
+        this.agentId = agentId;
+        this.channelManagerUri = channelManagerUri;
         assert LzyFs.scheme().equals(selfUri.getScheme());
-
-        this.sessionId = sessionId;
         this.mountPoint = Path.of(mountPoint);
         fs = startFuse();
 
@@ -76,11 +86,26 @@ public final class LzyFsServer {
         localServer = NettyServerBuilder.forAddress(new InetSocketAddress(selfUri.getHost(), selfUri.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(new Impl(), new SessionIdInterceptor()))
+            .addService(new Impl())
             .build();
         localServer.start();
 
-        slotsManager = new SlotsManager(sessionId, selfUri);
+        channelManagerChannel = ChannelBuilder
+            .forAddress(channelManagerUri.getHost(), channelManagerUri.getPort())
+            .usePlaintext()
+            .enableRetry(LzyChannelManagerGrpc.SERVICE_NAME)
+            .build();
+        slotsManager = new SlotsManager(
+            LzyChannelManagerGrpc
+                .newBlockingStub(channelManagerChannel)
+                .withInterceptors(ClientHeaderInterceptor.header(
+                    GrpcHeaders.AUTHORIZATION,
+                    () -> auth.hasUser()
+                        ? auth.getUser().getToken()
+                        : generateJwtServantToken(auth.getTask().getServantId())
+                )),
+            selfUri
+        );
 
         // TODO: remove it from LzyFs
         // <<<
@@ -100,7 +125,7 @@ public final class LzyFsServer {
                 .setBucket(bucket)
                 .build());
 
-        slotConnectionManager = new SlotConnectionManager(credentials, auth, lzyWhiteboardUri, bucket, sessionId);
+        slotConnectionManager = new SlotConnectionManager(credentials, auth, lzyWhiteboardUri, bucket);
         // >>>
 
         LOG.info("Registering lzy commands...");
@@ -109,6 +134,16 @@ public final class LzyFsServer {
         }
 
         LOG.info("LzyFs started on {}.", selfUri);
+    }
+
+    private String generateJwtServantToken(String servantId) {
+        final Instant now = Instant.now();
+        return Jwts.builder()
+            .setIssuedAt(Date.from(now))
+            .setNotBefore(Date.from(now))
+            .setExpiration(Date.from(now.plusSeconds(Duration.ofDays(7).toSeconds())))
+            .setIssuer(servantId)
+            .compact();
     }
 
     public Path getMountPoint() {
@@ -132,6 +167,7 @@ public final class LzyFsServer {
         if (stopped.compareAndSet(false, true)) {
             try {
                 lzyServerChannel.shutdown();
+                channelManagerChannel.shutdown();
                 localServer.shutdown();
             } finally {
                 fs.umount();
@@ -172,7 +208,7 @@ public final class LzyFsServer {
             return onSlotError("Slot `" + request.getSlot().getName() + "` already exists.");
         }
 
-        final Slot slotSpec = GrpcConverter.from(request.getSlot());
+        final Slot slotSpec = from(request.getSlot());
         final LzySlot lzySlot = slotsManager.getOrCreateSlot(request.getTaskId(), slotSpec, request.getChannelId());
 
         // TODO: It will be removed after creating Portal
@@ -194,32 +230,35 @@ public final class LzyFsServer {
     }
 
     public LzyFsApi.SlotCommandStatus connectSlot(LzyFsApi.ConnectSlotRequest request) {
-        final String slotName = request.getTaskId() + request.getSlotName();
+        final SlotInstance fromSlot = from(request.getFrom());
+        final String slotName = fromSlot.taskId() + fromSlot.name();
         LOG.info("LzyFsServer::connectSlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
 
-        final LzySlot slot = slotsManager.slot(request.getTaskId(), request.getSlotName());
+        final LzySlot slot = slotsManager.slot(fromSlot.taskId(), fromSlot.name());
         if (slot == null) {
             return onSlotError("Slot `" + slotName + "` not found.");
         }
 
-        final URI slotUri = URI.create(request.getSlotUri());
+        final LzyFsApi.SlotInstance to = request.getTo();
+        final URI slotUri = URI.create(to.getSlotUri());
         if (slot instanceof LzyInputSlot) {
             if (SlotS3.match(slotUri) || SlotAzure.match(slotUri)) {
                 ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToS3(slotUri, 0));
             } else {
-                ((LzyInputSlot) slot).connect(slotUri, SlotConnectionManager.connectToSlot(slotUri, 0));
+                ((LzyInputSlot) slot).connect(slotUri, SlotConnectionManager.connectToSlot(from(to), 0));
             }
             return LzyFsApi.SlotCommandStatus.newBuilder().build();
         }
 
-        return onSlotError("Slot " + request.getSlotName() + " not found in " + request.getTaskId());
+        return onSlotError("Slot " + fromSlot.spec().name() + " not found in " + fromSlot.taskId());
     }
 
     public LzyFsApi.SlotCommandStatus disconnectSlot(LzyFsApi.DisconnectSlotRequest request) {
-        final String slotName = request.getTaskId() + request.getSlotName();
+        final SlotInstance slotInstance = from(request.getSlotInstance());
+        final String slotName = slotInstance.taskId() + slotInstance.name();
         LOG.info("LzyFsServer::disconnectSlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
 
-        final LzySlot slot = slotsManager.slot(request.getTaskId(), request.getSlotName());
+        final LzySlot slot = slotsManager.slot(slotInstance.taskId(), slotInstance.name());
         if (slot == null) {
             return onSlotError("Slot `" + slotName + "` not found.");
         }
@@ -230,16 +269,17 @@ public final class LzyFsServer {
     }
 
     public LzyFsApi.SlotCommandStatus statusSlot(LzyFsApi.StatusSlotRequest request) {
-        final String slotName = request.getTaskId() + request.getSlotName();
+        final SlotInstance slotInstance = from(request.getSlotInstance());
+        final String slotName = slotInstance.taskId() + slotInstance.name();
         LOG.info("LzyFsServer::statusSlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
 
-        final LzySlot slot = slotsManager.slot(request.getTaskId(), request.getSlotName());
+        final LzySlot slot = slotsManager.slot(slotInstance.taskId(), slotInstance.name());
         if (slot == null) {
             return onSlotError("Slot `" + slotName + "` not found.");
         }
 
         final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());
-        status.setTaskId(request.getTaskId());
+        status.setTaskId(slotInstance.taskId());
 
         return LzyFsApi.SlotCommandStatus.newBuilder()
             .setStatus(status.build())
@@ -247,10 +287,11 @@ public final class LzyFsServer {
     }
 
     public LzyFsApi.SlotCommandStatus destroySlot(LzyFsApi.DestroySlotRequest request) {
-        final String slotName = request.getTaskId() + request.getSlotName();
+        final SlotInstance slotInstance = from(request.getSlotInstance());
+        final String slotName = slotInstance.taskId() + slotInstance.name();
         LOG.info("LzyFsServer::destroySlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
 
-        final LzySlot slot = slotsManager.slot(request.getTaskId(), request.getSlotName());
+        final LzySlot slot = slotsManager.slot(slotInstance.taskId(), slotInstance.name());
         if (slot == null) {
             return onSlotError("Slot `" + slotName + "` not found.");
         }
@@ -275,24 +316,19 @@ public final class LzyFsServer {
         LOG.info("LzyFsServer::openOutputSlot {}.", JsonUtils.printRequest(request));
 
         final long start = System.currentTimeMillis();
-        final Path path = Paths.get(URI.create(request.getSlotUri()).getPath());
+        final SlotInstance slotInstance = from(request.getSlotInstance());
+        final String taskId = slotInstance.taskId();
+        LOG.debug("taskId: {}, slot: {}.", taskId, slotInstance.name());
 
-        if (path.getNameCount() < 2) {
-            responseObserver.onError(
-                Status.INVALID_ARGUMENT.withDescription("Wrong slot format, must be [task]/[slot]").asException());
-            return;
-        }
-
-        final String task = path.getName(0).toString();
-        // TODO(artolord) Make better slot name resolving
-        final String slotName = "/" + path.getName(0).relativize(Path.of("/").relativize(path));
-        LOG.debug("task: {}, slot: {}.", task, slotName);
-
-        final LzySlot slot = slotsManager.slot(task, slotName);
+        final LzySlot slot = slotsManager.slot(taskId, slotInstance.name());
         if (!(slot instanceof LzyOutputSlot outputSlot)) {
-            LOG.info("Trying to read from input slot " + path);
+            LOG.info("Trying to read from input slot " + slotInstance.uri());
             responseObserver
-                .onError(Status.NOT_FOUND.withDescription("Reading from input slot: " + path).asException());
+                .onError(
+                    Status.NOT_FOUND
+                        .withDescription("Reading from input slot: " + slotInstance.uri())
+                        .asException()
+            );
             return;
         }
 
@@ -310,8 +346,7 @@ public final class LzyFsServer {
             new MetricEvent(
                 "LzyServant openOutputSlot time",
                 Map.of(
-                    "session_id", sessionId,
-                    "task_id", task,
+                    "task_id", taskId,
                     "metric_type", "system_metric"
                 ),
                 finish - start
@@ -365,8 +400,11 @@ public final class LzyFsServer {
         commandParts.add('"' + System.getProperty("java.class.path") + '"');
         commandParts.add(BashApi.class.getCanonicalName());
         commandParts.addAll(List.of("--lzy-address", lzyServerUri.getHost() + ":" + lzyServerUri.getPort()));
+        commandParts.addAll(List.of("--channel-manager",
+            channelManagerUri.getHost() + ":" + channelManagerUri.getPort()));
         //commandParts.addAll(List.of("--lzy-whiteboard", whiteboardAddress.toString()));
         commandParts.addAll(List.of("--lzy-mount", mountPoint.toAbsolutePath().toString()));
+        commandParts.addAll(List.of("--agent-id", agentId));
         commandParts.addAll(List.of("--lzy-fs-port", Integer.toString(selfUri.getPort())));
         // TODO: move it to Env
         commandParts.addAll(List.of(
@@ -393,7 +431,7 @@ public final class LzyFsServer {
 
         @Override
         public Zygote operation() {
-            return GrpcConverter.from(zygote);
+            return from(zygote);
         }
     }
 

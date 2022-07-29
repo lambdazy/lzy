@@ -19,6 +19,7 @@ public final class LzyFsApp {
     static {
         // common lzy options
         options.addRequiredOption("z", "lzy-address", true, "Lzy server address [host:port]");
+        options.addRequiredOption("ch", "channel-manager", true, "Lzy channel manager address [host:port]");
         options.addOption("w", "lzy-whiteboard", true, "Lzy Whiteboard address [host:port]");
         options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
 
@@ -64,6 +65,7 @@ public final class LzyFsApp {
         final int grpcPort = Integer.parseInt(cmdLine.getOptionValue("grpc-port", "" + LzyFsServer.DEFAULT_PORT));
 
         final String whiteboardAddress = "grpc://" + cmdLine.getOptionValue("lzy-whiteboard", serverAddress);
+        final String channelManagerAddress = "grpc://" + cmdLine.getOptionValue("channel-manager");
 
         final String userId = cmdLine.getOptionValue("user");
         final String servantId = cmdLine.getOptionValue("servant-id");
@@ -112,11 +114,12 @@ public final class LzyFsApp {
         }
 
         final LzyFsServer server = new LzyFsServer(
-            UUID.randomUUID().toString(),
+            servantId,
             mountPoint,
             new URI(UriScheme.LzyFs.scheme(), null, grpcHost, grpcPort, null, null, null),
             new URI("http", null, serverHost, serverPort, null, null, null),
             new URI(whiteboardAddress),
+            new URI(channelManagerAddress),
             authBuilder.build());
         server.awaitTermination();
     }

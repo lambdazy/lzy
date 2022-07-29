@@ -1,5 +1,6 @@
 package ai.lzy.test;
 
+import ai.lzy.v1.ChannelManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -29,8 +30,15 @@ public interface LzyTerminalTestContext extends AutoCloseable {
     int DEFAULT_TIMEOUT_SEC = 30;
     String TEST_USER = "test-user";
 
-    Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress, int debugPort,
-                                        String user, String privateKeyPath);
+    Terminal startTerminalAtPathAndPort(
+        String path,
+        int port,
+        int fsPort,
+        String serverAddress,
+        String channelManagerAddress,
+        int debugPort,
+        String user,
+        String privateKeyPath);
 
     void close();
 
@@ -67,6 +75,8 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                 binaryPath.toString(),
                 String.join(" ", command)
             );
+            LOGGER.info("STDOUT:\n{}", result.stdout());
+            LOGGER.info("STDERR:\n{}", result.stderr());
             if (result.exitCode() != 0) {
                 LOGGER.error("Command {}/{} execution failed with error {}", binaryPath, command, result.stderr());
                 throw new TerminalCommandFailedException(result);
@@ -136,24 +146,41 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             }
         }
 
-        default void createChannel(String channelName) {
-            executeLzyCommand(
+        default String parseChannelIdFromCreateChannelResponse(String response) {
+            var builder = ChannelManager.ChannelCreateResponse.newBuilder();
+            try {
+                JsonFormat.parser().merge(response, builder);
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+            }
+            return builder.build().getChannelId();
+        }
+
+        default String createChannel(String channelName) {
+            final String response = executeLzyCommand(
                 BuiltinCommandHolder.channel,
                 "create",
                 channelName,
                 "-t", "direct"
-            );
+            ).stdout();
+            return parseChannelIdFromCreateChannelResponse(response);
         }
 
-        default void createChannel(String channelName, String snapshotId, String entryId) {
-            executeLzyCommand(
+        default String createChannel(String channelName, String snapshotId, String entryId) {
+            final String response = executeLzyCommand(
                 BuiltinCommandHolder.channel,
                 "create",
                 channelName,
                 "-t", "snapshot",
                 "-s", snapshotId,
                 "-e", entryId
-            );
+            ).stdout();
+            return parseChannelIdFromCreateChannelResponse(response);
+        }
+
+        default String channelsStatus() {
+            final ExecutionResult execute = executeLzyCommand(BuiltinCommandHolder.cs);
+            return execute.stdout();
         }
 
         default String getWhiteboard(String wbId) {
@@ -260,12 +287,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             return execute.stdout();
         }
 
-        default String cs() {
-            final ExecutionResult execute = executeLzyCommand(BuiltinCommandHolder.cs);
-            return execute.stdout();
-        }
-
-        default void createSlot(String path, String channelName, Slot slot) {
+        default void createSlot(String path, String channelId, Slot slot) {
             try {
                 execute("echo '" + JsonFormat.printer().print(GrpcConverter.to(slot)) + "' > slot.json");
             } catch (InvalidProtocolBufferException e) {
@@ -274,7 +296,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             executeLzyCommand(
                 BuiltinCommandHolder.touch,
                 path,
-                channelName,
+                channelId,
                 "--slot",
                 "slot.json"
             );

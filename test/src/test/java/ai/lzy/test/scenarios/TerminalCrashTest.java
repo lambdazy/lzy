@@ -38,10 +38,10 @@ public class TerminalCrashTest extends LocalScenario {
             port,
             fsPort,
             kharonContext.serverAddress(),
+            kharonContext.channelManagerProxyAddress(),
             debugPort,
             LzyTerminalTestContext.TEST_USER,
-            null
-        );
+            terminalKeys.privateKeyPath().toString());
         terminal.waitForStatus(
             AgentStatus.EXECUTING,
             Config.TIMEOUT_SEC,
@@ -134,7 +134,7 @@ public class TerminalCrashTest extends LocalScenario {
             throw new RuntimeException(e);
         }
 
-        final String cs = terminal2.cs();
+        final String cs = terminal2.channelsStatus();
         Assert.assertEquals("", cs);
     }
 
@@ -245,7 +245,7 @@ public class TerminalCrashTest extends LocalScenario {
         terminal.publish(cat);
 
         //Act
-        String csBefore = terminal.cs();
+        String csBefore = terminal.channelsStatus();
         ForkJoinPool.commonPool().execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
         ForkJoinPool.commonPool().execute(() -> terminal.run(
             cat.name(),
@@ -268,10 +268,12 @@ public class TerminalCrashTest extends LocalScenario {
         );
         terminal.shutdownNow();
         terminal.waitForShutdown();
-        String csAfter = terminal2.cs();
+
+        final boolean flagUp = Utils.waitFlagUp(() -> terminal2.channelsStatus().equals(""), Config.TIMEOUT_SEC,
+            TimeUnit.SECONDS);
 
         //Assert
         Assert.assertNotEquals("", csBefore);
-        Assert.assertEquals("", csAfter);
+        Assert.assertTrue(flagUp);
     }
 }

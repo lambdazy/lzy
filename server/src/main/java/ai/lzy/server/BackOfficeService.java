@@ -318,7 +318,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             return;
         }
         responseObserver.onNext(
-            BackOffice.GetTasksResponse.newBuilder().setTasks(Tasks.TasksList.newBuilder().addAllTasks(tasks.ps()
+            BackOffice.GetTasksResponse.newBuilder().setTasks(Tasks.TasksList.newBuilder().addAllTasks(tasks.tasks()
                 .filter(t -> this.auth.canAccess(t, request.getCredentials().getUserId()))
                 .map(t -> LzyServer.Impl.taskStatus(t, tasks))
                 .collect(Collectors.toList())

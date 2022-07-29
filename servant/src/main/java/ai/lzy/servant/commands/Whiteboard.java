@@ -44,12 +44,8 @@ public class Whiteboard implements LzyCommand {
 
     @Override
     public int execute(CommandLine command) throws Exception {
-        final CommandLine localCmd;
-        final HelpFormatter cliHelp = new HelpFormatter();
-        try {
-            localCmd = new DefaultParser().parse(options, command.getArgs(), false);
-        } catch (ParseException e) {
-            cliHelp.printHelp("whiteboard", options);
+        final CommandLine localCmd = parse(command, options);
+        if (localCmd == null) {
             return -1;
         }
         if (command.getArgs().length < 2) {
@@ -68,7 +64,7 @@ public class Whiteboard implements LzyCommand {
             .build();
         final WbApiGrpc.WbApiBlockingStub server = WbApiGrpc.newBlockingStub(serverCh);
         switch (command.getArgs()[1]) {
-            case "create": {
+            case "create" -> {
                 if (!localCmd.hasOption('l')) {
                     throw new IllegalArgumentException("Whiteboard fields list must be specified");
                 }
@@ -95,7 +91,7 @@ public class Whiteboard implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(whiteboardId));
                 break;
             }
-            case "link": {
+            case "link" -> {
                 if (!localCmd.hasOption('e') || !localCmd.hasOption('f')) {
                     throw new IllegalArgumentException(
                         "Add link command requires entry ID and whiteboard field");
@@ -114,7 +110,7 @@ public class Whiteboard implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(operationStatus));
                 break;
             }
-            case "get": {
+            case "get" -> {
                 final LzyWhiteboard.Whiteboard whiteboard = server
                     .getWhiteboard(LzyWhiteboard.GetWhiteboardCommand
                         .newBuilder()
@@ -125,7 +121,7 @@ public class Whiteboard implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(whiteboard));
                 break;
             }
-            case "list": {
+            case "list" -> {
                 if (!localCmd.hasOption('n')) {
                     throw new IllegalArgumentException("Whiteboard namespace must be specified");
                 }
@@ -152,9 +148,7 @@ public class Whiteboard implements LzyCommand {
                 final LzyWhiteboard.WhiteboardsResponse whiteboards = server.whiteboardsList(wbBuilder.build());
                 System.out.println(JsonFormat.printer().print(whiteboards));
             }
-            break;
-            default:
-                throw new IllegalStateException("Unexpected value: " + command.getArgs()[1]);
+            default -> throw new IllegalStateException("Unexpected value: " + command.getArgs()[1]);
         }
         return 0;
     }

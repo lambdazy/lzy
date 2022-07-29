@@ -1,4 +1,8 @@
-package ai.lzy.server.channel;
+package ai.lzy.channelmanager.control;
+
+import ai.lzy.channelmanager.channel.ChannelException;
+import ai.lzy.channelmanager.channel.Endpoint;
+import ai.lzy.channelmanager.graph.ChannelGraph;
 
 public interface ChannelController {
     void executeBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException;

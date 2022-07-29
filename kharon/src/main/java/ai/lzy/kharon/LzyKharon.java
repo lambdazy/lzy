@@ -1,39 +1,66 @@
 package ai.lzy.kharon;
 
-import com.google.common.net.HostAndPort;
-import io.grpc.*;
-import io.grpc.netty.NettyServerBuilder;
-import io.grpc.stub.StreamObserver;
-import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.env.PropertySource;
-import org.apache.commons.cli.*;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import static ai.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.model.UriScheme.LzyKharon;
+import static ai.lzy.model.UriScheme.SlotAzure;
+import static ai.lzy.model.UriScheme.SlotS3;
+
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.kharon.workflow.WorkflowService;
 import ai.lzy.model.JsonUtils;
+import ai.lzy.model.SlotConnectionManager;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.model.utils.SessionIdInterceptor;
-import ai.lzy.v1.*;
+import ai.lzy.model.grpc.ProxyClientHeaderInterceptor;
+import ai.lzy.model.grpc.ProxyServerHeaderInterceptor;
+import ai.lzy.v1.ChannelManager;
+import ai.lzy.v1.IAM;
+import ai.lzy.v1.Kharon;
 import ai.lzy.v1.Kharon.ReceivedDataStatus;
 import ai.lzy.v1.Kharon.SendSlotDataMessage;
 import ai.lzy.v1.Kharon.TerminalCommand;
+import ai.lzy.v1.Lzy;
 import ai.lzy.v1.Lzy.GetSessionsRequest;
 import ai.lzy.v1.Lzy.GetSessionsResponse;
+import ai.lzy.v1.LzyChannelManagerGrpc;
+import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsApi.SlotCommandStatus;
-
+import ai.lzy.v1.LzyFsGrpc;
+import ai.lzy.v1.LzyKharonGrpc;
+import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.LzyWhiteboard;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.SnapshotApiGrpc;
+import ai.lzy.v1.Tasks;
+import ai.lzy.v1.WbApiGrpc;
+import com.google.common.net.HostAndPort;
+import io.grpc.Context;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerInterceptors;
+import io.grpc.Status;
+import io.grpc.netty.NettyServerBuilder;
+import io.grpc.stub.StreamObserver;
+import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.env.PropertySource;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-
-import static ai.lzy.model.UriScheme.LzyKharon;
-import static ai.lzy.model.UriScheme.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @SuppressWarnings("UnstableApiUsage")
 public class LzyKharon {
@@ -50,19 +77,20 @@ public class LzyKharon {
         options.addOption("z", "lzy-server-address", true, "Lzy server address [host:port]");
         options.addOption("w", "lzy-whiteboard-address", true, "Lzy whiteboard address [host:port]");
         options.addOption("lsa", "lzy-snapshot-address", true, "Lzy snapshot address [host:port]");
+        options.addOption("ch", "lzy-channel-manager-address", true, "Lzy channel manager address [host:port]");
         options.addOption("iam", "lzy-iam-address", true, "Lzy iam address [host:port]");
     }
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final WbApiGrpc.WbApiBlockingStub whiteboard;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
+    private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager;
     private final TerminalSessionManager sessionManager;
     private final DataCarrier dataCarrier = new DataCarrier();
-    private final ServantConnectionManager connectionManager = new ServantConnectionManager();
-    private final ServerControllerFactory serverControllerFactory;
+    private final SlotConnectionManager connectionManager = new SlotConnectionManager();
     private final Server kharonServer;
-    private final Server kharonServantProxy;
     private final Server kharonServantFsProxy;
+    private final Server channelManagerProxy;
     private final ManagedChannel serverChannel;
     private final ManagedChannel whiteboardChannel;
     private final ManagedChannel snapshotChannel;
@@ -92,27 +120,21 @@ public class LzyKharon {
             .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(snapshotChannel);
 
-        var servantProxyAddress = new URI(LzyServant.scheme(), null, selfAddress.getHost(), config.servantProxyPort(),
-            null, null, null);
-        var servantFsProxyAddress = new URI(LzyFs.scheme(), null, selfAddress.getHost(), config.servantFsProxyPort(),
+        var servantProxyFsAddress = new URI(LzyFs.scheme(), null, selfAddress.getHost(), config.servantFsProxyPort(),
             null, null, null);
 
         sessionManager = new TerminalSessionManager();
-        uriResolver = new UriResolver(externalAddress, servantFsProxyAddress);
-        serverControllerFactory = new ServerControllerFactory(server, uriResolver, servantProxyAddress,
-                servantFsProxyAddress);
-
-        var sessionIdInterceptor = new SessionIdInterceptor();
+        uriResolver = new UriResolver(externalAddress, servantProxyFsAddress);
 
         var kharonServerBuilder = NettyServerBuilder.forPort(selfAddress.getPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             //.keepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             //.keepAliveTimeout(ChannelBuilder.KEEP_ALIVE_TIMEOUT_SECS,  TimeUnit.SECONDS)
-            .addService(ServerInterceptors.intercept(new KharonService(), sessionIdInterceptor))
-            .addService(ServerInterceptors.intercept(new SnapshotService(), sessionIdInterceptor))
-            .addService(ServerInterceptors.intercept(new WhiteboardService(), sessionIdInterceptor))
-            .addService(ServerInterceptors.intercept(new ServerService(), sessionIdInterceptor));
+            .addService(ServerInterceptors.intercept(new KharonService()))
+            .addService(ServerInterceptors.intercept(new SnapshotService()))
+            .addService(ServerInterceptors.intercept(new WhiteboardService()))
+            .addService(ServerInterceptors.intercept(new ServerService()));
 
         if (config.workflow().enabled()) {
             var authInterceptor = new AuthServerInterceptor(
@@ -125,20 +147,27 @@ public class LzyKharon {
 
         kharonServer = kharonServerBuilder.build();
 
-        kharonServantProxy = NettyServerBuilder.forPort(config.servantProxyPort())
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            //.keepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            //.keepAliveTimeout(ChannelBuilder.KEEP_ALIVE_TIMEOUT_SECS,  TimeUnit.SECONDS)
-            .addService(ServerInterceptors.intercept(new KharonServantProxyService(), sessionIdInterceptor))
-            .build();
-
         kharonServantFsProxy = NettyServerBuilder.forPort(config.servantFsProxyPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            //.keepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            //.keepAliveTimeout(ChannelBuilder.KEEP_ALIVE_TIMEOUT_SECS,  TimeUnit.SECONDS)
-            .addService(ServerInterceptors.intercept(new KharonServantFsProxyService(), sessionIdInterceptor))
+            .addService(ServerInterceptors.intercept(new KharonServantFsProxyService()))
+            .build();
+
+        var channelManagerAddress = HostAndPort.fromString(config.channelManagerAddress());
+        ManagedChannel channelManagerChannel = ChannelBuilder
+            .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
+            .usePlaintext()
+            .build();
+        channelManager = LzyChannelManagerGrpc
+            .newBlockingStub(channelManagerChannel)
+            .withInterceptors(new ProxyClientHeaderInterceptor());
+
+        channelManagerProxy = NettyServerBuilder.forPort(config.channelManagerProxyPort())
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .addService(ServerInterceptors.intercept(
+                new ChannelManagerProxyService(),
+                new ProxyServerHeaderInterceptor()))
             .build();
     }
 
@@ -163,9 +192,13 @@ public class LzyKharon {
             final int servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
             final int servantFsPort = parse.hasOption("fs") ? Integer.parseInt(parse.getOptionValue("fs"))
                     : servantPort + 1;
+            final int channelManagerProxyPort = Integer.parseInt(
+                parse.getOptionValue("channel-manager-proxy-port", "8123"));
             final URI serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
             final URI whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
             final URI snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
+            final URI channelManagerAddress =
+                URI.create(parse.getOptionValue("lzy-channel-manager-address", "http://localhost:8122"));
             final URI iamAddress = URI.create(parse.getOptionValue("lzy-iam-address", "http://localhost:8443"));
 
             p.put("kharon.address", host + ":" + port);
@@ -173,8 +206,11 @@ public class LzyKharon {
             p.put("kharon.server-address", serverAddress.getHost() + ":" + serverAddress.getPort());
             p.put("kharon.whiteboard-address", whiteboardAddress.getHost() + ":" + whiteboardAddress.getPort());
             p.put("kharon.snapshot-address", snapshotAddress.getHost() + ":" + snapshotAddress.getPort());
+            p.put("kharon.channel-manager-address",
+                channelManagerAddress.getHost() + ":" + channelManagerAddress.getPort());
             p.put("kharon.servant-proxy-port", servantPort);
-            p.put("kharon.servant-fs-proxy-port", servantFsPort);
+            p.put("kharon.servant-proxy-fs-port", servantFsPort);
+            p.put("kharon.channel-manager-proxy-port", channelManagerProxyPort);
 
             p.put("kharon.iam.address", iamAddress.getHost() + ":" + iamAddress.getPort());
             p.put("kharon.workflow.enabled", "false");
@@ -190,20 +226,20 @@ public class LzyKharon {
 
     public void start() throws IOException {
         kharonServer.start();
-        kharonServantProxy.start();
         kharonServantFsProxy.start();
+        channelManagerProxy.start();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("gRPC server is shutting down!");
             kharonServer.shutdown();
-            kharonServantProxy.shutdown();
+            channelManagerProxy.shutdown();
             kharonServantFsProxy.shutdown();
         }));
     }
 
     public void awaitTermination() throws InterruptedException {
         kharonServer.awaitTermination();
-        kharonServantProxy.awaitTermination();
+        channelManagerProxy.awaitTermination();
         kharonServantFsProxy.awaitTermination();
     }
 
@@ -212,7 +248,7 @@ public class LzyKharon {
         whiteboardChannel.shutdownNow();
         snapshotChannel.shutdownNow();
         kharonServer.shutdownNow();
-        kharonServantProxy.shutdownNow();
+        channelManagerProxy.shutdownNow();
         kharonServantFsProxy.shutdownNow();
     }
 
@@ -321,19 +357,29 @@ public class LzyKharon {
     private class KharonService extends LzyKharonGrpc.LzyKharonImplBase {
 
         @Override
-        public StreamObserver<Kharon.ServerCommand> attachTerminal(StreamObserver<TerminalCommand> responseObserver) {
+        public StreamObserver<Kharon.TerminalProgress> attachTerminal(
+            StreamObserver<TerminalCommand> responseObserver
+        ) {
             LOG.info("Kharon::attachTerminal");
             final String sessionId = "terminal_" + UUID.randomUUID();
             final TerminalSession session = sessionManager.createSession(
                 sessionId,
                 new TerminalController(responseObserver),
-                serverControllerFactory
+                server,
+                channelManager
             );
+            responseObserver.onNext(
+                Kharon.TerminalCommand.newBuilder()
+                    .setCommandId("terminal_attach_response")
+                    .setTerminalAttachResponse(Kharon.TerminalAttachResponse.newBuilder()
+                        .setWorkflowId(sessionId)
+                        .build())
+                    .build());
             Context.current().addListener(context -> {
-                session.onTerminalDisconnect();
+                context.fork().run(() -> session.onTerminalDisconnect(context.cancellationCause()));
                 sessionManager.deleteSession(sessionId);
             }, Runnable::run);
-            return session.serverCommandHandler();
+            return session.terminalProgressHandler();
         }
 
         @Override
@@ -345,7 +391,7 @@ public class LzyKharon {
         @Override
         public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> responseObserver) {
             LOG.info("Kharon::openOutputSlot from Terminal " + JsonUtils.printRequest(request));
-            final URI slotUri = UriResolver.parseSlotUri(URI.create(request.getSlotUri()));
+            final URI slotUri = UriResolver.parseSlotUri(URI.create(request.getSlotInstance().getSlotUri()));
             if (slotUri == null) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Bad uri").asException());
                 return;
@@ -353,7 +399,11 @@ public class LzyKharon {
 
             LzyFsApi.SlotRequest newRequest = LzyFsApi.SlotRequest.newBuilder()
                 .mergeFrom(request)
-                .setSlotUri(slotUri.toString())
+                .setSlotInstance(
+                    LzyFsApi.SlotInstance.newBuilder()
+                        .mergeFrom(request.getSlotInstance())
+                        .setSlotUri(slotUri.toString())
+                        .build())
                 .build();
 
             URI servantFsUri = null;
@@ -418,22 +468,9 @@ public class LzyKharon {
         }
 
         @Override
-        public void channel(Channels.ChannelCommand request,
-                            StreamObserver<Channels.ChannelStatus> responseObserver) {
-            LOG.info("Kharon::channel " + JsonUtils.printRequest(request));
-            ProxyCall.exec(server::channel, request, responseObserver);
-        }
-
-        @Override
         public void tasksStatus(IAM.Auth request,
                                 StreamObserver<Tasks.TasksList> responseObserver) {
             ProxyCall.exec(server::tasksStatus, request, responseObserver);
-        }
-
-        @Override
-        public void channelsStatus(IAM.Auth request,
-                                   StreamObserver<Channels.ChannelStatusList> responseObserver) {
-            ProxyCall.exec(server::channelsStatus, request, responseObserver);
         }
 
         @Override
@@ -454,27 +491,69 @@ public class LzyKharon {
         }
     }
 
-    private class KharonServantProxyService extends LzyServantGrpc.LzyServantImplBase {
+    private class ChannelManagerProxyService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
+        @Override
+        public void create(ChannelManager.ChannelCreateRequest request,
+                           StreamObserver<ChannelManager.ChannelCreateResponse> responseObserver) {
+            ProxyCall.exec(channelManager::create, request, responseObserver);
+        }
 
         @Override
-        public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
+        public void destroy(ChannelManager.ChannelDestroyRequest request,
+                            StreamObserver<ChannelManager.ChannelDestroyResponse> responseObserver) {
+            ProxyCall.exec(channelManager::destroy, request, responseObserver);
+        }
+
+        @Override
+        public void status(ChannelManager.ChannelStatusRequest request,
+                           StreamObserver<ChannelManager.ChannelStatus> responseObserver) {
+            ProxyCall.exec(channelManager::status, request, responseObserver);
+        }
+
+        @Override
+        public void channelsStatus(ChannelManager.ChannelsStatusRequest request,
+                                   StreamObserver<ChannelManager.ChannelStatusList> responseObserver) {
+            ProxyCall.exec(channelManager::channelsStatus, request, responseObserver);
+        }
+
+        @Override
+        public void bind(ChannelManager.SlotAttach request,
+                         StreamObserver<ChannelManager.SlotAttachStatus> responseObserver) {
             try {
-                final TerminalSession session = sessionManager.getSessionFromGrpcContext();
-                final String sessionId = session.sessionId();
-                LOG.info("KharonServantProxyService sessionId = " + sessionId
-                    + "::start " + JsonUtils.printRequest(request));
-                session.setServerStream(responseObserver);
-                Context.current().addListener(context -> {
-                    LOG.info("Execution terminated from server");
-                    session.onServerDisconnect();
-                    sessionManager.deleteSession(sessionId);
-                }, Runnable::run);
-            } catch (InvalidSessionRequestException | ServerController.ServerControllerResetException e) {
-                LOG.warn("Exception while start ", e);
-                responseObserver.onError(Status.NOT_FOUND.asRuntimeException().initCause(e));
+                final ChannelManager.SlotAttach updatedRequest = ChannelManager.SlotAttach.newBuilder()
+                    .setSlotInstance(LzyFsApi.SlotInstance.newBuilder(request.getSlotInstance())
+                        .setSlotUri(
+                            uriResolver.convertToServantFsProxyUri(
+                                URI.create(request.getSlotInstance().getSlotUri())
+                            ).toString())
+                        .build())
+                    .build();
+                ProxyCall.exec(channelManager::bind, updatedRequest, responseObserver);
+            } catch (URISyntaxException e) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
             }
         }
 
+        @Override
+        public void unbind(ChannelManager.SlotDetach request,
+                           StreamObserver<ChannelManager.SlotDetachStatus> responseObserver) {
+            try {
+                final ChannelManager.SlotDetach updatedRequest =
+                    ChannelManager.SlotDetach.newBuilder()
+                        .setSlotInstance(
+                            LzyFsApi.SlotInstance.newBuilder(request.getSlotInstance())
+                                .setSlotUri(
+                                    uriResolver.convertToServantFsProxyUri(
+                                        URI.create(request.getSlotInstance().getSlotUri())
+                                    ).toString()
+                                ).build()
+                        )
+                    .build();
+                ProxyCall.exec(channelManager::unbind, updatedRequest, responseObserver);
+            } catch (URISyntaxException e) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
+            }
+        }
     }
 
     private class KharonServantFsProxyService extends LzyFsGrpc.LzyFsImplBase {
@@ -483,19 +562,16 @@ public class LzyKharon {
         public void openOutputSlot(LzyFsApi.SlotRequest request,
                                    StreamObserver<LzyFsApi.Message> responseObserver) {
             try {
-                final TerminalSession session = sessionManager.getSessionFromSlotUri(request.getSlotUri());
+                final LzyFsApi.SlotInstance slotInstance = request.getSlotInstance();
+                final URI slotUri = URI.create(slotInstance.getSlotUri());
+                final TerminalSession session = sessionManager.get(slotInstance.getTaskId());
                 LOG.info("KharonServantFsProxyService sessionId = " + session.sessionId()
                     + "::openOutputSlot " + JsonUtils.printRequest(request));
-                dataCarrier.openServantConnection(URI.create(request.getSlotUri()), responseObserver);
-
-                final URI slotUri = URI.create(request.getSlotUri());
-                final String tid = UriResolver.parseTidFromSlotUri(slotUri);
-                final String slotName = UriResolver.parseSlotNameFromSlotUri(slotUri);
+                dataCarrier.openServantConnection(slotUri, responseObserver);
 
                 session.terminalController().connectSlot(LzyFsApi.ConnectSlotRequest.newBuilder()
-                    .setTaskId(tid)
-                    .setSlotName(slotName)
-                    .setSlotUri(request.getSlotUri())
+                    .setFrom(slotInstance)
+                    .setTo(slotInstance)
                     .build());
             } catch (InvalidSessionRequestException | TerminalController.TerminalControllerResetException e) {
                 LOG.warn("Exception while openOutputSlot ", e);
@@ -505,22 +581,26 @@ public class LzyKharon {
 
         @Override
         public void createSlot(LzyFsApi.CreateSlotRequest request, StreamObserver<SlotCommandStatus> response) {
-            call(request, response, (req, controller) -> controller.createSlot(req));
+            call(request, request.getTaskId(), response, (req, controller) -> controller.createSlot(req));
         }
 
         @Override
         public void connectSlot(LzyFsApi.ConnectSlotRequest request, StreamObserver<SlotCommandStatus> response) {
             try {
-                final URI uri = URI.create(request.getSlotUri());
-                if (!SlotS3.match(uri) && !SlotAzure.match(uri)) {
-                    final URI convertedToKharonUri = uriResolver.convertToKharonWithSlotUri(uri);
+                final URI connectToUri = URI.create(request.getTo().getSlotUri());
+                if (!SlotS3.match(connectToUri) && !SlotAzure.match(connectToUri)) {
+                    final URI convertedToKharonUri = uriResolver.convertToKharonWithSlotUri(connectToUri);
                     request = LzyFsApi.ConnectSlotRequest.newBuilder()
-                            .mergeFrom(request)
+                        .mergeFrom(request)
+                        .setTo(LzyFsApi.SlotInstance.newBuilder()
+                            .mergeFrom(request.getTo())
                             .setSlotUri(convertedToKharonUri.toString())
-                            .build();
+                            .build())
+                        .build();
                 }
 
-                call(request, response, (req, controller) -> controller.connectSlot(req));
+                call(request, request.getFrom().getTaskId(), response,
+                    (req, controller) -> controller.connectSlot(req));
             } catch (URISyntaxException e) {
                 response.onError(Status.INVALID_ARGUMENT.withDescription("Invalid servant uri")
                         .asRuntimeException());
@@ -529,17 +609,20 @@ public class LzyKharon {
 
         @Override
         public void disconnectSlot(LzyFsApi.DisconnectSlotRequest request, StreamObserver<SlotCommandStatus> response) {
-            call(request, response, (req, controller) -> controller.disconnectSlot(req));
+            call(request, request.getSlotInstance().getTaskId(), response,
+                (req, controller) -> controller.disconnectSlot(req));
         }
 
         @Override
         public void statusSlot(LzyFsApi.StatusSlotRequest request, StreamObserver<SlotCommandStatus> response) {
-            call(request, response, (req, controller) -> controller.statusSlot(req));
+            call(request, request.getSlotInstance().getTaskId(), response,
+                (req, controller) -> controller.statusSlot(req));
         }
 
         @Override
         public void destroySlot(LzyFsApi.DestroySlotRequest request, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            call(request, resp, (req, controller) -> controller.destroySlot(req));
+            call(request, request.getSlotInstance().getTaskId(), resp,
+                (req, controller) -> controller.destroySlot(req));
         }
 
         interface SlotFn<R> {
@@ -547,9 +630,14 @@ public class LzyKharon {
                     throws TerminalController.TerminalControllerResetException;
         }
 
-        private <R> void call(R request, StreamObserver<SlotCommandStatus> responseObserver, SlotFn<R> fn) {
+        private <R> void call(
+            R request,
+            String sessionId,
+            StreamObserver<SlotCommandStatus> responseObserver,
+            SlotFn<R> fn
+        ) {
             try {
-                final TerminalSession session = sessionManager.getSessionFromGrpcContext();
+                final TerminalSession session = sessionManager.get(sessionId);
                 final SlotCommandStatus slotCommandStatus = fn.call(request, session.terminalController());
                 responseObserver.onNext(slotCommandStatus);
                 responseObserver.onCompleted();

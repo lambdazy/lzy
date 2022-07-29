@@ -16,8 +16,6 @@ import ai.lzy.v1.SnapshotApiGrpc;
 
 public class Cache implements LzyCommand {
 
-    private static final Options options = new Options();
-
     @Override
     public int execute(CommandLine command) throws Exception {
         IAM.Auth auth = IAM.Auth
@@ -36,7 +34,7 @@ public class Cache implements LzyCommand {
         final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot = SnapshotApiGrpc.newBlockingStub(serverCh);
 
         switch (command.getArgs()[1]) {
-            case "save": {
+            case "save" -> {
                 if (command.getArgs().length < 3) {
                     throw new IllegalArgumentException("Please specify execution spec file");
                 }
@@ -52,7 +50,7 @@ public class Cache implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
             }
-            case "find": {
+            case "find" -> {
                 if (command.getArgs().length < 3) {
                     throw new IllegalArgumentException("Please specify execution spec file");
                 }
@@ -68,7 +66,7 @@ public class Cache implements LzyCommand {
                 System.out.println(JsonFormat.printer().print(resp));
                 return 0;
             }
-            default: {
+            default -> {
                 System.out.println("Wrong command");
                 return -1;
             }

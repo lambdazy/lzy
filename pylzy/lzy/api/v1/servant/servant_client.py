@@ -2,9 +2,9 @@ import logging
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Union
 
-from lzy.api.v1.servant.model.channel import Bindings, Channel
+from lzy.api.v1.servant.model.channel import Bindings, Channel, DataSchema, DirectChannelSpec, SnapshotChannelSpec
 from lzy.api.v1.servant.model.execution import (
     Execution,
     ExecutionDescription,
@@ -33,7 +33,12 @@ class ServantClient(ABC):
         pass
 
     @abstractmethod
-    def create_channel(self, channel: Channel):
+    def create_channel(
+        self,
+        name: str,
+        data_schema: DataSchema,
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+    ) -> Channel:
         pass
 
     @abstractmethod
@@ -89,7 +94,12 @@ class ServantClientMock(ServantClient):
     def get_slot_path(self, slot: Slot) -> Path:
         pass
 
-    def create_channel(self, channel: Channel):
+    def create_channel(
+        self,
+        name: str,
+        data_schema: DataSchema,
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+    ) -> Channel:
         pass
 
     def destroy_channel(self, channel: Channel):

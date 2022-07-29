@@ -1,5 +1,6 @@
 package ai.lzy.fs.slots;
 
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Writer;
@@ -8,8 +9,8 @@ import ai.lzy.model.slots.TextLinesInSlot;
 public class WriterSlot extends LzyInputSlotBase {
     private Writer writer;
 
-    public WriterSlot(String tid, TextLinesInSlot definition) {
-        super(tid, definition);
+    public WriterSlot(SlotInstance instance) {
+        super(instance);
     }
 
     public void setStream(Writer wri) {

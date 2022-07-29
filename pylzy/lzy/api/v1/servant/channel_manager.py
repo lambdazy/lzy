@@ -2,9 +2,9 @@ import abc
 import os
 import tempfile
 from pathlib import Path
-from typing import Dict, List, TypeVar
+from typing import Dict, List, TypeVar, Union
 
-from lzy.api.v1.servant.model.channel import Channel, SnapshotChannelSpec
+from lzy.api.v1.servant.model.channel import Channel, SnapshotChannelSpec, DirectChannelSpec
 from lzy.api.v1.servant.model.file_slots import create_slot
 from lzy.api.v1.servant.model.slot import DataSchema, Direction, Slot
 from lzy.api.v1.servant.servant_client import ServantClient
@@ -18,10 +18,7 @@ class ChannelManager(abc.ABC):
     def channel(self, entry_id: str, type_: DataSchema) -> Channel:
         if entry_id in self._entry_id_to_channel:
             return self._entry_id_to_channel[entry_id]
-        channel = Channel(
-            entry_id, type_, SnapshotChannelSpec(self._snapshot_id, entry_id)
-        )
-        self._create_channel(channel)
+        channel = self._create_channel(entry_id, type_, SnapshotChannelSpec(self._snapshot_id, entry_id))
         self._entry_id_to_channel[entry_id] = channel
         return channel
 
@@ -54,7 +51,12 @@ class ChannelManager(abc.ABC):
         return path
 
     @abc.abstractmethod
-    def _create_channel(self, channel: Channel):
+    def _create_channel(
+        self,
+        name: str,
+        data_schema: DataSchema,
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+    ) -> Channel:
         pass
 
     @abc.abstractmethod
@@ -84,8 +86,13 @@ class ServantChannelManager(ChannelManager):
     def _resolve_slot_path(self, slot: Slot) -> Path:
         return self._servant.get_slot_path(slot)
 
-    def _create_channel(self, channel: Channel):
-        self._servant.create_channel(channel)
+    def _create_channel(
+        self,
+        name: str,
+        data_schema: DataSchema,
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+    ) -> Channel:
+        return self._servant.create_channel(name, data_schema, spec)
 
 
 T = TypeVar("T")
@@ -96,7 +103,12 @@ class LocalChannelManager(ChannelManager):
         super(LocalChannelManager, self).__init__(snapshot_id)
         self._tmp_files: List[str] = []
 
-    def _create_channel(self, channel: Channel):
+    def _create_channel(
+        self,
+        name: str,
+        data_schema: DataSchema,
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+    ) -> Channel:
         pass
 
     def _destroy_channel(self, channel: Channel):

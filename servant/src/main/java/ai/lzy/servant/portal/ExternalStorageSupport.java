@@ -4,6 +4,7 @@ import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.SlotSnapshotImpl;
 import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.model.Slot;
+import ai.lzy.model.SlotInstance;
 import ai.lzy.v1.SnapshotApiGrpc;
 
 import java.net.URI;
@@ -28,7 +29,13 @@ final class ExternalStorageSupport {
 
     synchronized SlotSnapshot createSlotSnapshot(S3ClientProvider s3key, String bucket, Slot slot) {
         return slotSnapshots.computeIfAbsent(s3key, k ->
-            new SlotSnapshotImpl(portalTaskId, bucket, slot, storageClients.computeIfAbsent(k, S3ClientProvider::get)));
+            new SlotSnapshotImpl(
+                bucket,
+                new SlotInstance(slot,
+                    portalTaskId,
+                    null,
+                    null),
+                storageClients.computeIfAbsent(k, S3ClientProvider::get)));
     }
 
     record AmazonS3Key(String endpoint, String accessToken, String secretToken) implements S3ClientProvider {

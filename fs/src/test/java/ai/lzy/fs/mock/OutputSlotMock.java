@@ -1,5 +1,6 @@
 package ai.lzy.fs.mock;
 
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.model.Slot;
@@ -7,6 +8,8 @@ import ai.lzy.model.data.DataSchema;
 import ai.lzy.v1.Operations;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +31,15 @@ public class OutputSlotMock implements LzyOutputSlot {
         this.onSuspend = onSuspend;
         this.onDestroy = onDestroy;
         this.onClose = onClose;
+    }
+
+    @Override
+    public SlotInstance instance() {
+        try {
+            return new SlotInstance(definition(), "taskId", "channelId", new URI("scheme", "host", "/path", null));
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

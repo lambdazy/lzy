@@ -1,12 +1,12 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.Slot;
+import ai.lzy.model.SlotInstance;
 
 public class ArgumentsSlot extends LzySlotBase {
     private final String arguments;
 
-    public ArgumentsSlot(Slot definition, String arguments) {
-        super(definition);
+    public ArgumentsSlot(SlotInstance instance, String arguments) {
+        super(instance);
         this.arguments = arguments;
     }
 

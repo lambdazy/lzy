@@ -2,6 +2,7 @@ package ai.lzy.servant.portal;
 
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.SlotConnectionManager;
+import ai.lzy.fs.SlotsManager;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
@@ -9,6 +10,7 @@ import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.Slot;
+import ai.lzy.model.SlotInstance;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsGrpc;
 import ai.lzy.v1.LzyPortalApi;
@@ -56,11 +58,23 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             var prev = fs.setSlotApiInterceptor(this);
             assert prev == null;
 
-            stdoutSlot = new StdoutSlot("stdout");
-            fs.getSlotsManager().registerSlot(portalTaskId, stdoutSlot, request.getStdoutChannelId());
+            final String stdoutSlotName = "/portal:stdout";
+            final String stderrSlotName = "/portal:stderr";
+            final SlotsManager slotsManager = fs.getSlotsManager();
+            stdoutSlot = new StdoutSlot(
+                stdoutSlotName,
+                portalTaskId,
+                request.getStdoutChannelId(),
+                slotsManager.resolveSlotUri(portalTaskId, stdoutSlotName)
+            );
+            slotsManager.registerSlot(stdoutSlot);
 
-            stderrSlot = new StdoutSlot("stderr");
-            fs.getSlotsManager().registerSlot(portalTaskId, stderrSlot, request.getStderrChannelId());
+            stderrSlot = new StdoutSlot(
+                stderrSlotName,
+                portalTaskId, request.getStderrChannelId(),
+                slotsManager.resolveSlotUri(portalTaskId, stderrSlotName)
+            );
+            slotsManager.registerSlot(stderrSlot);
 
             return true;
         }
@@ -95,7 +109,19 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
         for (PortalSlotDesc slotDesc : request.getSlotsList()) {
             LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
 
-            var slot = GrpcConverter.from(slotDesc.getSlot());
+            final Slot slot = GrpcConverter.from(slotDesc.getSlot());
+            final String taskId = switch (slotDesc.getKindCase()) {
+                case STDERR -> slotDesc.getStderr().getTaskId();
+                case STDOUT -> slotDesc.getStdout().getTaskId();
+                case SNAPSHOT -> portalTaskId;
+                default -> throw new RuntimeException("unknown slot kind");
+            };
+            final SlotInstance slotInstance = new SlotInstance(
+                slot,
+                taskId,
+                slotDesc.getChannelId(),
+                fs.getSlotsManager().resolveSlotUri(taskId, slot.name())
+            );
 
             if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot)
                 || Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot)) {
@@ -123,7 +149,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                                     return replyError.apply("Snapshot '" + snapshotId + "' already exists.");
                                 }
 
-                                lzySlot = ss.setInputSlot(portalTaskId, slot);
+                                lzySlot = ss.setInputSlot(slotInstance);
                             } catch (IOException e) {
                                 return replyError.apply("Error file configuring snapshot storage: " + e.getMessage());
                             }
@@ -140,7 +166,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                                     + " slot, while input is not set yet");
                             }
 
-                            lzySlot = ss.addOutputSlot(portalTaskId, slot);
+                            lzySlot = ss.addOutputSlot(slotInstance);
                         }
 
                         default -> {
@@ -148,17 +174,16 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                         }
                     }
 
-                    fs.getSlotsManager().registerSlot(portalTaskId, lzySlot, slotDesc.getChannelId());
+                    fs.getSlotsManager().registerSlot(lzySlot);
                 }
 
                 case STDOUT, STDERR -> {
                     final boolean stdout = slotDesc.getKindCase() == PortalSlotDesc.KindCase.STDOUT;
-                    var taskId = stdout ? slotDesc.getStdout().getTaskId() : slotDesc.getStderr().getTaskId();
-                    var lzySlot = (stdout ? stdoutSlot : stderrSlot).attach(taskId, slot);
+                    var lzySlot = (stdout ? stdoutSlot : stderrSlot).attach(slotInstance);
                     if (lzySlot == null) {
                         return replyError.apply("Slot " + slot.name() + " from task " + taskId + " already exists");
                     }
-                    fs.getSlotsManager().registerSlot(portalTaskId, lzySlot, slotDesc.getChannelId());
+                    fs.getSlotsManager().registerSlot(lzySlot);
                 }
 
                 default -> throw new NotImplementedException(slotDesc.getKindCase().name());
@@ -221,16 +246,17 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
     @Override
     public synchronized void connectSlot(LzyFsApi.ConnectSlotRequest request,
                                          StreamObserver<LzyFsApi.SlotCommandStatus> response) {
+        final SlotInstance from = GrpcConverter.from(request.getFrom());
+        final SlotInstance to = GrpcConverter.from(request.getTo());
         LOG.info("Connect portal slot, taskId: {}, slotName: {}, remoteSlotUri: {}",
-                request.getTaskId(), request.getSlotName(), request.getSlotUri());
+            from.taskId(), from.name(), to.uri());
 
-        assert request.getTaskId().isEmpty() : request.getTaskId();
-        var slotName = request.getSlotName();
-        var remoteSlotUri = URI.create(request.getSlotUri());
+        var slotName = from.name();
+        var remoteSlotUri = to.uri();
 
         Consumer<LzyInputSlot> doConnect = inputSlot -> {
             try {
-                var bytes = SlotConnectionManager.connectToSlot(remoteSlotUri, 0); // grpc call inside
+                var bytes = SlotConnectionManager.connectToSlot(to, 0); // grpc call inside
                 inputSlot.connect(remoteSlotUri, bytes);
 
                 response.onNext(LzyFsApi.SlotCommandStatus.newBuilder()
@@ -286,10 +312,11 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
     @Override
     public synchronized void disconnectSlot(LzyFsApi.DisconnectSlotRequest request,
                                             StreamObserver<LzyFsApi.SlotCommandStatus> response) {
-        LOG.info("Disconnect portal slot, taskId: {}, slotName: {}", request.getTaskId(), request.getSlotName());
+        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+        LOG.info("Disconnect portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
-        assert request.getTaskId().isEmpty() : request.getTaskId();
-        var slotName = request.getSlotName();
+        assert slotInstance.taskId().isEmpty() : slotInstance.taskId();
+        var slotName = slotInstance.name();
 
         boolean done = false;
 
@@ -364,11 +391,12 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
     @Override
     public synchronized void statusSlot(LzyFsApi.StatusSlotRequest request,
                                         StreamObserver<LzyFsApi.SlotCommandStatus> response) {
-        LOG.info("Status portal slot, taskId: {}, slotName: {}", request.getTaskId(), request.getSlotName());
+        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+        LOG.info("Status portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
-        if (!portalTaskId.equals(request.getTaskId())) {
+        if (!portalTaskId.equals(slotInstance.taskId())) {
             response.onError(Status.INVALID_ARGUMENT
-                .withDescription("Unknown task " + request.getTaskId()).asException());
+                .withDescription("Unknown task " + slotInstance.taskId()).asException());
             return;
         }
 
@@ -381,13 +409,13 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
         for (var ss : snapshots.values()) {
             var inputSlot = ss.getInputSlot();
-            if (inputSlot != null && inputSlot.name().equals(request.getSlotName())) {
+            if (inputSlot != null && inputSlot.name().equals(slotInstance.name())) {
                 reply.accept(inputSlot);
                 return;
             }
 
             for (var outputSlot : ss.getOutputSlots()) {
-                if (outputSlot.name().equals(request.getSlotName())) {
+                if (outputSlot.name().equals(slotInstance.name())) {
                     reply.accept(outputSlot);
                     return;
                 }
@@ -395,12 +423,12 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
         }
 
         for (var stdSlot : new StdoutSlot[]{stdoutSlot, stderrSlot}) {
-            if (stdSlot.name().equals(request.getSlotName())) {
+            if (stdSlot.name().equals(slotInstance.name())) {
                 reply.accept(stdSlot);
                 return;
             }
 
-            var slot = stdSlot.find(request.getSlotName());
+            var slot = stdSlot.find(slotInstance.name());
             if (slot != null) {
                 reply.accept(slot);
                 return;
@@ -408,16 +436,15 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
         }
 
         response.onError(Status.NOT_FOUND
-            .withDescription("Slot '" + request.getSlotName() + "' not found").asException());
+            .withDescription("Slot '" + slotInstance.name() + "' not found").asException());
     }
 
     @Override
     public synchronized void destroySlot(LzyFsApi.DestroySlotRequest request,
                                          StreamObserver<LzyFsApi.SlotCommandStatus> response) {
-        LOG.info("Destroy portal slot, taskId: {}, slotName: {}", request.getTaskId(), request.getSlotName());
-
-        assert request.getTaskId().isEmpty() : request.getTaskId();
-        var slotName = request.getSlotName();
+        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+        LOG.info("Destroy portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
+        var slotName = slotInstance.name();
 
         boolean done = false;
 
@@ -493,9 +520,10 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
     @Override
     public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> response) {
-        LOG.info("Open portal output slot, uri: {}, offset: {}", request.getSlotUri(), request.getOffset());
-        var slotUri = URI.create(request.getSlotUri());
-        var slotName = slotUri.getPath().substring(portalTaskId.length() + 1);
+        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+        LOG.info("Open portal output slot, uri: {}, offset: {}", slotInstance.uri(), request.getOffset());
+        final var slotUri = slotInstance.uri();
+        final var slotName = slotUri.getPath().substring(portalTaskId.length() + 1);
 
         Consumer<LzyOutputSlot> reader = outputSlot -> {
             try {

@@ -1,5 +1,6 @@
 package ai.lzy.servant.portal;
 
+import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.v1.*;
 import ai.lzy.servant.agents.LzyAgentConfig;
@@ -24,6 +25,7 @@ import static ai.lzy.servant.portal.Utils.*;
 
 public class PortalTest {
     private ServerMock server;
+    private ChannelManagerMock channelManager;
     private Map<String, LzyServant> servants;
 
     @Before
@@ -31,16 +33,20 @@ public class PortalTest {
         System.err.println("---> " + ForkJoinPool.commonPool().getParallelism());
         server = new ServerMock();
         server.start1();
+        channelManager = new ChannelManagerMock();
+        channelManager.start();
         servants = new HashMap<>();
     }
 
     @After
-    public void after() throws InterruptedException {
+    public void after() throws InterruptedException, IOException {
+        channelManager.stop();
         server.stop();
         for (var servant : servants.values()) {
             servant.close();
         }
         server = null;
+        channelManager = null;
         servants = null;
     }
 
@@ -128,17 +134,17 @@ public class PortalTest {
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_1")
                     .setSlot(taskOutputSlot)
-                    .setBinding("channel:channel_1")
+                    .setBinding("channel_1")
                     .build())
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_1")
                     .setSlot(makeOutputPipeSlot("/dev/stdout"))
-                    .setBinding("channel:task_1:stdout")
+                    .setBinding("task_1:stdout")
                     .build())
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_1")
                     .setSlot(makeOutputPipeSlot("/dev/stderr"))
-                    .setBinding("channel:task_1:stderr")
+                    .setBinding("task_1:stderr")
                     .build())
                 .build(),
             SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
@@ -205,17 +211,17 @@ public class PortalTest {
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_2")
                     .setSlot(taskInputSlot)
-                    .setBinding("channel:channel_2")
+                    .setBinding("channel_2")
                     .build())
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_2")
                     .setSlot(makeOutputPipeSlot("/dev/stdout"))
-                    .setBinding("channel:task_2:stdout")
+                    .setBinding("task_2:stdout")
                     .build())
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_2")
                     .setSlot(makeOutputPipeSlot("/dev/stderr"))
-                    .setBinding("channel:task_2:stderr")
+                    .setBinding("task_2:stderr")
                     .build())
                 .build(),
             SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
@@ -334,17 +340,17 @@ public class PortalTest {
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_1")
                     .setSlot(task1OutputSlot)
-                    .setBinding("channel:channel_1")
+                    .setBinding("channel_1")
                     .build())
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_1")
                     .setSlot(makeOutputPipeSlot("/dev/stdout"))
-                    .setBinding("channel:task_1:stdout")
+                    .setBinding("task_1:stdout")
                     .build())
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_1")
                     .setSlot(makeOutputPipeSlot("/dev/stderr"))
-                    .setBinding("channel:task_1:stderr")
+                    .setBinding("task_1:stderr")
                     .build())
                 .build(),
             SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
@@ -361,17 +367,17 @@ public class PortalTest {
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_2")
                     .setSlot(task2OutputSlot)
-                    .setBinding("channel:channel_2")
+                    .setBinding("channel_2")
                     .build())
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_2")
                     .setSlot(makeOutputPipeSlot("/dev/stdout"))
-                    .setBinding("channel:task_2:stdout")
+                    .setBinding("task_2:stdout")
                     .build())
                 .addAssignments(Tasks.SlotAssignment.newBuilder()
                     .setTaskId("task_2")
                     .setSlot(makeOutputPipeSlot("/dev/stderr"))
-                    .setBinding("channel:task_2:stderr")
+                    .setBinding("task_2:stderr")
                     .build())
                 .build(),
             SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
@@ -425,30 +431,31 @@ public class PortalTest {
         var servant = new LzyServant(LzyAgentConfig.builder()
                 .serverAddress(URI.create("grpc://localhost:" + server.port()))
                 .whiteboardAddress(URI.create("grpc://localhost:" + rollPort()))
+                .channelManagerAddress(URI.create("grpc://localhost:" + channelManager.port()))
                 .servantId(servantId)
                 .token("token_" + servantId)
                 .bucket("bucket_" + servantId)
+                .scheme("servant")
                 .agentHost("localhost")
                 .agentPort(rollPort())
                 .fsPort(rollPort())
                 .root(Path.of("/tmp/lzy_" + servantId + "/"))
                 .build());
-        servant.start();
         servants.put(servantId, servant);
     }
 
     private void createChannel(String name) {
-        server.channel(makeCreateDirectChannelCommand(name), SuccessStreamObserver.wrap(
+        channelManager.create(makeCreateDirectChannelCommand(name), SuccessStreamObserver.wrap(
             status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
     }
 
     private void destroyChannel(String name) {
-        server.channel(makeDestroyChannelCommand(name), SuccessStreamObserver.wrap(
+        channelManager.destroy(makeDestroyChannelCommand(name), SuccessStreamObserver.wrap(
             status -> System.out.println("Channel '" + name + "' removed: " + JsonUtils.printSingleLine(status))));
     }
 
-    private ArrayBlockingQueue<Object> readPortalSlot(String channel) {
-        var outputSlotRef = server.directChannels.get(channel).outputSlot;
+    private ArrayBlockingQueue<Object> readPortalSlot(String channelName) {
+        var outputSlotRef = Objects.requireNonNull(channelManager.get(channelName)).outputSlot;
         var portalSlot = outputSlotRef.get();
         int n = 100;
         while (portalSlot == null && n-- > 0) {
@@ -458,7 +465,7 @@ public class PortalTest {
 
         Assert.assertNotNull(portalSlot);
 
-        var iter = server.portal().openOutputSlot(portalSlot.getUri());
+        var iter = server.portal().openOutputSlot(GrpcConverter.from(portalSlot.getSlotInstance()));
 
         var values = new ArrayBlockingQueue<>(100);
 

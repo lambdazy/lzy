@@ -1,29 +1,30 @@
 package ai.lzy.test.scenarios;
 
-import org.junit.Before;
-import org.junit.Test;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.servant.agents.AgentStatus;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class PyApiTest extends LocalScenario {
     @Before
     public void setUp() {
         super.setUp();
         terminal = terminalContext.startTerminalAtPathAndPort(
-                Config.LZY_MOUNT,
-                FreePortFinder.find(20000, 21000),
-                FreePortFinder.find(21000, 22000),
-                kharonContext.serverAddress(),
-                FreePortFinder.find(22000, 23000),
-                "testUser",
-                null);
+            Config.LZY_MOUNT,
+            FreePortFinder.find(20000, 21000),
+            FreePortFinder.find(21000, 22000),
+            kharonContext.serverAddress(),
+            kharonContext.channelManagerProxyAddress(),
+            FreePortFinder.find(22000, 23000),
+            "testUser",
+            terminalKeys.privateKeyPath().toString());
         terminal.waitForStatus(
-                AgentStatus.EXECUTING,
-                Config.TIMEOUT_SEC,
-                TimeUnit.SECONDS
+            AgentStatus.EXECUTING,
+            Config.TIMEOUT_SEC,
+            TimeUnit.SECONDS
         );
     }
 

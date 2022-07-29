@@ -35,7 +35,7 @@ public class SnapshooterImpl implements Snapshooter {
             throw new RuntimeException("Snapshooter is already closed");
         }
 
-        final SlotSnapshot slotSnapshot = snapshotProvider.slotSnapshot(slot.definition());
+        final SlotSnapshot slotSnapshot = snapshotProvider.slotSnapshot(slot.instance());
 
         final URI uri = slotSnapshot.uri();
         if (slot instanceof LzyInputSlot) {

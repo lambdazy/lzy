@@ -79,10 +79,10 @@ public class RunTest extends LocalScenario {
         );
 
         //Act
-        terminal.createChannel(channelName);
-        terminal.createSlot(localFileName, channelName, Utils.outFileSlot());
-        terminal.createChannel(channelOutName);
-        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
+        final String channelId = terminal.createChannel(channelName);
+        terminal.createSlot(localFileName, channelId, Utils.outFileSlot());
+        final String channelOutId = terminal.createChannel(channelOutName);
+        terminal.createSlot(localFileOutName, channelOutId, Utils.inFileSlot());
 
         ForkJoinPool.commonPool()
             .execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
@@ -95,8 +95,8 @@ public class RunTest extends LocalScenario {
                     cat_to_file.name(),
                     "",
                     Map.of(
-                        fileName.substring("/tmp/lzy1".length()), channelName,
-                        fileOutName.substring("/tmp/lzy1".length()), channelOutName
+                        fileName.substring("/tmp/lzy1".length()), channelId,
+                        fileOutName.substring("/tmp/lzy1".length()), channelOutId
                     )
                 )
             ));
@@ -108,7 +108,7 @@ public class RunTest extends LocalScenario {
         Assert.assertEquals(0, result.get().exitCode());
         Assert.assertEquals(fileContent + "\n", result1.stdout());
 
-        terminal.destroyChannel(channelName);
-        terminal.destroyChannel(channelOutName);
+        terminal.destroyChannel(channelId);
+        terminal.destroyChannel(channelOutId);
     }
 }

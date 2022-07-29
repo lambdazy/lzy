@@ -1,5 +1,6 @@
 package ai.lzy.fs;
 
+import java.util.Arrays;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,9 +12,11 @@ public class BashApi {
 
     static {
         options.addRequiredOption("z", "lzy-address", true, "Lzy server address [host:port]");
+        options.addRequiredOption("ch", "channel-manager", true, "Channel manager address [host:port]");
         options.addRequiredOption("m", "lzy-mount", true, "Lzy FS mount point");
         options.addRequiredOption("a", "auth", true, "Enforce auth");
         options.addRequiredOption("p", "lzy-fs-port", true, "LzyFs port");
+        options.addRequiredOption("i", "agent-id", true, "Agent id (system option)");
         options.addOption(new Option("k", "private-key", true, "Path to private key for user auth"));
         options.addOption(new Option("w", "lzy-whiteboard", true, "Lzy whiteboard address [host:port]"));
     }
@@ -27,6 +30,7 @@ public class BashApi {
         final HelpFormatter cliHelp = new HelpFormatter();
         String commandStr = "lzy";
         try {
+            LOG.info("Parsed bash command {}", String.join(" ", args));
             final CommandLine parse = cliParser.parse(options, args, true);
             if (parse.getArgs().length > 0) {
                 commandStr = parse.getArgs()[0];

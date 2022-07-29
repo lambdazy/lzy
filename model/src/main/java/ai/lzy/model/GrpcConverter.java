@@ -18,29 +18,29 @@ import ai.lzy.model.snapshot.SnapshotEntry;
 import ai.lzy.model.snapshot.SnapshotEntryStatus;
 import ai.lzy.model.snapshot.WhiteboardField;
 import ai.lzy.model.snapshot.WhiteboardStatus;
-import ai.lzy.v1.Operations.Provisioning.Tag;
-import com.google.protobuf.Timestamp;
-import java.net.URI;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.Lzy;
 import ai.lzy.v1.Lzy.AmazonCredentials;
 import ai.lzy.v1.Lzy.AzureCredentials;
 import ai.lzy.v1.Lzy.AzureSASCredentials;
 import ai.lzy.v1.Lzy.GetS3CredentialsResponse;
+import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyWhiteboard;
 import ai.lzy.v1.LzyWhiteboard.WhiteboardField.Builder;
 import ai.lzy.v1.LzyWhiteboard.WhiteboardField.Status;
 import ai.lzy.v1.Operations;
+import ai.lzy.v1.Operations.Provisioning.Tag;
 import ai.lzy.v1.Tasks.ContextSpec;
 import ai.lzy.v1.Tasks.SlotAssignment;
+import com.google.protobuf.Timestamp;
+import java.net.URI;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 public abstract class GrpcConverter {
 
@@ -131,6 +131,15 @@ public abstract class GrpcConverter {
         return execution;
     }
 
+    public static SlotInstance from(LzyFsApi.SlotInstance slotInstance) {
+        return new SlotInstance(
+            from(slotInstance.getSlot()),
+            slotInstance.getTaskId(),
+            slotInstance.getChannelId(),
+            URI.create(slotInstance.getSlotUri())
+        );
+    }
+
     public static DataSchema contentTypeFrom(Operations.DataScheme dataScheme) {
         return DataSchema.buildDataSchema(dataScheme.getSchemeType().name(), dataScheme.getType());
     }
@@ -216,11 +225,12 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static Channels.Channel to(ChannelSpec channel) {
-        return Channels.Channel.newBuilder()
-            .setChannelId(channel.name())
-            .setContentType(to(channel.contentType()))
-            .build();
+
+    public static Channels.ChannelSpec to(ChannelSpec channel) {
+        final Channels.ChannelSpec.Builder builder = Channels.ChannelSpec.newBuilder();
+        builder.setChannelName(channel.name());
+        builder.setContentType(to(channel.contentType()));
+        return builder.build();
     }
 
     public static LzyWhiteboard.Snapshot to(Snapshot snapshot) {
@@ -354,13 +364,16 @@ public abstract class GrpcConverter {
         return Operations.SchemeType.valueOf(dataSchema.name());
     }
 
-    private static class AtomicZygoteAdapter implements AtomicZygote {
+    public static LzyFsApi.SlotInstance to(SlotInstance slotInstance) {
+        return LzyFsApi.SlotInstance.newBuilder()
+            .setSlot(to(slotInstance.spec()))
+            .setTaskId(slotInstance.taskId())
+            .setChannelId(slotInstance.channelId())
+            .setSlotUri(slotInstance.uri().toString())
+            .build();
+    }
 
-        private final Operations.Zygote operation;
-
-        AtomicZygoteAdapter(Operations.Zygote operation) {
-            this.operation = operation;
-        }
+    private record AtomicZygoteAdapter(Operations.Zygote operation) implements AtomicZygote {
 
         @Override
         public String name() {

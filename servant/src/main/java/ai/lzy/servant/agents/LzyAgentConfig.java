@@ -6,17 +6,20 @@ import java.nio.file.Path;
 public class LzyAgentConfig {
     private final URI serverAddress;
     private final URI whiteboardAddress;
+    private final URI channelManagerAddress;
+    private final String scheme;
     private final String agentHost;
     private final String token;
     private final Path root;
     private final String user;
-    private final String servantId;
+    private final String agentId;
     private final String bucket;
     private final int agentPort;
     private final int fsPort;
 
     private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentHost, int agentPort, int fsPort,
-                           String token, Path root, String user, String servantId, String bucket) {
+                           String token, Path root, String user, String agentId, String bucket,
+                           URI channelManagerAddress, String scheme) {
         this.serverAddress = serverAddress;
         this.whiteboardAddress = whiteboardAddress;
         this.agentHost = agentHost;
@@ -25,13 +28,16 @@ public class LzyAgentConfig {
         this.token = token;
         this.root = root;
         this.user = user;
-        this.servantId = servantId;
+        this.agentId = agentId;
         this.bucket = bucket;
+        this.channelManagerAddress = channelManagerAddress;
+        this.scheme = scheme;
     }
 
-    public static LzyAgentConfig updateServantId(LzyAgentConfig config, String servantId) {
+    public static LzyAgentConfig updateAgentId(LzyAgentConfig config, String servantId) {
         return new LzyAgentConfig(config.serverAddress, config.whiteboardAddress, config.agentHost,
-            config.agentPort, config.fsPort, config.token, config.root, config.user, servantId, config.bucket);
+            config.agentPort, config.fsPort, config.token, config.root, config.user, servantId, config.bucket,
+            config.channelManagerAddress, config.scheme);
     }
 
     public static LzyAgentConfigBuilder builder() {
@@ -66,8 +72,8 @@ public class LzyAgentConfig {
         return user;
     }
 
-    public String getServantId() {
-        return servantId;
+    public String getAgentId() {
+        return agentId;
     }
 
     public int getAgentPort() {
@@ -76,6 +82,14 @@ public class LzyAgentConfig {
 
     public int getFsPort() {
         return fsPort;
+    }
+
+    public URI getChannelManagerAddress() {
+        return channelManagerAddress;
+    }
+
+    public String getScheme() {
+        return scheme;
     }
 
     public static class LzyAgentConfigBuilder {
@@ -89,6 +103,8 @@ public class LzyAgentConfig {
         private String bucket;
         private int agentPort;
         private int fsPort;
+        private URI channelManagerAddress;
+        private String scheme;
 
         public LzyAgentConfigBuilder agentHost(String agentHost) {
             this.agentHost = agentHost;
@@ -140,9 +156,19 @@ public class LzyAgentConfig {
             return this;
         }
 
+        public LzyAgentConfigBuilder channelManagerAddress(URI channelManagerAddress) {
+            this.channelManagerAddress = channelManagerAddress;
+            return this;
+        }
+
+        public LzyAgentConfigBuilder scheme(String scheme) {
+            this.scheme = scheme;
+            return this;
+        }
+
         public LzyAgentConfig build() {
             return new LzyAgentConfig(serverAddress, whiteboardAddress, agentHost, agentPort, fsPort, token, root, user,
-                servantId, bucket);
+                servantId, bucket, channelManagerAddress, scheme);
         }
     }
 }

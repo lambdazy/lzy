@@ -63,6 +63,11 @@ public class ServantCrashTest extends LocalScenario {
 
         terminal.destroyChannel(channelName);
         terminal.destroyChannel(channelOutName);
+        try {
+            Thread.sleep(10_000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     @Test

@@ -1,5 +1,6 @@
 package ai.lzy.fs.fs;
 
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 import ai.lzy.model.Slot;
 import ai.lzy.v1.Operations;
@@ -8,8 +9,14 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 public interface LzySlot {
-    String name();
+    default String name() {
+        return definition().name();
+    }
+    default String taskId() {
+        return instance().taskId();
+    }
     Slot definition();
+    SlotInstance instance();
 
     void suspend();
     void destroy();

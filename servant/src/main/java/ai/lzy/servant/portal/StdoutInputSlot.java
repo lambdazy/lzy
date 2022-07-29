@@ -2,6 +2,7 @@ package ai.lzy.servant.portal;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.model.Slot;
+import ai.lzy.model.SlotInstance;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
@@ -17,8 +18,8 @@ public class StdoutInputSlot extends LzyInputSlotBase {
 
     private final StdoutSlot stdoutSlot;
 
-    public StdoutInputSlot(String taskId, Slot definition, StdoutSlot stdoutSlot) {
-        super(taskId, definition);
+    public StdoutInputSlot(SlotInstance slotInstance, StdoutSlot stdoutSlot) {
+        super(slotInstance);
         this.stdoutSlot = stdoutSlot;
     }
 

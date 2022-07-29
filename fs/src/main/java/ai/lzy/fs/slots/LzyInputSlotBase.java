@@ -1,5 +1,6 @@
 package ai.lzy.fs.slots;
 
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.net.URI;
@@ -16,14 +17,12 @@ import javax.annotation.Nullable;
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {
     private static final Logger LOG = LogManager.getLogger(LzyInputSlotBase.class);
 
-    private final String tid;
     private long offset = 0;
     private URI connected;
     private Stream<ByteString> dataProvider;
 
-    protected LzyInputSlotBase(String tid, Slot definition) {
-        super(definition);
-        this.tid = tid;
+    protected LzyInputSlotBase(SlotInstance instance) {
+        super(instance);
     }
 
     @Override
@@ -75,11 +74,9 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
             .setPointer(offset)
-            .setDeclaration(GrpcConverter.to(definition()));
+            .setDeclaration(GrpcConverter.to(definition()))
+            .setTaskId(taskId());
 
-        if (tid != null) {
-            builder.setTaskId(tid);
-        }
         if (connected != null) {
             builder.setConnectedTo(connected.toString());
         }

@@ -1,11 +1,14 @@
 package ai.lzy.fs;
 
+import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -53,33 +56,39 @@ public class LzyFSTest {
 
     @Ignore
     @Test
-    public void testWaitForSlot() throws IOException, InterruptedException {
+    public void testWaitForSlot() throws IOException, InterruptedException, URISyntaxException {
         //Arrange
         final CountDownLatch latch = new CountDownLatch(1);
         final String slotPath = "/test_in_slot";
         final Path tempFile = Files.createTempFile("lzy", "test-file-slot");
         final OutputStream stream = Files.newOutputStream(tempFile);
-        final InFileSlot slot = new InFileSlot("tid", new Slot() {
-            @Override
-            public String name() {
-                return slotPath;
-            }
+        final InFileSlot slot = new InFileSlot(
+            new SlotInstance(
+                new Slot() {
+                    @Override
+                    public String name() {
+                        return slotPath;
+                    }
 
-            @Override
-            public Media media() {
-                return Media.FILE;
-            }
+                    @Override
+                    public Media media() {
+                        return Media.FILE;
+                    }
 
-            @Override
-            public Direction direction() {
-                return Direction.INPUT;
-            }
+                    @Override
+                    public Direction direction() {
+                        return Direction.INPUT;
+                    }
 
-            @Override
-            public DataSchema contentType() {
-                return null;
-            }
-        }, tempFile);
+                    @Override
+                    public DataSchema contentType() {
+                        return null;
+                    }
+                },
+                "taskId",
+                "channelId",
+                new URI("slot://", "host", "path", null)
+            ), tempFile);
         lzyFS.addSlot(slot);
         stream.write(ByteString.copyFromUtf8("kek\n").toByteArray());
 

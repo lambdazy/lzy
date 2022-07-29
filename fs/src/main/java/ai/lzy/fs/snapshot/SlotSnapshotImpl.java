@@ -1,5 +1,6 @@
 package ai.lzy.fs.snapshot;
 
+import ai.lzy.model.SlotInstance;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
@@ -24,17 +25,15 @@ public class SlotSnapshotImpl implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(SlotSnapshot.class);
     private final StorageClient storage;
 
-    private final String taskId;
     private final String bucket;
-    private final Slot slot;
+    private final SlotInstance slot;
     private final AtomicBoolean nonEmpty = new AtomicBoolean(false);
     private final OutputStream out;
     private final Pipe pipe;
     private final ListenableFuture<UploadState> future;
 
-    public SlotSnapshotImpl(String taskId, String bucket, Slot slot, StorageClient storage) {
+    public SlotSnapshotImpl(String bucket, SlotInstance slot, StorageClient storage) {
         this.bucket = bucket;
-        this.taskId = taskId;
         try {
             this.pipe = Pipe.open();
         } catch (IOException e) {
@@ -45,20 +44,20 @@ public class SlotSnapshotImpl implements SlotSnapshot {
         this.storage = storage;
         future = storage.transmitter().upload(new UploadRequestBuilder()
             .bucket(bucket)
-            .key(generateKey(slot))
+            .key(generateKey())
             .metadata(Metadata.empty())
             .stream(() -> Channels.newInputStream(pipe.source()))
             .build()
         );
     }
 
-    private String generateKey(Slot slot) {
-        return Path.of("task", taskId, "slot", slot.name()).toString();
+    private String generateKey() {
+        return Path.of("task", slot.taskId(), "slot", slot.name()).toString();
     }
 
     @Override
     public URI uri() {
-        return storage.getURI(bucket, generateKey(slot));
+        return storage.getURI(bucket, generateKey());
     }
 
     @Override

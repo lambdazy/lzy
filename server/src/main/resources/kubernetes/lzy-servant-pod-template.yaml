@@ -40,6 +40,7 @@ spec:
       args: [
           "--lzy-address", "$(LZY_SERVER_URI)",
           "--lzy-whiteboard", "$(LZYWHITEBOARD)",
+          "--channel-manager", "$(CHANNEL_MANAGER_URI)",
           "--lzy-mount", "/tmp/lzy",
           "--host", "$(LZYHOST)",
           "--port", "9999",

@@ -1,5 +1,6 @@
 package ai.lzy.servant.snapshot;
 
+import ai.lzy.model.SlotInstance;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
@@ -10,6 +11,7 @@ import com.google.protobuf.ByteString;
 import io.findify.s3mock.S3Mock;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -49,28 +51,32 @@ public class SlotSnapshotTest {
         s3Mock.shutdown();
     }
 
-    private Slot slotForName(String name) {
-        return new Slot() {
-            @Override
-            public String name() {
-                return name;
-            }
+    private SlotInstance slotForName(String name, String taskId) {
+        try {
+            return new SlotInstance(new Slot() {
+                @Override
+                public String name() {
+                    return name;
+                }
 
-            @Override
-            public Media media() {
-                return null;
-            }
+                @Override
+                public Media media() {
+                    return null;
+                }
 
-            @Override
-            public Direction direction() {
-                return null;
-            }
+                @Override
+                public Direction direction() {
+                    return null;
+                }
 
-            @Override
-            public DataSchema contentType() {
-                return null;
-            }
-        };
+                @Override
+                public DataSchema contentType() {
+                    return null;
+                }
+            }, taskId, "channelId", new URI("scheme", "host", "/path", null));
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private String getKey(String taskId, String slotName) {
@@ -88,17 +94,17 @@ public class SlotSnapshotTest {
     @Test
     public void testMultipleSnapshots() throws IOException {
 
-        final var firstSlot = slotForName("first");
-        final var secondSlot = slotForName("second");
-        final var thirdSlot = slotForName("third");
-        final var fourthSlot = slotForName("fourth");
-        final var fifthSlot = slotForName("fifth");
+        final var firstSlot = slotForName("first", "first-task-id");
+        final var secondSlot = slotForName("second", "first-task-id");
+        final var thirdSlot = slotForName("third", "second-task-id");
+        final var fourthSlot = slotForName("fourth", "second-task-id");
+        final var fifthSlot = slotForName("fifth", "third-task-id");
 
-        final SlotSnapshot first = new SlotSnapshotImpl("first-task-id", BUCKET, firstSlot, storage);
-        final SlotSnapshot second = new SlotSnapshotImpl("first-task-id", BUCKET, secondSlot, storage);
-        final SlotSnapshot third = new SlotSnapshotImpl("second-task-id", BUCKET, thirdSlot, storage);
-        final SlotSnapshot fourth = new SlotSnapshotImpl("second-task-id", BUCKET, fourthSlot, storage);
-        final SlotSnapshot fifth = new SlotSnapshotImpl("third-task-id", BUCKET, fifthSlot, storage);
+        final SlotSnapshot first = new SlotSnapshotImpl(BUCKET, firstSlot, storage);
+        final SlotSnapshot second = new SlotSnapshotImpl(BUCKET, secondSlot, storage);
+        final SlotSnapshot third = new SlotSnapshotImpl(BUCKET, thirdSlot, storage);
+        final SlotSnapshot fourth = new SlotSnapshotImpl(BUCKET, fourthSlot, storage);
+        final SlotSnapshot fifth = new SlotSnapshotImpl(BUCKET, fifthSlot, storage);
 
         first.onChunk(ByteString.copyFrom("Hello ", "utf-8"));
         fourth.onChunk(ByteString.copyFrom("Moni ", "utf-8"));
@@ -145,8 +151,8 @@ public class SlotSnapshotTest {
     public void testWriteAndFinishFromVariousThreads() throws InterruptedException {
         for (int i = 0; i < 10; i++) {
             //Arrange
-            final Slot slot = slotForName("test-slot");
-            final SlotSnapshot slotSnapshot = new SlotSnapshotImpl("test-task-id", BUCKET, slot, storage);
+            final SlotInstance slot = slotForName("test-slot", "test-slot-task-id");
+            final SlotSnapshot slotSnapshot = new SlotSnapshotImpl(BUCKET, slot, storage);
             final CountDownLatch writeLatch = new CountDownLatch(1);
             final CountDownLatch finishLatch = new CountDownLatch(1);
             final AtomicReference<Exception> thrown = new AtomicReference<>(null);

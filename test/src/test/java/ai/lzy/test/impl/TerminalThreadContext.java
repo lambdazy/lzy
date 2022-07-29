@@ -1,6 +1,12 @@
 package ai.lzy.test.impl;
 
+import ai.lzy.fs.BashApi;
+import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.test.LzyTerminalTestContext;
+import java.lang.reflect.InvocationTargetException;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.SystemUtils;
 import ai.lzy.model.utils.JwtCredentials;
@@ -29,15 +35,22 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
     private final Map<String, LzyTerminal> terminals = new HashMap<>();
 
     @Override
-    public Terminal startTerminalAtPathAndPort(String path, int port, int fsPort, String serverAddress, int debugPort,
-        String user, String privateKeyPath) {
-
+    public Terminal startTerminalAtPathAndPort(
+        String path,
+        int port,
+        int fsPort,
+        String serverAddress,
+        String channelManagerAddress,
+        int debugPort,
+        String user,
+        String privateKeyPath
+    ) {
         if (terminals.get(path) != null) {
             final LzyTerminal term = terminals.remove(path);
             term.close();
             try {
                 term.awaitTermination();
-            } catch (InterruptedException e) {
+            } catch (InterruptedException | IOException e) {
                 LOGGER.error(e);
             }
         }
@@ -56,7 +69,9 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
         final LzyAgentConfig config = LzyAgentConfig.builder()
             .serverAddress(URI.create(serverAddress))
             .whiteboardAddress(URI.create(serverAddress))
+            .channelManagerAddress(URI.create(channelManagerAddress))
             .user(user)
+            .scheme("terminal")
             .agentHost("localhost")
             .agentPort(port)
             .fsPort(fsPort)
@@ -67,8 +82,13 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
         try {
             terminal = new LzyTerminal(config);
             terminals.put(path, terminal);
-            terminal.start();
-        } catch (URISyntaxException | IOException e) {
+        } catch (URISyntaxException
+            | IOException
+            | InvocationTargetException
+            | NoSuchMethodException
+            | InstantiationException
+            | IllegalAccessException e
+        ) {
             throw new RuntimeException(e);
         }
 
@@ -160,7 +180,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
                 try {
                     terminal.awaitTermination();
                     return true;
-                } catch (InterruptedException e) {
+                } catch (InterruptedException | IOException e) {
                     throw new RuntimeException(e);
                 }
             }

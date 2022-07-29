@@ -2,6 +2,7 @@ package ai.lzy.servant.portal;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.model.Slot;
+import ai.lzy.model.SlotInstance;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
@@ -21,8 +22,8 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
     private final Path storage;
     private final OutputStream outputStream;
 
-    public SnapshotInputSlot(String taskId, Slot definition, Path storage) throws IOException {
-        super(taskId, definition);
+    public SnapshotInputSlot(SlotInstance slotInstance, Path storage) throws IOException {
+        super(slotInstance);
         this.storage = storage;
         this.outputStream = Files.newOutputStream(storage);
     }

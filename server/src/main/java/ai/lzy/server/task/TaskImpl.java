@@ -5,28 +5,22 @@ import static ai.lzy.server.task.Task.State.EXECUTING;
 import static ai.lzy.server.task.Task.State.SUCCESS;
 
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.JsonUtils;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotStatus;
 import ai.lzy.model.Zygote;
-import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsGrpc;
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.Operations;
 import ai.lzy.v1.Servant.ExecutionConcluded;
 import ai.lzy.v1.Tasks;
-import ai.lzy.server.ChannelsManager;
 import ai.lzy.server.ServantsAllocator;
-import ai.lzy.server.channel.ChannelException;
-import ai.lzy.server.channel.Endpoint;
-import ai.lzy.server.local.ServantEndpoint;
+import ai.lzy.server.TasksManager;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -44,21 +38,16 @@ public class TaskImpl implements Task {
     protected final URI serverURI;
     private final Zygote workload;
     private final Map<Slot, String> assignments;
-    private final ChannelsManager channels;
     private final List<Consumer<Tasks.TaskProgress>> listeners = Collections.synchronizedList(new ArrayList<>());
-    private final Map<Slot, ChannelSpec> attachedSlots = new HashMap<>();
     private ServantsAllocator.ServantConnection servant;
     private State state = State.PREPARING;
     private final List<Signal> signalsQueue = new ArrayList<>();
 
-    public TaskImpl(String owner, String tid, Zygote workload, Map<Slot, String> assignments,
-        ChannelsManager channels, URI serverURI
-    ) {
+    public TaskImpl(String owner, String tid, Zygote workload, Map<Slot, String> assignments, URI serverURI) {
         this.owner = owner;
         this.tid = tid;
         this.workload = workload;
         this.assignments = assignments;
-        this.channels = channels;
         this.serverURI = serverURI;
     }
 
@@ -116,68 +105,12 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public synchronized Slot slot(String slotName) {
-        return attachedSlots.keySet().stream()
-            .filter(s -> s.name().equals(slotName))
-            .findFirst()
-            .orElse(workload.slot(slotName));
-    }
-
-    @Override
     public synchronized void attachServant(ServantsAllocator.ServantConnection connection) {
         LOG.info("Server is attached to servant {}", connection.uri());
 
         connection.onProgress(progress -> {
             synchronized (TaskImpl.this) {
                 switch (progress.getStatusCase()) {
-                    case ATTACH -> {
-                        LOG.info("Attach " + JsonUtils.printRequest(progress));
-                        final Servant.SlotAttach attach = progress.getAttach();
-                        final Slot slot = GrpcConverter.from(attach.getSlot());
-                        final URI slotUri = URI.create(attach.getUri());
-                        final String channelName;
-                        if (attach.getChannel().isEmpty()) {
-                            // std* slot
-                            final String binding = assignments.getOrDefault(slot, "");
-                            channelName = binding.startsWith("channel:")
-                                ? binding.substring("channel:".length())
-                                : null;
-                        } else {
-                            channelName = attach.getChannel();
-                        }
-
-                        final ChannelSpec channel = channels.get(channelName);
-                        if (channel != null) {
-                            attachedSlots.put(slot, channel);
-                            try {
-                                channels.bind(channel, new ServantEndpoint(slot, slotUri, tid, connection.fs()));
-                            } catch (ChannelException ce) {
-                                LOG.error("Unable to connect channel " + channelName + " to the slot " + slotUri, ce);
-                                // TODO: ????
-                                //state(ERROR, 1, ce.getMessage());
-                            }
-                        } else {
-                            LOG.error("Unable to attach channel to " + tid + ":" + slot.name() + ". Channel not found");
-                        }
-                        return true;
-                    }
-                    case DETACH -> {
-                        LOG.info("Detach " + JsonUtils.printRequest(progress));
-                        final Servant.SlotDetach detach = progress.getDetach();
-                        final Slot slot = GrpcConverter.from(detach.getSlot());
-                        final URI slotUri = URI.create(detach.getUri());
-                        final Endpoint endpoint = new ServantEndpoint(slot, slotUri, tid, connection.fs());
-                        final ChannelSpec channel = channels.bound(endpoint);
-                        if (channel != null) {
-                            attachedSlots.remove(slot);
-                            try {
-                                channels.unbind(channel, endpoint);
-                            } catch (ChannelException ce) {
-                                LOG.warn("Unable to unbind slot " + slotUri + " from the channel " + channel.name());
-                            }
-                        }
-                        return true;
-                    }
                     case EXECUTESTART -> {
                         LOG.info("Task " + tid + " started");
                         state(State.EXECUTING);
@@ -226,12 +159,10 @@ public class TaskImpl implements Task {
         taskSpecBuilder.setZygote(GrpcConverter.to(workload));
         assignments.forEach((slot, binding) -> {
             // need to filter out std* slots because they don't exist on prepare
-            if (Stream.of(Slot.STDOUT, Slot.STDERR).map(Slot::name).noneMatch(s -> s.equals(slot.name()))) {
-                taskSpecBuilder.addAssignmentsBuilder()
-                    .setSlot(GrpcConverter.to(slot))
-                    .setBinding(binding)
-                    .build();
-            }
+            taskSpecBuilder.addAssignmentsBuilder()
+                .setSlot(GrpcConverter.to(slot))
+                .setBinding(binding)
+                .build();
         });
         //noinspection ResultOfMethodCallIgnored
         connection.control().execute(taskSpecBuilder.build());
@@ -253,11 +184,6 @@ public class TaskImpl implements Task {
     }
 
     @Override
-    public Stream<Slot> slots() {
-        return attachedSlots.keySet().stream();
-    }
-
-    @Override
     public SlotStatus slotStatus(Slot slot) throws TaskException {
         final LzyFsGrpc.LzyFsBlockingStub fs;
         synchronized (this) {
@@ -272,9 +198,15 @@ public class TaskImpl implements Task {
         }
         final LzyFsApi.SlotCommandStatus slotStatus = fs.statusSlot(
             LzyFsApi.StatusSlotRequest.newBuilder()
-                .setTaskId(tid)
-                .setSlotName(slot.name())
-                .build());
+                .setSlotInstance(
+                    LzyFsApi.SlotInstance.newBuilder()
+                        .setTaskId(tid)
+                        .setSlot(
+                            Operations.Slot.newBuilder()
+                                .setName(slot.name())
+                                .build())
+                        .build()
+                ).build());
         return GrpcConverter.from(slotStatus.getStatus());
     }
 

@@ -1,6 +1,7 @@
 package ai.lzy.servant.portal;
 
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.LzyPortalApi;
 import ai.lzy.v1.Operations;
@@ -11,20 +12,20 @@ import java.util.function.Consumer;
 
 public class Utils {
 
-    public static Channels.ChannelCommand makeCreateDirectChannelCommand(String channelName) {
-        return Channels.ChannelCommand.newBuilder()
-            .setChannelName(channelName)
-            .setCreate(Channels.ChannelCreate.newBuilder()
-                .setContentType(makePlainTextDataScheme())
-                .setDirect(Channels.DirectChannelSpec.getDefaultInstance())
-                .build())
-            .build();
+    public static ChannelManager.ChannelCreateRequest makeCreateDirectChannelCommand(String channelName) {
+        return ChannelManager.ChannelCreateRequest.newBuilder()
+            .setChannelSpec(
+                Channels.ChannelSpec.newBuilder()
+                    .setChannelName(channelName)
+                    .setContentType(makePlainTextDataScheme())
+                    .setDirect(Channels.DirectChannelType.getDefaultInstance())
+                    .build()
+            ).build();
     }
 
-    public static Channels.ChannelCommand makeDestroyChannelCommand(String channelName) {
-        return Channels.ChannelCommand.newBuilder()
-            .setChannelName(channelName)
-            .setDestroy(Channels.ChannelDestroy.getDefaultInstance())
+    public static ChannelManager.ChannelDestroyRequest makeDestroyChannelCommand(String channelName) {
+        return ChannelManager.ChannelDestroyRequest.newBuilder()
+            .setChannelId(channelName)
             .build();
     }
 
