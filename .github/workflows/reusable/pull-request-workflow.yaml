@@ -8,7 +8,11 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v2
+      - name: "Chown for checkout"
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+
+      - name: "Checkout"
+        uses: actions/checkout@v3
 
       - uses: stCarolas/setup-maven@v4.3
         with:

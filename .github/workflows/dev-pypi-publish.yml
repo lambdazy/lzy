@@ -1,9 +1,9 @@
 name: Publish dev pylzy-nightly package
 
 on:
-  schedule:
-    - cron: '59 20 * * *' # run everyday on 23:59 Moscow Time: UTC+3
   workflow_dispatch:
+  #schedule:
+  #  - cron: '59 20 * * *' # run everyday on 23:59 Moscow Time: UTC+3
 
 jobs:
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
@@ -12,7 +12,11 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v2 # TODO: should it run in master or in dev?
+      - name: "Chown for checkout"
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+
+      - name: "Checkout"
+        uses: actions/checkout@v3 # TODO: should it run in master or in dev?
         with:
           fetch-depth: 0
 

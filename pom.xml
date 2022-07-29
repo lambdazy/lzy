@@ -31,5 +31,6 @@
         <module>channel-manager</module>
         <module>scheduler</module>
         <module>storage</module>
+        <module>disk-service</module>
     </modules>
 </project>
