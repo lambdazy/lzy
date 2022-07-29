@@ -43,15 +43,15 @@ if [[ $REBUILD = true ]]; then
     docker build -t test-env-base    -t lzydock/test-env-base:local    -f servant/docker/TestEnv.Base.Dockerfile .
     TEST_ENV_BASE_TAG="local"
   else
-    SERVANT_BASE="$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH dev)"
+    SERVANT_BASE="$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH master)"
     docker pull "$SERVANT_BASE"
     SERVANT_BASE_TAG="$(echo $SERVANT_BASE | awk -F: '{print $2}')"
 
-    DEFAULT_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh default-env-base $BRANCH dev)"
+    DEFAULT_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh default-env-base $BRANCH master)"
     docker pull "$DEFAULT_ENV_BASE"
     DEFAULT_ENV_BASE_TAG="$(echo $DEFAULT_ENV_BASE | awk -F: '{print $2}')"
 
-    TEST_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh test-env-base $BRANCH dev)"
+    TEST_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh test-env-base $BRANCH master)"
     docker pull "$TEST_ENV_BASE"
     TEST_ENV_BASE_TAG="$(echo $TEST_ENV_BASE | awk -F: '{print $2}')"
   fi
