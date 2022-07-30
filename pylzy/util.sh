@@ -6,8 +6,30 @@ _f="formatter"
 _t="typechecker"
 
 # all functions below work with variables _ex, type, cmd
-print_cmd_exit() {
-    (_ex=$?; _print_cmd_exit;)
+start() {
+    return 0
+}
+
+finish() {
+     _print_ce "Whole pipeline"
+}
+
+run() {
+    (_ex=$?; type="$1"; cmd="$2"; _isolate_run; upd_rc;)
+}
+
+upd_rc() {
+    [ $? -eq 0 ] && [ $_ex -eq 0 ]
+}
+
+_isolate_run() {
+    println "Calling $type:" "$ $cmd"
+    $cmd
+    _print_ce "$type"
+}
+
+_print_ce() {
+    (_ex=$?; type="$1"; _print_cmd_exit; exit $_ex;)
 }
 
 _print_cmd_exit()  {
@@ -16,33 +38,6 @@ _print_cmd_exit()  {
     $pr "$type run"
     [ -v cmd ] && $pr "$ $cmd"
     $pr "exited with code: $_ex"
-}
-
-print_pipeline_exit() {
-    (_ex=$rc; type="Whole pipeline"; _print_cmd_exit;)
-}
-
-start() {
-    return 0
-}
-
-finish() {
-    (rc=$?; print_pipeline_exit; exit $rc;)
-     exit $?
-}
-
-run() {
-    (rc=$?; type="$1"; cmd="$2"; _isolate_run; upd_rc;)
-}
-
-_isolate_run() {
-    println "Calling $type:" "$ $cmd"
-    $cmd
-    print_cmd_exit && return $?
-}
-
-upd_rc() {
-    [ $rc -eq 0 ] && [ $? -eq 0 ]
 }
 
 print_red() {

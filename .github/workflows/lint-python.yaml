@@ -1,4 +1,4 @@
-name: Lint python
+name: lint.sh
 
 on:
   pull_request:

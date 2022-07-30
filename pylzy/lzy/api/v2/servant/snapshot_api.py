@@ -10,7 +10,7 @@ class SnapshotApi(ABC):
         pass
 
     @abstractmethod
-    def finalize(self, snapshot_id: str):
+    def finalize(self, snapshot_id: str) -> None:
         pass
 
     @abstractmethod
@@ -18,5 +18,5 @@ class SnapshotApi(ABC):
         pass
 
     @abstractmethod
-    def error(self, snapshot_id: str):
+    def error(self, snapshot_id: str) -> None:
         pass

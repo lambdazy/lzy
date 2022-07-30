@@ -20,7 +20,7 @@ class CredentialsTypes(Enum):
 
 
 class ServantClient(ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._log = logging.getLogger(str(self.__class__))
 
@@ -33,19 +33,19 @@ class ServantClient(ABC):
         pass
 
     @abstractmethod
-    def create_channel(self, channel: Channel):
+    def create_channel(self, channel: Channel) -> None:
         pass
 
     @abstractmethod
-    def destroy_channel(self, channel: Channel):
+    def destroy_channel(self, channel: Channel) -> None:
         pass
 
     @abstractmethod
-    def touch(self, slot: Slot, channel: Channel):
+    def touch(self, slot: Slot, channel: Channel) -> None:
         pass
 
     @abstractmethod
-    def publish(self, zygote: Zygote):
+    def publish(self, zygote: Zygote) -> None:
         pass
 
     @abstractmethod

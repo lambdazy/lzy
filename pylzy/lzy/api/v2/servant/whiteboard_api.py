@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, List, Type
+from typing import Any, List, Optional, Type
 
 from ai.lzy.v1.whiteboard_pb2 import Whiteboard
 
@@ -57,8 +57,8 @@ class WhiteboardApi(ABC):
         self,
         namespace: str,
         tags: List[str],
-        from_date: datetime = None,
-        to_date: datetime = None,
+        from_date: Optional[datetime] = None,
+        to_date: Optional[datetime] = None,
     ) -> List[Whiteboard]:
         pass
 

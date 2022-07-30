@@ -1,6 +1,6 @@
 import functools
 from itertools import chain
-from typing import Any, Callable, Dict, Tuple, Type, TypeVar
+from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar
 
 DEBUG = False
 
@@ -149,7 +149,10 @@ def is_proxy(obj: Any) -> bool:
 
 # TODO: LazyProxy type?
 def proxy(
-    constructor: Callable[[], T], proto_type: Type[T], cls_attrs=None, obj_attrs=None
+    constructor: Callable[[], T],
+    proto_type: Type[T],
+    cls_attrs: Optional[Dict[str, Any]] = None,
+    obj_attrs: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """
     Function which returns proxy on object, i.e. object which looks like original,
@@ -161,8 +164,8 @@ def proxy(
     >>> 1
     >>> 2
     """
-    cls_attrs = cls_attrs or {}
-    obj_attrs = obj_attrs or {}
+    cls_attrs: Dict[str, Any] = cls_attrs or {}
+    obj_attrs: Dict[str, Any] = obj_attrs or {}
 
     # yea, creates new class everytime
     # probably all this stuff could be done with just one `type` call
