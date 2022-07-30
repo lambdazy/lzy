@@ -40,10 +40,14 @@ def init_logger():
 
 init_logger()
 
+FuncT = TypeVar(
+    "FuncT",
+    bound=Callable[..., Any],
+)
 
 # pylint: disable=[invalid-name]
 def op(
-    func: Optional[Callable[[...], Any]] = None,
+    func: Optional[FuncT] = None,
     *,
     gpu: Gpu = None,
     output_type=None,

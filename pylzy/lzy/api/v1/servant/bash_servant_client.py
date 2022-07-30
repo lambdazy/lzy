@@ -8,9 +8,15 @@ import tempfile
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import IO, Any, Union, Dict, Iterable, List, Optional
+from typing import IO, Any, Dict, Iterable, List, Optional, Union
 
-from lzy.api.v1.servant.model.channel import Bindings, Channel, DataSchema, SnapshotChannelSpec, DirectChannelSpec
+from lzy.api.v1.servant.model.channel import (
+    Bindings,
+    Channel,
+    DataSchema,
+    DirectChannelSpec,
+    SnapshotChannelSpec,
+)
 from lzy.api.v1.servant.model.encoding import ENCODING as encoding
 from lzy.api.v1.servant.model.execution import (
     Execution,
@@ -166,7 +172,7 @@ class BashServantClient(ServantClient):
         self,
         name: str,
         data_schema: DataSchema,
-        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec],
     ) -> Channel:
         self._log.info(f"Creating channel {name}")
         command = [f"{self.mount()}/sbin/channel", "create", name]
@@ -192,7 +198,7 @@ class BashServantClient(ServantClient):
         command.extend(["-c", data_scheme_file])
 
         result = exec_bash(*command)
-        channel_id = json.loads(result)['channelId']
+        channel_id = json.loads(result)["channelId"]
 
         return Channel(channel_id, name, data_schema, spec)
 
