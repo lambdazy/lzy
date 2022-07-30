@@ -1,6 +1,6 @@
 import functools
 from itertools import chain
-from typing import Any, Callable, Dict, Tuple, Type, TypeVar
+from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar
 
 DEBUG = False
 
@@ -149,7 +149,10 @@ def is_proxy(obj: Any) -> bool:
 
 # TODO: LazyProxy type?
 def proxy(
-    constructor: Callable[[], T], proto_type: Type[T], cls_attrs=None, obj_attrs=None
+    constructor: Callable[[], T],
+    proto_type: Type[T],
+    cls_attrs: Optional[Dict[str, Any]] = None,
+    obj_attrs: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """
     Function which returns proxy on object, i.e. object which looks like original,
@@ -161,8 +164,8 @@ def proxy(
     >>> 1
     >>> 2
     """
-    cls_attrs = cls_attrs or {}
-    obj_attrs = obj_attrs or {}
+    _cls_attrs: Dict[str, Any] = cls_attrs or {}
+    _obj_attrs: Dict[str, Any] = obj_attrs or {}
 
     # yea, creates new class everytime
     # probably all this stuff could be done with just one `type` call
@@ -172,14 +175,14 @@ def proxy(
         metaclass=Proxifier,
         proto_type=proto_type,
         constructor=constructor,
-        cls_attrs=cls_attrs,
+        cls_attrs=_cls_attrs,
     ):
         def __init__(self):
             if DEBUG:
                 print("Pearl __init__ call")
 
             super().__init__()
-            for name, attr in obj_attrs.items():
+            for name, attr in _obj_attrs.items():
                 setattr(self, name, attr)
 
         # for cases when user-defined class has custom __new__
@@ -198,10 +201,13 @@ def proxy(
             elif item == "__lzy_materialized__":
                 return hasattr(type(self), "_origin")
 
-            if item in obj_attrs or item in cls_attrs:
+            if item in _obj_attrs or item in _cls_attrs:
                 candidate = super().__getattribute__(item)
             else:
-                candidate = getattr(create_and_cache(type(self), constructor), item)
+                candidate = getattr(
+                    create_and_cache(type(self), constructor),
+                    item,
+                )
 
             if DEBUG:
                 print(f"and gonna return {candidate}")
@@ -211,12 +217,16 @@ def proxy(
         def __setattr__(self, item, value):
             # if trying to set attributes from obj_attrs to pearl obj
             # try to directly put stuff into __dict__ of pearl obj
-            if item in obj_attrs or item in cls_attrs:
+            if item in _obj_attrs or item in _cls_attrs:
                 return super().__setattr__(item, value)
 
             # if trying to set smth unspecified then just redirect
             # setattr call to underlying original object
-            return setattr(create_and_cache(type(self), constructor), item, value)
+            return setattr(
+                create_and_cache(type(self), constructor),
+                item,
+                value,
+            )
 
     return Pearl()  # type: ignore
 

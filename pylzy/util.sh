@@ -4,38 +4,52 @@ NC='\033[0m' # No Color
 
 _f="formatter"
 _t="typechecker"
+_c="command"
+_w="Whole pipeline"
 
-rc=0
+# all functions below work with variables _ex, type, cmd
+start() {
+    return 0
+}
 
-print_cmd_exit() {
-    _ex=$1
-    msg="$2 exited with code: $_ex"
-    [ $_ex -eq 0 ] && print_green "$msg" || print_red "$msg"
+finish() {
+     _print_ce "$_w"
 }
 
 run() {
-    type=$1
-    cmd_name=$2
+    (_ex=$?; type="$1"; cmd="$2"; _isolate_run; upd_rc;)
+}
 
-    println "Calling $type: $cmd_name"
+upd_rc() {
+    [ $? -eq 0 ] && [ $_ex -eq 0 ]
+}
 
-    $cmd_name
+_isolate_run() {
+    println "Calling $type:" "$ $cmd"
+    $cmd
+    _print_ce "$type"
+}
 
-    _ex=$?
-    print_cmd_exit $_ex $cmd_name
+_print_ce() {
+    (_ex=$?; type="$1"; _print_cmd_exit; exit $_ex;)
+}
 
-    [ $rc -eq 0 ] && [ $_ex -eq 0 ]
-    rc=$?
+_print_cmd_exit()  {
+    [ $_ex -eq 0 ] && pr=print_green || pr=print_red
+
+    $pr "$type run"
+    [ -v cmd ] && $pr "$ $cmd"
+    $pr "exited with code: $_ex"
 }
 
 print_red() {
-    printf "${RED}%s${NC}\n" "$1"
+    printf "${RED}%s${NC}\n" "$@"
 }
 
 print_green() {
-    printf "${GREEN}%s${NC}\n" "$1"
+    printf "${GREEN}%s${NC}\n" "$@"
 }
 
 println() {
-    printf "%s\n" "$1"
+    printf "%s\n" "$@"
 }

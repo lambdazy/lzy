@@ -4,7 +4,11 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, TypeVar, Union
 
-from lzy.api.v1.servant.model.channel import Channel, SnapshotChannelSpec, DirectChannelSpec
+from lzy.api.v1.servant.model.channel import (
+    Channel,
+    DirectChannelSpec,
+    SnapshotChannelSpec,
+)
 from lzy.api.v1.servant.model.file_slots import create_slot
 from lzy.api.v1.servant.model.slot import DataSchema, Direction, Slot
 from lzy.api.v1.servant.servant_client import ServantClient
@@ -18,7 +22,9 @@ class ChannelManager(abc.ABC):
     def channel(self, entry_id: str, type_: DataSchema) -> Channel:
         if entry_id in self._entry_id_to_channel:
             return self._entry_id_to_channel[entry_id]
-        channel = self._create_channel(entry_id, type_, SnapshotChannelSpec(self._snapshot_id, entry_id))
+        channel = self._create_channel(
+            entry_id, type_, SnapshotChannelSpec(self._snapshot_id, entry_id)
+        )
         self._entry_id_to_channel[entry_id] = channel
         return channel
 
@@ -55,7 +61,7 @@ class ChannelManager(abc.ABC):
         self,
         name: str,
         data_schema: DataSchema,
-        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec],
     ) -> Channel:
         pass
 
@@ -90,7 +96,7 @@ class ServantChannelManager(ChannelManager):
         self,
         name: str,
         data_schema: DataSchema,
-        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec],
     ) -> Channel:
         return self._servant.create_channel(name, data_schema, spec)
 
@@ -107,7 +113,7 @@ class LocalChannelManager(ChannelManager):
         self,
         name: str,
         data_schema: DataSchema,
-        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec],
     ) -> Channel:
         pass
 
