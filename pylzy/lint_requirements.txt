@@ -1,0 +1,4 @@
+types-PyYAML
+types-setuptools
+types-requests
+boto3-stubs[s3]

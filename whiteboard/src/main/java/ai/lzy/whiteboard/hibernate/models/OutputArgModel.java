@@ -1,0 +1,16 @@
+package ai.lzy.whiteboard.hibernate.models;
+
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+@Entity
+@Table(name = "output_arg")
+public class OutputArgModel extends ArgModelBase {
+    public OutputArgModel(String snapshotId, String entryId, Integer executionId, String name) {
+        super(snapshotId, entryId, executionId, name);
+    }
+
+    public OutputArgModel() {
+        super();
+    }
+}

@@ -1,0 +1,112 @@
+package ai.lzy.server.utils.azure;
+
+import ai.lzy.server.configs.StorageConfigs;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.BlobServiceClientBuilder;
+import com.azure.storage.blob.sas.BlobContainerSasPermission;
+import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
+import com.azure.storage.common.sas.SasProtocol;
+import java.net.URI;
+import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.Map;
+import ai.lzy.model.StorageCredentials;
+import ai.lzy.model.StorageCredentials.AmazonCredentials;
+import ai.lzy.model.StorageCredentials.AzureCredentials;
+import ai.lzy.model.StorageCredentials.AzureSASCredentials;
+import ai.lzy.server.storage.AzureSASCredentialsImpl;
+
+public class StorageUtils {
+
+    public static StorageCredentials.AzureSASCredentials getCredentialsByBucket(String uid, String bucket,
+        StorageConfigs.AzureCredentials credentials) {
+        BlobContainerSasPermission blobContainerSasPermission = new BlobContainerSasPermission()
+            .setReadPermission(true)
+            .setAddPermission(true)
+            .setCreatePermission(true)
+            .setWritePermission(true)
+            .setListPermission(true);
+        BlobServiceSasSignatureValues builder =
+            new BlobServiceSasSignatureValues(OffsetDateTime.now().plusDays(1), blobContainerSasPermission)
+                .setProtocol(SasProtocol.HTTPS_HTTP);
+        BlobServiceClient client = new BlobServiceClientBuilder()
+            .connectionString(credentials.getConnectionString())
+            .buildClient();
+
+        BlobContainerClient blobClient = client.getBlobContainerClient(bucket);
+
+        URI endpointUri = URI.create(String.format("https://%s.blob.core.windows.net?%s", client.getAccountName(),
+            blobClient.generateSas(builder)));
+
+        return new AzureSASCredentialsImpl(
+            getQueryMap(endpointUri.getQuery()).get("sig"),
+            endpointUri.toString()
+        );
+    }
+
+    public static void createBucketIfNotExists(StorageCredentials credentials, String bucket) {
+        switch (credentials.type()) {
+            case Azure: {
+                AzureCredentials azureCredentials = (AzureCredentials) credentials;
+                BlobContainerClient client = new BlobServiceClientBuilder()
+                    .connectionString(azureCredentials.connectionString())
+                    .buildClient()
+                    .getBlobContainerClient(bucket);
+                if (!client.exists()) {
+                    client.create();
+                }
+                return;
+            }
+            case Amazon: {
+                AmazonCredentials amazonCredentials = (AmazonCredentials) credentials;
+
+                final String endpoint = amazonCredentials.endpoint();
+                AmazonS3 client = AmazonS3ClientBuilder.standard()
+                    .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(
+                        amazonCredentials.accessToken(), amazonCredentials.secretToken()
+                    )))
+                    .withEndpointConfiguration(
+                        new AmazonS3ClientBuilder.EndpointConfiguration(
+                            endpoint, "us-west-1"
+                        )
+                    )
+                    .withPathStyleAccessEnabled(true)
+                    .build();
+                if (!client.doesBucketExistV2(bucket)) {
+                    client.createBucket(bucket);
+                }
+                return;
+            }
+            case AzureSas: {
+                AzureSASCredentials creds = (AzureSASCredentials) credentials;
+                BlobContainerClient client = new BlobServiceClientBuilder()
+                    .endpoint(creds.endpoint())
+                    .buildClient()
+                    .getBlobContainerClient(bucket);
+                if (!client.exists()) {
+                    client.create();
+                }
+                return;
+            }
+            default:
+                throw new IllegalStateException("Unexpected value: " + credentials.type());
+        }
+    }
+
+    public static Map<String, String> getQueryMap(String query) {
+        String[] params = query.split("&");
+        Map<String, String> map = new HashMap<>();
+
+        for (String param : params) {
+            String name = param.split("=")[0];
+            String value = param.split("=")[1];
+            map.put(name, value);
+        }
+        return map;
+    }
+}

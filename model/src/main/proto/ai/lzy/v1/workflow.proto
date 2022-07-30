@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+import "ai/lzy/v1/server.proto";
+
+package ai.lzy.v1;
+
+option java_outer_classname = "LzyWorkflowApi";
+option java_package = "ai.lzy.v1";
+
+
+service LzyWorkflow {
+  rpc CreateWorkflow (CreateWorkflowRequest) returns (CreateWorkflowResponse);
+  rpc AttachWorkflow (AttachWorkflowRequest) returns (AttachWorkflowResponse);
+  rpc FinishWorkflow (FinishWorkflowRequest) returns (FinishWorkflowResponse);
+  rpc DeleteWorkflow (DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
+}
+
+
+message CreateWorkflowRequest {
+  string workflowName = 1;
+}
+
+message CreateWorkflowResponse {
+  string executionId = 1;
+
+  message TempStorage {
+    oneof credentials {
+      AmazonCredentials amazon = 1;
+      AzureCredentials azure = 2;
+    }
+
+    string bucket = 4;
+  }
+
+  TempStorage tempStorage = 2;
+}
+
+message AttachWorkflowRequest {
+  string workflowName = 1;
+  string executionId = 2;
+}
+
+message AttachWorkflowResponse {
+}
+
+message FinishWorkflowRequest {
+  string workflowName = 1;
+  string executionId = 2;
+  string reason = 3;
+}
+
+message FinishWorkflowResponse {
+}
+
+message DeleteWorkflowRequest {
+  string workflowName = 1;
+}
+
+message DeleteWorkflowResponse {
+}

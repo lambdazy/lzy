@@ -1,0 +1,148 @@
+name: Test on pull request
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+
+  #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
+  all-tests:
+    runs-on: self-hosted
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: "Chown for checkout"
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+
+      - name: "Checkout"
+        uses: actions/checkout@v3
+
+      - name: 'Clear before tests'
+        run: |
+          sudo umount -f /tmp/lzy*
+          sudo umount -f /tmp/term*
+          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
+
+      - name: 'python-test'
+        timeout-minutes: 5
+        run: |
+          cd pylzy/
+          ./gen_proto.sh
+          ./run_tests.sh
+
+      - name: 'clean after python-test'
+        run: |
+          ./clean.sh
+          cd ..
+
+      - name: Get last commit message
+        id: last-commit-message
+        run: |
+          echo "::set-output name=msg::$(git log -1 --pretty=%s)"
+
+      - name: 'commit py coverage badge'
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: ${{ steps.last-commit-message.outputs.msg }}
+          commit_options: '--amend --no-edit'
+          file_pattern: pylzy/coverage.svg
+          skip_checkout: true
+          push_options: '--force'
+
+      - name: 'install python requirements'
+        run: |
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r servant/docker/requirements.txt
+
+      - name: 'install pylzy'
+        run: |
+          cd pylzy/
+          ./gen_proto.sh
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
+          cd ..
+
+      - name: 'java unit tests and install'
+        timeout-minutes: 15
+        run: mvn clean install
+
+      - name: 'RunTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'PyApiTest'
+        timeout-minutes: 20
+        run: |
+          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'build servant image'
+        timeout-minutes: 15
+        run: |
+          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH master)
+          docker pull $SERVANT_BASE_IMAGE
+          SERVANT_BASE_TAG="$(echo $SERVANT_BASE_IMAGE | awk -F: '{print $2}')"
+          docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
+
+      - name: 'DockerServantTest'
+        timeout-minutes: 15
+        run: |
+          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH master)
+          cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
+
+      - name: 'LzyDryStartupTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'LzyStartupWithAvailableZygotesTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'MultiSessionTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'SnapshotTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'TerminalCrashTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'ServantCrashTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=ServantCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'Clean docker files'
+        run: |
+          docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
+          docker image prune -f
+          docker volume prune -f
+
+      - name: 'Clear after tests'
+        if: always()
+        run: |
+          SHA=${{ github.sha }}
+          sudo mkdir -p /tmp/old-lzy-logs/$SHA
+          sudo tar -czvf /tmp/old-lzy-logs/$SHA/logs.tar.gz /tmp/lzy-log
+          sudo umount -f /tmp/lzy*
+          sudo umount -f /tmp/term*
+          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
+      #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
+
+      - name: 'Publish Test Report'
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
+        with:
+          files: "**/surefire-reports/TEST-*.xml"

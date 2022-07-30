@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package ai.lzy.v1.graph;
+
+option java_outer_classname = "GraphExecutorApi";
+option java_package = "ai.lzy.v1.graph";
+
+import "ai/lzy/v1/scheduler/scheduler.proto";
+import "ai/lzy/v1/zygote.proto";
+
+service GraphExecutor {
+  rpc Execute (GraphExecuteRequest) returns (GraphExecuteResponse);
+  rpc Status (GraphStatusRequest) returns (GraphStatusResponse);
+  rpc Stop (GraphStopRequest) returns (GraphStopResponse);
+  rpc List (GraphListRequest) returns (GraphListResponse);
+}
+
+message TaskDesc {
+  string id = 1;
+  Zygote zygote = 2;
+  repeated SlotToChannelAssignment slotAssignments = 3;
+}
+
+message SlotToChannelAssignment {
+  string slotName = 1;
+  string channelId = 2;
+}
+
+message TaskExecutionStatus {
+  string taskDescriptionId = 1;
+  scheduler.TaskStatus progress = 2;
+}
+
+message GraphExecutionStatus {
+  message Waiting {}
+  message Executing {
+    repeated TaskExecutionStatus executingTasks = 1;
+  }
+  message Completed {}
+  message Failed {
+    string description = 1;
+  }
+
+  string workflowId = 1;
+  string graphId = 2;
+
+  oneof status {
+    Waiting waiting = 3;
+    Executing executing = 4;
+    Completed completed = 5;
+    Failed failed = 6;
+  }
+}
+
+message ChannelDesc {
+  string id = 1;
+
+  // Channel types
+  message DirectChannel {}
+
+  oneof type {
+    DirectChannel direct = 2;
+  }
+}
+
+// =========Execute=========
+
+message GraphExecuteRequest {
+  string workflowId = 1;
+  string workflowName = 2;
+  repeated TaskDesc tasks = 3;
+  string parentGraphId = 4;
+  repeated ChannelDesc channels = 5;
+}
+message GraphExecuteResponse {
+  GraphExecutionStatus status = 1;
+}
+
+// =========Status==========
+
+message GraphStatusRequest {
+  string workflowId = 1;
+  string graphId = 2;
+}
+message GraphStatusResponse {
+  GraphExecutionStatus status = 1;
+}
+
+// =========Stop============
+
+message GraphStopRequest {
+  string workflowId = 1;
+  string graphId = 2;
+  string issue = 3;
+}
+message GraphStopResponse {
+  GraphExecutionStatus status = 1;
+}
+
+// =========List============
+
+message GraphListRequest {
+  string workflowId = 1;
+}
+message GraphListResponse {
+  repeated GraphExecutionStatus graphs = 1;
+}

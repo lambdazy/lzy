@@ -1,0 +1,2 @@
+{ }:
+(import ./build.nix {}).shell

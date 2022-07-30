@@ -1,0 +1,95 @@
+package ai.lzy.model.utils;
+
+import static java.security.Security.addProvider;
+
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
+
+public class JwtCredentials {
+    public static String buildJWT(String uid, PrivateKey key) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+            .setIssuedAt(Date.from(now))
+            .setNotBefore(Date.from(now))
+            .setExpiration(Date.from(now.plus(Duration.ofDays(7))))
+            .setIssuer(uid)
+            .signWith(key, SignatureAlgorithm.PS256)
+            .compact();
+    }
+
+    public static String buildJWT(String uid, Reader privateKeyReader)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        addProvider(new BouncyCastleProvider());
+        KeyFactory factory = KeyFactory.getInstance("RSA");
+        try (PemReader pemReader = new PemReader(privateKeyReader)) {
+            PemObject pemObject = pemReader.readPemObject();
+            byte[] content = pemObject.getContent();
+            PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(content);
+            PrivateKey privateKey = factory.generatePrivate(privateKeySpec);
+
+            return buildJWT(uid, privateKey);
+        }
+    }
+
+    public static boolean checkJWT(PublicKey key, String jwt, String uid) {
+        try {
+            Jwts.parserBuilder()
+                .requireIssuer(uid)
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(jwt);
+            return true;
+        } catch (JwtException ex) {
+            return false;
+        }
+    }
+
+    public static boolean checkJWT(Reader keyReader, String jwt, String uid)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        try (PemReader pemReader = new PemReader(keyReader)) {
+            KeyFactory factory = KeyFactory.getInstance("RSA");
+            PemObject pemObject = pemReader.readPemObject();
+            byte[] content = pemObject.getContent();
+            X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(content);
+            PublicKey rsaKey = factory.generatePublic(pubKeySpec);
+            return checkJWT(rsaKey, jwt, uid);
+        }
+    }
+
+    public record Keys(
+        Path publicKeyPath,
+        Path privateKeyPath
+    ) {}
+
+    public static Keys generateRsaKeys() throws IOException, InterruptedException {
+        final Path tempDirectory = Files.createTempDirectory("test-rsa-keys");
+        final Path publicKeyPath = tempDirectory.resolve("public.pem");
+        final Path privateKeyPath = tempDirectory.resolve("private.pem");
+
+        final Process exec = Runtime.getRuntime()
+            .exec(String.format("openssl genrsa -out %s 2048", privateKeyPath));
+        exec.waitFor();
+        final Process exec1 = Runtime.getRuntime()
+            .exec(String.format("openssl rsa -in %s -outform PEM -pubout -out %s", privateKeyPath, publicKeyPath));
+        exec1.waitFor();
+        return new Keys(publicKeyPath, privateKeyPath);
+    }
+}

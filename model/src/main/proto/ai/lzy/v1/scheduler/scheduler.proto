@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package ai.lzy.v1.scheduler;
+
+option java_outer_classname = "SchedulerApi";
+option java_package = "ai.lzy.v1";
+
+import "ai/lzy/v1/zygote.proto";
+service Scheduler {
+  rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
+  rpc Status (TaskStatusRequest) returns (TaskStatusResponse);
+  rpc List (TaskListRequest) returns (TaskListResponse);
+  rpc Stop (TaskStopRequest) returns (TaskStopResponse);
+  rpc KillAll (KillAllRequest) returns (KillAllResponse);
+}
+
+message TaskStatus {
+  string workflowId = 1;
+  string taskId = 2;
+
+  string zygoteName = 3;
+
+  oneof status {
+    Queue queue = 4;
+    Executing executing = 5;
+    Success success = 6;
+    Error error = 7;
+  }
+
+  message Queue {}
+
+  message Executing {}
+
+  message Success {
+    int32 rc = 1;
+  }
+
+  message Error {
+    int32 rc = 1;
+    string description = 2;
+  }
+
+}
+
+// =========== Schedule ============
+
+message SlotToChannelAssignment {
+  string slotName = 1;
+  string channelId = 2;
+}
+
+message TaskDesc {
+  Zygote zygote = 2;
+  repeated SlotToChannelAssignment slotAssignments = 3;
+}
+
+message TaskScheduleRequest {
+  string workflowId = 1;
+  string workflowName = 2;
+  TaskDesc task = 3;
+}
+message TaskScheduleResponse {
+  TaskStatus status = 1;
+}
+
+// =========== Status ============
+
+message TaskStatusRequest {
+  string workflowId = 1;
+  string taskId = 2;
+}
+message TaskStatusResponse {
+  TaskStatus status = 1;
+}
+
+// =========== List ============
+
+message TaskListRequest {
+  string workflowId = 1;
+}
+message TaskListResponse {
+  repeated TaskStatus status = 1;
+}
+
+// =========== Signal ============
+
+message TaskStopRequest {
+  string workflowId = 1;
+  string taskId = 2;
+
+  string issue = 3;
+}
+
+message TaskStopResponse {
+  TaskStatus status = 1;
+}
+
+// ============ KillAll =============
+
+message KillAllRequest {
+  string workflowName = 1;
+  string issue = 2;
+}
+message KillAllResponse {}
+

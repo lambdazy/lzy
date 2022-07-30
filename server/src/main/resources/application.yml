@@ -1,0 +1,11 @@
+storage:
+  separated: false
+  azure:
+    enabled: false
+  amazon:
+    enabled: false
+server:
+  enabled: false
+  userLimit: 60 # 0 - is infinite limit
+database:
+  enabled: false

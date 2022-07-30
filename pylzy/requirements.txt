@@ -1,0 +1,9 @@
+boto3>=1.20.24
+cloudpickle>=2.1.0
+pyyaml>=6.0
+importlib-metadata>=4.8.1
+wheel>=0.36.2
+azure-storage-blob>=12.9.0
+requests>=2.26
+stdlib-list>=0.8.0
+hidden-pure-protobuf>=0.2

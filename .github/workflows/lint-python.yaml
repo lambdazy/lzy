@@ -1,0 +1,43 @@
+name: Lint python
+
+on:
+  pull_request:
+    paths:
+      - 'pylzy/lzy/**'
+      - 'jupyter-kernel/lzy/**'
+
+jobs:
+  mypy:
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: "Chown for checkout"
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+
+      - name: "Checkout"
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run lint.sh on pylzy
+        run: |
+          cd pylzy
+          ./gen_proto.sh
+          ./lint.sh
+
+      - name: Clean pylzy/ up
+        run: |
+          cd pylzy
+          ./clean.sh
+
+      - name: Run lint.sh on jupyter-kernel
+        run: |
+          cd jupyter-kernel
+          ./lint.sh
+
+      - name: Clean jupyter-kernel/ up
+        run: |
+          cd jupyter-kernel
+          ../pylzy/clean.sh

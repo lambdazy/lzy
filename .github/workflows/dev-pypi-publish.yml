@@ -1,0 +1,74 @@
+name: Publish dev pylzy-nightly package
+
+on:
+  workflow_dispatch:
+  #schedule:
+  #  - cron: '59 20 * * *' # run everyday on 23:59 Moscow Time: UTC+3
+
+jobs:
+  #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
+  acceptance-test:
+#    runs-on: self-hosted
+    runs-on: self-hosted
+    timeout-minutes: 60
+    steps:
+      - name: "Chown for checkout"
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+
+      - name: "Checkout"
+        uses: actions/checkout@v3 # TODO: should it run in master or in dev?
+        with:
+          fetch-depth: 0
+
+      - run: git checkout dev
+
+      - name: 'Copy secret key'
+        env:
+          PRIVATE_KEY: ${{ secrets.TESTS_PRIVATE_SSH_KEY }}
+        run: touch /tmp/test-private.pem && echo "$PRIVATE_KEY" > /tmp/test-private.pem
+
+      - name: 'AC test'
+        timeout-minutes: 45
+        run: mvn install -Dlzy.kharon.domain=api.lzy.ai -Dtest=KuberRunTest -DfailIfNoTests=false
+
+      - uses: scacap/action-surefire-report@v1
+        if: always()
+
+  #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/acceptance-tests.yml
+
+
+  #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml
+  build-and-publish:
+    needs: acceptance-test
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - run: git checkout dev
+
+      - uses: cachix/install-nix-action@v15
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      - run: cd pylzy
+
+      - name: Build package
+        run: ./clean.sh && ./build.sh --dev
+
+      - name: Publish package
+        run: ./publish.sh
+        env:
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_NIGHTLY_TOKEN}}
+
+      - name: Clean up
+        run: ./clean.sh && cd ..
+
+  #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml

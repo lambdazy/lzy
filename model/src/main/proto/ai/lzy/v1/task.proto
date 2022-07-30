@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+import "ai/lzy/v1/zygote.proto";
+import "ai/lzy/v1/auth.proto";
+
+package ai.lzy.v1;
+
+option java_outer_classname = "Tasks";
+option java_package = "ai.lzy.v1";
+
+message TaskCommand {
+  Auth auth = 1;
+  string tid = 2;
+  oneof command {
+    TaskSignal signal = 4;
+    TaskState state = 5;
+  }
+}
+
+message SlotMapping {
+  string slotName = 1;
+  string entryId = 2;
+}
+
+message SnapshotMeta {
+  repeated SlotMapping mappings = 1;
+}
+
+message TaskSpec {
+  string tid = 1;
+  Auth auth = 2;
+  Zygote zygote = 3;
+  repeated SlotAssignment assignments = 4;
+}
+
+message TaskSignal {
+  SIGType sig = 1;
+
+  enum SIGType {
+    NONE = 0;
+    reserved 1 to 8;
+    KILL = 9;
+  }
+}
+
+message TaskState {
+}
+
+message SlotAssignment {
+  string taskId = 1;
+  Slot slot = 2;
+  string binding = 3;
+}
+
+message TaskStatus {
+  string taskId = 1;
+  string owner = 2;
+
+  TaskProgress.Status status = 3;
+  string servant = 4;
+
+  repeated SlotStatus connections = 5;
+
+  string explanation = 6;
+
+  Zygote zygote = 7;
+}
+
+message TasksList {
+  repeated TaskStatus tasks = 1;
+}
+
+message TaskProgress {
+  string tid = 1;
+  Status status = 2;
+  string description = 3;
+  int32 rc = 4;
+  string zygoteName = 5;
+  enum Status {
+    UNKNOWN = 0;
+    QUEUE = 1;
+    PREPARING = 2;
+    EXECUTING = 3;
+    SUCCESS = 4;
+    ERROR = 5;
+  }
+}
+
+message ContextSpec {
+  EnvSpec env = 1;
+  Provisioning provisioning = 2;
+  repeated SlotAssignment assignments = 3;
+}

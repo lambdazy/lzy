@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package ai.lzy.v1;
+
+option java_outer_classname = "Operations";
+option java_package = "ai.lzy.v1";
+
+message Zygote {
+  // TODO: return uri back
+  EnvSpec env = 1;
+  Provisioning provisioning = 2;
+  string fuze = 3;
+  repeated Slot slots = 4;
+  string description = 5;
+  string name = 6;
+}
+
+message ZygoteList {
+  repeated Zygote zygote = 1;
+}
+
+enum SchemeType {
+  plain = 0;
+  proto = 1;
+  cloudpickle = 2;
+}
+
+message DataScheme {
+  string type = 1;
+  SchemeType schemeType = 2;
+}
+
+message Slot {
+  string name = 1;
+
+  Media media = 2;
+  Direction direction = 4;
+
+  DataScheme contentType = 3;
+
+  enum Media {
+    FILE = 0;
+    PIPE = 1;
+    ARG = 3;
+  }
+
+  enum Direction {
+    INPUT = 0;
+    OUTPUT = 1;
+  }
+}
+
+message SlotStatus {
+  string taskId = 1;
+  Slot declaration = 2;
+
+  string connectedTo = 3;
+
+  uint64 pointer = 4;
+
+  State state = 5;
+
+  /* For input slot SUSPENDED command could happen while reading to change a source of data
+  * For output slot CLOSED means that process has finished generating data.
+  * CLOSED and SUSPENDED are independent events: one could happen before or after the other. If CLOSED come while
+  * slot is in SUSPENDED state, slot must remember this event and after reconnection feed CLOSED back to the server
+  */
+  enum State {
+    UNBOUND = 0;
+    PREPARING = 1;
+    OPEN = 2;
+    SUSPENDED = 3;
+    CLOSED = 4;
+    DESTROYED = 5;
+  }
+}
+
+message EnvSpec {
+  BaseEnv baseEnv = 1;
+  AuxEnv auxEnv = 2;
+}
+
+message BaseEnv {
+  string name = 1;
+}
+
+message AuxEnv {
+  oneof env {
+    PythonEnv pyenv = 1;
+  }
+}
+
+message PythonEnv {
+  string name = 1;
+  string yaml = 2;
+  repeated LocalModule localModules = 3;
+}
+
+message LocalModule {
+  string name = 1;
+  string uri = 2;
+}
+
+message Provisioning {
+  message Tag {
+    string tag = 1;
+  }
+  repeated Tag tags = 1;
+}

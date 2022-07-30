@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: servant-lock
+  labels:
+    app: servant-lock
+    app.kubernetes.io/name: servant-lock
+    app.kubernetes.io/part-of: lzy
+    lzy.ai/app: servant-lock
+spec:
+  containers:
+    - name: lzy-servant-lock
+      image: alpine
+      command: ["/bin/sh", "-c", "while :; do sleep 60 ; done"]
+      imagePullPolicy: Always
+  restartPolicy: Never
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - servant-lock
+                  - lzy-server
+                  - lzy-kharon
+                  - lzy-backoffice
+                  - whiteboard
+                  - grafana
+                  - kafka
+                  - clickhouse
+          topologyKey: "kubernetes.io/hostname"
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet

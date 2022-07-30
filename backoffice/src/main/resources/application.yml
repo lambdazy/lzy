@@ -1,0 +1,24 @@
+micronaut:
+  application:
+    name: lzyBackoffice
+  ssl:
+    key-store:
+      path: file:/app/keystore.jks
+      type: JKS
+    enabled: false
+  server:
+    port: 8080
+    cors:
+      enabled: true
+    ssl:
+      port: 8443
+grpc:
+  host: 127.0.0.1
+  port: 8888
+credentials:
+  user-id: artolord
+  private-key-path: <Some token path> # Can be set with CREDENTIALS_PRIVATE_KEY_PATH env var
+oauth:
+  github:
+    client-id: <Some client id>
+    client-secret: <Some client secret>
