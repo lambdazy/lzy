@@ -1,6 +1,8 @@
 #!/usr/bin/env nix-shell
 #! nix-shell build.nix -A shell -i bash
 
+set -ex
+
 source ./util.sh
 
 echo "Building pylzy package"
