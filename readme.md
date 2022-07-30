@@ -1,4 +1,5 @@
-[![Tests](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml/badge.svg?branch=dev)](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml)
+[![Tests](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml/badge.svg)](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml)
+[![Python tests coverage](https://gist.githubusercontent.com/mrMakaronka/0095e900fb0fcbe5575ddc3c717fb65b/raw/master-coverage.svg)](https://github.com/lambdazy/lzy/tree/master/pylzy/tests)
 
 # ʎzy
 
