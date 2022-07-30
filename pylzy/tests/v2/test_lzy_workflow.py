@@ -39,6 +39,9 @@ class LzyWorkflowTests(TestCase):
         self._WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
         self._lzy = Lzy()
 
+    def test_broken(self):
+        self.assertTrue(False)
+
     @skip("WIP")
     def test_barrier(self):
         with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:

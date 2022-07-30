@@ -4,6 +4,8 @@ NC='\033[0m' # No Color
 
 _f="formatter"
 _t="typechecker"
+_c="command"
+_w="Whole pipeline"
 
 # all functions below work with variables _ex, type, cmd
 start() {
@@ -11,7 +13,7 @@ start() {
 }
 
 finish() {
-     _print_ce "Whole pipeline"
+     _print_ce "$_w"
 }
 
 run() {
