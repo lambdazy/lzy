@@ -44,6 +44,8 @@ jobs:
         with:
           commit_message: update coverage.svg
           file_pattern: pylzy/coverage.svg
+          skip_fetch: true
+          skip_checkout: true
 
       - name: 'install python requirements'
         run: |
