@@ -13,7 +13,7 @@ import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 
 public class Utils {
     public static class Defaults {
-        public static final int    TIMEOUT_SEC          = 30;
+        public static final int    TIMEOUT_SEC          = 60;
         public static final int    SERVANT_PORT         = 9999;
         public static final int    KHARON_PORT          = 8899;
         public static final int    S3_PORT              = 8001;
