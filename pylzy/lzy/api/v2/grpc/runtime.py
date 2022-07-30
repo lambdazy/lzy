@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 # model
-from ai.lzy.v1.channel_pb2 import Binding
 from ai.lzy.v1.graph.graph_executor_pb2 import TaskDesc
 from ai.lzy.v1.task_pb2 import TaskSpec
 from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
@@ -158,7 +157,7 @@ class GrpcRuntime(Runtime):
         snapshot_id: str,
         arg_name_to_call_id: Dict[str, str],
     ):
-        bindings: List[Binding] = []
+        # bindings: List[int] = []
         for name, arg in call.named_arguments():
             # slot: Slot = zygote.slot(name)
             if is_lzy_proxy(arg) and not materialized(arg):
@@ -169,7 +168,7 @@ class GrpcRuntime(Runtime):
             #     snapshot_id, _generate_channel_name(call_id)
             # )
             # bindings.append(Binding(slot, channel))
-        return bindings
+        # return bindings
 
     def _task_spec(
         self, call: LzyCall, snapshot_id: str, serializer: Serializer
