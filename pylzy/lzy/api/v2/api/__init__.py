@@ -10,7 +10,6 @@ from lzy.api.v2.api.lzy_call import LzyCall
 from lzy.api.v2.api.lzy_workflow import LzyWorkflow
 from lzy.api.v2.api.provisioning import Gpu, Provisioning
 from lzy.api.v2.proxy_adapter import lzy_proxy
-from lzy.api.v2.servant.model.zygote import python_func_zygote
 from lzy.api.v2.utils import infer_call_signature, infer_return_type
 from lzy.env.env import EnvSpec
 
@@ -44,7 +43,7 @@ init_logger()
 
 # pylint: disable=[invalid-name]
 def op(
-    func: Callable = None,
+    func: Optional[Callable[[...], Any]] = None,
     *,
     gpu: Gpu = None,
     output_type=None,

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import IO, cast
+from typing import TextIO, cast
 
 
 class File:
@@ -15,5 +15,5 @@ class File:
     def copy(self) -> "File":
         return File(str(self.__path))
 
-    def open(self, *args, **kwargs) -> IO:
-        return cast(IO, self.__path.open(*args, **kwargs))
+    def open(self, *args, **kwargs) -> TextIO:
+        return cast(TextIO, self.__path.open(*args, **kwargs))

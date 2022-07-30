@@ -4,7 +4,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterable, List, Union
 
-from lzy.api.v1.servant.model.channel import Bindings, Channel, DataSchema, DirectChannelSpec, SnapshotChannelSpec
+from lzy.api.v1.servant.model.channel import (
+    Bindings,
+    Channel,
+    DataSchema,
+    DirectChannelSpec,
+    SnapshotChannelSpec,
+)
 from lzy.api.v1.servant.model.execution import (
     Execution,
     ExecutionDescription,
@@ -20,7 +26,7 @@ class CredentialsTypes(Enum):
 
 
 class ServantClient(ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._log = logging.getLogger(str(self.__class__))
 
@@ -37,20 +43,20 @@ class ServantClient(ABC):
         self,
         name: str,
         data_schema: DataSchema,
-        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec],
     ) -> Channel:
         pass
 
     @abstractmethod
-    def destroy_channel(self, channel: Channel):
+    def destroy_channel(self, channel: Channel) -> None:
         pass
 
     @abstractmethod
-    def touch(self, slot: Slot, channel: Channel):
+    def touch(self, slot: Slot, channel: Channel) -> None:
         pass
 
     @abstractmethod
-    def publish(self, zygote: Zygote):
+    def publish(self, zygote: Zygote) -> None:
         pass
 
     @abstractmethod
@@ -98,7 +104,7 @@ class ServantClientMock(ServantClient):
         self,
         name: str,
         data_schema: DataSchema,
-        spec: Union[SnapshotChannelSpec, DirectChannelSpec]
+        spec: Union[SnapshotChannelSpec, DirectChannelSpec],
     ) -> Channel:
         pass
 
