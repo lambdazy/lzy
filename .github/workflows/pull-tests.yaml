@@ -39,11 +39,11 @@ jobs:
           ./clean.sh
           cd ..
 
-      - name: 'upload coverage badge'
-        uses: actions/upload-artifact@v3
+      - name: 'commit py coverage badge'
+        uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          name: py-coverage
-          path: ./pylzy/coverage.svg
+          commit_message: update coverage.svg
+          file_pattern: pylzy/coverage.svg
 
       - name: 'install python requirements'
         run: |

@@ -169,7 +169,6 @@ pylzy/*.egg-info
 **/.vscode
 
 *.coverage
-coverage.svg
 
 # Local .terraform directories
 **/.terraform/*
