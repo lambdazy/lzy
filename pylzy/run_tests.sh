@@ -1,8 +1,12 @@
 #!/usr/bin/env nix-shell
 #! nix-shell build.nix -A shell-lzy -i bash
 
-set -ex
+source ./util.sh
 
-coverage run --source=./lzy -m unittest discover ./tests >test_output 2>&1
-coverage report
-coverage-badge -o coverage.svg -f
+start
+
+run $_c "coverage run --source=./lzy -m unittest discover ./tests -a"
+run $_c "coverage report"
+run $_c "coverage-badge -o coverage.svg -f"
+
+finish
